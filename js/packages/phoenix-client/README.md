@@ -333,17 +333,17 @@ const sessionTraces = await getTraces({
 });
 ```
 
-| Parameter      | Type                              | Description                                              |
-| -------------- | --------------------------------- | -------------------------------------------------------- |
-| `project`      | `ProjectIdentifier`               | The project (by name or ID) — **required**               |
-| `startTime`    | `Date \| string \| null`          | Inclusive lower bound on trace start time                 |
-| `endTime`      | `Date \| string \| null`          | Exclusive upper bound on trace start time                |
-| `sort`         | `"start_time" \| "latency_ms"`    | Sort field                                               |
-| `order`        | `"asc" \| "desc"`                 | Sort direction                                           |
-| `limit`        | `number`                          | Maximum number of traces to return                       |
-| `cursor`       | `string \| null`                  | Pagination cursor (Trace GlobalID)                       |
-| `includeSpans` | `boolean`                         | Include full span details for each trace                 |
-| `sessionId`    | `string \| string[] \| null`      | Filter traces by session identifier(s)                   |
+| Parameter      | Type                           | Description                                |
+| -------------- | ------------------------------ | ------------------------------------------ |
+| `project`      | `ProjectIdentifier`            | The project (by name or ID) — **required** |
+| `startTime`    | `Date \| string \| null`       | Inclusive lower bound on trace start time  |
+| `endTime`      | `Date \| string \| null`       | Exclusive upper bound on trace start time  |
+| `sort`         | `"start_time" \| "latency_ms"` | Sort field                                 |
+| `order`        | `"asc" \| "desc"`              | Sort direction                             |
+| `limit`        | `number`                       | Maximum number of traces to return         |
+| `cursor`       | `string \| null`               | Pagination cursor (Trace GlobalID)         |
+| `includeSpans` | `boolean`                      | Include full span details for each trace   |
+| `sessionId`    | `string \| string[] \| null`   | Filter traces by session identifier(s)     |
 
 ### Pagination
 
@@ -406,18 +406,18 @@ const rootSpans = await getSpans({
 });
 ```
 
-| Parameter    | Type                                    | Description                                                       |
-| ------------ | --------------------------------------- | ----------------------------------------------------------------- |
-| `project`    | `ProjectIdentifier`                     | The project (by name or ID) — **required**                        |
-| `startTime`  | `Date \| string \| null`                | Inclusive lower bound time                                        |
-| `endTime`    | `Date \| string \| null`                | Exclusive upper bound time                                        |
-| `limit`      | `number`                                | Maximum number of spans to return                                 |
-| `cursor`     | `string \| null`                        | Pagination cursor (Span GlobalID)                                 |
-| `traceIds`   | `string[] \| null`                      | Filter by trace ID(s)                                             |
-| `parentId`   | `string \| null`                        | Filter by parent span ID (`null` for root spans only)             |
-| `name`       | `string \| string[] \| null`            | Filter by span name(s)                                            |
-| `spanKind`   | `SpanKindFilter \| SpanKindFilter[]`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.)  |
-| `statusCode` | `SpanStatusCode \| SpanStatusCode[]`    | Filter by status code (`OK`, `ERROR`, `UNSET`)                    |
+| Parameter    | Type                                 | Description                                                     |
+| ------------ | ------------------------------------ | --------------------------------------------------------------- |
+| `project`    | `ProjectIdentifier`                  | The project (by name or ID) — **required**                      |
+| `startTime`  | `Date \| string \| null`             | Inclusive lower bound time                                      |
+| `endTime`    | `Date \| string \| null`             | Exclusive upper bound time                                      |
+| `limit`      | `number`                             | Maximum number of spans to return                               |
+| `cursor`     | `string \| null`                     | Pagination cursor (Span GlobalID)                               |
+| `traceIds`   | `string[] \| null`                   | Filter by trace ID(s)                                           |
+| `parentId`   | `string \| null`                     | Filter by parent span ID (`null` for root spans only)           |
+| `name`       | `string \| string[] \| null`         | Filter by span name(s)                                          |
+| `spanKind`   | `SpanKindFilter \| SpanKindFilter[]` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.) |
+| `statusCode` | `SpanStatusCode \| SpanStatusCode[]` | Filter by status code (`OK`, `ERROR`, `UNSET`)                  |
 
 ## Span Annotations
 
@@ -483,14 +483,14 @@ const result = await getSpanAnnotations({
 console.log(result.data); // array of span annotation objects
 ```
 
-| Parameter                | Type                  | Description                                                     |
-| ------------------------ | --------------------- | --------------------------------------------------------------- |
-| `project`                | `ProjectIdentifier`   | The project (by name or ID) — **required**                      |
-| `spanIds`                | `string[]`            | Span IDs to fetch annotations for — **required**                |
-| `includeAnnotationNames` | `string[]`            | Only return annotations with these names                        |
-| `excludeAnnotationNames` | `string[]`            | Exclude annotations with these names                            |
-| `cursor`                 | `string \| null`      | Pagination cursor                                               |
-| `limit`                  | `number`              | Maximum annotations to return                                   |
+| Parameter                | Type                | Description                                      |
+| ------------------------ | ------------------- | ------------------------------------------------ |
+| `project`                | `ProjectIdentifier` | The project (by name or ID) — **required**       |
+| `spanIds`                | `string[]`          | Span IDs to fetch annotations for — **required** |
+| `includeAnnotationNames` | `string[]`          | Only return annotations with these names         |
+| `excludeAnnotationNames` | `string[]`          | Exclude annotations with these names             |
+| `cursor`                 | `string \| null`    | Pagination cursor                                |
+| `limit`                  | `number`            | Maximum annotations to return                    |
 
 ## Examples
 

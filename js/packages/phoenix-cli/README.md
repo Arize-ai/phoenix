@@ -113,20 +113,20 @@ px spans spans.json --limit 100 --include-annotations   # save to file with anno
 px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
 ```
 
-| Option                        | Description                                                      | Default   |
-| ----------------------------- | ---------------------------------------------------------------- | --------- |
-| `[file]`                      | Save spans as JSON to file                                       | stdout    |
-| `-n, --limit <number>`        | Maximum number of spans (newest first)                           | `100`     |
-| `--last-n-minutes <number>`   | Only spans from the last N minutes                               | —         |
-| `--since <timestamp>`         | Spans since ISO timestamp                                        | —         |
-| `--span-kind <kinds...>`      | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
-| `--status-code <codes...>`    | Filter by status code (`OK`, `ERROR`, `UNSET`)                   | —         |
-| `--name <names...>`           | Filter by span name(s)                                           | —         |
-| `--trace-id <ids...>`         | Filter by trace ID(s)                                            | —         |
-| `--parent-id <id>`            | Filter by parent span ID (use `"null"` for root spans only)     | —         |
-| `--include-annotations`       | Include span annotations in the output                           | —         |
-| `--format <format>`           | `pretty`, `json`, or `raw`                                       | `pretty`  |
-| `--no-progress`               | Suppress progress output                                         | —         |
+| Option                      | Description                                                                                                                      | Default  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `[file]`                    | Save spans as JSON to file                                                                                                       | stdout   |
+| `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
+| `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
+| `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
+| `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
+| `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
+| `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
+| `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
+| `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
+| `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                       | `pretty` |
+| `--no-progress`             | Suppress progress output                                                                                                         | —        |
 
 ```bash
 # Find all ERROR spans
@@ -229,11 +229,11 @@ px projects --format raw --no-progress | jq '.[].name'
 px projects --limit 5
 ```
 
-| Option              | Description                            | Default  |
-| ------------------- | -------------------------------------- | -------- |
-| `--limit <number>`  | Maximum number of projects per page    | —        |
-| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`     | Suppress progress output               | —        |
+| Option              | Description                         | Default  |
+| ------------------- | ----------------------------------- | -------- |
+| `--limit <number>`  | Maximum number of projects per page | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty` |
+| `--no-progress`     | Suppress progress output            | —        |
 
 ---
 
@@ -247,12 +247,12 @@ px sessions --limit 20 --order asc                     # oldest first
 px sessions --format raw --no-progress | jq '.[].session_id'
 ```
 
-| Option              | Description                            | Default  |
-| ------------------- | -------------------------------------- | -------- |
-| `-n, --limit <number>` | Maximum number of sessions          | `10`     |
-| `--order <order>`   | Sort order: `asc` or `desc`            | `desc`   |
-| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`     | Suppress progress output               | —        |
+| Option                 | Description                 | Default  |
+| ---------------------- | --------------------------- | -------- |
+| `-n, --limit <number>` | Maximum number of sessions  | `10`     |
+| `--order <order>`      | Sort order: `asc` or `desc` | `desc`   |
+| `--format <format>`    | `pretty`, `json`, or `raw`  | `pretty` |
+| `--no-progress`        | Suppress progress output    | —        |
 
 ---
 
@@ -284,10 +284,10 @@ px auth status
 px auth status --endpoint http://localhost:6006
 ```
 
-| Option              | Description                | Default |
-| ------------------- | -------------------------- | ------- |
-| `--endpoint <url>`  | Phoenix API endpoint       | —       |
-| `--api-key <key>`   | Phoenix API key            | —       |
+| Option             | Description          | Default |
+| ------------------ | -------------------- | ------- |
+| `--endpoint <url>` | Phoenix API endpoint | —       |
+| `--api-key <key>`  | Phoenix API key      | —       |
 
 ---
 
