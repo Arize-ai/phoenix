@@ -112,7 +112,7 @@ class TestCleanupChatCompletionResources:
         # Give the task time to start
         await asyncio.sleep(0)
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [(0, mock_gen, task)]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {task: (mock_gen, 0)}
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         await _cleanup_chat_completion_resources(
@@ -151,7 +151,7 @@ class TestCleanupChatCompletionResources:
 
         assert task.done()
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [(0, mock_gen, task)]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {task: (mock_gen, 0)}
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         await _cleanup_chat_completion_resources(
@@ -203,11 +203,11 @@ class TestCleanupChatCompletionResources:
         task3 = asyncio.create_task(slow_task(3))
         await asyncio.sleep(0)  # Let tasks start
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen1, task1),
-            (1, mock_gen2, task2),
-            (2, mock_gen3, task3),
-        ]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {
+            task1: (mock_gen1, 0),
+            task2: (mock_gen2, 1),
+            task3: (mock_gen3, 2),
+        }
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         await _cleanup_chat_completion_resources(
@@ -227,9 +227,9 @@ class TestCleanupChatCompletionResources:
 
     async def test_empty_in_progress_no_errors(self) -> None:
         """
-        Verify cleanup handles empty in_progress list gracefully.
+        Verify cleanup handles empty in_progress dict gracefully.
         """
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {}
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         # Should not raise any exceptions
@@ -265,7 +265,7 @@ class TestCleanupChatCompletionResources:
         await mock_gen1.asend(None)
         await mock_gen2.asend(None)
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {}
         not_started: deque[tuple[int, ChatStream]] = deque(
             [
                 (1, mock_gen1),
@@ -307,7 +307,7 @@ class TestCleanupChatCompletionResources:
         await mock_gen1.asend(None)
         await mock_gen2.asend(None)
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = []
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {}
         not_started: deque[tuple[int, ChatStream]] = deque(
             [
                 (1, mock_gen1),
@@ -357,9 +357,9 @@ class TestCleanupChatCompletionResources:
         task = asyncio.create_task(completed_task())
         await task
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen_in_progress, task),
-        ]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {
+            task: (mock_gen_in_progress, 0),
+        }
         not_started: deque[tuple[int, ChatStream]] = deque(
             [
                 (1, mock_gen_not_started),
@@ -442,11 +442,11 @@ class TestCancellationIntegration:
         with pytest.raises(asyncio.CancelledError):
             await task3
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen1, task1),
-            (1, mock_gen2, task2),
-            (2, mock_gen3, task3),
-        ]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {
+            task1: (mock_gen1, 0),
+            task2: (mock_gen2, 1),
+            task3: (mock_gen3, 2),
+        }
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         # Should not raise
@@ -494,10 +494,10 @@ class TestCancellationIntegration:
         await task1
         await task2
 
-        in_progress: list[tuple[int, ChatStream, asyncio.Task[Any]]] = [
-            (0, mock_gen1, task1),
-            (1, mock_gen2, task2),
-        ]
+        in_progress: dict[asyncio.Task[Any], tuple[ChatStream, int]] = {
+            task1: (mock_gen1, 0),
+            task2: (mock_gen2, 1),
+        }
         not_started: deque[tuple[int, ChatStream]] = deque()
 
         # Should not raise even though gen1's aclose fails

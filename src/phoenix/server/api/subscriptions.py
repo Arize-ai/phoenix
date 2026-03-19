@@ -104,6 +104,13 @@ RepetitionNumber: TypeAlias = int
 DatasetExampleNodeID: TypeAlias = GlobalID
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
 
+_PlaygroundTask: TypeAlias = asyncio.Task[ChatCompletionSubscriptionPayload]
+_ChatCompletionInProgress: TypeAlias = dict[_PlaygroundTask, tuple[ChatStream, RepetitionNumber]]
+_ChatCompletionOverDatasetInProgress: TypeAlias = dict[
+    _PlaygroundTask,
+    tuple[ChatStream, RepetitionNumber, DatasetExampleNodeID],
+]
+
 
 async def _stream_single_chat_completion(
     *,
@@ -164,13 +171,7 @@ async def _stream_single_chat_completion(
 
 
 async def _cleanup_chat_completion_resources(
-    in_progress: list[
-        tuple[
-            RepetitionNumber,
-            ChatStream,
-            asyncio.Task[ChatCompletionSubscriptionPayload],
-        ]
-    ],
+    in_progress: _ChatCompletionInProgress,
     not_started: deque[tuple[RepetitionNumber, ChatStream]],
 ) -> None:
     """
@@ -192,20 +193,17 @@ async def _cleanup_chat_completion_resources(
     logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
 
     # 1. Cancel all tasks (no-op for done tasks)
-    for _, _, task in in_progress:
+    for task in in_progress:
         task.cancel()
 
     # 2. Wait for tasks to process cancellation and release generators
     if in_progress:
-        await asyncio.gather(
-            *[task for _, _, task in in_progress],
-            return_exceptions=True,
-        )
+        await asyncio.gather(*in_progress.keys(), return_exceptions=True)
 
     # 3. Now it's safe to close generators
     if in_progress:
         await asyncio.gather(
-            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            *[stream.aclose() for stream, _ in in_progress.values() if inspect.isasyncgen(stream)],
             return_exceptions=True,
         )
 
@@ -220,14 +218,7 @@ async def _cleanup_chat_completion_resources(
 
 
 async def _cleanup_chat_completion_over_dataset_resources(
-    in_progress: list[
-        tuple[
-            DatasetExampleNodeID,
-            RepetitionNumber,
-            ChatStream,
-            asyncio.Task[ChatCompletionSubscriptionPayload],
-        ]
-    ],
+    in_progress: _ChatCompletionOverDatasetInProgress,
     not_started: list[tuple[DatasetExampleNodeID, RepetitionNumber, ChatStream]],
 ) -> None:
     """
@@ -249,20 +240,21 @@ async def _cleanup_chat_completion_over_dataset_resources(
     logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
 
     # 1. Cancel all tasks (no-op for done tasks)
-    for _, _, _, task in in_progress:
+    for task in in_progress:
         task.cancel()
 
     # 2. Wait for tasks to process cancellation and release generators
     if in_progress:
-        await asyncio.gather(
-            *[task for _, _, _, task in in_progress],
-            return_exceptions=True,
-        )
+        await asyncio.gather(*in_progress.keys(), return_exceptions=True)
 
     # 3. Now safe to close generators
     if in_progress:
         await asyncio.gather(
-            *[stream.aclose() for _, _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            *[
+                stream.aclose()
+                for stream, _, _ in in_progress.values()
+                if inspect.isasyncgen(stream)
+            ],
             return_exceptions=True,
         )
 
@@ -323,13 +315,7 @@ class Subscription:
             )
             for repetition_number in range(1, input.repetitions + 1)
         )
-        in_progress: list[
-            tuple[
-                RepetitionNumber,
-                ChatStream,
-                asyncio.Task[ChatCompletionSubscriptionPayload],
-            ]
-        ] = []
+        in_progress: _ChatCompletionInProgress = {}
         max_in_progress = 3
 
         try:
@@ -337,34 +323,33 @@ class Subscription:
                 while not_started and len(in_progress) < max_in_progress:
                     rep_num, stream = not_started.popleft()
                     task = _create_task_with_timeout(stream)
-                    in_progress.append((rep_num, stream, task))
-                async_tasks_to_run = [task for _, _, task in in_progress]
+                    in_progress[task] = (stream, rep_num)
+                async_tasks_to_run = list(in_progress.keys())
                 completed_tasks, _ = await asyncio.wait(
                     async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
                 )
                 for completed_task in completed_tasks:
-                    idx = [task for _, _, task in in_progress].index(completed_task)
-                    repetition_number, stream, _ = in_progress[idx]
+                    if completed_task not in in_progress:
+                        continue
+                    stream, repetition_number = in_progress.pop(completed_task)
                     try:
                         yield completed_task.result()
                     except StopAsyncIteration:
-                        del in_progress[idx]  # removes exhausted stream
+                        pass  # slot already removed
                     except asyncio.TimeoutError:
-                        del in_progress[idx]  # removes timed-out stream
                         yield ChatCompletionSubscriptionError(
                             message="Playground task timed out",
                             repetition_number=repetition_number,
                         )
                     except Exception as error:
-                        del in_progress[idx]  # removes failed stream
                         yield ChatCompletionSubscriptionError(
                             message="An unexpected error occurred",
                             repetition_number=repetition_number,
                         )
                         logger.exception(error)
                     else:
-                        task = _create_task_with_timeout(stream)
-                        in_progress[idx] = (repetition_number, stream, task)
+                        new_task = _create_task_with_timeout(stream)
+                        in_progress[new_task] = (stream, repetition_number)
         finally:
             await _cleanup_chat_completion_resources(
                 in_progress=in_progress,
@@ -521,41 +506,33 @@ class Subscription:
                 range(1, input.repetitions + 1)
             )  # since we pop right, this runs the repetitions in increasing order
         ]
-        in_progress: list[
-            tuple[
-                DatasetExampleNodeID,
-                RepetitionNumber,
-                ChatStream,
-                asyncio.Task[ChatCompletionSubscriptionPayload],
-            ]
-        ] = []
+        in_progress: _ChatCompletionOverDatasetInProgress = {}
         max_in_progress = 3
         try:
             while not_started or in_progress:
                 while not_started and len(in_progress) < max_in_progress:
                     ex_id, rep_num, stream = not_started.pop()
                     task = _create_task_with_timeout(stream)
-                    in_progress.append((ex_id, rep_num, stream, task))
-                async_tasks_to_run = [task for _, _, _, task in in_progress]
+                    in_progress[task] = (stream, rep_num, ex_id)
+                async_tasks_to_run = list(in_progress.keys())
                 completed_tasks, _ = await asyncio.wait(
                     async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
                 )
                 for completed_task in completed_tasks:
-                    idx = [task for _, _, _, task in in_progress].index(completed_task)
-                    example_id, repetition_number, stream, _ = in_progress[idx]
+                    if completed_task not in in_progress:
+                        continue
+                    stream, repetition_number, example_id = in_progress.pop(completed_task)
                     try:
                         yield completed_task.result()
                     except StopAsyncIteration:
-                        del in_progress[idx]  # removes exhausted stream
+                        pass  # slot already removed
                     except asyncio.TimeoutError:
-                        del in_progress[idx]  # removes timed-out stream
                         yield ChatCompletionSubscriptionError(
                             message="Playground task timed out",
                             dataset_example_id=example_id,
                             repetition_number=repetition_number,
                         )
                     except Exception as error:
-                        del in_progress[idx]  # removes failed stream
                         yield ChatCompletionSubscriptionError(
                             message="An unexpected error occurred",
                             dataset_example_id=example_id,
@@ -563,8 +540,8 @@ class Subscription:
                         )
                         logger.exception(error)
                     else:
-                        task = _create_task_with_timeout(stream)
-                        in_progress[idx] = (example_id, repetition_number, stream, task)
+                        new_task = _create_task_with_timeout(stream)
+                        in_progress[new_task] = (stream, repetition_number, example_id)
         finally:
             await _cleanup_chat_completion_over_dataset_resources(
                 in_progress=in_progress,
