@@ -53,6 +53,9 @@ px traces --limit 1
 # Fetch a specific trace by ID
 px trace abc123def456
 
+# Fetch recent LLM spans
+px spans --span-kind LLM --limit 10
+
 # Export traces to a directory
 px traces ./my-traces --limit 50
 ```
@@ -129,6 +132,41 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px spans [file]`
+
+Fetch individual spans from the configured project with comprehensive filtering.
+
+```bash
+px spans --limit 20                                    # Recent spans (table view)
+px spans --last-n-minutes 60 --limit 50                # Spans from last hour
+px spans --span-kind LLM --limit 10                    # Only LLM spans
+px spans --status-code ERROR --limit 20                # Only errored spans
+px spans --span-kind LLM TOOL --status-code OK         # Combine filters
+px spans --name chat_completion --limit 10             # Filter by span name
+px spans --trace-id abc123 --format raw | jq           # All spans for a trace
+px spans --include-annotations --limit 10              # Include annotation scores
+px spans output.json --limit 100                       # Save to JSON file
+px spans --format raw --no-progress | jq               # Pipe to jq
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[file]` | Save spans as JSON to file | stdout |
+| `-n, --limit <number>` | Maximum spans to fetch (newest first) | 100 |
+| `--last-n-minutes <number>` | Only fetch spans from the last N minutes | — |
+| `--since <timestamp>` | Fetch spans since ISO timestamp | — |
+| `--span-kind <kinds...>` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
+| `--status-code <codes...>` | Filter by status code (`OK`, `ERROR`, `UNSET`) | — |
+| `--name <names...>` | Filter by span name(s) | — |
+| `--trace-id <ids...>` | Filter by trace ID(s) | — |
+| `--parent-id <id>` | Filter by parent span ID (use `"null"` for root spans) | — |
+| `--include-annotations` | Include span annotations in output | Off |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
 ### `px sessions`
@@ -509,6 +547,18 @@ px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "E
 
 ```bash
 px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+```
+
+### Find errored spans
+
+```bash
+px spans --status-code ERROR --limit 50 --format raw --no-progress | jq '.[] | {name, status_message}'
+```
+
+### Inspect LLM spans with annotations
+
+```bash
+px spans --span-kind LLM --include-annotations --limit 20
 ```
 
 ### Extract LLM models used
