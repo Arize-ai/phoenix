@@ -1,10 +1,10 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { layoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
+import type { layoutLoaderQuery as LayoutLoaderQuery } from "./__generated__/layoutLoaderQuery.graphql";
 
-export const layoutLoaderGql = graphql`
+export const layoutLoaderQuery = graphql`
   query layoutLoaderQuery {
     projectCount
     datasetCount
@@ -13,12 +13,13 @@ export const layoutLoaderGql = graphql`
   }
 `;
 
-export async function layoutLoader() {
-  return await fetchQuery<layoutLoaderQuery>(
+export function layoutLoader() {
+  const queryRef = loadQuery<LayoutLoaderQuery>(
     RelayEnvironment,
-    layoutLoaderGql,
+    layoutLoaderQuery,
     {}
-  ).toPromise();
+  );
+  return { queryRef };
 }
 
-export type LayoutLoaderData = Awaited<ReturnType<typeof layoutLoader>>;
+export type LayoutLoaderData = ReturnType<typeof layoutLoader>;

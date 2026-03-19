@@ -1,29 +1,34 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { sessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
+import type { sessionLoaderQuery as SessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
+
+export const sessionLoaderQuery = graphql`
+  query sessionLoaderQuery($id: ID!) {
+    session: node(id: $id) {
+      id
+      ... on ProjectSession {
+        sessionId
+      }
+    }
+  }
+`;
 
 /**
- * Loads in the necessary page data for the dataset page
+ * Loads in the necessary page data for the session page
  */
-export async function sessionLoader(args: LoaderFunctionArgs) {
+export function sessionLoader(args: LoaderFunctionArgs) {
   const { sessionId } = args.params;
-  return await fetchQuery<sessionLoaderQuery>(
+  const queryRef = loadQuery<SessionLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query sessionLoaderQuery($id: ID!) {
-        session: node(id: $id) {
-          id
-          ... on ProjectSession {
-            sessionId
-          }
-        }
-      }
-    `,
+    sessionLoaderQuery,
     {
       id: sessionId as string,
     }
-  ).toPromise();
+  );
+  return { queryRef };
 }
+
+export type SessionLoaderData = ReturnType<typeof sessionLoader>;

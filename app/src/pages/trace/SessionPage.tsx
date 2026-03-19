@@ -1,3 +1,4 @@
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -15,16 +16,21 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
+import type { sessionLoaderQuery as SessionLoaderQuery } from "./__generated__/sessionLoaderQuery.graphql";
 import { SessionDetails } from "./SessionDetails";
+import { type SessionLoaderData, sessionLoaderQuery } from "./sessionLoader";
 
 /**
  * A component that shows the details of a session
  */
 export function SessionPage() {
-  const loaderData = useLoaderData<typeof sessionLoader>();
+  const loaderData = useLoaderData<SessionLoaderData>();
   invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<SessionLoaderQuery>(
+    sessionLoaderQuery,
+    loaderData.queryRef
+  );
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
@@ -51,7 +57,7 @@ export function SessionPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Session ID: {loaderData.session?.sessionId ?? "--"}
+                Session ID: {data.session?.sessionId ?? "--"}
               </DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton slot="close" />
