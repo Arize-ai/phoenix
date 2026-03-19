@@ -38,6 +38,17 @@ TypeScript's type system is most valuable when it catches bugs at compile time r
 
 - Type guards must be used to narrow complex union types; edge cases where discriminants might be missing must be tested.
 - `any` must not be used; prefer `unknown` and narrow explicitly. If `any` is genuinely necessary (e.g., interfacing with an untyped external API), add a comment explaining why.
+- `Record<K, V>` used as a lookup map (where keys may be absent) must include `undefined` in the value type — the repo does not enable `noUncheckedIndexedAccess`, so missing-key lookups silently return `undefined` while the type says `V`. Use `Partial<Record<K, V>>` for sparse maps or `Record<K, V | undefined>` when the key set is known but values are nullable.
+
+```ts
+// Bad — lookup returns string at compile time, undefined at runtime
+const map: Record<string, string> = {};
+const value = map["missing"]; // typed as string, actually undefined
+
+// Good — forces a null check at every access site
+const map: Partial<Record<string, string>> = {};
+const value = map["missing"]; // typed as string | undefined
+```
 
 ## Reuse
 
