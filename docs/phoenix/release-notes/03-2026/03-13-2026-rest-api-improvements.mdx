@@ -2,42 +2,6 @@
 title: "Release Notes"
 ---
 
-# Standalone Database Migrations with `phoenix db migrate`
-
-March 13, 2026
-
-**Available in arize-phoenix 13.15.0+**
-
-Phoenix now includes a `phoenix db migrate` subcommand that runs Alembic database migrations and exits without starting the server. This is designed for Kubernetes deployments where running migrations as an `initContainer` prevents liveness probe failures caused by slow migrations on large databases.
-
-- **Runs migrations to `head` and exits** — no server ports are bound, no uvicorn process starts
-- **Ignores `PHOENIX_DISABLE_MIGRATIONS`** — when you explicitly invoke `phoenix db migrate`, the intent is unambiguous
-- **Always logs migration progress** to stdout, regardless of `PHOENIX_LOG_MIGRATIONS`
-- **Safe under concurrent execution** — Alembic serializes access to `alembic_version`; multiple initContainers racing to migrate will converge safely
-
-```bash
-phoenix db migrate
-```
-
-Example Kubernetes initContainer configuration:
-
-```yaml
-initContainers:
-  - name: run-migrations
-    image: arizephoenix/phoenix:latest
-    command: ["phoenix", "db", "migrate"]
-    env:
-      - name: PHOENIX_SQL_DATABASE_URL
-        valueFrom:
-          secretKeyRef:
-            name: phoenix-db-secret
-            key: url
-containers:
-  - name: phoenix
-    image: arizephoenix/phoenix:latest
-    command: ["phoenix", "serve"]
-```
-
 # List Traces by Project
 
 March 13, 2026
