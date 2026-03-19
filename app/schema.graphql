@@ -510,7 +510,16 @@ type CodeEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  sourceCode: String!
+  language: String
+  sandboxConfig: SandboxConfig
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
@@ -575,6 +584,16 @@ input CreateChatPromptVersionInput {
   promptId: ID!
   promptVersion: ChatPromptVersionInput!
   tags: [CreatePromptVersionTagInput!] = null
+}
+
+input CreateCodeEvaluatorInput {
+  name: String!
+  sourceCode: String!
+  language: String!
+  description: String = null
+  sandboxConfigId: Int = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  inputMapping: EvaluatorInputMappingInput = null
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -702,6 +721,20 @@ input CreatePromptLabelInput {
 input CreatePromptVersionTagInput {
   name: Identifier!
   description: String = null
+}
+
+input CreateSandboxConfigInput {
+  sandboxProviderId: Int!
+  name: String!
+  description: String = null
+  config: JSON = null
+  timeout: Int = null
+  enabled: Boolean! = true
+}
+
+type CreateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
+  query: Query!
 }
 
 input CreateSpanAnnotationInput {
@@ -1185,6 +1218,11 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
 }
 
+type DeleteSandboxConfigPayload {
+  deletedId: ID!
+  query: Query!
+}
+
 input DeleteUsersInput {
   userIds: [ID!]!
 }
@@ -1383,6 +1421,7 @@ enum EvaluatorKind {
 input EvaluatorPreviewInput @oneOf {
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
 }
 
 input EvaluatorPreviewItemInput {
@@ -2024,6 +2063,8 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  updateCodeEvaluator(input: UpdateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2050,6 +2091,10 @@ type Mutation {
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
+  updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
+  deleteSandboxConfig(id: ID!): DeleteSandboxConfigPayload!
+  setSandboxProviderEnabled(providerId: Int!, enabled: Boolean!): SetSandboxProviderEnabledPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -2818,6 +2863,7 @@ type Query {
   datasetCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+  sandboxBackends: [SandboxBackendInfo!]!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2836,6 +2882,43 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
+}
+
+type SandboxBackendInfo {
+  backendType: String!
+  displayName: String!
+  supportedLanguages: [String!]!
+  status: SandboxBackendStatus!
+}
+
+enum SandboxBackendStatus {
+  AVAILABLE
+  UNAVAILABLE
+  NOT_INSTALLED
+}
+
+type SandboxConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  config: JSON!
+  timeout: Int!
+  enabled: Boolean!
+  provider: SandboxProvider!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SandboxProvider implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  backendType: String!
+  language: String!
+  config: JSON!
+  enabled: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 type Secret implements Node {
@@ -2908,6 +2991,11 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
+}
+
+type SetSandboxProviderEnabledPayload {
+  sandboxProvider: SandboxProvider!
+  query: Query!
 }
 
 enum SortDir {
@@ -3573,6 +3661,17 @@ input UpdateAnnotationInput {
   source: AnnotationSource! = APP
 }
 
+input UpdateCodeEvaluatorInput {
+  id: ID!
+  name: String
+  sourceCode: String
+  language: String
+  description: String
+  sandboxConfigId: Int
+  outputConfigs: [AnnotationConfigInput!]
+  inputMapping: EvaluatorInputMappingInput
+}
+
 input UpdateDatasetBuiltinEvaluatorInput {
   datasetEvaluatorId: ID!
   name: Identifier!
@@ -3603,6 +3702,19 @@ input UpdateModelMutationInput {
 
 type UpdateModelMutationPayload {
   model: GenerativeModel!
+  query: Query!
+}
+
+input UpdateSandboxConfigInput {
+  id: Int!
+  description: String
+  config: JSON
+  timeout: Int
+  enabled: Boolean
+}
+
+type UpdateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
   query: Query!
 }
 
