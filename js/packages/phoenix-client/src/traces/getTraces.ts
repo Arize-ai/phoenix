@@ -30,7 +30,8 @@ export interface GetTracesParams extends ClientFn {
   sessionIds?: string[] | null;
 }
 
-export type GetTracesResponse = operations["listProjectTraces"]["responses"]["200"];
+export type GetTracesResponse =
+  operations["listProjectTraces"]["responses"]["200"];
 
 export type GetTracesResult = {
   traces: GetTracesResponse["content"]["application/json"]["data"];
@@ -114,8 +115,7 @@ export async function getTraces({
   }
 
   if (endTime) {
-    params.end_time =
-      endTime instanceof Date ? endTime.toISOString() : endTime;
+    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
   }
 
   if (sort) {
