@@ -7,14 +7,6 @@ import type {
 } from "@phoenix/agent/context/pageContextTypes";
 import { useNullableTimeRangeContext } from "@phoenix/components/datetime/TimeRangeContext";
 
-const PROJECT_PAGE_TABS = new Set([
-  "spans",
-  "traces",
-  "sessions",
-  "metrics",
-  "config",
-]);
-
 type BuildAgentPageContextOptions = {
   pathname: string;
   search: string;
@@ -22,8 +14,38 @@ type BuildAgentPageContextOptions = {
   timeRange: AgentTimeRangeContext | null;
 };
 
-function getPathSegments(pathname: string) {
-  return stripBasename(pathname).split("/").filter(Boolean);
+function collectSearchParams(search: string) {
+  const searchParams = new URLSearchParams(search);
+  const entries = new Map<string, string[]>();
+
+  for (const [key, value] of searchParams.entries()) {
+    const values = entries.get(key);
+
+    if (values) {
+      values.push(value);
+    } else {
+      entries.set(key, [value]);
+    }
+  }
+
+  return Object.fromEntries(
+    [...entries.entries()].map(([key, values]) => [
+      key,
+      values.length === 1 ? (values[0] ?? "") : values,
+    ])
+  );
+}
+
+function collectRouteMatchContext(matches: UIMatch[]) {
+  return matches.map((match) => ({
+    id: match.id,
+    pathname: match.pathname,
+    params: Object.fromEntries(
+      Object.entries(match.params).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string"
+      )
+    ),
+  }));
 }
 
 function stripBasename(pathname: string) {
@@ -51,39 +73,6 @@ function collectRouteParams(matches: UIMatch[]) {
   }, {});
 }
 
-function getProjectTabFromPath(
-  pathname: string,
-  projectId: string | undefined
-) {
-  if (!projectId) {
-    return null;
-  }
-
-  const segments = getPathSegments(pathname);
-  const projectIndex = segments.indexOf(projectId);
-  const nextSegment = projectIndex >= 0 ? segments[projectIndex + 1] : null;
-
-  return nextSegment && PROJECT_PAGE_TABS.has(nextSegment) ? nextSegment : null;
-}
-
-function getPageKind({
-  projectId,
-  traceId,
-}: {
-  projectId: string | null;
-  traceId: string | null;
-}) {
-  if (projectId && traceId) {
-    return "trace";
-  }
-
-  if (projectId) {
-    return "project";
-  }
-
-  return "generic";
-}
-
 export function buildAgentPageContext({
   pathname,
   search,
@@ -91,19 +80,14 @@ export function buildAgentPageContext({
   timeRange,
 }: BuildAgentPageContextOptions): AgentPageContext {
   const params = collectRouteParams(matches);
-  const projectId = params.projectId ?? null;
-  const traceId = params.traceId ?? null;
-  const projectTab = getProjectTabFromPath(pathname, projectId ?? undefined);
   const normalizedPathname = stripBasename(pathname);
 
   return {
     pathname: normalizedPathname,
     search,
     params,
-    pageKind: getPageKind({ projectId, traceId }),
-    projectId,
-    traceId,
-    projectTab,
+    searchParams: collectSearchParams(search),
+    routeMatches: collectRouteMatchContext(matches),
     timeRange,
   };
 }

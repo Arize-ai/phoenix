@@ -15,7 +15,7 @@ export const BASH_TOOL_SYSTEM_PROMPT_LINES = [
   "When the bash tool is available, respect these sandbox constraints:",
   ...BASH_TOOL_CAPABILITY_LINES.map((line) => `- ${line}`),
   `The ${BASH_TOOL_READONLY_ROOT} directory contains the current page context and may be refreshed on navigation, time-range changes, or a /refresh command.`,
-  `To orient to the current page, first read ${BASH_TOOL_READONLY_ROOT}/MANIFEST.md and ${BASH_TOOL_READONLY_ROOT}/_meta/context.json before exploring elsewhere.`,
+  `To orient to the current page, first read ${BASH_TOOL_READONLY_ROOT}/agent-start.md. Use other files in ${BASH_TOOL_READONLY_ROOT} as needed.`,
 ] as const;
 
 export const BASH_TOOL_CAPABILITY_DESCRIPTION =

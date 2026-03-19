@@ -13,6 +13,7 @@ import {
   type BashToolFilesystemMutationMethods,
 } from "./bashToolFilesystemPolicy";
 import type { BashToolCommandResult, BashToolRuntime } from "./bashToolTypes";
+import { phoenixGqlCommand } from "./phoenixGqlCommand";
 
 /**
  * Default working directory for the browser bash runtime scratch space.
@@ -192,6 +193,7 @@ export async function createBashToolRuntime({
   // https://github.com/vercel-labs/bash-tool/pull/7
   const bash = new Bash({
     cwd: DEFAULT_BASH_TOOL_CWD,
+    customCommands: [phoenixGqlCommand],
     executionLimits: DEFAULT_BASH_TOOL_EXECUTION_LIMITS,
   });
   const originalMutationMethods = captureBashToolFilesystemMutationMethods(

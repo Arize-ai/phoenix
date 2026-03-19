@@ -1,13 +1,7 @@
 import type { UIMessage } from "ai";
 
-import { BASH_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/bash/bashToolCapabilities";
-
 import { agentToolDefinitions } from "./chatTools";
-
-const AGENT_SYSTEM_PROMPT = [
-  "You are PXI, Phoenix's in-product agent.",
-  ...BASH_TOOL_SYSTEM_PROMPT_LINES,
-].join("\n");
+import { AGENT_SYSTEM_PROMPT } from "./systemPrompt";
 
 type BuildAgentChatRequestBodyOptions = {
   body: Record<string, unknown> | undefined;

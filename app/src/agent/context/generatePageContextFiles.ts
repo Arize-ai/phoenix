@@ -1,11 +1,18 @@
-import { materializePageContext } from "@phoenix/agent/context/materializers/materializePageContext";
+import { withManifestAndMetadata } from "@phoenix/agent/context/materializers/shared";
 import type {
   AdapterResult,
   AgentContextRefreshReason,
   AgentPageContext,
 } from "@phoenix/agent/context/pageContextTypes";
-import { graphqlPageContextSource } from "@phoenix/agent/context/sources/__experimental__/graphql/graphqlPageContextSource";
 
+import { buildPageContextFiles } from "./fileBuilders/buildPageContextFiles";
+
+const PAGE_CONTEXT_MANIFEST_FRAGMENT =
+  "Page context includes the current pathname, route hierarchy, route params, search params, and time range only.";
+
+/**
+ * Materializes the lightweight `/phoenix` page context files for the current route.
+ */
 export async function generatePageContextFiles({
   pageContext,
   refreshReason,
@@ -13,11 +20,14 @@ export async function generatePageContextFiles({
   pageContext: AgentPageContext;
   refreshReason: AgentContextRefreshReason;
 }): Promise<AdapterResult> {
-  const data = await graphqlPageContextSource.load(pageContext);
+  const files = buildPageContextFiles(pageContext);
 
-  return materializePageContext({
+  return withManifestAndMetadata({
+    files,
     pageContext,
     refreshReason,
-    data,
+    adapterId: "page-context-metadata-only",
+    adapterName: "Page Context Metadata Adapter",
+    manifestFragment: PAGE_CONTEXT_MANIFEST_FRAGMENT,
   });
 }

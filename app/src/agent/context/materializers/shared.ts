@@ -59,10 +59,7 @@ function createMetadata({
     refreshReason,
     pathname: pageContext.pathname,
     search: pageContext.search,
-    pageKind: pageContext.pageKind,
-    projectId: pageContext.projectId,
-    traceId: pageContext.traceId,
-    projectTab: pageContext.projectTab,
+    params: pageContext.params,
     timeRange: pageContext.timeRange,
     files: [...files].sort(),
   };

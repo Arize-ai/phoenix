@@ -12,10 +12,10 @@ export function createManifestFile({
     "",
     `Generated: ${metadata.generatedAt}`,
     `Refresh reason: ${metadata.refreshReason}`,
-    `Page kind: ${metadata.pageKind}`,
     `Pathname: ${metadata.pathname}${metadata.search}`,
-    metadata.projectId ? `Project: ${metadata.projectId}` : null,
-    metadata.traceId ? `Trace: ${metadata.traceId}` : null,
+    Object.keys(metadata.params).length > 0
+      ? `Route params: ${JSON.stringify(metadata.params)}`
+      : null,
     metadata.timeRange
       ? `Time range: ${metadata.timeRange.start ?? "open"} -> ${metadata.timeRange.end ?? "open"}`
       : null,

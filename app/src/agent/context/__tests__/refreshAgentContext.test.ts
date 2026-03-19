@@ -20,122 +20,10 @@ function createGraphQLResponse(data: unknown) {
 
 describe("refreshAgentSessionContext", () => {
   beforeEach(() => {
-    mockedAuthFetch.mockImplementation(async (_input, init) => {
-      const body = JSON.parse(String(init?.body)) as { query: string };
-
-      if (body.query.includes("AgentProjectSummaryContextQuery")) {
-        return createGraphQLResponse({
-          project: {
-            __typename: "Project",
-            id: "project-1",
-            name: "Demo Project",
-            traceCount: 12,
-            spanCount: 44,
-          },
-        });
-      }
-
-      if (body.query.includes("AgentProjectSpansContextQuery")) {
-        return createGraphQLResponse({
-          project: {
-            __typename: "Project",
-            spans: {
-              edges: [
-                {
-                  node: {
-                    id: "span-node-1",
-                    spanId: "span-1",
-                    name: "root span",
-                    spanKind: "CHAIN",
-                    statusCode: "OK",
-                    startTime: "2026-03-17T12:00:00.000Z",
-                    latencyMs: 25,
-                    tokenCountTotal: 10,
-                    cumulativeTokenCountTotal: 10,
-                    input: { value: "input" },
-                    output: { value: "output" },
-                    trace: {
-                      id: "trace-node-1",
-                      traceId: "trace-1",
-                      costSummary: { total: { cost: 1.2 } },
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      if (body.query.includes("AgentProjectTracesContextQuery")) {
-        return createGraphQLResponse({
-          project: {
-            __typename: "Project",
-            rootSpans: {
-              edges: [
-                {
-                  node: {
-                    id: "span-node-1",
-                    spanId: "span-1",
-                    name: "root span",
-                    spanKind: "CHAIN",
-                    statusCode: "OK",
-                    startTime: "2026-03-17T12:00:00.000Z",
-                    endTime: "2026-03-17T12:00:01.000Z",
-                    latencyMs: 25,
-                    cumulativeTokenCountTotal: 10,
-                    input: { value: "input" },
-                    output: { value: "output" },
-                    trace: {
-                      id: "trace-node-1",
-                      traceId: "trace-1",
-                      numSpans: 3,
-                      costSummary: { total: { cost: 1.2 } },
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      if (body.query.includes("AgentProjectSessionsContextQuery")) {
-        return createGraphQLResponse({
-          project: {
-            __typename: "Project",
-            sessions: {
-              edges: [
-                {
-                  node: {
-                    id: "session-node-1",
-                    sessionId: "session-1",
-                    numTraces: 2,
-                    startTime: "2026-03-17T12:00:00.000Z",
-                    endTime: "2026-03-17T12:05:00.000Z",
-                    firstInput: { value: "hello" },
-                    lastOutput: { value: "world" },
-                    tokenUsage: { total: 15 },
-                    traceLatencyMsP50: 10,
-                    traceLatencyMsP99: 30,
-                    costSummary: { total: { cost: 1.5 } },
-                  },
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      throw new Error(`Unexpected query: ${body.query}`);
-    });
-  });
-
-  afterEach(() => {
     mockedAuthFetch.mockReset();
   });
 
-  it("injects real page context, preserves workspace writes, and blocks phoenix mutations", async () => {
+  it("injects page metadata, preserves workspace writes, and blocks phoenix mutations", async () => {
     await refreshAgentSessionContext({
       sessionId: "session-project",
       refreshReason: "navigation",
@@ -143,10 +31,14 @@ describe("refreshAgentSessionContext", () => {
         pathname: "/projects/project-1/spans",
         search: "",
         params: { projectId: "project-1" },
-        pageKind: "project",
-        projectId: "project-1",
-        traceId: null,
-        projectTab: "spans",
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
         timeRange: {
           timeRangeKey: "7d",
           start: "2026-03-10T00:00:00.000Z",
@@ -156,22 +48,56 @@ describe("refreshAgentSessionContext", () => {
     });
 
     const runtime = await getOrCreateBashToolRuntime("session-project");
-    const projectJson = await runtime.executeCommand(
-      "cat /phoenix/projects/project-1/project.json"
+    const metadata = await runtime.executeCommand(
+      "cat /phoenix/_meta/context.json"
     );
-    const spansTable = await runtime.executeCommand(
-      "cat /phoenix/projects/project-1/tables/spans.jsonl"
+    const manifest = await runtime.executeCommand("cat /phoenix/MANIFEST.md");
+    const pageContext = await runtime.executeCommand(
+      "cat /phoenix/page-context.json"
+    );
+    const agentStart = await runtime.executeCommand(
+      "cat /phoenix/agent-start.md"
+    );
+    const currentPageGuide = await runtime.executeCommand(
+      "cat /phoenix/graphql/current-page.md"
+    );
+    const projectExample = await runtime.executeCommand(
+      "cat /phoenix/graphql/examples/project-by-id.graphql"
+    );
+    const projectRecipe = await runtime.executeCommand(
+      "cat /phoenix/graphql/recipes/project-recent-traces.graphql"
+    );
+    const schema = await runtime.executeCommand(
+      "test -s /phoenix/graphql/schema.graphql && printf ok"
     );
     const workspaceWrite = await runtime.executeCommand(
       "printf 'ok' > /home/user/workspace/note.txt && cat /home/user/workspace/note.txt"
     );
 
-    expect(projectJson.stdout).toContain("Demo Project");
-    expect(spansTable.stdout).toContain("root span");
+    expect(metadata.stdout).toContain('"params": {');
+    expect(metadata.stdout).toContain('"projectId": "project-1"');
+    expect(pageContext.stdout).toContain('"routeMatches"');
+    expect(agentStart.stdout).toContain(
+      "Use this file for initial orientation"
+    );
+    expect(agentStart.stdout).toContain("/phoenix/graphql/README.md");
+    expect(agentStart.stdout).toContain(
+      "/phoenix/graphql/recipes/project-recent-traces.graphql"
+    );
+    expect(currentPageGuide.stdout).toContain(
+      "/phoenix/graphql/recipes/project-recent-traces.graphql"
+    );
+    expect(currentPageGuide.stdout).not.toContain("route ids:");
+    expect(projectExample.stdout).toContain("... on Project");
+    expect(projectExample.stdout).toContain("traceCount");
+    expect(projectRecipe.stdout).toContain("sort: {col: startTime, dir: desc}");
+    expect(metadata.stdout).toContain('"timeRangeKey": "7d"');
+    expect(manifest.stdout).toContain(
+      "Page context includes the current pathname"
+    );
+    expect(schema.stdout).toContain("ok");
     await expect(
-      runtime.executeCommand(
-        "printf 'nope' > /phoenix/projects/project-1/project.json"
-      )
+      runtime.executeCommand("printf 'nope' > /phoenix/_meta/context.json")
     ).rejects.toThrow("read-only");
     expect(workspaceWrite.stdout).toContain("ok");
   });
@@ -184,10 +110,14 @@ describe("refreshAgentSessionContext", () => {
         pathname: "/projects/project-1/spans",
         search: "",
         params: { projectId: "project-1" },
-        pageKind: "project",
-        projectId: "project-1",
-        traceId: null,
-        projectTab: "spans",
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
         timeRange: {
           timeRangeKey: "7d",
           start: "2026-03-10T00:00:00.000Z",
@@ -208,10 +138,14 @@ describe("refreshAgentSessionContext", () => {
         pathname: "/projects/project-1/spans",
         search: "",
         params: { projectId: "project-1" },
-        pageKind: "project",
-        projectId: "project-1",
-        traceId: null,
-        projectTab: "spans",
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
         timeRange: {
           timeRangeKey: "1d",
           start: "2026-03-16T00:00:00.000Z",
@@ -242,10 +176,14 @@ describe("refreshAgentSessionContext", () => {
         pathname: "/projects/project-1/spans",
         search: "",
         params: { projectId: "project-1" },
-        pageKind: "project",
-        projectId: "project-1",
-        traceId: null,
-        projectTab: "spans",
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
         timeRange: {
           timeRangeKey: "7d",
           start: "2026-03-10T00:00:00.000Z",
@@ -261,10 +199,14 @@ describe("refreshAgentSessionContext", () => {
         pathname: "/projects/project-1/spans",
         search: "",
         params: { projectId: "project-1" },
-        pageKind: "project",
-        projectId: "project-1",
-        traceId: null,
-        projectTab: "spans",
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
         timeRange: {
           timeRangeKey: "1d",
           start: "2026-03-16T00:00:00.000Z",
@@ -282,5 +224,181 @@ describe("refreshAgentSessionContext", () => {
     expect(metadata.stdout).toContain('"refreshReason": "navigation"');
     expect(metadata.stdout).toContain('"timeRangeKey": "7d"');
     expect(metadata.stdout).not.toContain('"timeRangeKey": "1d"');
+  });
+
+  it("executes phoenix-gql queries from strings, stdin, and files", async () => {
+    mockedAuthFetch.mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as {
+        query: string;
+        variables?: { id?: string };
+      };
+
+      if (body.query.includes("mutation")) {
+        throw new Error("mutation should have been blocked before fetch");
+      }
+
+      if (body.query.includes("node(id: $id)")) {
+        return createGraphQLResponse({
+          node: {
+            __typename: "Dataset",
+            id: body.variables?.id ?? null,
+            name: "Dataset A",
+          },
+        });
+      }
+
+      return createGraphQLResponse({
+        projects: {
+          edges: [{ node: { name: "Project Alpha" } }],
+        },
+      });
+    });
+
+    await refreshAgentSessionContext({
+      sessionId: "session-phoenix-gql",
+      refreshReason: "navigation",
+      pageContext: {
+        pathname: "/datasets/RGF0YXNldDox/experiments",
+        search: "?tab=overview",
+        params: { datasetId: "RGF0YXNldDox" },
+        searchParams: { tab: "overview" },
+        routeMatches: [
+          {
+            id: "dataset-root",
+            pathname: "/datasets/RGF0YXNldDox",
+            params: { datasetId: "RGF0YXNldDox" },
+          },
+          {
+            id: "dataset-experiments",
+            pathname: "/datasets/RGF0YXNldDox/experiments",
+            params: { datasetId: "RGF0YXNldDox" },
+          },
+        ],
+        timeRange: null,
+      },
+    });
+
+    const runtime = await getOrCreateBashToolRuntime("session-phoenix-gql");
+    const currentPageHints = await runtime.executeCommand(
+      "cat /phoenix/graphql/current-page.md"
+    );
+    const datasetExample = await runtime.executeCommand(
+      "cat /phoenix/graphql/examples/dataset-experiments.graphql"
+    );
+    const gqlHelp = await runtime.executeCommand(
+      "phoenix-gql query --variables '{}' --help"
+    );
+    const datasetRecipe = await runtime.executeCommand(
+      "cat /phoenix/graphql/recipes/dataset-experiments.graphql"
+    );
+
+    const inlineResult = await runtime.executeCommand(
+      `phoenix-gql '{ projects { edges { node { name } } } }' | jq -r '.data.projects.edges[0].node.name'`
+    );
+    await runtime.executeCommand(
+      `cat <<'EOF' > /home/user/workspace/query.graphql
+query DatasetById($id: ID!) {
+  node(id: $id) {
+    __typename
+    ... on Dataset {
+      id
+      name
+    }
+  }
+}
+EOF`
+    );
+    await runtime.executeCommand(
+      `cat <<'EOF' > /home/user/workspace/vars.json
+{"id":"RGF0YXNldDox"}
+EOF`
+    );
+    const fileResult = await runtime.executeCommand(
+      `phoenix-gql /home/user/workspace/query.graphql --vars-file /home/user/workspace/vars.json --data-only | jq -r '.node.name'`
+    );
+    const spillResult = await runtime.executeCommand(
+      `printf '{ projects { edges { node { name } } } }' | phoenix-gql --output /home/user/workspace/result.json`
+    );
+    const blockedMutation = await runtime.executeCommand(
+      `phoenix-gql 'mutation { __typename }'`
+    );
+
+    expect(currentPageHints.stdout).toContain("RGF0YXNldDox");
+    expect(currentPageHints.stdout).toContain(
+      "/phoenix/graphql/recipes/dataset-experiments.graphql"
+    );
+    expect(datasetExample.stdout).toContain("... on Dataset");
+    expect(datasetRecipe.stdout).toContain("experiments(first: 10)");
+    expect(gqlHelp.stdout).toContain("/phoenix/agent-start.md");
+    expect(gqlHelp.stdout).toContain("Alias for --vars");
+    expect(inlineResult.stdout).toContain("Project Alpha");
+    expect(fileResult.stdout).toContain("Dataset A");
+    expect(spillResult.stdout).toContain("/home/user/workspace/result.json");
+    expect(blockedMutation.exitCode).toBe(1);
+    expect(blockedMutation.stderr).toContain(
+      "Only GraphQL queries are permitted"
+    );
+  });
+
+  it("emits schema-safe project recipe variables and actionable graphql errors", async () => {
+    await refreshAgentSessionContext({
+      sessionId: "session-project-recipe-vars",
+      refreshReason: "navigation",
+      pageContext: {
+        pathname: "/projects/project-1/spans",
+        search: "",
+        params: { projectId: "project-1" },
+        searchParams: {},
+        routeMatches: [
+          {
+            id: "project-spans",
+            pathname: "/projects/project-1/spans",
+            params: { projectId: "project-1" },
+          },
+        ],
+        timeRange: {
+          timeRangeKey: "7d",
+          start: "2026-03-10T00:00:00.000Z",
+          end: "2026-03-17T00:00:00.000Z",
+        },
+      },
+    });
+
+    mockedAuthFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: null,
+          errors: [
+            {
+              message:
+                'Field "timeRangeKey" is not defined by type "TimeRange"',
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    const runtime = await getOrCreateBashToolRuntime(
+      "session-project-recipe-vars"
+    );
+    const varsFile = await runtime.executeCommand(
+      "cat /phoenix/graphql/recipes/project-recipes.variables.json"
+    );
+    const gqlResult = await runtime.executeCommand(
+      "phoenix-gql /phoenix/graphql/recipes/project-recent-traces.graphql --vars-file /phoenix/graphql/recipes/project-recipes.variables.json"
+    );
+
+    expect(varsFile.stdout).toContain('"start": "2026-03-10T00:00:00.000Z"');
+    expect(varsFile.stdout).toContain('"end": "2026-03-17T00:00:00.000Z"');
+    expect(varsFile.stdout).not.toContain("timeRangeKey");
+    expect(gqlResult.exitCode).toBe(1);
+    expect(gqlResult.stderr).toContain("GraphQL errors:");
+    expect(gqlResult.stderr).toContain('Field "timeRangeKey" is not defined');
   });
 });

@@ -11,7 +11,7 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body.system).toContain("sandbox constraints");
-    expect(body.system).toContain("/phoenix/MANIFEST.md");
+    expect(body.system).toContain("/phoenix/agent-start.md");
     expect(body.tools).toHaveLength(1);
     expect(body.tools[0]?.name).toBe("bash");
     expect(body.tools[0]?.description).toContain("browser-only");
