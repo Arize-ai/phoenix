@@ -26,8 +26,8 @@ export interface GetTracesParams extends ClientFn {
   cursor?: string | null;
   /** If true, include full span details for each trace */
   includeSpans?: boolean;
-  /** Filter traces by session identifiers (session_id strings or GlobalIDs) */
-  sessionIds?: string[] | null;
+  /** Filter traces by session identifier(s) (session_id strings or GlobalIDs) */
+  sessionId?: string | string[] | null;
 }
 
 export type GetTracesResponse =
@@ -93,7 +93,7 @@ export async function getTraces({
   sort,
   order,
   includeSpans,
-  sessionIds,
+  sessionId,
 }: GetTracesParams): Promise<GetTracesResult> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: LIST_PROJECT_TRACES });
@@ -130,8 +130,10 @@ export async function getTraces({
     params.include_spans = true;
   }
 
-  if (sessionIds) {
-    params.session_identifier = sessionIds;
+  if (sessionId) {
+    params.session_identifier = Array.isArray(sessionId)
+      ? sessionId
+      : [sessionId];
   }
 
   const { data, error } = await client.GET(

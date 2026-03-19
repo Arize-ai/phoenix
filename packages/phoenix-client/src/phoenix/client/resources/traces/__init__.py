@@ -345,7 +345,7 @@ class Traces:
         sort: Optional[Literal["start_time", "latency_ms"]] = None,
         order: Optional[Literal["asc", "desc"]] = None,
         include_spans: bool = False,
-        session_ids: Optional[Sequence[str]] = None,
+        session_id: Optional[Union[str, Sequence[str]]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -363,7 +363,8 @@ class Traces:
                 Defaults to False. Caution: including spans can significantly increase
                 response payload size and degrade performance for traces with many spans.
                 If you experience performance issues, consider fetching spans separately.
-            session_ids (Optional[Sequence[str]]): Filter by session IDs or GlobalIDs.
+            session_id (Optional[Union[str, Sequence[str]]]): Filter by one or more
+                session IDs or GlobalIDs. Can be a single string or a sequence of strings.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -399,8 +400,10 @@ class Traces:
             base_params["order"] = order
         if include_spans:
             base_params["include_spans"] = True
-        if session_ids:
-            base_params["session_identifier"] = list(session_ids)
+        if session_id:
+            base_params["session_identifier"] = (
+                [session_id] if isinstance(session_id, str) else list(session_id)
+            )
 
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)
@@ -738,7 +741,7 @@ class AsyncTraces:
         sort: Optional[Literal["start_time", "latency_ms"]] = None,
         order: Optional[Literal["asc", "desc"]] = None,
         include_spans: bool = False,
-        session_ids: Optional[Sequence[str]] = None,
+        session_id: Optional[Union[str, Sequence[str]]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -756,7 +759,8 @@ class AsyncTraces:
                 Defaults to False. Caution: including spans can significantly increase
                 response payload size and degrade performance for traces with many spans.
                 If you experience performance issues, consider fetching spans separately.
-            session_ids (Optional[Sequence[str]]): Filter by session IDs or GlobalIDs.
+            session_id (Optional[Union[str, Sequence[str]]]): Filter by one or more
+                session IDs or GlobalIDs. Can be a single string or a sequence of strings.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -792,8 +796,10 @@ class AsyncTraces:
             base_params["order"] = order
         if include_spans:
             base_params["include_spans"] = True
-        if session_ids:
-            base_params["session_identifier"] = list(session_ids)
+        if session_id:
+            base_params["session_identifier"] = (
+                [session_id] if isinstance(session_id, str) else list(session_id)
+            )
 
         while len(all_traces) < limit:
             remaining = limit - len(all_traces)

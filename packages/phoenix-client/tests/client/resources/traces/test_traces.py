@@ -94,12 +94,21 @@ class TestGetTraces:
         )
         assert len(traces) == 1
 
-    def test_session_ids_param(self) -> None:
+    def test_session_id_multiple(self) -> None:
         transport = _make_handler(expected_params={"session_identifier": ["sess-1", "sess-2"]})
         client = httpx.Client(transport=transport, base_url="http://test")
         traces = Traces(client).get_traces(
             project_identifier="my-project",
-            session_ids=["sess-1", "sess-2"],
+            session_id=["sess-1", "sess-2"],
+        )
+        assert len(traces) == 1
+
+    def test_session_id_single_string(self) -> None:
+        transport = _make_handler(expected_params={"session_identifier": ["sess-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        traces = Traces(client).get_traces(
+            project_identifier="my-project",
+            session_id="sess-1",
         )
         assert len(traces) == 1
 
