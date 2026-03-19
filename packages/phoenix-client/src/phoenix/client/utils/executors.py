@@ -34,6 +34,7 @@ EvalsRateLimitError: type[BaseException]
 try:
     from phoenix.evals.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
+
     class _EvalsRateLimitErrorFallback(Exception):
         pass
 
