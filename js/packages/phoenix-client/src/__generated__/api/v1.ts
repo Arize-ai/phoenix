@@ -2877,7 +2877,27 @@ export interface components {
              */
             end_time: string;
         };
-        /** Span */
+        /**
+         * Span
+         * @example {
+         *       "attributes": {
+         *         "llm.model_name": "gpt-4",
+         *         "llm.token_count.completion": 50,
+         *         "llm.token_count.prompt": 100
+         *       },
+         *       "context": {
+         *         "span_id": "1a2b3c4d5e6f7a8b",
+         *         "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *       },
+         *       "end_time": "2024-01-01T12:00:01Z",
+         *       "events": [],
+         *       "name": "llm_call",
+         *       "span_kind": "LLM",
+         *       "start_time": "2024-01-01T12:00:00Z",
+         *       "status_code": "OK",
+         *       "status_message": ""
+         *     }
+         */
         Span: {
             /**
              * Id
@@ -3032,7 +3052,13 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** SpanContext */
+        /**
+         * SpanContext
+         * @example {
+         *       "span_id": "1a2b3c4d5e6f7a8b",
+         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *     }
+         */
         SpanContext: {
             /**
              * Trace Id
@@ -3084,7 +3110,16 @@ export interface components {
              */
             document_position: number;
         };
-        /** SpanEvent */
+        /**
+         * SpanEvent
+         * @example {
+         *       "attributes": {
+         *         "exception.message": "Connection refused"
+         *       },
+         *       "name": "exception",
+         *       "timestamp": "2024-01-01T12:00:00Z"
+         *     }
+         */
         SpanEvent: {
             /**
              * Name
