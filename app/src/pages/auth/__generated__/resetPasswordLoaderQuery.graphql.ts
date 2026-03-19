@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14d03449ca63e47cc6046580d5b4dda8>>
+ * @generated SignedSource<<280b7a3ab7d25cc226416d0bde9bfe30>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,6 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type resetPasswordLoaderQuery$variables = Record<PropertyKey, never>;
 export type resetPasswordLoaderQuery$data = {
-  readonly viewer: {
-    readonly email: string | null;
-    readonly id: string;
-  } | null;
   readonly " $fragmentSpreads": FragmentRefs<"ResetPasswordFormQuery">;
 };
 export type resetPasswordLoaderQuery = {
@@ -23,40 +19,13 @@ export type resetPasswordLoaderQuery = {
   variables: resetPasswordLoaderQuery$variables;
 };
 
-const node: ConcreteRequest = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "User",
-  "kind": "LinkedField",
-  "name": "viewer",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "email",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-};
-return {
+const node: ConcreteRequest = {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "resetPasswordLoaderQuery",
     "selections": [
-      (v0/*: any*/),
       {
         "args": null,
         "kind": "FragmentSpread",
@@ -72,20 +41,43 @@ return {
     "kind": "Operation",
     "name": "resetPasswordLoaderQuery",
     "selections": [
-      (v0/*: any*/)
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "User",
+        "kind": "LinkedField",
+        "name": "viewer",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "email",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
     ]
   },
   "params": {
-    "cacheID": "3f2aa2ea2629970ac6ca3c4fa86f1f7b",
+    "cacheID": "8e5dcd2c0c02f94806b7a00188affebd",
     "id": null,
     "metadata": {},
     "name": "resetPasswordLoaderQuery",
     "operationKind": "query",
-    "text": "query resetPasswordLoaderQuery {\n  viewer {\n    id\n    email\n  }\n  ...ResetPasswordFormQuery\n}\n\nfragment ResetPasswordFormQuery on Query {\n  viewer {\n    email\n    id\n  }\n}\n"
+    "text": "query resetPasswordLoaderQuery {\n  ...ResetPasswordFormQuery\n}\n\nfragment ResetPasswordFormQuery on Query {\n  viewer {\n    email\n    id\n  }\n}\n"
   }
 };
-})();
 
-(node as any).hash = "17bb397eaa3a44dd33996854e538f2ef";
+(node as any).hash = "4112654a7409584973de84e8582f983b";
 
 export default node;

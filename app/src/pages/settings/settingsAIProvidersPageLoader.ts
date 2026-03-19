@@ -1,18 +1,25 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { settingsAIProvidersPageLoaderQuery } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
+import type { settingsAIProvidersPageLoaderQuery as SettingsAIProvidersPageLoaderQuery } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
 
-export async function settingsAIProvidersPageLoader() {
-  return await fetchQuery<settingsAIProvidersPageLoaderQuery>(
+export const settingsAIProvidersPageLoaderQuery = graphql`
+  query settingsAIProvidersPageLoaderQuery {
+    ...GenerativeProvidersCard_data
+    ...CustomProvidersCard_data
+  }
+`;
+
+export function settingsAIProvidersPageLoader() {
+  const queryRef = loadQuery<SettingsAIProvidersPageLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query settingsAIProvidersPageLoaderQuery {
-        ...GenerativeProvidersCard_data
-        ...CustomProvidersCard_data
-      }
-    `,
+    settingsAIProvidersPageLoaderQuery,
     {}
-  ).toPromise();
+  );
+  return { queryRef };
 }
+
+export type SettingsAIProvidersLoaderData = ReturnType<
+  typeof settingsAIProvidersPageLoader
+>;

@@ -1,24 +1,29 @@
-import { fetchQuery, graphql } from "react-relay";
-import invariant from "tiny-invariant";
+import { graphql, loadQuery } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { dashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
+import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
+
+/**
+ * The query for the dashboards loader.
+ */
+export const dashboardsLoaderQuery = graphql`
+  query dashboardsLoaderQuery {
+    ...ProjectDashboardsTable_projects
+  }
+`;
 
 /**
  * A loader for the dashboards page
  */
-export async function dashboardsLoader() {
-  const loaderData = await fetchQuery<dashboardsLoaderQuery>(
+export function dashboardsLoader() {
+  const queryRef = loadQuery<DashboardsLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query dashboardsLoaderQuery {
-        ...ProjectDashboardsTable_projects
-      }
-    `,
+    dashboardsLoaderQuery,
     {}
-  ).toPromise();
-  invariant(loaderData, "No loader data");
+  );
 
-  return loaderData;
+  return { queryRef };
 }
+
+export type DashboardsLoaderData = ReturnType<typeof dashboardsLoader>;

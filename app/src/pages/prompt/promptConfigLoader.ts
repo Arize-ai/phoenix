@@ -1,27 +1,33 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { promptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
+import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
 
-export const promptConfigLoader = async ({ params }: LoaderFunctionArgs) => {
+export const promptConfigLoaderQuery = graphql`
+  query promptConfigLoaderQuery($id: ID!) {
+    prompt: node(id: $id) {
+      ... on Prompt {
+        ...PromptVersionTagsConfigCard_data
+      }
+    }
+  }
+`;
+
+export const promptConfigLoader = ({ params }: LoaderFunctionArgs) => {
   const promptId = params.promptId;
   if (!promptId) {
     throw new Error("Prompt ID is required");
   }
 
-  return await fetchQuery<promptConfigLoaderQuery>(
+  const queryRef = loadQuery<PromptConfigLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query promptConfigLoaderQuery($id: ID!) {
-        prompt: node(id: $id) {
-          ... on Prompt {
-            ...PromptVersionTagsConfigCard_data
-          }
-        }
-      }
-    `,
+    promptConfigLoaderQuery,
     { id: promptId }
-  ).toPromise();
+  );
+
+  return { queryRef };
 };
+
+export type PromptConfigLoaderData = ReturnType<typeof promptConfigLoader>;

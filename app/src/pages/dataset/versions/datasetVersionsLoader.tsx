@@ -1,30 +1,40 @@
-import { fetchQuery, graphql } from "react-relay";
+import { graphql, loadQuery } from "react-relay";
 import type { LoaderFunctionArgs } from "react-router";
+import invariant from "tiny-invariant";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { datasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
+import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
+
+/**
+ * The query for the dataset versions loader.
+ */
+export const datasetVersionsLoaderQuery = graphql`
+  query datasetVersionsLoaderQuery($id: ID!) {
+    dataset: node(id: $id) {
+      id
+      ... on Dataset {
+        id
+        ...DatasetHistoryTable_versions
+      }
+    }
+  }
+`;
 
 /**
  * Loads the dataset data required for the dataset history page
  */
-export async function datasetVersionsLoader(args: LoaderFunctionArgs) {
+export function datasetVersionsLoader(args: LoaderFunctionArgs) {
   const { datasetId } = args.params;
-  return await fetchQuery<datasetVersionsLoaderQuery>(
+  invariant(datasetId != null);
+  const queryRef = loadQuery<DatasetVersionsLoaderQuery>(
     RelayEnvironment,
-    graphql`
-      query datasetVersionsLoaderQuery($id: ID!) {
-        dataset: node(id: $id) {
-          id
-          ... on Dataset {
-            id
-            ...DatasetHistoryTable_versions
-          }
-        }
-      }
-    `,
-    {
-      id: datasetId as string,
-    }
-  ).toPromise();
+    datasetVersionsLoaderQuery,
+    { id: datasetId }
+  );
+  return { queryRef };
 }
+
+export type DatasetVersionsLoaderData = ReturnType<
+  typeof datasetVersionsLoader
+>;

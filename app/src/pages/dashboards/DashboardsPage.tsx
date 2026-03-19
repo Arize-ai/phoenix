@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useRef } from "react";
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 
 import {
@@ -25,7 +26,9 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
-import type { dashboardsLoader } from "./dashboardsLoader";
+import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
+import type { DashboardsLoaderData } from "./dashboardsLoader";
+import { dashboardsLoaderQuery } from "./dashboardsLoader";
 import { ProjectDashboardsTable } from "./ProjectDashboardsTable";
 
 // Inline DashboardsTable component
@@ -136,7 +139,11 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 
 export function DashboardsPage() {
   "use no memo";
-  const loaderData = useLoaderData<typeof dashboardsLoader>();
+  const loaderData = useLoaderData<DashboardsLoaderData>();
+  const data = usePreloadedQuery<DashboardsLoaderQuery>(
+    dashboardsLoaderQuery,
+    loaderData.queryRef
+  );
   // For now, use mock data for dashboards
   const dashboards = [
     {
@@ -175,7 +182,7 @@ export function DashboardsPage() {
           <Tab id="user-dashboards">Custom Dashboards</Tab>
         </TabList>
         <LazyTabPanel id="project-dashboards">
-          <ProjectDashboardsTable query={loaderData} />
+          <ProjectDashboardsTable query={data} />
         </LazyTabPanel>
         <LazyTabPanel id="user-dashboards">
           <DashboardsTable dashboards={dashboards} />
