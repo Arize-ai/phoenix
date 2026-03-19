@@ -1,12 +1,18 @@
 import { css } from "@emotion/react";
 import type { Key } from "react";
+import { useMemo, useState } from "react";
 
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import { DebouncedSearch } from "@phoenix/components/core/field";
 
 import type { OnboardingIntegration } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
 
 const integrationSelectorCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+
   .integration-selector__group {
     flex-wrap: wrap;
     gap: var(--global-dimension-size-100);
@@ -45,8 +51,25 @@ export function IntegrationSelectButtonGroup({
   selectedIntegration: OnboardingIntegration;
   onSelectionChange: (integration: OnboardingIntegration) => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredIntegrations = useMemo(() => {
+    if (!searchQuery) return ONBOARDING_INTEGRATIONS;
+    const query = searchQuery.toLowerCase();
+    return ONBOARDING_INTEGRATIONS.filter(
+      (i) =>
+        i.id === selectedIntegration.id || i.name.toLowerCase().includes(query)
+    );
+  }, [searchQuery, selectedIntegration.id]);
+
   return (
     <div css={integrationSelectorCSS}>
+      <DebouncedSearch
+        aria-label="Search integrations"
+        placeholder="Search integrations"
+        size="M"
+        onChange={setSearchQuery}
+      />
       <ToggleButtonGroup
         aria-label="Integration"
         selectedKeys={[selectedIntegration.id]}
@@ -67,7 +90,7 @@ export function IntegrationSelectButtonGroup({
           }
         }}
       >
-        {ONBOARDING_INTEGRATIONS.map((i) => (
+        {filteredIntegrations.map((i) => (
           <ToggleButton
             key={i.id}
             id={i.id}
