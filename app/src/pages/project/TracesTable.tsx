@@ -28,6 +28,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
 import {
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -40,7 +41,7 @@ import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/Ann
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { TextCell } from "@phoenix/components/table";
+import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
@@ -602,6 +603,45 @@ export function TracesTable(props: TracesTableProps) {
             >
               {getValue() as string}
             </Link>
+          );
+        },
+      },
+      {
+        header: "span id",
+        accessorKey: "spanId",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) return null;
+          const value = getValue() as string | null;
+          if (!value) return <>{"--"}</>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={value} />}
+            >
+              <Truncate>
+                <Text>{value}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
+        },
+      },
+      {
+        header: "trace id",
+        accessorKey: "trace.traceId",
+        id: "traceId",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) return null;
+          const value = getValue() as string | null;
+          if (!value) return <>{"--"}</>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={value} />}
+            >
+              <Truncate>
+                <Text>{value}</Text>
+              </Truncate>
+            </CellWithControlsWrap>
           );
         },
       },

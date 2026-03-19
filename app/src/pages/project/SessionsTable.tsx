@@ -24,6 +24,7 @@ import { useNavigate } from "react-router";
 
 import {
   ContextualHelp,
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -43,7 +44,11 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 
-import { IntCell, TextCell } from "../../components/table";
+import {
+  CellWithControlsWrap,
+  IntCell,
+  TextCell,
+} from "../../components/table";
 import type { SessionsTable_sessions$key } from "./__generated__/SessionsTable_sessions.graphql";
 import type { SessionsTableQuery } from "./__generated__/SessionsTableQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
@@ -304,7 +309,19 @@ export function SessionsTable(props: SessionsTableProps) {
       header: "session id",
       accessorKey: "sessionId",
       enableSorting: false,
-      cell: TextCell,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
     },
     {
       header: "first input",

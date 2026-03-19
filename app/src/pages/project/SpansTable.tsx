@@ -18,6 +18,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -32,7 +33,7 @@ import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/Ann
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { LoadMoreRow } from "@phoenix/components/table";
+import { CellWithControlsWrap, LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -434,6 +435,43 @@ export function SpansTable(props: SpansTableProps) {
           <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
             {getValue() as string}
           </Link>
+        );
+      },
+    },
+    {
+      header: "span id",
+      accessorKey: "spanId",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
+    },
+    {
+      header: "trace id",
+      accessorKey: "trace.traceId",
+      id: "traceId",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string | null;
+        if (!value) return <>{"--"}</>;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
         );
       },
     },

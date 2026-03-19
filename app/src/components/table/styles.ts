@@ -17,8 +17,8 @@ export const tableCSS = css`
     background-color: var(--global-table-header-background-color);
     tr {
       th {
-        padding: var(--global-dimension-size-100)
-          var(--global-dimension-size-200);
+        padding: var(--global-table-cell-padding-y)
+          var(--global-table-cell-padding-x);
         position: relative;
         text-align: left;
         user-select: none;
@@ -83,8 +83,8 @@ export const tableCSS = css`
         }
       }
       & > td {
-        padding: var(--global-dimension-size-100)
-          var(--global-dimension-size-200);
+        padding: var(--global-table-cell-padding-y)
+          var(--global-table-cell-padding-x);
       }
       &[data-selected="true"] {
         background-color: var(--global-table-row-selected-background-color);
@@ -132,8 +132,8 @@ export const paginationCSS = css`
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: var(--global-dimension-size-100);
-  gap: var(--global-dimension-size-50);
+  padding: var(--global-table-pagination-padding);
+  gap: var(--global-table-pagination-gap);
   border-top: 1px solid var(--global-table-pagination-border-color);
 `;
 

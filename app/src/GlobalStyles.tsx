@@ -990,7 +990,11 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
 
-    // Table tokens
+    /**
+     * Table tokens
+     */
+
+    /* Table colors */
     --global-table-pinned-column-background-color: var(--global-color-gray-75);
     --global-table-header-background-color: var(--global-color-gray-75);
     --global-table-row-border-color: var(--global-color-gray-200);
@@ -999,6 +1003,18 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     );
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
+
+    /* Table spacing */
+    --global-table-cell-padding-y: var(--global-dimension-size-100);
+    --global-table-cell-padding-x: var(--global-dimension-size-200);
+    --global-table-pagination-padding: var(--global-dimension-size-100);
+    --global-table-pagination-gap: var(--global-dimension-size-50);
+
+    /* Table cell controls */
+    --global-table-cell-controls-offset: var(
+      --global-dimension-static-size-100
+    );
+    --global-table-cell-controls-gap: var(--global-dimension-static-size-50);
 
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
