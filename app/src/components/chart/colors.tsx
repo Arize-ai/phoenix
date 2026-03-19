@@ -110,10 +110,6 @@ export const SEQUENTIAL_CHART_COLORS = Object.keys(
 ) as (keyof SequentialChartColors)[];
 
 export const useSequentialChartColors = (): SequentialChartColors => {
-  // We call useTheme() to subscribe to theme changes so that React components
-  // using these colors will re-render when the theme toggles, even though the
-  // color map itself is constant (CSS variables swap automatically).
-  useTheme();
   return sequentialChartColors;
 };
 
@@ -171,7 +167,6 @@ export const useSemanticChartColors = (): Record<
   SemanticChartColor,
   string
 > => {
-  useTheme();
   return semanticChartColors;
 };
 
