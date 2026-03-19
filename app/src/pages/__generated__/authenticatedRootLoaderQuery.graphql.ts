@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec24055e22a557cb0a210c8439b9caa5>>
+ * @generated SignedSource<<73dcc2ae818d192736ef34f5a0c4dba6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,13 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type authenticatedRootLoaderQuery$variables = Record<PropertyKey, never>;
 export type authenticatedRootLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"AuthenticatedRoot_viewer" | "ViewerContext_viewer">;
+  readonly viewer: {
+    readonly email: string | null;
+    readonly id: string;
+    readonly passwordNeedsReset: boolean;
+    readonly username: string;
+  } | null;
+  readonly " $fragmentSpreads": FragmentRefs<"ViewerContext_viewer">;
 };
 export type authenticatedRootLoaderQuery = {
   response: authenticatedRootLoaderQuery$data;
@@ -31,6 +37,27 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "email",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "passwordNeedsReset",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 };
@@ -44,12 +71,22 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "AuthenticatedRoot_viewer"
+        "name": "ViewerContext_viewer"
       },
       {
+        "alias": null,
         "args": null,
-        "kind": "FragmentSpread",
-        "name": "ViewerContext_viewer"
+        "concreteType": "User",
+        "kind": "LinkedField",
+        "name": "viewer",
+        "plural": false,
+        "selections": [
+          (v0/*: any*/),
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/)
+        ],
+        "storageKey": null
       }
     ],
     "type": "Query",
@@ -70,20 +107,8 @@ return {
         "plural": false,
         "selections": [
           (v0/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "username",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "email",
-            "storageKey": null
-          },
+          (v1/*: any*/),
+          (v2/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -106,7 +131,7 @@ return {
             "name": "role",
             "plural": false,
             "selections": [
-              (v1/*: any*/),
+              (v4/*: any*/),
               (v0/*: any*/)
             ],
             "storageKey": null
@@ -127,7 +152,7 @@ return {
             "plural": true,
             "selections": [
               (v0/*: any*/),
-              (v1/*: any*/),
+              (v4/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -151,23 +176,24 @@ return {
               }
             ],
             "storageKey": null
-          }
+          },
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "5f615eddff65447b320df9f629f4273e",
+    "cacheID": "909f2b392805d784bcac384c6d208692",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...AuthenticatedRoot_viewer\n  ...ViewerContext_viewer\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment AuthenticatedRoot_viewer on Query {\n  viewer {\n    id\n    username\n    email\n  }\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3bfd248e4ec637cbb8e8087d759b1bf6";
+(node as any).hash = "7df3b0168622116913f7d14b4a0a6a0a";
 
 export default node;

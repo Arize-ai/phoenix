@@ -1,56 +1,37 @@
-import { fetchQuery, graphql, loadQuery } from "react-relay";
+import { fetchQuery, graphql } from "react-relay";
 import { redirect } from "react-router";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
-import type { authenticatedRootLoader_viewerPasswordNeedsResetQuery as AuthenticatedRootLoader_viewerPasswordNeedsResetQuery } from "./__generated__/authenticatedRootLoader_viewerPasswordNeedsResetQuery.graphql";
-import type { authenticatedRootLoaderQuery as AuthenticatedRootLoaderQueryType } from "./__generated__/authenticatedRootLoaderQuery.graphql";
-
-/**
- * Query for the authenticated root loader.
- */
-export const authenticatedRootLoaderQuery = graphql`
-  query authenticatedRootLoaderQuery {
-    ...AuthenticatedRoot_viewer
-    ...ViewerContext_viewer
-  }
-`;
+import type { authenticatedRootLoaderQuery } from "./__generated__/authenticatedRootLoaderQuery.graphql";
 
 /**
  * Loads in the necessary data at the root of the authenticated application
  */
 export async function authenticatedRootLoader() {
-  const queryRef = loadQuery<AuthenticatedRootLoaderQueryType>(
+  const loaderData = await fetchQuery<authenticatedRootLoaderQuery>(
     RelayEnvironment,
-    authenticatedRootLoaderQuery,
-    {}
-  );
-  const data =
-    await fetchQuery<AuthenticatedRootLoader_viewerPasswordNeedsResetQuery>(
-      RelayEnvironment,
-      graphql`
-        query authenticatedRootLoader_viewerPasswordNeedsResetQuery {
-          viewer {
-            passwordNeedsReset
-          }
+    graphql`
+      query authenticatedRootLoaderQuery {
+        ...ViewerContext_viewer
+        viewer {
+          id
+          username
+          email
+          passwordNeedsReset
         }
-      `,
-      {}
-    ).toPromise();
+      }
+    `,
+    {}
+  ).toPromise();
 
-  if (data?.viewer?.passwordNeedsReset) {
+  if (loaderData?.viewer?.passwordNeedsReset) {
     const redirectUrl = createRedirectUrlWithReturn({
       path: "/reset-password",
     });
     return redirect(redirectUrl);
   }
 
-  return {
-    queryRef,
-  };
+  return loaderData;
 }
-
-export type AuthenticatedRootLoaderData = {
-  queryRef: ReturnType<typeof loadQuery<AuthenticatedRootLoaderQueryType>>;
-};
