@@ -8,7 +8,6 @@
 - [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
 - [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
 - [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
-- [Agent-Assisted Setup](https://arize.com/docs/phoenix/agent-assisted-setup): Use a coding agent to automatically add Phoenix tracing to your application
 
 ## Quick Start
 
@@ -253,13 +252,6 @@
 - [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
-
-### Evaluation Integrations
-
-- [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Use Cleanlab TLM to score LLM response trustworthiness and log results to Phoenix
-- [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers in genai evaluation pipelines
-- [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents with Ragas metrics inside Phoenix experiments
-- [UQLM](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Score LLM confidence and hallucination risk with UQLM and trace results in Phoenix
 
 ## Settings
 
