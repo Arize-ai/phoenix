@@ -203,6 +203,73 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
+### Traces
+
+Retrieve traces for a project with optional filtering and sorting:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Get the latest 100 traces
+traces = client.traces.get_traces(project_identifier="my-llm-app")
+for trace in traces:
+    print(f"Trace {trace.trace_id}: {trace.status} ({trace.latency_ms}ms)")
+
+# Filter by time range
+from datetime import datetime, timedelta
+
+traces = client.traces.get_traces(
+    project_identifier="my-llm-app",
+    start_time=datetime.now() - timedelta(hours=24),
+    end_time=datetime.now(),
+    sort="latency_ms",
+    order="desc",
+    limit=50,
+)
+
+# Include full span details
+traces = client.traces.get_traces(
+    project_identifier="my-llm-app",
+    include_spans=True,  # caution: can increase response size significantly
+    limit=10,
+)
+
+# Filter by session
+traces = client.traces.get_traces(
+    project_identifier="my-llm-app",
+    session_id="my-session-id",
+)
+```
+
+**Async usage:**
+
+```python
+from phoenix.client import AsyncClient
+
+async_client = AsyncClient()
+
+traces = await async_client.traces.get_traces(
+    project_identifier="my-llm-app",
+    limit=50,
+)
+```
+
+| Parameter              | Type                                    | Default | Description                                          |
+| ---------------------- | --------------------------------------- | ------- | ---------------------------------------------------- |
+| `project_identifier`   | `str`                                   | —       | Project name or ID — **required**                    |
+| `start_time`           | `datetime \| None`                      | `None`  | Inclusive lower bound on trace start time             |
+| `end_time`             | `datetime \| None`                      | `None`  | Exclusive upper bound on trace start time            |
+| `sort`                 | `"start_time" \| "latency_ms" \| None`  | `None`  | Sort field (server defaults to `"start_time"`)       |
+| `order`                | `"asc" \| "desc" \| None`              | `None`  | Sort direction (server defaults to `"desc"`)         |
+| `include_spans`        | `bool`                                  | `False` | Include full span details for each trace             |
+| `session_id`           | `str \| Sequence[str] \| None`          | `None`  | Filter by session ID(s) or GlobalID(s)               |
+| `limit`                | `int`                                   | `100`   | Maximum number of traces to return                   |
+| `timeout`              | `int \| None`                           | `60`    | Request timeout in seconds                           |
+
+> **Note:** Requires Phoenix server >= 13.15.0.
+
 ### Spans
 
 Query for spans and annotations from your projects for custom evaluation and annotation workflows:

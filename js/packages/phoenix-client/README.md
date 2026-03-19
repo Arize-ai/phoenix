@@ -298,6 +298,200 @@ const experiment = await runExperiment({
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
 
+## Traces
+
+The `@arizeai/phoenix-client` package provides a `traces` export for retrieving trace data from Phoenix projects.
+
+### Fetching Traces
+
+Use `getTraces` to retrieve traces with optional filtering, sorting, and pagination.
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+// Get the latest 10 traces
+const result = await getTraces({
+  project: { projectName: "my-project" },
+  limit: 10,
+});
+console.log(result.data); // array of trace objects
+
+// Filter by time range and include full span details
+const detailed = await getTraces({
+  project: { projectName: "my-project" },
+  startTime: "2026-03-01T00:00:00Z",
+  endTime: new Date(),
+  includeSpans: true,
+  sort: "latency_ms",
+  order: "desc",
+});
+
+// Filter by session
+const sessionTraces = await getTraces({
+  project: { projectName: "my-project" },
+  sessionId: "my-session-id",
+});
+```
+
+| Parameter      | Type                              | Description                                              |
+| -------------- | --------------------------------- | -------------------------------------------------------- |
+| `project`      | `ProjectIdentifier`               | The project (by name or ID) — **required**               |
+| `startTime`    | `Date \| string \| null`          | Inclusive lower bound on trace start time                 |
+| `endTime`      | `Date \| string \| null`          | Exclusive upper bound on trace start time                |
+| `sort`         | `"start_time" \| "latency_ms"`    | Sort field                                               |
+| `order`        | `"asc" \| "desc"`                 | Sort direction                                           |
+| `limit`        | `number`                          | Maximum number of traces to return                       |
+| `cursor`       | `string \| null`                  | Pagination cursor (Trace GlobalID)                       |
+| `includeSpans` | `boolean`                         | Include full span details for each trace                 |
+| `sessionId`    | `string \| string[] \| null`      | Filter traces by session identifier(s)                   |
+
+### Pagination
+
+Use the `cursor` from a previous result to fetch the next page:
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+let cursor: string | null = null;
+const allTraces = [];
+
+do {
+  const result = await getTraces({
+    project: { projectName: "my-project" },
+    limit: 50,
+    cursor,
+  });
+  allTraces.push(...result.data);
+  cursor = result.nextCursor ?? null;
+} while (cursor);
+```
+
+> **Note:** Requires Phoenix server >= 13.15.0.
+
+## Spans
+
+The `@arizeai/phoenix-client` package provides a `spans` export for querying spans with powerful filtering.
+
+### Fetching Spans
+
+Use `getSpans` to retrieve spans with filtering by kind, status, name, trace, and more.
+
+```ts
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+// Get recent spans
+const result = await getSpans({
+  project: { projectName: "my-project" },
+  limit: 100,
+});
+
+// Filter by span kind and status
+const errorLLMSpans = await getSpans({
+  project: { projectName: "my-project" },
+  spanKind: "LLM",
+  statusCode: "ERROR",
+});
+
+// Filter by name and trace
+const spans = await getSpans({
+  project: { projectName: "my-project" },
+  name: "chat_completion",
+  traceIds: ["trace-abc", "trace-def"],
+});
+
+// Root spans only
+const rootSpans = await getSpans({
+  project: { projectName: "my-project" },
+  parentId: null,
+});
+```
+
+| Parameter    | Type                                    | Description                                                       |
+| ------------ | --------------------------------------- | ----------------------------------------------------------------- |
+| `project`    | `ProjectIdentifier`                     | The project (by name or ID) — **required**                        |
+| `startTime`  | `Date \| string \| null`                | Inclusive lower bound time                                        |
+| `endTime`    | `Date \| string \| null`                | Exclusive upper bound time                                        |
+| `limit`      | `number`                                | Maximum number of spans to return                                 |
+| `cursor`     | `string \| null`                        | Pagination cursor (Span GlobalID)                                 |
+| `traceIds`   | `string[] \| null`                      | Filter by trace ID(s)                                             |
+| `parentId`   | `string \| null`                        | Filter by parent span ID (`null` for root spans only)             |
+| `name`       | `string \| string[] \| null`            | Filter by span name(s)                                            |
+| `spanKind`   | `SpanKindFilter \| SpanKindFilter[]`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.)  |
+| `statusCode` | `SpanStatusCode \| SpanStatusCode[]`    | Filter by status code (`OK`, `ERROR`, `UNSET`)                    |
+
+## Span Annotations
+
+The `spans` export also provides functions for managing span annotations — adding evaluations, feedback, and labels to spans.
+
+### Adding a Single Annotation
+
+```ts
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+const result = await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "f8b1c3a2d4e5f678",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    explanation: "The response accurately answered the question",
+    annotatorKind: "HUMAN",
+  },
+  sync: true, // wait for the annotation ID to be returned
+});
+// result: { id: "annotation-id" } when sync: true, null when sync: false
+```
+
+### Logging Multiple Annotations
+
+```ts
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const results = await logSpanAnnotations({
+  spanAnnotations: [
+    {
+      spanId: "f8b1c3a2d4e5f678",
+      name: "relevance",
+      label: "relevant",
+      score: 0.95,
+      annotatorKind: "LLM",
+    },
+    {
+      spanId: "a1b2c3d4e5f67890",
+      name: "relevance",
+      label: "irrelevant",
+      score: 0.2,
+      annotatorKind: "LLM",
+    },
+  ],
+  sync: true,
+});
+// results: [{ id: "..." }, { id: "..." }]
+```
+
+### Fetching Span Annotations
+
+```ts
+import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const result = await getSpanAnnotations({
+  project: { projectName: "my-project" },
+  spanIds: ["f8b1c3a2d4e5f678", "a1b2c3d4e5f67890"],
+  includeAnnotationNames: ["relevance", "correctness"],
+  limit: 100,
+});
+console.log(result.data); // array of span annotation objects
+```
+
+| Parameter                | Type                  | Description                                                     |
+| ------------------------ | --------------------- | --------------------------------------------------------------- |
+| `project`                | `ProjectIdentifier`   | The project (by name or ID) — **required**                      |
+| `spanIds`                | `string[]`            | Span IDs to fetch annotations for — **required**                |
+| `includeAnnotationNames` | `string[]`            | Only return annotations with these names                        |
+| `excludeAnnotationNames` | `string[]`            | Exclude annotations with these names                            |
+| `cursor`                 | `string \| null`      | Pagination cursor                                               |
+| `limit`                  | `number`              | Maximum annotations to return                                   |
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:

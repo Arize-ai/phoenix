@@ -99,6 +99,49 @@ px trace abc123def456 --file trace.json
 
 ---
 
+### `px spans [file]`
+
+Fetch spans for the configured project with filtering options. Output is JSON.
+
+```bash
+px spans --limit 50                                    # stdout (pretty)
+px spans --span-kind LLM --limit 20                    # only LLM spans
+px spans --status-code ERROR --format raw --no-progress # pipe-friendly error spans
+px spans --name chat_completion --trace-id abc123       # filter by name and trace
+px spans --parent-id null                               # root spans only
+px spans spans.json --limit 100 --include-annotations   # save to file with annotations
+px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+```
+
+| Option                        | Description                                                      | Default   |
+| ----------------------------- | ---------------------------------------------------------------- | --------- |
+| `[file]`                      | Save spans as JSON to file                                       | stdout    |
+| `-n, --limit <number>`        | Maximum number of spans (newest first)                           | `100`     |
+| `--last-n-minutes <number>`   | Only spans from the last N minutes                               | —         |
+| `--since <timestamp>`         | Spans since ISO timestamp                                        | —         |
+| `--span-kind <kinds...>`      | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | — |
+| `--status-code <codes...>`    | Filter by status code (`OK`, `ERROR`, `UNSET`)                   | —         |
+| `--name <names...>`           | Filter by span name(s)                                           | —         |
+| `--trace-id <ids...>`         | Filter by trace ID(s)                                            | —         |
+| `--parent-id <id>`            | Filter by parent span ID (use `"null"` for root spans only)     | —         |
+| `--include-annotations`       | Include span annotations in the output                           | —         |
+| `--format <format>`           | `pretty`, `json`, or `raw`                                       | `pretty`  |
+| `--no-progress`               | Suppress progress output                                         | —         |
+
+```bash
+# Find all ERROR spans
+px spans --status-code ERROR --format raw --no-progress | jq '.[] | {name, status_code}'
+
+# Get LLM spans with token counts
+px spans --span-kind LLM --format raw --no-progress | \
+  jq '.[] | {name, model: .attributes["llm.model_name"], tokens: (.attributes["llm.token_count.prompt"] + .attributes["llm.token_count.completion"])}'
+
+# Root spans only, sorted by name
+px spans --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
+```
+
+---
+
 ### `px datasets`
 
 List all datasets.
@@ -173,6 +216,78 @@ px prompt my-evaluator --tag production --format json | jq '.template'
 | `--tag <name>`      | Get version by tag                 | —        |
 | `--version <id>`    | Get specific version               | latest   |
 | `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+
+---
+
+### `px projects`
+
+List all available Phoenix projects.
+
+```bash
+px projects                                           # pretty output
+px projects --format raw --no-progress | jq '.[].name'
+px projects --limit 5
+```
+
+| Option              | Description                            | Default  |
+| ------------------- | -------------------------------------- | -------- |
+| `--limit <number>`  | Maximum number of projects per page    | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
+| `--no-progress`     | Suppress progress output               | —        |
+
+---
+
+### `px sessions`
+
+List sessions for a project.
+
+```bash
+px sessions                                            # latest 10 sessions
+px sessions --limit 20 --order asc                     # oldest first
+px sessions --format raw --no-progress | jq '.[].session_id'
+```
+
+| Option              | Description                            | Default  |
+| ------------------- | -------------------------------------- | -------- |
+| `-n, --limit <number>` | Maximum number of sessions          | `10`     |
+| `--order <order>`   | Sort order: `asc` or `desc`            | `desc`   |
+| `--format <format>` | `pretty`, `json`, or `raw`             | `pretty` |
+| `--no-progress`     | Suppress progress output               | —        |
+
+---
+
+### `px session <session-id>`
+
+View a session's conversation flow.
+
+```bash
+px session my-session-id
+px session my-session-id --file session.json
+px session my-session-id --include-annotations --format raw | jq '.traces'
+```
+
+| Option                  | Description                            | Default  |
+| ----------------------- | -------------------------------------- | -------- |
+| `--file <path>`         | Save session to file instead of stdout | —        |
+| `--include-annotations` | Include session annotations            | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`             | `pretty` |
+| `--no-progress`         | Suppress progress output               | —        |
+
+---
+
+### `px auth status`
+
+Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.
+
+```bash
+px auth status
+px auth status --endpoint http://localhost:6006
+```
+
+| Option              | Description                | Default |
+| ------------------- | -------------------------- | ------- |
+| `--endpoint <url>`  | Phoenix API endpoint       | —       |
+| `--api-key <key>`   | Phoenix API key            | —       |
 
 ---
 
