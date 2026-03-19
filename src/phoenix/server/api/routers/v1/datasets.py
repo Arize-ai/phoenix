@@ -7,7 +7,7 @@ import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -36,6 +36,7 @@ from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
     ExampleContent,
+    ExampleWithHash,
     InvalidDatasetExampleIDError,
     add_dataset_examples,
 )
@@ -49,6 +50,7 @@ from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DatasetInsertEvent
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 from .models import V1RoutesBaseModel
 from .utils import (
@@ -546,11 +548,22 @@ async def upload_dataset(
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
+    hashed_examples = [
+        ExampleWithHash(
+            content=example,
+            content_hash=compute_example_content_hash(
+                input=example.input,
+                output=example.output,
+                metadata=example.metadata,
+            ),
+        )
+        for example in examples
+    ]
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
             add_dataset_examples,
-            examples=examples,
+            examples=hashed_examples,
             action=action,
             name=name,
             description=description,
@@ -576,8 +589,6 @@ async def upload_dataset(
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
-        if isinstance(examples, Coroutine):
-            examples.close()
         raise HTTPException(detail="Too many requests.", status_code=429)
     return None
 
