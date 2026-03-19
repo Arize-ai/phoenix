@@ -21,8 +21,6 @@ export const authenticatedRootLoaderQuery = graphql`
  * Loads in the necessary data at the root of the authenticated application
  */
 export async function authenticatedRootLoader() {
-  // Use loadQuery so Relay ties the query's lifetime to the mounted component,
-  // preventing GC from evicting the cache while the component is still rendered.
   const queryRef = loadQuery<AuthenticatedRootLoaderQueryType>(
     RelayEnvironment,
     authenticatedRootLoaderQuery,

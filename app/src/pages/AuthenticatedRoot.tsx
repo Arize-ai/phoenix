@@ -46,10 +46,7 @@ function FullStoryIdentifier({
  * The root of the authenticated application. Note that authentication might be entirely disabled
  */
 export function AuthenticatedRoot() {
-  // Redirects are handled by React Router before the component mounts, so the
-  // loader data here is always the non-redirect branch.
   const loaderData = useLoaderData<AuthenticatedRootLoaderData>();
-
   const queryData = usePreloadedQuery<AuthenticatedRootLoaderQueryType>(
     authenticatedRootLoaderQuery,
     loaderData.queryRef
