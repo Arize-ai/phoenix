@@ -1,12 +1,12 @@
 import { graphql } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem";
+import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
 import type { AgentPageContext } from "@phoenix/agent/context/pageContextTypes";
 
 import type { GeneratedContextFile } from "../types";
 import {
-  formatJsonBlock,
-  getGraphqlRequestText,
+  createGraphqlContextFile,
+  createJsonContextFile,
   toGraphqlTimeRange,
 } from "./shared";
 
@@ -122,18 +122,15 @@ export function buildProjectStarterFiles(
   projectId: string
 ): GeneratedContextFile[] {
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/project-by-id.graphql`,
-      content: getGraphqlRequestText(
-        projectByIdQuery,
-        "projectPageContextProjectByIdQuery"
-      ),
-    },
-    {
+      request: projectByIdQuery,
+      requestName: "projectPageContextProjectByIdQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/project-by-id.variables.json`,
-      content: `${formatJsonBlock({ id: projectId })}
-`,
-    },
+      value: { id: projectId },
+    }),
   ];
 }
 
@@ -154,31 +151,24 @@ export function buildProjectRecipeFiles(
   };
 
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/project-recent-traces.graphql`,
-      content: getGraphqlRequestText(
-        projectRecentTracesQuery,
-        "projectPageContextRecentTracesQuery"
-      ),
-    },
-    {
+      request: projectRecentTracesQuery,
+      requestName: "projectPageContextRecentTracesQuery",
+    }),
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/project-recent-spans.graphql`,
-      content: getGraphqlRequestText(
-        projectRecentSpansQuery,
-        "projectPageContextRecentSpansQuery"
-      ),
-    },
-    {
+      request: projectRecentSpansQuery,
+      requestName: "projectPageContextRecentSpansQuery",
+    }),
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/project-recent-sessions.graphql`,
-      content: getGraphqlRequestText(
-        projectRecentSessionsQuery,
-        "projectPageContextRecentSessionsQuery"
-      ),
-    },
-    {
+      request: projectRecentSessionsQuery,
+      requestName: "projectPageContextRecentSessionsQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/project-recipes.variables.json`,
-      content: `${formatJsonBlock(sharedVariables)}
-`,
-    },
+      value: sharedVariables,
+    }),
   ];
 }

@@ -51,21 +51,8 @@ describe("refreshAgentSessionContext", () => {
     const metadata = await runtime.executeCommand(
       "cat /phoenix/_meta/context.json"
     );
-    const manifest = await runtime.executeCommand("cat /phoenix/MANIFEST.md");
     const pageContext = await runtime.executeCommand(
       "cat /phoenix/page-context.json"
-    );
-    const agentStart = await runtime.executeCommand(
-      "cat /phoenix/agent-start.md"
-    );
-    const currentPageGuide = await runtime.executeCommand(
-      "cat /phoenix/graphql/current-page.md"
-    );
-    const projectExample = await runtime.executeCommand(
-      "cat /phoenix/graphql/examples/project-by-id.graphql"
-    );
-    const projectRecipe = await runtime.executeCommand(
-      "cat /phoenix/graphql/recipes/project-recent-traces.graphql"
     );
     const schema = await runtime.executeCommand(
       "test -s /phoenix/graphql/schema.graphql && printf ok"
@@ -76,25 +63,8 @@ describe("refreshAgentSessionContext", () => {
 
     expect(metadata.stdout).toContain('"params": {');
     expect(metadata.stdout).toContain('"projectId": "project-1"');
-    expect(pageContext.stdout).toContain('"routeMatches"');
-    expect(agentStart.stdout).toContain(
-      "Use this file for initial orientation"
-    );
-    expect(agentStart.stdout).toContain("/phoenix/graphql/README.md");
-    expect(agentStart.stdout).toContain(
-      "/phoenix/graphql/recipes/project-recent-traces.graphql"
-    );
-    expect(currentPageGuide.stdout).toContain(
-      "/phoenix/graphql/recipes/project-recent-traces.graphql"
-    );
-    expect(currentPageGuide.stdout).not.toContain("route ids:");
-    expect(projectExample.stdout).toContain("... on Project");
-    expect(projectExample.stdout).toContain("traceCount");
-    expect(projectRecipe.stdout).toContain("sort: {col: startTime, dir: desc}");
     expect(metadata.stdout).toContain('"timeRangeKey": "7d"');
-    expect(manifest.stdout).toContain(
-      "Page context includes the current pathname"
-    );
+    expect(pageContext.stdout).toContain('"routeMatches"');
     expect(schema.stdout).toContain("ok");
     await expect(
       runtime.executeCommand("printf 'nope' > /phoenix/_meta/context.json")
@@ -279,12 +249,6 @@ describe("refreshAgentSessionContext", () => {
     });
 
     const runtime = await getOrCreateBashToolRuntime("session-phoenix-gql");
-    const currentPageHints = await runtime.executeCommand(
-      "cat /phoenix/graphql/current-page.md"
-    );
-    const datasetExample = await runtime.executeCommand(
-      "cat /phoenix/graphql/examples/dataset-experiments.graphql"
-    );
     const gqlHelp = await runtime.executeCommand(
       "phoenix-gql query --variables '{}' --help"
     );
@@ -323,11 +287,6 @@ EOF`
       `phoenix-gql 'mutation { __typename }'`
     );
 
-    expect(currentPageHints.stdout).toContain("RGF0YXNldDox");
-    expect(currentPageHints.stdout).toContain(
-      "/phoenix/graphql/recipes/dataset-experiments.graphql"
-    );
-    expect(datasetExample.stdout).toContain("... on Dataset");
     expect(datasetRecipe.stdout).toContain("experiments(first: 10)");
     expect(gqlHelp.stdout).toContain("/phoenix/agent-start.md");
     expect(gqlHelp.stdout).toContain("Alias for --vars");

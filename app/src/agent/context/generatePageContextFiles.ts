@@ -1,14 +1,65 @@
-import { withManifestAndMetadata } from "@phoenix/agent/context/materializers/shared";
+import type { InitialFiles } from "just-bash";
+
+import { createManifestFile } from "@phoenix/agent/context/filesystem/manifest";
+import {
+  getPhoenixTopLevelIndexPaths,
+  PHOENIX_META_ROOT,
+  PHOENIX_ROOT,
+} from "@phoenix/agent/context/filesystem/pathConstants";
 import type {
   AdapterResult,
+  AdapterMetadata,
   AgentContextRefreshReason,
   AgentPageContext,
 } from "@phoenix/agent/context/pageContextTypes";
 
-import { buildPageContextFiles } from "./fileBuilders/buildPageContextFiles";
+import { buildGraphqlContextFiles } from "./fileBuilders/buildGraphqlContextFiles";
 
 const PAGE_CONTEXT_MANIFEST_FRAGMENT =
   "Page context includes the current pathname, route hierarchy, route params, search params, and time range only.";
+
+function createJsonFile(payload: unknown) {
+  return JSON.stringify(payload, null, 2);
+}
+
+function createTopLevelSkeletonFiles() {
+  return Object.fromEntries(
+    getPhoenixTopLevelIndexPaths().map((filePath) => [
+      filePath,
+      createJsonFile({
+        path: filePath.replace(/\/INDEX\.json$/, ""),
+        entries: [],
+      }),
+    ])
+  );
+}
+
+function createMetadata({
+  pageContext,
+  refreshReason,
+  files,
+}: {
+  pageContext: AgentPageContext;
+  refreshReason: AgentContextRefreshReason;
+  files: string[];
+}): AdapterMetadata {
+  return {
+    generatedAt: new Date().toISOString(),
+    refreshReason,
+    pathname: pageContext.pathname,
+    search: pageContext.search,
+    params: pageContext.params,
+    timeRange: pageContext.timeRange,
+    files: [...files].sort(),
+  };
+}
+
+function buildPageContextFiles(pageContext: AgentPageContext): InitialFiles {
+  return {
+    [`${PHOENIX_ROOT}/page-context.json`]: createJsonFile(pageContext),
+    ...buildGraphqlContextFiles(pageContext),
+  };
+}
 
 /**
  * Materializes the lightweight `/phoenix` page context files for the current route.
@@ -20,14 +71,28 @@ export async function generatePageContextFiles({
   pageContext: AgentPageContext;
   refreshReason: AgentContextRefreshReason;
 }): Promise<AdapterResult> {
-  const files = buildPageContextFiles(pageContext);
-
-  return withManifestAndMetadata({
-    files,
+  const fileContents = buildPageContextFiles(pageContext);
+  const metadata = createMetadata({
     pageContext,
     refreshReason,
-    adapterId: "page-context-metadata-only",
-    adapterName: "Page Context Metadata Adapter",
-    manifestFragment: PAGE_CONTEXT_MANIFEST_FRAGMENT,
+    files: [
+      ...Object.keys(fileContents),
+      `${PHOENIX_ROOT}/MANIFEST.md`,
+      `${PHOENIX_META_ROOT}/context.json`,
+    ],
   });
+
+  return {
+    files: {
+      ...createTopLevelSkeletonFiles(),
+      ...fileContents,
+      [`${PHOENIX_META_ROOT}/context.json`]: createJsonFile(metadata),
+      [`${PHOENIX_ROOT}/MANIFEST.md`]: createManifestFile({
+        metadata,
+        manifestFragment: PAGE_CONTEXT_MANIFEST_FRAGMENT,
+      }),
+    },
+    metadata,
+    manifestFragment: PAGE_CONTEXT_MANIFEST_FRAGMENT,
+  };
 }

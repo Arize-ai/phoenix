@@ -19,7 +19,6 @@ import { phoenixGqlCommand } from "./phoenixGqlCommand";
  * Default working directory for the browser bash runtime scratch space.
  */
 export const DEFAULT_BASH_TOOL_CWD = BASH_TOOL_WORKSPACE_ROOT;
-const PHOENIX_CONTEXT_HEREDOC_PREFIX = "__PHOENIX_CONTEXT_";
 
 type BashExecutionLimits = NonNullable<BashOptions["executionLimits"]>;
 
@@ -67,14 +66,14 @@ function getFileContent(value: InitialFiles[string]) {
   return value;
 }
 
-function escapeShellPath(path: string) {
-  return `"${path.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
-}
-
 function toTextContent(content: string | Uint8Array) {
   return typeof content === "string"
     ? content
     : new TextDecoder().decode(content);
+}
+
+function escapeShellPath(path: string) {
+  return `"${path.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 async function executeInternalShellCommand(bash: Bash, command: string) {
@@ -99,6 +98,10 @@ async function withPolicyDisabled<T>(
   }
 }
 
+function getParentPath(filePath: string) {
+  return filePath.slice(0, filePath.lastIndexOf("/")) || "/";
+}
+
 function buildPhoenixFileWriteCommand({
   filePath,
   content,
@@ -108,11 +111,9 @@ function buildPhoenixFileWriteCommand({
   content: string;
   fileIndex: number;
 }) {
-  const parentPath = filePath.slice(0, filePath.lastIndexOf("/")) || "/";
-  const heredocDelimiter = `${PHOENIX_CONTEXT_HEREDOC_PREFIX}${fileIndex}__`;
+  const heredocDelimiter = `__PHOENIX_CONTEXT_${fileIndex}__`;
 
   return [
-    `mkdir -p ${escapeShellPath(parentPath)}`,
     `cat <<'${heredocDelimiter}' > ${escapeShellPath(filePath)}`,
     content,
     heredocDelimiter,
@@ -125,14 +126,25 @@ async function writeInitialFiles(
   files: InitialFiles
 ) {
   await withPolicyDisabled(bash, originalMutationMethods, async () => {
-    await executeInternalShellCommand(
-      bash,
-      `rm -rf ${escapeShellPath(BASH_TOOL_READONLY_ROOT)} && mkdir -p ${escapeShellPath(BASH_TOOL_READONLY_ROOT)}`
-    );
+    await originalMutationMethods.rm(BASH_TOOL_READONLY_ROOT, {
+      force: true,
+      recursive: true,
+    });
+    await originalMutationMethods.mkdir(BASH_TOOL_READONLY_ROOT, {
+      recursive: true,
+    });
 
+    const createdDirectories = new Set<string>([BASH_TOOL_READONLY_ROOT]);
     let fileIndex = 0;
 
     for (const [filePath, value] of Object.entries(files)) {
+      const parentPath = getParentPath(filePath);
+
+      if (!createdDirectories.has(parentPath)) {
+        await originalMutationMethods.mkdir(parentPath, { recursive: true });
+        createdDirectories.add(parentPath);
+      }
+
       const content = toTextContent(
         (await getFileContent(value)) as string | Uint8Array
       );

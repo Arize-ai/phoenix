@@ -1,9 +1,9 @@
 import { graphql } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem";
+import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
 
 import type { GeneratedContextFile } from "../types";
-import { formatJsonBlock, getGraphqlRequestText } from "./shared";
+import { createGraphqlContextFile, createJsonContextFile } from "./shared";
 
 const promptByIdQuery = graphql`
   query promptPageContextByIdQuery($id: ID!) {
@@ -21,18 +21,15 @@ export function buildPromptStarterFiles(
   promptId: string
 ): GeneratedContextFile[] {
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/prompt-by-id.graphql`,
-      content: getGraphqlRequestText(
-        promptByIdQuery,
-        "promptPageContextByIdQuery"
-      ),
-    },
-    {
+      request: promptByIdQuery,
+      requestName: "promptPageContextByIdQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/prompt-by-id.variables.json`,
-      content: `${formatJsonBlock({ id: promptId })}
-`,
-    },
+      value: { id: promptId },
+    }),
   ];
 }
 
@@ -44,17 +41,14 @@ export function buildPromptRecipeFiles(
   }
 
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/prompt-details.graphql`,
-      content: getGraphqlRequestText(
-        promptByIdQuery,
-        "promptPageContextByIdQuery"
-      ),
-    },
-    {
+      request: promptByIdQuery,
+      requestName: "promptPageContextByIdQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/prompt-details.variables.json`,
-      content: `${formatJsonBlock({ id: promptId })}
-`,
-    },
+      value: { id: promptId },
+    }),
   ];
 }

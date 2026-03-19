@@ -1,9 +1,9 @@
 import { graphql } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem";
+import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
 
 import type { GeneratedContextFile } from "../types";
-import { formatJsonBlock, getGraphqlRequestText } from "./shared";
+import { createGraphqlContextFile, createJsonContextFile } from "./shared";
 
 const traceFromProjectQuery = graphql`
   query tracePageContextFromProjectQuery($projectId: ID!, $traceId: ID!) {
@@ -58,18 +58,15 @@ export function buildTraceStarterFiles(
   traceId: string
 ): GeneratedContextFile[] {
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/trace-from-project.graphql`,
-      content: getGraphqlRequestText(
-        traceFromProjectQuery,
-        "tracePageContextFromProjectQuery"
-      ),
-    },
-    {
+      request: traceFromProjectQuery,
+      requestName: "tracePageContextFromProjectQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/trace-from-project.variables.json`,
-      content: `${formatJsonBlock({ projectId, traceId })}
-`,
-    },
+      value: { projectId, traceId },
+    }),
   ];
 }
 
@@ -85,17 +82,14 @@ export function buildTraceRecipeFiles({
   }
 
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/trace-details.graphql`,
-      content: getGraphqlRequestText(
-        traceDetailsQuery,
-        "tracePageContextDetailsQuery"
-      ),
-    },
-    {
+      request: traceDetailsQuery,
+      requestName: "tracePageContextDetailsQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/trace-details.variables.json`,
-      content: `${formatJsonBlock({ projectId, traceId })}
-`,
-    },
+      value: { projectId, traceId },
+    }),
   ];
 }

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import {
-  getAgentPageContextSignature,
-  useCurrentAgentPageContext,
-} from "@phoenix/agent/context/pageContext";
+import { useCurrentAgentPageContext } from "@phoenix/agent/context/pageContext";
 import type {
   AgentContextRefreshReason,
   AgentPageContext,
@@ -15,25 +12,27 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 import type { ModelMenuValue } from "../generative/ModelMenu";
 
 type PreviousRefreshSnapshot = {
-  pageContextSignature: string;
   pathname: string;
   search: string;
+  timeRangeKey: string | null;
+  timeRangeStart: string | null;
+  timeRangeEnd: string | null;
   sessionId: string | null;
 };
 
 function createRefreshSnapshot({
   pageContext,
-  pageContextSignature,
   sessionId,
 }: {
   pageContext: AgentPageContext;
-  pageContextSignature: string;
   sessionId: string | null;
 }): PreviousRefreshSnapshot {
   return {
-    pageContextSignature,
     pathname: pageContext.pathname,
     search: pageContext.search,
+    timeRangeKey: pageContext.timeRange?.timeRangeKey ?? null,
+    timeRangeStart: pageContext.timeRange?.start ?? null,
+    timeRangeEnd: pageContext.timeRange?.end ?? null,
     sessionId,
   };
 }
@@ -41,27 +40,31 @@ function createRefreshSnapshot({
 function getRefreshReason({
   previousRefresh,
   pageContext,
-  pageContextSignature,
   sessionId,
 }: {
   previousRefresh: PreviousRefreshSnapshot | null;
   pageContext: AgentPageContext;
-  pageContextSignature: string;
   sessionId: string | null;
 }): AgentContextRefreshReason | null {
   if (previousRefresh === null || previousRefresh.sessionId !== sessionId) {
     return "navigation";
   }
 
-  if (previousRefresh.pageContextSignature === pageContextSignature) {
-    return null;
-  }
-
   const isSameLocation =
     previousRefresh.pathname === pageContext.pathname &&
     previousRefresh.search === pageContext.search;
 
-  return isSameLocation ? "time-range-change" : "navigation";
+  if (!isSameLocation) {
+    return "navigation";
+  }
+
+  const hasTimeRangeChanged =
+    previousRefresh.timeRangeKey !==
+      (pageContext.timeRange?.timeRangeKey ?? null) ||
+    previousRefresh.timeRangeStart !== (pageContext.timeRange?.start ?? null) ||
+    previousRefresh.timeRangeEnd !== (pageContext.timeRange?.end ?? null);
+
+  return hasTimeRangeChanged ? "time-range-change" : null;
 }
 
 /**
@@ -81,6 +84,24 @@ export function useAgentChatPanelState() {
   const previousRefreshRef = useRef<PreviousRefreshSnapshot | null>(null);
   const latestRefreshRequestIdRef = useRef(0);
   const pageContext = useCurrentAgentPageContext();
+  const autoRefreshPageContext = useMemo<AgentPageContext>(
+    () => ({
+      pathname: pageContext.pathname,
+      search: pageContext.search,
+      params: pageContext.params,
+      searchParams: pageContext.searchParams,
+      routeMatches: pageContext.routeMatches,
+      timeRange: pageContext.timeRange,
+    }),
+    [
+      pageContext.pathname,
+      pageContext.search,
+      pageContext.params,
+      pageContext.searchParams,
+      pageContext.routeMatches,
+      pageContext.timeRange,
+    ]
+  );
 
   useEffect(() => {
     if (isOpen && activeSessionId === null) {
@@ -125,19 +146,16 @@ export function useAgentChatPanelState() {
   const refreshSessionContext = useCallback(
     async ({
       pageContext,
-      pageContextSignature,
       refreshReason,
       sessionId,
     }: {
       pageContext: AgentPageContext;
-      pageContextSignature: string;
       refreshReason: AgentContextRefreshReason;
       sessionId: string | null;
     }) => {
       const refreshRequestId = ++latestRefreshRequestIdRef.current;
       const refreshSnapshot = createRefreshSnapshot({
         pageContext,
-        pageContextSignature,
         sessionId,
       });
 
@@ -156,11 +174,6 @@ export function useAgentChatPanelState() {
     []
   );
 
-  const pageContextSignature = useMemo(
-    () => getAgentPageContextSignature(pageContext),
-    [pageContext]
-  );
-
   useEffect(() => {
     if (!isOpen || activeSessionId === null) {
       return;
@@ -168,8 +181,7 @@ export function useAgentChatPanelState() {
 
     const refreshReason = getRefreshReason({
       previousRefresh: previousRefreshRef.current,
-      pageContext,
-      pageContextSignature,
+      pageContext: autoRefreshPageContext,
       sessionId: activeSessionId,
     });
 
@@ -178,18 +190,11 @@ export function useAgentChatPanelState() {
     }
 
     void refreshSessionContext({
-      pageContext,
-      pageContextSignature,
+      pageContext: autoRefreshPageContext,
       refreshReason,
       sessionId: activeSessionId,
     });
-  }, [
-    activeSessionId,
-    isOpen,
-    pageContext,
-    pageContextSignature,
-    refreshSessionContext,
-  ]);
+  }, [activeSessionId, autoRefreshPageContext, isOpen, refreshSessionContext]);
 
   const handleRefreshContext = useCallback(async () => {
     if (!activeSessionId) {
@@ -198,16 +203,10 @@ export function useAgentChatPanelState() {
 
     await refreshSessionContext({
       pageContext,
-      pageContextSignature,
       refreshReason: "manual",
       sessionId: activeSessionId,
     });
-  }, [
-    activeSessionId,
-    pageContext,
-    pageContextSignature,
-    refreshSessionContext,
-  ]);
+  }, [activeSessionId, pageContext, refreshSessionContext]);
 
   const closePanel = useCallback(() => {
     setIsOpen(false);

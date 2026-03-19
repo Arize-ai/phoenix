@@ -1,7 +1,9 @@
 import type { ConcreteRequest, GraphQLTaggedNode } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem";
+import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
 import type { AgentPageContext } from "@phoenix/agent/context/pageContextTypes";
+
+import type { GeneratedContextFile } from "../types";
 
 export const PHOENIX_GQL_GUIDE = `# phoenix-gql
 
@@ -61,4 +63,32 @@ export function getGraphqlRequestText(
   }
 
   return `${text}\n`;
+}
+
+export function createGraphqlContextFile({
+  path,
+  request,
+  requestName,
+}: {
+  path: string;
+  request: GraphQLTaggedNode;
+  requestName: string;
+}): GeneratedContextFile {
+  return {
+    path,
+    content: getGraphqlRequestText(request, requestName),
+  };
+}
+
+export function createJsonContextFile({
+  path,
+  value,
+}: {
+  path: string;
+  value: unknown;
+}): GeneratedContextFile {
+  return {
+    path,
+    content: `${formatJsonBlock(value)}\n`,
+  };
 }

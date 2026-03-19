@@ -27,8 +27,6 @@ export interface AgentPageContext {
 }
 
 export interface AdapterMetadata {
-  adapterId: string;
-  adapterName: string;
   generatedAt: string;
   refreshReason: AgentContextRefreshReason;
   pathname: string;

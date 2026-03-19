@@ -1,9 +1,9 @@
 import { graphql } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem";
+import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
 
 import type { GeneratedContextFile } from "../types";
-import { formatJsonBlock, getGraphqlRequestText } from "./shared";
+import { createGraphqlContextFile, createJsonContextFile } from "./shared";
 
 const datasetByIdQuery = graphql`
   query datasetPageContextByIdQuery($id: ID!) {
@@ -41,25 +41,20 @@ export function buildDatasetStarterFiles(
   datasetId: string
 ): GeneratedContextFile[] {
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/dataset-by-id.graphql`,
-      content: getGraphqlRequestText(
-        datasetByIdQuery,
-        "datasetPageContextByIdQuery"
-      ),
-    },
-    {
+      request: datasetByIdQuery,
+      requestName: "datasetPageContextByIdQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/dataset-by-id.variables.json`,
-      content: `${formatJsonBlock({ id: datasetId })}
-`,
-    },
-    {
+      value: { id: datasetId },
+    }),
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/examples/dataset-experiments.graphql`,
-      content: getGraphqlRequestText(
-        datasetExperimentsQuery,
-        "datasetPageContextExperimentsQuery"
-      ),
-    },
+      request: datasetExperimentsQuery,
+      requestName: "datasetPageContextExperimentsQuery",
+    }),
   ];
 }
 
@@ -71,17 +66,14 @@ export function buildDatasetRecipeFiles(
   }
 
   return [
-    {
+    createGraphqlContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/dataset-experiments.graphql`,
-      content: getGraphqlRequestText(
-        datasetExperimentsQuery,
-        "datasetPageContextExperimentsQuery"
-      ),
-    },
-    {
+      request: datasetExperimentsQuery,
+      requestName: "datasetPageContextExperimentsQuery",
+    }),
+    createJsonContextFile({
       path: `${PHOENIX_ROOT}/graphql/recipes/dataset-experiments.variables.json`,
-      content: `${formatJsonBlock({ id: datasetId })}
-`,
-    },
+      value: { id: datasetId },
+    }),
   ];
 }

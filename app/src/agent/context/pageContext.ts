@@ -92,10 +92,6 @@ export function buildAgentPageContext({
   };
 }
 
-export function getAgentPageContextSignature(pageContext: AgentPageContext) {
-  return JSON.stringify(pageContext);
-}
-
 export function getAgentTimeRangeContext(
   timeRangeContext: ReturnType<typeof useNullableTimeRangeContext>
 ): AgentTimeRangeContext | null {
