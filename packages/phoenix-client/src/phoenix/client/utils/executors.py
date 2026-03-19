@@ -34,15 +34,10 @@ EvalsRateLimitError: type[BaseException]
 try:
     from phoenix.evals.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
-    try:
-        # Backward compatibility for older arize-phoenix-evals versions.
-        from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
-    except ImportError:
+    class _EvalsRateLimitErrorFallback(Exception):
+        pass
 
-        class _EvalsRateLimitErrorFallback(Exception):
-            pass
-
-        EvalsRateLimitError = _EvalsRateLimitErrorFallback
+    EvalsRateLimitError = _EvalsRateLimitErrorFallback
 
 
 class Unset:
