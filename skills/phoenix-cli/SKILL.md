@@ -36,6 +36,33 @@ px trace <trace-id> --format raw | jq .
 px trace <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
 ```
 
+## Spans
+
+```bash
+px spans --limit 20                                    # recent spans (table view)
+px spans --last-n-minutes 60 --limit 50                # spans from last hour
+px spans --span-kind LLM --limit 10                    # only LLM spans
+px spans --status-code ERROR --limit 20                # only errored spans
+px spans --name chat_completion --limit 10             # filter by span name
+px spans --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
+px spans --include-annotations --limit 10              # include annotation scores
+px spans output.json --limit 100                       # save to JSON file
+px spans --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
+```
+
+### Span JSON shape
+
+```
+Span
+  name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"UNKNOWN")
+  status_code ("OK"|"ERROR"|"UNSET"), status_message
+  context.span_id, context.trace_id, parent_id
+  start_time, end_time
+  attributes (same as trace span attributes above)
+  annotations[] (with --include-annotations)
+    name, result { score, label, explanation }
+```
+
 ### Trace JSON shape
 
 ```
