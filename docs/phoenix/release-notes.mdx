@@ -10,6 +10,28 @@ GitHub
 
 
 
+<Update label="03.18.2026">
+## [03.18.2026: Span Filters — Name, Kind, and Status Code](/docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements)
+**Available in arize-phoenix 13.15.0+ (server), arize-phoenix-client 2.1.0+ (Python), @arizeai/phoenix-client 6.5.1+ (TypeScript)**
+
+Filter spans directly by name, span kind (`LLM`, `CHAIN`, `TOOL`, etc.), and status code (`OK`, `ERROR`, `UNSET`) in both the REST API and SDK clients. Filters are OR-combined within a field and AND-combined across fields.
+
+- **`name` filter** to match one or more span names
+- **`span_kind` filter** for `LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, and other span kinds
+- **`status_code` filter** to isolate error, success, or unset spans
+- **Available in Python via `client.spans.get_spans(name=..., span_kind=..., status_code=...)`**
+- **Available in TypeScript via `getSpans({ name, spanKind, statusCode })`**
+</Update>
+
+<Update label="03.13.2026">
+## [03.13.2026: List Traces by Project](/docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements)
+**Available in arize-phoenix 13.15.0+**
+
+A new `GET /v1/projects/{project_identifier}/traces` REST endpoint lists traces with time filtering, sort order, cursor pagination, optional inline spans, and session filtering.
+
+- **`GET /v1/projects/{project}/traces`** with `sort`, `order`, `limit`, `cursor`, `include_spans`, and `session_identifier` params
+</Update>
+
 <Update label="03.11.2026">
 ## [03.11.2026: Session Turns API](/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api)
 **Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
