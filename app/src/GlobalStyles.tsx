@@ -891,10 +891,12 @@ export const lightThemeCSS = css`
   }
 `;
 
-export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
+type Theme = ThemeContextType["theme"];
+
+const baseTokensCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    // The primary color tint for  the apps
+    // The primary color tint for the apps
     --global-color-primary: var(--global-color-gray-900);
     --global-color-primary-900: rgba(var(--global-color-gray-900-rgb), 0.9);
     --global-color-primary-800: rgba(var(--global-color-gray-900-rgb), 0.8);
@@ -917,18 +919,25 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
 
-    // Text
     --text-color-placeholder: var(--global-color-gray-400);
+  }
+`;
 
-    // Styles for text fields etc
+const inputFieldCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-input-field-border-color: var(--global-color-gray-400);
     --global-input-field-border-color-hover: var(--global-color-gray-300);
     --global-input-field-border-color-active: var(--global-color-primary);
     --global-input-field-background-color: var(--global-color-gray-100);
     --global-input-field-background-color-hover: var(--global-color-gray-300);
     --global-input-field-background-color-active: var(--global-color-gray-300);
+  }
+`;
 
-    // Styles for menus
+const menuCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-menu-border-color: var(--global-color-gray-100);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
@@ -936,8 +945,12 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+  }
+`;
 
-    // Styles for buttons
+const buttonCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-button-primary-background-color: var(--global-color-gray-900);
     --global-button-primary-foreground-color: var(--global-color-gray-100);
     --global-button-primary-background-color-hover: var(
@@ -954,47 +967,73 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       --global-color-success-900
     );
     --global-button-success-border-color: var(--global-color-success);
+  }
+`;
 
-    // Styles for checkbox
+const checkboxCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-checkbox-selected-color: var(--global-color-gray-800);
     --global-checkbox-selected-color-pressed: var(--global-color-gray-900);
     --global-checkbox-checkmark-color: var(--global-color-gray-50);
     --global-checkbox-border-color: var(--global-color-gray-300);
     --global-checkbox-border-color-pressed: var(--global-color-gray-400);
     --global-checkbox-border-color-hover: var(--global-color-gray-400);
+  }
+`;
 
-    // Styles for disclosure
+const disclosureCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-disclosure-background-color-active: rgba(
       var(--global-color-gray-900-rgb),
       0.05
     );
+  }
+`;
 
-    // Style for tooltips
+const tooltipCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-tooltip-background-color: var(--global-color-gray-50);
     --global-tooltip-border-color: var(--global-color-gray-300);
+  }
+`;
 
-    // Style for cards
+const cardCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
     --global-card-header-background-color-hover: var(
       --global-color-primary-100
     );
+  }
+`;
 
-    // Style for popovers
+const popoverCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-popover-border-color: var(--global-color-gray-300);
     --global-popover-background-color: var(--global-color-gray-50);
+  }
+`;
 
+const roundingCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-rounding-xsmall: var(--global-dimension-static-size-25);
     --global-rounding-small: var(--global-dimension-static-size-50);
     --global-rounding-medium: var(--global-dimension-static-size-100);
     --global-rounding-large: var(--global-dimension-static-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
+  }
+`;
 
-    /**
-     * Table tokens
-     */
-
-    /* Table colors */
+const tableCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-table-pinned-column-background-color: var(--global-color-gray-75);
     --global-table-header-background-color: var(--global-color-gray-75);
     --global-table-row-border-color: var(--global-color-gray-200);
@@ -1004,18 +1043,21 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-table-bordered-cell-border-color: var(--global-color-gray-100);
     --global-table-pagination-border-color: var(--global-color-gray-300);
 
-    /* Table spacing */
     --global-table-cell-padding-y: var(--global-dimension-size-100);
     --global-table-cell-padding-x: var(--global-dimension-size-200);
     --global-table-pagination-padding: var(--global-dimension-size-100);
     --global-table-pagination-gap: var(--global-dimension-size-50);
 
-    /* Table cell controls */
     --global-table-cell-controls-offset: var(
       --global-dimension-static-size-100
     );
     --global-table-cell-controls-gap: var(--global-dimension-static-size-50);
+  }
+`;
 
+const borderAndGridCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
     --global-border-size-thicker: var(--global-dimension-static-size-50);
@@ -1036,11 +1078,26 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --global-grid-margin-large: var(--global-dimension-static-size-500);
     --global-grid-margin-xlarge: var(--global-dimension-static-size-600);
 
-    /* Aliases */
     --alias-single-line-height: var(--global-dimension-size-400);
     --alias-single-line-width: var(--global-dimension-size-2400);
   }
 `;
+
+export const derivedCSS = (theme: Theme) =>
+  css(
+    baseTokensCSS(theme),
+    inputFieldCSS(theme),
+    menuCSS(theme),
+    buttonCSS(theme),
+    checkboxCSS(theme),
+    disclosureCSS(theme),
+    tooltipCSS(theme),
+    cardCSS(theme),
+    popoverCSS(theme),
+    roundingCSS(theme),
+    tableCSS(theme),
+    borderAndGridCSS(theme)
+  );
 
 const appGlobalStylesCSS = css`
   body,

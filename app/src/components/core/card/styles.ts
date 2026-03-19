@@ -2,9 +2,7 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
 export const cardCSS = (style?: CSSProperties) => css`
-  --scope-border-color: ${
-    style?.borderColor ?? "var(--global-border-color-default)"
-  };
+  ${style?.borderColor ? `--global-card-border-color: ${style.borderColor};` : ""}
   --collapsible-card-animation-duration: 200ms;
   --collapsible-card-icon-size: var(--global-dimension-size-300);
 
@@ -12,7 +10,7 @@ export const cardCSS = (style?: CSSProperties) => css`
   flex-direction: column;
   color: var(--global-text-color-900);
   border-radius: var(--global-rounding-medium);
-  border: 1px solid var(--scope-border-color);
+  border: 1px solid var(--global-card-border-color);
   overflow: hidden;
   box-sizing: border-box;
 
@@ -70,7 +68,7 @@ export const cardCSS = (style?: CSSProperties) => css`
   }
 
   &[data-collapsed="false"][data-title-separator="true"] > header {
-    border-bottom: 1px solid var(--scope-border-color);
+    border-bottom: 1px solid var(--global-card-border-color);
   }
 
   /* Card Body Styles */
