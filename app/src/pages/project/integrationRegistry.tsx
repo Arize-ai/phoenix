@@ -225,6 +225,78 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
+    id: "haystack",
+    name: "Haystack",
+    icon: <HaystackSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack",
+      },
+    },
+  },
+  {
+    id: "google-adk",
+    name: "Google ADK",
+    icon: <GoogleADKSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk",
+      },
+    },
+  },
+  {
+    id: "gemini",
+    name: "Gemini",
+    icon: <GeminiSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-genai",
+      },
+    },
+  },
+  {
+    id: "litellm",
+    name: "LiteLLM",
+    icon: <LiteLLMSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
+      },
+    },
+  },
+  {
+    id: "vercel-ai-sdk",
+    name: "Vercel AI SDK",
+    icon: <VercelSVG />,
+    supportedLanguages: ["TypeScript"],
+    languages: {
+      TypeScript: {
+        packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
+        getImplementationCode: getVercelAiSdkCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
+      },
+    },
+  },
+  {
     id: "anthropic",
     name: "Anthropic",
     icon: <AnthropicSVG />,
@@ -257,43 +329,6 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
-    id: "mastra",
-    name: "Mastra",
-    icon: <MastraSVG />,
-    supportedLanguages: ["TypeScript"],
-    languages: {
-      TypeScript: {
-        packages: [
-          "@mastra/arize",
-          "@mastra/observability",
-          "@mastra/core",
-          "@ai-sdk/openai",
-        ],
-        getImplementationCode: getMastraCodeTypescript,
-        docsHref:
-          "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
-      },
-    },
-  },
-  {
-    id: "vercel-ai-sdk",
-    name: "Vercel AI SDK",
-    icon: <VercelSVG />,
-    supportedLanguages: ["TypeScript"],
-    languages: {
-      TypeScript: {
-        packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
-        getImplementationCode: getVercelAiSdkCodeTypescript,
-        docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
-      },
-    },
-  },
-  {
     id: "bedrock",
     name: "Bedrock",
     icon: <BedrockSVG />,
@@ -314,76 +349,6 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
-    id: "gemini",
-    name: "Gemini",
-    icon: <GeminiSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-genai",
-      },
-    },
-  },
-  {
-    id: "google-adk",
-    name: "Google ADK",
-    icon: <GoogleADKSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-google-adk",
-      },
-    },
-  },
-  {
-    id: "vertex-ai",
-    name: "VertexAI",
-    icon: <VertexAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/integrations/llm-providers/vertexai",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
-      },
-    },
-  },
-  {
-    id: "mistral-ai",
-    name: "MistralAI",
-    icon: <MistralAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai",
-      },
-    },
-  },
-  {
-    id: "groq",
-    name: "Groq",
-    icon: <GroqSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
-      },
-    },
-  },
-  {
     id: "dspy",
     name: "DSPy",
     icon: <DSPYSVG />,
@@ -394,20 +359,6 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-dspy",
-      },
-    },
-  },
-  {
-    id: "haystack",
-    name: "Haystack",
-    icon: <HaystackSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack",
       },
     },
   },
@@ -426,29 +377,16 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
-    id: "pydantic-ai",
-    name: "PydanticAI",
-    icon: <PydanticAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
-      Python: {
-        docsHref: "https://arize.com/docs/phoenix/integrations/python/pydantic",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
-      },
-    },
-  },
-  {
-    id: "litellm",
-    name: "LiteLLM",
-    icon: <LiteLLMSVG />,
+    id: "vertex-ai",
+    name: "VertexAI",
+    icon: <VertexAISVG />,
     supportedLanguages: ["Python"],
     languages: {
       Python: {
         docsHref:
-          "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
+          "https://arize.com/docs/phoenix/integrations/llm-providers/vertexai",
         githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-litellm",
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai",
       },
     },
   },
@@ -480,6 +418,19 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     },
   },
   {
+    id: "pydantic-ai",
+    name: "PydanticAI",
+    icon: <PydanticAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref: "https://arize.com/docs/phoenix/integrations/python/pydantic",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-pydantic-ai",
+      },
+    },
+  },
+  {
     id: "beeai",
     name: "BeeAI",
     icon: <BeeAISVG />,
@@ -495,6 +446,55 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/integrations/typescript/beeai",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
+      },
+    },
+  },
+  {
+    id: "mastra",
+    name: "Mastra",
+    icon: <MastraSVG />,
+    supportedLanguages: ["TypeScript"],
+    languages: {
+      TypeScript: {
+        packages: [
+          "@mastra/arize",
+          "@mastra/observability",
+          "@mastra/core",
+          "@ai-sdk/openai",
+        ],
+        getImplementationCode: getMastraCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+      },
+    },
+  },
+  {
+    id: "mistral-ai",
+    name: "MistralAI",
+    icon: <MistralAISVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai",
+      },
+    },
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    icon: <GroqSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
       },
     },
   },
