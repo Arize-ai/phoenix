@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
 
-import wasmtime
+import wasmtime  # type: ignore[import-not-found]
 
 from .types import (
     BaseNoSessionBackend,
@@ -36,25 +36,37 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 
-# Module-level binary cache: path → compiled wasmtime.Module.
-_MODULE_CACHE: dict[str, wasmtime.Module] = {}
+# Module-level cache: path → (engine, compiled module).
+# Engine and module must be paired — a module compiled with one engine
+# cannot be used with a store from a different engine.
+_MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
+
+
+def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime.Module]:
+    """Return a cached (engine, module) pair, compiling on first use."""
+    cache_key = str(binary_path)
+    if cache_key not in _MODULE_CACHE:
+        engine_cfg = wasmtime.Config()
+        engine_cfg.epoch_interruption = True
+        engine = wasmtime.Engine(engine_cfg)
+        module = wasmtime.Module.from_file(engine, str(binary_path))
+        _MODULE_CACHE[cache_key] = (engine, module)
+    return _MODULE_CACHE[cache_key]
 
 
 def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     """Execute *code* in a wasmtime WASI context. Runs in a thread."""
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
+    stdin_path: str | None = None
 
     try:
-        engine_cfg = wasmtime.Config()
-        engine_cfg.epoch_interruption = True
-        engine = wasmtime.Engine(engine_cfg)
+        engine, module = _get_engine_and_module(binary_path)
 
         linker = wasmtime.Linker(engine)
         linker.define_wasi()
 
         wasi = wasmtime.WasiConfig()
-        wasi.inherit_env()
         wasi.stdout_custom(stdout_buf)
         wasi.stderr_custom(stderr_buf)
 
@@ -67,11 +79,6 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         store = wasmtime.Store(engine)
         store.set_wasi(wasi)
         store.set_epoch_deadline(timeout)
-
-        cache_key = str(binary_path)
-        if cache_key not in _MODULE_CACHE:
-            _MODULE_CACHE[cache_key] = wasmtime.Module.from_file(engine, str(binary_path))
-        module = _MODULE_CACHE[cache_key]
 
         instance = linker.instantiate(store, module)
         exports = instance.exports(store)
@@ -86,6 +93,14 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             stderr=stderr_buf.getvalue(),
             error=str(exc),
         )
+    finally:
+        if stdin_path is not None:
+            import os
+
+            try:
+                os.unlink(stdin_path)
+            except OSError:
+                pass
 
 
 class WASMBackend(BaseNoSessionBackend):

@@ -380,29 +380,6 @@ def get_evaluator_output_configs(
     return configs
 
 
-async def _resolve_sandbox_config(
-    sandbox_config_id: int,
-    session: "AsyncSession",
-) -> Optional[models.SandboxConfig]:
-    """
-    Resolve a SandboxConfig DB row by primary key.
-
-    Returns None if the row does not exist. Callers use this to look up the
-    SandboxConfig associated with a CodeEvaluator before resolving the backend.
-    """
-    from typing import cast as _cast
-
-    from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession  # noqa: F401
-
-    return _cast(
-        Optional[models.SandboxConfig],
-        await session.scalar(
-            select(models.SandboxConfig).where(models.SandboxConfig.id == sandbox_config_id)
-        ),
-    )
-
-
 async def _resolve_language_id(
     language_name: str,
     session: "AsyncSession",
@@ -414,7 +391,6 @@ async def _resolve_language_id(
     updating CodeEvaluator / SandboxProvider rows that need a language_id FK.
     """
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession  # noqa: F401
 
     row = await session.scalar(select(models.Language).where(models.Language.name == language_name))
     return row.id if row is not None else None

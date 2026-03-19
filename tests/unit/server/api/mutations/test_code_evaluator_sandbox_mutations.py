@@ -209,7 +209,7 @@ class TestSetSandboxProviderEnabled:
         assert result.data and not result.errors
         assert result.data["setSandboxProviderEnabled"]["sandboxProvider"]["enabled"] is False
 
-    async def test_enables_provider(
+    async def test_enables_provider_after_disable(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
@@ -221,6 +221,15 @@ class TestSetSandboxProviderEnabled:
             )
         assert provider is not None
 
+        # First disable
+        result = await gql_client.execute(
+            _SET_PROVIDER_ENABLED,
+            variables={"providerId": provider.id, "enabled": False},
+        )
+        assert result.data and not result.errors
+        assert result.data["setSandboxProviderEnabled"]["sandboxProvider"]["enabled"] is False
+
+        # Then re-enable
         result = await gql_client.execute(
             _SET_PROVIDER_ENABLED,
             variables={"providerId": provider.id, "enabled": True},

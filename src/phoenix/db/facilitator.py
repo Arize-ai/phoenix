@@ -541,13 +541,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
 
 
 async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:
-    """
-    Seed the languages and sandbox_providers tables from SANDBOX_ADAPTER_METADATA.
-
-    Idempotent: upserts PYTHON/TYPESCRIPT language rows and one sandbox_providers
-    row per (backend_type, language) pair defined in the adapter registry.
-    Safe to call on every startup.
-    """
+    """Seed sandbox provider rows. Idempotent."""
     from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
     from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers  # noqa: PLC0415
 

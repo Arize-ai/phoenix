@@ -679,48 +679,56 @@ class ChatCompletionMutationMixin:
                 type_name, db_id = from_global_id(code_evaluator_id)
                 if type_name != CodeEvaluator.__name__:
                     raise BadRequest(f"Expected code evaluator, got {type_name}")
-                async with info.context.db() as session:
-                    code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
-                if code_evaluator_record is None:
-                    raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
 
                 from phoenix.server.api.evaluators import CodeEvaluatorRunner
                 from phoenix.server.sandbox import get_or_create_backend
 
-                sandbox_backend = None
-                if code_evaluator_record.sandbox_config_id is not None:
-                    async with info.context.db() as session:
+                async with info.context.db() as session:
+                    code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
+                    if code_evaluator_record is None:
+                        raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
+
+                    # Resolve language within session to avoid DetachedInstanceError
+                    language_row = await session.get(
+                        models.Language, code_evaluator_record.language_id
+                    )
+                    language = language_row.name if language_row is not None else "PYTHON"
+
+                    # Resolve sandbox backend via config → provider chain
+                    sandbox_backend = None
+                    backend_type: str | None = None
+                    if code_evaluator_record.sandbox_config_id is not None:
                         sandbox_cfg = await session.get(
                             models.SandboxConfig, code_evaluator_record.sandbox_config_id
                         )
-                    if sandbox_cfg is not None:
-                        async with info.context.db() as session:
+                        if sandbox_cfg is not None:
                             provider = await session.get(
                                 models.SandboxProvider, sandbox_cfg.sandbox_provider_id
                             )
-                        if provider is not None:
-                            sandbox_backend = get_or_create_backend(provider.backend_type)
+                            if provider is not None:
+                                backend_type = provider.backend_type
 
+                    # Eagerly capture scalar fields before session closes
+                    evaluator_name = str(code_evaluator_record.name)
+                    evaluator_description = code_evaluator_record.description
+                    evaluator_source_code = code_evaluator_record.source_code
+                    output_configs = [
+                        c
+                        for c in code_evaluator_record.output_configs
+                        if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    ]
+
+                if backend_type is not None:
+                    sandbox_backend = get_or_create_backend(backend_type)
                 if sandbox_backend is None:
                     sandbox_backend = get_or_create_backend("WASM")
-
                 if sandbox_backend is None:
                     raise BadRequest("No sandbox backend available for code evaluator preview")
 
-                language = (
-                    code_evaluator_record.language.name
-                    if code_evaluator_record.language is not None
-                    else "PYTHON"
-                )
-                output_configs = [
-                    c
-                    for c in code_evaluator_record.output_configs
-                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
-                ]
                 runner = CodeEvaluatorRunner(
-                    name=str(code_evaluator_record.name),
-                    description=code_evaluator_record.description,
-                    source_code=code_evaluator_record.source_code,
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=evaluator_source_code,
                     stored_input_schema={},
                     stored_output_configs=output_configs,
                     sandbox_backend=sandbox_backend,

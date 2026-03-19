@@ -24,11 +24,7 @@ _BUILTIN_LANGUAGES = ["PYTHON", "TYPESCRIPT"]
 
 
 class _HasSupportedLanguages(Protocol):
-    """Structural type for SandboxAdapterMeta — avoids a circular import.
-
-    Only the `supported_languages` field is consumed here; the full
-    dataclass is defined in sandbox/__init__.py (task #7).
-    """
+    """Structural type for AdapterMetadata — avoids a circular import."""
 
     supported_languages: list[str]
 

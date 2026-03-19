@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.queries import Query
@@ -64,7 +65,7 @@ class SetSandboxProviderEnabledPayload:
 class SandboxConfigMutationMixin:
     """Mutations for sandbox backend configuration management."""
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_sandbox_config(
         self,
         info: Info[Context, None],
@@ -93,7 +94,7 @@ class SandboxConfigMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_sandbox_config(
         self,
         info: Info[Context, None],
@@ -126,7 +127,7 @@ class SandboxConfigMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_sandbox_config(
         self,
         info: Info[Context, None],
@@ -142,7 +143,7 @@ class SandboxConfigMutationMixin:
 
         return DeleteSandboxConfigPayload(deleted_id=id, query=Query())
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def set_sandbox_provider_enabled(
         self,
         info: Info[Context, None],

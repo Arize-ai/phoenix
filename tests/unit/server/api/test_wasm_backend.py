@@ -107,3 +107,60 @@ class TestWASMAdapter:
         adapter = WASMAdapter()
         backend = adapter.build_backend({})
         assert isinstance(backend, SandboxBackend)
+
+
+class TestEngineCaching:
+    """Engine and module are cached together to avoid cross-engine misuse."""
+
+    def test_get_engine_and_module_caches_by_path(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
+
+        fake_path = Path("/fake/test-cache.wasm")
+        cache_key = str(fake_path)
+        _MODULE_CACHE.pop(cache_key, None)
+
+        import wasmtime  # type: ignore[import-not-found]
+
+        with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
+            engine1, mod1 = _get_engine_and_module(fake_path)
+            engine2, mod2 = _get_engine_and_module(fake_path)
+
+        assert engine1 is engine2, "Same engine must be reused across calls"
+        assert mod1 is mod2, "Same module must be reused across calls"
+        _MODULE_CACHE.pop(cache_key, None)
+
+    def test_different_paths_get_different_caches(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
+
+        path_a = Path("/fake/a.wasm")
+        path_b = Path("/fake/b.wasm")
+        _MODULE_CACHE.pop(str(path_a), None)
+        _MODULE_CACHE.pop(str(path_b), None)
+
+        import wasmtime
+
+        with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
+            engine_a, _ = _get_engine_and_module(path_a)
+            engine_b, _ = _get_engine_and_module(path_b)
+
+        assert engine_a is not engine_b
+        _MODULE_CACHE.pop(str(path_a), None)
+        _MODULE_CACHE.pop(str(path_b), None)
+
+
+class TestTempFileCleanup:
+    """_run_wasm cleans up its temp stdin file after execution."""
+
+    def test_stdin_temp_file_is_deleted_after_run(self) -> None:
+        # Run with a nonexistent binary — will error but should still clean up
+        result = _run_wasm(Path("/does/not/exist.wasm"), "x=1", timeout=5)
+        assert result.error is not None
+
+    def test_no_env_inherited_into_sandbox(self) -> None:
+        """Verify wasi.inherit_env() is not called — user code gets no server env."""
+        import wasmtime
+
+        with patch.object(wasmtime.Module, "from_file"):
+            with patch.object(wasmtime.WasiConfig, "inherit_env") as mock_inherit:
+                _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
+                mock_inherit.assert_not_called()

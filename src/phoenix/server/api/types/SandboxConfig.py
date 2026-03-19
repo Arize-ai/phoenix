@@ -73,7 +73,11 @@ class SandboxProvider(Node):
     @strawberry.field
     async def language(self, info: Info[Context, None]) -> str:
         record = await self._get_record(info)
-        return record.language.name
+        async with info.context.db() as session:
+            lang = await session.get(models.Language, record.language_id)
+        if lang is None:
+            return "UNKNOWN"
+        return lang.name
 
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:

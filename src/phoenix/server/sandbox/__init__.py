@@ -14,7 +14,6 @@ Importing WASMBackend requires wasmtime — guarded by try/except ImportError.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -43,7 +42,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "E2B": AdapterMetadata(
         display_name="E2B",
-        supported_languages=["PYTHON", "TYPESCRIPT"],
+        supported_languages=["PYTHON"],
     ),
     "DAYTONA": AdapterMetadata(
         display_name="Daytona",
@@ -76,12 +75,6 @@ def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
     _SANDBOX_ADAPTERS[adapter.key] = adapter
     logger.debug(f"Registered sandbox adapter: {adapter.key!r}")
     return adapter
-
-
-def _resolve_sandbox_credential(key: str, env_var: str) -> Optional[str]:
-    """Resolve a sandbox credential: env var only (DB Secret lookup is caller's
-    responsibility when a session is available)."""
-    return os.environ.get(env_var)
 
 
 def get_or_create_backend(backend_type: str) -> Optional[SandboxBackend]:
