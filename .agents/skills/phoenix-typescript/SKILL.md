@@ -17,6 +17,7 @@ Self-documenting names eliminate mental parsing for the next reader.
 - Variables must not use single letters — even loop counters benefit from `index`, `row`, `char`.
 - Complex conditions should be extracted into named booleans so code reads as prose.
 - Booleans must use verb prefixes: `isAllowed`, `hasError`, `canSubmit` — not `allowed`, `error`.
+- Function names must start with an action verb that describes what the function does: `getUser`, `normalizeTimestamp`, `logEvent`, `parseResponse`, `buildQuery` — not `user()`, `timestamp()`, `event()`.
 
 ```ts
 // Good — self-documenting
