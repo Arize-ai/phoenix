@@ -1,6 +1,5 @@
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
-import invariant from "tiny-invariant";
 
 import {
   Dialog,
@@ -26,7 +25,6 @@ import { type SessionLoaderData, sessionLoaderQuery } from "./sessionLoader";
  */
 export function SessionPage() {
   const loaderData = useLoaderData<SessionLoaderData>();
-  invariant(loaderData, "loaderData is required");
   const data = usePreloadedQuery<SessionLoaderQuery>(
     sessionLoaderQuery,
     loaderData.queryRef
