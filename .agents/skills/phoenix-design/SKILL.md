@@ -12,30 +12,13 @@ metadata:
 
 ## BEM CSS Class Naming
 
-### Pattern
+CSS classes follow BEM (Block, Element, Modifier) conventions with no prefix.
 
-```
-block             → disclosure, tabs, slider
-block__element    → slider__label, dialog__title, search-field__icon
-block--modifier   → theme--dark, dropdown--picker
-```
+See [rules/bem.md](rules/bem.md) for the full naming guide, including:
 
-### Rules
-
-- **Block**: A standalone component — `disclosure`, `search-field`, `toggle-button`
-- **Element**: A part that cannot exist independently — uses `__` separator — `slider__label`, `field__icon`
-- **Modifier**: A variant or state — uses `--` separator — `theme--dark`, `dropdown--picker`
-- Compound names within a segment use hyphens: `search-field`, `toggle-button`, `dialog__close-button`
-- **No prefix** — never add any prefix to class names
-
-### Examples
-
-```tsx
-className="search-field"
-className="search-field__clear"
-className="disclosure__panel"
-className="theme--dark"
-```
+- Block, element, and modifier patterns
+- Separator conventions (`__` for elements, `--` for modifiers)
+- Compound naming rules and examples
 
 ## CSS Design Tokens
 
