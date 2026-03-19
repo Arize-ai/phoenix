@@ -56,6 +56,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.api.types.node import from_global_id
+from phoenix.server.sandbox.types import SandboxBackend
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ class BaseEvaluator(ABC):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
+        session_key: str = "",
     ) -> list[EvaluationResult]:
         """
         Evaluate the given context and return evaluation results.
@@ -227,6 +229,7 @@ class LLMEvaluator(BaseEvaluator):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
+        session_key: str = "",
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
 
@@ -523,6 +526,7 @@ class BuiltInEvaluator(BaseEvaluator):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
+        session_key: str = "",
     ) -> list[EvaluationResult]:
         multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
@@ -794,14 +798,17 @@ async def get_evaluators(
         for evaluator in evaluators_result:
             evaluator_kinds_by_id[evaluator.id] = evaluator.kind
 
-    # Collect LLM and BUILTIN evaluator IDs that need to be fetched
+    # Collect LLM, BUILTIN, and CODE evaluator IDs that need to be fetched
     llm_evaluator_db_ids: set[int] = set()
     builtin_evaluator_db_ids: set[int] = set()
+    code_evaluator_db_ids: set[int] = set()
     for eval_id, kind in evaluator_kinds_by_id.items():
         if kind == "LLM":
             llm_evaluator_db_ids.add(eval_id)
         elif kind == "BUILTIN":
             builtin_evaluator_db_ids.add(eval_id)
+        elif kind == "CODE":
+            code_evaluator_db_ids.add(eval_id)
 
     # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
@@ -832,6 +839,62 @@ async def get_evaluators(
         for builtin_evaluator in builtin_evaluators_result:
             builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
 
+    # Single batch query for all CODE evaluators (if any)
+    code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
+    if code_evaluator_db_ids:
+        from phoenix.server.sandbox import get_or_create_backend
+
+        code_rows_result = await session.scalars(
+            select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
+        )
+        for code_row in code_rows_result:
+            # Resolve sandbox backend via SandboxConfig → SandboxProvider
+            backend = None
+            language = ""
+            if code_row.sandbox_config_id is not None:
+                sandbox_config = await session.get(models.SandboxConfig, code_row.sandbox_config_id)
+                if sandbox_config is not None:
+                    sandbox_provider = await session.get(
+                        models.SandboxProvider, sandbox_config.sandbox_provider_id
+                    )
+                    if sandbox_provider is not None:
+                        backend = get_or_create_backend(sandbox_provider.backend_type)
+                        # Resolve language name from the provider's language_id
+                        lang_row = await session.get(models.Language, sandbox_provider.language_id)
+                        if lang_row is not None:
+                            language = lang_row.name
+
+            if backend is None:
+                # Fall back to language from CodeEvaluator.language_id if no sandbox
+                if code_row.language_id is not None:
+                    lang_row = await session.get(models.Language, code_row.language_id)
+                    if lang_row is not None:
+                        language = lang_row.name
+
+            # Resolve evaluator base row for name/description/metadata
+            evaluator_base = await session.get(models.Evaluator, code_row.id)
+            eval_name = evaluator_base.name if evaluator_base else str(code_row.id)
+            eval_description = evaluator_base.description if evaluator_base else None
+
+            if backend is not None:
+                # Filter to OutputConfigType (CategoricalOutputConfig | ContinuousOutputConfig)
+                # — FreeformAnnotationConfig has no name attr and is not a valid output config.
+                output_cfgs: list[OutputConfigType] = [
+                    c
+                    for c in code_row.output_configs
+                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
+                runner = CodeEvaluatorRunner(
+                    name=str(eval_name),
+                    description=eval_description,
+                    source_code=code_row.source_code,
+                    stored_input_schema={},
+                    stored_output_configs=output_cfgs,
+                    sandbox_backend=backend,
+                    language=language,
+                )
+                code_evaluators_by_id[code_row.id] = runner
+
     # Build result list in original input order, preserving duplicates
     evaluators: list[BaseEvaluator] = []
     for db_id in dataset_evaluator_db_ids:
@@ -856,6 +919,14 @@ async def get_evaluators(
             if builtin_evaluator_cls is None:
                 raise NotFound(f"Built-in evaluator with key '{builtin_key}' not found in registry")
             evaluators.append(builtin_evaluator_cls())
+        elif evaluator_kind == "CODE":
+            code_runner = code_evaluators_by_id.get(evaluator_id)
+            if code_runner is None:
+                raise NotFound(
+                    f"CODE evaluator with ID '{evaluator_id}' could not be resolved "
+                    "(sandbox backend may be unavailable)"
+                )
+            evaluators.append(code_runner)
         else:
             raise BadRequest(
                 f"DatasetEvaluator '{db_id}' references evaluator with "
@@ -2304,3 +2375,176 @@ def _get_template_literal_mapping_attributes(*, literal_mapping: dict[str, str])
 
 def _get_template_variables_attributes(*, variables: dict[str, Any]) -> dict[str, Any]:
     return {TEMPLATE_VARIABLES: json.dumps(variables)}
+
+
+class CodeEvaluatorRunner(BaseEvaluator):
+    """
+    Evaluator that executes user-provided source code in a sandbox.
+
+    The user's source_code must define a callable named ``evaluate`` (D6).
+    The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
+    value via _coerce_output against each output_config.
+
+    Supports both PYTHON and TYPESCRIPT languages. Session reuse is
+    controlled by the caller via the ``session_key`` kwarg on evaluate().
+    """
+
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        source_code: str,
+        stored_input_schema: dict[str, Any],
+        stored_output_configs: Sequence[OutputConfigType],
+        sandbox_backend: "SandboxBackend",
+        language: str,
+    ) -> None:
+        self._name = name
+        self._description = description
+        self._source_code = source_code
+        self._stored_input_schema = stored_input_schema
+        self._stored_output_configs = list(stored_output_configs)
+        self._sandbox_backend: SandboxBackend = sandbox_backend
+        self._language = language.upper()
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return self._stored_input_schema
+
+    @property
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        return self._stored_output_configs
+
+    def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        """Wrap source_code in a Python script that calls evaluate(**inputs)."""
+        inputs_repr = json.dumps(mapped_inputs)
+        return (
+            f"{self._source_code}\n\n"
+            f"import json as _json\n"
+            f"_inputs = _json.loads({inputs_repr!r})\n"
+            f"_result = evaluate(**_inputs)\n"
+            f"print(_json.dumps(_result))\n"
+        )
+
+    def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        """Wrap source_code in a TypeScript script that calls evaluate(inputs)."""
+        inputs_json = json.dumps(mapped_inputs)
+        return (
+            f"{self._source_code}\n\n"
+            f"const _inputs = {inputs_json};\n"
+            f"const _result = evaluate(_inputs);\n"
+            f"console.log(JSON.stringify(_result));\n"
+        )
+
+    def _make_error_result(
+        self,
+        name: str,
+        error: str,
+        start_time: datetime,
+    ) -> EvaluationResult:
+        return EvaluationResult(
+            name=name,
+            annotator_kind="CODE",
+            label=None,
+            score=None,
+            explanation=None,
+            metadata={},
+            error=error,
+            trace_id=None,
+            start_time=start_time,
+            end_time=datetime.now(timezone.utc),
+        )
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+        session_key: str = "",
+    ) -> list[EvaluationResult]:
+        from phoenix.server.api.coerce_output import _coerce_output
+
+        start_time = datetime.now(timezone.utc)
+
+        try:
+            mapped_inputs = apply_input_mapping(
+                input_schema=self._stored_input_schema,
+                input_mapping=input_mapping,
+                context=context,
+            )
+        except Exception as exc:
+            err = f"Input mapping failed: {exc}"
+            return [
+                self._make_error_result(name, err, start_time)
+                for _ in (output_configs or [None])  # type: ignore[list-item]
+            ]
+
+        # Build language-appropriate harness
+        if self._language == "PYTHON":
+            code = self._build_python_harness(mapped_inputs)
+        else:
+            code = self._build_typescript_harness(mapped_inputs)
+
+        try:
+            execution = await self._sandbox_backend.execute(
+                code,
+                session_key=session_key or self._name,
+            )
+        except Exception as exc:
+            err = f"Sandbox execution failed: {exc}"
+            return [
+                self._make_error_result(name, err, start_time)
+                for _ in (output_configs or [None])  # type: ignore[list-item]
+            ]
+
+        if execution.error:
+            return [
+                self._make_error_result(name, execution.error, start_time)
+                for _ in (output_configs or [None])  # type: ignore[list-item]
+            ]
+
+        # Parse the JSON-printed return value from stdout
+        raw_value: Any = None
+        stdout = execution.stdout.strip()
+        if stdout:
+            try:
+                raw_value = json.loads(stdout)
+            except json.JSONDecodeError:
+                raw_value = stdout
+
+        multi_output = len(output_configs) > 1
+        results: list[EvaluationResult] = []
+        for config in output_configs:
+            annotation_name = f"{name}.{config.name}" if multi_output else name
+            try:
+                label, score = _coerce_output(raw_value, config)
+            except ValueError as exc:
+                results.append(self._make_error_result(annotation_name, str(exc), start_time))
+                continue
+            results.append(
+                EvaluationResult(
+                    name=annotation_name,
+                    annotator_kind="CODE",
+                    label=label,
+                    score=score,
+                    explanation=None,
+                    metadata={},
+                    error=None,
+                    trace_id=None,
+                    start_time=start_time,
+                    end_time=datetime.now(timezone.utc),
+                )
+            )
+
+        return results

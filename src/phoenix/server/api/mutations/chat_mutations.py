@@ -21,7 +21,7 @@ from phoenix.db.helpers import (
     insert_experiment_with_examples_snapshot,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.db.types.annotation_configs import CategoricalOutputConfig
+from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -80,7 +80,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, CodeEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -417,6 +417,7 @@ class ChatCompletionMutationMixin:
                         name=name,
                         output_configs=configs,
                         tracer=tracer,
+                        session_key="",
                     )
 
                     trace: Trace | None = None
@@ -534,6 +535,7 @@ class ChatCompletionMutationMixin:
                         input_mapping=evaluator_input.input_mapping.to_orm(),
                         name=name,
                         output_configs=configs,
+                        session_key="",
                     )
 
                     for eval_result in eval_results:
@@ -669,6 +671,67 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping.to_orm(),
                     name=evaluator.name,
                     output_configs=categorical_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
+            elif code_evaluator_id := evaluator_input.code_evaluator_id:
+                type_name, db_id = from_global_id(code_evaluator_id)
+                if type_name != CodeEvaluator.__name__:
+                    raise BadRequest(f"Expected code evaluator, got {type_name}")
+                async with info.context.db() as session:
+                    code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
+                if code_evaluator_record is None:
+                    raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
+
+                from phoenix.server.api.evaluators import CodeEvaluatorRunner
+                from phoenix.server.sandbox import get_or_create_backend
+
+                sandbox_backend = None
+                if code_evaluator_record.sandbox_config_id is not None:
+                    async with info.context.db() as session:
+                        sandbox_cfg = await session.get(
+                            models.SandboxConfig, code_evaluator_record.sandbox_config_id
+                        )
+                    if sandbox_cfg is not None:
+                        async with info.context.db() as session:
+                            provider = await session.get(
+                                models.SandboxProvider, sandbox_cfg.sandbox_provider_id
+                            )
+                        if provider is not None:
+                            sandbox_backend = get_or_create_backend(provider.backend_type)
+
+                if sandbox_backend is None:
+                    sandbox_backend = get_or_create_backend("WASM")
+
+                if sandbox_backend is None:
+                    raise BadRequest("No sandbox backend available for code evaluator preview")
+
+                language = (
+                    code_evaluator_record.language.name
+                    if code_evaluator_record.language is not None
+                    else "PYTHON"
+                )
+                output_configs = [
+                    c
+                    for c in code_evaluator_record.output_configs
+                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
+                runner = CodeEvaluatorRunner(
+                    name=str(code_evaluator_record.name),
+                    description=code_evaluator_record.description,
+                    source_code=code_evaluator_record.source_code,
+                    stored_input_schema={},
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                )
+                eval_results = await runner.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=str(code_evaluator_record.name),
+                    output_configs=output_configs,
+                    session_key="",
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))

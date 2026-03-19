@@ -273,6 +273,35 @@ class DeleteDatasetEvaluatorsPayload:
     query: Query
 
 
+@strawberry.input
+class CreateCodeEvaluatorInput:
+    name: str
+    source_code: str
+    language: str
+    description: Optional[str] = None
+    sandbox_config_id: Optional[int] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = None
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+
+
+@strawberry.input
+class UpdateCodeEvaluatorInput:
+    id: GlobalID
+    name: Optional[str] = UNSET
+    source_code: Optional[str] = UNSET
+    language: Optional[str] = UNSET
+    description: Optional[str] = UNSET
+    sandbox_config_id: Optional[int] = UNSET
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+
+
+@strawberry.type
+class CodeEvaluatorMutationPayload:
+    evaluator: CodeEvaluator
+    query: Query
+
+
 @strawberry.type
 class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -912,5 +941,121 @@ class EvaluatorMutationMixin:
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_code_evaluator(
+        self,
+        info: Info[Context, None],
+        input: CreateCodeEvaluatorInput,
+    ) -> CodeEvaluatorMutationPayload:
+        """Create a new CodeEvaluator with source code and optional sandbox config."""
+        from phoenix.server.api.helpers.evaluators import _resolve_language_id
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            validated_name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_configs: list[OutputConfigType] = (
+            _convert_output_config_inputs_to_pydantic(input.output_configs)
+            if input.output_configs
+            else []
+        )
+        input_mapping_orm = (
+            input.input_mapping.to_orm()
+            if input.input_mapping is not None
+            else InputMapping(literal_mapping={}, path_mapping={})
+        )
+
+        try:
+            async with info.context.db() as session:
+                language_id = await _resolve_language_id(input.language, session)
+                if language_id is None:
+                    raise BadRequest(f"Unknown language: {input.language!r}")
+
+                row = models.CodeEvaluator(
+                    name=validated_name,
+                    description=input.description,
+                    source_code=input.source_code,
+                    language_id=language_id,
+                    sandbox_config_id=input.sandbox_config_id,
+                    output_configs=output_configs,
+                    input_mapping=input_mapping_orm,
+                    user_id=user_id,
+                )
+                session.add(row)
+                await session.flush()
+                await session.refresh(row)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not create code evaluator: {e}")
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_code_evaluator(
+        self,
+        info: Info[Context, None],
+        input: UpdateCodeEvaluatorInput,
+    ) -> CodeEvaluatorMutationPayload:
+        """Update fields on an existing CodeEvaluator."""
+        from phoenix.server.api.helpers.evaluators import _resolve_language_id
+
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.id, expected_type_name=CodeEvaluator.__name__
+        )
+
+        try:
+            async with info.context.db() as session:
+                row = await session.get(models.CodeEvaluator, evaluator_id)
+                if row is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+
+                if input.name is not UNSET and input.name is not None:
+                    try:
+                        row.name = IdentifierModel.model_validate(input.name)
+                    except ValidationError as error:
+                        raise BadRequest(f"Invalid evaluator name: {error}")
+
+                if input.source_code is not UNSET and input.source_code is not None:
+                    row.source_code = input.source_code
+
+                if input.language is not UNSET and input.language is not None:
+                    language_id = await _resolve_language_id(input.language, session)
+                    if language_id is None:
+                        raise BadRequest(f"Unknown language: {input.language!r}")
+                    row.language_id = language_id
+
+                if input.description is not UNSET:
+                    row.description = input.description
+
+                if input.sandbox_config_id is not UNSET:
+                    row.sandbox_config_id = input.sandbox_config_id
+
+                if input.output_configs is not UNSET and input.output_configs is not None:
+                    row.output_configs = list(
+                        _convert_output_config_inputs_to_pydantic(input.output_configs)
+                    )
+
+                if input.input_mapping is not UNSET and input.input_mapping is not None:
+                    row.input_mapping = input.input_mapping.to_orm()
+
+                await session.flush()
+                await session.refresh(row)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not update code evaluator: {e}")
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
             query=Query(),
         )

@@ -73,6 +73,7 @@ class Facilitator:
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
             _ensure_builtin_evaluators,
+            _ensure_sandbox_providers,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -537,6 +538,22 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
             .where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
         )
+
+
+async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:
+    """
+    Seed the languages and sandbox_providers tables from SANDBOX_ADAPTER_METADATA.
+
+    Idempotent: upserts PYTHON/TYPESCRIPT language rows and one sandbox_providers
+    row per (backend_type, language) pair defined in the adapter registry.
+    Safe to call on every startup.
+    """
+    from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
+    from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers  # noqa: PLC0415
+
+    async with db() as session:
+        await sync_languages(session)
+        await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
 
 async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:

@@ -29,6 +29,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.SandboxConfig import SandboxConfig as GQLSandboxConfig
 
 from .Identifier import Identifier
 
@@ -124,7 +125,6 @@ class Evaluator(Node):
 
 @strawberry.type
 class CodeEvaluator(Evaluator, Node):
-    # TODO: This is a stub for development purposes; remove before product release
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.CodeEvaluator]] = None
 
@@ -209,6 +209,78 @@ class CodeEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[JSON]: ...  # TODO: Implement
+
+    @strawberry.field
+    async def source_code(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            return self.db_record.source_code
+        val = await info.context.data_loaders.code_evaluator_fields.load(
+            (self.id, models.CodeEvaluator.source_code),
+        )
+        return val or ""
+
+    @strawberry.field
+    async def language(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        """The execution language for this code evaluator (e.g. 'PYTHON')."""
+        if self.db_record:
+            lang = self.db_record.language
+            return lang.name if lang is not None else None
+        language_id = await info.context.data_loaders.code_evaluator_fields.load(
+            (self.id, models.CodeEvaluator.language_id),
+        )
+        if language_id is None:
+            return None
+        async with info.context.db() as session:
+            from sqlalchemy import select
+
+            row = await session.scalar(
+                select(models.Language).where(models.Language.id == language_id)
+            )
+        return row.name if row is not None else None
+
+    @strawberry.field
+    async def sandbox_config(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[GQLSandboxConfig]:
+        """The SandboxConfig this evaluator uses, if any."""
+        if self.db_record:
+            sandbox_config_id = self.db_record.sandbox_config_id
+        else:
+            sandbox_config_id = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.sandbox_config_id),
+            )
+        if sandbox_config_id is None:
+            return None
+        return GQLSandboxConfig(id=sandbox_config_id)
+
+    @strawberry.field
+    async def output_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[BuiltInEvaluatorOutputConfig]:
+        if self.db_record:
+            configs = self.db_record.output_configs
+        else:
+            configs = await info.context.data_loaders.code_evaluator_fields.load(
+                (self.id, models.CodeEvaluator.output_configs),
+            )
+        return [
+            _to_gql_output_config(
+                config=config,
+                annotation_name=config.name,
+                id_prefix="CodeEvaluator",
+                evaluator_id=self.id,
+            )
+            for config in (configs or [])
+            if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+        ]
 
     @strawberry.field
     async def user(
