@@ -83,7 +83,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.10"
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Build distribution
         run: rm -rf dist && uv build
       - name: Verify bundled UI assets in wheel
@@ -146,7 +146,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.10"
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uv build
         working-directory: ${{ matrix.path }}
       - run: uv run --with check-wheel-contents check-wheel-contents dist/*.whl

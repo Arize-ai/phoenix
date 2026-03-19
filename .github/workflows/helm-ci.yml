@@ -38,7 +38,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
           python-version: "3.13"
 
       - name: Run Helm chart tests

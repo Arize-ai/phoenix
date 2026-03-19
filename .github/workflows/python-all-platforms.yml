@@ -72,7 +72,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Install PostgreSQL
         if: matrix.db == 'postgresql' && runner.os == 'Linux'
         run: sudo apt-get -yqq install postgresql
@@ -140,7 +140,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 4
@@ -167,7 +167,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals-non-linux:
@@ -192,7 +192,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel-non-linux:
@@ -217,7 +217,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   slack-notification:

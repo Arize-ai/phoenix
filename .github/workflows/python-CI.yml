@@ -97,7 +97,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -120,7 +120,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -142,7 +142,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - run: uvx tox run -e phoenix_otel -- -ra -x
 
   clean-jupyter-notebooks:
@@ -164,7 +164,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -188,7 +188,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -212,7 +212,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -236,7 +236,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -262,7 +262,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -284,7 +284,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Run formatter and linter
         run: |
           make format-python
@@ -319,7 +319,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -355,7 +355,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Install PostgreSQL
         if: matrix.db == 'postgresql'
         run: sudo apt-get -yqq install postgresql
@@ -419,7 +419,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
@@ -458,7 +458,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -528,7 +528,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 

@@ -21,7 +21,7 @@ jobs:
       
       - uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
           github-token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Sync model cost manifest with LiteLLM

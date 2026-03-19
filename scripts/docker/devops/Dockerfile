@@ -23,7 +23,7 @@ FROM python:${PYTHON_VERSION}-slim-bullseye AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
-RUN pip install uv==0.9.18
+RUN pip install uv==0.10.9
 
 # Copy dependency files first for better layer caching
 COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./
