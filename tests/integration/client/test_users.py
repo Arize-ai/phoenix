@@ -705,7 +705,6 @@ class TestGetViewer:
             response.raise_for_status()
             data = response.json()["data"]
             assert data["auth_method"] == "ANONYMOUS"
-            assert data["username"] == "anonymous"
 
     async def test_returns_authenticated_user_profile(
         self,

@@ -89,7 +89,6 @@ User: TypeAlias = Annotated[
 
 class AnonymousUser(V1RoutesBaseModel):
     auth_method: Literal["ANONYMOUS"] = "ANONYMOUS"
-    username: str = "anonymous"
 
 
 ViewerUser: TypeAlias = Annotated[
