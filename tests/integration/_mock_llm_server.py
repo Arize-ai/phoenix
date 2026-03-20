@@ -1,14 +1,15 @@
 """Mock LLM server for integration testing.
 
 This module provides a lightweight HTTP server implementing minimal OpenAI,
-Anthropic, and AWS Bedrock streaming API endpoints for Phoenix integration
-testing. The server runs in a separate thread and handles real HTTP connections.
+Anthropic, and AWS Bedrock API endpoints (streaming and non-streaming) for
+Phoenix integration testing. The server runs in a separate thread and handles
+real HTTP connections.
 
 Design Principles:
 - Maximum logging for debuggability (not production code)
 - Simple, readable structure over performance
 - No configuration - just fulfill requests with mock data
-- Streaming only (no non-streaming support)
+- Match provider SDK streaming vs non-streaming request shapes
 - Explicit SDK type dependencies for type safety
 """
 
@@ -46,9 +47,7 @@ from anthropic.types import (
 )
 
 # Request validation types (TypedDict from SDKs)
-from anthropic.types.message_create_params import (
-    MessageCreateParamsStreaming,
-)
+from anthropic.types.message_create_params import MessageCreateParams
 from anthropic.types.message_create_params import (  # type: ignore[attr-defined]
     ToolUnionParam as AnthropicToolUnionParam,
 )
@@ -69,18 +68,25 @@ from google.genai.types import Part as GenAIPart
 from google.genai.types import ToolDict as GenAIToolDict
 from google.genai.types import _GenerateContentParameters as GenAIGenerateContentParams
 from openai.types.chat import (
+    ChatCompletion,
     ChatCompletionChunk,
     ChatCompletionMessageParam,
 )
+from openai.types.chat.chat_completion import Choice as ChatCompletionChoice
 from openai.types.chat.chat_completion_chunk import (
     Choice,
     ChoiceDelta,
     ChoiceDeltaToolCall,
     ChoiceDeltaToolCallFunction,
 )
+from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from openai.types.chat.chat_completion_message_function_tool_call import (
+    ChatCompletionMessageFunctionToolCall,
+    Function,
+)
 from openai.types.chat.completion_create_params import (  # type: ignore[attr-defined]
     ChatCompletionToolUnionParam,
-    CompletionCreateParamsStreaming,
+    CompletionCreateParams,
 )
 from openai.types.completion_usage import CompletionUsage
 from openai.types.responses import (
@@ -159,13 +165,9 @@ class _BedrockConverseRequest(BaseModel):
 
 
 # Request validators using Pydantic TypeAdapter
-_OPENAI_CHAT_VALIDATOR: TypeAdapter[CompletionCreateParamsStreaming] = TypeAdapter(
-    CompletionCreateParamsStreaming
-)
+_OPENAI_CHAT_VALIDATOR: TypeAdapter[CompletionCreateParams] = TypeAdapter(CompletionCreateParams)
 _OPENAI_RESPONSES_VALIDATOR: TypeAdapter[ResponseCreateParams] = TypeAdapter(ResponseCreateParams)
-_ANTHROPIC_MESSAGES_VALIDATOR: TypeAdapter[MessageCreateParamsStreaming] = TypeAdapter(
-    MessageCreateParamsStreaming
-)
+_ANTHROPIC_MESSAGES_VALIDATOR: TypeAdapter[MessageCreateParams] = TypeAdapter(MessageCreateParams)
 
 
 # =============================================================================
@@ -491,10 +493,8 @@ def _extract_last_user_message(messages: list[Any]) -> str:
 class _MockLLMServer:
     """Mock LLM server for integration testing.
 
-    Implements minimal streaming OpenAI and Anthropic APIs for testing:
-    - POST /v1/chat/completions (OpenAI Chat Completions)
-    - POST /v1/responses (OpenAI Responses API)
-    - POST /v1/messages (Anthropic Messages)
+    Implements minimal OpenAI, Anthropic, Bedrock, and Google GenAI endpoints
+    (streaming and non-streaming) used by Phoenix integration tests.
 
     Usage:
         with _MockLLMServer(port=8080) as server:
@@ -555,7 +555,7 @@ class _MockLLMServer:
 
 
 class _LLMRequestHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for LLM API endpoints (streaming only)."""
+    """HTTP request handler for LLM API endpoints (streaming and non-streaming)."""
 
     server_ref: _MockLLMServer  # Set by __enter__
 
@@ -599,7 +599,21 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 self._handle_anthropic_messages()
             elif self.path.startswith("/model/") and self.path.endswith("/converse-stream"):
                 self._handle_bedrock_converse_stream()
+            elif self.path.startswith("/model/") and self.path.endswith("/converse"):
+                self._handle_bedrock_converse()
             # Google GenAI endpoints (v1 and v1beta)
+            elif (
+                self.path.startswith("/v1/models/")
+                and ":generateContent" in self.path
+                and "streamGenerateContent" not in self.path
+            ):
+                self._handle_genai_generate_content()
+            elif (
+                self.path.startswith("/v1beta/models/")
+                and ":generateContent" in self.path
+                and "streamGenerateContent" not in self.path
+            ):
+                self._handle_genai_generate_content()
             elif self.path.startswith("/v1/models/") and ":streamGenerateContent" in self.path:
                 self._handle_genai_stream_generate_content()
             elif self.path.startswith("/v1beta/models/") and ":streamGenerateContent" in self.path:
@@ -622,7 +636,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
     # -------------------------------------------------------------------------
 
     def _handle_chat_completions(self) -> None:
-        """Handle OpenAI chat completions endpoint (streaming)."""
+        """Handle OpenAI chat completions (streaming SSE or single JSON)."""
         raw_body = self._read_json_body()
 
         # Validate request against OpenAI SDK types
@@ -634,6 +648,10 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 {"error": {"message": str(e), "type": "invalid_request_error"}},
                 status=400,
             )
+            return
+
+        if not req.get("stream"):
+            self._non_stream_chat_completions(req)
             return
 
         model = req.get("model", "gpt-5-nano")
@@ -661,9 +679,109 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         else:
             self._stream_openai_text(req, completion_id, created, model, messages)
 
+    def _non_stream_chat_completions(self, req: CompletionCreateParams) -> None:
+        """Return a single JSON chat completion (non-streaming)."""
+        model = req.get("model", "gpt-5-nano")
+        messages = list(req.get("messages", []))
+        tools: list[ChatCompletionToolUnionParam] = list(req.get("tools") or [])
+        tool_choice: Any = req.get("tool_choice", "auto")
+        should_use_tools = tools and tool_choice != "none"
+        completion_id = _generate_id("chatcmpl")
+        created = int(time.time())
+        if should_use_tools:
+            completion = self._build_non_stream_openai_tool_completion(
+                completion_id, created, model, tools, messages
+            )
+        else:
+            completion = self._build_non_stream_openai_text_completion(
+                completion_id, created, model, messages
+            )
+        self._send_json_response(completion.model_dump(mode="json"))
+
+    def _build_non_stream_openai_text_completion(
+        self,
+        completion_id: str,
+        created: int,
+        model: str,
+        messages: list[ChatCompletionMessageParam],
+    ) -> ChatCompletion:
+        content = _extract_last_user_message(messages)
+        prompt_text = " ".join(
+            str(m.get("content", "")) if m.get("content") else "" for m in messages
+        )
+        prompt_tokens = _estimate_tokens(prompt_text)
+        completion_tokens = _estimate_tokens(content)
+        return ChatCompletion(
+            id=completion_id,
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    message=ChatCompletionMessage(role="assistant", content=content),
+                    finish_reason="stop",
+                )
+            ],
+            created=created,
+            model=model,
+            object="chat.completion",
+            usage=CompletionUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
+        )
+
+    def _build_non_stream_openai_tool_completion(
+        self,
+        completion_id: str,
+        created: int,
+        model: str,
+        tools: list[ChatCompletionToolUnionParam],
+        messages: list[ChatCompletionMessageParam],
+    ) -> ChatCompletion:
+        tool = random.choice(tools)
+        function = tool["function"]  # type: ignore[typeddict-item]
+        parameters = function.get("parameters", {})
+        args = _generate_fake_data(dict(parameters))
+        args_str = json.dumps(args)
+        tool_call_id = _generate_tool_call_id()
+        function_name = function["name"]
+        prompt_text = " ".join(
+            str(m.get("content", "")) if m.get("content") else "" for m in messages
+        )
+        prompt_tokens = _estimate_tokens(prompt_text)
+        completion_tokens = _estimate_tokens(args_str)
+        return ChatCompletion(
+            id=completion_id,
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    message=ChatCompletionMessage(
+                        role="assistant",
+                        content=None,
+                        tool_calls=[
+                            ChatCompletionMessageFunctionToolCall(
+                                id=tool_call_id,
+                                type="function",
+                                function=Function(name=function_name, arguments=args_str),
+                            )
+                        ],
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            created=created,
+            model=model,
+            object="chat.completion",
+            usage=CompletionUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=prompt_tokens + completion_tokens,
+            ),
+        )
+
     def _stream_openai_text(
         self,
-        req: CompletionCreateParamsStreaming,
+        req: CompletionCreateParams,
         completion_id: str,
         created: int,
         model: str,
@@ -736,7 +854,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
 
     def _stream_openai_tool_call(
         self,
-        req: CompletionCreateParamsStreaming,
+        req: CompletionCreateParams,
         completion_id: str,
         created: int,
         model: str,
@@ -859,7 +977,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
     # -------------------------------------------------------------------------
 
     def _handle_openai_responses(self) -> None:
-        """Handle OpenAI Responses API endpoint (streaming)."""
+        """Handle OpenAI Responses API (streaming SSE or single JSON)."""
         raw_body = self._read_json_body()
 
         # Validate request against OpenAI SDK types
@@ -871,6 +989,10 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 {"error": {"message": str(e), "type": "invalid_request_error"}},
                 status=400,
             )
+            return
+
+        if not req.get("stream"):
+            self._non_stream_openai_responses(req)
             return
 
         model = req.get("model", "gpt-5-nano")
@@ -896,6 +1018,114 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             self._stream_responses_api_tool_call(req, response_id, created_at, model, tools)
         else:
             self._stream_responses_api_text(req, response_id, created_at, model)
+
+    def _non_stream_openai_responses(self, req: ResponseCreateParams) -> None:
+        """Return a single JSON Response (non-streaming)."""
+        model = req.get("model", "gpt-5-nano")
+        tools: list[ToolParam] = list(req.get("tools") or [])
+        tool_choice: Any = req.get("tool_choice", "auto")
+        response_id = _generate_id("resp")
+        created_at = int(time.time())
+        should_use_tools = tools and tool_choice != "none"
+        if should_use_tools:
+            response = self._build_non_stream_responses_tool(
+                req, response_id, created_at, model, tools
+            )
+        else:
+            response = self._build_non_stream_responses_text(req, response_id, created_at, model)
+        self._send_json_response(response.model_dump(mode="json"))
+
+    def _build_non_stream_responses_text(
+        self,
+        req: ResponseCreateParams,
+        response_id: str,
+        created_at: int,
+        model: str,
+    ) -> Response:
+        input_data = req.get("input", [])
+        if isinstance(input_data, str):
+            content = input_data
+        else:
+            content = _extract_last_user_message(list(input_data))
+        item_id = _generate_id("item")
+        output_tokens = _estimate_tokens(content)
+        text_part = ResponseOutputText(type="output_text", text=content, annotations=[])
+        message_completed = ResponseOutputMessage(
+            id=item_id,
+            type="message",
+            role="assistant",
+            status="completed",
+            content=[text_part],
+        )
+        usage = ResponseUsage(
+            input_tokens=10,
+            output_tokens=output_tokens,
+            total_tokens=10 + output_tokens,
+            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
+        )
+        return Response(
+            id=response_id,
+            created_at=float(created_at),
+            model=model,
+            object="response",
+            output=[message_completed],
+            parallel_tool_calls=True,
+            tool_choice="auto",
+            tools=[],
+            status="completed",
+            usage=usage,
+        )
+
+    def _build_non_stream_responses_tool(
+        self,
+        req: ResponseCreateParams,
+        response_id: str,
+        created_at: int,
+        model: str,
+        tools: list[ToolParam],
+    ) -> Response:
+        _ = req
+        tool = random.choice(tools)
+        function_name = str(tool.get("name", "unknown"))
+        raw_params = tool.get("parameters")
+        parameters: dict[str, Any] = (
+            dict(raw_params)  # type: ignore[call-overload]
+            if raw_params
+            else {}
+        )
+        args = _generate_fake_data(parameters)
+        args_str = json.dumps(args)
+        item_id = _generate_id("item")
+        call_id = _generate_tool_call_id()
+        output_tokens = _estimate_tokens(args_str)
+        func_call_completed = ResponseFunctionToolCall(
+            type="function_call",
+            id=item_id,
+            status="completed",
+            call_id=call_id,
+            name=function_name,
+            arguments=args_str,
+        )
+        usage = ResponseUsage(
+            input_tokens=10,
+            output_tokens=output_tokens,
+            total_tokens=10 + output_tokens,
+            input_tokens_details=InputTokensDetails(cached_tokens=0),
+            output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
+        )
+        return Response(
+            id=response_id,
+            created_at=float(created_at),
+            model=model,
+            object="response",
+            output=[func_call_completed],
+            parallel_tool_calls=True,
+            tool_choice="auto",
+            tools=[],
+            status="completed",
+            usage=usage,
+        )
 
     def _stream_responses_api_text(
         self,
@@ -1185,7 +1415,7 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
     # -------------------------------------------------------------------------
 
     def _handle_anthropic_messages(self) -> None:
-        """Handle Anthropic messages endpoint (streaming)."""
+        """Handle Anthropic messages (streaming SSE or single JSON)."""
         raw_body = self._read_json_body()
 
         # Validate request against Anthropic SDK types
@@ -1197,6 +1427,10 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
                 {"error": {"message": str(e), "type": "invalid_request_error"}},
                 status=400,
             )
+            return
+
+        if not req.get("stream"):
+            self._non_stream_anthropic_messages(req)
             return
 
         model = req.get("model", "claude-3-opus-20240229")
@@ -1231,6 +1465,68 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
             self._stream_anthropic_tool_use(message_id, model, tools, input_tokens)
         else:
             self._stream_anthropic_text(message_id, model, messages, input_tokens)
+
+    def _non_stream_anthropic_messages(self, req: MessageCreateParams) -> None:
+        """Return a single JSON Message (non-streaming)."""
+        model = req.get("model", "claude-3-opus-20240229")
+        messages = list(req.get("messages", []))
+        tools: list[AnthropicToolUnionParam] = list(req.get("tools") or [])
+        tool_choice: Any = req.get("tool_choice", {})
+        message_id = _generate_id("msg")
+        prompt_text = " ".join(
+            str(m.get("content", "")) if isinstance(m.get("content"), str) else "" for m in messages
+        )
+        input_tokens = _estimate_tokens(prompt_text)
+        tool_choice_type = tool_choice.get("type") if isinstance(tool_choice, dict) else None
+        should_use_tools = tools and tool_choice_type != "none"
+        if should_use_tools:
+            msg = self._build_non_stream_anthropic_tool_use(message_id, model, tools, input_tokens)
+        else:
+            msg = self._build_non_stream_anthropic_text(message_id, model, messages, input_tokens)
+        self._send_json_response(msg.model_dump(mode="json"))
+
+    def _build_non_stream_anthropic_text(
+        self, message_id: str, model: str, messages: list[Any], input_tokens: int
+    ) -> Message:
+        content = _extract_last_user_message(messages)
+        output_tokens = _estimate_tokens(content)
+        return Message(
+            id=message_id,
+            type="message",
+            role="assistant",
+            content=[TextBlock(type="text", text=content)],
+            model=model,
+            stop_reason="end_turn",
+            stop_sequence=None,
+            usage=AnthropicUsage(input_tokens=input_tokens, output_tokens=output_tokens),
+        )
+
+    def _build_non_stream_anthropic_tool_use(
+        self, message_id: str, model: str, tools: list[AnthropicToolUnionParam], input_tokens: int
+    ) -> Message:
+        tool = random.choice(tools)
+        input_schema = dict(tool["input_schema"])  # type: ignore[typeddict-item]
+        tool_input = _generate_fake_data(input_schema)
+        tool_use_id = _generate_anthropic_tool_use_id()
+        tool_name = str(tool["name"])
+        output_tokens = _estimate_tokens(json.dumps(tool_input))
+        return Message(
+            id=message_id,
+            type="message",
+            role="assistant",
+            content=[
+                ToolUseBlock(
+                    type="tool_use",
+                    id=tool_use_id,
+                    name=tool_name,
+                    input=tool_input,
+                )
+            ],
+            model=model,
+            stop_reason="tool_use",
+            stop_sequence=None,
+            usage=AnthropicUsage(input_tokens=input_tokens, output_tokens=output_tokens),
+        )
 
     def _stream_anthropic_text(
         self, message_id: str, model: str, messages: list[Any], input_tokens: int
@@ -1417,6 +1713,97 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         else:
             self._stream_bedrock_text(model_id, messages)
 
+    def _handle_bedrock_converse(self) -> None:
+        """Handle AWS Bedrock Converse (non-streaming JSON)."""
+        path_parts = self.path.split("/")
+        model_id = path_parts[2] if len(path_parts) >= 3 else "unknown"
+
+        raw_body = self._read_json_body()
+        raw_body["modelId"] = model_id
+
+        try:
+            validated = _BedrockConverseRequest(request=raw_body)
+            req = validated.request
+        except ValidationError as e:
+            logger.error(f"Invalid Bedrock Converse request: {e}")
+            self._send_json_response(
+                {"error": {"message": str(e), "type": "ValidationException"}},
+                status=400,
+            )
+            return
+
+        messages = list(req.get("messages") or [])
+        tool_config: Any = req.get("toolConfig") or {}
+        tools: list[BedrockToolTypeDef] = tool_config.get("tools", [])
+
+        logger.info(
+            f"Bedrock Converse: model={model_id}, messages={len(messages)}, tools={len(tools)}"
+        )
+
+        should_use_tools = bool(tools)
+
+        if should_use_tools:
+            self._non_stream_bedrock_tool_use(model_id, messages, tools)
+        else:
+            self._non_stream_bedrock_text(model_id, messages)
+
+    def _non_stream_bedrock_text(self, model_id: str, messages: list[Any]) -> None:
+        _ = model_id
+        content = _extract_last_user_message(messages)
+        output_tokens = _estimate_tokens(content)
+        body: dict[str, Any] = {
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [{"text": content}],
+                }
+            },
+            "stopReason": "end_turn",
+            "usage": {
+                "inputTokens": 10,
+                "outputTokens": output_tokens,
+                "totalTokens": 10 + output_tokens,
+            },
+        }
+        self._send_json_response(body)
+
+    def _non_stream_bedrock_tool_use(
+        self, model_id: str, messages: list[Any], tools: list[BedrockToolTypeDef]
+    ) -> None:
+        tool = random.choice(tools)
+        tool_spec = tool.get("toolSpec")
+        if not tool_spec:
+            self._non_stream_bedrock_text(model_id, messages)
+            return
+        tool_name = tool_spec["name"]
+        input_schema = dict(tool_spec["inputSchema"].get("json", {}))
+        tool_input = _generate_fake_data(input_schema)
+        tool_use_id = _generate_bedrock_tool_use_id()
+        output_tokens = _estimate_tokens(json.dumps(tool_input))
+        body: dict[str, Any] = {
+            "output": {
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "toolUse": {
+                                "toolUseId": tool_use_id,
+                                "name": tool_name,
+                                "input": tool_input,
+                            }
+                        }
+                    ],
+                }
+            },
+            "stopReason": "tool_use",
+            "usage": {
+                "inputTokens": 10,
+                "outputTokens": output_tokens,
+                "totalTokens": 10 + output_tokens,
+            },
+        }
+        self._send_json_response(body)
+
     def _stream_bedrock_text(self, model_id: str, messages: list[Any]) -> None:
         """Stream text content for Bedrock Converse API.
 
@@ -1557,6 +1944,125 @@ class _LLMRequestHandler(BaseHTTPRequestHandler):
         event_bytes = _EventStreamEncoder.encode_event(event_type, dict(payload))
         self.wfile.write(event_bytes)
         self.wfile.flush()
+
+    # -------------------------------------------------------------------------
+    # Google GenAI generateContent (v1 and v1beta, non-streaming JSON)
+    # -------------------------------------------------------------------------
+
+    def _handle_genai_generate_content(self) -> None:
+        """Handle Google GenAI :generateContent (single JSON body)."""
+        path_parts = self.path.split("/")
+        model_part = path_parts[3] if len(path_parts) >= 4 else "unknown"
+        model_id = model_part.split(":")[0]
+
+        raw_body = self._read_json_body()
+
+        try:
+            _req = GenAIGenerateContentParams(
+                model=model_id,
+                contents=raw_body.get("contents"),
+                config=raw_body.get("generationConfig"),
+            )
+        except ValidationError as e:
+            logger.error(f"Invalid Google GenAI request: {e}")
+            self._send_json_response(
+                {"error": {"message": str(e), "code": 400, "status": "INVALID_ARGUMENT"}},
+                status=400,
+            )
+            return
+
+        contents = raw_body.get("contents", [])
+        tools = raw_body.get("tools", [])
+
+        logger.info(
+            f"GenAI generateContent: model={model_id}, contents={len(contents)}, tools={len(tools)}"
+        )
+
+        should_use_tools = bool(tools)
+
+        if should_use_tools:
+            response = self._genai_single_tool_response(model_id, contents, tools)
+        else:
+            response = self._genai_single_text_response(model_id, contents)
+
+        payload = response.model_dump_json(exclude_none=True, by_alias=True)
+        body_bytes = payload.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body_bytes)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body_bytes)
+
+    def _genai_single_text_response(
+        self, model_id: str, contents: list[Any]
+    ) -> GenAIGenerateContentResponse:
+        response_text = _extract_last_user_message(contents)
+        output_tokens = _estimate_tokens(response_text)
+        return GenAIGenerateContentResponse(
+            candidates=[
+                GenAICandidate(
+                    content=GenAIContent(
+                        parts=[GenAIPart(text=response_text)],
+                        role="model",
+                    ),
+                    finish_reason=GenAIFinishReason.STOP,
+                )
+            ],
+            model_version=model_id,
+            usage_metadata=GenAIUsageMetadata(
+                prompt_token_count=10,
+                candidates_token_count=output_tokens,
+                total_token_count=10 + output_tokens,
+            ),
+        )
+
+    def _genai_single_tool_response(
+        self, model_id: str, contents: list[Any], tools: list[GenAIToolDict]
+    ) -> GenAIGenerateContentResponse:
+        tool = random.choice(tools)
+        function_declarations = cast(
+            list[GenAIFunctionDeclarationDict],
+            tool.get("functionDeclarations") or [],
+        )
+        if not function_declarations:
+            return self._genai_single_text_response(model_id, contents)
+
+        func = random.choice(function_declarations)
+        func_name = func.get("name", "unknown_function")
+
+        if parameters_json_schema := func.get("parameters_json_schema"):
+            json_schema = parameters_json_schema
+        else:
+            parameters_schema = func.get("parameters") or {}
+            json_schema = _google_schema_to_json_schema(dict(parameters_schema))
+
+        func_args = _generate_fake_data(json_schema)
+
+        return GenAIGenerateContentResponse(
+            candidates=[
+                GenAICandidate(
+                    content=GenAIContent(
+                        parts=[
+                            GenAIPart(
+                                function_call=GenAIFunctionCall(
+                                    name=func_name,
+                                    args=func_args,
+                                )
+                            )
+                        ],
+                        role="model",
+                    ),
+                    finish_reason=GenAIFinishReason.STOP,
+                )
+            ],
+            model_version=model_id,
+            usage_metadata=GenAIUsageMetadata(
+                prompt_token_count=10,
+                candidates_token_count=5,
+                total_token_count=15,
+            ),
+        )
 
     # -------------------------------------------------------------------------
     # Google GenAI StreamGenerateContent (v1 and v1beta)

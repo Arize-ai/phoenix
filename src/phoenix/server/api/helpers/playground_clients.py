@@ -23,6 +23,7 @@ from typing import (
     cast,
 )
 
+import httpx
 import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
@@ -101,30 +102,37 @@ from phoenix.server.api.types.GenerativeProvider import (
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
-    import httpx
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStream, AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
+    from anthropic.types.message_create_params import MessageCreateParamsBase
+    from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
-    from google.genai.types import ContentDict, GenerateContentResponse
+    from google.genai.types import ContentDict, GenerateContentConfig, GenerateContentResponse
     from openai import AsyncOpenAI
     from openai._streaming import AsyncStream
-    from openai.lib.streaming.responses import AsyncResponseStream, AsyncResponseStreamManager
+    from openai.lib.streaming.responses import AsyncResponseStreamManager
     from openai.types import CompletionUsage
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionMessageParam,
+    )
     from openai.types.chat import (
         ChatCompletionChunk as OpenAIChatCompletionChunk,
     )
-    from openai.types.chat import (
-        ChatCompletionMessageParam,
-    )
+    from openai.types.chat.completion_create_params import CompletionCreateParamsBase
     from openai.types.responses import (
         Response,
         ResponseInputItemParam,
     )
+    from opentelemetry.util.types import AttributeValue
     from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
     from types_aiobotocore_bedrock_runtime.type_defs import (
         ContentBlockTypeDef,
+        ConverseResponseTypeDef,
+        ConverseStreamRequestTypeDef,
         ConverseStreamResponseTypeDef,
+        MessageOutputTypeDef,
         MessageTypeDef,
     )
 
@@ -133,7 +141,7 @@ ClientT = TypeVar("ClientT")
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
-ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[Any]]
+ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
 ToolCallID: TypeAlias = str
 
 
@@ -189,13 +197,35 @@ class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
         )
 
 
+class PlaygroundOutboundRateLimitError(Exception):
+    """Raised when Bedrock/Gemini throttles so PlaygroundRateLimiter can adapt."""
+
+
+def _reraise_if_bedrock_rate_limit(exc: BaseException) -> None:
+    from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
+    if isinstance(exc, ClientError):
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in ("ThrottlingException", "TooManyRequestsException"):
+            raise PlaygroundOutboundRateLimitError from exc
+
+
+def _reraise_if_google_rate_limit(exc: BaseException) -> None:
+    status = getattr(exc, "status_code", None)
+    if status == 429:
+        raise PlaygroundOutboundRateLimitError from exc
+    code = getattr(exc, "code", None)
+    if code == 429:
+        raise PlaygroundOutboundRateLimitError from exc
+
+
 class PlaygroundStreamingClient(ABC, Generic[ClientT]):
-    _client_factory: Callable[[], AbstractAsyncContextManager[ClientT]]
+    _client_factory: ClientFactory[ClientT]
 
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager[ClientT]],
+        client_factory: ClientFactory[ClientT],
         model_name: str,
         provider: str,
     ) -> None:
@@ -236,6 +266,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
         otel_context: OtelContext | None = None,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         tracer_ = tracer or NoOpTracer()
         attributes = dict(
@@ -259,6 +290,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             attributes=attributes,
             set_status_on_exception=False,  # we set status manually
         )
+        self._attributes = attributes
         text_chunks: list[TextChunk] = []
         tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         auto_accumulating = self.response_attributes_are_auto_accumulating
@@ -269,6 +301,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                 response_format=response_format,
                 invocation_parameters=invocation_parameters,
                 span=span,
+                stream_model_output=stream_model_output,
             ):
                 if isinstance(chunk, TextChunk):
                     if not auto_accumulating:
@@ -300,6 +333,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
 
     @classmethod
@@ -323,7 +357,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager["AsyncOpenAI"]],
+        client_factory: ClientFactory["AsyncOpenAI"],
         model_name: str,
         provider: str,
     ) -> None:
@@ -394,20 +428,16 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             ),
         ]
 
-    async def _openai_chat_completion_create(
+    def _openai_chat_completion_build_params(
         self,
         *,
-        client: AsyncOpenAI,
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> AsyncStream[OpenAIChatCompletionChunk]:
-        from openai.types.chat import (
-            ChatCompletionFunctionToolParam,
-            ChatCompletionStreamOptionsParam,
-        )
+    ) -> tuple[CompletionCreateParamsBase, dict[str, Any] | None]:
+        from openai.types.chat import ChatCompletionFunctionToolParam
         from openai.types.chat.completion_create_params import CompletionCreateParamsBase
         from openai.types.shared_params import ResponseFormatJSONSchema
         from openai.types.shared_params.function_definition import FunctionDefinition
@@ -503,8 +533,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             if "seed" in invocation_parameters and isinstance(invocation_parameters["seed"], int):
                 params["seed"] = invocation_parameters["seed"]
 
-        params["stream_options"] = ChatCompletionStreamOptionsParam(include_usage=True)
-
         extra_body: dict[str, Any] | None = None
         if "extra_body" in invocation_parameters and isinstance(
             invocation_parameters["extra_body"], dict
@@ -524,13 +552,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         input_value.pop("tools", None)
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
-        return await client.chat.completions.create(
-            **params,
-            extra_body=extra_body,
-            stream=True,
-        )
+        return params, extra_body
 
-    def _to_openai_response_stream_manager(
+    async def _openai_chat_completion_create_stream(
         self,
         *,
         client: AsyncOpenAI,
@@ -539,7 +563,104 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> AsyncResponseStreamManager[Any]:
+    ) -> AsyncStream[OpenAIChatCompletionChunk]:
+        from openai.types.chat import ChatCompletionStreamOptionsParam
+
+        params, extra_body = self._openai_chat_completion_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        params["stream_options"] = ChatCompletionStreamOptionsParam(include_usage=True)
+
+        input_value = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
+
+        stream = await self.rate_limiter.alimit(client.chat.completions.create)(
+            **params,
+            extra_body=extra_body,
+            stream=True,
+        )
+        return stream
+
+    async def _openai_chat_completion_create_non_stream(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> "ChatCompletion":
+        from openai.types.chat import ChatCompletion
+
+        params, extra_body = self._openai_chat_completion_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        result = await self.rate_limiter.alimit(client.chat.completions.create)(
+            **params,
+            extra_body=extra_body,
+            stream=False,
+        )
+        assert isinstance(result, ChatCompletion)
+        return result
+
+    @staticmethod
+    def _chunks_from_openai_chat_completion(
+        completion: "ChatCompletion",
+    ) -> Iterator[ChatCompletionChunk]:
+        from openai.types.chat import ChatCompletion
+
+        assert isinstance(completion, ChatCompletion)
+        if not completion.choices:
+            return
+        choice = completion.choices[0]
+        msg = choice.message
+        if msg.content is not None:
+            if isinstance(msg.content, str):
+                yield TextChunk(content=msg.content)
+            else:
+                for part in msg.content:
+                    if part.type == "text" and part.text:
+                        yield TextChunk(content=part.text)
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.type == "function":
+                    yield ToolCallChunk(
+                        id=tc.id,
+                        function=FunctionCallChunk(
+                            name=tc.function.name,
+                            arguments=tc.function.arguments or "",
+                        ),
+                    )
+                elif tc.type == "custom":
+                    pass
+                elif TYPE_CHECKING:
+                    assert_never(tc.type)
+
+    def _openai_response_build_params(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> tuple[Any, dict[str, Any] | None]:
         from openai.types.responses.function_tool_param import FunctionToolParam
         from openai.types.responses.response_create_params import ResponseCreateParamsBase
         from openai.types.responses.response_format_text_json_schema_config_param import (
@@ -645,6 +766,25 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         input_value.pop("tools", None)
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
+        return params, extra_body
+
+    def _to_openai_response_stream_manager(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncResponseStreamManager[Any]:
+        params, extra_body = self._openai_response_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
         return client.responses.stream(
             **params,
             extra_body=extra_body,
@@ -658,14 +798,13 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        tool_call_ids: dict[int, str] = {}
-        token_usage: Optional["CompletionUsage"] = None
-        async with AsyncExitStack() as stack:
-            client = await stack.enter_async_context(self._client_factory())
-            client._client = _HttpxClient(client._client, span=span)
-            stream = await self.rate_limiter.limit(
-                lambda: self._openai_chat_completion_create(
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                completion = await self._openai_chat_completion_create_non_stream(
                     client=client,
                     messages=messages,
                     tools=tools,
@@ -673,14 +812,32 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     invocation_parameters=invocation_parameters,
                     span=span,
                 )
-            )()
-            async for chunk in stream:
-                if (usage := chunk.usage) is not None:
+                if completion.usage is not None:
+                    span.set_attributes(dict(self._llm_token_counts(completion.usage)))
+                for chunk in self._chunks_from_openai_chat_completion(completion):
+                    yield chunk
+            return
+
+        tool_call_ids: dict[int, str] = {}
+        token_usage: CompletionUsage | None = None
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
+            client._client = _HttpxClient(client._client, span=span)
+            openai_stream = await self._openai_chat_completion_create_stream(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            async for oai_chunk in openai_stream:
+                if (usage := oai_chunk.usage) is not None:
                     token_usage = usage
-                if not chunk.choices:
+                if not oai_chunk.choices:
                     # for Azure, initial chunk contains the content filter
                     continue
-                choice = chunk.choices[0]
+                choice = oai_chunk.choices[0]
                 delta = choice.delta
                 if choice.finish_reason is None:
                     if isinstance(chunk_content := delta.content, str):
@@ -769,6 +926,30 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 assert_never(role)
         return result
 
+    @staticmethod
+    def _chunks_from_openai_responses_response(resp: "Response") -> Iterator[ChatCompletionChunk]:
+        for item in resp.output or []:
+            if item.type == "message":
+                for block in item.content or []:
+                    if block.type == "output_text":
+                        yield TextChunk(content=block.text)
+            elif item.type == "function_call":
+                yield ToolCallChunk(
+                    id=item.call_id,
+                    function=FunctionCallChunk(
+                        name=item.name,
+                        arguments=item.arguments or "",
+                    ),
+                )
+            elif item.type == "custom_tool_call":
+                yield ToolCallChunk(
+                    id=item.call_id,
+                    function=FunctionCallChunk(
+                        name=item.name,
+                        arguments=item.input or "",
+                    ),
+                )
+
     async def _responses_create(
         self,
         *,
@@ -777,12 +958,40 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         """
         OpenAI Responses API (responses.create) streaming. Yields TextChunk and
         ToolCallChunk; sets span attributes from the completed response at the end.
         """
         completed_response: Optional["Response"] = None
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                params, extra_body = self._openai_response_build_params(
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                    span=span,
+                )
+                resp = await self.rate_limiter.alimit(client.responses.create)(
+                    **params, extra_body=extra_body
+                )
+                completed_response = resp
+                for chunk in self._chunks_from_openai_responses_response(resp):
+                    yield chunk
+            if completed_response is not None:
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                span.set_attribute(
+                    OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True)
+                )
+                span.set_attributes(
+                    dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
+                )
+            return
+
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
             client._client = _HttpxClient(client._client, span=span)
@@ -794,12 +1003,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 invocation_parameters=invocation_parameters,
                 span=span,
             )
-            stream_manager.__aenter__ = self.rate_limiter.alimit(stream_manager.__aenter__)  # type: ignore[method-assign]
-            stream: AsyncResponseStream[Any] = await self.rate_limiter.alimit(
-                stream_manager.__aenter__
-            )()
+            event_stream = await self.rate_limiter.alimit(stream_manager.__aenter__)()
             stack.push_async_exit(stream_manager)
-            async for event in stream:
+            async for event in event_stream:
                 if event.type == "response.output_text.delta":
                     delta = event.delta
                     if delta and isinstance(delta, str):
@@ -1272,11 +1478,12 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager["BedrockRuntimeClient"]],
+        client_factory: ClientFactory["BedrockRuntimeClient"],
         model_name: str,
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.rate_limiter = PlaygroundRateLimiter(provider, PlaygroundOutboundRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1316,6 +1523,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._handle_converse_api(
             messages=messages,
@@ -1323,19 +1531,19 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             response_format=response_format,
             span=span,
             invocation_parameters=invocation_parameters,
+            stream_model_output=stream_model_output,
         ):
             yield chunk
 
-    async def _converse_stream(
+    def _converse_build_request(
         self,
         *,
-        client: BedrockRuntimeClient,
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> ConverseStreamResponseTypeDef:
+    ) -> ConverseStreamRequestTypeDef:
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ConverseStreamRequestTypeDef,
             InferenceConfigurationTypeDef,
@@ -1434,8 +1642,57 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                     )
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
-        response = await client.converse_stream(**request)
-        return response
+        return request
+
+    def _chunks_from_converse_response(
+        self,
+        response: "ConverseResponseTypeDef",
+        span: OTelSpan,
+    ) -> Iterator[ChatCompletionChunk]:
+        usage = response.get("usage") or {}
+        if usage:
+            span.set_attributes(
+                {
+                    LLM_TOKEN_COUNT_PROMPT: usage.get("inputTokens", 0),
+                    LLM_TOKEN_COUNT_COMPLETION: usage.get("outputTokens", 0),
+                    LLM_TOKEN_COUNT_TOTAL: usage.get("totalTokens", 0),
+                }
+            )
+        output = response.get("output") or {}
+        optional_message: MessageOutputTypeDef | None = output.get("message")
+        for block in optional_message["content"] if optional_message else []:
+            if "text" in block and (text := block.get("text")):
+                yield TextChunk(content=text)
+            elif "toolUse" in block and (tool_use := block.get("toolUse")):
+                raw_input = tool_use.get("input")
+                if isinstance(raw_input, str):
+                    args_str = raw_input
+                elif raw_input is not None:
+                    args_str = safe_json_dumps(raw_input)
+                else:
+                    args_str = ""
+                yield ToolCallChunk(
+                    id=tool_use.get("toolUseId"),
+                    function=FunctionCallChunk(
+                        name=tool_use.get("name") or "",
+                        arguments=args_str,
+                    ),
+                )
+
+    async def _converse_stream(
+        self,
+        *,
+        client: BedrockRuntimeClient,
+        request: "ConverseStreamRequestTypeDef",
+    ) -> ConverseStreamResponseTypeDef:
+        async def _call() -> ConverseStreamResponseTypeDef:
+            try:
+                return await client.converse_stream(**request)
+            except BaseException as exc:
+                _reraise_if_bedrock_rate_limit(exc)
+                raise
+
+        return await self.rate_limiter.alimit(_call)()
 
     async def _handle_converse_api(
         self,
@@ -1445,16 +1702,31 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async with self._client_factory() as client:
-            response = await self._converse_stream(
-                client=client,
+            request = self._converse_build_request(
                 messages=messages,
                 tools=tools,
                 response_format=response_format,
                 invocation_parameters=invocation_parameters,
                 span=span,
             )
+            if not stream_model_output:
+
+                async def _converse_non_stream() -> Any:
+                    try:
+                        return await client.converse(**request)
+                    except BaseException as exc:
+                        _reraise_if_bedrock_rate_limit(exc)
+                        raise
+
+                converse_response = await self.rate_limiter.alimit(_converse_non_stream)()
+                for chunk in self._chunks_from_converse_response(converse_response, span):
+                    yield chunk
+                return
+
+            response = await self._converse_stream(client=client, request=request)
 
             # Track active tool calls
             active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
@@ -1727,6 +1999,7 @@ class OpenAIResponsesAPIStreamingClient(
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
@@ -1734,6 +2007,7 @@ class OpenAIResponsesAPIStreamingClient(
             response_format=response_format,
             invocation_parameters=invocation_parameters,
             span=span,
+            stream_model_output=stream_model_output,
         ):
             yield chunk
 
@@ -1817,7 +2091,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager["AsyncOpenAI"]],
+        client_factory: ClientFactory["AsyncOpenAI"],
         model_name: str,
         provider: str = "azure",
     ) -> None:
@@ -1846,6 +2120,7 @@ class AzureOpenAIResponsesAPIStreamingClient(
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         async for chunk in self._responses_create(
             messages=messages,
@@ -1853,6 +2128,7 @@ class AzureOpenAIResponsesAPIStreamingClient(
             response_format=response_format,
             invocation_parameters=invocation_parameters,
             span=span,
+            stream_model_output=stream_model_output,
         ):
             yield chunk
 
@@ -1944,7 +2220,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager["AsyncAnthropic"]],
+        client_factory: ClientFactory["AsyncAnthropic"],
         model_name: str,
         provider: str = "anthropic",
     ) -> None:
@@ -1990,16 +2266,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             ),
         ]
 
-    def _get_anthropic_message_stream_manager(
+    def _anthropic_message_params(
         self,
         *,
-        client: AsyncAnthropic,
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-        span: OTelSpan,
-    ) -> AsyncMessageStreamManager[Any]:
+    ) -> MessageCreateParamsBase:
         from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
         from anthropic.types.message_create_params import MessageCreateParamsBase
         from anthropic.types.thinking_config_param import ThinkingConfigParam
@@ -2089,6 +2363,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             ):
                 params["thinking"] = cast(ThinkingConfigParam, invocation_parameters["thinking"])
 
+        return params
+
+    def _anthropic_record_message_request_on_span(
+        self,
+        span: OTelSpan,
+        params: "MessageCreateParamsBase",
+    ) -> None:
         if "tools" in params:
             for i, tool_param in enumerate(params["tools"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
@@ -2100,8 +2381,47 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         input_value.pop("tools", None)
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
 
+    def _get_anthropic_message_stream_manager(
+        self,
+        *,
+        client: AsyncAnthropic,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+        span: OTelSpan,
+    ) -> AsyncMessageStreamManager[Any]:
+        params = self._anthropic_message_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+        )
+        self._anthropic_record_message_request_on_span(span, params)
         stream_manager = client.messages.stream(**params)
         return stream_manager
+
+    def _anthropic_apply_usage_to_span(self, span: OTelSpan, usage: Usage) -> None:
+        token_counts: dict[str, AttributeValue] = {}
+        if prompt_tokens := (
+            (usage.input_tokens or 0)
+            + (usage.cache_creation_input_tokens or 0)
+            + (usage.cache_read_input_tokens or 0)
+        ):
+            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+        if cache_creation_tokens := usage.cache_creation_input_tokens:
+            if cache_creation_tokens is not None:
+                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = cache_creation_tokens
+        if token_counts:
+            span.set_attributes(token_counts)
+        output_token_counts: dict[str, Any] = {}
+        if usage.output_tokens:
+            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+        if cache_read_tokens := usage.cache_read_input_tokens:
+            if cache_read_tokens is not None:
+                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cache_read_tokens
+        if output_token_counts:
+            span.set_attributes(output_token_counts)
 
     async def _chat_completion_create(
         self,
@@ -2111,7 +2431,35 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                params = self._anthropic_message_params(
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                )
+                self._anthropic_record_message_request_on_span(span, params)
+                message = await self.rate_limiter.alimit(client.messages.create)(**params)
+                if message.usage:
+                    self._anthropic_apply_usage_to_span(span, message.usage)
+                for block in message.content:
+                    if block.type == "text":
+                        yield TextChunk(content=block.text)
+                    elif block.type == "tool_use":
+                        yield ToolCallChunk(
+                            id=block.id,
+                            function=FunctionCallChunk(
+                                name=block.name,
+                                arguments=safe_json_dumps(block.input),
+                            ),
+                        )
+            return
+
         async with AsyncExitStack() as stack:
             client = await stack.enter_async_context(self._client_factory())
             # Wrap httpx client for instrumentation (fresh client each request)
@@ -2124,11 +2472,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 invocation_parameters=invocation_parameters,
                 span=span,
             )
-            stream: AsyncMessageStream[Any] = await self.rate_limiter.alimit(
+            anthropic_message_stream: AsyncMessageStream[Any] = await self.rate_limiter.alimit(
                 stream_manager.__aenter__
             )()
             stack.push_async_exit(stream_manager)
-            async for event in stream:
+            async for event in anthropic_message_stream:
                 if event.type == "message_start":
                     usage = event.message.usage
                     token_counts: dict[str, Any] = {}
@@ -2296,12 +2644,13 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     def __init__(
         self,
         *,
-        client_factory: Callable[[], AbstractAsyncContextManager["GoogleAsyncClient"]],
+        client_factory: ClientFactory["GoogleAsyncClient"],
         model_name: str,
         provider: str = "google",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
+        self.rate_limiter = PlaygroundRateLimiter(provider, PlaygroundOutboundRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -2351,16 +2700,15 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
             ),
         ]
 
-    async def _generate_content_stream(
+    def _google_prepare_generate_content(
         self,
         *,
-        client: "GoogleAsyncClient",
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> AsyncIterator[GenerateContentResponse]:
+    ) -> tuple[list[ContentDict], GenerateContentConfig]:
         from google.genai import types
 
         contents, system_prompt = self._build_google_messages(messages)
@@ -2492,12 +2840,83 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         config_dict.pop("system_instruction", None)
         span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(config_dict))
 
-        stream = await client.models.generate_content_stream(
-            model=self.model_name,
-            contents=contents,
-            config=config,
-        )
-        return stream
+        return contents, config
+
+    def _iter_gemini_response_chunks(
+        self,
+        event: "GenerateContentResponse",
+        span: OTelSpan,
+    ) -> Iterator[ChatCompletionChunk]:
+        if event.usage_metadata:
+            token_counts = {}
+            if event.usage_metadata.prompt_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_PROMPT] = event.usage_metadata.prompt_token_count
+            if event.usage_metadata.candidates_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
+                    event.usage_metadata.candidates_token_count
+                )
+            if event.usage_metadata.total_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
+            if token_counts:
+                span.set_attributes(token_counts)
+
+        if event.candidates:
+            candidate = event.candidates[0]
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if function_call := part.function_call:
+                        # Gemini often returns an empty or ``None``
+                        # ``id`` on ``FunctionCall``.  The frontend
+                        # merges streamed tool-call chunks by ``id``,
+                        # so when every call arrives as ``""`` they all
+                        # collapse into one entry with garbled
+                        # arguments.  This class assigns a stable
+                        # synthetic ID (``tool_call_0``,
+                        # ``tool_call_1``, …) whenever the upstream
+                        # ``id`` is falsy, while preserving real IDs
+                        # when Gemini provides them.
+
+                        # This converter assumes each ``FunctionCall``
+                        # is self-contained — i.e. ``name`` and
+                        # ``args`` are both present on the same
+                        # object.  If they were ever split across
+                        # separate ``FunctionCall`` messages, the
+                        # converter would emit two incorrect
+                        # ``ToolCallChunk`` objects (one with the
+                        # name but empty args, another with args but
+                        # an empty name).  This assumption is safe
+                        # today: the Gemini API always delivers
+                        # complete function calls, and the SDK itself
+                        # makes the same assumption — it performs no
+                        # reassembly of ``FunctionCall`` fields
+                        # (``_Candidate_from_mldev`` passes
+                        # ``content`` through to Pydantic's
+                        # ``model_validate`` as-is).
+
+                        # The only mechanism that could disassociate
+                        # ``name`` and ``args`` is the
+                        # ``will_continue`` / ``partial_args``
+                        # incremental streaming protocol.  As of this
+                        # writing, both fields are rejected by the
+                        # Gemini API with ``ValueError`` (see
+                        # ``google.genai.models``).  They are only
+                        # supported by the Vertex AI surface behind
+                        # the ``stream_function_call_arguments``
+                        # tool-config flag.  If Vertex AI support is
+                        # added in the future, this class should be
+                        # extended to buffer partial calls
+                        # (``will_continue=True``) and reassemble
+                        # ``partial_args`` using their ``json_path``
+                        # keys.
+                        yield ToolCallChunk(
+                            id=function_call.id or token_hex(4),
+                            function=FunctionCallChunk(
+                                name=function_call.name or "",
+                                arguments=safe_json_dumps(function_call.args or {}),
+                            ),
+                        )
+                    elif text := part.text:
+                        yield TextChunk(content=text)
 
     async def _chat_completion_create(
         self,
@@ -2507,90 +2926,51 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
+        contents, config = self._google_prepare_generate_content(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        if not stream_model_output:
+            async with self._client_factory() as client:
+
+                async def _generate() -> Any:
+                    try:
+                        return await client.models.generate_content(
+                            model=self.model_name,
+                            contents=contents,
+                            config=config,
+                        )
+                    except BaseException as exc:
+                        _reraise_if_google_rate_limit(exc)
+                        raise
+
+                response = await self.rate_limiter.alimit(_generate)()
+                for chunk in self._iter_gemini_response_chunks(response, span):
+                    yield chunk
+            return
+
         async with self._client_factory() as client:
-            stream = await self._generate_content_stream(
-                client=client,
-                messages=messages,
-                tools=tools,
-                response_format=response_format,
-                invocation_parameters=invocation_parameters,
-                span=span,
-            )
-            async for event in stream:
-                # Update token counts if usage_metadata is present
-                if event.usage_metadata:
-                    token_counts = {}
-                    if event.usage_metadata.prompt_token_count is not None:
-                        token_counts[LLM_TOKEN_COUNT_PROMPT] = (
-                            event.usage_metadata.prompt_token_count
-                        )
-                    if event.usage_metadata.candidates_token_count is not None:
-                        token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
-                            event.usage_metadata.candidates_token_count
-                        )
-                    if event.usage_metadata.total_token_count is not None:
-                        token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
-                    if token_counts:
-                        span.set_attributes(token_counts)
 
-                if event.candidates:
-                    candidate = event.candidates[0]
-                    if candidate.content and candidate.content.parts:
-                        for part in candidate.content.parts:
-                            if function_call := part.function_call:
-                                # Gemini often returns an empty or ``None``
-                                # ``id`` on ``FunctionCall``.  The frontend
-                                # merges streamed tool-call chunks by ``id``,
-                                # so when every call arrives as ``""`` they all
-                                # collapse into one entry with garbled
-                                # arguments.  This class assigns a stable
-                                # synthetic ID (``tool_call_0``,
-                                # ``tool_call_1``, …) whenever the upstream
-                                # ``id`` is falsy, while preserving real IDs
-                                # when Gemini provides them.
+            async def _generate_stream() -> Any:
+                try:
+                    return await client.models.generate_content_stream(
+                        model=self.model_name,
+                        contents=contents,
+                        config=config,
+                    )
+                except BaseException as exc:
+                    _reraise_if_google_rate_limit(exc)
+                    raise
 
-                                # This converter assumes each ``FunctionCall``
-                                # is self-contained — i.e. ``name`` and
-                                # ``args`` are both present on the same
-                                # object.  If they were ever split across
-                                # separate ``FunctionCall`` messages, the
-                                # converter would emit two incorrect
-                                # ``ToolCallChunk`` objects (one with the
-                                # name but empty args, another with args but
-                                # an empty name).  This assumption is safe
-                                # today: the Gemini API always delivers
-                                # complete function calls, and the SDK itself
-                                # makes the same assumption — it performs no
-                                # reassembly of ``FunctionCall`` fields
-                                # (``_Candidate_from_mldev`` passes
-                                # ``content`` through to Pydantic's
-                                # ``model_validate`` as-is).
-
-                                # The only mechanism that could disassociate
-                                # ``name`` and ``args`` is the
-                                # ``will_continue`` / ``partial_args``
-                                # incremental streaming protocol.  As of this
-                                # writing, both fields are rejected by the
-                                # Gemini API with ``ValueError`` (see
-                                # ``google.genai.models``).  They are only
-                                # supported by the Vertex AI surface behind
-                                # the ``stream_function_call_arguments``
-                                # tool-config flag.  If Vertex AI support is
-                                # added in the future, this class should be
-                                # extended to buffer partial calls
-                                # (``will_continue=True``) and reassemble
-                                # ``partial_args`` using their ``json_path``
-                                # keys.
-                                yield ToolCallChunk(
-                                    id=function_call.id or token_hex(4),
-                                    function=FunctionCallChunk(
-                                        name=function_call.name or "",
-                                        arguments=safe_json_dumps(function_call.args or {}),
-                                    ),
-                                )
-                            elif text := part.text:
-                                yield TextChunk(content=text)
+            gemini_stream = await self.rate_limiter.alimit(_generate_stream)()
+            async for event in gemini_stream:
+                for chunk in self._iter_gemini_response_chunks(event, span):
+                    yield chunk
 
     def _build_google_messages(
         self,
@@ -2696,6 +3076,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         tracer: Tracer | None = None,
         otel_context: OtelContext | None = None,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
         # Extract thinking_level and construct thinking_config
         params = dict(invocation_parameters)
@@ -2730,6 +3111,7 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             invocation_parameters=params,
             tracer=tracer,
             otel_context=otel_context,
+            stream_model_output=stream_model_output,
         ):
             yield chunk
 
@@ -2764,11 +3146,11 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
+    async def send(self, request: httpx.Request, **kwargs: Any) -> httpx.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
         response = await self.__wrapped__.send(request, **kwargs)
-        return response
+        return cast(httpx.Response, response)
 
 
 async def get_playground_client(
@@ -2987,7 +3369,7 @@ async def _get_builtin_provider_client(
                 timeout=30,
             )
 
-        client_factory: ClientFactory = create_openai_client
+        client_factory: ClientFactory[Any] = create_openai_client
         client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
         if client_class is None:
             raise BadRequest(f"No client found for OpenAI model: {model_name}")

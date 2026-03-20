@@ -22,12 +22,11 @@ import type { Disposable } from "react-relay";
 import {
   graphql,
   useLazyLoadQuery,
-  useMutation,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
 import { useSearchParams } from "react-router";
-import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
+import type { GraphQLSubscriptionConfig } from "relay-runtime";
 import { requestSubscription } from "relay-runtime";
 
 import {
@@ -83,10 +82,7 @@ import {
   isStringArray,
   isStringKeyedObject,
 } from "@phoenix/typeUtils";
-import {
-  getErrorMessagesFromRelayMutationError,
-  getErrorMessagesFromRelaySubscriptionError,
-} from "@phoenix/utils/errorUtils";
+import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
 import {
   extractPathsFromDatasetExamples,
   getValueAtPath,
@@ -95,10 +91,6 @@ import {
 import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
-import type {
-  PlaygroundDatasetExamplesTableMutation as PlaygroundDatasetExamplesTableMutationType,
-  PlaygroundDatasetExamplesTableMutation$data,
-} from "./__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import type { PlaygroundDatasetExamplesTableQuery } from "./__generated__/PlaygroundDatasetExamplesTableQuery.graphql";
 import type { PlaygroundDatasetExamplesTableRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableRefetchQuery.graphql";
 import type {
@@ -112,11 +104,9 @@ import {
   useInstanceVariables,
 } from "./InstanceVariablesContext";
 import type {
-  EvaluationChunk,
   ExperimentRunAnnotation,
   ExperimentRunCost,
   ExampleRunData,
-  InstanceResponses,
 } from "./PlaygroundDatasetExamplesTableContext";
 import {
   makeExpandedCellKey,
@@ -181,64 +171,6 @@ function getPossibleVariablesForPath({
   }
   return [];
 }
-
-type ChatCompletionOverDatasetMutationPayload =
-  PlaygroundDatasetExamplesTableMutation$data["chatCompletionOverDataset"];
-
-const createExampleResponsesForInstance = (
-  response: ChatCompletionOverDatasetMutationPayload
-): InstanceResponses => {
-  return response.examples.reduce<InstanceResponses>(
-    (instanceResponses, example) => {
-      const {
-        datasetExampleId,
-        repetitionNumber,
-        experimentRunId,
-        repetition,
-      } = example;
-      const { errorMessage, content, span, toolCalls, evaluations } =
-        repetition;
-      // Transform mutation response evaluations to unified EvaluationChunk format
-      const transformedEvaluations: EvaluationChunk[] = evaluations.map((e) => {
-        return {
-          __typename: "EvaluationChunk" as const,
-          datasetExampleId,
-          repetitionNumber,
-          evaluatorName: e.evaluatorName,
-          experimentRunEvaluation: e.annotation,
-          trace: e.trace,
-          error: e.error,
-        };
-      });
-      const updatedInstanceResponses: InstanceResponses = {
-        ...instanceResponses,
-        [datasetExampleId]: {
-          ...instanceResponses[datasetExampleId],
-          [repetitionNumber]: {
-            ...instanceResponses[datasetExampleId]?.[repetitionNumber],
-            experimentRunId,
-            span,
-            content,
-            errorMessage,
-            toolCalls:
-              toolCalls.length > 0
-                ? toolCalls.reduce<Record<string, PartialOutputToolCall>>(
-                    (map, toolCall) => {
-                      map[toolCall.id] = toolCall;
-                      return map;
-                    },
-                    {}
-                  )
-                : undefined,
-            evaluations: transformedEvaluations,
-          },
-        },
-      };
-      return updatedInstanceResponses;
-    },
-    {}
-  );
-};
 
 /**
  * Displays the status indicator in the cell header based on run state.
@@ -888,9 +820,6 @@ export function PlaygroundDatasetExamplesTable({
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.updateExampleData
   );
-  const setExampleDataForInstance = usePlaygroundDatasetExamplesTableContext(
-    (state) => state.setExampleDataForInstance
-  );
   const resetData = usePlaygroundDatasetExamplesTableContext(
     (state) => state.resetData
   );
@@ -1131,134 +1060,11 @@ export function PlaygroundDatasetExamplesTable({
     ]
   );
 
-  const [generateChatCompletion] =
-    useMutation<PlaygroundDatasetExamplesTableMutationType>(graphql`
-      mutation PlaygroundDatasetExamplesTableMutation(
-        $input: ChatCompletionOverDatasetInput!
-      ) {
-        chatCompletionOverDataset(input: $input) {
-          experimentId
-          examples {
-            datasetExampleId
-            experimentRunId
-            repetitionNumber
-            repetition {
-              content
-              errorMessage
-              span {
-                id
-                tokenCountTotal
-                costSummary {
-                  total {
-                    cost
-                  }
-                }
-                latencyMs
-                project {
-                  id
-                }
-                context {
-                  traceId
-                }
-              }
-              toolCalls {
-                id
-                function {
-                  name
-                  arguments
-                }
-              }
-              evaluations {
-                evaluatorName
-                annotation {
-                  id
-                  name
-                  label
-                  score
-                  annotatorKind
-                  explanation
-                  metadata
-                  startTime
-                }
-                trace {
-                  traceId
-                  projectId
-                }
-                error
-              }
-            }
-          }
-        }
-      }
-    `);
-
-  const onCompleted = useCallback(
-    (instanceId: number) =>
-      (
-        response: PlaygroundDatasetExamplesTableMutation$data,
-        errors: PayloadError[] | null
-      ) => {
-        markPlaygroundInstanceComplete(instanceId);
-        setRepetitions(repetitions);
-        if (errors) {
-          setApiError(errors[0].message);
-          return;
-        }
-        updateInstance({
-          instanceId,
-          patch: {
-            experimentId: response.chatCompletionOverDataset.experimentId,
-          },
-          dirty: null,
-        });
-        setExampleDataForInstance({
-          instanceId,
-          data: createExampleResponsesForInstance(
-            response.chatCompletionOverDataset
-          ),
-        });
-        const runCosts: ExperimentRunCost[] = [];
-        const runAnnotations: ExperimentRunAnnotation[] = [];
-        for (const example of response.chatCompletionOverDataset.examples) {
-          const { repetition } = example;
-          runCosts.push({
-            instanceId,
-            latencyMs: repetition.span?.latencyMs ?? null,
-            tokenCountTotal: repetition.span?.tokenCountTotal ?? null,
-            cost: repetition.span?.costSummary?.total?.cost ?? null,
-          });
-          for (const evaluation of repetition.evaluations) {
-            const annotation = evaluation.annotation;
-            if (annotation == null) {
-              continue;
-            }
-            runAnnotations.push({
-              instanceId,
-              annotationName: annotation.name,
-              score: annotation.score,
-            });
-          }
-        }
-        addRunCosts(runCosts);
-        addRunAnnotations(runAnnotations);
-      },
-    [
-      addRunAnnotations,
-      addRunCosts,
-      markPlaygroundInstanceComplete,
-      setApiError,
-      repetitions,
-      setExampleDataForInstance,
-      setRepetitions,
-      updateInstance,
-    ]
-  );
-
   useEffect(() => {
     if (!hasSomeRunIds) {
       return;
     }
-    const { instances, streaming, updateInstance } = playgroundStore.getState();
+    const { instances } = playgroundStore.getState();
     setApiError(null);
     resetPendingExperimentMetrics();
     resetData();
@@ -1267,125 +1073,70 @@ export function PlaygroundDatasetExamplesTable({
     const totalRuns = exampleCount * repetitions;
     const totalEvals = exampleCount * repetitions * evaluatorCount;
 
-    if (streaming) {
-      const subscriptions: Disposable[] = [];
-      for (const instance of instances) {
-        const { activeRunId } = instance;
-        updateInstance({
-          instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
-        if (activeRunId === null) {
-          continue;
-        }
-
-        // Initialize progress for this instance
-        initExperimentRunProgress(instance.id, {
-          totalRuns,
-          runsCompleted: 0,
-          runsFailed: 0,
-          totalEvals,
-          evalsCompleted: 0,
-          evalsFailed: 0,
-        });
-
-        const variables = {
-          input: getChatCompletionOverDatasetInput({
-            credentials,
-            instanceId: instance.id,
-            playgroundStore,
-            datasetId,
-            splitIds,
-            evaluatorMappings,
-          }),
-        };
-        const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
-          {
-            subscription: PlaygroundDatasetExamplesTableSubscription,
-            variables,
-            onNext: onNext(instance.id),
-            onCompleted: () => {
-              flushPendingExperimentMetrics.flush();
-              markPlaygroundInstanceComplete(instance.id);
-            },
-            onError: (error) => {
-              flushPendingExperimentMetrics.flush();
-              markPlaygroundInstanceComplete(instance.id);
-              const errorMessages =
-                getErrorMessagesFromRelaySubscriptionError(error);
-              if (errorMessages != null && errorMessages.length > 0) {
-                setApiError(errorMessages.join("\n"));
-              } else {
-                setApiError(error.message);
-              }
-            },
-          };
-        setRepetitions(repetitions);
-        const subscription = requestSubscription(environment, config);
-        subscriptions.push(subscription);
+    const subscriptions: Disposable[] = [];
+    for (const instance of instances) {
+      const { activeRunId } = instance;
+      if (activeRunId === null) {
+        continue;
       }
-      return () => {
-        resetPendingExperimentMetrics();
-        for (const subscription of subscriptions) {
-          subscription.dispose();
-        }
-      };
-    } else {
-      const disposables: Disposable[] = [];
-      for (const instance of instances) {
-        const { activeRunId } = instance;
-        if (activeRunId === null) {
-          continue;
-        }
-        updateInstance({
+
+      updateInstance({
+        instanceId: instance.id,
+        patch: { experimentId: null },
+        dirty: null,
+      });
+
+      // Initialize progress for this instance
+      initExperimentRunProgress(instance.id, {
+        totalRuns,
+        runsCompleted: 0,
+        runsFailed: 0,
+        totalEvals,
+        evalsCompleted: 0,
+        evalsFailed: 0,
+      });
+
+      const variables = {
+        input: getChatCompletionOverDatasetInput({
+          credentials,
           instanceId: instance.id,
-          patch: { experimentId: null },
-          dirty: null,
-        });
-
-        // Initialize progress for this instance (non-streaming mode)
-        initExperimentRunProgress(instance.id, {
-          totalRuns,
-          runsCompleted: 0,
-          runsFailed: 0,
-          totalEvals,
-          evalsCompleted: 0,
-          evalsFailed: 0,
-        });
-
-        const variables = {
-          input: getChatCompletionOverDatasetInput({
-            credentials,
-            instanceId: instance.id,
-            playgroundStore,
-            datasetId,
-            splitIds,
-            evaluatorMappings,
-          }),
-        };
-        const disposable = generateChatCompletion({
+          playgroundStore,
+          datasetId,
+          splitIds,
+          evaluatorMappings,
+        }),
+      };
+      const config: GraphQLSubscriptionConfig<PlaygroundDatasetExamplesTableSubscriptionType> =
+        {
+          subscription: PlaygroundDatasetExamplesTableSubscription,
           variables,
-          onCompleted: onCompleted(instance.id),
-          onError(error) {
+          onNext: onNext(instance.id),
+          onCompleted: () => {
+            flushPendingExperimentMetrics.flush();
             markPlaygroundInstanceComplete(instance.id);
-            const errorMessages = getErrorMessagesFromRelayMutationError(error);
+          },
+          onError: (error) => {
+            flushPendingExperimentMetrics.flush();
+            markPlaygroundInstanceComplete(instance.id);
+            const errorMessages =
+              getErrorMessagesFromRelaySubscriptionError(error);
             if (errorMessages != null && errorMessages.length > 0) {
               setApiError(errorMessages.join("\n"));
             } else {
               setApiError(error.message);
             }
           },
-        });
-        disposables.push(disposable);
-      }
-      return () => {
-        resetPendingExperimentMetrics();
-        for (const disposable of disposables) {
-          disposable.dispose();
-        }
-      };
+        };
+      setRepetitions(repetitions);
+      const subscription = requestSubscription(environment, config);
+      subscriptions.push(subscription);
     }
+    return () => {
+      resetPendingExperimentMetrics();
+      for (const subscription of subscriptions) {
+        subscription.dispose();
+      }
+    };
   }, [
     credentials,
     datasetId,
@@ -1394,11 +1145,10 @@ export function PlaygroundDatasetExamplesTable({
     evaluatorCount,
     evaluatorMappings,
     exampleCount,
-    generateChatCompletion,
     hasSomeRunIds,
+    updateInstance,
     initExperimentRunProgress,
     markPlaygroundInstanceComplete,
-    onCompleted,
     onNext,
     resetPendingExperimentMetrics,
     flushPendingExperimentMetrics,

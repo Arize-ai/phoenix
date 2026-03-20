@@ -1995,6 +1995,7 @@ export const getChatCompletionInput = ({
     input,
     allInstanceMessages: instanceMessages,
     repetitions,
+    streaming,
   } = playgroundStore.getState();
 
   const instance = instances.find((i) => i.id === instanceId);
@@ -2061,7 +2062,8 @@ export const getChatCompletionInput = ({
     },
     promptName: instance.prompt?.name,
     repetitions,
-  } as unknown as ChatCompletionInput;
+    streamModelOutput: streaming,
+  } satisfies ChatCompletionInput;
 };
 
 /**
@@ -2105,6 +2107,7 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions,
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
+    streaming,
   } = playgroundStore.getState();
 
   const instance = instances.find((i) => i.id === instanceId);
@@ -2172,6 +2175,7 @@ export const getChatCompletionOverDatasetInput = ({
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
+    streamModelOutput: streaming,
   };
 };
 

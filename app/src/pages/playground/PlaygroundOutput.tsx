@@ -1,7 +1,7 @@
 import type { Key } from "react";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useMutation, useRelayEnvironment } from "react-relay";
-import type { GraphQLSubscriptionConfig, PayloadError } from "relay-runtime";
+import { useRelayEnvironment } from "react-relay";
+import type { GraphQLSubscriptionConfig } from "relay-runtime";
 import { graphql, requestSubscription } from "relay-runtime";
 
 import {
@@ -31,17 +31,9 @@ import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type { ChatMessage, PlaygroundRepetition } from "@phoenix/store";
 import { generateMessageId } from "@phoenix/store";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
-import {
-  getErrorMessagesFromRelayMutationError,
-  getErrorMessagesFromRelaySubscriptionError,
-} from "@phoenix/utils/errorUtils";
+import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
 
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
-import type {
-  PlaygroundOutputMutation as PlaygroundOutputMutationType,
-  PlaygroundOutputMutation$data,
-} from "./__generated__/PlaygroundOutputMutation.graphql";
-import PlaygroundOutputMutation from "./__generated__/PlaygroundOutputMutation.graphql";
 import type {
   PlaygroundOutputSubscription as PlaygroundOutputSubscriptionType,
   PlaygroundOutputSubscription$data,
@@ -162,7 +154,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
-  const streaming = usePlaygroundContext((state) => state.streaming);
   const credentials = useCredentialsContext((state) => state);
   const index = usePlaygroundContext((state) =>
     state.instances.findIndex((instance) => instance.id === instanceId)
@@ -173,7 +164,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setRepetitionSpanId,
     setRepetitionError,
     setRepetitionStatus,
-    setRepetitionToolCalls,
     addRepetitionPartialToolCall,
     clearRepetitions,
     markPlaygroundInstanceComplete,
@@ -183,7 +173,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     setRepetitionSpanId: state.setRepetitionSpanId,
     setRepetitionError: state.setRepetitionError,
     setRepetitionStatus: state.setRepetitionStatus,
-    setRepetitionToolCalls: state.setRepetitionToolCalls,
     addRepetitionPartialToolCall: state.addRepetitionPartialToolCall,
     clearRepetitions: state.clearRepetitions,
     markPlaygroundInstanceComplete: state.markPlaygroundInstanceComplete,
@@ -206,10 +195,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
   const selectedRepetitionSuccessfullyCompleted =
     selectedRepetition?.status === "finished" &&
     selectedRepetition?.error == null;
-
-  const [generateChatCompletion] = useMutation<PlaygroundOutputMutationType>(
-    PlaygroundOutputMutation
-  );
 
   const runInProgress = instances.some(
     (instance) => instance.activeRunId != null
@@ -304,61 +289,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     ]
   );
 
-  const handleChatCompletionMutationPayload = useCallback(
-    (
-      response: PlaygroundOutputMutation$data,
-      errors: PayloadError[] | null
-    ) => {
-      markPlaygroundInstanceComplete(props.playgroundInstanceId);
-      if (errors != null && errors.length > 0) {
-        setApiError(errors[0].message);
-        return;
-      }
-      const instance = playgroundStore
-        .getState()
-        .instances.find((inst) => inst.id === instanceId);
-      if (instance == null) {
-        return;
-      }
-      response.chatCompletion.repetitions.forEach((repetition) => {
-        const repetitionNumber = repetition.repetitionNumber;
-        setRepetitionStatus(instanceId, repetitionNumber, "finished");
-        if (repetition.content != null) {
-          appendRepetitionOutput(
-            instanceId,
-            repetitionNumber,
-            repetition.content
-          );
-        }
-        if (repetition.toolCalls.length > 0) {
-          setRepetitionToolCalls(instanceId, repetitionNumber, [
-            ...repetition.toolCalls,
-          ]);
-        }
-        if (repetition.span != null) {
-          setRepetitionSpanId(instanceId, repetitionNumber, repetition.span.id);
-        }
-        if (repetition.errorMessage != null) {
-          setRepetitionError(instanceId, repetitionNumber, {
-            title: "Chat completion failed",
-            message: repetition.errorMessage,
-          });
-        }
-      });
-    },
-    [
-      instanceId,
-      markPlaygroundInstanceComplete,
-      setRepetitionToolCalls,
-      playgroundStore,
-      props.playgroundInstanceId,
-      appendRepetitionOutput,
-      setRepetitionSpanId,
-      setRepetitionStatus,
-      setRepetitionError,
-    ]
-  );
-
   useEffect(() => {
     if (!runInProgress) {
       return;
@@ -370,80 +300,57 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       credentials,
     });
 
-    if (streaming) {
-      const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
-        {
-          subscription: PlaygroundOutputSubscription,
-          variables: {
-            input,
-          },
-          onNext: (response) => {
-            if (response) {
-              handleChatCompletionSubscriptionPayload(response);
-            }
-          },
-          onCompleted: () => {
-            markPlaygroundInstanceComplete(props.playgroundInstanceId);
-          },
-          onError: (error) => {
-            markPlaygroundInstanceComplete(props.playgroundInstanceId);
-            const instance = playgroundStore
-              .getState()
-              .instances.find((inst) => inst.id === instanceId);
-            if (instance != null) {
-              Object.keys(instance.repetitions).forEach((repetitionNumber) => {
-                setRepetitionStatus(
-                  instanceId,
-                  parseInt(repetitionNumber),
-                  "finished"
-                );
-              });
-            }
-            const errorMessages =
-              getErrorMessagesFromRelaySubscriptionError(error);
-            if (errorMessages != null && errorMessages.length > 0) {
-              setApiError(errorMessages.join("\n"));
-            } else {
-              setApiError(error.message);
-            }
-          },
-        };
-      const subscription = requestSubscription(environment, config);
-      return subscription.dispose;
-    }
-
-    const disposable = generateChatCompletion({
-      variables: {
-        input,
-      },
-      onCompleted: handleChatCompletionMutationPayload,
-      onError(error) {
-        markPlaygroundInstanceComplete(props.playgroundInstanceId);
-        clearRepetitions(instanceId);
-        const errorMessages = getErrorMessagesFromRelayMutationError(error);
-        if (errorMessages != null && errorMessages.length > 0) {
-          setApiError(errorMessages.join("\n"));
-        } else {
-          setApiError(error.message);
-        }
-      },
-    });
-
-    return disposable.dispose;
+    const config: GraphQLSubscriptionConfig<PlaygroundOutputSubscriptionType> =
+      {
+        subscription: PlaygroundOutputSubscription,
+        variables: {
+          input,
+        },
+        onNext: (response) => {
+          if (response) {
+            handleChatCompletionSubscriptionPayload(response);
+          }
+        },
+        onCompleted: () => {
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+        },
+        onError: (error) => {
+          markPlaygroundInstanceComplete(props.playgroundInstanceId);
+          clearRepetitions(instanceId);
+          const instance = playgroundStore
+            .getState()
+            .instances.find((inst) => inst.id === instanceId);
+          if (instance != null) {
+            Object.keys(instance.repetitions).forEach((repetitionNumber) => {
+              setRepetitionStatus(
+                instanceId,
+                parseInt(repetitionNumber),
+                "finished"
+              );
+            });
+          }
+          const errorMessages =
+            getErrorMessagesFromRelaySubscriptionError(error);
+          if (errorMessages != null && errorMessages.length > 0) {
+            setApiError(errorMessages.join("\n"));
+          } else {
+            setApiError(error.message);
+          }
+        },
+      };
+    const subscription = requestSubscription(environment, config);
+    return subscription.dispose;
   }, [
     credentials,
     environment,
-    generateChatCompletion,
     instanceId,
-    clearRepetitions,
     markPlaygroundInstanceComplete,
-    handleChatCompletionMutationPayload,
     handleChatCompletionSubscriptionPayload,
     runInProgress,
     playgroundStore,
     props.playgroundInstanceId,
     setRepetitionStatus,
-    streaming,
+    clearRepetitions,
   ]);
 
   return (
@@ -562,30 +469,6 @@ graphql`
       }
       ... on ChatCompletionSubscriptionError {
         message
-      }
-    }
-  }
-`;
-
-// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-graphql`
-  mutation PlaygroundOutputMutation($input: ChatCompletionInput!) {
-    chatCompletion(input: $input) {
-      __typename
-      repetitions {
-        repetitionNumber
-        content
-        errorMessage
-        span {
-          id
-        }
-        toolCalls {
-          id
-          function {
-            name
-            arguments
-          }
-        }
       }
     }
   }

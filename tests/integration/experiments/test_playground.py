@@ -142,6 +142,7 @@ async def _run_subscription_with_evaluators(
     custom_provider_id: str,
     dataset_id: str,
     evaluators: DatasetEvaluators,
+    stream_model_output: bool = True,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run chatCompletionOverDataset subscription with evaluators.
 
@@ -236,6 +237,7 @@ async def _run_subscription_with_evaluators(
                     },
                 },
             ],
+            "streamModelOutput": stream_model_output,
         }
     }
 
@@ -329,6 +331,7 @@ async def _run_subscription_without_evaluators(
     model_provider: str,
     dataset_id: str,
     invocation_parameters: list[dict[str, Any]] | None = None,
+    stream_model_output: bool = True,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run chatCompletionOverDataset subscription without evaluators.
 
@@ -362,6 +365,7 @@ async def _run_subscription_without_evaluators(
             "repetitions": 1,
             "datasetId": dataset_id,
             "evaluators": [],
+            "streamModelOutput": stream_model_output,
         }
     }
 
@@ -440,12 +444,20 @@ async def _get_experiment(
 class TestChatCompletionOverDataset:
     """Tests for chatCompletionOverDataset subscription with evaluators."""
 
+    @pytest.mark.parametrize(
+        "stream_model_output",
+        [
+            pytest.param(True, id="streaming"),
+            pytest.param(False, id="non_streaming"),
+        ],
+    )
     async def test_experiment_with_evaluators(
         self,
         _app: _AppInfo,
         _custom_providers: CustomProviders,
         _dataset_id: str,
         _dataset_evaluators: DatasetEvaluators,
+        stream_model_output: bool,
     ) -> None:
         """Test chatCompletionOverDataset with all 4 provider evaluators.
 
@@ -461,6 +473,7 @@ class TestChatCompletionOverDataset:
                 custom_provider_id=_custom_providers.openai,
                 dataset_id=_dataset_id,
                 evaluators=_dataset_evaluators,
+                stream_model_output=stream_model_output,
             )
 
             # Query experiment
@@ -557,6 +570,13 @@ class TestChatCompletionOverDataset:
                     )
 
     @pytest.mark.parametrize(
+        "stream_model_output",
+        [
+            pytest.param(True, id="streaming"),
+            pytest.param(False, id="non_streaming"),
+        ],
+    )
+    @pytest.mark.parametrize(
         "provider_key,model_name,model_provider,invocation_params",
         [
             pytest.param("openai", "gpt-4o-mini", "OPENAI", [], id="openai"),
@@ -583,6 +603,7 @@ class TestChatCompletionOverDataset:
         model_name: str,
         model_provider: str,
         invocation_params: list[dict[str, Any]],
+        stream_model_output: bool,
     ) -> None:
         """Test chatCompletionOverDataset with a provider on primary prompt.
 
@@ -602,6 +623,7 @@ class TestChatCompletionOverDataset:
                 model_provider=model_provider,
                 dataset_id=_dataset_id,
                 invocation_parameters=invocation_params,
+                stream_model_output=stream_model_output,
             )
 
             # Query experiment
