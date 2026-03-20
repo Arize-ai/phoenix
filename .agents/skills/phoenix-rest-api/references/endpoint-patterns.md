@@ -1,17 +1,28 @@
 # REST Endpoint Patterns
 
-## Design Principles
+## Notation Conventions and Compliance
 
-These are the non-negotiable conventions for the Phoenix REST API.
+The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+"SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this
+specification are to be interpreted as described in BCP 14
+[[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119)]
+[[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174)] when, and only when, they
+appear in all capitals, as shown here.
+
+An implementation is compliant if it satisfies all "MUST", "MUST NOT",
+"REQUIRED", "SHALL", and "SHALL NOT" requirements defined in this specification.
+An implementation that fails to satisfy any such requirement is not compliant.
+
+## Design Principles
 
 ### Communication & Versioning
 
-- All endpoints communicate over **JSON** unless the URL specifies otherwise (e.g., `/csv`, `/jsonl`).
-- The API is **versioned** under `/v1/`. Backward-incompatible changes go under a new version prefix (`/v2/`).
+- Endpoints MUST communicate over JSON unless the URL specifies an alternative format (e.g., `/csv`, `/jsonl`).
+- The API MUST be versioned under a path prefix (`/v1/`). Backward-incompatible changes MUST be introduced under a new version prefix (e.g., `/v2/`).
 
 ### HTTP Methods
 
-Use methods according to their semantics defined in [RFC 9110 (HTTP Semantics)](https://httpwg.org/specs/rfc9110.html#methods):
+Endpoints MUST use HTTP methods according to their semantics as defined in [RFC 9110 (HTTP Semantics)](https://httpwg.org/specs/rfc9110.html#methods):
 
 | Method | Semantics | Reference |
 |--------|-----------|-----------|
@@ -23,32 +34,34 @@ Use methods according to their semantics defined in [RFC 9110 (HTTP Semantics)](
 
 ### Status Codes
 
-Use status codes according to [RFC 9110 §15 (Status Codes)](https://httpwg.org/specs/rfc9110.html#status.codes):
+Endpoints MUST use status codes according to [RFC 9110 §15 (Status Codes)](https://httpwg.org/specs/rfc9110.html#status.codes):
 
 - **2xx** — success; the request was received, understood, and accepted
 - **4xx** — client error; the request contains bad syntax or cannot be fulfilled
 - **5xx** — server error; the server failed to fulfill a valid request
 
+Endpoints MUST NOT return a 2xx status code when the request has failed. Endpoints MUST NOT return a 5xx status code for client errors.
+
 ### Path Structure
 
-- Use **plural nouns** for resources (`/datasets`, `/users`, `/experiments`), never verbs.
-- Specific resources are identified by a **globally unique identifier** consistent with the GraphQL API: `/datasets/:dataset_id`
-- Sub-resources nest under their parent: `/datasets/:dataset_id/examples`, `/projects/:project_id/spans`
+- Paths MUST use **plural nouns** for resources (`/datasets`, `/users`, `/experiments`). Paths MUST NOT contain verbs.
+- Specific resources MUST be identified by a **globally unique identifier** consistent with the GraphQL API: `/datasets/:dataset_id`
+- Sub-resources MUST nest under their parent: `/datasets/:dataset_id/examples`, `/projects/:project_id/spans`
 
 ### Query Parameters
 
-- Use query parameters for **filtering, sorting, and pagination**.
-- Parameter names use **snake_case** with `_` as separator (e.g., `dataset_version_id`, `next_cursor`).
+- Filtering, sorting, and pagination SHOULD be expressed as query parameters.
+- Query parameter names MUST use **snake_case** with `_` as separator (e.g., `dataset_version_id`, `next_cursor`).
 
 ### Pagination
 
-- Use **cursor-based pagination**. Each response includes a `next_cursor` field pointing to the next page.
-- Never use offset-based pagination.
+- Collection endpoints MUST use **cursor-based pagination**. Each response SHALL include a `next_cursor` field pointing to the next page of results (or `null` when no more pages exist).
+- Endpoints MUST NOT use offset-based pagination.
 
 ### Response Format
 
-- All responses are a JSON object with a **`data` key** wrapping the payload.
-- Payload field names use **snake_case** for easy translation to Python/TypeScript objects.
+- All JSON responses MUST be an object with a **`data`** key wrapping the payload.
+- Payload field names MUST use **snake_case** for easy translation to language-native objects.
 - Single-resource responses: `{"data": {...}}`
 - Collection responses: `{"data": [...], "next_cursor": "..."}`
 
