@@ -563,7 +563,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           paddingBottom="size-100"
           paddingStart="size-200"
           paddingEnd="size-200"
-          borderBottomColor="gray-300"
+          borderBottomColor="default"
           borderBottomWidth="thin"
           flex="none"
         >

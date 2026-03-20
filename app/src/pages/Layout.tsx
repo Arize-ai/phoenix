@@ -46,8 +46,9 @@ const contentCSS = css`
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--global-border-color-subtle);
-  border-top: 1px solid var(--global-border-color-subtle);
+  box-sizing: border-box;
+  border-left: 1px solid var(--global-border-color-default);
+  border-top: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium) 0 0 0;
   /* Fill the background of the content */
   box-shadow: 0 0 10px 10px var(--global-color-gray-100);

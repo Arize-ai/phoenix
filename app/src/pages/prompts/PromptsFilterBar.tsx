@@ -22,7 +22,7 @@ export const PromptsFilterBar = () => {
     <View
       padding="size-200"
       borderBottomWidth="thin"
-      borderBottomColor="gray-200"
+      borderBottomColor="default"
       flex="none"
     >
       <Flex

@@ -15,7 +15,7 @@ export const DatasetEvaluatorsFilterBar = ({
     <View
       padding={padding}
       borderBottomWidth="thin"
-      borderBottomColor="gray-200"
+      borderBottomColor="default"
       flex="none"
     >
       <Flex

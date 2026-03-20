@@ -319,7 +319,7 @@ export function ProjectsPageContent({
       <View
         padding="size-200"
         width="100%"
-        borderBottomColor="gray-200"
+        borderBottomColor="default"
         borderBottomWidth="thin"
         flex="none"
       >

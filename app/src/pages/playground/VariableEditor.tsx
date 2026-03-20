@@ -50,7 +50,7 @@ export const VariableEditor = ({
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>
-      <CodeWrap width="100%">
+      <CodeWrap style={{ width: "100%" }}>
         <ReactCodeMirror
           key={editorKey}
           theme={codeMirrorTheme}

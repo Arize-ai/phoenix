@@ -223,7 +223,7 @@ function MessageEditor({
       >
         <div css={fieldBaseCSS}>
           <Label>Tool Calls</Label>
-          <CodeWrap width={"100%"}>
+          <CodeWrap style={{ width: "100%" }}>
             <ChatMessageToolCallsEditor
               playgroundInstanceId={playgroundInstanceId}
               messageId={message.id}

@@ -1,20 +1,21 @@
-import type { ReactNode } from "react";
+import { css } from "@emotion/react";
+import type { HTMLAttributes, ReactNode } from "react";
 
-import type { ViewProps } from "@phoenix/components";
-import { View } from "@phoenix/components";
+const codeWrapCSS = css`
+  border: var(--global-border-size-thin) solid
+    var(--global-input-field-border-color);
+  border-radius: var(--global-rounding-small);
+  background-color: var(--global-input-field-background-color);
+  overflow: hidden;
+`;
 
 export function CodeWrap({
   children,
   ...props
-}: { children: ReactNode } & ViewProps) {
+}: { children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <View
-      borderColor="default"
-      borderWidth="thin"
-      borderRadius="small"
-      {...props}
-    >
+    <div css={codeWrapCSS} {...props}>
       {children}
-    </View>
+    </div>
   );
 }

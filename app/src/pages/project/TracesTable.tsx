@@ -211,7 +211,10 @@ export function TracesTable(props: TracesTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
-          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
+          sort: {
+            type: "SpanSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
@@ -862,7 +865,7 @@ export function TracesTable(props: TracesTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        borderBottomColor="gray-300"
+        borderBottomColor="default"
         borderBottomWidth="thin"
         flex="none"
       >

@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 
 export const resizeHandleCSS = css`
   transition: 250ms linear all;
-  background-color: var(--global-color-gray-200);
+  background-color: var(--global-resize-handle-background-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,29 +31,27 @@ export const resizeHandleCSS = css`
   }
 
   &:hover {
-    background-color: var(--global-color-gray-300);
+    background-color: var(--global-resize-handle-background-color-hover);
     border-radius: 4px;
     &:before,
     &:after {
-      background-color: var(--global-color-primary);
+      background-color: var(--global-resize-handle-indicator-color-hover);
     }
   }
 
   &:before,
   &:after {
     content: "";
-    color: var(--color-solid-resize-bar);
-    flex: 0 0 1rem;
-    border-radius: 6px;
-    background-color: var(--global-color-gray-300);
     flex: none;
+    border-radius: 6px;
+    background-color: var(--global-resize-handle-indicator-color);
   }
 `;
 
 export const compactResizeHandleCSS = css`
   transition: 250ms linear all;
-  background-color: var(--global-color-gray-200);
-  --resize-handle-size: 4px;
+  background-color: var(--global-resize-handle-background-color);
+  --resize-handle-size: 1px;
   outline: none;
   &[data-panel-group-direction="vertical"] {
     height: var(--resize-handle-size);
@@ -62,7 +60,8 @@ export const compactResizeHandleCSS = css`
     width: var(--resize-handle-size);
   }
 
-  &:hover {
-    background-color: var(--global-color-primary);
+  &:hover,
+  &[data-resize-handle-state="hover"] {
+    background-color: var(--global-resize-handle-indicator-color-hover);
   }
 `;

@@ -911,8 +911,7 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --global-background-color-default: var(--global-color-gray-100);
 
-    --global-border-color-default: var(--global-color-gray-300);
-    --global-border-color-subtle: var(--global-color-gray-200);
+    --global-border-color-default: var(--global-color-gray-200);
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
@@ -921,7 +920,9 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${theme === "dark" ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0.1)"};
+    --global-overlay-shadow-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.6)"
+      : "rgba(0, 0, 0, 0.1)"};
   }
 `;
 
@@ -1057,6 +1058,16 @@ const tableCSS = (theme: Theme) => css`
   }
 `;
 
+const resizeHandleCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-resize-handle-background-color: var(--global-border-color-default);
+    --global-resize-handle-background-color-hover: var(--global-color-gray-300);
+    --global-resize-handle-indicator-color: var(--global-color-gray-300);
+    --global-resize-handle-indicator-color-hover: var(--global-color-primary);
+  }
+`;
+
 const borderAndGridCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1098,7 +1109,8 @@ export const derivedCSS = (theme: Theme) =>
     popoverCSS(theme),
     roundingCSS(theme),
     tableCSS(theme),
-    borderAndGridCSS(theme)
+    borderAndGridCSS(theme),
+    resizeHandleCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

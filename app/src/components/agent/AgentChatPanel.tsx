@@ -23,7 +23,7 @@ const panelHeaderCSS = css`
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  border-bottom: 1px solid var(--global-border-color-subtle);
+  border-bottom: 1px solid var(--global-border-color-default);
 `;
 
 const panelContentCSS = css`
@@ -32,7 +32,7 @@ const panelContentCSS = css`
   box-sizing: border-box;
   height: 100%;
   overflow: hidden;
-  border-top: 1px solid var(--global-border-color-subtle);
+  border-top: 1px solid var(--global-border-color-default);
 `;
 
 export function AgentChatPanel() {
