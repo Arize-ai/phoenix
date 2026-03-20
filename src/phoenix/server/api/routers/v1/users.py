@@ -88,7 +88,7 @@ User: TypeAlias = Annotated[
 
 
 class AnonymousUser(V1RoutesBaseModel):
-    auth_method: Literal["ANONYMOUS"] = "ANONYMOUS"
+    auth_method: Literal["ANONYMOUS"]
 
 
 ViewerUser: TypeAlias = Annotated[
@@ -189,7 +189,7 @@ async def get_viewer(
     request: Request,
 ) -> GetViewerResponseBody:
     if not request.app.state.authentication_enabled:
-        return GetViewerResponseBody(data=AnonymousUser())
+        return GetViewerResponseBody(data=AnonymousUser(auth_method="ANONYMOUS"))
     if not isinstance(request.user, PhoenixUser):
         raise HTTPException(status_code=401, detail="Not authenticated")
     user_id = int(request.user.identity)
