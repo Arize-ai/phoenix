@@ -15,7 +15,6 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
-from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -65,7 +64,6 @@ from phoenix.server.api.helpers.evaluators import (
 )
 from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
-from phoenix.server.api.types.Evaluator import DatasetEvaluator as DatasetEvaluatorNode
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
@@ -3512,15 +3510,10 @@ class TestGetEvaluators:
             session.add_all([de_contains, de_llm, de_exact_match, de_regex])
             await session.flush()
 
-            input_node_ids = [
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_contains.id)),
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_llm.id)),
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_exact_match.id)),
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_regex.id)),
-            ]
+            input_ids = [de_contains.id, de_llm.id, de_exact_match.id, de_regex.id]
 
             evaluators = await get_evaluators(
-                dataset_evaluator_node_ids=input_node_ids,
+                dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,
@@ -3541,31 +3534,12 @@ class TestGetEvaluators:
         db: Any,
     ) -> None:
         non_existent_id = 999999
-        input_node_ids = [
-            GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(non_existent_id)),
-        ]
+        input_ids = [non_existent_id]
 
         async with db() as session:
             with pytest.raises(NotFound, match="DatasetEvaluator.*not found"):
                 await get_evaluators(
-                    dataset_evaluator_node_ids=input_node_ids,
-                    session=session,
-                    decrypt=lambda x: x,
-                    credentials=None,
-                )
-
-    async def test_raises_value_error_for_non_dataset_evaluator_type(
-        self,
-        db: Any,
-    ) -> None:
-        input_node_ids = [
-            GlobalID(type_name="LLMEvaluator", node_id="123"),
-        ]
-
-        async with db() as session:
-            with pytest.raises(BadRequest, match="Expected DatasetEvaluator ID"):
-                await get_evaluators(
-                    dataset_evaluator_node_ids=input_node_ids,
+                    dataset_evaluator_ids=input_ids,
                     session=session,
                     decrypt=lambda x: x,
                     credentials=None,
@@ -3577,7 +3551,7 @@ class TestGetEvaluators:
     ) -> None:
         async with db() as session:
             evaluators = await get_evaluators(
-                dataset_evaluator_node_ids=[],
+                dataset_evaluator_ids=[],
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,
@@ -3640,14 +3614,10 @@ class TestGetEvaluators:
             session.add_all([de_levenshtein, de_json_distance, de_contains])
             await session.flush()
 
-            input_node_ids = [
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_levenshtein.id)),
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_json_distance.id)),
-                GlobalID(type_name=DatasetEvaluatorNode.__name__, node_id=str(de_contains.id)),
-            ]
+            input_ids = [de_levenshtein.id, de_json_distance.id, de_contains.id]
 
             evaluators = await get_evaluators(
-                dataset_evaluator_node_ids=input_node_ids,
+                dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
                 credentials=None,

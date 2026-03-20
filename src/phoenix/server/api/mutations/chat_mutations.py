@@ -80,7 +80,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, DatasetEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -375,16 +375,19 @@ class ChatCompletionMutationMixin:
 
         evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResult]] = {}
         if input.evaluators:
-            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            dataset_evaluator_ids = [
+                from_global_id_with_expected_type(evaluator.id, DatasetEvaluator.__name__)
+                for evaluator in input.evaluators
+            ]
             async with info.context.db() as session:
                 evaluators = await get_evaluators(
-                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    dataset_evaluator_ids=dataset_evaluator_ids,
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,
                 )
                 project_ids = await get_evaluator_project_ids(
-                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    dataset_evaluator_ids=dataset_evaluator_ids,
                     session=session,
                 )
             for (revision, repetition_number), experiment_run in zip(
@@ -508,7 +511,10 @@ class ChatCompletionMutationMixin:
         if input.evaluators:
             async with info.context.db() as session:
                 evaluators = await get_evaluators(
-                    dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                    dataset_evaluator_ids=[
+                        from_global_id_with_expected_type(evaluator.id, DatasetEvaluator.__name__)
+                        for evaluator in input.evaluators
+                    ],
                     session=session,
                     decrypt=info.context.decrypt,
                     credentials=input.credentials,

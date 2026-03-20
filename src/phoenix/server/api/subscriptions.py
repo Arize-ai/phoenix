@@ -75,6 +75,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
@@ -393,15 +394,18 @@ class Subscription:
                 credentials=input.credentials,
                 client_options=input.client_options,
             )
-            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            dataset_evaluator_ids = [
+                from_global_id_with_expected_type(evaluator.id, DatasetEvaluator.__name__)
+                for evaluator in input.evaluators
+            ]
             evaluators = await get_evaluators(
-                dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                dataset_evaluator_ids=dataset_evaluator_ids,
                 session=session,
                 decrypt=info.context.decrypt,
                 credentials=input.credentials,
             )
             project_ids = await get_evaluator_project_ids(
-                dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                dataset_evaluator_ids=dataset_evaluator_ids,
                 session=session,
             )
             if (
