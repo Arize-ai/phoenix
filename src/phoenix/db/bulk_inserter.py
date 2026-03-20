@@ -152,8 +152,19 @@ class BulkInserter:
 
     async def _process_events(self, events: Iterable[Optional[DataManipulationEvent]]) -> None: ...
 
+    def _has_work(self) -> bool:
+        ops = self._operations
+        return bool(
+            self._spans
+            or self._evaluations
+            or (ops is not None and not ops.empty())
+            or not self._queue_inserters.empty
+        )
+
     async def _wait_for_work(self) -> None:
         self._wake_event.clear()
+        if self._has_work():
+            return
         try:
             await asyncio.wait_for(self._wake_event.wait(), timeout=self._sleep)
         except (TimeoutError, asyncio.TimeoutError):
@@ -162,21 +173,10 @@ class BulkInserter:
     async def _bulk_insert(self) -> None:
         assert isinstance(self._operations, Queue)
         # start first insert immediately if the inserter has not run recently
-        while (
-            self._running
-            or not self._queue_inserters.empty
-            or not self._operations.empty()
-            or self._spans
-            or self._evaluations
-        ):
+        while self._running or self._has_work():
             BULK_LOADER_LAST_ACTIVITY.set(time())
             SPAN_QUEUE_SIZE.set(len(self._spans))
-            if (
-                self._queue_inserters.empty
-                and self._operations.empty()
-                and not self._spans
-                and not self._evaluations
-            ):
+            if not self._has_work():
                 await self._wait_for_work()
                 continue
             # It's important to grab the buffers at the same time so there's
@@ -195,7 +195,6 @@ class BulkInserter:
             await self._insert_evaluations(num_evals_to_insert)
             async for event in self._queue_inserters.insert():
                 self._event_queue.put(event)
-            await self._wait_for_work()
 
     async def _drain_operations(self) -> None:
         assert isinstance(self._operations, Queue)
