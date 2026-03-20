@@ -47,6 +47,7 @@ from phoenix.server.prometheus import (
     SPAN_QUEUE_SIZE,
 )
 from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span
 
 logger = logging.getLogger(__name__)
@@ -225,7 +226,8 @@ class BulkInserter:
             session_ids = {
                 str(sid).strip()
                 for span, _ in batch
-                if (sid := span.attributes.get(SpanAttributes.SESSION_ID)) is not None
+                if (sid := get_attribute_value(span.attributes, SpanAttributes.SESSION_ID))
+                is not None
             }
             async with self._db() as session:
                 project_cache = await resolve_projects(session, project_names)

@@ -39,6 +39,7 @@ class CumulativeRepairTask(DaemonTask):
         self._db = db
         self._sleep_seconds = sleep_seconds
         self._batch_size = batch_size
+        self._last_seen_id: int = 0
 
     async def _run(self) -> None:
         if self._db.dialect is not SupportedSQLDialect.POSTGRESQL:
@@ -54,14 +55,18 @@ class CumulativeRepairTask(DaemonTask):
     async def _repair_batch(self) -> None:
         """Recompute cumulative values for one batch of traces."""
         async with self._db() as session:
-            # SELECT a batch of trace rowids, locking only rows not held by active writers.
+            # SELECT a batch of trace rowids starting after the last-seen cursor,
+            # locking only rows not held by active writers.
             trace_rowids_result = await session.execute(
                 select(models.Trace.id)
+                .where(models.Trace.id > self._last_seen_id)
                 .order_by(models.Trace.id)
                 .limit(self._batch_size)
                 .with_for_update(skip_locked=True)
             )
             trace_rowids: set[int] = {row[0] for row in trace_rowids_result}
             if not trace_rowids:
+                self._last_seen_id = 0  # wrap around to start of table
                 return
+            self._last_seen_id = max(trace_rowids)
             await recompute_trace_cumulative_values(session, trace_rowids)
