@@ -1,4 +1,5 @@
-"""Unit tests for _get_cumulative_counts() and recompute_trace_cumulative_values()."""
+"""Unit tests for _get_cumulative_counts(), recompute_trace_cumulative_values(),
+and CumulativeRepairTask."""
 
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from phoenix.db import models
 from phoenix.db.insertion.cumulative import (
@@ -14,6 +15,7 @@ from phoenix.db.insertion.cumulative import (
     _get_cumulative_counts,
     recompute_trace_cumulative_values,
 )
+from phoenix.server.daemons.cumulative_repair import CumulativeRepairTask
 from phoenix.server.types import DbSessionFactory
 
 # ---------------------------------------------------------------------------
@@ -297,3 +299,103 @@ class TestGetCumulativeCounts:
         assert result[0] == CumulativeCount(errors=0, prompt_tokens=10, completion_tokens=0)
         assert result[1] == CumulativeCount(errors=0, prompt_tokens=15, completion_tokens=0)
         assert result[2] == CumulativeCount(errors=0, prompt_tokens=16, completion_tokens=0)
+
+    def test_disjoint_fragment_parent_not_in_batch(self) -> None:
+        """Child whose parent_id references a span NOT in the batch gets own-values only."""
+        spans = [
+            _span("Root", prompt_tokens=1, completion_tokens=1),
+            _span("Child", parent_id="Root", prompt_tokens=2, completion_tokens=2),
+            # Orphan's parent "missing-parent" is not in this batch
+            _span("Orphan", parent_id="missing-parent", prompt_tokens=10, completion_tokens=5),
+            # OrphanChild is a child of Orphan — also disjoint from Root's tree
+            _span(
+                "OrphanChild",
+                parent_id="Orphan",
+                prompt_tokens=3,
+                completion_tokens=3,
+                status_code="ERROR",
+            ),
+        ]
+        result = _get_cumulative_counts(spans)  # type: ignore[arg-type]
+        by_id = {s.span_id: c for s, c in zip(spans, result)}
+
+        # Root accumulates Child
+        assert by_id["Root"] == CumulativeCount(errors=0, prompt_tokens=3, completion_tokens=3)
+        assert by_id["Child"] == CumulativeCount(errors=0, prompt_tokens=2, completion_tokens=2)
+
+        # Orphan is not reachable from any root, so it keeps own-values only —
+        # its child OrphanChild is NOT accumulated into it because the traversal
+        # never reaches this fragment.
+        assert by_id["Orphan"] == CumulativeCount(errors=0, prompt_tokens=10, completion_tokens=5)
+        # OrphanChild also keeps own-values only
+        assert by_id["OrphanChild"] == CumulativeCount(
+            errors=1, prompt_tokens=3, completion_tokens=3
+        )
+
+
+# ---------------------------------------------------------------------------
+# Tests for CumulativeRepairTask
+# ---------------------------------------------------------------------------
+
+
+class TestCumulativeRepairTask:
+    async def test_sqlite_is_noop(self, db: DbSessionFactory) -> None:
+        """On SQLite the repair daemon returns immediately without querying."""
+        if db.dialect.value != "sqlite":
+            return
+        task = CumulativeRepairTask(db=db, sleep_seconds=0.01, batch_size=10)
+        # _run() should return immediately because dialect != POSTGRESQL
+        task._running = True
+        await task._run()
+        # Reaching here without error or hanging confirms the no-op guard works.
+
+    async def test_repair_batch_corrects_stale_values(self, db: DbSessionFactory) -> None:
+        """Insert spans with wrong cumulative values, run one repair batch,
+        verify values are corrected. PostgreSQL only (uses FOR UPDATE SKIP LOCKED)."""
+        if db.dialect.value != "postgresql":
+            return
+
+        async with db() as session:
+            proj = await _insert_project(session, "repair_proj")
+            tr = await _insert_trace(session, proj, "repair_trace")
+            await _insert_span(
+                session, tr, "Root", prompt_tokens=5, completion_tokens=3, status_code="OK"
+            )
+            await _insert_span(
+                session,
+                tr,
+                "Child",
+                parent_id="Root",
+                prompt_tokens=10,
+                completion_tokens=7,
+                status_code="ERROR",
+            )
+            await session.flush()
+
+            # Deliberately set stale/wrong cumulative values
+            await session.execute(
+                update(models.Span)
+                .where(models.Span.span_id == "Root")
+                .values(
+                    cumulative_error_count=999,
+                    cumulative_llm_token_count_prompt=999,
+                    cumulative_llm_token_count_completion=999,
+                )
+            )
+            await session.flush()
+
+        task = CumulativeRepairTask(db=db, sleep_seconds=0.01, batch_size=100)
+        await task._repair_batch()
+
+        async with db() as session:
+            spans = {s.span_id: s for s in (await session.scalars(select(models.Span))).all()}
+
+        # Child is a leaf: own values only
+        assert spans["Child"].cumulative_error_count == 1
+        assert spans["Child"].cumulative_llm_token_count_prompt == 10
+        assert spans["Child"].cumulative_llm_token_count_completion == 7
+
+        # Root = own + Child
+        assert spans["Root"].cumulative_error_count == 1  # 0 (own OK) + 1 (child ERROR)
+        assert spans["Root"].cumulative_llm_token_count_prompt == 15  # 5 + 10
+        assert spans["Root"].cumulative_llm_token_count_completion == 10  # 3 + 7

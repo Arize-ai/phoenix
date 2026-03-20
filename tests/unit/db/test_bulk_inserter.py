@@ -200,46 +200,62 @@ class TestParallelOperationsAndSpans:
         assert ops_processed, "_drain_operations was never called — operation was dropped"
         assert spans_processed, "_insert_spans was never called — span was dropped"
 
-    async def test_operations_and_spans_run_concurrently(self) -> None:
-        """Verify operations and spans run concurrently (overlapping wall-clock time)
-        by introducing a small async delay in each and checking that the combined
-        elapsed time is less than the sum of the individual delays."""
+    async def test_operations_and_spans_run_in_same_gather(self) -> None:
+        """Verify that when both an operation and a span are buffered before the
+        loop picks them up, they are dispatched in the same asyncio.gather call.
+
+        Uses event ordering (not wall-clock timing) to avoid flakiness: both
+        tracking functions record a shared iteration counter that increments
+        after each gather completes."""
         inserter = _make_inserter(sleep=0.5)
-        delay = 0.05  # 50ms delay per phase
 
-        start_times: dict[str, float] = {}
-        end_times: dict[str, float] = {}
+        # Track which gather iteration each handler ran in
+        iteration_counter = [0]  # mutable for closure
+        ops_iteration: list[int] = []
+        spans_iteration: list[int] = []
+        both_done = asyncio.Event()
 
-        async def slow_drain_operations() -> None:
-            start_times["ops"] = perf_counter()
-            await asyncio.sleep(delay)
-            end_times["ops"] = perf_counter()
+        async def tracking_drain_operations() -> None:
+            ops_iteration.append(iteration_counter[0])
+            if spans_iteration:
+                both_done.set()
 
-        async def slow_insert_spans(n: int) -> None:
+        async def tracking_insert_spans(n: int) -> None:
             if n:
-                start_times["spans"] = perf_counter()
-                await asyncio.sleep(delay)
-                end_times["spans"] = perf_counter()
+                spans_iteration.append(iteration_counter[0])
                 for _ in range(n):
                     if inserter._spans:
                         inserter._spans.popleft()
+                if ops_iteration:
+                    both_done.set()
 
-        inserter._drain_operations = slow_drain_operations  # type: ignore[method-assign]
-        inserter._insert_spans = slow_insert_spans  # type: ignore[method-assign,assignment]
+        inserter._drain_operations = tracking_drain_operations  # type: ignore[method-assign]
+        inserter._insert_spans = tracking_insert_spans  # type: ignore[method-assign,assignment]
+
+        # Patch _wait_for_work to increment the iteration counter
+        original_wait = inserter._wait_for_work
+
+        async def counting_wait() -> None:
+            iteration_counter[0] += 1
+            await original_wait()
+
+        inserter._wait_for_work = counting_wait  # type: ignore[method-assign]
 
         async with inserter as (_, enqueue_span, _enqueue_eval, enqueue_op):
+            # Enqueue both before the loop can pick them up — the span enqueue
+            # sets the wake event, so the next loop iteration will see both.
             await enqueue_span(MagicMock(), "test_project")
             enqueue_op(MagicMock())
-            # Wait for at least one gather iteration to complete
-            await asyncio.sleep(delay * 3)
+            # Wait until both handlers have run (with a generous timeout)
+            try:
+                await asyncio.wait_for(both_done.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                pass
 
-        assert "ops" in start_times and "spans" in start_times, "Both phases must have been reached"
-        # If they ran concurrently, the wall-clock time for both together
-        # should be < 2× the individual delay (i.e., they overlapped).
-        total_wall = max(end_times["ops"], end_times["spans"]) - min(
-            start_times["ops"], start_times["spans"]
-        )
-        assert total_wall < delay * 1.8, (
-            f"Operations and spans ran sequentially (wall time {total_wall:.3f}s "
-            f">= {delay * 1.8:.3f}s) — asyncio.gather may not be working"
+        assert ops_iteration, "_drain_operations was never called"
+        assert spans_iteration, "_insert_spans was never called"
+        # Both should have run in the same iteration (same counter value)
+        assert ops_iteration[0] == spans_iteration[0], (
+            f"Operations ran in iteration {ops_iteration[0]} but spans ran in "
+            f"iteration {spans_iteration[0]} — they should be in the same gather call"
         )

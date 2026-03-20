@@ -24,6 +24,9 @@ def _make_span(
     status_code: SpanStatusCode = SpanStatusCode.OK,
     prompt_tokens: Optional[int] = None,
     completion_tokens: Optional[int] = None,
+    session_id: Optional[str] = None,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
 ) -> Span:
     # Attributes must use nested dict format: get_attribute_value expects {"llm": {"token_count": {...}}}
     token_count: dict[str, int] = {}
@@ -32,13 +35,15 @@ def _make_span(
     if completion_tokens is not None:
         token_count["completion"] = completion_tokens
     attributes: dict[str, object] = {"llm": {"token_count": token_count}} if token_count else {}
+    if session_id is not None:
+        attributes["session"] = {"id": session_id}
     return Span(
         name=span_id,
         context=SpanContext(trace_id=trace_id, span_id=span_id),
         span_kind=SpanKind.UNKNOWN,
         parent_id=parent_id,
-        start_time=_NOW,
-        end_time=_NOW,
+        start_time=start_time or _NOW,
+        end_time=end_time or _NOW,
         status_code=status_code,
         status_message="",
         attributes=attributes,
@@ -179,9 +184,24 @@ class TestConcurrentSameTraceIdInsertion:
 
 
 class TestCumulativeValuesParity:
-    """Regression: old path (propagate_ancestors=True) and new path
-    (propagate_ancestors=False + recompute) must produce identical cumulative
-    column values for every span in the trace."""
+    """Verify that the new path (propagate_ancestors=False + batch recompute)
+    produces correct cumulative values, and document the known limitation
+    of the old CTE-based path with out-of-order span arrival.
+
+    Tree structure: Root -> {A, B}, A -> C
+    Spans arrive child-first: C, A, B, Root.
+
+    The old CTE path (propagate_ancestors=True) only propagates cumulative values
+    to *existing* ancestors at insertion time. When children arrive before their
+    parents, the ancestor doesn't exist yet, so no propagation occurs. This is a
+    known limitation of the old path — not a bug in the new path.
+
+    Expected correct cumulative values (errors, prompt_tokens, completion_tokens):
+      C:    (1, 8, 3)   — leaf, own ERROR
+      B:    (0, 2, 2)   — leaf
+      A:    (1, 12, 4)  — own(0,4,1) + C(1,8,3)
+      Root: (1, 15, 7)  — own(0,1,1) + A(1,12,4) + B(0,2,2)
+    """
 
     # A branching tree: Root -> {A, B}, A -> C
     # Spans arrive in an order that exercises ancestor propagation (child before parent).
@@ -194,44 +214,19 @@ class TestCumulativeValuesParity:
         ("Root", None, 1, 1, SpanStatusCode.OK),
     ]
 
-    async def test_old_and_new_path_produce_same_cumulative_values(
-        self, db: DbSessionFactory
-    ) -> None:
+    # Expected correct values: (cumulative_error_count, prompt_tokens, completion_tokens)
+    _EXPECTED = {
+        "C": (1, 8, 3),
+        "B": (0, 2, 2),
+        "A": (1, 12, 4),
+        "Root": (1, 15, 7),
+    }
+
+    async def test_new_path_produces_correct_cumulative_values(self, db: DbSessionFactory) -> None:
+        """The new path (propagate_ancestors=False + batch recompute) produces
+        correct cumulative values regardless of span arrival order."""
         from phoenix.db.insertion.cumulative import recompute_trace_cumulative_values
 
-        # --- Old path: propagate_ancestors=True (one-at-a-time CTE propagation) ---
-        # Span IDs are prefixed with "old-" to avoid uniqueness collisions with the new path.
-        old_values: dict[str, tuple[int, int, int]] = {}
-        async with db() as session:
-            for logical_id, logical_parent, prompt, completion, status in self._SPAN_DEFS:
-                span = _make_span(
-                    f"old-{logical_id}",
-                    trace_id="parity-old",
-                    parent_id=f"old-{logical_parent}" if logical_parent is not None else None,
-                    status_code=status,
-                    prompt_tokens=prompt,
-                    completion_tokens=completion,
-                )
-                async with session.begin_nested():
-                    await insert_span(session, span, "proj-old", propagate_ancestors=True)
-            await session.flush()
-            db_spans = (
-                await session.scalars(
-                    select(models.Span).where(
-                        models.Span.span_id.like("old-%"),
-                    )
-                )
-            ).all()
-            for s in db_spans:
-                logical = s.span_id[len("old-") :]
-                old_values[logical] = (
-                    s.cumulative_error_count,
-                    s.cumulative_llm_token_count_prompt,
-                    s.cumulative_llm_token_count_completion,
-                )
-
-        # --- New path: propagate_ancestors=False + batch recompute ---
-        # Span IDs are prefixed with "new-" to avoid uniqueness collisions with the old path.
         new_values: dict[str, tuple[int, int, int]] = {}
         async with db() as session:
             trace_rowid: Optional[int] = None
@@ -264,7 +259,240 @@ class TestCumulativeValuesParity:
                     s.cumulative_llm_token_count_completion,
                 )
 
-        assert old_values == new_values, (
-            f"Cumulative values differ between old and new path:\n"
-            f"old={old_values}\nnew={new_values}"
+        assert new_values == self._EXPECTED, (
+            f"New path cumulative values are wrong:\ngot={new_values}\nexpected={self._EXPECTED}"
         )
+
+    async def test_old_path_undercounts_with_out_of_order_arrival(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Known limitation: the old CTE path under-counts when children arrive
+        before their parents, because the recursive CTE walks ancestors and
+        no ancestors exist yet at insertion time.
+
+        This test documents the divergence — the old path is NOT the source of
+        truth for correctness; the batch recompute (new path) is."""
+        old_values: dict[str, tuple[int, int, int]] = {}
+        async with db() as session:
+            for logical_id, logical_parent, prompt, completion, status in self._SPAN_DEFS:
+                span = _make_span(
+                    f"old-{logical_id}",
+                    trace_id="parity-old",
+                    parent_id=f"old-{logical_parent}" if logical_parent is not None else None,
+                    status_code=status,
+                    prompt_tokens=prompt,
+                    completion_tokens=completion,
+                )
+                async with session.begin_nested():
+                    await insert_span(session, span, "proj-old", propagate_ancestors=True)
+            await session.flush()
+            db_spans = (
+                await session.scalars(
+                    select(models.Span).where(
+                        models.Span.span_id.like("old-%"),
+                    )
+                )
+            ).all()
+            for s in db_spans:
+                logical = s.span_id[len("old-") :]
+                old_values[logical] = (
+                    s.cumulative_error_count,
+                    s.cumulative_llm_token_count_prompt,
+                    s.cumulative_llm_token_count_completion,
+                )
+
+        # The old path under-counts: children arrived before parents, so the CTE
+        # ancestor walk found no ancestors to update at the time of insertion.
+        # Root and A keep only their own values, missing their children's contributions.
+        assert old_values != self._EXPECTED, (
+            "Old path unexpectedly matches expected values — "
+            "if the CTE limitation has been fixed, this test can be updated"
+        )
+        # Leaves are correct (they have no children to accumulate)
+        assert old_values["C"] == self._EXPECTED["C"]
+        assert old_values["B"] == self._EXPECTED["B"]
+        # Root and A are under-counted (known limitation)
+        assert old_values["Root"] == (0, 1, 1), "Root should have only own values (old path)"
+        assert old_values["A"] == (0, 4, 1), "A should have only own values (old path)"
+
+
+class TestSessionUpsertPaths:
+    """Tests for the three session resolution paths in insert_span:
+    1. Cache-miss: session_id present but not in session_cache → _upsert_session fires
+    2. Cache-hit: session_id present and in session_cache → UPDATE times + set trace FK
+    3. Trace FK: session already linked via trace's project_session_rowid → UPDATE times
+    All paths must expand time ranges correctly via LEAST/GREATEST (PG) or MIN/MAX (SQLite).
+    """
+
+    async def test_cache_miss_creates_session_and_links_trace(self, db: DbSessionFactory) -> None:
+        """When session_id is not in session_cache, _upsert_session creates the
+        ProjectSession and links the trace to it."""
+        t0 = _NOW
+        t1 = _NOW + timedelta(hours=1)
+        span = _make_span(
+            "sess-miss-span",
+            trace_id="sess-miss-trace",
+            session_id="session-alpha",
+            start_time=t0,
+            end_time=t1,
+        )
+        session_cache: dict[str, int] = {}
+
+        async with db() as session:
+            async with session.begin_nested():
+                event = await insert_span(
+                    session,
+                    span,
+                    "proj-sess",
+                    propagate_ancestors=False,
+                    session_cache=session_cache,
+                )
+            assert event is not None
+            await session.flush()
+
+            # Verify ProjectSession was created
+            ps = await session.scalar(
+                select(models.ProjectSession).where(
+                    models.ProjectSession.session_id == "session-alpha"
+                )
+            )
+            assert ps is not None
+            assert ps.start_time == t0
+            assert ps.end_time == t1
+
+            # Verify trace is linked to the session
+            trace = await session.scalar(
+                select(models.Trace).where(models.Trace.id == event.trace_rowid)
+            )
+            assert trace is not None
+            assert trace.project_session_rowid == ps.id
+
+    async def test_cache_hit_updates_times_and_links_trace(self, db: DbSessionFactory) -> None:
+        """When session_id is in session_cache, insert_span uses the cached rowid
+        to UPDATE times and set the trace FK — no _upsert_session call needed."""
+        t0 = _NOW
+        t1 = _NOW + timedelta(hours=1)
+        t2 = _NOW + timedelta(hours=2)
+
+        # First span: creates the session via cache-miss path
+        span1 = _make_span(
+            "sess-hit-span1",
+            trace_id="sess-hit-trace1",
+            session_id="session-beta",
+            start_time=t0,
+            end_time=t1,
+        )
+        session_cache: dict[str, int] = {}
+
+        async with db() as session:
+            async with session.begin_nested():
+                await insert_span(
+                    session,
+                    span1,
+                    "proj-sess",
+                    propagate_ancestors=False,
+                    session_cache=session_cache,
+                )
+            await session.flush()
+
+            # Get the session rowid and populate the cache
+            ps = await session.scalar(
+                select(models.ProjectSession).where(
+                    models.ProjectSession.session_id == "session-beta"
+                )
+            )
+            assert ps is not None
+            session_cache["session-beta"] = ps.id
+
+            # Second span on a different trace but same session_id — cache hit
+            span2 = _make_span(
+                "sess-hit-span2",
+                trace_id="sess-hit-trace2",
+                session_id="session-beta",
+                start_time=t1,
+                end_time=t2,
+            )
+            async with session.begin_nested():
+                event2 = await insert_span(
+                    session,
+                    span2,
+                    "proj-sess",
+                    propagate_ancestors=False,
+                    session_cache=session_cache,
+                )
+            assert event2 is not None
+            await session.flush()
+
+            # Verify session time range was expanded
+            await session.refresh(ps)
+            assert ps.start_time == t0  # LEAST(t0, t1) = t0
+            assert ps.end_time == t2  # GREATEST(t1, t2) = t2
+
+            # Verify second trace is linked to the same session
+            trace2 = await session.scalar(
+                select(models.Trace).where(models.Trace.id == event2.trace_rowid)
+            )
+            assert trace2 is not None
+            assert trace2.project_session_rowid == ps.id
+
+    async def test_trace_fk_path_expands_session_times(self, db: DbSessionFactory) -> None:
+        """When a trace already has a project_session_rowid (from a prior span),
+        subsequent spans on the same trace use the trace FK path to update
+        session times without consulting session_cache."""
+        t0 = _NOW
+        t1 = _NOW + timedelta(hours=1)
+        t2 = _NOW - timedelta(hours=1)  # Earlier than t0 — should become new start_time
+        t3 = _NOW + timedelta(hours=3)  # Later than t1 — should become new end_time
+
+        # First span creates the session
+        span1 = _make_span(
+            "fk-span1",
+            trace_id="fk-trace",
+            session_id="session-gamma",
+            start_time=t0,
+            end_time=t1,
+        )
+
+        async with db() as session:
+            async with session.begin_nested():
+                event1 = await insert_span(
+                    session,
+                    span1,
+                    "proj-sess",
+                    propagate_ancestors=False,
+                )
+            assert event1 is not None
+            await session.flush()
+
+            # Get the session rowid for verification
+            ps = await session.scalar(
+                select(models.ProjectSession).where(
+                    models.ProjectSession.session_id == "session-gamma"
+                )
+            )
+            assert ps is not None
+
+            # Second span on the SAME trace (different span_id) — triggers trace FK path
+            # because the trace already has project_session_rowid set.
+            # No session_id needed in this span; the FK comes from the trace.
+            span2 = _make_span(
+                "fk-span2",
+                trace_id="fk-trace",
+                parent_id="fk-span1",
+                start_time=t2,
+                end_time=t3,
+            )
+            async with session.begin_nested():
+                event2 = await insert_span(
+                    session,
+                    span2,
+                    "proj-sess",
+                    propagate_ancestors=False,
+                )
+            assert event2 is not None
+            await session.flush()
+
+            # Verify session time range was expanded via the trace FK path
+            await session.refresh(ps)
+            assert ps.start_time == t2  # LEAST(t0, t2) = t2
+            assert ps.end_time == t3  # GREATEST(t1, t3) = t3
