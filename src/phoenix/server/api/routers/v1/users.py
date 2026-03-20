@@ -321,6 +321,9 @@ async def create_user(
                 raise HTTPException(status_code=400, detail=f"Role '{role}' not found")
             user.user_role_id = user_role_id
             session.add(user)
+            await session.flush()
+            await session.refresh(user, ["role"])
+            data = _db_user_to_response(user)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "users.username" in str(e):
             raise HTTPException(status_code=409, detail="Username already exists")
@@ -331,47 +334,6 @@ async def create_user(
                 status_code=409,
                 detail="Failed to create user due to a conflict with existing data",
             )
-    id_ = str(GlobalID("User", str(user.id)))
-    data: User
-    if isinstance(user_data, LocalUserData):
-        data = LocalUser(
-            id=id_,
-            email=email,
-            username=username,
-            auth_method="LOCAL",
-            role=user_data.role,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            password_needs_reset=user.reset_password,
-        )
-    elif isinstance(user_data, OAuth2UserData):
-        data = OAuth2User(
-            id=id_,
-            email=email,
-            username=username,
-            auth_method="OAUTH2",
-            role=user_data.role,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-        )
-        if user.oauth2_client_id:
-            data.oauth2_client_id = user.oauth2_client_id
-        if user.oauth2_user_id:
-            data.oauth2_user_id = user.oauth2_user_id
-        if user.profile_picture_url:
-            data.profile_picture_url = user.profile_picture_url
-    elif isinstance(user_data, LDAPUserData):
-        data = LDAPUser(
-            id=id_,
-            email=email,
-            username=username,
-            auth_method="LDAP",
-            role=user_data.role,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-        )
-    else:
-        assert_never(user_data)
     # Send welcome email if requested
     if (
         request_body.send_welcome_email
