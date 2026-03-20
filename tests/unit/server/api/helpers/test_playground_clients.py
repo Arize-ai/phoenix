@@ -60,7 +60,7 @@ class TestOpenAIBaseStreamingClient:
     ) -> Any:
         @asynccontextmanager
         async def factory() -> Any:
-            yield AsyncOpenAI()
+            yield AsyncOpenAI(max_retries=0)
 
         return factory
 
