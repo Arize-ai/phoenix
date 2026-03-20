@@ -244,6 +244,14 @@ class Experiment(Node):
     async def run_count(self, info: Info[Context, None]) -> int:
         return await info.context.data_loaders.experiment_run_counts.load(self.id)
 
+    @strawberry.field(
+        description=(
+            "Expected number of experiment runs: dataset examples in scope times repetitions."
+        )
+    )  # type: ignore
+    async def expected_run_count(self, info: Info[Context, None]) -> int:
+        return await info.context.data_loaders.experiment_expected_run_counts.load(self.id)
+
     @strawberry.field
     async def annotation_summaries(
         self, info: Info[Context, None]

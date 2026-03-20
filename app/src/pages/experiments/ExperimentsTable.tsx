@@ -53,6 +53,7 @@ import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/ut
 import {
   floatFormatter,
   formatPercent,
+  intFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -66,6 +67,10 @@ import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
+
+const runCountFractionCellCSS = css`
+  float: right;
+`;
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -168,6 +173,7 @@ export function ExperimentsTable({
                 metadata
                 errorRate
                 runCount
+                expectedRunCount
                 repetitions
                 averageRunLatencyMs
                 project {
@@ -402,7 +408,18 @@ export function ExperimentsTable({
       meta: {
         textAlign: "right",
       },
-      cell: IntCell,
+      cell: ({ row }) => {
+        const { runCount, expectedRunCount } = row.original;
+        return (
+          <span
+            className="font-mono"
+            css={runCountFractionCellCSS}
+            title={`${runCount} / ${expectedRunCount}`}
+          >
+            {intFormatter(runCount)} / {intFormatter(expectedRunCount)}
+          </span>
+        );
+      },
     },
     {
       header: "avg latency",

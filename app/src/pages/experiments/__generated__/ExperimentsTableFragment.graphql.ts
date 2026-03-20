@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<931982f6ea3501f36738c2a82159e8dd>>
+ * @generated SignedSource<<538e5664123c54d17bc25bb4eeab5feb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,6 +52,7 @@ export type ExperimentsTableFragment$data = {
         };
         readonly description: string | null;
         readonly errorRate: number | null;
+        readonly expectedRunCount: number;
         readonly id: string;
         readonly metadata: any;
         readonly name: string;
@@ -256,6 +257,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "runCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "expectedRunCount",
                   "storageKey": null
                 },
                 {
@@ -490,6 +498,6 @@ return {
 };
 })();
 
-(node as any).hash = "6cce0a41bae9977df42516a14da8cf7d";
+(node as any).hash = "abc1e770a13dc312089a3c1276f1c99c";
 
 export default node;

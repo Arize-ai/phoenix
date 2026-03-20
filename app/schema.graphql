@@ -1431,6 +1431,11 @@ type Experiment implements Node {
   sequenceNumber: Int!
   runs(first: Int = 50, after: String, sort: ExperimentRunSort): ExperimentRunConnection!
   runCount: Int!
+
+  """
+  Expected number of experiment runs: dataset examples in scope times repetitions.
+  """
+  expectedRunCount: Int!
   annotationSummaries: [ExperimentAnnotationSummary!]!
   errorRate: Float
   averageRunLatencyMs: Float

@@ -381,6 +381,101 @@ async def test_run_count_resolver_returns_correct_counts(
     }
 
 
+@pytest.fixture
+async def experiment_with_expected_run_count(db: DbSessionFactory) -> int:
+    """One experiment, two dataset examples in scope, repetitions=2 → expected_run_count 4."""
+    async with db() as session:
+        dataset = models.Dataset(
+            name="dataset-name",
+            description="dataset-description",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        examples = [
+            models.DatasetExample(
+                dataset_id=dataset.id,
+                created_at=datetime(
+                    year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
+                ),
+            )
+            for _ in range(4)
+        ]
+        session.add_all(examples)
+        await session.flush()
+
+        version = models.DatasetVersion(
+            dataset_id=dataset.id,
+            description="version-description",
+            metadata_={},
+        )
+        session.add(version)
+        await session.flush()
+
+        revisions = [
+            models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=version.id,
+                input={"input": "input"},
+                output={"output": "output"},
+                metadata_={},
+                revision_kind="CREATE",
+            )
+            for example in examples
+        ]
+        session.add_all(revisions)
+        await session.flush()
+
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="experiment-name",
+            description="experiment-description",
+            repetitions=2,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+
+        session.add_all(
+            [
+                models.ExperimentDatasetExample(
+                    experiment_id=experiment.id,
+                    dataset_example_id=example.id,
+                    dataset_example_revision_id=revision.id,
+                )
+                for example, revision in zip(examples, revisions)
+            ][:-1]
+        )
+    return experiment.id
+
+
+async def test_expected_run_count_resolver(
+    gql_client: AsyncGraphQLClient,
+    experiment_with_expected_run_count: int,
+) -> None:
+    query = """
+      query ($experimentId: ID!) {
+        experiment: node(id: $experimentId) {
+          ... on Experiment {
+            expectedRunCount
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "experimentId": str(
+                GlobalID(type_name="Experiment", node_id=str(experiment_with_expected_run_count))
+            ),
+        },
+    )
+    assert not response.errors
+    assert response.data == {"experiment": {"expectedRunCount": 6}}
+
+
 async def test_average_run_latency_resolver_returns_correct_values(
     gql_client: AsyncGraphQLClient,
     experiments_with_runs_and_annotations: Any,
