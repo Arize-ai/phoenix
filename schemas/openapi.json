@@ -5035,6 +5035,48 @@
         }
       }
     },
+    "/v1/user": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get the authenticated user",
+        "description": "Returns the profile of the currently authenticated user. When authentication is disabled, returns an anonymous user representation.",
+        "operationId": "getViewer",
+        "responses": {
+          "200": {
+            "description": "The authenticated user's profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetViewerResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "User not found.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/users": {
       "get": {
         "tags": [
@@ -5404,6 +5446,18 @@
         },
         "type": "object",
         "title": "AnnotationResult"
+      },
+      "AnonymousUser": {
+        "properties": {
+          "auth_method": {
+            "type": "string",
+            "const": "ANONYMOUS",
+            "title": "Auth Method",
+            "default": "ANONYMOUS"
+          }
+        },
+        "type": "object",
+        "title": "AnonymousUser"
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -6967,6 +7021,41 @@
           "next_cursor"
         ],
         "title": "GetUsersResponseBody"
+      },
+      "GetViewerResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              },
+              {
+                "$ref": "#/components/schemas/LDAPUser"
+              },
+              {
+                "$ref": "#/components/schemas/AnonymousUser"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "ANONYMOUS": "#/components/schemas/AnonymousUser",
+                "LDAP": "#/components/schemas/LDAPUser",
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetViewerResponseBody"
       },
       "HTTPValidationError": {
         "properties": {

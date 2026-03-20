@@ -889,6 +889,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the authenticated user
+         * @description Returns the profile of the currently authenticated user. When authentication is disabled, returns an anonymous user representation.
+         */
+        get: operations["getViewer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/users": {
         parameters: {
             query?: never;
@@ -997,6 +1017,14 @@ export interface components {
              * @description Explanation of the annotation result
              */
             explanation?: string | null;
+        };
+        /** AnonymousUser */
+        AnonymousUser: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            auth_method: "ANONYMOUS";
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -1592,6 +1620,11 @@ export interface components {
             data: (components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"])[];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetViewerResponseBody */
+        GetViewerResponseBody: {
+            /** Data */
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"] | components["schemas"]["AnonymousUser"];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -6374,6 +6407,44 @@ export interface operations {
             };
             /** @description Invalid request - non-empty identifier not supported */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getViewer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated user's profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetViewerResponseBody"];
+                };
+            };
+            /** @description User not found. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

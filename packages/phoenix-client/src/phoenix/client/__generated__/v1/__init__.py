@@ -14,6 +14,10 @@ class AnnotationResult(TypedDict):
     explanation: NotRequired[str]
 
 
+class AnonymousUser(TypedDict):
+    auth_method: Literal["ANONYMOUS"]
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -594,6 +598,17 @@ class TraceAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class TraceSpanData(TypedDict):
+    id: str
+    span_id: str
+    parent_id: Optional[str]
+    name: str
+    span_kind: str
+    status_code: str
+    start_time: str
+    end_time: str
+
+
 class UpdateProjectRequestBody(TypedDict):
     description: NotRequired[str]
 
@@ -785,6 +800,10 @@ class GetUsersResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetViewerResponseBody(TypedDict):
+    data: Union[LocalUser, OAuth2User, LDAPUser, AnonymousUser]
+
+
 class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
@@ -922,6 +941,15 @@ class ToolCallContentPart(TypedDict):
     tool_call: ToolCallFunction
 
 
+class TraceData(TypedDict):
+    id: str
+    trace_id: str
+    project_id: str
+    start_time: str
+    end_time: str
+    spans: NotRequired[Sequence[TraceSpanData]]
+
+
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -940,6 +968,11 @@ class GetSessionResponseBody(TypedDict):
 
 class GetSessionsResponseBody(TypedDict):
     data: Sequence[SessionData]
+    next_cursor: Optional[str]
+
+
+class GetTracesResponseBody(TypedDict):
+    data: Sequence[TraceData]
     next_cursor: Optional[str]
 
 
