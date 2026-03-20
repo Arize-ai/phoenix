@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from secrets import token_hex
-from typing import Literal, Optional, Union, cast
+from typing import Iterator, Literal, Optional, Union, cast
 
 import httpx
 import pytest
@@ -692,13 +692,17 @@ class TestGetViewer:
 
     async def test_returns_anonymous_user_when_auth_disabled(
         self,
-        _env_ports: dict[str, str],
+        _ports: Iterator[int],
         _env_database: dict[str, str],
     ) -> None:
         """When auth is disabled, GET /v1/user returns an anonymous user."""
         from .._helpers import _server
 
-        env = {**_env_ports, **_env_database}
+        env = {
+            **_env_database,
+            "PHOENIX_PORT": str(next(_ports)),
+            "PHOENIX_GRPC_PORT": str(next(_ports)),
+        }
         with _server(_AppInfo(env)) as app:
             client = _httpx_client(app)
             response = client.get("v1/user")
