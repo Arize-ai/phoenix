@@ -5452,11 +5452,13 @@
           "auth_method": {
             "type": "string",
             "const": "ANONYMOUS",
-            "title": "Auth Method",
-            "default": "ANONYMOUS"
+            "title": "Auth Method"
           }
         },
         "type": "object",
+        "required": [
+          "auth_method"
+        ],
         "title": "AnonymousUser"
       },
       "CategoricalAnnotationConfig": {
