@@ -2205,6 +2205,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Viewer (authenticated user profile)
+    (200, "GET", "v1/user"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
