@@ -45,8 +45,9 @@ Endpoints MUST NOT return a 2xx status code when the request has failed. Endpoin
 ### Path Structure
 
 - Paths MUST use **plural nouns** for resources (`/datasets`, `/users`, `/experiments`). Paths MUST NOT contain verbs.
-- Specific resources MUST be identified by a **globally unique identifier** consistent with the GraphQL API: `/datasets/:dataset_id`
+- Specific resources MUST be identified by a **globally unique identifier**: `/datasets/:dataset_id`
 - Sub-resources MUST nest under their parent: `/datasets/:dataset_id/examples`, `/projects/:project_id/spans`
+- A resource identifier MAY be a union of the GraphQL GlobalID or another natural unique identifier (e.g., a name). When a resource has multiple unique identifiers, the endpoint SHOULD accept both — the server resolves whichever form the client provides. For example, `/projects/:project_identifier` accepts either a GlobalID (`UHJvamVjdDox`) or a project name (`my-project`).
 
 ### Query Parameters
 
