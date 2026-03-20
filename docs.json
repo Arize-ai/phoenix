@@ -76,10 +76,10 @@
                 "group": "Coding Agents",
                 "pages": [
                   "docs/phoenix/integrations/developer-tools/coding-agents",
-                  "docs/phoenix/integrations/phoenix-mcp-server"
+                  "docs/phoenix/integrations/phoenix-mcp-server",
+                  "docs/phoenix/agent-assisted-setup"
                 ]
               },
-              "docs/phoenix/agent-assisted-setup",
               "docs/phoenix/end-to-end-features-notebook",
               "docs/phoenix/phoenix-demo"
             ]
