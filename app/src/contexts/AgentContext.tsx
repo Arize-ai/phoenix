@@ -1,7 +1,8 @@
 import type { PropsWithChildren } from "react";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useZustand } from "use-zustand";
 
+import { garbageCollectBashToolRuntimes } from "@phoenix/agent/tools/bash";
 import type {
   AgentProps,
   AgentState,
@@ -23,6 +24,36 @@ export function AgentProvider({
   ...props
 }: PropsWithChildren<Partial<AgentProps>>) {
   const [store] = useState<AgentStore>(() => createAgentStore(props));
+
+  // clean up bash tool runtimes when the active session changes
+  useEffect(() => {
+    const syncBashRuntimeRegistry = (
+      state: AgentState,
+      prevState?: AgentState
+    ) => {
+      if (
+        prevState &&
+        state.activeSessionId === prevState.activeSessionId &&
+        state.sessions === prevState.sessions &&
+        state.debug === prevState.debug
+      ) {
+        return;
+      }
+
+      // While we only support a single visible chat, evict inactive bash
+      // runtimes eagerly so old `/phoenix` files do not survive session churn.
+      // When session switching ships, this debug flag can become the backing
+      // value for a real user-facing retention preference.
+      garbageCollectBashToolRuntimes({
+        activeSessionId: state.activeSessionId,
+        sessionIds: state.sessions,
+        retainInactiveSessions: state.debug.retainInactiveBashSessions,
+      });
+    };
+
+    syncBashRuntimeRegistry(store.getState());
+    return store.subscribe(syncBashRuntimeRegistry);
+  }, [store]);
 
   return (
     <AgentContext.Provider value={store}>{children}</AgentContext.Provider>

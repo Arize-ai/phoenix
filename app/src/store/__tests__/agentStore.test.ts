@@ -7,6 +7,14 @@ describe("agentStore", () => {
     localStorage.removeItem("arize-phoenix-agent");
   });
 
+  it("defaults debug settings to not retain inactive bash sessions", () => {
+    const store = createAgentStore();
+
+    expect(store.getState().debug).toEqual({
+      retainInactiveBashSessions: false,
+    });
+  });
+
   describe("createSession", () => {
     it("creates a session with default model config, adds to sessions/sessionMap, sets as active", () => {
       const store = createAgentStore();

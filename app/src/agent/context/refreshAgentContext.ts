@@ -1,4 +1,4 @@
-import { generatePageContextFiles } from "@phoenix/agent/context/generatePageContextFiles";
+import { generatePageContextFiles } from "@phoenix/agent/context/filesystem/generatePageContextFiles";
 import type {
   AgentContextRefreshReason,
   AgentPageContext,

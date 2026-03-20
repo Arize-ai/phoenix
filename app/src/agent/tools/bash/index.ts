@@ -6,6 +6,7 @@ export {
 } from "./bashToolFilesystemPolicy";
 export {
   clearBashToolRuntime,
+  garbageCollectBashToolRuntimes,
   getBashToolSessionKey,
   getOrCreateBashToolRuntime,
 } from "./bashToolSessionRegistry";

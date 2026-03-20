@@ -12,6 +12,14 @@ import type { ModelConfig } from "./playground/types";
  */
 export type AgentPosition = "detached" | "pinned";
 
+export interface AgentDebugSettings {
+  retainInactiveBashSessions: boolean;
+}
+
+const DEFAULT_AGENT_DEBUG_SETTINGS: AgentDebugSettings = {
+  retainInactiveBashSessions: false,
+};
+
 /**
  * An agent conversation session containing messages, context references,
  * and its own model configuration (initially cloned from the default).
@@ -52,6 +60,8 @@ export interface AgentProps {
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
+  /** Debug-only runtime flags for temporary agent behavior overrides. */
+  debug: AgentDebugSettings;
 }
 
 /**
@@ -97,6 +107,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    debug: { ...DEFAULT_AGENT_DEBUG_SETTINGS },
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -273,6 +284,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
+        debug: state.debug,
       }),
     })
   );
