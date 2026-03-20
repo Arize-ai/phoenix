@@ -920,9 +920,9 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${theme === "dark"
-      ? "rgba(0, 0, 0, 0.6)"
-      : "rgba(0, 0, 0, 0.1)"};
+    --global-overlay-shadow-color: ${
+      theme === "dark" ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0.1)"
+    };
   }
 `;
 
