@@ -54,6 +54,9 @@ import {
 } from "@phoenix/components";
 import { AttributesJSONBlock } from "@phoenix/components/code";
 import { CopyMultiButton } from "@phoenix/components/core/copy";
+import { InteractiveValue } from "@phoenix/components/core/InteractiveValue";
+import { ScopeHeader } from "@phoenix/components/core/ScopeHeader";
+import type { ScopeHeaderMetric } from "@phoenix/components/core/ScopeHeader";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
@@ -62,6 +65,8 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -85,9 +90,12 @@ import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
+import {
+  costFormatter,
+  formatLatencyMs,
+} from "@phoenix/utils/numberFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
-import { SpanHeader } from "../SpanHeader";
 import type {
   MimeType,
   SpanDetailsQuery,
@@ -226,7 +234,11 @@ export function SpanDetails({
               id
               name
             }
-            ...SpanHeader_span
+            costSummary {
+              total {
+                cost
+              }
+            }
             ...SpanFeedback_annotations
             ...SpanAside_span
           }
@@ -267,70 +279,13 @@ export function SpanDetails({
           height="100%"
           ref={spanDetailsContainerRef}
         >
-          <View
-            paddingTop="size-100"
-            paddingBottom="size-50"
-            paddingStart="size-150"
-            paddingEnd="size-200"
-            flex="none"
-          >
-            <Flex
-              direction="row"
-              alignItems="center"
-              data-testid="span-header-row"
-            >
-              <SpanHeader span={span} />
-              <Flex
-                flex="none"
-                direction="row"
-                alignItems="center"
-                gap="size-100"
-              >
-                <LinkButton
-                  variant={span.spanKind !== "llm" ? "default" : "primary"}
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-                  isDisabled={span.spanKind !== "llm"}
-                  to={`/playground/spans/${span.id}`}
-                  size="S"
-                  aria-label="Prompt Playground"
-                >
-                  {isCondensedView ? null : "Playground"}
-                </LinkButton>
-                <AddSpanToDatasetButton
-                  span={span}
-                  buttonText={isCondensedView ? null : "Add to Dataset"}
-                />
-                <ToggleButton
-                  size="S"
-                  isSelected={isAnnotatingSpans}
-                  onPress={() => {
-                    setIsAnnotatingSpans(!isAnnotatingSpans);
-                    const asidePanel = asidePanelRef.current;
-                    // expand the panel if it is not the minimum size already
-                    if (asidePanel) {
-                      const size = asidePanel.getSize();
-                      if (size < ASIDE_PANEL_DEFAULT_SIZE) {
-                        asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
-                      }
-                    }
-                  }}
-                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
-                  trailingVisual={
-                    !isCondensedView &&
-                    !isAnnotatingSpans && (
-                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
-                    )
-                  }
-                >
-                  {isCondensedView ? null : "Annotate"}
-                </ToggleButton>
-                <SpanActionMenu
-                  traceId={span.trace.traceId}
-                  spanId={span.spanId}
-                />
-              </Flex>
-            </Flex>
-          </View>
+          <SpanScopeHeader
+            span={span}
+            isCondensedView={isCondensedView}
+            isAnnotatingSpans={isAnnotatingSpans}
+            setIsAnnotatingSpans={setIsAnnotatingSpans}
+            asidePanelRef={asidePanelRef}
+          />
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
@@ -422,6 +377,94 @@ function SpanInfoWrap({ children }: PropsWithChildren) {
     <div css={spanInfoWrapCSS} data-testid="span-info-wrap">
       {children}
     </div>
+  );
+}
+
+function SpanScopeHeader({
+  span,
+  isCondensedView,
+  isAnnotatingSpans,
+  setIsAnnotatingSpans,
+  asidePanelRef,
+}: {
+  span: Span;
+  isCondensedView: boolean;
+  isAnnotatingSpans: boolean;
+  setIsAnnotatingSpans: (v: boolean) => void;
+  asidePanelRef: React.RefObject<ImperativePanelHandle | null>;
+}) {
+  const metrics: ScopeHeaderMetric[] = [];
+  if (typeof span.latencyMs === "number") {
+    metrics.push({ label: "Latency", value: formatLatencyMs(span.latencyMs) });
+  }
+  if (span.tokenCountTotal) {
+    metrics.push({
+      label: "Tokens",
+      value: span.tokenCountTotal.toLocaleString(),
+    });
+  }
+  if (span.costSummary?.total?.cost) {
+    metrics.push({
+      label: "Cost",
+      value: costFormatter(span.costSummary.total.cost),
+    });
+  }
+
+  return (
+    <ScopeHeader
+      name={span.name}
+      statusIndicator={<SpanStatusCodeIcon statusCode={span.statusCode} />}
+      trailingVisual={<SpanKindToken spanKind={span.spanKind} />}
+      referenceId={
+        <>
+          <InteractiveValue>{span.spanId}</InteractiveValue>
+          <CopyButton text={span.spanId} variant="quiet" size="S" />
+        </>
+      }
+      metrics={metrics}
+      extra={
+        <Flex direction="row" alignItems="center" gap="size-100">
+          <LinkButton
+            variant={span.spanKind !== "llm" ? "default" : "primary"}
+            leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+            isDisabled={span.spanKind !== "llm"}
+            to={`/playground/spans/${span.id}`}
+            size="S"
+            aria-label="Prompt Playground"
+          >
+            {isCondensedView ? null : "Playground"}
+          </LinkButton>
+          <AddSpanToDatasetButton
+            span={span}
+            buttonText={isCondensedView ? null : "Add to Dataset"}
+          />
+          <ToggleButton
+            size="S"
+            isSelected={isAnnotatingSpans}
+            onPress={() => {
+              setIsAnnotatingSpans(!isAnnotatingSpans);
+              const asidePanel = asidePanelRef.current;
+              if (asidePanel) {
+                const size = asidePanel.getSize();
+                if (size < ASIDE_PANEL_DEFAULT_SIZE) {
+                  asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
+                }
+              }
+            }}
+            leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+            trailingVisual={
+              !isCondensedView &&
+              !isAnnotatingSpans && (
+                <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+              )
+            }
+          >
+            {isCondensedView ? null : "Annotate"}
+          </ToggleButton>
+          <SpanActionMenu traceId={span.trace.traceId} spanId={span.spanId} />
+        </Flex>
+      }
+    />
   );
 }
 

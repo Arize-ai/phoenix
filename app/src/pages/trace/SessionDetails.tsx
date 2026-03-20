@@ -1,111 +1,21 @@
 import { css } from "@emotion/react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import {
-  Flex,
-  RichTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@phoenix/components";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { CopyButton } from "@phoenix/components/core/copy";
+import { InteractiveValue } from "@phoenix/components/core/InteractiveValue";
+import { ScopeHeader } from "@phoenix/components/core/ScopeHeader";
+import type { ScopeHeaderMetric } from "@phoenix/components/core/ScopeHeader";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
+import {
+  costFormatter,
+  formatLatencyMs,
+} from "@phoenix/utils/numberFormatUtils";
 
-import { costFormatter } from "../../utils/numberFormatUtils";
 import type {
   SessionDetailsQuery,
   SessionDetailsQuery$data,
 } from "./__generated__/SessionDetailsQuery.graphql";
 import { SessionDetailsTraceList } from "./SessionDetailsTraceList";
-
-function SessionDetailsHeader({
-  traceCount,
-  costSummary,
-  tokenUsage,
-  latencyP50,
-  sessionId,
-}: {
-  traceCount: number;
-  tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
-  costSummary?: NonNullable<SessionDetailsQuery$data["session"]>["costSummary"];
-  latencyP50?: number | null;
-  sessionId: string;
-}) {
-  return (
-    <View
-      padding="size-200"
-      borderBottomWidth={"thin"}
-      borderBottomColor={"dark"}
-    >
-      <Flex direction={"row"} gap={"size-400"}>
-        <Flex direction={"column"}>
-          <Text elementType={"h3"} color={"text-700"}>
-            Traces Count
-          </Text>
-          <Text size="L">{traceCount}</Text>
-        </Flex>
-        {tokenUsage != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Total Tokens
-            </Text>
-            <SessionTokenCount
-              tokenCountTotal={tokenUsage.total}
-              nodeId={sessionId}
-              size="L"
-            />
-          </Flex>
-        ) : null}
-        {costSummary != null ? (
-          <Flex direction="column" flex="none">
-            <Text elementType="h3" size="S" color="text-700">
-              Total Cost
-            </Text>
-            <TooltipTrigger delay={0}>
-              <TriggerWrap>
-                <Text size="L">
-                  {costFormatter(costSummary.total?.cost ?? 0)}
-                </Text>
-              </TriggerWrap>
-              <RichTooltip placement="bottom">
-                <View width="size-2400">
-                  <Flex direction="column">
-                    <Flex justifyContent="space-between">
-                      <Text>Prompt Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.prompt?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Completion Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.completion?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Total Cost</Text>
-                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
-                    </Flex>
-                  </Flex>
-                </View>
-              </RichTooltip>
-            </TooltipTrigger>
-          </Flex>
-        ) : null}
-        {latencyP50 != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Latency P50
-            </Text>
-            <LatencyText latencyMs={latencyP50} size="L" />
-          </Flex>
-        ) : null}
-      </Flex>
-    </View>
-  );
-}
 
 export type SessionDetailsProps = {
   sessionId: string;
@@ -158,6 +68,15 @@ export function SessionDetails(props: SessionDetailsProps) {
   if (data.session == null) {
     throw new Error("Session not found");
   }
+
+  const displaySessionId = data.session.sessionId ?? "--";
+  const metrics = buildSessionMetrics({
+    traceCount: data.session.numTraces ?? 0,
+    tokenUsage: data.session.tokenUsage,
+    costSummary: data.session.costSummary,
+    latencyP50: data.session.latencyP50,
+  });
+
   return (
     <main
       css={css`
@@ -168,14 +87,52 @@ export function SessionDetails(props: SessionDetailsProps) {
         overflow: hidden;
       `}
     >
-      <SessionDetailsHeader
-        traceCount={data.session.numTraces ?? 0}
-        costSummary={data.session.costSummary}
-        tokenUsage={data.session.tokenUsage}
-        latencyP50={data.session.latencyP50}
-        sessionId={sessionId}
+      <ScopeHeader
+        name="Session"
+        referenceId={
+          <>
+            <InteractiveValue>{displaySessionId}</InteractiveValue>
+            <CopyButton text={displaySessionId} variant="quiet" size="S" />
+          </>
+        }
+        metrics={metrics}
       />
       <SessionDetailsTraceList tracesRef={data.session} />
     </main>
   );
+}
+
+function buildSessionMetrics({
+  traceCount,
+  tokenUsage,
+  costSummary,
+  latencyP50,
+}: {
+  traceCount: number;
+  tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
+  costSummary?: NonNullable<SessionDetailsQuery$data["session"]>["costSummary"];
+  latencyP50?: number | null;
+}): ScopeHeaderMetric[] {
+  const metrics: ScopeHeaderMetric[] = [
+    { label: "Traces", value: String(traceCount) },
+  ];
+  if (tokenUsage?.total != null) {
+    metrics.push({
+      label: "Tokens",
+      value: tokenUsage.total.toLocaleString(),
+    });
+  }
+  if (costSummary?.total?.cost != null) {
+    metrics.push({
+      label: "Cost",
+      value: costFormatter(costSummary.total.cost),
+    });
+  }
+  if (latencyP50 != null) {
+    metrics.push({
+      label: "P50 Latency",
+      value: formatLatencyMs(latencyP50),
+    });
+  }
+  return metrics;
 }

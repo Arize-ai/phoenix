@@ -1,30 +1,24 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { Suspense, useMemo } from "react";
-import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Flex,
-  LinkButton,
-  Loading,
-  RichTooltip,
-  Text,
-  TooltipArrow,
-  TooltipTrigger,
-  View,
-} from "@phoenix/components";
+import { LinkButton, Loading } from "@phoenix/components";
+import { CopyButton } from "@phoenix/components/core/copy";
+import { InteractiveValue } from "@phoenix/components/core/InteractiveValue";
+import { ScopeHeader } from "@phoenix/components/core/ScopeHeader";
+import type { ScopeHeaderMetric } from "@phoenix/components/core/ScopeHeader";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import {
+  costFormatter,
+  formatLatencyMs,
+} from "@phoenix/utils/numberFormatUtils";
 
-import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
   TraceDetailsQuery,
   TraceDetailsQuery$data,
@@ -108,6 +102,7 @@ export function TraceDetails(props: TraceDetailsProps) {
   invariant(rootSpans.length > 0, "At least one root must be resolvable");
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
+  const sessionId = data.project.trace?.projectSessionId;
 
   return (
     <main
@@ -119,11 +114,12 @@ export function TraceDetails(props: TraceDetailsProps) {
       `}
     >
       <TraceHeader
-        projectId={projectId}
+        traceId={traceId}
         rootSpan={rootSpan}
         latencyMs={traceLatencyMs}
         costSummary={costSummary}
-        sessionId={data.project.trace?.projectSessionId}
+        sessionId={sessionId}
+        projectId={projectId}
       />
       <PanelGroup
         direction="horizontal"
@@ -166,117 +162,64 @@ export function TraceDetails(props: TraceDetailsProps) {
 }
 
 function TraceHeader({
+  traceId,
   rootSpan,
   latencyMs,
   costSummary,
   sessionId,
   projectId,
 }: {
+  traceId: string;
   rootSpan: RootSpan | null;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
   projectId: string;
 }) {
-  const { statusCode } = rootSpan ?? {
-    statusCode: "UNSET",
-  };
-  const statusColor = useSpanStatusCodeColor(statusCode);
+  const { statusCode } = rootSpan ?? { statusCode: "UNSET" };
+
+  const metrics: ScopeHeaderMetric[] = [];
+  metrics.push({ label: "Status", value: statusCode });
+  if (typeof latencyMs === "number") {
+    metrics.push({ label: "Latency", value: formatLatencyMs(latencyMs) });
+  }
+  if (costSummary?.total?.cost != null) {
+    metrics.push({
+      label: "Cost",
+      value: costFormatter(costSummary.total.cost),
+    });
+  }
+
+  const extra = (
+    <>
+      {rootSpan ? (
+        <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
+      ) : null}
+      {sessionId && (
+        <LinkButton
+          size="S"
+          variant="primary"
+          to={`/projects/${projectId}/sessions/${sessionId}`}
+        >
+          View Session
+        </LinkButton>
+      )}
+    </>
+  );
+
   return (
-    <View
-      paddingTop="size-100"
-      paddingBottom="size-150"
-      paddingX="size-200"
-      borderBottomWidth="thin"
-      borderBottomColor="dark"
-    >
-      <Flex
-        direction="row"
-        gap="size-400"
-        alignItems="center"
-        css={css`
-          box-sizing: content-box;
-        `}
-      >
-        <Flex direction="column">
-          <Text elementType="h3" size="S" color="text-700">
-            Trace Status
-          </Text>
-          <Text size="XL">
-            <Flex direction="row" gap="size-50" alignItems="center">
-              <SpanStatusCodeIcon statusCode={statusCode} />
-              <Text size="L" color={statusColor}>
-                {statusCode}
-              </Text>
-            </Flex>
-          </Text>
-        </Flex>
-        <Flex direction="column">
-          <Text elementType="h3" size="S" color="text-700">
-            Total Cost
-          </Text>
-          <TooltipTrigger delay={0}>
-            <Focusable>
-              <Text size="L" role="button">
-                {costFormatter(costSummary?.total?.cost ?? 0)}
-              </Text>
-            </Focusable>
-            <RichTooltip placement="bottom">
-              <TooltipArrow />
-              <View width="size-3600">
-                <RichTokenBreakdown
-                  valueLabel="cost"
-                  totalValue={costSummary?.total?.cost ?? 0}
-                  formatter={costFormatter}
-                  segments={[
-                    {
-                      name: "Prompt",
-                      value: costSummary?.prompt?.cost ?? 0,
-                      color: "rgba(254, 119, 99, 1)",
-                    },
-                    {
-                      name: "Completion",
-                      value: costSummary?.completion?.cost ?? 0,
-                      color: "rgba(98, 104, 239, 1)",
-                    },
-                  ]}
-                />
-              </View>
-            </RichTooltip>
-          </TooltipTrigger>
-        </Flex>
-        <Flex direction="column">
-          <Text elementType="h3" size="S" color="text-700">
-            Latency
-          </Text>
-          <Text size="XL">
-            {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} size="L" />
-            ) : (
-              "--"
-            )}
-          </Text>
-        </Flex>
-        {rootSpan ? (
-          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-        ) : null}
-        {sessionId && (
-          <span
-            css={css`
-              margin-left: auto;
-            `}
-          >
-            <LinkButton
-              size="S"
-              variant="primary"
-              to={`/projects/${projectId}/sessions/${sessionId}`}
-            >
-              View Session
-            </LinkButton>
-          </span>
-        )}
-      </Flex>
-    </View>
+    <ScopeHeader
+      name={rootSpan ? `Trace` : "Trace"}
+      statusIndicator={<SpanStatusCodeIcon statusCode={statusCode} />}
+      referenceId={
+        <>
+          <InteractiveValue>{traceId}</InteractiveValue>
+          <CopyButton text={traceId} variant="quiet" size="S" />
+        </>
+      }
+      metrics={metrics}
+      extra={extra}
+    />
   );
 }
 

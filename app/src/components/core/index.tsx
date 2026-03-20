@@ -4,6 +4,8 @@ export * from "./LoadingMask";
 export * from "./ViewSummaryAside";
 export * from "./SectionHeading";
 export * from "./Empty";
+export * from "./InteractiveValue";
+export * from "./ScopeHeader";
 export * from "./KeyboardToken";
 export * from "./PageHeader";
 export * from "./LoadMoreButton";
