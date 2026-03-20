@@ -3,7 +3,7 @@ import type { HTMLAttributes, Ref } from "react";
 import { forwardRef } from "react";
 
 import type { TextProps } from "@phoenix/components";
-import { Icon, Icons, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCostsItemCSS = css`
@@ -37,12 +37,6 @@ function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
       ref={ref}
       {...otherProps}
     >
-      <Icon
-        svg={<Icons.DollarSignOutline />}
-        css={css`
-          color: var(--global-text-color-900);
-        `}
-      />
       <Text size={props.size} fontFamily="mono">
         {text}
       </Text>
