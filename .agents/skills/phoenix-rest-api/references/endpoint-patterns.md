@@ -11,19 +11,23 @@ These are the non-negotiable conventions for the Phoenix REST API.
 
 ### HTTP Methods
 
-| Method | Usage |
-|--------|-------|
-| `GET` | Retrieve a representation of a resource |
-| `POST` | Create new resources and sub-resources |
-| `PUT` | Replace an existing resource entirely |
-| `PATCH` | Apply a partial update to a resource |
-| `DELETE` | Delete an existing resource |
+Use methods according to their semantics defined in [RFC 9110 (HTTP Semantics)](https://httpwg.org/specs/rfc9110.html#methods):
+
+| Method | Semantics | Reference |
+|--------|-----------|-----------|
+| `GET` | Retrieve a representation of a resource | [RFC 9110 §9.3.1](https://httpwg.org/specs/rfc9110.html#GET) |
+| `POST` | Create new resources and sub-resources | [RFC 9110 §9.3.3](https://httpwg.org/specs/rfc9110.html#POST) |
+| `PUT` | Replace an existing resource entirely | [RFC 9110 §9.3.4](https://httpwg.org/specs/rfc9110.html#PUT) |
+| `PATCH` | Apply a partial update to a resource | [RFC 5789](https://httpwg.org/specs/rfc5789.html) |
+| `DELETE` | Delete an existing resource | [RFC 9110 §9.3.5](https://httpwg.org/specs/rfc9110.html#DELETE) |
 
 ### Status Codes
 
-- **2xx** — client and API worked correctly
-- **4xx** — client error (bad request, unauthorized, not found, etc.)
-- **5xx** — server error (the API behaved erroneously)
+Use status codes according to [RFC 9110 §15 (Status Codes)](https://httpwg.org/specs/rfc9110.html#status.codes):
+
+- **2xx** — success; the request was received, understood, and accepted
+- **4xx** — client error; the request contains bad syntax or cannot be fulfilled
+- **5xx** — server error; the server failed to fulfill a valid request
 
 ### Path Structure
 
