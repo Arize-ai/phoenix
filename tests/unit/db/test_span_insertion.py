@@ -167,8 +167,13 @@ class TestConcurrentSameTraceIdInsertion:
                         session, _span_late(), "proj", propagate_ancestors=False
                     )
 
-        # Run both insertions concurrently — neither should raise IntegrityError
-        results = await asyncio.gather(insert_early(), insert_late())
+        # Run both insertions — on SQLite, run sequentially to avoid savepoint
+        # conflicts (aiosqlite serializes to a single thread); on PostgreSQL,
+        # run concurrently to exercise true concurrent INSERT ON CONFLICT.
+        if db.dialect.value == "sqlite":
+            results = (await insert_early(), await insert_late())
+        else:
+            results = await asyncio.gather(insert_early(), insert_late())
         assert all(r is not None for r in results), "Both span insertions must succeed"
 
         # Verify trace has the correct time range: earliest start, latest end
