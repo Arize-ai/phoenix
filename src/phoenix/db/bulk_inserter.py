@@ -13,6 +13,7 @@ from typing_extensions import TypeAlias
 import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
+from phoenix.db.insertion.cumulative import recompute_trace_cumulative_values
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.evaluation import (
     InsertEvaluationError,
@@ -24,7 +25,12 @@ from phoenix.db.insertion.helpers import (
     should_calculate_span_cost,
 )
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
-from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
+from phoenix.db.insertion.span import (
+    SpanInsertionEvent,
+    insert_span,
+    resolve_projects,
+    resolve_sessions,
+)
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Insertables, Precursors
@@ -93,6 +99,7 @@ class BulkInserter:
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
         self._span_cost_calculator = span_cost_calculator
+        self._wake_event: asyncio.Event = asyncio.Event()
 
     @property
     def is_full(self) -> bool:
@@ -118,23 +125,38 @@ class BulkInserter:
 
     async def __aexit__(self, *args: Any) -> None:
         self._running = False
+        self._wake_event.set()
         if self._task:
-            self._task.cancel()
+            try:
+                await asyncio.wait_for(self._task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                self._task.cancel()
             self._task = None
 
     async def _enqueue_annotations(self, *items: Any) -> None:
         await self._queue_inserters.enqueue(*items)
+        self._wake_event.set()
 
     def _enqueue_operation(self, operation: DataManipulation) -> None:
         cast("Queue[DataManipulation]", self._operations).put_nowait(operation)
+        self._wake_event.set()
 
     async def _enqueue_span(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
+        self._wake_event.set()
 
     async def _enqueue_evaluation(self, evaluation: pb.Evaluation) -> None:
         self._evaluations.append(evaluation)
+        self._wake_event.set()
 
     async def _process_events(self, events: Iterable[Optional[DataManipulationEvent]]) -> None: ...
+
+    async def _wait_for_work(self) -> None:
+        self._wake_event.clear()
+        try:
+            await asyncio.wait_for(self._wake_event.wait(), timeout=self._sleep)
+        except (TimeoutError, asyncio.TimeoutError):
+            pass
 
     async def _bulk_insert(self) -> None:
         assert isinstance(self._operations, Queue)
@@ -154,19 +176,8 @@ class BulkInserter:
                 and not self._spans
                 and not self._evaluations
             ):
-                await asyncio.sleep(self._sleep)
+                await self._wait_for_work()
                 continue
-            ops_remaining = self._max_ops_per_transaction
-            async with self._db() as session:
-                while ops_remaining and not self._operations.empty():
-                    ops_remaining -= 1
-                    op = await self._operations.get()
-                    try:
-                        async with session.begin_nested():
-                            await op(session)
-                    except Exception as e:
-                        BULK_LOADER_EXCEPTIONS.inc()
-                        logger.exception(str(e))
             # It's important to grab the buffers at the same time so there's
             # no race condition, since an eval insertion will fail if the span
             # it references doesn't exist. Grabbing the eval buffer later may
@@ -174,13 +185,30 @@ class BulkInserter:
             # included in the span buffer that was grabbed previously.
             num_spans_to_insert = min(self._max_ops_per_transaction, len(self._spans))
             num_evals_to_insert = min(self._max_ops_per_transaction, len(self._evaluations))
-            # Spans should be inserted before the evaluations, since an evaluation
-            # insertion will fail if the span it references doesn't exist.
-            await self._insert_spans(num_spans_to_insert)
+            # Operations and spans are independent — run them concurrently.
+            # Evaluations and annotations must wait for spans (FK dependency).
+            await asyncio.gather(
+                self._drain_operations(),
+                self._insert_spans(num_spans_to_insert),
+            )
             await self._insert_evaluations(num_evals_to_insert)
             async for event in self._queue_inserters.insert():
                 self._event_queue.put(event)
-            await asyncio.sleep(self._sleep)
+            await self._wait_for_work()
+
+    async def _drain_operations(self) -> None:
+        assert isinstance(self._operations, Queue)
+        ops_remaining = self._max_ops_per_transaction
+        async with self._db() as session:
+            while ops_remaining and not self._operations.empty():
+                ops_remaining -= 1
+                op = await self._operations.get()
+                try:
+                    async with session.begin_nested():
+                        await op(session)
+                except Exception as e:
+                    BULK_LOADER_EXCEPTIONS.inc()
+                    logger.exception(str(e))
 
     async def _insert_spans(self, num_spans_to_insert: int) -> None:
         if not num_spans_to_insert or not self._spans:
@@ -189,16 +217,32 @@ class BulkInserter:
         span_costs: list[models.SpanCost] = []
         try:
             start = perf_counter()
+            # Snapshot the batch so we can pre-resolve projects and sessions in bulk.
+            batch = [
+                self._spans.popleft() for _ in range(min(num_spans_to_insert, len(self._spans)))
+            ]
+            project_names = {project_name for _, project_name in batch}
+            session_ids = {
+                str(sid).strip()
+                for span, _ in batch
+                if (sid := span.attributes.get(SpanAttributes.SESSION_ID)) is not None
+            }
             async with self._db() as session:
-                while num_spans_to_insert > 0:
-                    num_spans_to_insert -= 1
-                    if not self._spans:
-                        break
-                    span, project_name = self._spans.popleft()
+                project_cache = await resolve_projects(session, project_names)
+                session_cache = await resolve_sessions(session, session_ids)
+                trace_rowids: set[int] = set()
+                for span, project_name in batch:
                     result: Optional[SpanInsertionEvent] = None
                     try:
                         async with session.begin_nested():
-                            result = await insert_span(session, span, project_name)
+                            result = await insert_span(
+                                session,
+                                span,
+                                project_name,
+                                propagate_ancestors=False,
+                                project_cache=project_cache,
+                                session_cache=session_cache,
+                            )
                     except Exception:
                         BULK_LOADER_SPAN_EXCEPTIONS.inc()
                         logger.exception(
@@ -207,6 +251,7 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
+                    trace_rowids.add(result.trace_rowid)
                     try:
                         if not should_calculate_span_cost(span.attributes):
                             continue
@@ -225,6 +270,7 @@ class BulkInserter:
                         span_cost.span_rowid = result.span_rowid
                         span_cost.trace_rowid = result.trace_rowid
                         span_costs.append(span_cost)
+                await recompute_trace_cumulative_values(session, trace_rowids)
             BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         except Exception:
             BULK_LOADER_SPAN_EXCEPTIONS.inc()

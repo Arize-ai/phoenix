@@ -1,8 +1,9 @@
 from dataclasses import asdict
-from typing import NamedTuple, Optional, cast
+from datetime import datetime
+from typing import NamedTuple, Optional
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import Executable, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -10,6 +11,164 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanStatusCode
+
+
+async def resolve_projects(
+    session: AsyncSession,
+    project_names: set[str],
+) -> dict[str, int]:
+    """Return a name -> id mapping for the given project names, inserting missing ones."""
+    if not project_names:
+        return {}
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    existing = (
+        await session.execute(
+            select(models.Project.name, models.Project.id).where(
+                models.Project.name.in_(project_names)
+            )
+        )
+    ).all()
+    result: dict[str, int] = {name: rowid for name, rowid in existing}
+    missing = project_names - result.keys()
+    if missing:
+        await session.execute(
+            insert_on_conflict(
+                *[{"name": name} for name in missing],
+                dialect=dialect,
+                table=models.Project,
+                unique_by=("name",),
+                on_conflict=OnConflict.DO_NOTHING,
+            )
+        )
+        await session.flush()
+        newly_inserted = (
+            await session.execute(
+                select(models.Project.name, models.Project.id).where(
+                    models.Project.name.in_(missing)
+                )
+            )
+        ).all()
+        result.update({name: rowid for name, rowid in newly_inserted})
+    return result
+
+
+async def resolve_sessions(
+    session: AsyncSession,
+    session_ids: set[str],
+) -> dict[str, int]:
+    """Return a session_id -> rowid mapping for the given session ids (SELECT only)."""
+    if not session_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(models.ProjectSession.session_id, models.ProjectSession.id).where(
+                models.ProjectSession.session_id.in_(session_ids)
+            )
+        )
+    ).all()
+    return {session_id: rowid for session_id, rowid in rows}
+
+
+def _upsert_trace(
+    dialect: SupportedSQLDialect,
+    trace_id: str,
+    project_rowid: int,
+    start_time: datetime,
+    end_time: datetime,
+) -> "Executable":
+    """
+    Return a dialect-aware INSERT ... ON CONFLICT DO UPDATE statement for Trace.
+
+    On conflict (duplicate trace_id), the project_rowid is preserved (users may transfer
+    traces between projects), and start_time/end_time are expanded to cover the new span.
+    RETURNING id, project_rowid, project_session_rowid.
+    """
+    values = {
+        "trace_id": trace_id,
+        "project_rowid": project_rowid,
+        "start_time": start_time,
+        "end_time": end_time,
+    }
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        pg_stmt = pg_insert(models.Trace).values(**values)
+        pg_stmt = pg_stmt.on_conflict_do_update(
+            constraint="uq_traces_trace_id",
+            set_={
+                "start_time": func.least(models.Trace.start_time, pg_stmt.excluded.start_time),
+                "end_time": func.greatest(models.Trace.end_time, pg_stmt.excluded.end_time),
+            },
+        )
+        return pg_stmt.returning(
+            models.Trace.id,
+            models.Trace.project_rowid,
+            models.Trace.project_session_rowid,
+        )
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        sq_stmt = sqlite_insert(models.Trace).values(**values)
+        sq_stmt = sq_stmt.on_conflict_do_update(
+            ["trace_id"],
+            set_={
+                "start_time": func.min(models.Trace.start_time, sq_stmt.excluded.start_time),
+                "end_time": func.max(models.Trace.end_time, sq_stmt.excluded.end_time),
+            },
+        )
+        return sq_stmt.returning(
+            models.Trace.id,
+            models.Trace.project_rowid,
+            models.Trace.project_session_rowid,
+        )
+
+
+def _upsert_session(
+    dialect: SupportedSQLDialect,
+    session_id: str,
+    project_id: int,
+    start_time: datetime,
+    end_time: datetime,
+) -> Executable:
+    """
+    Return a dialect-aware INSERT ... ON CONFLICT DO UPDATE statement for ProjectSession.
+
+    On conflict (duplicate session_id), expand start_time/end_time to cover the new span.
+    RETURNING id.
+    """
+    values = {
+        "session_id": session_id,
+        "project_id": project_id,
+        "start_time": start_time,
+        "end_time": end_time,
+    }
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        pg_stmt = pg_insert(models.ProjectSession).values(**values)
+        pg_stmt = pg_stmt.on_conflict_do_update(
+            constraint="uq_project_sessions_session_id",
+            set_={
+                "start_time": func.least(
+                    models.ProjectSession.start_time, pg_stmt.excluded.start_time
+                ),
+                "end_time": func.greatest(
+                    models.ProjectSession.end_time, pg_stmt.excluded.end_time
+                ),
+            },
+        )
+        return pg_stmt.returning(models.ProjectSession.id)
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    sq_stmt = sqlite_insert(models.ProjectSession).values(**values)
+    sq_stmt = sq_stmt.on_conflict_do_update(
+        ["session_id"],
+        set_={
+            "start_time": func.min(models.ProjectSession.start_time, sq_stmt.excluded.start_time),
+            "end_time": func.max(models.ProjectSession.end_time, sq_stmt.excluded.end_time),
+        },
+    )
+    return sq_stmt.returning(models.ProjectSession.id)
 
 
 class SpanInsertionEvent(NamedTuple):
@@ -26,82 +185,104 @@ async def insert_span(
     session: AsyncSession,
     span: Span,
     project_name: str,
+    propagate_ancestors: bool = True,
+    project_cache: Optional[dict[str, int]] = None,
+    session_cache: Optional[dict[str, int]] = None,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
 
-    trace_id = span.context.trace_id
-    trace: models.Trace = await session.scalar(
-        select(models.Trace).filter_by(trace_id=trace_id)
-    ) or models.Trace(trace_id=trace_id)
-
-    if trace.id is not None:
-        # We use the existing project_rowid on the trace because we allow users to transfer traces
-        # between projects, so the project_name parameter is ignored for existing traces.
-        project_rowid = trace.project_rowid
-        # Trace record may need to be updated.
-        if trace.end_time < span.end_time:
-            trace.end_time = span.end_time
-        if span.start_time < trace.start_time:
-            trace.start_time = span.start_time
+    # Resolve project_rowid: upsert avoids SELECT-then-INSERT race on concurrent ingestion.
+    if project_cache is not None and project_name in project_cache:
+        project_rowid = project_cache[project_name]
     else:
-        # Trace record needs to be persisted for the first time.
-        trace.start_time = span.start_time
-        trace.end_time = span.end_time
-        if (
-            project_rowid := await session.scalar(
-                select(models.Project.id).filter_by(name=project_name)
+        await session.execute(
+            insert_on_conflict(
+                {"name": project_name},
+                dialect=dialect,
+                table=models.Project,
+                unique_by=("name",),
+                on_conflict=OnConflict.DO_NOTHING,
             )
-        ) is None:
-            project_rowid = await session.scalar(
-                insert(models.Project).values(name=project_name).returning(models.Project.id)
-            )
-            assert project_rowid is not None
-        trace.project_rowid = project_rowid
-        session.add(trace)
+        )
+        await session.flush()
+        _pr = await session.scalar(select(models.Project.id).filter_by(name=project_name))
+        assert _pr is not None
+        project_rowid = _pr
+
+    # Upsert the trace: expand time range on conflict, preserve project_rowid.
+    trace_row = await session.execute(
+        _upsert_trace(
+            dialect,
+            span.context.trace_id,
+            project_rowid,
+            span.start_time,
+            span.end_time,
+        )
+    )
+    trace_id_rowid, actual_project_rowid, project_session_rowid = trace_row.one()
+    # The actual project_rowid may differ from the resolved one if the trace already existed
+    # and was transferred to a different project.
+    project_rowid = actual_project_rowid
 
     session_id = get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)
     session_id = str(session_id).strip() if session_id is not None else ""
     assert isinstance(session_id, str)
 
-    project_session: Optional[models.ProjectSession] = None
-    if trace.project_session_rowid is not None:
-        # ProjectSession record already exists in database for this Trace record, so we fetch
-        # it because it may need to be updated. However, the session_id on the span, if exists,
-        # will be ignored at this point. Otherwise, if session_id is different, we will need
-        # to create a new ProjectSession record, as well as to determine whether the old record
-        # needs to be deleted if this is the last Trace associated with it.
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
+    if project_session_rowid is not None:
+        # ProjectSession record already exists for this Trace; expand time range atomically.
+        await session.execute(
+            update(models.ProjectSession)
+            .where(models.ProjectSession.id == project_session_rowid)
+            .values(
+                start_time=func.least(models.ProjectSession.start_time, span.start_time)
+                if dialect is SupportedSQLDialect.POSTGRESQL
+                else func.min(models.ProjectSession.start_time, span.start_time),
+                end_time=func.greatest(models.ProjectSession.end_time, span.end_time)
+                if dialect is SupportedSQLDialect.POSTGRESQL
+                else func.max(models.ProjectSession.end_time, span.end_time),
+            )
         )
     elif session_id:
-        project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(session_id=session_id)
-        ) or models.ProjectSession(session_id=session_id)
-
-    if project_session is not None:
-        if project_session.id is None:
-            # ProjectSession record needs to be persisted for the first time.
-            project_session.start_time = trace.start_time
-            project_session.end_time = trace.end_time
-            project_session.project_id = project_rowid
-            session.add(project_session)
-            await session.flush()
-            assert project_session.id is not None
-            trace.project_session_rowid = project_session.id
+        # Resolve from cache first to avoid a round-trip on repeated sessions.
+        if session_cache is not None and session_id in session_cache:
+            session_rowid = session_cache[session_id]
+            # Update times in-place (the session already exists).
+            await session.execute(
+                update(models.ProjectSession)
+                .where(models.ProjectSession.id == session_rowid)
+                .values(
+                    start_time=func.least(models.ProjectSession.start_time, span.start_time)
+                    if dialect is SupportedSQLDialect.POSTGRESQL
+                    else func.min(models.ProjectSession.start_time, span.start_time),
+                    end_time=func.greatest(models.ProjectSession.end_time, span.end_time)
+                    if dialect is SupportedSQLDialect.POSTGRESQL
+                    else func.max(models.ProjectSession.end_time, span.end_time),
+                )
+            )
+            await session.execute(
+                update(models.Trace)
+                .where(models.Trace.id == trace_id_rowid)
+                .values(project_session_rowid=session_rowid)
+            )
         else:
-            # ProjectSession record may need to be updated.
-            if trace.project_session_rowid is None:
-                trace.project_session_rowid = project_session.id
-            if trace.start_time < project_session.start_time:
-                project_session.start_time = trace.start_time
-            if project_session.end_time < trace.end_time:
-                project_session.end_time = trace.end_time
+            # Upsert: insert or expand time range atomically, get back the id.
+            session_row = await session.execute(
+                _upsert_session(
+                    dialect,
+                    session_id,
+                    project_rowid,
+                    span.start_time,
+                    span.end_time,
+                )
+            )
+            session_rowid = session_row.scalar_one()
+            await session.execute(
+                update(models.Trace)
+                .where(models.Trace.id == trace_id_rowid)
+                .values(project_session_rowid=session_rowid)
+            )
 
     await session.flush()
-    assert trace.id is not None
-    assert project_session is None or (
-        project_session.id is not None and project_session.id == trace.project_session_rowid
-    )
 
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     try:
@@ -128,23 +309,11 @@ async def insert_span(
         )
     except BaseException:
         llm_token_count_completion = 0
-    if accumulation := (
-        await session.execute(
-            select(
-                func.sum(models.Span.cumulative_error_count),
-                func.sum(models.Span.cumulative_llm_token_count_prompt),
-                func.sum(models.Span.cumulative_llm_token_count_completion),
-            ).where(models.Span.parent_id == span.context.span_id)
-        )
-    ).first():
-        cumulative_error_count += cast(int, accumulation[0] or 0)
-        cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
-        cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
     span_rowid = await session.scalar(
         insert_on_conflict(
             dict(
                 span_id=span.context.span_id,
-                trace_rowid=trace.id,
+                trace_rowid=trace_id_rowid,
                 parent_id=span.parent_id,
                 span_kind=span.span_kind.value,
                 name=span.name,
@@ -168,30 +337,31 @@ async def insert_span(
     )
     if span_rowid is None:
         return None
-    # Propagate cumulative values to ancestors. This is usually a no-op, since
-    # the parent usually arrives after the child. But in the event that a
-    # child arrives after its parent, we need to make sure that all the
-    # ancestors' cumulative values are updated.
-    ancestors = (
-        select(models.Span.id, models.Span.parent_id)
-        .where(models.Span.span_id == span.parent_id)
-        .cte(recursive=True)
-    )
-    child = ancestors.alias()
-    ancestors = ancestors.union_all(
-        select(models.Span.id, models.Span.parent_id).join(
-            child, models.Span.span_id == child.c.parent_id
+    if propagate_ancestors:
+        # Propagate cumulative values to ancestors. This is usually a no-op, since
+        # the parent usually arrives after the child. But in the event that a
+        # child arrives after its parent, we need to make sure that all the
+        # ancestors' cumulative values are updated.
+        ancestors = (
+            select(models.Span.id, models.Span.parent_id)
+            .where(models.Span.span_id == span.parent_id)
+            .cte(recursive=True)
         )
-    )
-    await session.execute(
-        update(models.Span)
-        .where(models.Span.id.in_(select(ancestors.c.id)))
-        .values(
-            cumulative_error_count=models.Span.cumulative_error_count + cumulative_error_count,
-            cumulative_llm_token_count_prompt=models.Span.cumulative_llm_token_count_prompt
-            + cumulative_llm_token_count_prompt,
-            cumulative_llm_token_count_completion=models.Span.cumulative_llm_token_count_completion
-            + cumulative_llm_token_count_completion,
+        child = ancestors.alias()
+        ancestors = ancestors.union_all(
+            select(models.Span.id, models.Span.parent_id).join(
+                child, models.Span.span_id == child.c.parent_id
+            )
         )
-    )
-    return SpanInsertionEvent(project_rowid, span_rowid, trace.id)
+        await session.execute(
+            update(models.Span)
+            .where(models.Span.id.in_(select(ancestors.c.id)))
+            .values(
+                cumulative_error_count=models.Span.cumulative_error_count + cumulative_error_count,
+                cumulative_llm_token_count_prompt=models.Span.cumulative_llm_token_count_prompt
+                + cumulative_llm_token_count_prompt,
+                cumulative_llm_token_count_completion=models.Span.cumulative_llm_token_count_completion
+                + cumulative_llm_token_count_completion,
+            )
+        )
+    return SpanInsertionEvent(project_rowid, span_rowid, trace_id_rowid)

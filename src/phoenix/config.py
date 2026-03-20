@@ -240,6 +240,17 @@ throughput.
 
 Defaults to 20000.
 """
+ENV_PHOENIX_CUMULATIVE_REPAIR_INTERVAL_SEC = "PHOENIX_CUMULATIVE_REPAIR_INTERVAL_SEC"
+"""
+How often (in seconds) the CumulativeRepairTask daemon recomputes cumulative span values.
+Set to 0 to disable the daemon entirely. Defaults to 30. PostgreSQL only.
+"""
+ENV_PHOENIX_CLUSTER_MODE = "PHOENIX_CLUSTER_MODE"
+"""
+Set to a non-empty value to indicate that Phoenix is running in a multi-node cluster.
+Used only for a startup warning when SQLite is selected as the database backend: SQLite
+does not support the row-level locking required for safe multi-node operation.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -2953,6 +2964,31 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_cumulative_repair_interval_sec() -> int:
+    """
+    Gets the CumulativeRepairTask interval from PHOENIX_CUMULATIVE_REPAIR_INTERVAL_SEC.
+
+    Returns:
+        int: Seconds between repair passes. 0 means the daemon is disabled.
+             Defaults to 30.
+
+    Raises:
+        ValueError: If the value is negative or not an integer.
+    """
+    interval = _int_val(ENV_PHOENIX_CUMULATIVE_REPAIR_INTERVAL_SEC, 30)
+    if interval < 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_CUMULATIVE_REPAIR_INTERVAL_SEC}: "
+            f"{interval}. Value must be a non-negative integer."
+        )
+    return interval
+
+
+def get_env_cluster_mode() -> bool:
+    """Return True if PHOENIX_CLUSTER_MODE is set to a non-empty value."""
+    return bool(getenv(ENV_PHOENIX_CLUSTER_MODE))
 
 
 def get_env_client_headers() -> dict[str, str]:

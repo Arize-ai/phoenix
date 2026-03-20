@@ -1,5 +1,4 @@
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Sequence
 
@@ -11,6 +10,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import format_span_id, format_trace_id
 
 from phoenix.db import models
+from phoenix.db.insertion.cumulative import _get_cumulative_counts
 from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.trace.attributes import get_attribute_value, unflatten
@@ -215,54 +215,3 @@ def _get_db_span_cost(
         start_time=db_span.start_time,
         attributes=db_span.attributes,
     )
-
-
-@dataclass
-class CumulativeCount:
-    errors: int
-    prompt_tokens: int
-    completion_tokens: int
-
-
-def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
-    """
-    Computes cumulative counts.
-
-    Returns a list of counts for each span in the same order as the input spans.
-    """
-
-    root_span_ids: list[str] = []
-    parent_to_children_ids: dict[str, list[str]] = {}
-    counts_by_span_id: dict[str, CumulativeCount] = {}
-    for span in spans:
-        if span.parent_id is None:
-            root_span_ids.append(span.span_id)
-        else:
-            if span.parent_id not in parent_to_children_ids:
-                parent_to_children_ids[span.parent_id] = []
-            parent_to_children_ids[span.parent_id].append(span.span_id)
-        counts_by_span_id[span.span_id] = CumulativeCount(
-            errors=int(span.status_code == "ERROR"),
-            prompt_tokens=span.llm_token_count_prompt or 0,
-            completion_tokens=span.llm_token_count_completion or 0,
-        )
-
-    # iterative post-order traversal
-    for root_span_id in root_span_ids:
-        visited_children = False
-        stack: list[tuple[str, bool]] = [(root_span_id, visited_children)]
-        while stack:
-            span_id, visited_children = stack.pop()
-            if not visited_children:
-                stack.append((span_id, True))
-                for child_id in parent_to_children_ids.get(span_id, []):
-                    stack.append((child_id, False))
-            else:
-                count = counts_by_span_id[span_id]
-                for child_id in parent_to_children_ids.get(span_id, []):
-                    child_counts = counts_by_span_id[child_id]
-                    count.errors += child_counts.errors
-                    count.prompt_tokens += child_counts.prompt_tokens
-                    count.completion_tokens += child_counts.completion_tokens
-
-    return [counts_by_span_id[span.span_id] for span in spans]
