@@ -1,5 +1,13 @@
 # @arizeai/phoenix-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- 3bccd12: Add `--curl` support to `px api graphql` so users can print the equivalent
+  request without executing it. Authorization headers are masked by default, and
+  `--show-token` can be used to reveal the raw token when explicitly needed.
+
 ## 0.10.1
 
 ### Patch Changes
