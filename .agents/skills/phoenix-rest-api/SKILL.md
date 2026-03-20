@@ -2,26 +2,18 @@
 name: phoenix-rest-api
 user-invocable: false
 description: >
-  REST API development for the Phoenix AI observability platform. Use when adding,
-  modifying, or reviewing REST endpoints in src/phoenix/server/api/routers/v1/.
-  Triggers on tasks involving new endpoints, request/response models, OpenAPI schema
-  generation, client codegen, authorization, pagination, or REST integration tests.
+  REST API development for Phoenix. Use when adding, modifying, or reviewing
+  endpoints in src/phoenix/server/api/routers/v1/.
 metadata:
   internal: true
 ---
 
-# Phoenix REST API Development
+# Phoenix REST API
 
-REST endpoints live in `src/phoenix/server/api/routers/v1/`. Each router module defines
-endpoints, Pydantic models, and is registered in `__init__.py`. Changes to endpoints
-require regenerating the OpenAPI schema and client types.
+Endpoints: `src/phoenix/server/api/routers/v1/`. Read the relevant reference:
 
-## Reference Files
-
-Read the relevant file(s) based on the task:
-
-| Reference file | When to read |
-|----------------|-------------|
-| `references/endpoint-patterns.md` | Adding or modifying a REST endpoint |
-| `references/openapi-codegen.md` | Regenerating schema, client types, or CI checks |
-| `references/testing-patterns.md` | Writing integration tests for REST endpoints |
+| Reference | When |
+|-----------|------|
+| `references/endpoint-patterns.md` | Adding or modifying an endpoint |
+| `references/openapi-codegen.md` | Regenerating schema or client types |
+| `references/testing-patterns.md` | Writing integration tests |
