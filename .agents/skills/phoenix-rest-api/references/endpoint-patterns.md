@@ -1,5 +1,53 @@
 # REST Endpoint Patterns
 
+## Design Principles
+
+These are the non-negotiable conventions for the Phoenix REST API.
+
+### Communication & Versioning
+
+- All endpoints communicate over **JSON** unless the URL specifies otherwise (e.g., `/csv`, `/jsonl`).
+- The API is **versioned** under `/v1/`. Backward-incompatible changes go under a new version prefix (`/v2/`).
+
+### HTTP Methods
+
+| Method | Usage |
+|--------|-------|
+| `GET` | Retrieve a representation of a resource |
+| `POST` | Create new resources and sub-resources |
+| `PUT` | Replace an existing resource entirely |
+| `PATCH` | Apply a partial update to a resource |
+| `DELETE` | Delete an existing resource |
+
+### Status Codes
+
+- **2xx** — client and API worked correctly
+- **4xx** — client error (bad request, unauthorized, not found, etc.)
+- **5xx** — server error (the API behaved erroneously)
+
+### Path Structure
+
+- Use **plural nouns** for resources (`/datasets`, `/users`, `/experiments`), never verbs.
+- Specific resources are identified by a **globally unique identifier** consistent with the GraphQL API: `/datasets/:dataset_id`
+- Sub-resources nest under their parent: `/datasets/:dataset_id/examples`, `/projects/:project_id/spans`
+
+### Query Parameters
+
+- Use query parameters for **filtering, sorting, and pagination**.
+- Parameter names use **snake_case** with `_` as separator (e.g., `dataset_version_id`, `next_cursor`).
+
+### Pagination
+
+- Use **cursor-based pagination**. Each response includes a `next_cursor` field pointing to the next page.
+- Never use offset-based pagination.
+
+### Response Format
+
+- All responses are a JSON object with a **`data` key** wrapping the payload.
+- Payload field names use **snake_case** for easy translation to Python/TypeScript objects.
+- Single-resource responses: `{"data": {...}}`
+- Collection responses: `{"data": [...], "next_cursor": "..."}`
+
 ## Directory Structure
 
 ```
