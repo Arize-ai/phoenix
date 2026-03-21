@@ -31,7 +31,8 @@ Phoenix MCP Server is an implementation of the Model Context Protocol for the Ar
 You can use Phoenix MCP Server for:
 
 - **Projects Management**: List and explore projects that organize your observability data
-- **Spans & Annotations**: Retrieve spans and their annotations for analysis and debugging
+- **Traces, Spans & Annotations**: Retrieve traces, spans, and annotation configs for analysis and debugging
+- **Sessions**: Explore conversation flows and session-level annotations
 - **Prompts Management**: Create, list, update, and iterate on prompts
 - **Datasets**: Explore datasets and synthesize new examples
 - **Experiments**: Pull experiment results and visualize them with the help of an LLM
@@ -103,9 +104,26 @@ pnpm inspect
 When developing, the server requires the following environment variables:
 
 - `PHOENIX_API_KEY`: Your Phoenix API key
-- `PHOENIX_BASE_URL`: The base URL for Phoenix
+- `PHOENIX_HOST`: The base URL for Phoenix
+- `PHOENIX_PROJECT`: Optional default project for project-scoped tools
+- `PHOENIX_CLIENT_HEADERS`: Optional JSON-encoded request headers
 
 Make sure to set these in a `.env` file. See `.env.example`.
+
+## Tool Coverage
+
+The MCP server now covers the main operational Phoenix workflows:
+
+- `list-projects`, `get-project`
+- `list-traces`, `get-trace`
+- `get-spans`, `get-span-annotations`
+- `list-sessions`, `get-session`
+- `list-annotation-configs`
+- `list-datasets`, `get-dataset`, `get-dataset-examples`, `get-dataset-experiments`, `add-dataset-examples`
+- `list-experiments-for-dataset`, `get-experiment-by-id`
+- `list-prompts`, `get-prompt`, legacy prompt getter aliases, prompt version/tag tools, `upsert-prompt`
+
+For Phoenix documentation search, use the separate Phoenix Docs MCP server instead of this package.
 
 ## Community
 

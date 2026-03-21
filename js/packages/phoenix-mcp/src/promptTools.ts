@@ -2,10 +2,12 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { getResponseData } from "./client.js";
 import {
   addPromptVersionTagSchema,
   createPromptSchema,
   getLatestPromptSchema,
+  getPromptSchema,
   getPromptByIdentifierSchema,
   getPromptVersionByTagSchema,
   getPromptVersionSchema,
@@ -13,6 +15,7 @@ import {
   listPromptVersionsSchema,
   listPromptVersionTagsSchema,
 } from "./promptSchemas.js";
+import { jsonResponse, textResponse } from "./toolResults.js";
 
 // Tool descriptions as template literals for better readability
 const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts.
@@ -134,6 +137,18 @@ Expected return:
     "id": "promptversionid1234"
   }`;
 
+const GET_PROMPT_DESCRIPTION = `Get a prompt using a single MCP-native interface.
+
+Provide a prompt identifier to fetch the latest version, or add a tag or versionId to select a specific version.
+
+Example usage:
+  Get prompt "article-summarizer"
+  Get prompt "article-summarizer" with tag "production"
+  Get prompt "article-summarizer" using version "promptversionid1234"
+
+Expected return:
+  Prompt version object with template and configuration.`;
+
 const UPSERT_PROMPT_DESCRIPTION = `Create or update a prompt with its template and configuration. Creates a new prompt and its initial version with specified model settings.
 
 Example usage: 
@@ -238,6 +253,65 @@ Example usage:
 Expected return: 
   Confirmation message of successful tag addition`;
 
+async function fetchPromptVersionBySelection({
+  client,
+  promptIdentifier,
+  tag,
+  versionId,
+}: {
+  client: PhoenixClient;
+  promptIdentifier: string;
+  tag?: string;
+  versionId?: string;
+}) {
+  if (versionId) {
+    const response = await client.GET(
+      "/v1/prompt_versions/{prompt_version_id}",
+      {
+        params: {
+          path: {
+            prompt_version_id: versionId,
+          },
+        },
+      }
+    );
+    return getResponseData({
+      response,
+      errorPrefix: `Failed to fetch prompt version "${versionId}"`,
+    }).data;
+  }
+
+  if (tag) {
+    const response = await client.GET(
+      "/v1/prompts/{prompt_identifier}/tags/{tag_name}",
+      {
+        params: {
+          path: {
+            prompt_identifier: promptIdentifier,
+            tag_name: tag,
+          },
+        },
+      }
+    );
+    return getResponseData({
+      response,
+      errorPrefix: `Failed to fetch prompt "${promptIdentifier}" with tag "${tag}"`,
+    }).data;
+  }
+
+  const response = await client.GET("/v1/prompts/{prompt_identifier}/latest", {
+    params: {
+      path: {
+        prompt_identifier: promptIdentifier,
+      },
+    },
+  });
+  return getResponseData({
+    response,
+    errorPrefix: `Failed to fetch prompt "${promptIdentifier}"`,
+  }).data;
+}
+
 export const initializePromptTools = ({
   client,
   server,
@@ -250,21 +324,44 @@ export const initializePromptTools = ({
     LIST_PROMPTS_DESCRIPTION,
     listPromptsSchema.shape,
     async ({ limit }) => {
-      const response = await client.GET("/v1/prompts", {
-        params: {
-          query: {
-            limit,
+      const prompts: unknown[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const pageLimit = Math.min(limit - prompts.length, 100);
+        const response = await client.GET("/v1/prompts", {
+          params: {
+            query: {
+              cursor,
+              limit: pageLimit,
+            },
           },
-        },
+        });
+        const data = getResponseData({
+          response,
+          errorPrefix: "Failed to fetch prompts",
+        });
+
+        prompts.push(...data.data);
+        cursor = data.next_cursor || undefined;
+      } while (cursor && prompts.length < limit);
+
+      return jsonResponse(prompts.slice(0, limit));
+    }
+  );
+
+  server.tool(
+    "get-prompt",
+    GET_PROMPT_DESCRIPTION,
+    getPromptSchema.shape,
+    async ({ promptIdentifier, tag, versionId }) => {
+      const prompt = await fetchPromptVersionBySelection({
+        client,
+        promptIdentifier,
+        tag,
+        versionId,
       });
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data?.data, null, 2),
-          },
-        ],
-      };
+      return jsonResponse(prompt);
     }
   );
 
@@ -273,24 +370,11 @@ export const initializePromptTools = ({
     GET_LATEST_PROMPT_DESCRIPTION,
     getLatestPromptSchema.shape,
     async ({ prompt_identifier }) => {
-      const response = await client.GET(
-        "/v1/prompts/{prompt_identifier}/latest",
-        {
-          params: {
-            path: {
-              prompt_identifier,
-            },
-          },
-        }
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const prompt = await fetchPromptVersionBySelection({
+        client,
+        promptIdentifier: prompt_identifier,
+      });
+      return jsonResponse(prompt);
     }
   );
 
@@ -299,24 +383,11 @@ export const initializePromptTools = ({
     GET_PROMPT_BY_IDENTIFIER_DESCRIPTION,
     getPromptByIdentifierSchema.shape,
     async ({ prompt_identifier }) => {
-      const response = await client.GET(
-        "/v1/prompts/{prompt_identifier}/latest",
-        {
-          params: {
-            path: {
-              prompt_identifier,
-            },
-          },
-        }
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const prompt = await fetchPromptVersionBySelection({
+        client,
+        promptIdentifier: prompt_identifier,
+      });
+      return jsonResponse(prompt);
     }
   );
 
@@ -325,24 +396,12 @@ export const initializePromptTools = ({
     GET_PROMPT_VERSION_DESCRIPTION,
     getPromptVersionSchema.shape,
     async ({ prompt_version_id }) => {
-      const response = await client.GET(
-        "/v1/prompt_versions/{prompt_version_id}",
-        {
-          params: {
-            path: {
-              prompt_version_id,
-            },
-          },
-        }
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const prompt = await fetchPromptVersionBySelection({
+        client,
+        promptIdentifier: prompt_version_id,
+        versionId: prompt_version_id,
+      });
+      return jsonResponse(prompt);
     }
   );
 
@@ -434,14 +493,9 @@ export const initializePromptTools = ({
         description: description || "",
         version: promptVersionData,
       });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Successfully created prompt "${name}":\n${JSON.stringify(response, null, 2)}`,
-          },
-        ],
-      };
+      return textResponse(
+        `Successfully created prompt "${name}":\n${JSON.stringify(response, null, 2)}`
+      );
     }
   );
 
@@ -463,14 +517,12 @@ export const initializePromptTools = ({
           },
         }
       );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const promptVersions = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch prompt versions for "${prompt_identifier}"`,
+      });
+
+      return jsonResponse(promptVersions);
     }
   );
 
@@ -479,25 +531,12 @@ export const initializePromptTools = ({
     GET_PROMPT_VERSION_BY_TAG_DESCRIPTION,
     getPromptVersionByTagSchema.shape,
     async ({ prompt_identifier, tag_name }) => {
-      const response = await client.GET(
-        "/v1/prompts/{prompt_identifier}/tags/{tag_name}",
-        {
-          params: {
-            path: {
-              prompt_identifier,
-              tag_name,
-            },
-          },
-        }
-      );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const prompt = await fetchPromptVersionBySelection({
+        client,
+        promptIdentifier: prompt_identifier,
+        tag: tag_name,
+      });
+      return jsonResponse(prompt);
     }
   );
 
@@ -519,14 +558,12 @@ export const initializePromptTools = ({
           },
         }
       );
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const tags = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch tags for prompt version "${prompt_version_id}"`,
+      });
+
+      return jsonResponse(tags);
     }
   );
 
@@ -546,14 +583,9 @@ export const initializePromptTools = ({
           description,
         },
       });
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Successfully added tag "${name}" to prompt version ${prompt_version_id}`,
-          },
-        ],
-      };
+      return textResponse(
+        `Successfully added tag "${name}" to prompt version ${prompt_version_id}`
+      );
     }
   );
 };

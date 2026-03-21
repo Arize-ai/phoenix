@@ -8,6 +8,12 @@ export const getLatestPromptSchema = z.object({
   prompt_identifier: z.string(),
 });
 
+export const getPromptSchema = z.object({
+  promptIdentifier: z.string(),
+  tag: z.string().optional(),
+  versionId: z.string().optional(),
+});
+
 export const getPromptByIdentifierSchema = z.object({
   prompt_identifier: z.string(),
 });
@@ -44,7 +50,7 @@ export const updatePromptSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   template: z.string().optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const deletePromptSchema = z.object({
@@ -74,6 +80,7 @@ export const addPromptVersionTagSchema = z.object({
 
 export type ListPromptsInput = z.infer<typeof listPromptsSchema>;
 export type GetLatestPromptInput = z.infer<typeof getLatestPromptSchema>;
+export type GetPromptInput = z.infer<typeof getPromptSchema>;
 export type GetPromptByIdentifierInput = z.infer<
   typeof getPromptByIdentifierSchema
 >;

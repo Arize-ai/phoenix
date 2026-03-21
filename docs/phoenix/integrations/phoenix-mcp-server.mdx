@@ -6,7 +6,7 @@ description: Connect AI assistants to Phoenix documentation and platform capabil
 Phoenix provides two MCP servers for AI assistants:
 
 - **Phoenix Docs MCP** - Search Phoenix documentation in real-time
-- **Phoenix MCP Server** - Manage prompts, datasets, and experiments
+- **Phoenix MCP Server** - Work directly with Phoenix projects, traces, sessions, prompts, datasets, experiments, and annotations
 
 ---
 
@@ -61,6 +61,9 @@ Add the following to your MCP settings configuration file:
 
 The Phoenix MCP Server (`@arizeai/phoenix-mcp`) connects AI assistants directly to your Phoenix instance for managing:
 
+* **Projects, Traces, and Spans**: Explore recent traces, inspect spans, and analyze annotations
+* **Sessions**: Review conversation flows and session annotations
+* **Annotation Configs**: Inspect the available labeling and scoring configs in Phoenix
 * **Prompts Management**: Create, list, update, and iterate on prompts
 * **Datasets**: Explore datasets and synthesize new examples
 * **Experiments**: Pull experiment results and visualize them with the help of an LLM
@@ -198,19 +201,23 @@ The Phoenix MCP Server (`@arizeai/phoenix-mcp`) connects AI assistants directly 
 
 ### Using the Phoenix MCP Server
 
-The MCP server can be used to interact with Prompts, Experiments, and Datasets. It can be used to retrieve information about each item, and can create and update Prompts.
+The MCP server can be used to interact with projects, traces, spans, sessions, annotation configs, prompts, experiments, and datasets. It can retrieve operational data, inspect prompt and experiment artifacts, and perform the existing prompt and dataset write flows.
 
 Some good questions to try:
 
-1. `What prompts do I have in Phoenix?`
+1. `Show me the latest traces in my default Phoenix project`
 
-2. `Create a new prompt in Phoenix that classifies user intent`
+2. `Show me the last 10 sessions in my support-agent project`
 
-3. `Update my classification prompt in Phoenix with these new options`
+3. `What annotation configs do I have in Phoenix?`
 
-4. `Summarize the Phoenix experiments run on my agent inputs dataset`
+4. `What prompts do I have in Phoenix?`
 
-5. `Visualize the results of my jailbreak dataset experiments in Phoenix`
+5. `Create a new prompt in Phoenix that classifies user intent`
+
+6. `Summarize the Phoenix experiments run on my agent inputs dataset`
+
+7. `Visualize the results of my jailbreak dataset experiments in Phoenix`
 
 ### Hoping to see additional functionality?
 

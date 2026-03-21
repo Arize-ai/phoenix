@@ -2,6 +2,9 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { getResponseData, resolveDatasetId } from "./client.js";
+import { jsonResponse } from "./toolResults.js";
+
 const LIST_DATASETS_DESCRIPTION = `Get a list of all datasets.
 
 Datasets are collections of 'dataset examples' that each example includes an input, 
@@ -91,6 +94,37 @@ Expected return:
     "message": "Successfully added examples to dataset"
   }`;
 
+const GET_DATASET_DESCRIPTION = `Get dataset metadata by name or ID.
+
+Example usage:
+  Show me the dataset "my-dataset"
+
+Expected return:
+  A dataset object with metadata and version information.`;
+
+const datasetIdentifierSchema = z
+  .object({
+    datasetIdentifier: z.string().optional(),
+    datasetId: z.string().optional(),
+  })
+  .refine(
+    ({ datasetIdentifier, datasetId }) =>
+      Boolean(datasetIdentifier || datasetId),
+    {
+      message: "Provide datasetIdentifier or datasetId",
+    }
+  );
+
+function getDatasetIdentifier({
+  datasetIdentifier,
+  datasetId,
+}: {
+  datasetIdentifier?: string;
+  datasetId?: string;
+}): string {
+  return datasetIdentifier || datasetId || "";
+}
+
 export const initializeDatasetTools = ({
   client,
   server,
@@ -102,69 +136,140 @@ export const initializeDatasetTools = ({
     "list-datasets",
     LIST_DATASETS_DESCRIPTION,
     {
-      limit: z.number().min(1).max(100).default(100),
+      limit: z.number().min(1).max(500).default(100),
     },
     async ({ limit }) => {
-      const response = await client.GET("/v1/datasets", {
+      const datasets: unknown[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const pageLimit = Math.min(limit - datasets.length, 100);
+        const response = await client.GET("/v1/datasets", {
+          params: {
+            query: {
+              cursor,
+              limit: pageLimit,
+            },
+          },
+        });
+        const data = getResponseData({
+          response,
+          errorPrefix: "Failed to fetch datasets",
+        });
+
+        datasets.push(...data.data);
+        cursor = data.next_cursor || undefined;
+      } while (cursor && datasets.length < limit);
+
+      return jsonResponse(datasets.slice(0, limit));
+    }
+  );
+
+  server.tool(
+    "get-dataset",
+    GET_DATASET_DESCRIPTION,
+    datasetIdentifierSchema.shape,
+    async ({ datasetIdentifier, datasetId }) => {
+      const resolvedDatasetId = await resolveDatasetId({
+        client,
+        datasetIdentifier: getDatasetIdentifier({
+          datasetIdentifier,
+          datasetId,
+        }),
+      });
+
+      const response = await client.GET("/v1/datasets/{id}", {
         params: {
-          query: { limit },
+          path: {
+            id: resolvedDatasetId,
+          },
         },
       });
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data?.data, null, 2),
-          },
-        ],
-      };
+      const dataset = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch dataset "${resolvedDatasetId}"`,
+      }).data;
+
+      return jsonResponse(dataset);
     }
   );
   server.tool(
     "get-dataset-examples",
     GET_DATASET_EXAMPLES_DESCRIPTION,
     {
-      datasetId: z.string(),
+      ...datasetIdentifierSchema.shape,
+      versionId: z.string().optional(),
+      splits: z.array(z.string()).optional(),
     },
-    async ({ datasetId }) => {
+    async ({ datasetIdentifier, datasetId, versionId, splits }) => {
+      const resolvedDatasetId = await resolveDatasetId({
+        client,
+        datasetIdentifier: getDatasetIdentifier({
+          datasetIdentifier,
+          datasetId,
+        }),
+      });
+
       const response = await client.GET("/v1/datasets/{id}/examples", {
         params: {
-          path: { id: datasetId },
+          path: { id: resolvedDatasetId },
+          query: {
+            version_id: versionId,
+            split: splits,
+          },
         },
       });
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+      const datasetExamples = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch examples for dataset "${resolvedDatasetId}"`,
+      });
+
+      return jsonResponse(datasetExamples);
     }
   );
   server.tool(
     "get-dataset-experiments",
     GET_DATASET_EXPERIMENTS_DESCRIPTION,
     {
-      datasetId: z.string(),
+      ...datasetIdentifierSchema.shape,
+      limit: z.number().min(1).max(500).default(100).optional(),
     },
-    async ({ datasetId }) => {
-      const response = await client.GET(
-        "/v1/datasets/{dataset_id}/experiments",
-        {
-          params: {
-            path: { dataset_id: datasetId },
-          },
-        }
-      );
-      return {
-        content: [
+    async ({ datasetIdentifier, datasetId, limit = 100 }) => {
+      const resolvedDatasetId = await resolveDatasetId({
+        client,
+        datasetIdentifier: getDatasetIdentifier({
+          datasetIdentifier,
+          datasetId,
+        }),
+      });
+
+      const experiments = [];
+      let cursor: string | undefined;
+
+      do {
+        const pageLimit = Math.min(limit - experiments.length, 100);
+        const response = await client.GET(
+          "/v1/datasets/{dataset_id}/experiments",
           {
-            type: "text",
-            text: JSON.stringify(response.data, null, 2),
-          },
-        ],
-      };
+            params: {
+              path: { dataset_id: resolvedDatasetId },
+              query: {
+                cursor,
+                limit: pageLimit,
+              },
+            },
+          }
+        );
+        const data = getResponseData({
+          response,
+          errorPrefix: `Failed to fetch experiments for dataset "${resolvedDatasetId}"`,
+        });
+
+        experiments.push(...data.data);
+        cursor = data.next_cursor || undefined;
+      } while (cursor && experiments.length < limit);
+
+      return jsonResponse(experiments.slice(0, limit));
     }
   );
   server.tool(
@@ -174,9 +279,9 @@ export const initializeDatasetTools = ({
       datasetName: z.string(),
       examples: z.array(
         z.object({
-          input: z.record(z.string(), z.any()),
-          output: z.record(z.string(), z.any()),
-          metadata: z.record(z.string(), z.any()).optional(),
+          input: z.record(z.string(), z.unknown()),
+          output: z.record(z.string(), z.unknown()),
+          metadata: z.record(z.string(), z.unknown()).optional(),
         })
       ),
     },
@@ -205,28 +310,23 @@ export const initializeDatasetTools = ({
         },
       });
 
-      if (!response.data?.data?.dataset_id) {
+      const uploadResponse = getResponseData({
+        response,
+        errorPrefix: `Failed to add examples to dataset "${datasetName}"`,
+      });
+      const uploadData = uploadResponse?.data;
+
+      if (!uploadData?.dataset_id) {
         throw new Error(
           "Failed to add examples to dataset: No dataset ID received"
         );
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                dataset_name: datasetName,
-                dataset_id: response.data.data.dataset_id,
-                message: "Successfully added examples to dataset",
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
+      return jsonResponse({
+        dataset_name: datasetName,
+        dataset_id: uploadData.dataset_id,
+        message: "Successfully added examples to dataset",
+      });
     }
   );
 };

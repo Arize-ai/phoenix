@@ -27,6 +27,7 @@
     "build": "tsc && chmod 755 build/index.js",
     "dev": "source ./.env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
     "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "@types/glob": "^8.1.0",
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.14.0",
-    "tsx": "^4.19.3"
+    "tsx": "^4.19.3",
+    "vitest": "^4.0.17"
   }
 }

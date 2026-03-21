@@ -2,6 +2,9 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { getResponseData, resolveDatasetId } from "./client.js";
+import { jsonResponse } from "./toolResults.js";
+
 const LIST_EXPERIMENTS_DESCRIPTION = `Get a list of all the experiments run on a given dataset.
 
 Experiments are collections of experiment runs, each experiment run corresponds to a single 
@@ -93,24 +96,48 @@ export const initializeExperimentTools = ({
     "list-experiments-for-dataset",
     LIST_EXPERIMENTS_DESCRIPTION,
     {
-      dataset_id: z.string(),
+      datasetIdentifier: z.string().optional(),
+      dataset_id: z.string().optional(),
+      limit: z.number().min(1).max(500).default(100).optional(),
     },
-    async ({ dataset_id }) => {
-      const response = await client.GET(
-        "/v1/datasets/{dataset_id}/experiments",
-        {
-          params: {
-            path: {
-              dataset_id,
+    async ({ datasetIdentifier, dataset_id, limit = 100 }) => {
+      if (!datasetIdentifier && !dataset_id) {
+        throw new Error("datasetIdentifier or legacy dataset_id is required");
+      }
+
+      const resolvedDatasetId = await resolveDatasetId({
+        client,
+        datasetIdentifier: datasetIdentifier || dataset_id || "",
+      });
+      const experiments: unknown[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const pageLimit = Math.min(limit - experiments.length, 100);
+        const response = await client.GET(
+          "/v1/datasets/{dataset_id}/experiments",
+          {
+            params: {
+              path: {
+                dataset_id: resolvedDatasetId,
+              },
+              query: {
+                cursor,
+                limit: pageLimit,
+              },
             },
-          },
-        }
-      );
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(response.data?.data, null, 2) },
-        ],
-      };
+          }
+        );
+        const data = getResponseData({
+          response,
+          errorPrefix: `Failed to fetch experiments for dataset "${resolvedDatasetId}"`,
+        });
+
+        experiments.push(...data.data);
+        cursor = data.next_cursor || undefined;
+      } while (cursor && experiments.length < limit);
+
+      return jsonResponse(experiments.slice(0, limit));
     }
   );
 
@@ -138,13 +165,19 @@ export const initializeExperimentTools = ({
             },
           }),
         ]);
-      const text = JSON.stringify({
-        metadata: experimentMetadataResponse.data?.data,
-        experimentResult: experimentDataResponse.data,
+      const metadata = getResponseData({
+        response: experimentMetadataResponse,
+        errorPrefix: `Failed to fetch experiment "${experiment_id}" metadata`,
       });
-      return {
-        content: [{ type: "text", text }],
-      };
+      const experimentResult = getResponseData({
+        response: experimentDataResponse,
+        errorPrefix: `Failed to fetch experiment "${experiment_id}" JSON`,
+      });
+
+      return jsonResponse({
+        metadata: metadata.data,
+        experimentResult,
+      });
     }
   );
 };

@@ -2,6 +2,14 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { getResponseData } from "./client.js";
+import {
+  attachAnnotationsToSpans,
+  fetchProjectSpans,
+  fetchSpanAnnotations,
+} from "./spanUtils.js";
+import { jsonResponse } from "./toolResults.js";
+
 const GET_SPANS_DESCRIPTION = `Get spans from a project with filtering criteria.
 
 Spans represent individual operations or units of work within a trace. They contain timing information,
@@ -75,70 +83,72 @@ export const initializeSpanTools = ({
     "get-spans",
     GET_SPANS_DESCRIPTION,
     {
-      projectName: z.string(),
+      projectIdentifier: z.string().optional(),
+      projectName: z.string().optional(),
       startTime: z.string().optional(),
       endTime: z.string().optional(),
       traceIds: z.array(z.string()).optional(),
+      parentId: z.string().nullable().optional(),
+      names: z.array(z.string()).optional(),
+      spanKinds: z.array(z.string()).optional(),
+      statusCodes: z.array(z.string()).optional(),
       cursor: z.string().optional(),
       limit: z.number().min(1).max(1000).default(100).optional(),
+      includeAnnotations: z.boolean().default(false).optional(),
     },
     async ({
+      projectIdentifier,
       projectName,
       startTime,
       endTime,
       traceIds,
+      parentId,
+      names,
+      spanKinds,
+      statusCodes,
       cursor,
       limit = 100,
+      includeAnnotations = false,
     }) => {
-      const params: NonNullable<
-        Types["V1"]["operations"]["getSpans"]["parameters"]["query"]
-      > = {
-        limit,
-      };
-
-      if (cursor) {
-        params.cursor = cursor;
+      const resolvedProjectIdentifier = projectIdentifier || projectName;
+      if (!resolvedProjectIdentifier) {
+        throw new Error("projectIdentifier or legacy projectName is required");
       }
 
-      if (startTime) {
-        params.start_time = startTime;
-      }
+      const response = await fetchProjectSpans({
+        client,
+        projectIdentifier: resolvedProjectIdentifier,
+        filters: {
+          cursor,
+          limit,
+          startTime,
+          endTime,
+          traceIds,
+          parentId,
+          names,
+          spanKinds,
+          statusCodes,
+        },
+        totalLimit: limit,
+      });
 
-      if (endTime) {
-        params.end_time = endTime;
-      }
+      const spans = includeAnnotations
+        ? attachAnnotationsToSpans({
+            spans: response.spans,
+            annotations: await fetchSpanAnnotations({
+              client,
+              projectIdentifier: resolvedProjectIdentifier,
+              spanIds: response.spans
+                .map((span) => span.context?.span_id)
+                .filter((spanId): spanId is string => Boolean(spanId)),
+            }),
+          })
+        : response.spans;
 
-      if (traceIds) {
-        params.trace_id = traceIds;
-      }
-
-      const response = await client.GET(
-        "/v1/projects/{project_identifier}/spans",
-        {
-          params: {
-            path: {
-              project_identifier: projectName,
-            },
-            query: params,
-          },
-        }
-      );
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                spans: response.data?.data ?? [],
-                nextCursor: response.data?.next_cursor ?? null,
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
+      return jsonResponse({
+        spans,
+        nextCursor: response.nextCursor,
+      });
     }
   );
 
@@ -146,7 +156,8 @@ export const initializeSpanTools = ({
     "get-span-annotations",
     GET_SPAN_ANNOTATIONS_DESCRIPTION,
     {
-      projectName: z.string(),
+      projectIdentifier: z.string().optional(),
+      projectName: z.string().optional(),
       spanIds: z.array(z.string()),
       includeAnnotationNames: z.array(z.string()).optional(),
       excludeAnnotationNames: z.array(z.string()).optional(),
@@ -154,6 +165,7 @@ export const initializeSpanTools = ({
       limit: z.number().min(1).max(1000).default(100).optional(),
     },
     async ({
+      projectIdentifier,
       projectName,
       spanIds,
       includeAnnotationNames,
@@ -161,6 +173,11 @@ export const initializeSpanTools = ({
       cursor,
       limit = 100,
     }) => {
+      const resolvedProjectIdentifier = projectIdentifier || projectName;
+      if (!resolvedProjectIdentifier) {
+        throw new Error("projectIdentifier or legacy projectName is required");
+      }
+
       const params: NonNullable<
         Types["V1"]["operations"]["listSpanAnnotationsBySpanIds"]["parameters"]["query"]
       > = {
@@ -185,28 +202,21 @@ export const initializeSpanTools = ({
         {
           params: {
             path: {
-              project_identifier: projectName,
+              project_identifier: resolvedProjectIdentifier,
             },
             query: params,
           },
         }
       );
+      const data = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch span annotations for project "${resolvedProjectIdentifier}"`,
+      });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                annotations: response.data?.data ?? [],
-                nextCursor: response.data?.next_cursor ?? null,
-              },
-              null,
-              2
-            ),
-          },
-        ],
-      };
+      return jsonResponse({
+        annotations: data.data,
+        nextCursor: data.next_cursor || null,
+      });
     }
   );
 };
