@@ -2,14 +2,20 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { DEFAULT_PAGE_SIZE, MAX_SPAN_QUERY_LIMIT } from "./constants.js";
 import { resolveProjectIdentifier } from "./projectUtils.js";
 import { getResponseData } from "./responseUtils.js";
 import {
   attachAnnotationsToSpans,
+  extractSpanIds,
   fetchProjectSpans,
   fetchSpanAnnotations,
 } from "./spanUtils.js";
 import { jsonResponse } from "./toolResults.js";
+
+// ---------------------------------------------------------------------------
+// Tool descriptions
+// ---------------------------------------------------------------------------
 
 const GET_SPANS_DESCRIPTION = `Get spans from a project with filtering criteria.
 
@@ -73,6 +79,13 @@ Expected return:
     "nextCursor": "cursor_for_pagination"
   }`;
 
+// ---------------------------------------------------------------------------
+// Tool registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register span-related MCP tools on the given server.
+ */
 export const initializeSpanTools = ({
   client,
   server,
@@ -87,7 +100,6 @@ export const initializeSpanTools = ({
     GET_SPANS_DESCRIPTION,
     {
       projectIdentifier: z.string().optional(),
-      projectName: z.string().optional(),
       startTime: z.string().optional(),
       endTime: z.string().optional(),
       traceIds: z.array(z.string()).optional(),
@@ -96,12 +108,16 @@ export const initializeSpanTools = ({
       spanKinds: z.array(z.string()).optional(),
       statusCodes: z.array(z.enum(["OK", "ERROR", "UNSET"])).optional(),
       cursor: z.string().optional(),
-      limit: z.number().min(1).max(1000).default(100).optional(),
+      limit: z
+        .number()
+        .min(1)
+        .max(MAX_SPAN_QUERY_LIMIT)
+        .default(DEFAULT_PAGE_SIZE)
+        .optional(),
       includeAnnotations: z.boolean().default(false).optional(),
     },
     async ({
       projectIdentifier,
-      projectName,
       startTime,
       endTime,
       traceIds,
@@ -110,12 +126,11 @@ export const initializeSpanTools = ({
       spanKinds,
       statusCodes,
       cursor,
-      limit = 100,
+      limit = DEFAULT_PAGE_SIZE,
       includeAnnotations = false,
     }) => {
       const resolvedProjectIdentifier = resolveProjectIdentifier({
         projectIdentifier,
-        legacyProjectIdentifier: projectName,
         defaultProjectIdentifier: defaultProject,
       });
 
@@ -142,9 +157,7 @@ export const initializeSpanTools = ({
             annotations: await fetchSpanAnnotations({
               client,
               projectIdentifier: resolvedProjectIdentifier,
-              spanIds: response.spans
-                .map((span) => span.context?.span_id)
-                .filter((spanId): spanId is string => Boolean(spanId)),
+              spanIds: extractSpanIds(response.spans),
             }),
           })
         : response.spans;
@@ -161,25 +174,27 @@ export const initializeSpanTools = ({
     GET_SPAN_ANNOTATIONS_DESCRIPTION,
     {
       projectIdentifier: z.string().optional(),
-      projectName: z.string().optional(),
       spanIds: z.array(z.string()),
       includeAnnotationNames: z.array(z.string()).optional(),
       excludeAnnotationNames: z.array(z.string()).optional(),
       cursor: z.string().optional(),
-      limit: z.number().min(1).max(1000).default(100).optional(),
+      limit: z
+        .number()
+        .min(1)
+        .max(MAX_SPAN_QUERY_LIMIT)
+        .default(DEFAULT_PAGE_SIZE)
+        .optional(),
     },
     async ({
       projectIdentifier,
-      projectName,
       spanIds,
       includeAnnotationNames,
       excludeAnnotationNames,
       cursor,
-      limit = 100,
+      limit = DEFAULT_PAGE_SIZE,
     }) => {
       const resolvedProjectIdentifier = resolveProjectIdentifier({
         projectIdentifier,
-        legacyProjectIdentifier: projectName,
         defaultProjectIdentifier: defaultProject,
       });
 

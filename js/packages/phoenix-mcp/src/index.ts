@@ -19,7 +19,7 @@ import { initializeTraceTools } from "./traceTools.js";
 
 const argv = minimist(process.argv.slice(2));
 const config = resolveConfig({
-  cliOptions: {
+  commandLineOptions: {
     apiKey: argv.apiKey,
     baseUrl: argv.baseUrl,
     project: argv.project,

@@ -10,6 +10,14 @@ import {
   type SpanStatusCode,
 } from "@arizeai/phoenix-client/spans";
 
+import {
+  ANNOTATION_CHUNK_SIZE,
+  ANNOTATION_PAGE_SIZE,
+  DEFAULT_PAGE_SIZE,
+  MAX_CONCURRENT_ANNOTATION_REQUESTS,
+  MAX_SPAN_QUERY_LIMIT,
+  MS_PER_MINUTE,
+} from "./constants.js";
 import { requireIdentifier } from "./identifiers.js";
 import { getResponseData } from "./responseUtils.js";
 import type { SpanAnnotation, SpanWithAnnotations } from "./traceUtils.js";
@@ -17,14 +25,28 @@ import type { SpanAnnotation, SpanWithAnnotations } from "./traceUtils.js";
 type Span = componentsV1["schemas"]["Span"];
 type ProjectSpansRequest = Omit<GetSpansParams, "client" | "project">;
 
-const DEFAULT_PAGE_LIMIT = 1000;
-const DEFAULT_SPAN_IDS_CHUNK_SIZE = 100;
-const DEFAULT_MAX_CONCURRENT = 5;
+/**
+ * Extract span IDs from an array of spans, filtering out any without context.
+ */
+export function extractSpanIds(
+  spans: { context?: { span_id?: string } }[]
+): string[] {
+  return spans
+    .map((span) => span.context?.span_id)
+    .filter((spanId): spanId is string => Boolean(spanId));
+}
 
 type SpanAnnotationsQuery = NonNullable<
   Types["V1"]["operations"]["listSpanAnnotationsBySpanIds"]["parameters"]["query"]
 >;
 
+/**
+ * Filters accepted by span-fetching MCP tools.
+ *
+ * These mirror the phoenix-client `getSpans` parameters but use
+ * MCP-friendly names (`names` instead of `name`, `spanKinds` instead
+ * of `spanKind`) so that LLM callers see plural arrays.
+ */
 export interface SpanFilterInput {
   cursor?: string;
   limit?: number;
@@ -38,7 +60,10 @@ export interface SpanFilterInput {
 }
 
 /**
- * Translate MCP span filters into the `phoenix-client` spans helper shape.
+ * Translate MCP span filters into the phoenix-client `getSpans` parameter shape.
+ *
+ * The MCP layer uses plural field names (`names`, `spanKinds`, `statusCodes`)
+ * while phoenix-client uses singular (`name`, `spanKind`, `statusCode`).
  */
 export function buildProjectSpansRequest({
   cursor,
@@ -85,7 +110,12 @@ export function buildProjectSpansRequest({
 }
 
 /**
- * Resolve the lower bound start time for trace and span listing tools.
+ * Resolve the lower-bound start time for trace and span listing tools.
+ *
+ * An explicit `since` ISO timestamp takes precedence. When only `lastNMinutes`
+ * is provided the start time is computed relative to `now`.
+ *
+ * @returns An ISO 8601 timestamp string, or `undefined` if no time constraint was given.
  */
 export function resolveStartTime({
   since,
@@ -103,11 +133,18 @@ export function resolveStartTime({
     return undefined;
   }
 
-  return new Date(now.getTime() - lastNMinutes * 60 * 1000).toISOString();
+  return new Date(now.getTime() - lastNMinutes * MS_PER_MINUTE).toISOString();
 }
 
 /**
- * Fetch spans for a project with MCP-specific pagination and limit handling.
+ * Fetch spans for a project, paginating internally until `totalLimit` is
+ * reached or all matching spans have been retrieved.
+ *
+ * @param options.client - The Phoenix REST client.
+ * @param options.projectIdentifier - Project name or Relay GlobalID.
+ * @param options.filters - Span filter criteria.
+ * @param options.totalLimit - Cap on the total number of spans returned.
+ * @returns The collected spans and an optional cursor for further pagination.
  */
 export async function fetchProjectSpans({
   client,
@@ -126,7 +163,10 @@ export async function fetchProjectSpans({
   });
   const collectedSpans: Span[] = [];
   let cursor: string | undefined = filters.cursor;
-  const pageLimit = Math.min(totalLimit || filters.limit || 100, 1000);
+  const pageLimit = Math.min(
+    totalLimit || filters.limit || DEFAULT_PAGE_SIZE,
+    MAX_SPAN_QUERY_LIMIT
+  );
 
   do {
     const response = await getSpans({
@@ -156,6 +196,9 @@ export async function fetchProjectSpans({
   };
 }
 
+/**
+ * Split an array into chunks of at most `size` elements.
+ */
 function chunkArray<TValue>(values: TValue[], size: number): TValue[][] {
   const chunks: TValue[][] = [];
 
@@ -168,6 +211,9 @@ function chunkArray<TValue>(values: TValue[], size: number): TValue[][] {
 
 /**
  * Fetch all span annotation pages for a single chunk of span IDs.
+ *
+ * Paginates internally until every annotation for the given span IDs
+ * has been collected.
  */
 async function fetchSpanAnnotationsForChunk({
   client,
@@ -228,7 +274,19 @@ async function fetchSpanAnnotationsForChunk({
 }
 
 /**
- * Fetch span annotations in chunks to avoid overloading the annotations route.
+ * Fetch span annotations in chunks to avoid overwhelming the annotations
+ * endpoint with very large span-ID lists.
+ *
+ * Span IDs are split into chunks of {@link ANNOTATION_CHUNK_SIZE} and
+ * fetched with a concurrency cap of {@link MAX_CONCURRENT_ANNOTATION_REQUESTS}.
+ *
+ * @param options.client - The Phoenix REST client.
+ * @param options.projectIdentifier - Project name or Relay GlobalID.
+ * @param options.spanIds - Span IDs to fetch annotations for.
+ * @param options.includeAnnotationNames - Only return annotations with these names.
+ * @param options.excludeAnnotationNames - Exclude annotations with these names.
+ * @param options.pageLimit - Per-page limit for annotation pagination.
+ * @param options.maxConcurrent - Maximum concurrent chunk requests.
  */
 export async function fetchSpanAnnotations({
   client,
@@ -236,8 +294,8 @@ export async function fetchSpanAnnotations({
   spanIds,
   includeAnnotationNames,
   excludeAnnotationNames,
-  pageLimit = DEFAULT_PAGE_LIMIT,
-  maxConcurrent = DEFAULT_MAX_CONCURRENT,
+  pageLimit = ANNOTATION_PAGE_SIZE,
+  maxConcurrent = MAX_CONCURRENT_ANNOTATION_REQUESTS,
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
@@ -256,7 +314,7 @@ export async function fetchSpanAnnotations({
     label: "projectIdentifier",
   });
   const uniqueSpanIds = Array.from(new Set(spanIds));
-  const chunks = chunkArray(uniqueSpanIds, DEFAULT_SPAN_IDS_CHUNK_SIZE);
+  const chunks = chunkArray(uniqueSpanIds, ANNOTATION_CHUNK_SIZE);
   const allAnnotations: SpanAnnotation[] = [];
 
   for (
@@ -286,6 +344,13 @@ export async function fetchSpanAnnotations({
   return allAnnotations;
 }
 
+/**
+ * Merge annotations onto their corresponding spans by `span_id`.
+ *
+ * Spans that have no matching annotations are returned unmodified.
+ * Spans with annotations gain an `annotations` property containing
+ * the full list.
+ */
 export function attachAnnotationsToSpans({
   spans,
   annotations,

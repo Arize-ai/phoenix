@@ -1,23 +1,15 @@
 import type { PhoenixClient } from "@arizeai/phoenix-client";
 
-import {
-  getRelayGlobalIdIfType,
-  requireIdentifier,
-} from "./identifiers.js";
+import { getRelayGlobalIdIfType, requireIdentifier } from "./identifiers.js";
 import { getResponseData } from "./responseUtils.js";
-
-export interface ResolveDatasetIdOptions {
-  client: PhoenixClient;
-  datasetIdentifier: string;
-}
 
 /**
  * Determine whether a dataset identifier is already a Phoenix Relay GlobalID.
  */
-export function isPhoenixDatasetId(datasetIdentifier: string): boolean {
+export function isPhoenixDatasetId(identifier: string): boolean {
   return (
     getRelayGlobalIdIfType({
-      identifier: datasetIdentifier,
+      identifier,
       expectedTypeName: "Dataset",
     }) !== null
   );
@@ -25,28 +17,50 @@ export function isPhoenixDatasetId(datasetIdentifier: string): boolean {
 
 /**
  * Resolve a dataset name or Relay GlobalID to the dataset's canonical ID.
+ *
+ * When `datasetId` is provided and is a valid Relay GlobalID, it is returned
+ * directly without an API call. Otherwise `datasetName` is looked up via the
+ * datasets list endpoint.
  */
 export async function resolveDatasetId({
   client,
-  datasetIdentifier,
-}: ResolveDatasetIdOptions): Promise<string> {
-  const normalizedDatasetIdentifier = requireIdentifier({
-    identifier: datasetIdentifier,
-    label: "datasetIdentifier",
-  });
-  const datasetId = getRelayGlobalIdIfType({
-    identifier: normalizedDatasetIdentifier,
-    expectedTypeName: "Dataset",
-  });
-
+  datasetId,
+  datasetName,
+}: {
+  client: PhoenixClient;
+  datasetId?: string;
+  datasetName?: string;
+}): Promise<string> {
+  // Prefer datasetId when provided
   if (datasetId) {
-    return datasetId;
+    const normalizedId = requireIdentifier({
+      identifier: datasetId,
+      label: "datasetId",
+    });
+    const relayId = getRelayGlobalIdIfType({
+      identifier: normalizedId,
+      expectedTypeName: "Dataset",
+    });
+    if (relayId) {
+      return relayId;
+    }
+    // datasetId might be a name if caller used the wrong field — fall through
   }
+
+  const nameToResolve = datasetName || datasetId;
+  if (!nameToResolve?.trim()) {
+    throw new Error("datasetName or datasetId is required");
+  }
+
+  const normalizedName = requireIdentifier({
+    identifier: nameToResolve,
+    label: "datasetName",
+  });
 
   const response = await client.GET("/v1/datasets", {
     params: {
       query: {
-        name: normalizedDatasetIdentifier,
+        name: normalizedName,
         limit: 1,
       },
     },
@@ -54,11 +68,11 @@ export async function resolveDatasetId({
 
   const data = getResponseData({
     response,
-    errorPrefix: `Failed to resolve dataset "${normalizedDatasetIdentifier}"`,
+    errorPrefix: `Failed to resolve dataset "${normalizedName}"`,
   });
 
   if (data.data.length === 0) {
-    throw new Error(`Dataset not found: "${normalizedDatasetIdentifier}"`);
+    throw new Error(`Dataset not found: "${normalizedName}"`);
   }
 
   return data.data[0]!.id;

@@ -3,16 +3,27 @@ import { getTraces } from "@arizeai/phoenix-client/traces";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import {
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_TRACE_PAGE_SIZE,
+  MAX_SPAN_QUERY_LIMIT,
+  MAX_TRACE_PAGE_SIZE,
+} from "./constants.js";
 import { requireIdentifier } from "./identifiers.js";
 import { resolveProjectIdentifier } from "./projectUtils.js";
 import {
   attachAnnotationsToSpans,
+  extractSpanIds,
   fetchProjectSpans,
   fetchSpanAnnotations,
   resolveStartTime,
 } from "./spanUtils.js";
 import { jsonResponse } from "./toolResults.js";
 import { buildTrace, groupSpansByTrace } from "./traceUtils.js";
+
+// ---------------------------------------------------------------------------
+// Tool descriptions
+// ---------------------------------------------------------------------------
 
 const LIST_TRACES_DESCRIPTION = `List traces for a project.
 
@@ -33,6 +44,13 @@ Example usage:
 Expected return:
   A trace object with all spans that belong to the matching trace.`;
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch every span belonging to a single trace.
+ */
 async function fetchTraceSpans({
   client,
   projectIdentifier,
@@ -47,7 +65,7 @@ async function fetchTraceSpans({
     projectIdentifier,
     filters: {
       traceIds: [traceId],
-      limit: 1000,
+      limit: MAX_SPAN_QUERY_LIMIT,
     },
     totalLimit: undefined,
   });
@@ -55,11 +73,17 @@ async function fetchTraceSpans({
   return response.spans;
 }
 
+/**
+ * Resolve a trace ID prefix to a full trace ID by scanning all project
+ * traces. Throws when the prefix matches more than one trace.
+ *
+ * @returns The matching trace ID, or `null` if no match was found.
+ */
 export async function resolveTraceIdByPrefix({
   client,
   projectIdentifier,
   traceIdPrefix,
-  pageLimit = 100,
+  pageLimit = DEFAULT_PAGE_SIZE,
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
@@ -103,6 +127,13 @@ export async function resolveTraceIdByPrefix({
   return matchingTraceIds.values().next().value ?? null;
 }
 
+// ---------------------------------------------------------------------------
+// Tool registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register trace-related MCP tools on the given server.
+ */
 export const initializeTraceTools = ({
   client,
   server,
@@ -117,7 +148,11 @@ export const initializeTraceTools = ({
     LIST_TRACES_DESCRIPTION,
     {
       projectIdentifier: z.string().optional(),
-      limit: z.number().min(1).max(100).default(10),
+      limit: z
+        .number()
+        .min(1)
+        .max(MAX_TRACE_PAGE_SIZE)
+        .default(DEFAULT_TRACE_PAGE_SIZE),
       since: z.string().optional(),
       lastNMinutes: z.number().min(1).optional(),
       includeAnnotations: z.boolean().default(false).optional(),
@@ -153,7 +188,7 @@ export const initializeTraceTools = ({
         projectIdentifier: normalizedProjectIdentifier,
         filters: {
           traceIds,
-          limit: 1000,
+          limit: MAX_SPAN_QUERY_LIMIT,
         },
         totalLimit: undefined,
       });
@@ -163,14 +198,9 @@ export const initializeTraceTools = ({
         const annotations = await fetchSpanAnnotations({
           client,
           projectIdentifier: normalizedProjectIdentifier,
-          spanIds: spans
-            .map((span) => span.context?.span_id)
-            .filter((spanId): spanId is string => Boolean(spanId)),
+          spanIds: extractSpanIds(spans),
         });
-        spans = attachAnnotationsToSpans({
-          spans,
-          annotations,
-        });
+        spans = attachAnnotationsToSpans({ spans, annotations });
       }
 
       const spansByTraceId = groupSpansByTrace({ spans });
@@ -230,14 +260,9 @@ export const initializeTraceTools = ({
         const annotations = await fetchSpanAnnotations({
           client,
           projectIdentifier: normalizedProjectIdentifier,
-          spanIds: spans
-            .map((span) => span.context?.span_id)
-            .filter((spanId): spanId is string => Boolean(spanId)),
+          spanIds: extractSpanIds(spans),
         });
-        spans = attachAnnotationsToSpans({
-          spans,
-          annotations,
-        });
+        spans = attachAnnotationsToSpans({ spans, annotations });
       }
 
       return jsonResponse(buildTrace({ spans }));

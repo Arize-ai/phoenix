@@ -1,39 +1,46 @@
-const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/]+$/;
-
+/**
+ * Parsed components of a Relay GlobalID.
+ *
+ * Relay GlobalIDs encode a `TypeName:nodeId` pair as base64.
+ */
 export interface RelayGlobalId {
   typeName: string;
   nodeId: string;
 }
 
+/**
+ * Attempt to decode a base64 string, returning `null` when the input
+ * is not valid base64 or cannot round-trip cleanly.
+ */
 function decodeBase64(value: string): string | null {
-  const unpaddedValue = value.replace(/=+$/, "");
-  if (!unpaddedValue || !BASE64_BODY_PATTERN.test(unpaddedValue)) {
-    return null;
-  }
-
-  const paddingLength = (4 - (unpaddedValue.length % 4)) % 4;
-  const normalizedValue = `${unpaddedValue}${"=".repeat(paddingLength)}`;
-
   try {
-    const decodedValue = Buffer.from(normalizedValue, "base64").toString(
-      "utf8"
-    );
-    const reEncodedValue = Buffer.from(decodedValue, "utf8")
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    // Round-trip: re-encode and compare (ignoring padding) to reject
+    // strings that happen to survive lossy base64 decoding.
+    const reEncoded = Buffer.from(decoded, "utf8")
       .toString("base64")
       .replace(/=+$/, "");
-
-    return reEncodedValue === unpaddedValue ? decodedValue : null;
+    const unpadded = value.replace(/=+$/, "");
+    return reEncoded === unpadded ? decoded : null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Trim surrounding whitespace from an identifier string.
+ */
 export function getNormalizedIdentifier(identifier: string): string {
   return identifier.trim();
 }
 
 /**
  * Require a non-empty identifier value and return it trimmed.
+ *
+ * @param options.identifier - The raw identifier string to validate.
+ * @param options.label - A human-readable label used in the error message
+ *   (e.g. `"projectIdentifier"`).
+ * @throws When the identifier is empty or whitespace-only.
  */
 export function requireIdentifier({
   identifier,
@@ -51,29 +58,9 @@ export function requireIdentifier({
 }
 
 /**
- * Resolve a preferred identifier, optionally falling back to a legacy field.
- */
-export function requirePreferredIdentifier({
-  identifier,
-  legacyIdentifier,
-  label,
-  legacyLabel,
-}: {
-  identifier?: string;
-  legacyIdentifier?: string;
-  label: string;
-  legacyLabel: string;
-}): string {
-  const normalizedIdentifier = identifier?.trim() || legacyIdentifier?.trim();
-  if (!normalizedIdentifier) {
-    throw new Error(`${label} or legacy ${legacyLabel} is required`);
-  }
-
-  return normalizedIdentifier;
-}
-
-/**
  * Parse a Relay GlobalID into its `TypeName:nodeId` components.
+ *
+ * @returns The parsed components, or `null` if the string is not a valid Relay GlobalID.
  */
 export function parseRelayGlobalId(identifier: string): RelayGlobalId | null {
   const normalizedIdentifier = getNormalizedIdentifier(identifier);
@@ -87,10 +74,7 @@ export function parseRelayGlobalId(identifier: string): RelayGlobalId | null {
   }
 
   const separatorIndex = decodedIdentifier.indexOf(":");
-  if (
-    separatorIndex <= 0 ||
-    separatorIndex === decodedIdentifier.length - 1
-  ) {
+  if (separatorIndex <= 0 || separatorIndex === decodedIdentifier.length - 1) {
     return null;
   }
 
@@ -101,7 +85,11 @@ export function parseRelayGlobalId(identifier: string): RelayGlobalId | null {
 }
 
 /**
- * Return the normalized Relay GlobalID when it matches the expected type.
+ * Return the normalized Relay GlobalID when it matches the expected type,
+ * or `null` otherwise.
+ *
+ * Useful for distinguishing a human-readable name from a Relay ID so that
+ * the correct API call path can be chosen.
  */
 export function getRelayGlobalIdIfType({
   identifier,

@@ -20,11 +20,9 @@ describe("resolveProjectIdentifier", () => {
     ).toBe("default-project");
   });
 
-  it("falls back to the legacy project name", () => {
-    expect(
-      resolveProjectIdentifier({
-        legacyProjectIdentifier: " legacy-project ",
-      })
-    ).toBe("legacy-project");
+  it("throws when no identifier is provided", () => {
+    expect(() => resolveProjectIdentifier({})).toThrow(
+      "projectIdentifier is required"
+    );
   });
 });

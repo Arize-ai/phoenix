@@ -3,12 +3,11 @@ import {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
+  ENV_PHOENIX_PROJECT,
   getHeadersFromEnvironment,
   getStrFromEnvironment,
   type Headers,
 } from "@arizeai/phoenix-config";
-
-const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
 
 export const DEFAULT_PHOENIX_ENDPOINT = DEFAULT_PHOENIX_BASE_URL;
 
@@ -20,7 +19,7 @@ export interface PhoenixMcpConfig {
 }
 
 export interface ResolveConfigOptions {
-  cliOptions: {
+  commandLineOptions: {
     baseUrl?: string | boolean;
     apiKey?: string | boolean;
     project?: string | boolean;
@@ -44,35 +43,39 @@ export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   };
 }
 
-function getStringCliOptions(
-  cliOptions: ResolveConfigOptions["cliOptions"]
+/**
+ * Extract only the string-valued command-line options, ignoring bare boolean
+ * flags that `minimist` produces when a flag is used without a value.
+ */
+function getStringCommandLineOptions(
+  commandLineOptions: ResolveConfigOptions["commandLineOptions"]
 ): Partial<PhoenixMcpConfig> {
   return {
-    ...(typeof cliOptions.baseUrl === "string"
-      ? { baseUrl: cliOptions.baseUrl }
+    ...(typeof commandLineOptions.baseUrl === "string"
+      ? { baseUrl: commandLineOptions.baseUrl }
       : {}),
-    ...(typeof cliOptions.apiKey === "string"
-      ? { apiKey: cliOptions.apiKey }
+    ...(typeof commandLineOptions.apiKey === "string"
+      ? { apiKey: commandLineOptions.apiKey }
       : {}),
-    ...(typeof cliOptions.project === "string"
-      ? { project: cliOptions.project }
+    ...(typeof commandLineOptions.project === "string"
+      ? { project: commandLineOptions.project }
       : {}),
   };
 }
 
 /**
- * Merge environment-derived Phoenix MCP configuration with CLI overrides.
+ * Merge environment-derived Phoenix MCP configuration with command-line overrides.
  *
- * Only string CLI values are treated as overrides so that bare flags parsed by
- * `minimist` do not replace valid environment defaults with boolean `true`.
+ * Only string command-line values are treated as overrides so that bare flags
+ * parsed by `minimist` do not replace valid environment defaults with boolean `true`.
  */
 export function resolveConfig({
-  cliOptions,
+  commandLineOptions,
 }: ResolveConfigOptions): PhoenixMcpConfig {
   const envConfig = loadConfigFromEnvironment();
 
   return {
     ...envConfig,
-    ...getStringCliOptions(cliOptions),
+    ...getStringCommandLineOptions(commandLineOptions),
   };
 }

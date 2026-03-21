@@ -2,12 +2,18 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { MAX_LIST_LIMIT } from "./constants.js";
+import { fetchAllPages } from "./pagination.js";
 import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
 
+// ---------------------------------------------------------------------------
+// Tool descriptions
+// ---------------------------------------------------------------------------
+
 const LIST_PROJECTS_DESCRIPTION = `Get a list of all projects.
 
-Projects are containers for organizing traces, spans, and other observability data. 
+Projects are containers for organizing traces, spans, and other observability data.
 Each project has a unique name and can contain traces from different applications or experiments.
 
 Example usage:
@@ -22,7 +28,7 @@ Expected return:
       "description": "Default project for traces"
     },
     {
-      "id": "UHJvamVjdDoy", 
+      "id": "UHJvamVjdDoy",
       "name": "my-experiment",
       "description": "Project for my ML experiment"
     }
@@ -36,6 +42,13 @@ Example usage:
 Expected return:
   A single project object with metadata.`;
 
+// ---------------------------------------------------------------------------
+// Tool registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register project-related MCP tools on the given server.
+ */
 export const initializeProjectTools = ({
   client,
   server,
@@ -47,35 +60,33 @@ export const initializeProjectTools = ({
     "list-projects",
     LIST_PROJECTS_DESCRIPTION,
     {
-      limit: z.number().min(1).max(500).default(100).optional(),
+      limit: z.number().min(1).max(MAX_LIST_LIMIT).default(100).optional(),
       cursor: z.string().optional(),
       includeExperimentProjects: z.boolean().default(false).optional(),
     },
     async ({ limit = 100, cursor, includeExperimentProjects = false }) => {
-      const projects: unknown[] = [];
-      let nextCursor = cursor;
-
-      do {
-        const pageLimit = Math.min(limit - projects.length, 100);
-        const response = await client.GET("/v1/projects", {
-          params: {
-            query: {
-              limit: pageLimit,
-              cursor: nextCursor,
-              include_experiment_projects: includeExperimentProjects,
+      const projects = await fetchAllPages({
+        limit,
+        initialCursor: cursor,
+        fetchPage: async (pageCursor, pageSize) => {
+          const response = await client.GET("/v1/projects", {
+            params: {
+              query: {
+                limit: pageSize,
+                cursor: pageCursor,
+                include_experiment_projects: includeExperimentProjects,
+              },
             },
-          },
-        });
-        const data = getResponseData({
-          response,
-          errorPrefix: "Failed to fetch projects",
-        });
+          });
+          const data = getResponseData({
+            response,
+            errorPrefix: "Failed to fetch projects",
+          });
+          return { data: data.data, nextCursor: data.next_cursor || undefined };
+        },
+      });
 
-        projects.push(...data.data);
-        nextCursor = data.next_cursor || undefined;
-      } while (nextCursor && projects.length < limit);
-
-      return jsonResponse(projects.slice(0, limit));
+      return jsonResponse(projects);
     }
   );
 
@@ -88,9 +99,7 @@ export const initializeProjectTools = ({
     async ({ projectIdentifier }) => {
       const response = await client.GET("/v1/projects/{project_identifier}", {
         params: {
-          path: {
-            project_identifier: projectIdentifier,
-          },
+          path: { project_identifier: projectIdentifier },
         },
       });
       const project = getResponseData({

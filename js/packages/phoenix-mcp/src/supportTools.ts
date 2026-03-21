@@ -15,10 +15,18 @@ or best practices.
 Expected return:
   Expert guidance about how to use and integrate Phoenix`;
 
+/** Cached RunLLM MCP client, lazily created on first use. */
+let runLLMClient: Client | null = null;
+
 /**
- * Creates an MCP client connected to the RunLLM server via HTTP
+ * Return a cached MCP client connected to the RunLLM server.
+ * Creates and connects the client on first call; subsequent calls reuse it.
  */
-async function createRunLLMClient(): Promise<Client> {
+async function getRunLLMClient(): Promise<Client> {
+  if (runLLMClient) {
+    return runLLMClient;
+  }
+
   const transport = new StreamableHTTPClientTransport(
     new URL("https://mcp.runllm.com/mcp"),
     {
@@ -36,28 +44,25 @@ async function createRunLLMClient(): Promise<Client> {
   });
 
   await client.connect(transport);
+  runLLMClient = client;
   return client;
 }
 
 /**
- * Calls the chat tool on the RunLLM MCP server
+ * Calls the search tool on the RunLLM MCP server.
  */
 export async function callRunLLMQuery({
   query,
 }: {
   query: string;
 }): Promise<string> {
-  const client = await createRunLLMClient();
+  const client = await getRunLLMClient();
 
-  // Call the chat tool with the user's question
   const result = await client.callTool({
     name: "search",
-    arguments: {
-      query: query,
-    },
+    arguments: { query },
   });
 
-  // There's usually only one content item, but we'll handle multiple for safety
   if (result.content && Array.isArray(result.content)) {
     const textContent = result.content
       .filter((item) => item.type === "text")

@@ -11,13 +11,13 @@ describe("resolveConfig", () => {
     vi.unstubAllEnvs();
   });
 
-  it("uses CLI options over environment-derived defaults", () => {
+  it("uses command-line options over environment-derived defaults", () => {
     vi.stubEnv("PHOENIX_HOST", "https://env.example.com");
     vi.stubEnv("PHOENIX_API_KEY", "env-key");
     vi.stubEnv("PHOENIX_PROJECT", "env-project");
 
     const config = resolveConfig({
-      cliOptions: {
+      commandLineOptions: {
         apiKey: "cli-key",
         baseUrl: "https://cli.example.com",
         project: "cli-project",
@@ -37,7 +37,7 @@ describe("resolveConfig", () => {
     vi.stubEnv("PHOENIX_PROJECT", "");
 
     const config = resolveConfig({
-      cliOptions: {},
+      commandLineOptions: {},
     });
 
     expect(config.baseUrl).toBe(DEFAULT_PHOENIX_ENDPOINT);
@@ -49,7 +49,7 @@ describe("resolveConfig", () => {
     vi.stubEnv("PHOENIX_PROJECT", "env-project");
 
     const config = resolveConfig({
-      cliOptions: {
+      commandLineOptions: {
         apiKey: true,
         baseUrl: true,
         project: true,

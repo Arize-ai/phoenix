@@ -58,6 +58,14 @@ export const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
 export const ENV_PHOENIX_LOG_LEVEL = "PHOENIX_LOG_LEVEL";
 
 /**
+ * Environment variable name for the default Phoenix project.
+ * When set, project-scoped operations use this project unless overridden.
+ * @example
+ * process.env[ENV_PHOENIX_PROJECT] = "my-project";
+ */
+export const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
+
+/**
  * Retrieves an integer value from an environment variable.
  *
  * @param envKey - The name of the environment variable to read

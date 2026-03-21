@@ -1,5 +1,11 @@
 import z from "zod";
 
+import {
+  DEFAULT_MODEL_NAME,
+  DEFAULT_MODEL_PROVIDER,
+  DEFAULT_TEMPERATURE,
+} from "./constants.js";
+
 export const listPromptsSchema = z.object({
   limit: z.number().min(1).max(100).default(100),
 });
@@ -9,9 +15,9 @@ export const getLatestPromptSchema = z.object({
 });
 
 export const getPromptSchema = z.object({
-  promptIdentifier: z.string(),
+  prompt_identifier: z.string(),
   tag: z.string().optional(),
-  versionId: z.string().optional(),
+  version_id: z.string().optional(),
 });
 
 export const getPromptByIdentifierSchema = z.object({
@@ -22,27 +28,34 @@ export const getPromptVersionSchema = z.object({
   prompt_version_id: z.string(),
 });
 
+/**
+ * Name transformation applied to prompt names:
+ * - lowercase
+ * - spaces → underscores
+ * - strip non-alphanumeric / non-underscore characters
+ */
+const promptNameSchema = z
+  .string()
+  .transform((val) =>
+    val
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^\w_]/g, "")
+  )
+  .refine((val) => val.length > 0, {
+    message: "Name cannot be empty after transformation",
+  });
+
 export const createPromptSchema = z.object({
-  name: z
-    .string()
-    .transform(
-      (val) =>
-        val
-          .toLowerCase()
-          .replace(/\s+/g, "_") // Replace spaces with underscores
-          .replace(/[^\w_]/g, "") // Remove anything that's not alphanumeric or underscore
-    )
-    .refine((val) => val.length > 0, {
-      message: "Name cannot be empty after transformation",
-    }),
+  name: promptNameSchema,
   description: z.string().optional(),
   template: z.string(),
   model_provider: z
     .enum(["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"])
     .optional()
-    .default("OPENAI"),
-  model_name: z.string().optional().default("gpt-4"),
-  temperature: z.number().optional().default(0.7),
+    .default(DEFAULT_MODEL_PROVIDER),
+  model_name: z.string().optional().default(DEFAULT_MODEL_NAME),
+  temperature: z.number().optional().default(DEFAULT_TEMPERATURE),
 });
 
 export const updatePromptSchema = z.object({

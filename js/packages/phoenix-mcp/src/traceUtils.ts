@@ -4,16 +4,30 @@ export type Span = componentsV1["schemas"]["Span"];
 export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
 export type SpanWithAnnotations = Span & { annotations?: SpanAnnotation[] };
 
+/**
+ * Summary view of a trace built from its constituent spans.
+ */
 export interface Trace {
+  /** The trace ID shared by all spans in this trace. */
   traceId: string;
+  /** All spans belonging to this trace. */
   spans: SpanWithAnnotations[];
+  /** The root span (no parent), if one exists. */
   rootSpan?: SpanWithAnnotations;
+  /** Earliest span start time (ISO 8601). */
   startTime?: string;
+  /** Latest span end time (ISO 8601). */
   endTime?: string;
+  /** Wall-clock duration of the trace in milliseconds. */
   duration?: number;
+  /** `"ERROR"` if any span has an error status or error attribute; `"OK"` otherwise. */
   status?: string;
 }
 
+/**
+ * Group an array of spans by their `trace_id`, returning a map
+ * from trace ID to the spans belonging to that trace.
+ */
 export function groupSpansByTrace({
   spans,
 }: {
@@ -32,6 +46,15 @@ export function groupSpansByTrace({
   return traces;
 }
 
+/**
+ * Build a {@link Trace} summary from a non-empty array of spans that share
+ * the same trace ID.
+ *
+ * The summary includes the root span, overall time range, duration, and a
+ * roll-up status that is `"ERROR"` when any span has an error.
+ *
+ * @throws When the spans array is empty.
+ */
 export function buildTrace({ spans }: { spans: SpanWithAnnotations[] }): Trace {
   if (spans.length === 0) {
     throw new Error("Cannot build trace from empty spans array");

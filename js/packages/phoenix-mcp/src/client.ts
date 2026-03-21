@@ -1,7 +1,4 @@
-import {
-  createClient,
-  type PhoenixClient,
-} from "@arizeai/phoenix-client";
+import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
 import type { PhoenixMcpConfig } from "./config.js";
 

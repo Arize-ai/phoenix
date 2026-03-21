@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  isPhoenixDatasetId,
-  resolveDatasetId,
-} from "../src/datasetUtils";
+import { isPhoenixDatasetId, resolveDatasetId } from "../src/datasetUtils";
 import { parseRelayGlobalId } from "../src/identifiers";
 
 describe("relay ID helpers", () => {
@@ -35,7 +32,7 @@ describe("dataset resolution", () => {
     await expect(
       resolveDatasetId({
         client,
-        datasetIdentifier: " RGF0YXNldDox ",
+        datasetId: " RGF0YXNldDox ",
       })
     ).resolves.toBe("RGF0YXNldDox");
 
@@ -58,7 +55,7 @@ describe("dataset resolution", () => {
     await expect(
       resolveDatasetId({
         client,
-        datasetIdentifier: "support-dataset",
+        datasetName: "support-dataset",
       })
     ).resolves.toBe("def456");
 

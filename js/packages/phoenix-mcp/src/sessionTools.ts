@@ -2,7 +2,9 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { DEFAULT_TRACE_PAGE_SIZE, MAX_SESSION_PAGE_SIZE } from "./constants.js";
 import { requireIdentifier } from "./identifiers.js";
+import { fetchAllPages } from "./pagination.js";
 import { resolveProjectIdentifier } from "./projectUtils.js";
 import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
@@ -10,6 +12,10 @@ import { jsonResponse } from "./toolResults.js";
 type SessionAnnotationsQuery = NonNullable<
   Types["V1"]["operations"]["listSessionAnnotationsBySessionIds"]["parameters"]["query"]
 >;
+
+// ---------------------------------------------------------------------------
+// Tool descriptions
+// ---------------------------------------------------------------------------
 
 const LIST_SESSIONS_DESCRIPTION = `List sessions for a project.
 
@@ -29,6 +35,13 @@ Example usage:
 Expected return:
   A session object and, optionally, its annotations.`;
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all annotations for a single session, paginating internally.
+ */
 async function fetchSessionAnnotations({
   client,
   projectIdentifier,
@@ -42,42 +55,44 @@ async function fetchSessionAnnotations({
     identifier: projectIdentifier,
     label: "projectIdentifier",
   });
-  const annotations: unknown[] = [];
-  let cursor: string | undefined;
 
-  do {
-    const query: SessionAnnotationsQuery = {
-      session_ids: [sessionId],
-      limit: 100,
-    };
+  return fetchAllPages({
+    limit: Infinity,
+    fetchPage: async (cursor, pageSize) => {
+      const query: SessionAnnotationsQuery = {
+        session_ids: [sessionId],
+        limit: pageSize,
+      };
 
-    if (cursor) {
-      query.cursor = cursor;
-    }
-
-    const response = await client.GET(
-      "/v1/projects/{project_identifier}/session_annotations",
-      {
-        params: {
-          path: {
-            project_identifier: normalizedProjectIdentifier,
-          },
-          query,
-        },
+      if (cursor) {
+        query.cursor = cursor;
       }
-    );
-    const data = getResponseData({
-      response,
-      errorPrefix: `Failed to fetch annotations for session "${sessionId}"`,
-    });
 
-    annotations.push(...data.data);
-    cursor = data.next_cursor || undefined;
-  } while (cursor);
-
-  return annotations;
+      const response = await client.GET(
+        "/v1/projects/{project_identifier}/session_annotations",
+        {
+          params: {
+            path: { project_identifier: normalizedProjectIdentifier },
+            query,
+          },
+        }
+      );
+      const data = getResponseData({
+        response,
+        errorPrefix: `Failed to fetch annotations for session "${sessionId}"`,
+      });
+      return { data: data.data, nextCursor: data.next_cursor || undefined };
+    },
+  });
 }
 
+// ---------------------------------------------------------------------------
+// Tool registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register session-related MCP tools on the given server.
+ */
 export const initializeSessionTools = ({
   client,
   server,
@@ -92,7 +107,11 @@ export const initializeSessionTools = ({
     LIST_SESSIONS_DESCRIPTION,
     {
       projectIdentifier: z.string().optional(),
-      limit: z.number().min(1).max(100).default(10),
+      limit: z
+        .number()
+        .min(1)
+        .max(MAX_SESSION_PAGE_SIZE)
+        .default(DEFAULT_TRACE_PAGE_SIZE),
       order: z.enum(["asc", "desc"]).default("desc").optional(),
     },
     async ({ projectIdentifier, limit, order = "desc" }) => {
@@ -100,36 +119,28 @@ export const initializeSessionTools = ({
         projectIdentifier,
         defaultProjectIdentifier: defaultProject,
       });
-      const sessions: unknown[] = [];
-      let cursor: string | undefined;
 
-      do {
-        const pageLimit = Math.min(limit - sessions.length, 100);
-        const response = await client.GET(
-          "/v1/projects/{project_identifier}/sessions",
-          {
-            params: {
-              path: {
-                project_identifier: normalizedProjectIdentifier,
+      const sessions = await fetchAllPages({
+        limit,
+        fetchPage: async (cursor, pageSize) => {
+          const response = await client.GET(
+            "/v1/projects/{project_identifier}/sessions",
+            {
+              params: {
+                path: { project_identifier: normalizedProjectIdentifier },
+                query: { cursor, limit: pageSize, order },
               },
-              query: {
-                cursor,
-                limit: pageLimit,
-                order,
-              },
-            },
-          }
-        );
-        const data = getResponseData({
-          response,
-          errorPrefix: `Failed to fetch sessions for project "${normalizedProjectIdentifier}"`,
-        });
+            }
+          );
+          const data = getResponseData({
+            response,
+            errorPrefix: `Failed to fetch sessions for project "${normalizedProjectIdentifier}"`,
+          });
+          return { data: data.data, nextCursor: data.next_cursor || undefined };
+        },
+      });
 
-        sessions.push(...data.data);
-        cursor = data.next_cursor || undefined;
-      } while (cursor && sessions.length < limit);
-
-      return jsonResponse(sessions.slice(0, limit));
+      return jsonResponse(sessions);
     }
   );
 
@@ -143,9 +154,7 @@ export const initializeSessionTools = ({
     async ({ sessionIdentifier, includeAnnotations = false }) => {
       const response = await client.GET("/v1/sessions/{session_identifier}", {
         params: {
-          path: {
-            session_identifier: sessionIdentifier,
-          },
+          path: { session_identifier: sessionIdentifier },
         },
       });
       const session = getResponseData({
