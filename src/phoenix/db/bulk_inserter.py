@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
 from time import perf_counter, time
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Optional, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, Iterable, Optional
 
 from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
@@ -61,6 +61,69 @@ class TransactionResult:
     updated_project_rowids: set[ProjectRowId] = field(default_factory=set)
 
 
+@dataclass
+class SpanBatchResult:
+    project_rowids: set[int] = field(default_factory=set)
+    span_costs: list[models.SpanCost] = field(default_factory=list)
+
+
+class SpanBatchWriter:
+    def __init__(self, db: DbSessionFactory, span_cost_calculator: SpanCostCalculator) -> None:
+        self._db = db
+        self._span_cost_calculator = span_cost_calculator
+
+    async def write(self, batch: list[tuple[Span, ProjectName]]) -> SpanBatchResult:
+        result = SpanBatchResult()
+        project_names = {project_name for _, project_name in batch}
+        session_ids = {
+            str(sid).strip()
+            for span, _ in batch
+            if (sid := get_attribute_value(span.attributes, SpanAttributes.SESSION_ID)) is not None
+        }
+        async with self._db() as session:
+            project_cache = await resolve_projects(session, project_names)
+            session_cache = await resolve_sessions(session, session_ids)
+            trace_rowids: set[int] = set()
+            for span, project_name in batch:
+                insertion_event: Optional[SpanInsertionEvent] = None
+                try:
+                    async with session.begin_nested():
+                        insertion_event = await insert_span(
+                            session,
+                            span,
+                            project_name,
+                            project_rowid=project_cache.get(project_name),
+                            session_cache=session_cache,
+                        )
+                except Exception:
+                    BULK_LOADER_SPAN_EXCEPTIONS.inc()
+                    logger.exception(f"Failed to insert span with span_id={span.context.span_id}")
+                if insertion_event is None:
+                    continue
+                result.project_rowids.add(insertion_event.project_rowid)
+                trace_rowids.add(insertion_event.trace_rowid)
+                try:
+                    if not should_calculate_span_cost(span.attributes):
+                        continue
+                    span_cost = self._span_cost_calculator.calculate_cost(
+                        span.start_time,
+                        span.attributes,
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to calculate span cost for span with "
+                        f"span_id={span.context.span_id}"
+                    )
+                else:
+                    if span_cost is None:
+                        continue
+                    span_cost.span_rowid = insertion_event.span_rowid
+                    span_cost.trace_rowid = insertion_event.trace_rowid
+                    result.span_costs.append(span_cost)
+            await recompute_trace_cumulative_values(session, trace_rowids)
+        return result
+
+
 class BulkInserter:
     def __init__(
         self,
@@ -89,8 +152,8 @@ class BulkInserter:
         self._running = False
         self._sleep = sleep
         self._max_ops_per_transaction = max_ops_per_transaction
-        self._operations: Optional[Queue[DataManipulation]] = None
         self._max_queue_size = max_queue_size
+        self._operations: Queue[DataManipulation] = Queue(maxsize=max_queue_size)
         self._max_spans_queue_size = max_spans_queue_size
         self._spans: deque[tuple[Span, ProjectName]] = deque(initial_batch_of_spans)
         self._evaluations: deque[pb.Evaluation] = deque(initial_batch_of_evaluations)
@@ -100,6 +163,7 @@ class BulkInserter:
         self._retry_allowance = retry_allowance
         self._queue_inserters = _QueueInserters(db, self._retry_delay_sec, self._retry_allowance)
         self._span_cost_calculator = span_cost_calculator
+        self._span_batch_writer = SpanBatchWriter(db, span_cost_calculator)
         self._wake_event: asyncio.Event = asyncio.Event()
 
     @property
@@ -115,7 +179,6 @@ class BulkInserter:
         Callable[[DataManipulation], None],
     ]:
         self._running = True
-        self._operations = Queue(maxsize=self._max_queue_size)
         self._task = asyncio.create_task(self._bulk_insert())
         return (
             self._enqueue_annotations,
@@ -139,7 +202,7 @@ class BulkInserter:
         self._wake_event.set()
 
     def _enqueue_operation(self, operation: DataManipulation) -> None:
-        cast("Queue[DataManipulation]", self._operations).put_nowait(operation)
+        self._operations.put_nowait(operation)
         self._wake_event.set()
 
     async def _enqueue_span(self, span: Span, project_name: str) -> None:
@@ -153,11 +216,10 @@ class BulkInserter:
     async def _process_events(self, events: Iterable[Optional[DataManipulationEvent]]) -> None: ...
 
     def _has_work(self) -> bool:
-        ops = self._operations
         return bool(
             self._spans
             or self._evaluations
-            or (ops is not None and not ops.empty())
+            or not self._operations.empty()
             or not self._queue_inserters.empty
         )
 
@@ -171,7 +233,6 @@ class BulkInserter:
             pass
 
     async def _bulk_insert(self) -> None:
-        assert isinstance(self._operations, Queue)
         # start first insert immediately if the inserter has not run recently
         while self._running or self._has_work():
             BULK_LOADER_LAST_ACTIVITY.set(time())
@@ -197,7 +258,6 @@ class BulkInserter:
                 self._event_queue.put(event)
 
     async def _drain_operations(self) -> None:
-        assert isinstance(self._operations, Queue)
         ops_remaining = self._max_ops_per_transaction
         async with self._db() as session:
             while ops_remaining and not self._operations.empty():
@@ -213,78 +273,23 @@ class BulkInserter:
     async def _insert_spans(self, num_spans_to_insert: int) -> None:
         if not num_spans_to_insert or not self._spans:
             return
-        project_ids = set()
-        span_costs: list[models.SpanCost] = []
+        batch = [self._spans.popleft() for _ in range(min(num_spans_to_insert, len(self._spans)))]
+        start = perf_counter()
         try:
-            start = perf_counter()
-            # Snapshot the batch so we can pre-resolve projects and sessions in bulk.
-            batch = [
-                self._spans.popleft() for _ in range(min(num_spans_to_insert, len(self._spans)))
-            ]
-            project_names = {project_name for _, project_name in batch}
-            session_ids = {
-                str(sid).strip()
-                for span, _ in batch
-                if (sid := get_attribute_value(span.attributes, SpanAttributes.SESSION_ID))
-                is not None
-            }
-            async with self._db() as session:
-                project_cache = await resolve_projects(session, project_names)
-                session_cache = await resolve_sessions(session, session_ids)
-                trace_rowids: set[int] = set()
-                for span, project_name in batch:
-                    result: Optional[SpanInsertionEvent] = None
-                    try:
-                        async with session.begin_nested():
-                            result = await insert_span(
-                                session,
-                                span,
-                                project_name,
-                                propagate_ancestors=False,
-                                project_cache=project_cache,
-                                session_cache=session_cache,
-                            )
-                    except Exception:
-                        BULK_LOADER_SPAN_EXCEPTIONS.inc()
-                        logger.exception(
-                            f"Failed to insert span with span_id={span.context.span_id}"
-                        )
-                    if result is None:
-                        continue
-                    project_ids.add(result.project_rowid)
-                    trace_rowids.add(result.trace_rowid)
-                    try:
-                        if not should_calculate_span_cost(span.attributes):
-                            continue
-                        span_cost = self._span_cost_calculator.calculate_cost(
-                            span.start_time,
-                            span.attributes,
-                        )
-                    except Exception:
-                        logger.exception(
-                            f"Failed to calculate span cost for span with "
-                            f"span_id={span.context.span_id}"
-                        )
-                    else:
-                        if span_cost is None:
-                            continue
-                        span_cost.span_rowid = result.span_rowid
-                        span_cost.trace_rowid = result.trace_rowid
-                        span_costs.append(span_cost)
-                await recompute_trace_cumulative_values(session, trace_rowids)
-            BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
+            result = await self._span_batch_writer.write(batch)
         except Exception:
             BULK_LOADER_SPAN_EXCEPTIONS.inc()
             logger.exception("Failed to insert spans")
-        if project_ids:
-            self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
-        if not span_costs:
             return
-        try:
-            async with self._db() as session:
-                session.add_all(span_costs)
-        except Exception:
-            logger.exception("Failed to insert span costs")
+        BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
+        if result.project_rowids:
+            self._event_queue.put(SpanInsertEvent(tuple(result.project_rowids)))
+        if result.span_costs:
+            try:
+                async with self._db() as session:
+                    session.add_all(result.span_costs)
+            except Exception:
+                logger.exception("Failed to insert span costs")
 
     async def _insert_evaluations(self, num_evals_to_insert: int) -> None:
         if not num_evals_to_insert or not self._evaluations:
@@ -332,7 +337,7 @@ class _QueueInserters:
         if self.empty:
             return
         for coro in as_completed([q.insert() for q in self._queues if not q.empty]):
-            if events := cast(Optional[list[DmlEvent]], await coro):
+            if events := await coro:
                 for event in events:
                     yield event
 

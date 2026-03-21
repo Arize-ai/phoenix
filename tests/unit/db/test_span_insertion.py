@@ -1,4 +1,4 @@
-"""Tests for insert_span() focusing on the propagate_ancestors parameter and concurrency."""
+"""Tests for insert_span() covering basic insertion, concurrency, and session resolution."""
 
 from __future__ import annotations
 
@@ -52,20 +52,20 @@ def _make_span(
     )
 
 
-class TestInsertSpanPropagateAncestors:
+class TestInsertSpan:
     async def test_returns_span_insertion_event(self, db: DbSessionFactory) -> None:
         span = _make_span("root-1", prompt_tokens=10, completion_tokens=5)
         async with db() as session:
             async with session.begin_nested():
-                result = await insert_span(session, span, "my-project", propagate_ancestors=False)
+                result = await insert_span(session, span, "my-project")
         assert isinstance(result, SpanInsertionEvent)
         assert result.span_rowid is not None
         assert result.trace_rowid is not None
         assert result.project_rowid is not None
 
     async def test_own_values_stored_without_child_accumulation(self, db: DbSessionFactory) -> None:
-        """Parent inserted first, then child with propagate_ancestors=False.
-        Parent cumulative values should NOT be updated by the child insertion."""
+        """Parent inserted first, then child. Parent cumulative values should NOT be
+        updated by the child insertion — batch recompute handles that separately."""
         parent = _make_span("parent-A", prompt_tokens=10, completion_tokens=2)
         child = _make_span(
             "child-B",
@@ -75,9 +75,9 @@ class TestInsertSpanPropagateAncestors:
         )
         async with db() as session:
             async with session.begin_nested():
-                await insert_span(session, parent, "proj", propagate_ancestors=False)
+                await insert_span(session, parent, "proj")
             async with session.begin_nested():
-                await insert_span(session, child, "proj", propagate_ancestors=False)
+                await insert_span(session, child, "proj")
             await session.flush()
 
             db_spans = {s.span_id: s for s in (await session.scalars(select(models.Span))).all()}
@@ -95,9 +95,9 @@ class TestInsertSpanPropagateAncestors:
         span = _make_span("dup-span-1")
         async with db() as session:
             async with session.begin_nested():
-                first = await insert_span(session, span, "proj", propagate_ancestors=False)
+                first = await insert_span(session, span, "proj")
             async with session.begin_nested():
-                second = await insert_span(session, span, "proj", propagate_ancestors=False)
+                second = await insert_span(session, span, "proj")
 
         assert first is not None
         assert second is None
@@ -106,7 +106,7 @@ class TestInsertSpanPropagateAncestors:
         span = _make_span("span-trace-check")
         async with db() as session:
             async with session.begin_nested():
-                event = await insert_span(session, span, "proj", propagate_ancestors=False)
+                event = await insert_span(session, span, "proj")
             assert event is not None
             db_trace = await session.scalar(
                 select(models.Trace).where(models.Trace.id == event.trace_rowid)
@@ -156,16 +156,12 @@ class TestConcurrentSameTraceIdInsertion:
         async def insert_early() -> Optional[SpanInsertionEvent]:
             async with db() as session:
                 async with session.begin_nested():
-                    return await insert_span(
-                        session, _span_early(), "proj", propagate_ancestors=False
-                    )
+                    return await insert_span(session, _span_early(), "proj")
 
         async def insert_late() -> Optional[SpanInsertionEvent]:
             async with db() as session:
                 async with session.begin_nested():
-                    return await insert_span(
-                        session, _span_late(), "proj", propagate_ancestors=False
-                    )
+                    return await insert_span(session, _span_late(), "proj")
 
         # Run both insertions — on SQLite, run sequentially to avoid savepoint
         # conflicts (aiosqlite serializes to a single thread); on PostgreSQL,
@@ -188,18 +184,12 @@ class TestConcurrentSameTraceIdInsertion:
         )
 
 
-class TestCumulativeValuesParity:
-    """Verify that the new path (propagate_ancestors=False + batch recompute)
-    produces correct cumulative values, and document the known limitation
-    of the old CTE-based path with out-of-order span arrival.
+class TestCumulativeValuesBatchRecompute:
+    """Verify that insert_span stores own-values only, and that batch recompute
+    produces correct cumulative values regardless of span arrival order.
 
     Tree structure: Root -> {A, B}, A -> C
     Spans arrive child-first: C, A, B, Root.
-
-    The old CTE path (propagate_ancestors=True) only propagates cumulative values
-    to *existing* ancestors at insertion time. When children arrive before their
-    parents, the ancestor doesn't exist yet, so no propagation occurs. This is a
-    known limitation of the old path — not a bug in the new path.
 
     Expected correct cumulative values (errors, prompt_tokens, completion_tokens):
       C:    (1, 8, 3)   — leaf, own ERROR
@@ -210,7 +200,6 @@ class TestCumulativeValuesParity:
 
     # A branching tree: Root -> {A, B}, A -> C
     # Spans arrive in an order that exercises ancestor propagation (child before parent).
-    # Logical IDs only — actual span_ids are prefixed per-path to avoid unique-constraint collisions.
     _SPAN_DEFS = [
         # (logical_id, logical_parent_id, prompt_tokens, completion_tokens, status_code)
         ("C", "A", 8, 3, SpanStatusCode.ERROR),
@@ -227,12 +216,14 @@ class TestCumulativeValuesParity:
         "Root": (1, 15, 7),
     }
 
-    async def test_new_path_produces_correct_cumulative_values(self, db: DbSessionFactory) -> None:
-        """The new path (propagate_ancestors=False + batch recompute) produces
-        correct cumulative values regardless of span arrival order."""
+    async def test_batch_recompute_produces_correct_cumulative_values(
+        self, db: DbSessionFactory
+    ) -> None:
+        """insert_span stores own-values only; recompute_trace_cumulative_values
+        produces correct cumulative values regardless of span arrival order."""
         from phoenix.db.insertion.cumulative import recompute_trace_cumulative_values
 
-        new_values: dict[str, tuple[int, int, int]] = {}
+        values: dict[str, tuple[int, int, int]] = {}
         async with db() as session:
             trace_rowid: Optional[int] = None
             for logical_id, logical_parent, prompt, completion, status in self._SPAN_DEFS:
@@ -245,7 +236,7 @@ class TestCumulativeValuesParity:
                     completion_tokens=completion,
                 )
                 async with session.begin_nested():
-                    event = await insert_span(session, span, "proj-new", propagate_ancestors=False)
+                    event = await insert_span(session, span, "proj-new")
                     if event is not None:
                         trace_rowid = event.trace_rowid
             assert trace_rowid is not None
@@ -258,67 +249,15 @@ class TestCumulativeValuesParity:
             ).all()
             for s in db_spans:
                 logical = s.span_id[len("new-") :]
-                new_values[logical] = (
+                values[logical] = (
                     s.cumulative_error_count,
                     s.cumulative_llm_token_count_prompt,
                     s.cumulative_llm_token_count_completion,
                 )
 
-        assert new_values == self._EXPECTED, (
-            f"New path cumulative values are wrong:\ngot={new_values}\nexpected={self._EXPECTED}"
+        assert values == self._EXPECTED, (
+            f"Batch recompute cumulative values are wrong:\ngot={values}\nexpected={self._EXPECTED}"
         )
-
-    async def test_old_path_undercounts_with_out_of_order_arrival(
-        self, db: DbSessionFactory
-    ) -> None:
-        """Known limitation: the old CTE path under-counts when children arrive
-        before their parents, because the recursive CTE walks ancestors and
-        no ancestors exist yet at insertion time.
-
-        This test documents the divergence — the old path is NOT the source of
-        truth for correctness; the batch recompute (new path) is."""
-        old_values: dict[str, tuple[int, int, int]] = {}
-        async with db() as session:
-            for logical_id, logical_parent, prompt, completion, status in self._SPAN_DEFS:
-                span = _make_span(
-                    f"old-{logical_id}",
-                    trace_id="parity-old",
-                    parent_id=f"old-{logical_parent}" if logical_parent is not None else None,
-                    status_code=status,
-                    prompt_tokens=prompt,
-                    completion_tokens=completion,
-                )
-                async with session.begin_nested():
-                    await insert_span(session, span, "proj-old", propagate_ancestors=True)
-            await session.flush()
-            db_spans = (
-                await session.scalars(
-                    select(models.Span).where(
-                        models.Span.span_id.like("old-%"),
-                    )
-                )
-            ).all()
-            for s in db_spans:
-                logical = s.span_id[len("old-") :]
-                old_values[logical] = (
-                    s.cumulative_error_count,
-                    s.cumulative_llm_token_count_prompt,
-                    s.cumulative_llm_token_count_completion,
-                )
-
-        # The old path under-counts: children arrived before parents, so the CTE
-        # ancestor walk found no ancestors to update at the time of insertion.
-        # Root and A keep only their own values, missing their children's contributions.
-        assert old_values != self._EXPECTED, (
-            "Old path unexpectedly matches expected values — "
-            "if the CTE limitation has been fixed, this test can be updated"
-        )
-        # Leaves are correct (they have no children to accumulate)
-        assert old_values["C"] == self._EXPECTED["C"]
-        assert old_values["B"] == self._EXPECTED["B"]
-        # Root and A are under-counted (known limitation)
-        assert old_values["Root"] == (0, 1, 1), "Root should have only own values (old path)"
-        assert old_values["A"] == (0, 4, 1), "A should have only own values (old path)"
 
 
 class TestSessionUpsertPaths:
@@ -349,7 +288,6 @@ class TestSessionUpsertPaths:
                     session,
                     span,
                     "proj-sess",
-                    propagate_ancestors=False,
                     session_cache=session_cache,
                 )
             assert event is not None
@@ -395,7 +333,6 @@ class TestSessionUpsertPaths:
                     session,
                     span1,
                     "proj-sess",
-                    propagate_ancestors=False,
                     session_cache=session_cache,
                 )
             await session.flush()
@@ -422,7 +359,6 @@ class TestSessionUpsertPaths:
                     session,
                     span2,
                     "proj-sess",
-                    propagate_ancestors=False,
                     session_cache=session_cache,
                 )
             assert event2 is not None
@@ -464,7 +400,6 @@ class TestSessionUpsertPaths:
                     session,
                     span1,
                     "proj-sess",
-                    propagate_ancestors=False,
                 )
             assert event1 is not None
             await session.flush()
@@ -492,7 +427,6 @@ class TestSessionUpsertPaths:
                     session,
                     span2,
                     "proj-sess",
-                    propagate_ancestors=False,
                 )
             assert event2 is not None
             await session.flush()

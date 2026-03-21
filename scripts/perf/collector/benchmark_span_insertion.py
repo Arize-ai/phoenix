@@ -731,7 +731,6 @@ async def _run_single_batch(
     engine: AsyncEngine,
     spans: list[Span],
     project_name: str,
-    propagate_ancestors: bool,
 ) -> BatchResult:
     """Insert a batch of spans and measure wall-time. Returns BatchResult."""
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -746,14 +745,11 @@ async def _run_single_batch(
 
     async with Session.begin() as session:
         for span in spans:
-            result = await insert_span(
-                session, span, project_name, propagate_ancestors=propagate_ancestors
-            )
+            result = await insert_span(session, span, project_name)
             if result is not None:
                 trace_rowids.add(result.trace_rowid)
 
-        # For the new path, run batch recompute after all spans are inserted
-        if not propagate_ancestors and trace_rowids:
+        if trace_rowids:
             await recompute_trace_cumulative_values(session, trace_rowids)
 
     elapsed = time.perf_counter() - start
@@ -790,24 +786,21 @@ async def run_benchmark(
         topologies = list(Topology)
 
     # Build all configurations
-    configs: list[tuple[int, Topology, str, bool]] = []
+    configs: list[tuple[int, Topology]] = []
     for batch_size in batch_sizes:
         for topology in topologies:
-            # old_path: propagate_ancestors=True (per-span CTE propagation)
-            configs.append((batch_size, topology, "old_path", True))
-            # new_path: propagate_ancestors=False + batch recompute
-            configs.append((batch_size, topology, "new_path", False))
+            configs.append((batch_size, topology))
 
     # Randomize order to reduce ordering bias
     random.shuffle(configs)
 
     runs: list[BenchmarkRun] = []
 
-    for batch_size, topology, path_name, propagate_ancestors in configs:
-        print(f"  [{path_name}] {topology.value} batch_size={batch_size} ...", end=" ", flush=True)
+    for batch_size, topology in configs:
+        print(f"  {topology.value} batch_size={batch_size} ...", end=" ", flush=True)
 
         run = BenchmarkRun(
-            path_name=path_name,
+            path_name="batch_recompute",
             topology=topology.value,
             batch_size=batch_size,
         )
@@ -822,12 +815,10 @@ async def run_benchmark(
                     spans = generate_spans(
                         topology, batch_size, fan_out=fan_out, trace_depth=trace_depth
                     )
-                    project_name = f"bench-{path_name}-{batch_num}"
+                    project_name = f"bench-{batch_num}"
                     batch_num += 1
 
-                    result = await _run_single_batch(
-                        engine, spans, project_name, propagate_ancestors
-                    )
+                    result = await _run_single_batch(engine, spans, project_name)
 
                     if phase == "measure":
                         run.add_result(result)
