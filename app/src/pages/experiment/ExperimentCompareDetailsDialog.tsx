@@ -5,10 +5,10 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTitleExtra,
   Flex,
   LinkButton,
+  TitleWithID,
 } from "@phoenix/components";
 import { ExperimentCompareDetails } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
@@ -46,7 +46,7 @@ export function ExperimentCompareDetailsDialog({
               exampleIds={exampleIds}
               onExampleChange={onExampleChange}
             />
-            <DialogTitle>{`Example: ${selectedExampleId}`}</DialogTitle>
+            <TitleWithID title="Example" id={selectedExampleId} />
           </Flex>
           <DialogTitleExtra>
             <LinkButton

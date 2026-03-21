@@ -12,7 +12,6 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTitleExtra,
   FieldError,
   Flex,
@@ -22,6 +21,7 @@ import {
   Text,
   TextArea,
   TextField,
+  TitleWithID,
   View,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
@@ -114,7 +114,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
       {({ close }) => (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Example: {exampleId}</DialogTitle>
+            <TitleWithID title="Edit Example" id={exampleId} />
             <DialogTitleExtra>
               <Button
                 variant="primary"

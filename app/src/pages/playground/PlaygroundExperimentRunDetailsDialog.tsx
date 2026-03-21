@@ -13,6 +13,7 @@ import {
   Icon,
   Icons,
   Text,
+  TitleWithID,
   View,
   ViewSummaryAside,
 } from "@phoenix/components";
@@ -22,7 +23,6 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { resizeHandleCSS } from "@phoenix/components/resize";
@@ -81,7 +81,7 @@ export function PlaygroundExperimentRunDetailsDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Experiment Run for Example: {exampleId}</DialogTitle>
+          <TitleWithID title="Experiment Run" id={exampleId || ""} />
           <DialogTitleExtra>
             <DialogCloseButton />
           </DialogTitleExtra>

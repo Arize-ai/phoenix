@@ -12,11 +12,11 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTitleExtra,
   Flex,
   Heading,
   LinkButton,
+  TitleWithID,
   ListBox,
   Popover,
   Select,
@@ -243,7 +243,7 @@ function ExampleDetailsDialogContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Example: {exampleId}</DialogTitle>
+        <TitleWithID title="Example" id={exampleId} />
         <DialogTitleExtra>
           <DatasetSplits labels={datasetSplits} />
           {sourceSpanInfo ? (
@@ -371,7 +371,7 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Example: {exampleId}</DialogTitle>
+        <TitleWithID title="Example" id={exampleId} />
         <DialogTitleExtra>
           <Skeleton width={60} height={24} animation="wave" />
           <DialogCloseButton />
