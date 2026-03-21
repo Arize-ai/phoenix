@@ -155,7 +155,7 @@ const _Modal = forwardRef(Modal);
 const modalOverlayCSS = css`
   position: fixed;
   inset: 0;
-  background: rgba(0 0 0 / 0.5);
+  background: var(--global-overlay-backdrop-color);
   z-index: 1000;
 
   &[data-entering] {

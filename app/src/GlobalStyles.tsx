@@ -923,6 +923,10 @@ const baseTokensCSS = (theme: Theme) => css`
     --global-overlay-shadow-color: ${
       theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.1)"
     };
+
+    --global-overlay-backdrop-color: ${
+      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.6)"
+    };
   }
 `;
 
