@@ -1,15 +1,13 @@
-import { css } from "@emotion/react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
-  CopyToClipboardButton,
   Flex,
-  Heading,
   Icon,
   Icons,
   LinkButton,
+  TitleWithID,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -56,23 +54,11 @@ function PromptVersionDetailsPageContent({
           marginEnd="auto"
         >
           <Flex direction="row" justifyContent="space-between">
-            <Flex direction="row" gap="size-100">
-              <Heading level={2}>
-                Version:&nbsp;
-                <span
-                  css={css`
-                    user-select: all;
-                  `}
-                >
-                  {promptVersion.id}
-                </span>
-              </Heading>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TitleWithID title="Version" id={promptVersion.id} />
               <PromptVersionTagsList promptVersion={promptVersion} />
             </Flex>
             <Flex direction="row" gap="size-100">
-              <CopyToClipboardButton text={promptVersion.id}>
-                Version ID
-              </CopyToClipboardButton>
               <TagPromptVersionButton
                 promptId={promptId}
                 versionId={promptVersion.id}
