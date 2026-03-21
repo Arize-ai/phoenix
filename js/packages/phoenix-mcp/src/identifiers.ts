@@ -30,7 +30,7 @@ function decodeBase64(value: string): string | null {
 /**
  * Trim surrounding whitespace from an identifier string.
  */
-export function getNormalizedIdentifier(identifier: string): string {
+function getNormalizedIdentifier(identifier: string): string {
   return identifier.trim();
 }
 

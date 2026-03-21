@@ -159,7 +159,7 @@ async function fetchPromptVersionBySelection({
   versionId,
 }: {
   client: PhoenixClient;
-  promptIdentifier: string;
+  promptIdentifier?: string;
   tag?: string;
   versionId?: string;
 }) {
@@ -178,6 +178,12 @@ async function fetchPromptVersionBySelection({
       response,
       errorPrefix: `Failed to fetch prompt version "${versionId}"`,
     }).data;
+  }
+
+  if (!promptIdentifier) {
+    throw new Error(
+      "promptIdentifier is required when versionId is not provided"
+    );
   }
 
   if (tag) {
@@ -308,7 +314,6 @@ export const initializePromptTools = ({
     async ({ prompt_version_id }) => {
       const prompt = await fetchPromptVersionBySelection({
         client,
-        promptIdentifier: prompt_version_id,
         versionId: prompt_version_id,
       });
       return jsonResponse(prompt);
