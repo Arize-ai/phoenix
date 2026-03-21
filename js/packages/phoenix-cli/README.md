@@ -64,7 +64,8 @@ px self update          # show current/latest and update if needed
 px self update --check  # show current/latest without installing
 ```
 
-Automatic updates are supported for global `npm` and `pnpm` installs.
+Automatic updates are supported for global `npm`, `pnpm`, `bun`, and standard
+`deno install -g` wrapper installs.
 
 ### `px traces [directory]`
 
