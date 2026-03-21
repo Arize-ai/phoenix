@@ -1,8 +1,9 @@
-import { CLI_VERSION } from "./__generated__/version";
+import { readFileSync } from "node:fs";
 
 const CLI_PACKAGE_NAME = "@arizeai/phoenix-cli";
 const CLI_LATEST_VERSION_URL = `https://registry.npmjs.org/${encodeURIComponent(CLI_PACKAGE_NAME)}/latest`;
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 1500;
+const DEFAULT_CLI_VERSION = "unknown";
 const SEMANTIC_VERSION_PATTERN =
   /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 
@@ -17,6 +18,10 @@ interface LatestVersionResponse {
   version?: unknown;
 }
 
+interface CliPackageJson {
+  version?: unknown;
+}
+
 export interface CliVersionStatus {
   currentVersion: string;
   latestVersion?: string;
@@ -28,8 +33,47 @@ export interface FetchLatestPublishedCliVersionOptions {
   timeoutMs?: number;
 }
 
+function getPackageJsonVersion({
+  packageJson,
+}: {
+  packageJson: CliPackageJson;
+}): string | undefined {
+  if (typeof packageJson.version !== "string") {
+    return undefined;
+  }
+
+  const version = packageJson.version.trim();
+  return version.length > 0 ? version : undefined;
+}
+
+function readCliVersionFromPackageJson(): string | undefined {
+  try {
+    const packageJson = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf-8")
+    ) as CliPackageJson;
+
+    return getPackageJsonVersion({ packageJson });
+  } catch {
+    return undefined;
+  }
+}
+
+function readCliVersionFromEnvironment(): string | undefined {
+  if (typeof process.env.npm_package_version !== "string") {
+    return undefined;
+  }
+
+  const version = process.env.npm_package_version.trim();
+  return version.length > 0 ? version : undefined;
+}
+
+export const CLI_VERSION =
+  readCliVersionFromPackageJson() ??
+  readCliVersionFromEnvironment() ??
+  DEFAULT_CLI_VERSION;
+
 /**
- * Returns the version baked into the CLI at build time.
+ * Returns the CLI version from package metadata.
  */
 export function getCliVersion(): string {
   return CLI_VERSION;

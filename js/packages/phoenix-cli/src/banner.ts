@@ -7,9 +7,10 @@ const LOGO_LINES = [
   "░█▀▀░█▀█░█░█░█▀▀░█░█░░█░░▄▀▄",
   "░▀░░░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀",
 ];
+const TAGLINE = "px is the CLI for interacting with your phoenix instance";
 
 /**
- * Text shown to the right of the Phoenix logo.
+ * Text shown below the Phoenix logo.
  */
 export interface BannerInfoLinesOptions {
   serverUrl: string;
@@ -21,7 +22,7 @@ export interface BannerInfoLinesOptions {
 }
 
 /**
- * Build the informational text displayed next to the Phoenix logo.
+ * Build the informational text displayed below the Phoenix logo.
  */
 export function getBannerInfoLines({
   serverUrl,
@@ -32,35 +33,25 @@ export function getBannerInfoLines({
   hasUpdate,
 }: BannerInfoLinesOptions): string[] {
   return [
-    `  Server:  ${serverUrl}`,
-    `  Project: ${project}`,
-    ...(hasApiKey ? [`  API Key: set`] : []),
-    `  CLI:     v${currentVersion}`,
+    `Server:  ${serverUrl}`,
+    `Project: ${project}`,
+    ...(hasApiKey ? [`API Key: set`] : []),
+    `CLI:     v${currentVersion}`,
     ...(latestVersion
       ? [
           hasUpdate
-            ? `  Update:  v${latestVersion} available. Run npm install -g @arizeai/phoenix-cli`
-            : "  Update:  up to date",
+            ? `Update:  v${latestVersion} available. Run npm install -g @arizeai/phoenix-cli`
+            : "Update:  up to date",
         ]
       : []),
   ];
 }
 
 /**
- * Render the full banner, allowing info lines to extend past the logo height.
+ * Render the full banner with the logo first and metadata below it.
  */
 export function renderBanner({ infoLines }: { infoLines: string[] }): string {
-  const logoWidth = LOGO_LINES[0]?.length ?? 0;
-  const paddedLogo = " ".repeat(logoWidth);
-  const lineCount = Math.max(LOGO_LINES.length, infoLines.length);
-
-  const output = Array.from({ length: lineCount }, (_, index) => {
-    const logo = LOGO_LINES[index] ?? paddedLogo;
-    const info = infoLines[index];
-    return info ? `${logo}${info}` : logo;
-  });
-
-  return output.join("\n");
+  return [...LOGO_LINES, "", TAGLINE, ...infoLines].join("\n");
 }
 
 /**

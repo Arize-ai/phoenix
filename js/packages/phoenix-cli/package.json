@@ -33,12 +33,7 @@
     "build": "tsc && tsc-alias && chmod 755 build/index.js",
     "clean": "rimraf build",
     "dev": "tsx src/index.ts",
-    "generate:version": "node ./scripts/generate-version.mjs",
-    "prebuild": "pnpm run clean && pnpm run generate:version",
-    "predev": "pnpm run generate:version",
-    "pretest": "pnpm run generate:version",
-    "pretest:watch": "pnpm run generate:version",
-    "pretypecheck": "pnpm run generate:version",
+    "prebuild": "pnpm run clean",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

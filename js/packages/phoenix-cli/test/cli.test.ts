@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { CLI_VERSION } from "../src/__generated__/version";
 import { createProgram, main } from "../src/cli";
+import { CLI_VERSION } from "../src/version";
 
 describe("Phoenix CLI", () => {
   it("should have a main function", () => {
@@ -9,7 +9,7 @@ describe("Phoenix CLI", () => {
     expect(typeof main).toBe("function");
   });
 
-  it("should register the embedded CLI version", () => {
+  it("should register the CLI version", () => {
     const program = createProgram();
 
     expect(program.version()).toBe(CLI_VERSION);

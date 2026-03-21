@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-import { CLI_VERSION } from "../src/__generated__/version";
 import {
+  CLI_VERSION,
   compareSemanticVersions,
   fetchLatestPublishedCliVersion,
   getCliVersion,
@@ -10,8 +11,13 @@ import {
 } from "../src/version";
 
 describe("version", () => {
-  it("returns the embedded CLI version", () => {
+  it("returns the package.json CLI version", () => {
+    const packageJson = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf-8")
+    ) as { version?: string };
+
     expect(getCliVersion()).toBe(CLI_VERSION);
+    expect(getCliVersion()).toBe(packageJson.version);
   });
 
   it("parses stable and prerelease semantic versions", () => {

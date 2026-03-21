@@ -2,7 +2,6 @@
 
 import { Command } from "commander";
 
-import { CLI_VERSION } from "./__generated__/version";
 import { printBanner } from "./banner";
 import {
   createAnnotationConfigCommand,
@@ -22,6 +21,7 @@ import {
   createTraceCommand,
   createTracesCommand,
 } from "./commands";
+import { CLI_VERSION } from "./version";
 
 export function createProgram(): Command {
   const program = new Command();
