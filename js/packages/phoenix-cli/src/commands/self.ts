@@ -29,9 +29,7 @@ interface SelfUpdateOptions {
 }
 
 type FilesystemPackageManager = (typeof FILESYSTEM_PACKAGE_MANAGERS)[number];
-type SupportedPackageManager =
-  | FilesystemPackageManager
-  | "deno";
+type SupportedPackageManager = FilesystemPackageManager | "deno";
 
 export interface DenoInstallScriptMetadata {
   executableName: string;
@@ -55,7 +53,9 @@ interface PackageManagerRoots {
 function getPackageManagerExecutable(
   packageManager: SupportedPackageManager
 ): string {
-  return process.platform === "win32" ? `${packageManager}.cmd` : packageManager;
+  return process.platform === "win32"
+    ? `${packageManager}.cmd`
+    : packageManager;
 }
 
 /**
@@ -118,14 +118,16 @@ export function detectInstallPackageManager({
   return null;
 }
 
-function getGlobalRoot(
-  packageManager: "npm" | "pnpm"
-): string | null {
+function getGlobalRoot(packageManager: "npm" | "pnpm"): string | null {
   try {
     return childProcess
-      .execFileSync(getPackageManagerExecutable(packageManager), ["root", "-g"], {
-        encoding: "utf8",
-      })
+      .execFileSync(
+        getPackageManagerExecutable(packageManager),
+        ["root", "-g"],
+        {
+          encoding: "utf8",
+        }
+      )
       .trim();
   } catch {
     return null;
@@ -417,9 +419,13 @@ export function buildDenoUpdateCommand({
 }
 
 function runUpdateCommand(updateCommand: UpdateCommand): number {
-  const result = childProcess.spawnSync(updateCommand.command, updateCommand.args, {
-    stdio: "inherit",
-  });
+  const result = childProcess.spawnSync(
+    updateCommand.command,
+    updateCommand.args,
+    {
+      stdio: "inherit",
+    }
+  );
 
   if (result.error) {
     throw result.error;

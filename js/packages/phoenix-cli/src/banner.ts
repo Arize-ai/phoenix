@@ -38,9 +38,7 @@ export function getBannerInfoLines({
     ...(hasApiKey ? [`API Key: set`] : []),
     `Version: v${currentVersion}`,
     ...(hasUpdate && latestVersion
-      ? [
-          `Update:  v${latestVersion} available. Run px self update`,
-        ]
+      ? [`Update:  v${latestVersion} available. Run px self update`]
       : []),
   ];
 }
