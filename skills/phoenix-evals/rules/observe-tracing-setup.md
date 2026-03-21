@@ -37,7 +37,7 @@ span.set_attribute("metadata.query_category", "billing")
 
 ## Exporting for Evaluation
 
-### Spans (DataFrame)
+### Spans (Python — DataFrame)
 
 ```python
 from phoenix.client import Client
@@ -58,7 +58,19 @@ dataset = client.datasets.create_dataset(
 )
 ```
 
-### Traces (structured)
+### Spans (TypeScript)
+
+```typescript
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const { spans } = await getSpans({
+  project: { projectName: "my-app" },
+  parentId: null, // root spans only
+  limit: 100,
+});
+```
+
+### Traces (Python — structured)
 
 Use `get_traces` when you need full trace trees (e.g., multi-turn conversations, agent workflows):
 
@@ -74,9 +86,22 @@ traces = client.traces.get_traces(
 # Each trace has: trace_id, start_time, end_time, spans (when include_spans=True)
 ```
 
+### Traces (TypeScript)
+
+```typescript
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const { traces } = await getTraces({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
+  includeSpans: true,
+  limit: 100,
+});
+```
+
 ## Uploading Evaluations as Annotations
 
-After running evaluations, upload results back to Phoenix as span annotations:
+### Python
 
 ```python
 from phoenix.evals import async_evaluate_dataframe
@@ -92,7 +117,25 @@ annotations_df = to_annotation_dataframe(results_df)
 client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
 ```
 
-This creates annotations visible in the Phoenix UI alongside your traces.
+### TypeScript
+
+```typescript
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+await logSpanAnnotations({
+  spanAnnotations: [
+    {
+      spanId: "abc123",
+      name: "quality",
+      label: "good",
+      score: 0.95,
+      annotatorKind: "LLM",
+    },
+  ],
+});
+```
+
+Annotations are visible in the Phoenix UI alongside your traces.
 
 ## Verify
 

@@ -38,12 +38,16 @@ interface DatasetExample {
 ```typescript
 import { getSpans } from "@arizeai/phoenix-client/spans";
 
-const spans = await getSpans({ client, projectName: "my-app", limit: 100 });
+const { spans } = await getSpans({
+  project: { projectName: "my-app" },
+  parentId: null, // root spans only
+  limit: 100,
+});
 
 const examples = spans.map((span) => ({
-  input: { query: span.attributes["input.value"] },
-  output: { response: span.attributes["output.value"] },
-  metadata: { spanId: span.spanId },
+  input: { query: span.attributes?.["input.value"] },
+  output: { response: span.attributes?.["output.value"] },
+  metadata: { spanId: span.context.span_id },
 }));
 
 await createDataset({ client, name: "production-sample", examples });

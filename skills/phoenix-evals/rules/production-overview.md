@@ -30,6 +30,8 @@ Set thresholds: regression=0.95, safety=1.0, format=0.98.
 
 ## Production Monitoring
 
+### Python
+
 ```python
 from phoenix.client import Client
 from datetime import datetime, timedelta
@@ -49,6 +51,36 @@ for trace in traces:
     results = run_evaluators_async(trace, production_evaluators)
     if any(r["score"] < 0.5 for r in results):
         alert_on_failure(trace, results)
+```
+
+### TypeScript
+
+```typescript
+import { getTraces } from "@arizeai/phoenix-client/traces";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+// Sample recent traces (last hour)
+const { traces } = await getTraces({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 60 * 60 * 1000),
+  includeSpans: true,
+  limit: 100,
+});
+
+// Or sample spans directly for evaluation
+const { spans } = await getSpans({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 60 * 60 * 1000),
+  limit: 100,
+});
+
+// Run evaluators on sampled traffic
+for (const span of spans) {
+  const results = await runEvaluators(span, productionEvaluators);
+  if (results.some((r) => r.score < 0.5)) {
+    await alertOnFailure(span, results);
+  }
+}
 ```
 
 Prioritize: errors → negative feedback → random sample.

@@ -12,7 +12,7 @@ Review traces to discover failure modes before building evaluators.
 
 ## Sample Traces
 
-### Span-level sampling (DataFrame)
+### Span-level sampling (Python — DataFrame)
 
 ```python
 from phoenix.client import Client
@@ -30,7 +30,25 @@ sample = pd.concat([
 ]).drop_duplicates("span_id").head(100)
 ```
 
-### Trace-level sampling
+### Span-level sampling (TypeScript)
+
+```typescript
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const { spans: errors } = await getSpans({
+  project: { projectName: "my-app" },
+  statusCode: "ERROR",
+  limit: 30,
+});
+const { spans: allSpans } = await getSpans({
+  project: { projectName: "my-app" },
+  limit: 70,
+});
+const sample = [...errors, ...allSpans.sort(() => Math.random() - 0.5).slice(0, 40)];
+const unique = [...new Map(sample.map((s) => [s.context.span_id, s])).values()].slice(0, 100);
+```
+
+### Trace-level sampling (Python)
 
 When errors span multiple spans (e.g., agent workflows), sample whole traces:
 
@@ -46,6 +64,19 @@ traces = client.traces.get_traces(
     limit=100,
 )
 # Each trace has: trace_id, start_time, end_time, spans
+```
+
+### Trace-level sampling (TypeScript)
+
+```typescript
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const { traces } = await getTraces({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
+  includeSpans: true,
+  limit: 100,
+});
 ```
 
 ## Add Notes (Python)
@@ -98,12 +129,31 @@ categories = {
 # Priority = Frequency × Severity
 ```
 
-## Retrieve Existing Annotations (TypeScript)
+## Retrieve Existing Annotations
+
+### Python
+
+```python
+# From a spans DataFrame
+annotations_df = client.spans.get_span_annotations_dataframe(
+    spans_dataframe=sample,
+    project_identifier="my-app",
+    include_annotation_names=["quality", "correctness"],
+)
+# annotations_df has: span_id (index), name, label, score, explanation
+
+# Or from specific span IDs
+annotations_df = client.spans.get_span_annotations_dataframe(
+    span_ids=["span-id-1", "span-id-2"],
+    project_identifier="my-app",
+)
+```
+
+### TypeScript
 
 ```typescript
 import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
 
-// Fetch annotations to review what's already been labeled
 const { annotations } = await getSpanAnnotations({
   project: { projectName: "my-app" },
   spanIds: ["span-id-1", "span-id-2"],

@@ -33,6 +33,8 @@ Build a continuous monitoring loop:
 4. **Queue concerning results** for human review
 5. **Create test cases** from recurring failure patterns
 
+### Python
+
 ```python
 from phoenix.client import Client
 from datetime import datetime, timedelta
@@ -63,10 +65,44 @@ annotations_df = to_annotation_dataframe(results_df)
 client.spans.log_span_annotations_dataframe(dataframe=annotations_df)
 ```
 
-For trace-level monitoring (e.g., agent workflows), use `get_traces` to identify traces, then fetch full span data:
+### TypeScript
+
+```typescript
+import { getSpans } from "@arizeai/phoenix-client/spans";
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+// 1. Sample recent spans
+const { spans } = await getSpans({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 60 * 60 * 1000),
+  parentId: null, // root spans only
+  limit: 100,
+});
+
+// 2. Run evaluators (user-defined)
+const results = await Promise.all(
+  spans.map(async (span) => ({
+    spanId: span.context.span_id,
+    ...await runEvaluators(span, [qualityEval, safetyEval]),
+  }))
+);
+
+// 3. Upload results as annotations
+await logSpanAnnotations({
+  spanAnnotations: results.map((r) => ({
+    spanId: r.spanId,
+    name: "quality",
+    score: r.qualityScore,
+    label: r.qualityLabel,
+    annotatorKind: "LLM" as const,
+  })),
+});
+```
+
+For trace-level monitoring (e.g., agent workflows), use `get_traces`/`getTraces` to identify traces:
 
 ```python
-# Identify slow traces
+# Python: identify slow traces
 traces = client.traces.get_traces(
     project_identifier="my-app",
     start_time=datetime.now() - timedelta(hours=1),
@@ -74,7 +110,17 @@ traces = client.traces.get_traces(
     order="desc",
     limit=50,
 )
-# traces contain: trace_id, start_time, end_time, and spans (metadata only)
+```
+
+```typescript
+// TypeScript: identify slow traces
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const { traces } = await getTraces({
+  project: { projectName: "my-app" },
+  startTime: new Date(Date.now() - 60 * 60 * 1000),
+  limit: 50,
+});
 ```
 
 ## Alerting
