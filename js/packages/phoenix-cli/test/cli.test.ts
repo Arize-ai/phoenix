@@ -14,5 +14,8 @@ describe("Phoenix CLI", () => {
 
     expect(program.version()).toBe(CLI_VERSION);
     expect(program.helpInformation()).toContain("-V, --version");
+    expect(program.helpInformation()).toContain(
+      "prompt [options] <prompt-identifier>"
+    );
   });
 });

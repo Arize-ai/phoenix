@@ -146,7 +146,7 @@ export function createPromptCommand(): Command {
 
   command
     .description("Show a Phoenix prompt")
-    .argument("<prompt_identifier>", "Prompt name or ID")
+    .argument("<prompt-identifier>", "Prompt name or ID")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option(
