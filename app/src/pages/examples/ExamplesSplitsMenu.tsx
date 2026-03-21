@@ -11,6 +11,7 @@ import {
   Loading,
   Menu,
   MenuContainer,
+  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -123,7 +124,7 @@ const SplitMenuFilterContent = ({
     <Menu
       items={splits}
       selectionMode="multiple"
-      renderEmptyState={() => "No splits found"}
+      renderEmptyState={() => <MenuEmpty>No splits found</MenuEmpty>}
       selectedKeys={selectedSplitIds}
       onSelectionChange={(keys) => {
         if (keys === "all") {

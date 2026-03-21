@@ -1,5 +1,4 @@
-import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ModalOverlay } from "react-aria-components";
 import {
   graphql,
@@ -12,7 +11,6 @@ import {
   Autocomplete,
   Button,
   ColorSwatch,
-  DebouncedSearch,
   Dialog,
   DialogTrigger,
   Flex,
@@ -20,21 +18,23 @@ import {
   Icon,
   IconButton,
   Icons,
+  Input,
   LinkButton,
-  ListBox,
-  ListBoxItem,
   Loading,
+  Menu,
+  MenuEmpty,
+  MenuItem,
   Modal,
   Popover,
   PopoverArrow,
+  SearchField,
   type Selection,
+  useFilter,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
-import type {
-  PromptLabelConfigButton_allLabels$data,
-  PromptLabelConfigButton_allLabels$key,
-} from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_allLabels.graphql";
+import type { PromptLabelConfigButton_allLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_allLabels.graphql";
 import type { PromptLabelConfigButton_promptLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_promptLabels.graphql";
 import type { PromptLabelConfigButtonUnsetLabelsMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonUnsetLabelsMutation.graphql";
 
@@ -125,6 +125,7 @@ function PromptLabelList({
   query: PromptLabelConfigButton_allLabels$key;
   onNewLabelPress: () => void;
 }) {
+  const { contains } = useFilter({ sensitivity: "base" });
   const promptData = useFragment<PromptLabelConfigButton_promptLabels$key>(
     graphql`
       fragment PromptLabelConfigButton_promptLabels on Prompt {
@@ -156,9 +157,13 @@ function PromptLabelList({
   );
 
   const selectedLabelIds = promptData?.labels?.map((label) => label.id) || [];
-  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Selection>(
     () => new Set(selectedLabelIds)
+  );
+
+  const labels = useMemo(
+    () => labelData.promptLabels.edges.map((edge) => edge.node),
+    [labelData]
   );
 
   const [setPromptLabels] =
@@ -199,11 +204,6 @@ function PromptLabelList({
         }
       }
     `);
-  const labels = labelData.promptLabels.edges
-    .map((edge) => edge.node)
-    .filter((label) => {
-      return label.name.toLowerCase().includes(search.toLowerCase());
-    });
 
   const onSelectionChange = (selection: Selection) => {
     if (selection === "all") {
@@ -236,76 +236,64 @@ function PromptLabelList({
     setSelected(selection);
   };
   return (
-    <Autocomplete>
-      <View
-        padding="size-100"
-        paddingTop="size-50"
-        borderBottomWidth="thin"
-        borderColor="default"
-        minWidth={300}
-      >
-        <Flex direction="column" gap="size-50">
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Heading level={4} weight="heavy">
-              Assign labels to this prompt
-            </Heading>
-            <IconButton size="S" onPress={onNewLabelPress}>
-              <Icon svg={<Icons.PlusOutline />} />
-            </IconButton>
+    <>
+      <Autocomplete filter={contains}>
+        <View
+          padding="size-100"
+          paddingTop="size-50"
+          borderBottomWidth="thin"
+          borderColor="default"
+          minWidth={300}
+        >
+          <Flex direction="column" gap="size-50">
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Heading level={4} weight="heavy">
+                Assign labels to this prompt
+              </Heading>
+              <IconButton size="S" onPress={onNewLabelPress}>
+                <Icon svg={<Icons.PlusOutline />} />
+              </IconButton>
+            </Flex>
+            <SearchField aria-label="Search labels" variant="quiet" autoFocus>
+              <SearchIcon />
+              <Input placeholder="Search labels..." />
+            </SearchField>
           </Flex>
-          <DebouncedSearch
-            autoFocus
-            aria-label="Search labels"
-            placeholder="Search labels..."
-            onChange={setSearch}
-          />
-        </Flex>
-      </View>
-      <ListBox
-        aria-label="labels"
-        items={labels}
-        selectionMode="multiple"
-        selectedKeys={selected}
-        onSelectionChange={onSelectionChange}
-        css={css`
-          height: 300px;
-        `}
-        renderEmptyState={() => "No labels found"}
-      >
-        {(item) => <PromptLabelListBoxItem key={item.id} item={item} />}
-      </ListBox>
+        </View>
+        <Menu
+          aria-label="labels"
+          items={labels}
+          selectionMode="multiple"
+          selectedKeys={selected}
+          onSelectionChange={onSelectionChange}
+          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+        >
+          {({ id, name, color }) => (
+            <MenuItem
+              id={id}
+              textValue={name}
+              leadingContent={
+                <ColorSwatch
+                  color={color ?? undefined}
+                  size="M"
+                  shape="circle"
+                />
+              }
+            >
+              {name}
+            </MenuItem>
+          )}
+        </Menu>
+      </Autocomplete>
       <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
         <LinkButton variant="quiet" size="S" to="/settings/prompts">
           Edit Labels
         </LinkButton>
       </View>
-    </Autocomplete>
-  );
-}
-
-type PromptLabel =
-  PromptLabelConfigButton_allLabels$data["promptLabels"]["edges"][number]["node"];
-
-function PromptLabelListBoxItem({ item }: { item: PromptLabel }) {
-  return (
-    <ListBoxItem key={item.id} id={item.id}>
-      {({ isSelected }) => (
-        <Flex direction="row" justifyContent="space-between">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <ColorSwatch
-              color={item.color ?? undefined}
-              size="M"
-              shape="circle"
-            />
-            {item.name}
-          </Flex>
-          {isSelected ? <Icon svg={<Icons.CheckmarkOutline />} /> : null}
-        </Flex>
-      )}
-    </ListBoxItem>
+    </>
   );
 }

@@ -12,6 +12,7 @@ import {
   LazyTabPanel,
   Menu,
   MenuContainer,
+  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -22,7 +23,6 @@ import {
   Tabs,
   Text,
   Token,
-  View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -296,11 +296,7 @@ export function PromptSelector({
             selectionMode="single"
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
             items={promptItems}
-            renderEmptyState={() => (
-              <View padding="size-400">
-                <Text color="text-700">No prompts found</Text>
-              </View>
-            )}
+            renderEmptyState={() => <MenuEmpty>No prompts found</MenuEmpty>}
             onAction={(key) => {
               onSelectPrompt(String(key));
             }}
@@ -420,9 +416,7 @@ export function PromptVersionSelector({
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
-                  <View padding="size-400">
-                    <Text color="text-700">No versions found</Text>
-                  </View>
+                  <MenuEmpty>No versions found</MenuEmpty>
                 )}
                 selectionMode="single"
                 selectedKeys={
@@ -479,11 +473,7 @@ export function PromptVersionSelector({
               </MenuHeader>
               <Menu
                 items={tagItems}
-                renderEmptyState={() => (
-                  <View padding="size-400">
-                    <Text color="text-700">No tags found</Text>
-                  </View>
-                )}
+                renderEmptyState={() => <MenuEmpty>No tags found</MenuEmpty>}
                 selectionMode="single"
                 selectedKeys={selectedTagName ? [selectedTagName] : []}
                 onAction={(key) => {

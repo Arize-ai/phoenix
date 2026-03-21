@@ -5,20 +5,19 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Autocomplete,
   Button,
-  Flex,
-  Heading,
   Icon,
   Icons,
   Input,
   Loading,
   Menu,
+  MenuEmpty,
+  MenuHeader,
   MenuItem,
   MenuTrigger,
   Popover,
   SearchField,
   Token,
   useFilter,
-  View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { PromptsLabelMenuQuery } from "@phoenix/pages/prompts/__generated__/PromptsLabelMenuQuery.graphql";
@@ -42,7 +41,7 @@ export const PromptsLabelMenu = ({
         Labels
         {selectedLabelIds.length > 0 ? ` (${selectedLabelIds.length})` : ""}
       </Button>
-      <Popover>
+      <Popover placement="bottom end">
         <Suspense
           fallback={
             <Loading
@@ -99,27 +98,16 @@ const LabelMenuFilterContent = ({
 
   return (
     <Autocomplete filter={contains}>
-      <View
-        padding="size-200"
-        paddingTop="size-100"
-        borderBottomWidth="thin"
-        borderColor="default"
-        minWidth={300}
-      >
-        <Flex direction="column" gap="size-100">
-          <Heading level={4} weight="heavy">
-            Filter prompts by labels
-          </Heading>
-          <SearchField aria-label="Search" variant="quiet" autoFocus>
-            <SearchIcon />
-            <Input placeholder="Search labels" />
-          </SearchField>
-        </Flex>
-      </View>
+      <MenuHeader>
+        <SearchField aria-label="Search" variant="quiet" autoFocus>
+          <SearchIcon />
+          <Input placeholder="Search labels" />
+        </SearchField>
+      </MenuHeader>
       <Menu
         items={labels}
         selectionMode="multiple"
-        renderEmptyState={() => "No labels found"}
+        renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
         selectedKeys={selectedLabelIds}
         onSelectionChange={(keys) => {
           if (keys === "all") {

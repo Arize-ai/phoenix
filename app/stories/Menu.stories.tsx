@@ -17,6 +17,7 @@ import {
   Icons,
   Menu,
   MenuContainer,
+  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -30,6 +31,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
 /**
@@ -339,5 +341,71 @@ export const TrailingContentMenu = () => {
         </Menu>
       </Popover>
     </MenuTrigger>
+  );
+};
+
+export const MenuHeaderTitleWithSearch = () => {
+  const { contains } = useFilter({ sensitivity: "base" });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Text>
+        MenuHeaderTitle composed with a SearchField should have a visible border
+        between them.
+      </Text>
+      <MenuTrigger>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+          Select Categories
+          {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+        </Button>
+        <MenuContainer>
+          <Autocomplete filter={contains}>
+            <MenuHeader>
+              <MenuHeaderTitle
+                trailingContent={
+                  <IconButton size="S">
+                    <Icon svg={<Icons.PlusCircleOutline />} />
+                  </IconButton>
+                }
+              >
+                Categories
+              </MenuHeaderTitle>
+              <SearchField
+                aria-label="Search categories"
+                variant="quiet"
+                autoFocus
+              >
+                <SearchIcon />
+                <Input placeholder="Search categories..." />
+              </SearchField>
+            </MenuHeader>
+            <Menu
+              items={FILTER_OPTIONS}
+              selectionMode="multiple"
+              renderEmptyState={() => (
+                <MenuEmpty>No categories found</MenuEmpty>
+              )}
+              selectedKeys={selectedIds}
+              onSelectionChange={(keys) => {
+                if (keys === "all") {
+                  setSelectedIds(FILTER_OPTIONS.map((item) => item.id));
+                } else {
+                  setSelectedIds(Array.from(keys as Set<string>));
+                }
+              }}
+            >
+              {({ id, name, color }) => (
+                <MenuItem id={id} textValue={name}>
+                  <Token color={color}>
+                    <Truncate maxWidth={80}>{name}</Truncate>
+                  </Token>
+                </MenuItem>
+              )}
+            </Menu>
+          </Autocomplete>
+        </MenuContainer>
+      </MenuTrigger>
+    </Flex>
   );
 };

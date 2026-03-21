@@ -14,6 +14,7 @@ import {
   Loading,
   Menu,
   MenuContainer,
+  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
@@ -291,7 +292,7 @@ const SplitMenuApplyContent = ({
   return (
     <Menu
       items={splits}
-      renderEmptyState={() => "No splits found"}
+      renderEmptyState={() => <MenuEmpty>No splits found</MenuEmpty>}
       // NOTE: Menu is no longer multi-select, so we track the menu open state manually
       selectionMode="none"
       // ensure that menu items are re-rendered when splitStates changes

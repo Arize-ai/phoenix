@@ -945,7 +945,7 @@ const inputFieldCSS = (theme: Theme) => css`
 const menuCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-menu-border-color: var(--global-color-gray-100);
+    --global-menu-border-color: var(--global-border-color-default);
     --global-menu-background-color: var(--global-color-gray-50);
     --global-menu-item-background-color-hover: var(--hover-background);
     --global-menu-split-item-content-gap: var(

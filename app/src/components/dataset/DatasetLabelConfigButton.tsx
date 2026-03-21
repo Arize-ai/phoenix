@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import {
   ConnectionHandler,
@@ -10,25 +9,30 @@ import {
 
 import {
   Alert,
+  Autocomplete,
   Button,
   type ButtonProps,
   ColorSwatch,
-  DebouncedSearch,
   Dialog,
   DialogTrigger,
-  Flex,
-  Heading,
   Icon,
   Icons,
+  Input,
   LinkButton,
-  ListBox,
-  ListBoxItem,
   Loading,
+  Menu,
+  MenuEmpty,
+  MenuFooter,
+  MenuHeader,
+  MenuHeaderTitle,
+  MenuItem,
   Popover,
   PopoverArrow,
+  SearchField,
   type Selection,
-  View,
+  useFilter,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import type { UseDatasetLabelMutationsParams } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { useDatasetLabelMutations } from "@phoenix/components/dataset/useDatasetLabelMutations";
 import { NewLabelForm } from "@phoenix/components/label";
@@ -101,6 +105,7 @@ function DatasetLabelList({
   query: DatasetLabelConfigButton_allLabels$key;
 }) {
   const [mode, setMode] = useState<"apply" | "create">("apply");
+  const { contains } = useFilter({ sensitivity: "base" });
   const notifyError = useNotifyError();
   const datasetData = useFragment<DatasetLabelConfigButton_datasetLabels$key>(
     graphql`
@@ -136,9 +141,13 @@ function DatasetLabelList({
     () => datasetData?.labels?.map((label) => label.id) || [],
     [datasetData?.labels]
   );
-  const [search, setSearch] = useState("");
   // Derive selected state directly from Relay data - no need for separate state
   const selected = useMemo(() => new Set(selectedLabelIds), [selectedLabelIds]);
+
+  const labels = useMemo(
+    () => labelData.datasetLabels.edges.map((edge) => edge.node),
+    [labelData]
+  );
 
   const [setDatasetLabels] =
     useMutation<DatasetLabelConfigButtonSetLabelsMutation>(graphql`
@@ -160,12 +169,6 @@ function DatasetLabelList({
         }
       }
     `);
-
-  const labels = labelData.datasetLabels.edges
-    .map((edge) => edge.node)
-    .filter((label) => {
-      return label.name.toLowerCase().includes(search.toLowerCase());
-    });
 
   const onSelectionChange = (selection: Selection) => {
     if (selection === "all") {
@@ -192,77 +195,69 @@ function DatasetLabelList({
 
   return (
     <>
-      <View
-        padding="size-100"
-        paddingTop="size-50"
-        borderBottomWidth="thin"
-        borderColor="default"
-        minWidth={300}
-      >
-        <Flex direction="column" gap="size-50">
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Flex direction="row" gap="size-100" alignItems="center">
-              {mode === "create" && (
-                <Button
-                  variant="quiet"
-                  size="S"
-                  leadingVisual={<Icon svg={<Icons.ChevronLeft />} />}
-                  onPress={() => setMode("apply")}
-                />
-              )}
-              <Heading level={4} weight="heavy">
-                {mode === "create"
-                  ? "Create New Label for this dataset"
-                  : "Assign labels to this dataset"}
-              </Heading>
-            </Flex>
-            {mode === "apply" && (
+      <MenuHeader>
+        <MenuHeaderTitle
+          leadingContent={
+            mode === "create" ? (
+              <Button
+                variant="quiet"
+                size="S"
+                leadingVisual={<Icon svg={<Icons.ChevronLeft />} />}
+                onPress={() => setMode("apply")}
+              />
+            ) : undefined
+          }
+          trailingContent={
+            mode === "apply" ? (
               <Button
                 variant="quiet"
                 size="S"
                 leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
                 onPress={() => setMode("create")}
               />
-            )}
-          </Flex>
-          {mode === "apply" && (
-            <DebouncedSearch
-              autoFocus
-              aria-label="Search labels"
-              placeholder="Search labels..."
-              onChange={setSearch}
-            />
-          )}
-        </Flex>
-      </View>
+            ) : undefined
+          }
+        >
+          {mode === "create"
+            ? "Create New Label"
+            : "Assign labels"}
+        </MenuHeaderTitle>
+      </MenuHeader>
       {mode === "apply" && (
         <>
-          <ListBox
-            aria-label="labels"
-            items={labels}
-            selectionMode="multiple"
-            selectedKeys={selected}
-            onSelectionChange={onSelectionChange}
-            css={css`
-              height: 300px;
-            `}
-            renderEmptyState={() => "No labels found"}
-          >
-            {(item) => <DatasetLabelListBoxItem key={item.id} item={item} />}
-          </ListBox>
-          <View
-            padding="size-100"
-            borderTopColor="default"
-            borderTopWidth="thin"
-          >
+          <Autocomplete filter={contains}>
+            <MenuHeader>
+              <SearchField aria-label="Search labels" variant="quiet" autoFocus>
+                <SearchIcon />
+                <Input placeholder="Search labels..." />
+              </SearchField>
+            </MenuHeader>
+            <Menu
+              aria-label="labels"
+              items={labels}
+              selectionMode="multiple"
+              selectedKeys={selected}
+              onSelectionChange={onSelectionChange}
+              renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+            >
+              {({ id, name, color }) => (
+                <MenuItem
+                  id={id}
+                  textValue={name}
+                  leadingContent={
+                    <ColorSwatch color={color} size="M" shape="circle" />
+                  }
+                >
+                  {name}
+                </MenuItem>
+              )}
+            </Menu>
+          </Autocomplete>
+          <MenuFooter>
             <LinkButton variant="quiet" size="S" to="/settings/datasets">
               Edit Labels
             </LinkButton>
-          </View>
+          </MenuFooter>
         </>
       )}
       {mode === "create" && (
@@ -278,26 +273,6 @@ function DatasetLabelList({
         />
       )}
     </>
-  );
-}
-
-function DatasetLabelListBoxItem({
-  item,
-}: {
-  item: { id: string; name: string; color: string };
-}) {
-  return (
-    <ListBoxItem key={item.id} id={item.id}>
-      {({ isSelected }) => (
-        <Flex direction="row" justifyContent="space-between">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <ColorSwatch color={item.color} size="M" shape="circle" />
-            {item.name}
-          </Flex>
-          {isSelected ? <Icon svg={<Icons.CheckmarkOutline />} /> : null}
-        </Flex>
-      )}
-    </ListBoxItem>
   );
 }
 

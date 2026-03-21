@@ -1,22 +1,28 @@
-import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
+  Autocomplete,
   Button,
   ColorSwatch,
-  DebouncedSearch,
-  DialogTrigger,
+  Counter,
   Flex,
   Icon,
   Icons,
-  ListBox,
-  ListBoxItem,
+  Input,
   Loading,
+  Menu,
+  MenuEmpty,
+  MenuHeader,
+  MenuItem,
+  MenuTrigger,
   Popover,
+  SearchField,
   type Selection,
+  useFilter,
   View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetLabelFilterButtonQuery } from "./__generated__/DatasetLabelFilterButtonQuery.graphql";
 
@@ -28,19 +34,19 @@ type DatasetLabelFilterButtonProps = {
 export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
   const { selectedLabelIds, onSelectionChange } = props;
 
-  const buttonText =
-    selectedLabelIds.length > 0
-      ? `Labels (${selectedLabelIds.length})`
-      : "Labels";
-
   return (
-    <DialogTrigger>
+    <MenuTrigger>
       <Button
         variant="default"
         size="M"
-        trailingVisual={<Icon svg={<Icons.ChevronDown />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        trailingVisual={
+          selectedLabelIds.length > 0 ? (
+            <Counter>{selectedLabelIds.length}</Counter>
+          ) : undefined
+        }
       >
-        {buttonText}
+        Labels
       </Button>
       <Popover placement="bottom end">
         <Suspense fallback={<Loading />}>
@@ -50,7 +56,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
           />
         </Suspense>
       </Popover>
-    </DialogTrigger>
+    </MenuTrigger>
   );
 }
 
@@ -61,6 +67,7 @@ function DatasetLabelFilterContent({
   selectedLabelIds: string[];
   onSelectionChange: (labelIds: string[]) => void;
 }) {
+  const { contains } = useFilter({ sensitivity: "base" });
   const labelData = useLazyLoadQuery<DatasetLabelFilterButtonQuery>(
     graphql`
       query DatasetLabelFilterButtonQuery {
@@ -80,13 +87,10 @@ function DatasetLabelFilterContent({
     { fetchPolicy: "store-and-network" }
   );
 
-  const [search, setSearch] = useState("");
-
-  const labels = labelData.datasetLabels.edges
-    .map((edge) => edge.node)
-    .filter((label) => {
-      return label.name.toLowerCase().includes(search.toLowerCase());
-    });
+  const labels = useMemo(
+    () => labelData.datasetLabels.edges.map((edge) => edge.node),
+    [labelData]
+  );
 
   const handleSelectionChange = (selection: Selection) => {
     if (selection === "all") {
@@ -101,54 +105,42 @@ function DatasetLabelFilterContent({
   };
 
   return (
-    <View padding="size-200">
-      <Flex direction="column" gap="size-100">
-        <DebouncedSearch
-          autoFocus
-          aria-label="Search labels"
-          placeholder="Search labels..."
-          onChange={setSearch}
-        />
-        <ListBox
+    <>
+      <Autocomplete filter={contains}>
+        <MenuHeader>
+          <SearchField aria-label="Search labels" variant="quiet" autoFocus>
+            <SearchIcon />
+            <Input placeholder="Search labels..." />
+          </SearchField>
+        </MenuHeader>
+        <Menu
           aria-label="labels"
           items={labels}
           selectionMode="multiple"
           selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
-          css={css`
-            height: 300px;
-            width: 320px;
-          `}
-          renderEmptyState={() => "No labels found"}
+          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
         >
-          {(item) => <DatasetLabelFilterItem key={item.id} item={item} />}
-        </ListBox>
+          {({ id, name, color }) => (
+            <MenuItem
+              id={id}
+              textValue={name}
+              leadingContent={
+                <ColorSwatch color={color} size="M" shape="circle" />
+              }
+            >
+              {name}
+            </MenuItem>
+          )}
+        </Menu>
+      </Autocomplete>
+      <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
         <Flex direction="row" justifyContent="end" alignItems="center">
           <Button variant="quiet" size="S" onPress={handleClear}>
             Clear All
           </Button>
         </Flex>
-      </Flex>
-    </View>
-  );
-}
-
-function DatasetLabelFilterItem({
-  item,
-}: {
-  item: { id: string; name: string; color: string };
-}) {
-  return (
-    <ListBoxItem key={item.id} id={item.id}>
-      {({ isSelected }) => (
-        <Flex direction="row" justifyContent="space-between">
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <ColorSwatch color={item.color} size="M" shape="circle" />
-            {item.name}
-          </Flex>
-          {isSelected ? <Icon svg={<Icons.CheckmarkOutline />} /> : null}
-        </Flex>
-      )}
-    </ListBoxItem>
+      </View>
+    </>
   );
 }

@@ -16,6 +16,7 @@ import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
 import { Popover } from "../overlay";
+import { View } from "../view";
 
 const menuCSS = css`
   --menu-min-width: 250px;
@@ -375,8 +376,10 @@ export const MenuHeaderTitle = ({
       alignItems="center"
       wrap="nowrap"
       minHeight={30}
+      data-testid="menu-header-title"
       css={css`
         padding: var(--global-dimension-static-size-100);
+        border-bottom: 1px solid var(--global-menu-border-color);
       `}
     >
       {leadingContent}
@@ -430,6 +433,24 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
     >
       {children}
     </div>
+  );
+};
+
+/**
+ * A component to render a consistent empty state message inside a Menu.
+ * Use this with the `renderEmptyState` prop on Menu or ListBox components.
+ * @example
+ * <Menu renderEmptyState={() => <MenuEmpty>No items found</MenuEmpty>}>
+ *   ...
+ * </Menu>
+ */
+export const MenuEmpty = ({ children }: PropsWithChildren) => {
+  return (
+    <View padding="size-200">
+      <Text color="text-700" size="S">
+        {children}
+      </Text>
+    </View>
   );
 };
 

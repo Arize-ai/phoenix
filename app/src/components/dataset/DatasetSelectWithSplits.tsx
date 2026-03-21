@@ -17,6 +17,7 @@ import {
   LinkButton,
   Menu,
   MenuContainer,
+  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -25,7 +26,6 @@ import {
   SelectChevronUpDownIcon,
   Text,
   Token,
-  View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -231,13 +231,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
             items={datasetItems}
-            renderEmptyState={() => (
-              <View padding="size-100">
-                <Text color="gray-300" size="S">
-                  No datasets found
-                </Text>
-              </View>
-            )}
+            renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
           >
             {({
               id,

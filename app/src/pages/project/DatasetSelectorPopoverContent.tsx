@@ -12,6 +12,7 @@ import {
   Icons,
   ListBox,
   ListBoxItem,
+  MenuEmpty,
   useFilter,
   View,
 } from "@phoenix/components";
@@ -117,7 +118,7 @@ function DatasetsList(props: {
           height: 300px;
           width: 300px;
         `}
-        renderEmptyState={() => "No datasets found"}
+        renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
         onSelectionChange={(selection) => {
           if (typeof selection === "object") {
             const selectedDatasetIds = Array.from(selection);

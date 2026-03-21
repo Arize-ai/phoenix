@@ -20,6 +20,7 @@ import {
   ListBox,
   ListBoxItem,
   Loading,
+  MenuEmpty,
   Popover,
   PopoverArrow,
   useFilter,
@@ -202,7 +203,7 @@ function ProjectsList({
             onProjectSelect(projectId);
           }
         }}
-        renderEmptyState={() => "No projects found"}
+        renderEmptyState={() => <MenuEmpty>No projects found</MenuEmpty>}
       >
         {(item) => (
           <ListBoxItem
