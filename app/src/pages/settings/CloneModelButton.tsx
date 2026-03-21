@@ -119,46 +119,48 @@ function CloneModelDialogContent({
         modelName={`${modelData.name} (override)`}
         modelProvider={modelData.provider}
         modelNamePattern={modelData.namePattern}
-        modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
+        modelCost={
+          modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>
+        }
         startDate={modelData.startTime}
         onSubmit={(params) => {
-        commitCloneModel({
-          variables: {
-            input: {
-              name: params.name,
-              provider: params.provider,
-              namePattern: params.namePattern,
-              startTime: params.startTime
-                ? params.startTime.toDate(getLocalTimeZone()).toISOString()
-                : null,
-              costs: [...params.promptCosts, ...params.completionCosts].map(
-                (cost) => ({
-                  tokenType: cost.tokenType,
-                  costPerMillionTokens: cost.costPerMillionTokens,
-                  kind: cost.kind,
-                })
-              ),
+          commitCloneModel({
+            variables: {
+              input: {
+                name: params.name,
+                provider: params.provider,
+                namePattern: params.namePattern,
+                startTime: params.startTime
+                  ? params.startTime.toDate(getLocalTimeZone()).toISOString()
+                  : null,
+                costs: [...params.promptCosts, ...params.completionCosts].map(
+                  (cost) => ({
+                    tokenType: cost.tokenType,
+                    costPerMillionTokens: cost.costPerMillionTokens,
+                    kind: cost.kind,
+                  })
+                ),
+              },
+              connectionId,
             },
-            connectionId,
-          },
-          onCompleted: () => {
-            onClose();
-            if (onModelCloned) {
-              onModelCloned(params);
-            }
-            notifySuccess({
-              title: `Model Cloned`,
-              message: `Model "${params.name}" cloned successfully`,
-            });
-            revalidate();
-          },
-          onError: (error) => {
-            const formattedError =
-              getErrorMessagesFromRelayMutationError(error);
-            setError(formattedError?.[0] ?? "Failed to clone model");
-          },
-        });
-      }}
+            onCompleted: () => {
+              onClose();
+              if (onModelCloned) {
+                onModelCloned(params);
+              }
+              notifySuccess({
+                title: `Model Cloned`,
+                message: `Model "${params.name}" cloned successfully`,
+              });
+              revalidate();
+            },
+            onError: (error) => {
+              const formattedError =
+                getErrorMessagesFromRelayMutationError(error);
+              setError(formattedError?.[0] ?? "Failed to clone model");
+            },
+          });
+        }}
         isSubmitting={isCommittingCloneModel}
         submitButtonText="Save Changes"
         formMode="create"

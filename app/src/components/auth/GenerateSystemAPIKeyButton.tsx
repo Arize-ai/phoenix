@@ -27,7 +27,6 @@ export function GenerateSystemAPIKeyButton({
   keyName = "System Key",
   onError,
 }: GenerateSystemAPIKeyButtonProps) {
-
   const [commit, isCommitting] =
     useMutation<GenerateSystemAPIKeyButtonMutation>(graphql`
       mutation GenerateSystemAPIKeyButtonMutation($name: String!) {

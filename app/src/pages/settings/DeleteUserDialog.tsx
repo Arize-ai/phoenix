@@ -63,14 +63,7 @@ export function DeleteUserDialog({
         setError(formattedError?.[0] ?? error.message);
       },
     });
-  }, [
-    commit,
-    connectionIds,
-    notifySuccess,
-    onClose,
-    onDeleted,
-    userId,
-  ]);
+  }, [commit, connectionIds, notifySuccess, onClose, onDeleted, userId]);
 
   return (
     <Dialog>

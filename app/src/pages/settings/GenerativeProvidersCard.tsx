@@ -538,12 +538,7 @@ function ServerCredentials({
         },
       });
     },
-    [
-      provider.credentialRequirements,
-      savedServerValues,
-      commit,
-      notifySuccess,
-    ]
+    [provider.credentialRequirements, savedServerValues, commit, notifySuccess]
   );
 
   // Get keys that have values on the server (including unparsable secrets)

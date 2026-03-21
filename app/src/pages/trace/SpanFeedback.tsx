@@ -9,8 +9,8 @@ import {
 import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Alert } from "@phoenix/components/core/alert";
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { Alert } from "@phoenix/components/core/alert";
 import { Icons } from "@phoenix/components/core/icon";
 import { Icon } from "@phoenix/components/core/icon/Icon";
 import { Flex } from "@phoenix/components/core/layout/Flex";

@@ -502,13 +502,7 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [
-      commitDeleteAnnotation,
-      spanNodeId,
-      timeRange,
-      projectId,
-      userFilter,
-    ]
+    [commitDeleteAnnotation, spanNodeId, timeRange, projectId, userFilter]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -667,13 +661,7 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [
-      commitCreateAnnotation,
-      spanNodeId,
-      timeRange,
-      projectId,
-      userFilter,
-    ]
+    [commitCreateAnnotation, spanNodeId, timeRange, projectId, userFilter]
   );
 
   return (

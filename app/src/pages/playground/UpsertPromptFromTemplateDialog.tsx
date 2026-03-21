@@ -162,14 +162,7 @@ export const UpsertPromptFromTemplateDialog = ({
         },
       });
     },
-    [
-      createPrompt,
-      instanceId,
-      navigate,
-      notifySuccess,
-      onSuccess,
-      store,
-    ]
+    [createPrompt, instanceId, navigate, notifySuccess, onSuccess, store]
   );
   const onUpdate = useCallback(
     (params: SavePromptFormParams, close: () => void) => {
@@ -217,14 +210,7 @@ export const UpsertPromptFromTemplateDialog = ({
         },
       });
     },
-    [
-      instanceId,
-      navigate,
-      notifySuccess,
-      store,
-      updatePrompt,
-      onSuccess,
-    ]
+    [instanceId, navigate, notifySuccess, store, updatePrompt, onSuccess]
   );
   return (
     <Dialog>

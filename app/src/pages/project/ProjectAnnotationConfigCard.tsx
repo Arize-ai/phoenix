@@ -270,11 +270,7 @@ const ProjectAnnotationConfigCardContent = (
         });
       });
     },
-    [
-      projectId,
-      addAnnotationConfigToProjectiMutation,
-      notifySuccess,
-    ]
+    [projectId, addAnnotationConfigToProjectiMutation, notifySuccess]
   );
 
   const removeAnnotationConfigFromProject = useCallback(
@@ -305,11 +301,7 @@ const ProjectAnnotationConfigCardContent = (
         },
       });
     },
-    [
-      projectId,
-      removeAnnotationConfigFromProjectMutation,
-      notifySuccess,
-    ]
+    [projectId, removeAnnotationConfigFromProjectMutation, notifySuccess]
   );
 
   const { allAnnotationConfigs } = data;
@@ -356,59 +348,59 @@ const ProjectAnnotationConfigCardContent = (
     <>
       {error && <Alert variant="danger">{error}</Alert>}
       <div
-      css={css`
-        overflow: auto;
-      `}
-    >
-      <table
-        css={tableCSS}
-        style={{
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+        css={css`
+          overflow: auto;
+        `}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      style={{
-                        left: header.getStart(),
-                        width: header.getSize(),
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  style={{
-                    width: cell.column.getSize(),
-                    maxWidth: cell.column.getSize(),
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        <table
+          css={tableCSS}
+          style={{
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th colSpan={header.colSpan} key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        style={{
+                          left: header.getStart(),
+                          width: header.getSize(),
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    style={{
+                      width: cell.column.getSize(),
+                      maxWidth: cell.column.getSize(),
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 };

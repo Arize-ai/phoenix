@@ -143,12 +143,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         );
       },
     });
-  }, [
-    commitDeleteTraces,
-    traceIds,
-    notifySuccess,
-    onClearSelection,
-  ]);
+  }, [commitDeleteTraces, traceIds, notifySuccess, onClearSelection]);
 
   const onDeletePress = () => {
     setIsDeletingTracesDialogOpen(true);
@@ -157,7 +152,11 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   return (
     <FloatingToolbarContainer>
       {error && (
-        <Alert variant="danger" dismissable onDismissClick={() => setError(null)}>
+        <Alert
+          variant="danger"
+          dismissable
+          onDismissClick={() => setError(null)}
+        >
           {error}
         </Alert>
       )}

@@ -178,9 +178,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                   Are you sure you want to delete {selectedExamples.length}{" "}
                   example{isPlural ? "s" : ""}?
                 </Text>
-                {deleteError && (
-                  <Alert variant="danger">{deleteError}</Alert>
-                )}
+                {deleteError && <Alert variant="danger">{deleteError}</Alert>}
               </View>
               <View
                 paddingEnd="size-200"
@@ -196,11 +194,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
                   >
                     Cancel
                   </Button>
-                  <Button
-                    variant="danger"
-                    size="S"
-                    onPress={onDeleteExamples}
-                  >
+                  <Button variant="danger" size="S" onPress={onDeleteExamples}>
                     Delete
                   </Button>
                 </Flex>

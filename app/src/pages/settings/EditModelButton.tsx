@@ -104,46 +104,48 @@ function EditModelDialogContent({
         modelName={modelData.name}
         modelProvider={modelData.provider}
         modelNamePattern={modelData.namePattern}
-        modelCost={modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>}
+        modelCost={
+          modelData.tokenPrices as Mutable<typeof modelData.tokenPrices>
+        }
         startDate={modelData.startTime}
         onSubmit={(params) => {
-        commitUpdateModel({
-          variables: {
-            input: {
-              id: modelData.id!,
-              name: params.name,
-              provider: params.provider,
-              namePattern: params.namePattern,
-              startTime: params.startTime
-                ? params.startTime.toDate(getLocalTimeZone()).toISOString()
-                : null,
-              costs: [...params.promptCosts, ...params.completionCosts].map(
-                (cost) => ({
-                  tokenType: cost.tokenType,
-                  costPerMillionTokens: cost.costPerMillionTokens,
-                  kind: cost.kind,
-                })
-              ),
+          commitUpdateModel({
+            variables: {
+              input: {
+                id: modelData.id!,
+                name: params.name,
+                provider: params.provider,
+                namePattern: params.namePattern,
+                startTime: params.startTime
+                  ? params.startTime.toDate(getLocalTimeZone()).toISOString()
+                  : null,
+                costs: [...params.promptCosts, ...params.completionCosts].map(
+                  (cost) => ({
+                    tokenType: cost.tokenType,
+                    costPerMillionTokens: cost.costPerMillionTokens,
+                    kind: cost.kind,
+                  })
+                ),
+              },
             },
-          },
-          onCompleted: () => {
-            onClose();
-            if (onModelEdited) {
-              onModelEdited(params);
-            }
-            notifySuccess({
-              title: `Model Updated`,
-              message: `Model "${params.name}" updated successfully`,
-            });
-            revalidate();
-          },
-          onError: (error) => {
-            const formattedError =
-              getErrorMessagesFromRelayMutationError(error);
-            setError(formattedError?.[0] ?? "Failed to update model");
-          },
-        });
-      }}
+            onCompleted: () => {
+              onClose();
+              if (onModelEdited) {
+                onModelEdited(params);
+              }
+              notifySuccess({
+                title: `Model Updated`,
+                message: `Model "${params.name}" updated successfully`,
+              });
+              revalidate();
+            },
+            onError: (error) => {
+              const formattedError =
+                getErrorMessagesFromRelayMutationError(error);
+              setError(formattedError?.[0] ?? "Failed to update model");
+            },
+          });
+        }}
         isSubmitting={isCommittingUpdateModel}
         submitButtonText="Save Changes"
         formMode="edit"
