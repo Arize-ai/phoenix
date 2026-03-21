@@ -6,13 +6,13 @@ import {
   Button,
   ColorSwatch,
   Counter,
-  Flex,
   Icon,
   Icons,
   Input,
   Loading,
   Menu,
   MenuEmpty,
+  MenuFooter,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -20,7 +20,6 @@ import {
   SearchField,
   type Selection,
   useFilter,
-  View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 
@@ -134,13 +133,11 @@ function DatasetLabelFilterContent({
           )}
         </Menu>
       </Autocomplete>
-      <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
-        <Flex direction="row" justifyContent="end" alignItems="center">
-          <Button variant="quiet" size="S" onPress={handleClear}>
-            Clear All
-          </Button>
-        </Flex>
-      </View>
+      <MenuFooter>
+        <Button variant="quiet" size="S" onPress={handleClear}>
+          Clear All
+        </Button>
+      </MenuFooter>
     </>
   );
 }

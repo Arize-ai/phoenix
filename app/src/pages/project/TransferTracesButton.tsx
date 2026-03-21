@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { Suspense, useMemo, useTransition } from "react";
 import {
   graphql,
@@ -10,22 +9,23 @@ import {
 import {
   Autocomplete,
   Button,
-  DebouncedSearch,
   Dialog,
   DialogTrigger,
-  Flex,
-  Heading,
   Icon,
   Icons,
-  ListBox,
-  ListBoxItem,
+  Input,
   Loading,
+  Menu,
   MenuEmpty,
+  MenuHeader,
+  MenuHeaderTitle,
+  MenuItem,
   Popover,
   PopoverArrow,
+  SearchField,
   useFilter,
-  View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import type { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
 
 import type { TransferTracesButton_projects$key } from "./__generated__/TransferTracesButton_projects.graphql";
@@ -169,31 +169,22 @@ function ProjectsList({
   };
   return (
     <Autocomplete filter={contains}>
-      <View
-        padding="size-100"
-        borderBottomWidth="thin"
-        borderColor="default"
-        minWidth={300}
-      >
-        <Flex direction="column" gap="size-50">
-          <Heading level={4} weight="heavy">
-            Transfer Traces to Project
-          </Heading>
-          <DebouncedSearch
-            autoFocus
-            aria-label="Search projects"
-            placeholder="Search projects..."
-            onChange={onSearchChange}
-          />
-        </Flex>
-      </View>
-      <ListBox
+      <MenuHeader>
+        <MenuHeaderTitle>Transfer Traces to Project</MenuHeaderTitle>
+        <SearchField
+          aria-label="Search projects"
+          variant="quiet"
+          autoFocus
+          onChange={onSearchChange}
+        >
+          <SearchIcon />
+          <Input placeholder="Search projects..." />
+        </SearchField>
+      </MenuHeader>
+      <Menu
         aria-label="projects"
         items={items}
         selectionMode="single"
-        css={css`
-          height: 300px;
-        `}
         onSelectionChange={(selection) => {
           if (selection === "all") {
             return;
@@ -206,15 +197,15 @@ function ProjectsList({
         renderEmptyState={() => <MenuEmpty>No projects found</MenuEmpty>}
       >
         {(item) => (
-          <ListBoxItem
-            key={item.id}
+          <MenuItem
             id={item.id}
+            textValue={item.name}
             isDisabled={item.id === currentProjectId}
           >
             {item.name}
-          </ListBoxItem>
+          </MenuItem>
         )}
-      </ListBox>
+      </Menu>
     </Autocomplete>
   );
 }

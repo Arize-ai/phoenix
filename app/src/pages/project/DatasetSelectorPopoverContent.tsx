@@ -1,21 +1,21 @@
-import { css } from "@emotion/react";
 import { startTransition, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 
 import {
   Autocomplete,
-  DebouncedSearch,
-  Flex,
-  Heading,
   Icon,
   IconButton,
   Icons,
-  ListBox,
-  ListBoxItem,
+  Input,
+  Menu,
   MenuEmpty,
+  MenuHeader,
+  MenuHeaderTitle,
+  MenuItem,
+  SearchField,
   useFilter,
-  View,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import type { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
@@ -88,36 +88,30 @@ function DatasetsList(props: {
 
   return (
     <Autocomplete filter={contains}>
-      <View padding="size-100" borderBottomWidth="thin" borderColor="default">
-        <Flex direction="column" gap="size-50">
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Heading level={4} weight="heavy">
-              Add to Dataset
-            </Heading>
+      <MenuHeader>
+        <MenuHeaderTitle
+          trailingContent={
             <IconButton size="S" onPress={onCreateNewDataset}>
               <Icon svg={<Icons.PlusOutline />} />
             </IconButton>
-          </Flex>
-          <DebouncedSearch
-            autoFocus
-            aria-label="Search datasets"
-            placeholder="Search datasets..."
-            onChange={onSearchChange}
-          />
-        </Flex>
-      </View>
-
-      <ListBox
+          }
+        >
+          Add to Dataset
+        </MenuHeaderTitle>
+        <SearchField
+          aria-label="Search datasets"
+          variant="quiet"
+          autoFocus
+          onChange={onSearchChange}
+        >
+          <SearchIcon />
+          <Input placeholder="Search datasets..." />
+        </SearchField>
+      </MenuHeader>
+      <Menu
         aria-label="datasets"
+        items={items}
         selectionMode="single"
-        css={css`
-          height: 300px;
-          width: 300px;
-        `}
         renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
         onSelectionChange={(selection) => {
           if (typeof selection === "object") {
@@ -126,12 +120,12 @@ function DatasetsList(props: {
           }
         }}
       >
-        {items.map((item) => (
-          <ListBoxItem key={item.id} id={item.id}>
+        {(item) => (
+          <MenuItem id={item.id} textValue={item.name}>
             {item.name}
-          </ListBoxItem>
-        ))}
-      </ListBox>
+          </MenuItem>
+        )}
+      </Menu>
     </Autocomplete>
   );
 }
