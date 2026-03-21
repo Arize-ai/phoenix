@@ -31,9 +31,14 @@
   "types": "build/index.d.ts",
   "scripts": {
     "build": "tsc && tsc-alias && chmod 755 build/index.js",
+    "build:workspace-runtime-deps": "pnpm --filter @arizeai/phoenix-config build && pnpm --filter @arizeai/phoenix-otel build && pnpm --filter @arizeai/phoenix-client build",
     "clean": "rimraf build",
     "dev": "tsx src/index.ts",
-    "prebuild": "pnpm run clean",
+    "prebuild": "pnpm run clean && pnpm run build:workspace-runtime-deps",
+    "predev": "pnpm run build:workspace-runtime-deps",
+    "pretest": "pnpm run build:workspace-runtime-deps",
+    "pretest:watch": "pnpm run build:workspace-runtime-deps",
+    "pretypecheck": "pnpm run build:workspace-runtime-deps",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

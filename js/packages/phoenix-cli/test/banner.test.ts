@@ -13,13 +13,13 @@ describe("banner", () => {
       hasUpdate: true,
     });
 
-    expect(infoLines).toContain("CLI:     v0.11.0");
+    expect(infoLines).toContain("Version: v0.11.0");
     expect(infoLines).toContain(
       "Update:  v0.12.0 available. Run npm install -g @arizeai/phoenix-cli"
     );
   });
 
-  it("shows up to date when the published version matches", () => {
+  it("omits update text when the published version matches", () => {
     const infoLines = getBannerInfoLines({
       serverUrl: "http://localhost:6006",
       project: "default",
@@ -29,7 +29,7 @@ describe("banner", () => {
       hasUpdate: false,
     });
 
-    expect(infoLines).toContain("Update:  up to date");
+    expect(infoLines.some((line) => line.startsWith("Update:"))).toBe(false);
   });
 
   it("omits update text when update status is unavailable", () => {
@@ -40,7 +40,7 @@ describe("banner", () => {
       currentVersion: "0.11.0",
     });
 
-    expect(infoLines).toContain("CLI:     v0.11.0");
+    expect(infoLines).toContain("Version: v0.11.0");
     expect(infoLines.some((line) => line.startsWith("Update:"))).toBe(false);
   });
 
@@ -49,16 +49,12 @@ describe("banner", () => {
       infoLines: [
         "Server:  http://localhost:6006",
         "Project: default",
-        "CLI:     v0.11.0",
-        "Update:  up to date",
+        "Version: v0.11.0",
       ],
     });
 
     expect(banner).toContain("░▀░░░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀");
-    expect(banner).toContain(
-      "px is the CLI for interacting with your phoenix instance"
-    );
+    expect(banner).toContain("CLI for interacting with your phoenix server");
     expect(banner).toContain("Server:  http://localhost:6006");
-    expect(banner).toContain("Update:  up to date");
   });
 });
