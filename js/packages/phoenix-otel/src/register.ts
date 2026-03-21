@@ -14,6 +14,12 @@ import {
   trace,
   type TracerProvider,
 } from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import {
+  CompositePropagator,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from "@opentelemetry/core";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
@@ -242,6 +248,33 @@ function restoreGlobalTelemetrySnapshot(
   }
 }
 
+/**
+ * Sets the given provider as the global OpenTelemetry provider using this
+ * module's own imports of `trace`, `context`, and `propagation`.
+ *
+ * We deliberately avoid calling `provider.register()` because the SDK's
+ * internal import of `@opentelemetry/api` may resolve to a different module
+ * instance in pnpm workspaces (different symlink paths → different module
+ * identity). By routing all global-state mutations through **our** copy of
+ * the OTEL API, snapshot/restore stays consistent.
+ */
+function setGlobalProvider(provider: NodeTracerProvider): void {
+  trace.setGlobalTracerProvider(provider);
+
+  const contextManager = new AsyncLocalStorageContextManager();
+  contextManager.enable();
+  context.setGlobalContextManager(contextManager);
+
+  propagation.setGlobalPropagator(
+    new CompositePropagator({
+      propagators: [
+        new W3CTraceContextPropagator(),
+        new W3CBaggagePropagator(),
+      ],
+    })
+  );
+}
+
 function restorePreviousManagedGlobalTracerProvider(): void {
   const previousMount =
     managedGlobalTracerProviderMounts[
@@ -250,7 +283,7 @@ function restorePreviousManagedGlobalTracerProvider(): void {
 
   if (previousMount) {
     clearGlobalTelemetry();
-    previousMount.provider.register();
+    setGlobalProvider(previousMount.provider);
     return;
   }
 
@@ -314,7 +347,7 @@ export function attachGlobalTracerProvider(
   });
 
   clearGlobalTelemetry();
-  provider.register();
+  setGlobalProvider(provider);
 
   return {
     detach: () => {
