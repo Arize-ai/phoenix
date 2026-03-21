@@ -30,6 +30,9 @@ A command-line interface for [Arize Phoenix](https://github.com/Arize-ai/phoenix
 npm install -g @arizeai/phoenix-cli
 # or run without installing:
 npx @arizeai/phoenix-cli
+
+# once installed globally, update in place:
+px self update
 ```
 
 ## Configuration
@@ -50,6 +53,18 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
 
 ## Commands
+
+### `px self update`
+
+Check the npm registry for the latest CLI release and update the installed
+global CLI in place when a newer version is available.
+
+```bash
+px self update          # show current/latest and update if needed
+px self update --check  # show current/latest without installing
+```
+
+Automatic updates are supported for global `npm` and `pnpm` installs.
 
 ### `px traces [directory]`
 

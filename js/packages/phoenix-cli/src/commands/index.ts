@@ -14,3 +14,4 @@ export * from "./prompts";
 export * from "./prompt";
 export * from "./api";
 export * from "./docs";
+export * from "./self";

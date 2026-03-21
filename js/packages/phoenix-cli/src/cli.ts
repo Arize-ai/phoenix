@@ -17,6 +17,7 @@ import {
   createPromptsCommand,
   createSessionCommand,
   createSessionsCommand,
+  createSelfCommand,
   createSpansCommand,
   createTraceCommand,
   createTracesCommand,
@@ -47,6 +48,7 @@ export function createProgram(): Command {
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
+  program.addCommand(createSelfCommand());
 
   return program;
 }
