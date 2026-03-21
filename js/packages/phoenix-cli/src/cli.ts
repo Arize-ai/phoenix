@@ -3,6 +3,7 @@
 import { Command } from "commander";
 
 import { printBanner } from "./banner";
+import { CLI_VERSION } from "./__generated__/version";
 import {
   createAnnotationConfigCommand,
   createApiCommand,
@@ -22,12 +23,12 @@ import {
   createTracesCommand,
 } from "./commands";
 
-// Phoenix CLI Main Logic
-export function main() {
+export function createProgram(): Command {
   const program = new Command();
 
   program.name("px");
   program.enablePositionalOptions();
+  program.version(CLI_VERSION);
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
@@ -47,11 +48,23 @@ export function main() {
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
 
+  return program;
+}
+
+// Phoenix CLI Main Logic
+export async function main({
+  argv = process.argv,
+}: {
+  argv?: string[];
+} = {}): Promise<void> {
+  const program = createProgram();
+
   // Show banner and help if no command provided
-  if (process.argv.length === 2) {
-    printBanner();
+  if (argv.length === 2) {
+    await printBanner();
     program.help();
+    return;
   }
 
-  program.parse();
+  await program.parseAsync(argv);
 }
