@@ -24,7 +24,10 @@ import {
 
 import { createClient } from "../../src/client";
 import { createDataset } from "../../src/datasets/createDataset";
-import { asEvaluator, runExperiment } from "../../src/experiments/runExperiment";
+import {
+  asEvaluator,
+  runExperiment,
+} from "../../src/experiments/runExperiment";
 
 const PHOENIX_URL = process.env.PHOENIX_HOST ?? "http://localhost:6006";
 
@@ -166,10 +169,7 @@ async function main(): Promise<void> {
   log("TEST", `Experiment completed: ${result.id}`);
   log("TEST", `  Project: ${result.projectName}`);
   log("TEST", `  Runs: ${Object.keys(result.runs).length}`);
-  log(
-    "TEST",
-    `  Evaluations: ${result.evaluationRuns?.length ?? 0}`
-  );
+  log("TEST", `  Evaluations: ${result.evaluationRuns?.length ?? 0}`);
 
   // ── 5. Validate experiment results ────────────────────────────────────
   const runs = Object.values(result.runs);
