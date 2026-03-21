@@ -13,40 +13,10 @@ vi.mock("node:child_process", () => ({
 
 import {
   buildUpdateCommand,
-  compareVersions,
   createSelfCommand,
   detectInstallPackageManager,
-  getInstalledPackageMetadata,
 } from "../src/commands/self";
-
-describe("compareVersions", () => {
-  it("returns a negative number when the left version is older", () => {
-    expect(
-      compareVersions({
-        leftVersion: "0.10.0",
-        rightVersion: "0.11.0",
-      })
-    ).toBeLessThan(0);
-  });
-
-  it("treats release versions as newer than prereleases", () => {
-    expect(
-      compareVersions({
-        leftVersion: "0.11.0-beta.1",
-        rightVersion: "0.11.0",
-      })
-    ).toBeLessThan(0);
-  });
-
-  it("compares prerelease identifiers using semver precedence", () => {
-    expect(
-      compareVersions({
-        leftVersion: "0.11.0-beta.2",
-        rightVersion: "0.11.0-beta.10",
-      })
-    ).toBeLessThan(0);
-  });
-});
+import { CLI_VERSION } from "../src/version";
 
 describe("detectInstallPackageManager", () => {
   it("detects npm installs from the npm global root", () => {
@@ -108,8 +78,8 @@ describe("buildUpdateCommand", () => {
 });
 
 describe("self update command", () => {
-  const installedPackage = getInstalledPackageMetadata();
-  const packageParentDirectory = path.dirname(installedPackage.packageRoot);
+  const packageDirectory = process.cwd();
+  const packageParentDirectory = path.dirname(packageDirectory);
 
   beforeEach(() => {
     execFileSyncMock.mockReset();
@@ -135,12 +105,18 @@ describe("self update command", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://registry.npmjs.org/%40arizeai%2Fphoenix-cli/latest"
+      "https://registry.npmjs.org/%40arizeai%2Fphoenix-cli/latest",
+      expect.objectContaining({
+        headers: {
+          Accept: "application/json",
+        },
+        signal: expect.any(AbortSignal),
+      })
     );
     expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(stdoutSpy).toHaveBeenNthCalledWith(
       1,
-      `Current version: ${installedPackage.version}\nLatest version: 99.0.0`
+      `Current version: ${CLI_VERSION}\nLatest version: 99.0.0`
     );
     expect(stdoutSpy).toHaveBeenNthCalledWith(
       2,
@@ -206,7 +182,7 @@ describe("self update command", () => {
   it("reports when the installed version is already current", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn().mockResolvedValue({ version: installedPackage.version }),
+      json: vi.fn().mockResolvedValue({ version: CLI_VERSION }),
     });
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -259,7 +235,35 @@ describe("self update command", () => {
       createSelfCommand().parseAsync(["update", "--check"], { from: "user" })
     ).rejects.toThrow("process.exit:5");
 
-    expect(stderrSpy).toHaveBeenCalledWith("Error: offline");
+    expect(stderrSpy).toHaveBeenCalledWith(
+      "Error: Unable to fetch latest CLI version from npm"
+    );
     expect(exitSpy).toHaveBeenCalledWith(5);
+  });
+
+  it("fails when the published version is not valid semver", async () => {
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ version: "not-a-version" }),
+      })
+    );
+
+    await expect(
+      createSelfCommand().parseAsync(["update", "--check"], { from: "user" })
+    ).rejects.toThrow("process.exit:1");
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      "Error: Invalid published CLI version: not-a-version"
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

@@ -39,7 +39,7 @@ export function getBannerInfoLines({
     `Version: v${currentVersion}`,
     ...(hasUpdate && latestVersion
       ? [
-          `Update:  v${latestVersion} available. Run npm install -g @arizeai/phoenix-cli`,
+          `Update:  v${latestVersion} available. Run px self update`,
         ]
       : []),
   ];

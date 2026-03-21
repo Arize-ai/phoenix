@@ -15,7 +15,7 @@ describe("banner", () => {
 
     expect(infoLines).toContain("Version: v0.11.0");
     expect(infoLines).toContain(
-      "Update:  v0.12.0 available. Run npm install -g @arizeai/phoenix-cli"
+      "Update:  v0.12.0 available. Run px self update"
     );
   });
 
