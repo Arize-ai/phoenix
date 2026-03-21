@@ -6,6 +6,7 @@ Add `px self update` so the Phoenix CLI can check for a newer published version
 and upgrade itself in place.
 
 The command now:
+
 - shows the current and latest published CLI versions
 - supports `--check` for status-only checks
 - updates global installs managed by `npm`, `pnpm`, and `bun`
