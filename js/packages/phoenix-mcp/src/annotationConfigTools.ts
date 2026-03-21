@@ -2,7 +2,7 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { getResponseData } from "./client.js";
+import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
 
 const LIST_ANNOTATION_CONFIGS_DESCRIPTION = `List Phoenix annotation configs.

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   isPhoenixDatasetId,
   resolveDatasetId,
-} from "../src/client";
+} from "../src/datasetUtils";
 import { parseRelayGlobalId } from "../src/identifiers";
 
 describe("relay ID helpers", () => {

@@ -2,8 +2,8 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { getResponseData } from "./client.js";
 import { requirePreferredIdentifier } from "./identifiers.js";
+import { getResponseData } from "./responseUtils.js";
 import {
   attachAnnotationsToSpans,
   fetchProjectSpans,

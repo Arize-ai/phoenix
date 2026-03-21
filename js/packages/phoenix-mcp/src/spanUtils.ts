@@ -4,14 +4,14 @@ import type {
   componentsV1,
 } from "@arizeai/phoenix-client";
 
-import {
-  type ProjectSpansQuery,
-  getResponseData,
-} from "./client.js";
 import { requireIdentifier } from "./identifiers.js";
+import { getResponseData } from "./responseUtils.js";
 import type { SpanAnnotation, SpanWithAnnotations } from "./traceUtils.js";
 
 type Span = componentsV1["schemas"]["Span"];
+type ProjectSpansQuery = NonNullable<
+  Types["V1"]["operations"]["getSpans"]["parameters"]["query"]
+>;
 
 const DEFAULT_PAGE_LIMIT = 1000;
 const DEFAULT_SPAN_IDS_CHUNK_SIZE = 100;

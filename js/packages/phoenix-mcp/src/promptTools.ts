@@ -2,7 +2,7 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { getResponseData } from "./client.js";
+import { getResponseData } from "./responseUtils.js";
 import {
   addPromptVersionTagSchema,
   createPromptSchema,

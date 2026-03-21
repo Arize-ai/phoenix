@@ -2,8 +2,9 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { getResponseData, resolveDatasetId } from "./client.js";
+import { resolveDatasetId } from "./datasetUtils.js";
 import { requirePreferredIdentifier } from "./identifiers.js";
+import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
 
 const LIST_EXPERIMENTS_DESCRIPTION = `Get a list of all the experiments run on a given dataset.

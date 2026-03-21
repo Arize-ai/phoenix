@@ -2,7 +2,7 @@ import type { PhoenixClient } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { getResponseData } from "./client.js";
+import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
 
 const LIST_PROJECTS_DESCRIPTION = `Get a list of all projects.
