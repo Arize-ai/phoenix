@@ -55,7 +55,6 @@ from phoenix.evals import evaluate_dataframe
 results_df = evaluate_dataframe(
     dataframe=spans_df,
     evaluators=[quality_eval, safety_eval],
-    concurrency=5,
 )
 
 # 3. Upload results as annotations
