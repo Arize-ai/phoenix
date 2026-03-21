@@ -9,6 +9,7 @@ export * from "./KeyboardToken";
 export * from "./PageHeader";
 export * from "./LoadMoreButton";
 export * from "./alert";
+export * from "./badge";
 export * from "./disclosure";
 export * from "./combobox";
 export * from "./button";
