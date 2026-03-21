@@ -62,9 +62,9 @@ export const initializeProjectTools = ({
     {
       limit: z.number().min(1).max(MAX_LIST_LIMIT).default(100).optional(),
       cursor: z.string().optional(),
-      includeExperimentProjects: z.boolean().default(false).optional(),
+      include_experiment_projects: z.boolean().default(false).optional(),
     },
-    async ({ limit = 100, cursor, includeExperimentProjects = false }) => {
+    async ({ limit = 100, cursor, include_experiment_projects = false }) => {
       const projects = await fetchAllPages({
         limit,
         initialCursor: cursor,
@@ -74,7 +74,7 @@ export const initializeProjectTools = ({
               query: {
                 limit: pageSize,
                 cursor: pageCursor,
-                include_experiment_projects: includeExperimentProjects,
+                include_experiment_projects,
               },
             },
           });
@@ -94,17 +94,17 @@ export const initializeProjectTools = ({
     "get-project",
     GET_PROJECT_DESCRIPTION,
     {
-      projectIdentifier: z.string(),
+      project_identifier: z.string(),
     },
-    async ({ projectIdentifier }) => {
+    async ({ project_identifier }) => {
       const response = await client.GET("/v1/projects/{project_identifier}", {
         params: {
-          path: { project_identifier: projectIdentifier },
+          path: { project_identifier },
         },
       });
       const project = getResponseData({
         response,
-        errorPrefix: `Failed to fetch project "${projectIdentifier}"`,
+        errorPrefix: `Failed to fetch project "${project_identifier}"`,
       }).data;
 
       return jsonResponse(project);

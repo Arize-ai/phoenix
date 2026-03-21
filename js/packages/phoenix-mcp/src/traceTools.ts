@@ -147,26 +147,29 @@ export const initializeTraceTools = ({
     "list-traces",
     LIST_TRACES_DESCRIPTION,
     {
-      projectIdentifier: z.string().optional(),
+      project_identifier: z.string().optional(),
       limit: z
         .number()
         .min(1)
         .max(MAX_TRACE_PAGE_SIZE)
         .default(DEFAULT_TRACE_PAGE_SIZE),
       since: z.string().optional(),
-      lastNMinutes: z.number().min(1).optional(),
-      includeAnnotations: z.boolean().default(false).optional(),
+      last_n_minutes: z.number().min(1).optional(),
+      include_annotations: z.boolean().default(false).optional(),
     },
     async ({
-      projectIdentifier,
+      project_identifier,
       limit,
       since,
-      lastNMinutes,
-      includeAnnotations = false,
+      last_n_minutes,
+      include_annotations = false,
     }) => {
-      const startTime = resolveStartTime({ since, lastNMinutes });
+      const startTime = resolveStartTime({
+        since,
+        lastNMinutes: last_n_minutes,
+      });
       const normalizedProjectIdentifier = resolveProjectIdentifier({
-        projectIdentifier,
+        projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
       const tracePage = await getTraces({
@@ -194,7 +197,7 @@ export const initializeTraceTools = ({
       });
 
       let spans = response.spans;
-      if (includeAnnotations) {
+      if (include_annotations) {
         const annotations = await fetchSpanAnnotations({
           client,
           projectIdentifier: normalizedProjectIdentifier,
@@ -221,31 +224,31 @@ export const initializeTraceTools = ({
     "get-trace",
     GET_TRACE_DESCRIPTION,
     {
-      projectIdentifier: z.string().optional(),
-      traceId: z.string(),
-      includeAnnotations: z.boolean().default(false).optional(),
+      project_identifier: z.string().optional(),
+      trace_id: z.string(),
+      include_annotations: z.boolean().default(false).optional(),
     },
-    async ({ projectIdentifier, traceId, includeAnnotations = false }) => {
+    async ({ project_identifier, trace_id, include_annotations = false }) => {
       const normalizedProjectIdentifier = resolveProjectIdentifier({
-        projectIdentifier,
+        projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
       let spans = await fetchTraceSpans({
         client,
         projectIdentifier: normalizedProjectIdentifier,
-        traceId,
+        traceId: trace_id,
       });
 
       if (spans.length === 0) {
         const resolvedTraceId = await resolveTraceIdByPrefix({
           client,
           projectIdentifier: normalizedProjectIdentifier,
-          traceIdPrefix: traceId,
+          traceIdPrefix: trace_id,
         });
 
         if (!resolvedTraceId) {
           throw new Error(
-            `Trace not found for project "${normalizedProjectIdentifier}": ${traceId}`
+            `Trace not found for project "${normalizedProjectIdentifier}": ${trace_id}`
           );
         }
 
@@ -256,7 +259,7 @@ export const initializeTraceTools = ({
         });
       }
 
-      if (includeAnnotations) {
+      if (include_annotations) {
         const annotations = await fetchSpanAnnotations({
           client,
           projectIdentifier: normalizedProjectIdentifier,

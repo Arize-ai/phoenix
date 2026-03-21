@@ -99,14 +99,14 @@ export const initializeSpanTools = ({
     "get-spans",
     GET_SPANS_DESCRIPTION,
     {
-      projectIdentifier: z.string().optional(),
-      startTime: z.string().optional(),
-      endTime: z.string().optional(),
-      traceIds: z.array(z.string()).optional(),
-      parentId: z.string().nullable().optional(),
+      project_identifier: z.string().optional(),
+      start_time: z.string().optional(),
+      end_time: z.string().optional(),
+      trace_ids: z.array(z.string()).optional(),
+      parent_id: z.string().nullable().optional(),
       names: z.array(z.string()).optional(),
-      spanKinds: z.array(z.string()).optional(),
-      statusCodes: z.array(z.enum(["OK", "ERROR", "UNSET"])).optional(),
+      span_kinds: z.array(z.string()).optional(),
+      status_codes: z.array(z.enum(["OK", "ERROR", "UNSET"])).optional(),
       cursor: z.string().optional(),
       limit: z
         .number()
@@ -114,23 +114,23 @@ export const initializeSpanTools = ({
         .max(MAX_SPAN_QUERY_LIMIT)
         .default(DEFAULT_PAGE_SIZE)
         .optional(),
-      includeAnnotations: z.boolean().default(false).optional(),
+      include_annotations: z.boolean().default(false).optional(),
     },
     async ({
-      projectIdentifier,
-      startTime,
-      endTime,
-      traceIds,
-      parentId,
+      project_identifier,
+      start_time,
+      end_time,
+      trace_ids,
+      parent_id,
       names,
-      spanKinds,
-      statusCodes,
+      span_kinds,
+      status_codes,
       cursor,
       limit = DEFAULT_PAGE_SIZE,
-      includeAnnotations = false,
+      include_annotations = false,
     }) => {
       const resolvedProjectIdentifier = resolveProjectIdentifier({
-        projectIdentifier,
+        projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
 
@@ -140,18 +140,18 @@ export const initializeSpanTools = ({
         filters: {
           cursor,
           limit,
-          startTime,
-          endTime,
-          traceIds,
-          parentId,
+          startTime: start_time,
+          endTime: end_time,
+          traceIds: trace_ids,
+          parentId: parent_id,
           names,
-          spanKinds,
-          statusCodes,
+          spanKinds: span_kinds,
+          statusCodes: status_codes,
         },
         totalLimit: limit,
       });
 
-      const spans = includeAnnotations
+      const spans = include_annotations
         ? attachAnnotationsToSpans({
             spans: response.spans,
             annotations: await fetchSpanAnnotations({
@@ -173,10 +173,10 @@ export const initializeSpanTools = ({
     "get-span-annotations",
     GET_SPAN_ANNOTATIONS_DESCRIPTION,
     {
-      projectIdentifier: z.string().optional(),
-      spanIds: z.array(z.string()),
-      includeAnnotationNames: z.array(z.string()).optional(),
-      excludeAnnotationNames: z.array(z.string()).optional(),
+      project_identifier: z.string().optional(),
+      span_ids: z.array(z.string()),
+      include_annotation_names: z.array(z.string()).optional(),
+      exclude_annotation_names: z.array(z.string()).optional(),
       cursor: z.string().optional(),
       limit: z
         .number()
@@ -186,22 +186,22 @@ export const initializeSpanTools = ({
         .optional(),
     },
     async ({
-      projectIdentifier,
-      spanIds,
-      includeAnnotationNames,
-      excludeAnnotationNames,
+      project_identifier,
+      span_ids,
+      include_annotation_names,
+      exclude_annotation_names,
       cursor,
       limit = DEFAULT_PAGE_SIZE,
     }) => {
       const resolvedProjectIdentifier = resolveProjectIdentifier({
-        projectIdentifier,
+        projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
 
       const params: NonNullable<
         Types["V1"]["operations"]["listSpanAnnotationsBySpanIds"]["parameters"]["query"]
       > = {
-        span_ids: spanIds,
+        span_ids,
         limit,
       };
 
@@ -209,12 +209,12 @@ export const initializeSpanTools = ({
         params.cursor = cursor;
       }
 
-      if (includeAnnotationNames) {
-        params.include_annotation_names = includeAnnotationNames;
+      if (include_annotation_names) {
+        params.include_annotation_names = include_annotation_names;
       }
 
-      if (excludeAnnotationNames) {
-        params.exclude_annotation_names = excludeAnnotationNames;
+      if (exclude_annotation_names) {
+        params.exclude_annotation_names = exclude_annotation_names;
       }
 
       const response = await client.GET(

@@ -106,7 +106,7 @@ export const initializeSessionTools = ({
     "list-sessions",
     LIST_SESSIONS_DESCRIPTION,
     {
-      projectIdentifier: z.string().optional(),
+      project_identifier: z.string().optional(),
       limit: z
         .number()
         .min(1)
@@ -114,9 +114,9 @@ export const initializeSessionTools = ({
         .default(DEFAULT_TRACE_PAGE_SIZE),
       order: z.enum(["asc", "desc"]).default("desc").optional(),
     },
-    async ({ projectIdentifier, limit, order = "desc" }) => {
+    async ({ project_identifier, limit, order = "desc" }) => {
       const normalizedProjectIdentifier = resolveProjectIdentifier({
-        projectIdentifier,
+        projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
 
@@ -148,21 +148,21 @@ export const initializeSessionTools = ({
     "get-session",
     GET_SESSION_DESCRIPTION,
     {
-      sessionIdentifier: z.string(),
-      includeAnnotations: z.boolean().default(false).optional(),
+      session_identifier: z.string(),
+      include_annotations: z.boolean().default(false).optional(),
     },
-    async ({ sessionIdentifier, includeAnnotations = false }) => {
+    async ({ session_identifier, include_annotations = false }) => {
       const response = await client.GET("/v1/sessions/{session_identifier}", {
         params: {
-          path: { session_identifier: sessionIdentifier },
+          path: { session_identifier },
         },
       });
       const session = getResponseData({
         response,
-        errorPrefix: `Failed to fetch session "${sessionIdentifier}"`,
+        errorPrefix: `Failed to fetch session "${session_identifier}"`,
       }).data;
 
-      if (!includeAnnotations) {
+      if (!include_annotations) {
         return jsonResponse(session);
       }
 
