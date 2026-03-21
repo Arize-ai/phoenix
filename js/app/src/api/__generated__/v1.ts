@@ -1431,7 +1431,11 @@ export interface paths {
         delete: operations["deleteUser"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update a user by ID
+         * @description Partially update a user. Admins may update another user's role, username, and password. Any authenticated user may update their own username and password; changing your own password requires the current password.
+         */
+        patch: operations["patchUser"];
         trace?: never;
     };
     "/v1/secrets": {
@@ -3668,6 +3672,11 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetUserResponseBody */
+        GetUserResponseBody: {
+            /** Data */
+            data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
+        };
         /** GetUsersResponseBody */
         GetUsersResponseBody: {
             /** Data */
@@ -4399,6 +4408,20 @@ export interface components {
         /** PatchPromptResponseBody */
         PatchPromptResponseBody: {
             data: components["schemas"]["Prompt"];
+        };
+        /**
+         * PatchUserRequestBody
+         * @description Fields to update. At least one must be provided.
+         */
+        PatchUserRequestBody: {
+            /** Username */
+            username?: string | null;
+            /** Password */
+            password?: string | null;
+            /** Current Password */
+            current_password?: string | null;
+            /** Role */
+            role?: ("SYSTEM" | "ADMIN" | "MEMBER" | "VIEWER") | null;
         };
         /**
          * PhoenixAssistantMessageMetadata
@@ -12376,6 +12399,87 @@ export interface operations {
             };
             /** @description User not found. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the user. */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchUserRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated user. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUserResponseBody"];
+                };
+            };
+            /** @description Invalid request (e.g. role not found). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not authenticated. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden (e.g. not admin, or invalid self-update). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description User not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict (e.g. username exists, invalid password). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
