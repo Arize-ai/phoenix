@@ -62,7 +62,7 @@ export function buildSpanQuery({
     query.trace_id = traceIds;
   }
   if (parentId !== undefined) {
-    query.parent_id = parentId;
+    query.parent_id = parentId === null ? "null" : parentId;
   }
   if (names && names.length > 0) {
     query.name = names;

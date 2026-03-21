@@ -40,12 +40,54 @@ export interface ResolveDatasetIdOptions {
   datasetIdentifier: string;
 }
 
+function looksLikeRelayGlobalId({
+  identifier,
+  typeName,
+}: {
+  identifier: string;
+  typeName: string;
+}): boolean {
+  const trimmedIdentifier = identifier.trim();
+  if (!trimmedIdentifier) {
+    return false;
+  }
+
+  const normalizedIdentifier =
+    trimmedIdentifier.length % 4 === 0
+      ? trimmedIdentifier
+      : `${trimmedIdentifier}${"=".repeat(4 - (trimmedIdentifier.length % 4))}`;
+
+  try {
+    const decodedIdentifier = Buffer.from(
+      normalizedIdentifier,
+      "base64"
+    ).toString("utf8");
+    const reEncodedIdentifier = Buffer.from(decodedIdentifier, "utf8")
+      .toString("base64")
+      .replace(/=+$/, "");
+
+    return (
+      reEncodedIdentifier === trimmedIdentifier.replace(/=+$/, "") &&
+      decodedIdentifier.startsWith(`${typeName}:`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function looksLikePhoenixProjectId(projectIdentifier: string): boolean {
   const trimmedIdentifier = projectIdentifier.trim();
   if (!trimmedIdentifier) {
     return false;
   }
-  return /^[0-9a-fA-F]+$/.test(trimmedIdentifier);
+
+  return (
+    /^[0-9a-fA-F]+$/.test(trimmedIdentifier) ||
+    looksLikeRelayGlobalId({
+      identifier: trimmedIdentifier,
+      typeName: "Project",
+    })
+  );
 }
 
 export function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
@@ -53,7 +95,14 @@ export function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
   if (!trimmedIdentifier) {
     return false;
   }
-  return /^[0-9a-fA-F]+$/.test(trimmedIdentifier);
+
+  return (
+    /^[0-9a-fA-F]+$/.test(trimmedIdentifier) ||
+    looksLikeRelayGlobalId({
+      identifier: trimmedIdentifier,
+      typeName: "Dataset",
+    })
+  );
 }
 
 export async function resolveProjectId({

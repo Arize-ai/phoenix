@@ -22,7 +22,7 @@ describe("buildSpanQuery", () => {
       start_time: "2026-03-20T00:00:00.000Z",
       end_time: "2026-03-20T01:00:00.000Z",
       trace_id: ["trace-1"],
-      parent_id: null,
+      parent_id: "null",
       name: ["chat_completion"],
       span_kind: ["LLM"],
       status_code: ["OK"],

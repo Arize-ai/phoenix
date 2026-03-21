@@ -17,6 +17,10 @@ describe("identifier helpers", () => {
     expect(looksLikePhoenixDatasetId("abcdef1234")).toBe(true);
     expect(looksLikePhoenixDatasetId("support-dataset")).toBe(false);
   });
+
+  it("recognizes relay dataset IDs", () => {
+    expect(looksLikePhoenixDatasetId("RGF0YXNldDox")).toBe(true);
+  });
 });
 
 describe("entity resolution", () => {

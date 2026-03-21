@@ -1,4 +1,5 @@
 import type { PhoenixClient } from "@arizeai/phoenix-client";
+import { getTraces } from "@arizeai/phoenix-client/traces";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
@@ -8,6 +9,7 @@ import {
   fetchSpanAnnotations,
   resolveStartTime,
 } from "./spanUtils.js";
+import { resolveProjectId } from "./client.js";
 import { jsonResponse } from "./toolResults.js";
 import { buildTrace, groupSpansByTrace } from "./traceUtils.js";
 
@@ -30,64 +32,72 @@ Example usage:
 Expected return:
   A trace object with all spans that belong to the matching trace.`;
 
-function sortTracesByStartTimeDescending<TTrace extends { startTime?: string }>(
-  traces: TTrace[]
-): TTrace[] {
-  return [...traces].sort((leftTrace, rightTrace) => {
-    const leftTime = leftTrace.startTime
-      ? Date.parse(leftTrace.startTime)
-      : Number.NaN;
-    const rightTime = rightTrace.startTime
-      ? Date.parse(rightTrace.startTime)
-      : Number.NaN;
-
-    if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
-      return 0;
-    }
-
-    return rightTime - leftTime;
-  });
-}
-
 async function fetchTraceSpans({
   client,
-  projectIdentifier,
+  projectId,
   traceId,
 }: {
   client: PhoenixClient;
-  projectIdentifier: string;
+  projectId: string;
   traceId: string;
 }) {
-  const allSpans: Awaited<ReturnType<typeof fetchProjectSpans>>["spans"] = [];
+  const response = await fetchProjectSpans({
+    client,
+    projectIdentifier: projectId,
+    filters: {
+      traceIds: [traceId],
+      limit: 1000,
+    },
+    totalLimit: undefined,
+  });
+
+  return response.spans;
+}
+
+export async function resolveTraceIdByPrefix({
+  client,
+  projectId,
+  projectIdentifier,
+  traceIdPrefix,
+  pageLimit = 100,
+}: {
+  client: PhoenixClient;
+  projectId: string;
+  projectIdentifier: string;
+  traceIdPrefix: string;
+  pageLimit?: number;
+}): Promise<string | null> {
   let cursor: string | null = null;
+  const matchingTraceIds = new Set<string>();
 
   do {
-    const response = await fetchProjectSpans({
+    const tracePage = await getTraces({
       client,
-      projectIdentifier,
-      filters: {
-        cursor: cursor || undefined,
-        limit: 1000,
-      },
-      totalLimit: undefined,
+      project: { projectId },
+      cursor,
+      limit: pageLimit,
+      sort: "start_time",
+      order: "desc",
     });
 
-    const matchingSpans = response.spans.filter(
-      (span) =>
-        span.context.trace_id === traceId ||
-        span.context.trace_id.startsWith(traceId)
-    );
+    for (const trace of tracePage.traces) {
+      if (!trace.trace_id.startsWith(traceIdPrefix)) {
+        continue;
+      }
 
-    allSpans.push(...matchingSpans);
+      matchingTraceIds.add(trace.trace_id);
 
-    if (allSpans.length > 0) {
-      return allSpans;
+      if (matchingTraceIds.size > 1) {
+        throw new Error(
+          `Trace ID prefix "${traceIdPrefix}" is ambiguous in project "${projectIdentifier}": ${Array.from(matchingTraceIds).join(", ")}`
+        );
+      }
     }
 
-    cursor = response.nextCursor;
+    cursor = tracePage.nextCursor;
   } while (cursor);
 
-  return allSpans;
+  return matchingTraceIds.values().next().value ?? null;
 }
 
 export const initializeTraceTools = ({
@@ -115,20 +125,36 @@ export const initializeTraceTools = ({
       includeAnnotations = false,
     }) => {
       const startTime = resolveStartTime({ since, lastNMinutes });
+      const projectId = await resolveProjectId({ client, projectIdentifier });
+      const tracePage = await getTraces({
+        client,
+        project: { projectId },
+        startTime,
+        limit,
+        sort: "start_time",
+        order: "desc",
+      });
+      const traceIds = tracePage.traces.map((trace) => trace.trace_id);
+
+      if (traceIds.length === 0) {
+        return jsonResponse([]);
+      }
+
       const response = await fetchProjectSpans({
         client,
-        projectIdentifier,
+        projectIdentifier: projectId,
         filters: {
-          startTime,
+          traceIds,
+          limit: 1000,
         },
-        totalLimit: limit * 10,
+        totalLimit: undefined,
       });
 
       let spans = response.spans;
       if (includeAnnotations) {
         const annotations = await fetchSpanAnnotations({
           client,
-          projectIdentifier,
+          projectIdentifier: projectId,
           spanIds: spans
             .map((span) => span.context?.span_id)
             .filter((spanId): spanId is string => Boolean(spanId)),
@@ -139,11 +165,15 @@ export const initializeTraceTools = ({
         });
       }
 
-      const traces = sortTracesByStartTimeDescending(
-        Array.from(groupSpansByTrace({ spans }).values()).map((traceSpans) =>
-          buildTrace({ spans: traceSpans })
-        )
-      ).slice(0, limit);
+      const spansByTraceId = groupSpansByTrace({ spans });
+      const traces = traceIds.flatMap((traceId) => {
+        const traceSpans = spansByTraceId.get(traceId);
+        if (!traceSpans || traceSpans.length === 0) {
+          return [];
+        }
+
+        return [buildTrace({ spans: traceSpans })];
+      });
 
       return jsonResponse(traces);
     }
@@ -158,22 +188,38 @@ export const initializeTraceTools = ({
       includeAnnotations: z.boolean().default(false).optional(),
     },
     async ({ projectIdentifier, traceId, includeAnnotations = false }) => {
+      const projectId = await resolveProjectId({ client, projectIdentifier });
       let spans = await fetchTraceSpans({
         client,
-        projectIdentifier,
+        projectId,
         traceId,
       });
 
       if (spans.length === 0) {
-        throw new Error(
-          `Trace not found for project "${projectIdentifier}": ${traceId}`
-        );
+        const resolvedTraceId = await resolveTraceIdByPrefix({
+          client,
+          projectId,
+          projectIdentifier,
+          traceIdPrefix: traceId,
+        });
+
+        if (!resolvedTraceId) {
+          throw new Error(
+            `Trace not found for project "${projectIdentifier}": ${traceId}`
+          );
+        }
+
+        spans = await fetchTraceSpans({
+          client,
+          projectId,
+          traceId: resolvedTraceId,
+        });
       }
 
       if (includeAnnotations) {
         const annotations = await fetchSpanAnnotations({
           client,
-          projectIdentifier,
+          projectIdentifier: projectId,
           spanIds: spans
             .map((span) => span.context?.span_id)
             .filter((spanId): spanId is string => Boolean(spanId)),
