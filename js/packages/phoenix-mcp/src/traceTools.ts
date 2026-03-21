@@ -4,12 +4,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import {
-  DEFAULT_PAGE_SIZE,
   DEFAULT_TRACE_PAGE_SIZE,
   MAX_SPAN_QUERY_LIMIT,
   MAX_TRACE_PAGE_SIZE,
 } from "./constants.js";
-import { requireIdentifier } from "./identifiers.js";
 import { resolveProjectIdentifier } from "./projectUtils.js";
 import {
   attachAnnotationsToSpans,
@@ -36,13 +34,13 @@ Example usage:
 Expected return:
   Array of trace objects with grouped spans and summary timing information.`;
 
-const GET_TRACE_DESCRIPTION = `Get a single trace by trace ID or prefix within a project.
+const GET_TRACE_DESCRIPTION = `Get a single trace by its exact trace ID within a project.
 
 Example usage:
-  Show me trace "abc123" from project "default"
+  Show me trace "abc123def456" from project "default"
 
 Expected return:
-  A trace object with all spans that belong to the matching trace.`;
+  A trace object with all spans that belong to the trace.`;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,60 +69,6 @@ async function fetchTraceSpans({
   });
 
   return response.spans;
-}
-
-/**
- * Resolve a trace ID prefix to a full trace ID by scanning all project
- * traces. Throws when the prefix matches more than one trace.
- *
- * @returns The matching trace ID, or `null` if no match was found.
- */
-export async function resolveTraceIdByPrefix({
-  client,
-  projectIdentifier,
-  traceIdPrefix,
-  pageLimit = DEFAULT_PAGE_SIZE,
-}: {
-  client: PhoenixClient;
-  projectIdentifier: string;
-  traceIdPrefix: string;
-  pageLimit?: number;
-}): Promise<string | null> {
-  const normalizedProjectIdentifier = requireIdentifier({
-    identifier: projectIdentifier,
-    label: "projectIdentifier",
-  });
-  let cursor: string | null = null;
-  const matchingTraceIds = new Set<string>();
-
-  do {
-    const tracePage = await getTraces({
-      client,
-      project: { project: normalizedProjectIdentifier },
-      cursor,
-      limit: pageLimit,
-      sort: "start_time",
-      order: "desc",
-    });
-
-    for (const trace of tracePage.traces) {
-      if (!trace.trace_id.startsWith(traceIdPrefix)) {
-        continue;
-      }
-
-      matchingTraceIds.add(trace.trace_id);
-
-      if (matchingTraceIds.size > 1) {
-        throw new Error(
-          `Trace ID prefix "${traceIdPrefix}" is ambiguous in project "${normalizedProjectIdentifier}": ${Array.from(matchingTraceIds).join(", ")}`
-        );
-      }
-    }
-
-    cursor = tracePage.nextCursor;
-  } while (cursor);
-
-  return matchingTraceIds.values().next().value ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,30 +177,16 @@ export const initializeTraceTools = ({
         projectIdentifier: project_identifier,
         defaultProjectIdentifier: defaultProject,
       });
-      let spans = await fetchTraceSpans({
+      const spans = await fetchTraceSpans({
         client,
         projectIdentifier: normalizedProjectIdentifier,
         traceId: trace_id,
       });
 
       if (spans.length === 0) {
-        const resolvedTraceId = await resolveTraceIdByPrefix({
-          client,
-          projectIdentifier: normalizedProjectIdentifier,
-          traceIdPrefix: trace_id,
-        });
-
-        if (!resolvedTraceId) {
-          throw new Error(
-            `Trace not found for project "${normalizedProjectIdentifier}": ${trace_id}`
-          );
-        }
-
-        spans = await fetchTraceSpans({
-          client,
-          projectIdentifier: normalizedProjectIdentifier,
-          traceId: resolvedTraceId,
-        });
+        throw new Error(
+          `Trace not found for project "${normalizedProjectIdentifier}": ${trace_id}`
+        );
       }
 
       if (include_annotations) {
@@ -265,7 +195,11 @@ export const initializeTraceTools = ({
           projectIdentifier: normalizedProjectIdentifier,
           spanIds: extractSpanIds(spans),
         });
-        spans = attachAnnotationsToSpans({ spans, annotations });
+        return jsonResponse(
+          buildTrace({
+            spans: attachAnnotationsToSpans({ spans, annotations }),
+          })
+        );
       }
 
       return jsonResponse(buildTrace({ spans }));
