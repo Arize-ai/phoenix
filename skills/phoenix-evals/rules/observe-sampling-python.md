@@ -58,3 +58,44 @@ def build_review_queue(spans_df, max_traces=100):
 | Judge calibration | 100+ per class |
 
 **Saturation:** Stop when new traces show the same failure patterns.
+
+## Trace-Level Sampling
+
+When you need whole requests (all spans per trace), use `get_traces`:
+
+```python
+from phoenix.client import Client
+from datetime import datetime, timedelta
+
+client = Client()
+
+# Recent traces with full span trees
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    limit=100,
+    include_spans=True,
+)
+
+# Time-windowed sampling (e.g., last hour)
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    start_time=datetime.now() - timedelta(hours=1),
+    limit=50,
+    include_spans=True,
+)
+
+# Filter by session (multi-turn conversations)
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    session_id="user-session-abc",
+    include_spans=True,
+)
+
+# Sort by latency to find slowest requests
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    sort="latency_ms",
+    order="desc",
+    limit=50,
+)
+```

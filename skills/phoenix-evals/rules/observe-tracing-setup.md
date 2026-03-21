@@ -37,6 +37,8 @@ span.set_attribute("metadata.query_category", "billing")
 
 ## Exporting for Evaluation
 
+### Spans (DataFrame)
+
 ```python
 from phoenix.client import Client
 
@@ -54,6 +56,22 @@ dataset = client.datasets.create_dataset(
     input_keys=["input.value"],
     output_keys=["output.value"],
 )
+```
+
+### Traces (structured)
+
+Use `get_traces` when you need full trace trees (e.g., multi-turn conversations, agent workflows):
+
+```python
+from datetime import datetime, timedelta
+
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    start_time=datetime.now() - timedelta(hours=24),
+    include_spans=True,  # includes all spans per trace
+    limit=100,
+)
+# Each trace has: trace_id, start_time, end_time, spans (when include_spans=True)
 ```
 
 ## Uploading Evaluations as Annotations

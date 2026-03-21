@@ -6,22 +6,44 @@ How to efficiently sample production traces for review.
 
 ### 1. Failure-Focused (Highest Priority)
 
+Use server-side filters to fetch only what you need:
+
 ```typescript
 import { getSpans } from "@arizeai/phoenix-client/spans";
 
-const spans = await getSpans({ project: "my-project" });
-const errors = spans.filter((s) => s.statusCode === "ERROR");
-const negativeFeedback = spans.filter((s) => s.feedback === "negative");
+// Server-side filter — only ERROR spans are returned
+const { spans: errors } = await getSpans({
+  project: { projectName: "my-project" },
+  statusCode: "ERROR",
+  limit: 100,
+});
+
+// Fetch only LLM spans
+const { spans: llmSpans } = await getSpans({
+  project: { projectName: "my-project" },
+  spanKind: "LLM",
+  limit: 100,
+});
+
+// Filter by span name
+const { spans: chatSpans } = await getSpans({
+  project: { projectName: "my-project" },
+  name: "chat_completion",
+  limit: 100,
+});
 ```
 
 ### 2. Outliers
 
 ```typescript
-const sorted = [...spans].sort((a, b) => b.responseLength - a.responseLength);
-const longResponses = sorted.slice(0, 50);
-
-const bySlowest = [...spans].sort((a, b) => b.latencyMs - a.latencyMs);
-const slowResponses = bySlowest.slice(0, 50);
+const { spans } = await getSpans({
+  project: { projectName: "my-project" },
+  limit: 200,
+});
+const latency = (s: (typeof spans)[number]) =>
+  new Date(s.end_time).getTime() - new Date(s.start_time).getTime();
+const sorted = [...spans].sort((a, b) => latency(b) - latency(a));
+const slowResponses = sorted.slice(0, 50);
 ```
 
 ### 3. Stratified (Coverage)
@@ -38,33 +60,79 @@ function stratifiedSample<T>(items: T[], groupBy: (item: T) => string, perGroup:
   return [...groups.values()].flatMap((g) => g.slice(0, perGroup));
 }
 
-const byQueryType = stratifiedSample(spans, (s) => s.metadata?.queryType ?? "unknown", 20);
+const { spans } = await getSpans({
+  project: { projectName: "my-project" },
+  limit: 500,
+});
+const byQueryType = stratifiedSample(spans, (s) => s.attributes?.["metadata.query_type"] ?? "unknown", 20);
 ```
 
 ### 4. Metric-Guided
 
 ```typescript
-// Review traces flagged by automated evaluators
-const flagged = spans.filter((s) => evalResults.get(s.spanId)?.label === "hallucinated");
-const borderline = spans.filter((s) => {
-  const score = evalResults.get(s.spanId)?.score ?? 0;
-  return score > 0.3 && score < 0.7;
+import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+// Fetch annotations for your spans, then filter by label
+const { annotations } = await getSpanAnnotations({
+  project: { projectName: "my-project" },
+  spanIds: spans.map((s) => s.context.span_id),
+  includeAnnotationNames: ["hallucination"],
+});
+
+const flaggedSpanIds = new Set(
+  annotations.filter((a) => a.result?.label === "hallucinated").map((a) => a.span_id)
+);
+const flagged = spans.filter((s) => flaggedSpanIds.has(s.context.span_id));
+```
+
+## Trace-Level Sampling
+
+When you need whole requests (all spans in a trace), use `getTraces`:
+
+```typescript
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+// Recent traces with full span trees
+const { traces } = await getTraces({
+  project: { projectName: "my-project" },
+  limit: 100,
+  includeSpans: true,
+});
+
+// Filter by session (e.g., multi-turn conversations)
+const { traces: sessionTraces } = await getTraces({
+  project: { projectName: "my-project" },
+  sessionId: "user-session-abc",
+  includeSpans: true,
+});
+
+// Time-windowed sampling
+const { traces: recentTraces } = await getTraces({
+  project: { projectName: "my-project" },
+  startTime: new Date(Date.now() - 60 * 60 * 1000), // last hour
+  limit: 50,
+  includeSpans: true,
 });
 ```
 
 ## Building a Review Queue
 
 ```typescript
-function buildReviewQueue(spans: Span[], maxTraces = 100): Span[] {
-  const errors = spans.filter((s) => s.statusCode === "ERROR");
-  const negative = spans.filter((s) => s.feedback === "negative");
-  const longest = [...spans].sort((a, b) => b.responseLength - a.responseLength).slice(0, 10);
-  const random = shuffle(spans).slice(0, 30);
+// Combine server-side filters into a review queue
+const { spans: errorSpans } = await getSpans({
+  project: { projectName: "my-project" },
+  statusCode: "ERROR",
+  limit: 30,
+});
+const { spans: allSpans } = await getSpans({
+  project: { projectName: "my-project" },
+  limit: 100,
+});
+const random = allSpans.sort(() => Math.random() - 0.5).slice(0, 30);
 
-  const combined = [...errors, ...negative, ...longest, ...random];
-  const unique = [...new Map(combined.map((s) => [s.spanId, s])).values()];
-  return unique.slice(0, maxTraces);
-}
+const combined = [...errorSpans, ...random];
+const unique = [...new Map(combined.map((s) => [s.context.span_id, s])).values()];
+const reviewQueue = unique.slice(0, 100);
 ```
 
 ## Sample Size Guidelines

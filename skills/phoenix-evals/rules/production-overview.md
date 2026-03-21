@@ -31,13 +31,24 @@ Set thresholds: regression=0.95, safety=1.0, format=0.98.
 ## Production Monitoring
 
 ```python
-# Async LLM judges on sampled traffic
-def monitor_production():
-    traces = sample_recent_traces(n=100, period="1h")
-    for trace in traces:
-        results = run_evaluators_async(trace, production_evaluators)
-        if any(r["score"] < 0.5 for r in results):
-            alert_on_failure(trace, results)
+from phoenix.client import Client
+from datetime import datetime, timedelta
+
+client = Client()
+
+# Sample recent traces (last hour)
+traces = client.traces.get_traces(
+    project_identifier="my-app",
+    start_time=datetime.now() - timedelta(hours=1),
+    include_spans=True,
+    limit=100,
+)
+
+# Run evaluators on sampled traffic
+for trace in traces:
+    results = run_evaluators_async(trace, production_evaluators)
+    if any(r["score"] < 0.5 for r in results):
+        alert_on_failure(trace, results)
 ```
 
 Prioritize: errors → negative feedback → random sample.
