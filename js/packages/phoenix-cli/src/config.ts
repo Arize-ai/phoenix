@@ -1,10 +1,15 @@
-import {
+import * as phoenixConfigImport from "@arizeai/phoenix-config";
+
+import { getInteropExports } from "./moduleInterop";
+
+const phoenixConfig = getInteropExports(phoenixConfigImport);
+const {
   ENV_PHOENIX_API_KEY,
   ENV_PHOENIX_CLIENT_HEADERS,
   ENV_PHOENIX_HOST,
   getHeadersFromEnvironment,
   getStrFromEnvironment,
-} from "@arizeai/phoenix-config";
+} = phoenixConfig;
 
 /**
  * Default Phoenix endpoint used when PHOENIX_HOST is not set.

@@ -1,6 +1,10 @@
-import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
+import * as phoenixClientImport from "@arizeai/phoenix-client";
+import type { PhoenixClient } from "@arizeai/phoenix-client";
 
 import type { PhoenixConfig } from "./config";
+import { getInteropExports } from "./moduleInterop";
+
+const phoenixClient = getInteropExports(phoenixClientImport);
 
 export interface CreatePhoenixClientOptions {
   /**
@@ -29,7 +33,7 @@ export function createPhoenixClient({
     headers["Authorization"] = `Bearer ${config.apiKey}`;
   }
 
-  return createClient({
+  return phoenixClient.createClient({
     options: {
       baseUrl,
       headers,
