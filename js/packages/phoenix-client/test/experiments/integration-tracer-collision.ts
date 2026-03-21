@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Integration test: Validate tracer provider lifecycle against a live Phoenix server.
  *
