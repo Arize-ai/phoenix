@@ -482,11 +482,22 @@ async def patch_user(
             )
             password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
             if auth_enabled and is_self:
-                assert request_body.current_password is not None
+                if request_body.current_password is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="current_password is required when modifying password",
+                    )
+                current_salt = user.password_salt
+                current_password_hash = user.password_hash
+                if current_salt is None or current_password_hash is None:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Local user missing password credentials",
+                    )
                 if not is_valid_password(
                     password=SecretStr(request_body.current_password),
-                    salt=user.password_salt,
-                    password_hash=user.password_hash,
+                    salt=current_salt,
+                    password_hash=current_password_hash,
                 ):
                     raise HTTPException(
                         status_code=409,
