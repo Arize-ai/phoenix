@@ -63,7 +63,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("link", { name: promptName }).click();
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
     await page.getByRole("tab", { name: "versions" }).click();
-    await expect(page.getByRole("heading", { name: "version:" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Version" })).toBeVisible();
     await page
       .getByLabel("Versions")
       .getByRole("link", { name: "Playground" })
