@@ -18,7 +18,7 @@ const tagCSS = css`
   transition: all 200ms;
 
   &[data-hovered] {
-    border-color: var(--global-border-color-default);
+    border-color: var(--global-color-primary);
   }
 
   &[data-focus-visible] {

@@ -17,9 +17,13 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
+import { CopyToClipboardButton } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+} from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { addRangeToSelection } from "@phoenix/components/table/selectionUtils";
 import {
@@ -261,7 +265,13 @@ export function ExamplesTable({
         size: 180,
         cell: ({ getValue, row }) => {
           const exampleId = row.original.id;
-          return <Link to={`${exampleId}`}>{getValue() as string}</Link>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={exampleId} />}
+            >
+              <Link to={`${exampleId}`}>{getValue() as string}</Link>
+            </CellWithControlsWrap>
+          );
         },
       },
       {

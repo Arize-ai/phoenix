@@ -33,13 +33,13 @@ const topNavCSS = css`
   align-items: center;
   gap: var(--global-dimension-static-size-100);
 
-  .nav-copy-action-menu__button {
+  .copy-action-menu__button {
     opacity: 0;
     transition: none;
   }
-  &:hover .nav-copy-action-menu__button,
-  .nav-copy-action-menu__button[data-pressed],
-  .nav-copy-action-menu__button[data-copied] {
+  &:hover .copy-action-menu__button,
+  .copy-action-menu__button[data-pressed],
+  .copy-action-menu__button[data-copied] {
     opacity: 1;
     transition: opacity 0.15s ease-in-out;
   }

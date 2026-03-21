@@ -1,9 +1,12 @@
 import { Link } from "react-router";
 
-import { Breadcrumb, Breadcrumbs, Flex } from "@phoenix/components";
+import {
+  Breadcrumb,
+  Breadcrumbs,
+  CopyActionMenu,
+  Flex,
+} from "@phoenix/components";
 import { useMatchesWithCrumb } from "@phoenix/hooks/useMatchesWithCrumb";
-
-import { NavCopyActionMenu } from "./NavCopyActionMenu";
 
 export function NavBreadcrumb() {
   const matchesWithCrumb = useMatchesWithCrumb();
@@ -24,7 +27,7 @@ export function NavBreadcrumb() {
                 {crumb}
               </Link>
               {showCopyableItems ? (
-                <NavCopyActionMenu items={copyableItems} />
+                <CopyActionMenu items={copyableItems} />
               ) : null}
             </Flex>
           </Breadcrumb>

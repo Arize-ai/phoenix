@@ -145,8 +145,16 @@ const router = createBrowserRouter(
               handle={{
                 crumb: (data: ProjectLoaderData) => data?.project?.name,
                 copy: (data: ProjectLoaderData) => [
-                  { name: "Project Name", value: data?.project?.name },
-                  { name: "Project ID", value: data?.project?.id },
+                  {
+                    name: "Project Name",
+                    value: data?.project?.name,
+                    iconKey: "TextOutline" as const,
+                  },
+                  {
+                    name: "Project ID",
+                    value: data?.project?.id,
+                    iconKey: "IDOutline" as const,
+                  },
                 ],
               }}
               element={<ProjectRoot />}
@@ -179,8 +187,16 @@ const router = createBrowserRouter(
               handle={{
                 crumb: (data: DatasetLoaderData) => data?.dataset?.name,
                 copy: (data: DatasetLoaderData) => [
-                  { name: "Dataset Name", value: data?.dataset?.name },
-                  { name: "Dataset ID", value: data?.dataset?.id },
+                  {
+                    name: "Dataset Name",
+                    value: data?.dataset?.name,
+                    iconKey: "TextOutline" as const,
+                  },
+                  {
+                    name: "Dataset ID",
+                    value: data?.dataset?.id,
+                    iconKey: "IDOutline" as const,
+                  },
                 ],
               }}
             >
@@ -282,8 +298,16 @@ const router = createBrowserRouter(
                 copy: (data: PromptLoaderData) => {
                   if (data?.prompt?.__typename === "Prompt") {
                     return [
-                      { name: "Prompt Name", value: data.prompt.name },
-                      { name: "Prompt ID", value: data.prompt.id },
+                      {
+                        name: "Prompt Name",
+                        value: data.prompt.name,
+                        iconKey: "TextOutline" as const,
+                      },
+                      {
+                        name: "Prompt ID",
+                        value: data.prompt.id,
+                        iconKey: "IDOutline" as const,
+                      },
                     ];
                   }
                   return [];

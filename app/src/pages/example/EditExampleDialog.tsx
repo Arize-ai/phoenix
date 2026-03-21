@@ -199,8 +199,8 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
                         title="Output"
                         subTitle="The output of the LLM or program to be used as an expected output"
                         {...defaultCardProps}
-                        backgroundColor="green-100"
-                        borderColor="green-700"
+                        backgroundColor="green-200"
+                        borderColor="green-300"
                       >
                         {invalid ? (
                           <Alert variant="danger" banner>

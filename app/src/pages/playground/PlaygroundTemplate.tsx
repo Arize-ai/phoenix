@@ -136,6 +136,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           {!disablePromptMenu ? (
             <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
           ) : null}
+          {!disablePromptSave ? (
+            <SaveButton instanceId={instanceId} dirty={dirty} />
+          ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" flex="none">
           <Suspense
@@ -156,9 +159,6 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               disableEphemeralRouting={props.disableEphemeralRouting}
             />
           </CompositeField>
-          {!disablePromptSave ? (
-            <SaveButton instanceId={instanceId} dirty={dirty} />
-          ) : null}
           {instances.length > 1 ? <DeleteButton {...props} /> : null}
         </Flex>
       </Flex>
@@ -215,7 +215,7 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
         leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
         aria-label="Save prompt"
       >
-        Save Prompt
+        Prompt
       </Button>
       <ModalOverlay>
         <Modal>

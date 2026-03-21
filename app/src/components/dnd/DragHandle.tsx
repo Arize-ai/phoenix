@@ -36,7 +36,6 @@ function DragHandle(
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: var(--global-dimension-size-100) var(--global-dimension-size-50);
         border-radius: var(--global-rounding-small);
         overflow: hidden;
       `}

@@ -61,7 +61,8 @@ export const compactResizeHandleCSS = css`
   }
 
   &:hover,
-  &[data-resize-handle-state="hover"] {
+  &[data-resize-handle-state="hover"],
+  &[data-resize-handle-state="drag"] {
     background-color: var(--global-resize-handle-indicator-color-hover);
   }
 `;

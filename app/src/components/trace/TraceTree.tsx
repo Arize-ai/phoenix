@@ -521,7 +521,6 @@ const spanControlsCSS = css`
 const spanTimingCSS = css`
   gap: var(--global-dimension-static-size-100);
   width: 150px;
-  transition: all 0.2s ease-in-out;
   flex: none;
   display: flex;
   flex-direction: row;

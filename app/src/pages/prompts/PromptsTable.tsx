@@ -17,6 +17,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  CopyToClipboardButton,
   Flex,
   Icon,
   Icons,
@@ -25,7 +26,7 @@ import {
   Token,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { TextCell } from "@phoenix/components/table";
+import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
@@ -137,7 +138,13 @@ export function PromptsTable(props: PromptsTableProps) {
         header: "name",
         accessorKey: "name",
         cell: ({ row }) => {
-          return <Link to={`${row.original.id}`}>{row.original.name}</Link>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={row.original.name} />}
+            >
+              <Link to={`${row.original.id}`}>{row.original.name}</Link>
+            </CellWithControlsWrap>
+          );
         },
       },
       {

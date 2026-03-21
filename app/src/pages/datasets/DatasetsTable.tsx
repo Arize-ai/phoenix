@@ -22,6 +22,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
 import {
+  CopyToClipboardButton,
   Flex,
   Icon,
   Icons,
@@ -31,7 +32,10 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { CompactJSONCell } from "@phoenix/components/table";
+import {
+  CellWithControlsWrap,
+  CompactJSONCell,
+} from "@phoenix/components/table";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
@@ -168,7 +172,15 @@ export function DatasetsTable(props: DatasetsTableProps) {
           const to = hasExperiments
             ? `${row.original.id}/experiments`
             : `${row.original.id}/examples`;
-          return <Link to={to}>{row.original.name}</Link>;
+          return (
+            <CellWithControlsWrap
+              controls={<CopyToClipboardButton text={row.original.name} />}
+            >
+              <Truncate>
+                <Link to={to}>{row.original.name}</Link>
+              </Truncate>
+            </CellWithControlsWrap>
+          );
         },
       },
       {

@@ -1,8 +1,13 @@
 import { useMatches } from "react-router";
 
+import type { CopyActionMenuItem } from "@phoenix/components";
+
 export type CrumbFn = (data: unknown) => string;
-export type CopyItem = { name: string; value: string };
-export type CopyFn = (data: unknown) => CopyItem[];
+/**
+ * @deprecated Use CopyActionMenuItem from @phoenix/components instead
+ */
+export type CopyItem = CopyActionMenuItem;
+export type CopyFn = (data: unknown) => CopyActionMenuItem[];
 type Matches = ReturnType<typeof useMatches>;
 type Match = Matches[number];
 type RouteMatchWithCrumb = Match & {

@@ -1,7 +1,17 @@
 import type { Meta, StoryFn } from "@storybook/react";
-import type { ReactElement } from "react";
+import { useState } from "react";
 
-import { Icon, Icons } from "@phoenix/components";
+import {
+  Icon,
+  IconButton,
+  Icons,
+  Input,
+  SearchField,
+  Tooltip,
+  TooltipTrigger,
+  View,
+} from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 
 const meta: Meta = {
   title: "Core/Content/Icons",
@@ -16,56 +26,95 @@ const meta: Meta = {
 
 export default meta;
 
-function IconsGrid() {
-  const iconsArray: ReactElement<unknown>[] = [];
+function IconsGallery() {
+  const [search, setSearch] = useState("");
+  const isSearching = search.length > 0;
 
-  Object.keys(Icons).forEach((name) => {
-    const iconKey = name as keyof typeof Icons;
-    if (Icons[iconKey]) {
-      const Svg = Icons[iconKey];
-      iconsArray.push(
-        <div
-          style={{
-            margin: "5px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            width: 50,
-            height: 50,
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--global-color-gray-800)",
-            backgroundColor: "var(--global-color-gray-100)",
-            border: "1px solid var(--global-color-gray-300)",
-            borderRadius: 3,
-          }}
-          title={name}
-        >
-          <Icon svg={<Svg />} />
-        </div>
-      );
-    }
+  const iconEntries = Object.keys(Icons).filter((name) => {
+    if (!search) return true;
+    return name.toLowerCase().includes(search.toLowerCase());
   });
 
   return (
-    <ul
-      style={{
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-        display: "flex",
-        width: 1000,
-        flexWrap: "wrap",
-      }}
-    >
-      {iconsArray.map((el, i) => (
-        <li key={i}>{el}</li>
-      ))}
-    </ul>
+    <View padding="size-200">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          aria-label="Search icons"
+          size="M"
+          style={{ maxWidth: 320 }}
+        >
+          <SearchIcon />
+          <Input placeholder="Search icons..." />
+        </SearchField>
+        {isSearching ? (
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {iconEntries.map((name) => {
+              const Svg = Icons[name as keyof typeof Icons];
+              return (
+                <li
+                  key={name}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <IconButton>
+                    <Icon svg={<Svg />} />
+                  </IconButton>
+                  <span>{name}</span>
+                </li>
+              );
+            })}
+            {iconEntries.length === 0 && (
+              <li style={{ color: "var(--global-text-color-500)" }}>
+                No icons found
+              </li>
+            )}
+          </ul>
+        ) : (
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+            }}
+          >
+            {iconEntries.map((name) => {
+              const Svg = Icons[name as keyof typeof Icons];
+              return (
+                <li key={name}>
+                  <TooltipTrigger delay={0}>
+                    <IconButton>
+                      <Icon svg={<Svg />} />
+                    </IconButton>
+                    <Tooltip>{name}</Tooltip>
+                  </TooltipTrigger>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </View>
   );
 }
 
-const Template: StoryFn = () => <IconsGrid />;
+const Template: StoryFn = () => <IconsGallery />;
 
 // By passing using the Args format for exported stories, you can control the props for a component for reuse in a test
 // https://storybook.js.org/docs/react/workflows/unit-testing

@@ -23,7 +23,7 @@ export * from "./core/Link";
 export * from "./core/ExternalLink";
 export * from "./core/LoadingMask";
 export * from "./core/ViewSummaryAside";
-export * from "./core/CopyToClipboardButton";
+export * from "./core/copy";
 export * from "./core/SectionHeading";
 export * from "./core/Empty";
 export * from "./exception";

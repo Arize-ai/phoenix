@@ -10,7 +10,7 @@ const bucketBaseCSS = css`
   display: flex;
   flex-direction: column;
   padding: var(--global-dimension-size-100);
-  border: 2px solid var(--global-color-gray-400);
+  border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   background-color: var(--global-background-color-100);
 
@@ -20,7 +20,7 @@ const bucketBaseCSS = css`
   }
 
   &:focus-visible {
-    outline: 2px solid var(--global-color-primary);
+    outline: 1px solid var(--global-color-primary);
     outline-offset: -2px;
   }
 `;

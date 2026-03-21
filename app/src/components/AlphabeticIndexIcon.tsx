@@ -50,7 +50,8 @@ export function AlphabeticIndexIcon({
 }: AlphabeticIndexIconProps) {
   const char = useMemo(() => indexToChar(index), [index]);
   const color = useMemo(() => schemeSet2[index % 8], [index]);
-  const backgroundColor = useMemo(() => transparentize(0.8, color), [color]);
+  const backgroundColor = useMemo(() => transparentize(0.88, color), [color]);
+  const borderColor = useMemo(() => transparentize(0.5, color), [color]);
   return (
     <div
       data-size={size}
@@ -59,7 +60,7 @@ export function AlphabeticIndexIcon({
         css`
           --alphabetic-index-icon-color: ${color};
           --alphabetic-index-icon-background-color: ${backgroundColor};
-          --alphabetic-index-icon-border-color: ${color};
+          --alphabetic-index-icon-border-color: ${borderColor};
         `
       )}
     >

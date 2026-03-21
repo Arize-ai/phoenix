@@ -1138,7 +1138,7 @@ function EmbeddingSpanInfo(props: {
                       <Card
                         {...defaultCardProps}
                         backgroundColor="purple-100"
-                        borderColor="purple-700"
+                        borderColor="purple-300"
                         title="Embedded Text"
                       >
                         <ConnectedMarkdownBlock>
@@ -1201,7 +1201,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             title="Output"
             {...defaultCardProps}
             backgroundColor="green-100"
-            borderColor="green-700"
+            borderColor="green-300"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeSelect /> : null}
@@ -1661,7 +1661,7 @@ function SpanIO({ span }: { span: Span }) {
             title="Output"
             {...defaultCardProps}
             backgroundColor="green-100"
-            borderColor="green-700"
+            borderColor="green-300"
             extra={
               <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeSelect /> : null}

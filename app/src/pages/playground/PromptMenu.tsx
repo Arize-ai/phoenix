@@ -207,7 +207,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
 
 const promptMenuContainerCSS = css`
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow: hidden;
   display: flex;
 `;

@@ -5,8 +5,9 @@ import type { ColorValue, StylableProps } from "@phoenix/components/core/types";
 import { colorValue } from "@phoenix/components/core/utils";
 import { classNames } from "@phoenix/utils/classNames";
 
-interface IconProps extends StylableProps, HTMLAttributes<HTMLElement> {
-  svg: ReactNode;
+import * as Icons from "./Icons";
+
+interface IconBaseProps extends StylableProps, HTMLAttributes<HTMLElement> {
   /**
    * Passed through by wrapping components.
    * @private
@@ -20,17 +21,38 @@ interface IconProps extends StylableProps, HTMLAttributes<HTMLElement> {
   color?: ColorValue | "inherit";
 }
 
+interface IconWithSvgProps extends IconBaseProps {
+  svg: ReactNode;
+  svgKey?: never;
+}
+
+interface IconWithKeyProps extends IconBaseProps {
+  svg?: never;
+  /**
+   * The name of an icon exported from Icons (e.g. "CloseOutline", "Search").
+   */
+  svgKey: keyof typeof Icons;
+}
+
+type IconProps = IconWithSvgProps | IconWithKeyProps;
+
 /**
  * Wraps the svg in a reasonable size and applies a color
  */
 export const Icon = ({
   svg,
+  svgKey,
   isDisabled: _isDisabled,
   color = "inherit",
   css: propsCSS,
   className = "",
   ...restProps
 }: IconProps) => {
+  let resolvedSvg: ReactNode = svg;
+  if (svgKey) {
+    const Svg = Icons[svgKey];
+    resolvedSvg = <Svg />;
+  }
   const resolvedColor = color === "inherit" ? "inherit" : colorValue(color);
   return (
     <i
@@ -55,7 +77,7 @@ export const Icon = ({
       )}
       {...restProps}
     >
-      {svg}
+      {resolvedSvg}
     </i>
   );
 };

@@ -8,22 +8,18 @@ const tagCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-size-50);
+  gap: var(--global-dimension-size-100);
   min-width: 0; /* Allow flex child to shrink below content size */
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-  border: 1px solid var(--global-color-gray-400);
-  border-radius: var(--global-rounding-medium);
-  background-color: var(--global-input-field-background-color);
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-150)
+    var(--global-dimension-size-100) var(--global-dimension-size-100);
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-small);
+
   cursor: grab;
   flex-shrink: 0; /* Don't shrink chips themselves */
 
   &[data-dragging="true"] {
     opacity: 0.5;
-  }
-
-  &[data-assigned="true"] {
-    border-color: var(--global-color-primary);
-    background-color: var(--global-color-primary-100);
   }
 `;
 

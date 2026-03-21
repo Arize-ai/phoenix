@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { useCallback, useMemo, useState } from "react";
 
 import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
-import { CopyToClipboardButton } from "@phoenix/components/core/CopyToClipboardButton";
+import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { JSONBlock } from "./JSONBlock";
