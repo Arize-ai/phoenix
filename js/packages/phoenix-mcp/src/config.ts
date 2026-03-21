@@ -21,12 +21,15 @@ export interface PhoenixMcpConfig {
 
 export interface ResolveConfigOptions {
   cliOptions: {
-    baseUrl?: string;
-    apiKey?: string;
-    project?: string;
+    baseUrl?: string | boolean;
+    apiKey?: string | boolean;
+    project?: string | boolean;
   };
 }
 
+/**
+ * Load Phoenix MCP configuration from environment variables.
+ */
 export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   const baseUrl = getStrFromEnvironment(ENV_PHOENIX_HOST);
   const apiKey = getStrFromEnvironment(ENV_PHOENIX_API_KEY);
@@ -41,16 +44,35 @@ export function loadConfigFromEnvironment(): PhoenixMcpConfig {
   };
 }
 
+function getStringCliOptions(
+  cliOptions: ResolveConfigOptions["cliOptions"]
+): Partial<PhoenixMcpConfig> {
+  return {
+    ...(typeof cliOptions.baseUrl === "string"
+      ? { baseUrl: cliOptions.baseUrl }
+      : {}),
+    ...(typeof cliOptions.apiKey === "string"
+      ? { apiKey: cliOptions.apiKey }
+      : {}),
+    ...(typeof cliOptions.project === "string"
+      ? { project: cliOptions.project }
+      : {}),
+  };
+}
+
+/**
+ * Merge environment-derived Phoenix MCP configuration with CLI overrides.
+ *
+ * Only string CLI values are treated as overrides so that bare flags parsed by
+ * `minimist` do not replace valid environment defaults with boolean `true`.
+ */
 export function resolveConfig({
   cliOptions,
 }: ResolveConfigOptions): PhoenixMcpConfig {
   const envConfig = loadConfigFromEnvironment();
-  const definedCliOptions = Object.fromEntries(
-    Object.entries(cliOptions).filter(([, value]) => value !== undefined)
-  ) as Partial<PhoenixMcpConfig>;
 
   return {
     ...envConfig,
-    ...definedCliOptions,
+    ...getStringCliOptions(cliOptions),
   };
 }

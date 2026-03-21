@@ -2,7 +2,7 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { requirePreferredIdentifier } from "./identifiers.js";
+import { resolveProjectIdentifier } from "./projectUtils.js";
 import { getResponseData } from "./responseUtils.js";
 import {
   attachAnnotationsToSpans,
@@ -76,9 +76,11 @@ Expected return:
 export const initializeSpanTools = ({
   client,
   server,
+  defaultProject,
 }: {
   client: PhoenixClient;
   server: McpServer;
+  defaultProject?: string;
 }) => {
   server.tool(
     "get-spans",
@@ -92,7 +94,7 @@ export const initializeSpanTools = ({
       parentId: z.string().nullable().optional(),
       names: z.array(z.string()).optional(),
       spanKinds: z.array(z.string()).optional(),
-      statusCodes: z.array(z.string()).optional(),
+      statusCodes: z.array(z.enum(["OK", "ERROR", "UNSET"])).optional(),
       cursor: z.string().optional(),
       limit: z.number().min(1).max(1000).default(100).optional(),
       includeAnnotations: z.boolean().default(false).optional(),
@@ -111,11 +113,10 @@ export const initializeSpanTools = ({
       limit = 100,
       includeAnnotations = false,
     }) => {
-      const resolvedProjectIdentifier = requirePreferredIdentifier({
-        identifier: projectIdentifier,
-        legacyIdentifier: projectName,
-        label: "projectIdentifier",
-        legacyLabel: "projectName",
+      const resolvedProjectIdentifier = resolveProjectIdentifier({
+        projectIdentifier,
+        legacyProjectIdentifier: projectName,
+        defaultProjectIdentifier: defaultProject,
       });
 
       const response = await fetchProjectSpans({
@@ -176,11 +177,10 @@ export const initializeSpanTools = ({
       cursor,
       limit = 100,
     }) => {
-      const resolvedProjectIdentifier = requirePreferredIdentifier({
-        identifier: projectIdentifier,
-        legacyIdentifier: projectName,
-        label: "projectIdentifier",
-        legacyLabel: "projectName",
+      const resolvedProjectIdentifier = resolveProjectIdentifier({
+        projectIdentifier,
+        legacyProjectIdentifier: projectName,
+        defaultProjectIdentifier: defaultProject,
       });
 
       const params: NonNullable<

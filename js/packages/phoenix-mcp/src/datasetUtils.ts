@@ -11,6 +11,9 @@ export interface ResolveDatasetIdOptions {
   datasetIdentifier: string;
 }
 
+/**
+ * Determine whether a dataset identifier is already a Phoenix Relay GlobalID.
+ */
 export function isPhoenixDatasetId(datasetIdentifier: string): boolean {
   return (
     getRelayGlobalIdIfType({
@@ -20,6 +23,9 @@ export function isPhoenixDatasetId(datasetIdentifier: string): boolean {
   );
 }
 
+/**
+ * Resolve a dataset name or Relay GlobalID to the dataset's canonical ID.
+ */
 export async function resolveDatasetId({
   client,
   datasetIdentifier,

@@ -43,6 +43,26 @@ describe("resolveConfig", () => {
     expect(config.baseUrl).toBe(DEFAULT_PHOENIX_ENDPOINT);
   });
 
+  it("ignores bare boolean CLI flags and keeps environment defaults", () => {
+    vi.stubEnv("PHOENIX_HOST", "https://env.example.com");
+    vi.stubEnv("PHOENIX_API_KEY", "env-key");
+    vi.stubEnv("PHOENIX_PROJECT", "env-project");
+
+    const config = resolveConfig({
+      cliOptions: {
+        apiKey: true,
+        baseUrl: true,
+        project: true,
+      },
+    });
+
+    expect(config).toEqual({
+      apiKey: "env-key",
+      baseUrl: "https://env.example.com",
+      project: "env-project",
+    });
+  });
+
   it("loads headers from the shared phoenix config helpers", () => {
     vi.stubEnv("PHOENIX_CLIENT_HEADERS", '{"X-Test":"value"}');
 

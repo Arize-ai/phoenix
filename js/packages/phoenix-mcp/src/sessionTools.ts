@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import { requireIdentifier } from "./identifiers.js";
+import { resolveProjectIdentifier } from "./projectUtils.js";
 import { getResponseData } from "./responseUtils.js";
 import { jsonResponse } from "./toolResults.js";
 
@@ -80,22 +81,24 @@ async function fetchSessionAnnotations({
 export const initializeSessionTools = ({
   client,
   server,
+  defaultProject,
 }: {
   client: PhoenixClient;
   server: McpServer;
+  defaultProject?: string;
 }) => {
   server.tool(
     "list-sessions",
     LIST_SESSIONS_DESCRIPTION,
     {
-      projectIdentifier: z.string(),
+      projectIdentifier: z.string().optional(),
       limit: z.number().min(1).max(100).default(10),
       order: z.enum(["asc", "desc"]).default("desc").optional(),
     },
     async ({ projectIdentifier, limit, order = "desc" }) => {
-      const normalizedProjectIdentifier = requireIdentifier({
-        identifier: projectIdentifier,
-        label: "projectIdentifier",
+      const normalizedProjectIdentifier = resolveProjectIdentifier({
+        projectIdentifier,
+        defaultProjectIdentifier: defaultProject,
       });
       const sessions: unknown[] = [];
       let cursor: string | undefined;

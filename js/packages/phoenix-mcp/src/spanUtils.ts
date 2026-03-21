@@ -3,15 +3,19 @@ import type {
   Types,
   componentsV1,
 } from "@arizeai/phoenix-client";
+import {
+  getSpans,
+  type GetSpansParams,
+  type SpanKindFilter,
+  type SpanStatusCode,
+} from "@arizeai/phoenix-client/spans";
 
 import { requireIdentifier } from "./identifiers.js";
 import { getResponseData } from "./responseUtils.js";
 import type { SpanAnnotation, SpanWithAnnotations } from "./traceUtils.js";
 
 type Span = componentsV1["schemas"]["Span"];
-type ProjectSpansQuery = NonNullable<
-  Types["V1"]["operations"]["getSpans"]["parameters"]["query"]
->;
+type ProjectSpansRequest = Omit<GetSpansParams, "client" | "project">;
 
 const DEFAULT_PAGE_LIMIT = 1000;
 const DEFAULT_SPAN_IDS_CHUNK_SIZE = 100;
@@ -29,11 +33,14 @@ export interface SpanFilterInput {
   traceIds?: string[];
   parentId?: string | null;
   names?: string[];
-  spanKinds?: string[];
-  statusCodes?: string[];
+  spanKinds?: SpanKindFilter[];
+  statusCodes?: SpanStatusCode[];
 }
 
-export function buildSpanQuery({
+/**
+ * Translate MCP span filters into the `phoenix-client` spans helper shape.
+ */
+export function buildProjectSpansRequest({
   cursor,
   limit,
   startTime,
@@ -43,40 +50,43 @@ export function buildSpanQuery({
   names,
   spanKinds,
   statusCodes,
-}: SpanFilterInput): ProjectSpansQuery {
-  const query: ProjectSpansQuery = {};
+}: SpanFilterInput): ProjectSpansRequest {
+  const request: ProjectSpansRequest = {};
 
   if (cursor) {
-    query.cursor = cursor;
+    request.cursor = cursor;
   }
   if (limit !== undefined) {
-    query.limit = limit;
+    request.limit = limit;
   }
   if (startTime) {
-    query.start_time = startTime;
+    request.startTime = startTime;
   }
   if (endTime) {
-    query.end_time = endTime;
+    request.endTime = endTime;
   }
   if (traceIds && traceIds.length > 0) {
-    query.trace_id = traceIds;
+    request.traceIds = traceIds;
   }
   if (parentId !== undefined) {
-    query.parent_id = parentId === null ? "null" : parentId;
+    request.parentId = parentId;
   }
   if (names && names.length > 0) {
-    query.name = names;
+    request.name = names;
   }
   if (spanKinds && spanKinds.length > 0) {
-    query.span_kind = spanKinds;
+    request.spanKind = spanKinds;
   }
   if (statusCodes && statusCodes.length > 0) {
-    query.status_code = statusCodes;
+    request.statusCode = statusCodes;
   }
 
-  return query;
+  return request;
 }
 
+/**
+ * Resolve the lower bound start time for trace and span listing tools.
+ */
 export function resolveStartTime({
   since,
   lastNMinutes,
@@ -96,6 +106,9 @@ export function resolveStartTime({
   return new Date(now.getTime() - lastNMinutes * 60 * 1000).toISOString();
 }
 
+/**
+ * Fetch spans for a project with MCP-specific pagination and limit handling.
+ */
 export async function fetchProjectSpans({
   client,
   projectIdentifier,
@@ -116,29 +129,18 @@ export async function fetchProjectSpans({
   const pageLimit = Math.min(totalLimit || filters.limit || 100, 1000);
 
   do {
-    const response = await client.GET(
-      "/v1/projects/{project_identifier}/spans",
-      {
-        params: {
-          path: {
-            project_identifier: normalizedProjectIdentifier,
-          },
-          query: buildSpanQuery({
-            ...filters,
-            cursor,
-            limit: pageLimit,
-          }),
-        },
-      }
-    );
-
-    const data = getResponseData({
-      response,
-      errorPrefix: `Failed to fetch spans for project "${normalizedProjectIdentifier}"`,
+    const response = await getSpans({
+      client,
+      project: { project: normalizedProjectIdentifier },
+      ...buildProjectSpansRequest({
+        ...filters,
+        cursor,
+        limit: pageLimit,
+      }),
     });
 
-    collectedSpans.push(...data.data);
-    cursor = data.next_cursor || undefined;
+    collectedSpans.push(...response.spans);
+    cursor = response.nextCursor || undefined;
 
     if (totalLimit !== undefined && collectedSpans.length >= totalLimit) {
       return {
@@ -164,6 +166,9 @@ function chunkArray<TValue>(values: TValue[], size: number): TValue[][] {
   return chunks;
 }
 
+/**
+ * Fetch all span annotation pages for a single chunk of span IDs.
+ */
 async function fetchSpanAnnotationsForChunk({
   client,
   projectIdentifier,
@@ -222,6 +227,9 @@ async function fetchSpanAnnotationsForChunk({
   return annotations;
 }
 
+/**
+ * Fetch span annotations in chunks to avoid overloading the annotations route.
+ */
 export async function fetchSpanAnnotations({
   client,
   projectIdentifier,

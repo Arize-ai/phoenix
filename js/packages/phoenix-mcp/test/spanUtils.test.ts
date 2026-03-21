@@ -1,11 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { buildSpanQuery, resolveStartTime } from "../src/spanUtils";
+const { mockGetSpans } = vi.hoisted(() => ({
+  mockGetSpans: vi.fn(),
+}));
 
-describe("buildSpanQuery", () => {
-  it("maps MCP span filters to Phoenix API query fields", () => {
+vi.mock("@arizeai/phoenix-client/spans", () => ({
+  getSpans: mockGetSpans,
+}));
+
+import {
+  buildProjectSpansRequest,
+  fetchProjectSpans,
+  resolveStartTime,
+} from "../src/spanUtils";
+
+describe("buildProjectSpansRequest", () => {
+  it("maps MCP span filters to phoenix-client getSpans params", () => {
     expect(
-      buildSpanQuery({
+      buildProjectSpansRequest({
         cursor: "cursor-1",
         limit: 25,
         startTime: "2026-03-20T00:00:00.000Z",
@@ -19,13 +31,48 @@ describe("buildSpanQuery", () => {
     ).toEqual({
       cursor: "cursor-1",
       limit: 25,
-      start_time: "2026-03-20T00:00:00.000Z",
-      end_time: "2026-03-20T01:00:00.000Z",
-      trace_id: ["trace-1"],
-      parent_id: "null",
+      startTime: "2026-03-20T00:00:00.000Z",
+      endTime: "2026-03-20T01:00:00.000Z",
+      traceIds: ["trace-1"],
+      parentId: null,
       name: ["chat_completion"],
-      span_kind: ["LLM"],
-      status_code: ["OK"],
+      spanKind: ["LLM"],
+      statusCode: ["OK"],
+    });
+  });
+});
+
+describe("fetchProjectSpans", () => {
+  it("delegates span fetching to phoenix-client getSpans", async () => {
+    const client = {} as never;
+
+    mockGetSpans.mockResolvedValueOnce({
+      spans: [],
+      nextCursor: null,
+    });
+
+    await expect(
+      fetchProjectSpans({
+        client,
+        projectIdentifier: "default",
+        filters: {
+          names: ["chat_completion"],
+          spanKinds: ["LLM"],
+          statusCodes: ["OK"],
+        },
+      })
+    ).resolves.toEqual({
+      spans: [],
+      nextCursor: null,
+    });
+
+    expect(mockGetSpans).toHaveBeenCalledWith({
+      client,
+      project: { project: "default" },
+      limit: 100,
+      name: ["chat_completion"],
+      spanKind: ["LLM"],
+      statusCode: ["OK"],
     });
   });
 });

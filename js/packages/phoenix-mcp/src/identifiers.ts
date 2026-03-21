@@ -32,6 +32,9 @@ export function getNormalizedIdentifier(identifier: string): string {
   return identifier.trim();
 }
 
+/**
+ * Require a non-empty identifier value and return it trimmed.
+ */
 export function requireIdentifier({
   identifier,
   label,
@@ -47,6 +50,9 @@ export function requireIdentifier({
   return normalizedIdentifier;
 }
 
+/**
+ * Resolve a preferred identifier, optionally falling back to a legacy field.
+ */
 export function requirePreferredIdentifier({
   identifier,
   legacyIdentifier,
@@ -66,6 +72,9 @@ export function requirePreferredIdentifier({
   return normalizedIdentifier;
 }
 
+/**
+ * Parse a Relay GlobalID into its `TypeName:nodeId` components.
+ */
 export function parseRelayGlobalId(identifier: string): RelayGlobalId | null {
   const normalizedIdentifier = getNormalizedIdentifier(identifier);
   if (!normalizedIdentifier) {
@@ -91,6 +100,9 @@ export function parseRelayGlobalId(identifier: string): RelayGlobalId | null {
   };
 }
 
+/**
+ * Return the normalized Relay GlobalID when it matches the expected type.
+ */
 export function getRelayGlobalIdIfType({
   identifier,
   expectedTypeName,

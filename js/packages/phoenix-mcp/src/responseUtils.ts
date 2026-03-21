@@ -3,6 +3,9 @@ export type PhoenixResponse<TData> = {
   error?: unknown;
 };
 
+/**
+ * Unwrap a Phoenix API response or throw a tool-friendly error message.
+ */
 export function getResponseData<TData>({
   response,
   errorPrefix,

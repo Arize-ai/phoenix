@@ -37,9 +37,9 @@ initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
 initializeProjectTools({ client, server });
-initializeTraceTools({ client, server });
-initializeSpanTools({ client, server });
-initializeSessionTools({ client, server });
+initializeTraceTools({ client, server, defaultProject: config.project });
+initializeSpanTools({ client, server, defaultProject: config.project });
+initializeSessionTools({ client, server, defaultProject: config.project });
 initializeAnnotationConfigTools({ client, server });
 initializeSupportTools({ server });
 

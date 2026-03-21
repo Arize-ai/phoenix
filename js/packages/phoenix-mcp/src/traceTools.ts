@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import { requireIdentifier } from "./identifiers.js";
+import { resolveProjectIdentifier } from "./projectUtils.js";
 import {
   attachAnnotationsToSpans,
   fetchProjectSpans,
@@ -105,15 +106,17 @@ export async function resolveTraceIdByPrefix({
 export const initializeTraceTools = ({
   client,
   server,
+  defaultProject,
 }: {
   client: PhoenixClient;
   server: McpServer;
+  defaultProject?: string;
 }) => {
   server.tool(
     "list-traces",
     LIST_TRACES_DESCRIPTION,
     {
-      projectIdentifier: z.string(),
+      projectIdentifier: z.string().optional(),
       limit: z.number().min(1).max(100).default(10),
       since: z.string().optional(),
       lastNMinutes: z.number().min(1).optional(),
@@ -127,9 +130,9 @@ export const initializeTraceTools = ({
       includeAnnotations = false,
     }) => {
       const startTime = resolveStartTime({ since, lastNMinutes });
-      const normalizedProjectIdentifier = requireIdentifier({
-        identifier: projectIdentifier,
-        label: "projectIdentifier",
+      const normalizedProjectIdentifier = resolveProjectIdentifier({
+        projectIdentifier,
+        defaultProjectIdentifier: defaultProject,
       });
       const tracePage = await getTraces({
         client,
@@ -188,14 +191,14 @@ export const initializeTraceTools = ({
     "get-trace",
     GET_TRACE_DESCRIPTION,
     {
-      projectIdentifier: z.string(),
+      projectIdentifier: z.string().optional(),
       traceId: z.string(),
       includeAnnotations: z.boolean().default(false).optional(),
     },
     async ({ projectIdentifier, traceId, includeAnnotations = false }) => {
-      const normalizedProjectIdentifier = requireIdentifier({
-        identifier: projectIdentifier,
-        label: "projectIdentifier",
+      const normalizedProjectIdentifier = resolveProjectIdentifier({
+        projectIdentifier,
+        defaultProjectIdentifier: defaultProject,
       });
       let spans = await fetchTraceSpans({
         client,
