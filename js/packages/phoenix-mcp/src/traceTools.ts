@@ -3,13 +3,13 @@ import { getTraces } from "@arizeai/phoenix-client/traces";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+import { resolveProjectId } from "./client.js";
 import {
   attachAnnotationsToSpans,
   fetchProjectSpans,
   fetchSpanAnnotations,
   resolveStartTime,
 } from "./spanUtils.js";
-import { resolveProjectId } from "./client.js";
 import { jsonResponse } from "./toolResults.js";
 import { buildTrace, groupSpansByTrace } from "./traceUtils.js";
 
