@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createProgram, main } from "../src/cli";
 import { CLI_VERSION } from "../src/__generated__/version";
+import { createProgram, main } from "../src/cli";
 
 describe("Phoenix CLI", () => {
   it("should have a main function", () => {

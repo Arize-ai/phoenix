@@ -54,7 +54,9 @@ describe("banner", () => {
       ],
     });
 
-    expect(banner).toContain("░█▀█░█░█░█▀█░█▀▀░█▀█░▀█▀░█░█  Server:  http://localhost:6006");
+    expect(banner).toContain(
+      "░█▀█░█░█░█▀█░█▀▀░█▀█░▀█▀░█░█  Server:  http://localhost:6006"
+    );
     expect(banner).toContain("  Update:  up to date");
   });
 });

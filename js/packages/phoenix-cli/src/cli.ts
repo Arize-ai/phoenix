@@ -2,8 +2,8 @@
 
 import { Command } from "commander";
 
-import { printBanner } from "./banner";
 import { CLI_VERSION } from "./__generated__/version";
+import { printBanner } from "./banner";
 import {
   createAnnotationConfigCommand,
   createApiCommand,

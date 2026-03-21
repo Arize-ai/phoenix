@@ -36,11 +36,11 @@
     "generate:version": "node ./scripts/generate-version.mjs",
     "prebuild": "pnpm run clean && pnpm run generate:version",
     "predev": "pnpm run generate:version",
-    "test": "vitest run",
     "pretest": "pnpm run generate:version",
-    "test:watch": "vitest watch",
     "pretest:watch": "pnpm run generate:version",
     "pretypecheck": "pnpm run generate:version",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

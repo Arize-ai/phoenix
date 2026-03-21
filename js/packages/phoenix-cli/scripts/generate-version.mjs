@@ -27,7 +27,9 @@ async function generateVersionModule() {
 generateVersionModule().catch((error) => {
   // eslint-disable-next-line no-console
   console.error(
-    error instanceof Error ? error.message : "Failed to generate CLI version module."
+    error instanceof Error
+      ? error.message
+      : "Failed to generate CLI version module."
   );
   process.exitCode = 1;
 });

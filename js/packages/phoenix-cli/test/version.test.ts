@@ -64,7 +64,9 @@ describe("version", () => {
   });
 
   it("suppresses published version when the npm lookup fails", async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new Error("network unavailable"));
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValue(new Error("network unavailable"));
 
     await expect(
       fetchLatestPublishedCliVersion({
