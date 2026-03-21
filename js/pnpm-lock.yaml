@@ -547,6 +547,9 @@ importers:
       '@arizeai/phoenix-client':
         specifier: workspace:*
         version: link:../phoenix-client
+      '@arizeai/phoenix-config':
+        specifier: workspace:*
+        version: link:../phoenix-config
       '@modelcontextprotocol/sdk':
         specifier: ^1.25.2
         version: 1.26.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)

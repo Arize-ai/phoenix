@@ -3,7 +3,7 @@ import { getTraces } from "@arizeai/phoenix-client/traces";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { resolveProjectId } from "./client.js";
+import { requireIdentifier } from "./identifiers.js";
 import {
   attachAnnotationsToSpans,
   fetchProjectSpans,
@@ -34,16 +34,16 @@ Expected return:
 
 async function fetchTraceSpans({
   client,
-  projectId,
+  projectIdentifier,
   traceId,
 }: {
   client: PhoenixClient;
-  projectId: string;
+  projectIdentifier: string;
   traceId: string;
 }) {
   const response = await fetchProjectSpans({
     client,
-    projectIdentifier: projectId,
+    projectIdentifier,
     filters: {
       traceIds: [traceId],
       limit: 1000,
@@ -56,24 +56,26 @@ async function fetchTraceSpans({
 
 export async function resolveTraceIdByPrefix({
   client,
-  projectId,
   projectIdentifier,
   traceIdPrefix,
   pageLimit = 100,
 }: {
   client: PhoenixClient;
-  projectId: string;
   projectIdentifier: string;
   traceIdPrefix: string;
   pageLimit?: number;
 }): Promise<string | null> {
+  const normalizedProjectIdentifier = requireIdentifier({
+    identifier: projectIdentifier,
+    label: "projectIdentifier",
+  });
   let cursor: string | null = null;
   const matchingTraceIds = new Set<string>();
 
   do {
     const tracePage = await getTraces({
       client,
-      project: { projectId },
+      project: { project: normalizedProjectIdentifier },
       cursor,
       limit: pageLimit,
       sort: "start_time",
@@ -89,7 +91,7 @@ export async function resolveTraceIdByPrefix({
 
       if (matchingTraceIds.size > 1) {
         throw new Error(
-          `Trace ID prefix "${traceIdPrefix}" is ambiguous in project "${projectIdentifier}": ${Array.from(matchingTraceIds).join(", ")}`
+          `Trace ID prefix "${traceIdPrefix}" is ambiguous in project "${normalizedProjectIdentifier}": ${Array.from(matchingTraceIds).join(", ")}`
         );
       }
     }
@@ -125,10 +127,13 @@ export const initializeTraceTools = ({
       includeAnnotations = false,
     }) => {
       const startTime = resolveStartTime({ since, lastNMinutes });
-      const projectId = await resolveProjectId({ client, projectIdentifier });
+      const normalizedProjectIdentifier = requireIdentifier({
+        identifier: projectIdentifier,
+        label: "projectIdentifier",
+      });
       const tracePage = await getTraces({
         client,
-        project: { projectId },
+        project: { project: normalizedProjectIdentifier },
         startTime,
         limit,
         sort: "start_time",
@@ -142,7 +147,7 @@ export const initializeTraceTools = ({
 
       const response = await fetchProjectSpans({
         client,
-        projectIdentifier: projectId,
+        projectIdentifier: normalizedProjectIdentifier,
         filters: {
           traceIds,
           limit: 1000,
@@ -154,7 +159,7 @@ export const initializeTraceTools = ({
       if (includeAnnotations) {
         const annotations = await fetchSpanAnnotations({
           client,
-          projectIdentifier: projectId,
+          projectIdentifier: normalizedProjectIdentifier,
           spanIds: spans
             .map((span) => span.context?.span_id)
             .filter((spanId): spanId is string => Boolean(spanId)),
@@ -188,30 +193,32 @@ export const initializeTraceTools = ({
       includeAnnotations: z.boolean().default(false).optional(),
     },
     async ({ projectIdentifier, traceId, includeAnnotations = false }) => {
-      const projectId = await resolveProjectId({ client, projectIdentifier });
+      const normalizedProjectIdentifier = requireIdentifier({
+        identifier: projectIdentifier,
+        label: "projectIdentifier",
+      });
       let spans = await fetchTraceSpans({
         client,
-        projectId,
+        projectIdentifier: normalizedProjectIdentifier,
         traceId,
       });
 
       if (spans.length === 0) {
         const resolvedTraceId = await resolveTraceIdByPrefix({
           client,
-          projectId,
-          projectIdentifier,
+          projectIdentifier: normalizedProjectIdentifier,
           traceIdPrefix: traceId,
         });
 
         if (!resolvedTraceId) {
           throw new Error(
-            `Trace not found for project "${projectIdentifier}": ${traceId}`
+            `Trace not found for project "${normalizedProjectIdentifier}": ${traceId}`
           );
         }
 
         spans = await fetchTraceSpans({
           client,
-          projectId,
+          projectIdentifier: normalizedProjectIdentifier,
           traceId: resolvedTraceId,
         });
       }
@@ -219,7 +226,7 @@ export const initializeTraceTools = ({
       if (includeAnnotations) {
         const annotations = await fetchSpanAnnotations({
           client,
-          projectIdentifier: projectId,
+          projectIdentifier: normalizedProjectIdentifier,
           spanIds: spans
             .map((span) => span.context?.span_id)
             .filter((spanId): spanId is string => Boolean(spanId)),

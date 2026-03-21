@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import { getResponseData, resolveDatasetId } from "./client.js";
+import { requirePreferredIdentifier } from "./identifiers.js";
 import { jsonResponse } from "./toolResults.js";
 
 const LIST_EXPERIMENTS_DESCRIPTION = `Get a list of all the experiments run on a given dataset.
@@ -101,13 +102,14 @@ export const initializeExperimentTools = ({
       limit: z.number().min(1).max(500).default(100).optional(),
     },
     async ({ datasetIdentifier, dataset_id, limit = 100 }) => {
-      if (!datasetIdentifier && !dataset_id) {
-        throw new Error("datasetIdentifier or legacy dataset_id is required");
-      }
-
       const resolvedDatasetId = await resolveDatasetId({
         client,
-        datasetIdentifier: datasetIdentifier || dataset_id || "",
+        datasetIdentifier: requirePreferredIdentifier({
+          identifier: datasetIdentifier,
+          legacyIdentifier: dataset_id,
+          label: "datasetIdentifier",
+          legacyLabel: "dataset_id",
+        }),
       });
       const experiments: unknown[] = [];
       let cursor: string | undefined;

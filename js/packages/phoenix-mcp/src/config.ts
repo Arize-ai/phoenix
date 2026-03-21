@@ -1,13 +1,21 @@
-const ENV_PHOENIX_HOST = "PHOENIX_HOST";
-const ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS";
-const ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY";
+import {
+  DEFAULT_PHOENIX_BASE_URL,
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+  ENV_PHOENIX_HOST,
+  getHeadersFromEnvironment,
+  getStrFromEnvironment,
+  type Headers,
+} from "@arizeai/phoenix-config";
 
-export const DEFAULT_PHOENIX_ENDPOINT = "http://localhost:6006";
+const ENV_PHOENIX_PROJECT = "PHOENIX_PROJECT";
+
+export const DEFAULT_PHOENIX_ENDPOINT = DEFAULT_PHOENIX_BASE_URL;
 
 export interface PhoenixMcpConfig {
   baseUrl: string;
   apiKey?: string;
-  headers?: Record<string, string>;
+  headers?: Headers;
   project?: string;
 }
 
@@ -20,10 +28,10 @@ export interface ResolveConfigOptions {
 }
 
 export function loadConfigFromEnvironment(): PhoenixMcpConfig {
-  const baseUrl = process.env[ENV_PHOENIX_HOST];
-  const apiKey = process.env[ENV_PHOENIX_API_KEY];
+  const baseUrl = getStrFromEnvironment(ENV_PHOENIX_HOST);
+  const apiKey = getStrFromEnvironment(ENV_PHOENIX_API_KEY);
   const headers = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
-  const project = process.env.PHOENIX_PROJECT;
+  const project = getStrFromEnvironment(ENV_PHOENIX_PROJECT);
 
   return {
     baseUrl: baseUrl || DEFAULT_PHOENIX_ENDPOINT,
@@ -45,32 +53,4 @@ export function resolveConfig({
     ...envConfig,
     ...definedCliOptions,
   };
-}
-
-function getHeadersFromEnvironment(
-  envKey: string
-): Record<string, string> | undefined {
-  const value = process.env[envKey];
-  if (!value) {
-    return undefined;
-  }
-
-  try {
-    const parsedValue = JSON.parse(value);
-    if (!isHeaders(parsedValue)) {
-      return undefined;
-    }
-
-    return parsedValue;
-  } catch {
-    return undefined;
-  }
-}
-
-function isHeaders(value: unknown): value is Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-
-  return Object.values(value).every((entry) => typeof entry === "string");
 }

@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import { getResponseData } from "./client.js";
+import { requirePreferredIdentifier } from "./identifiers.js";
 import {
   attachAnnotationsToSpans,
   fetchProjectSpans,
@@ -110,10 +111,12 @@ export const initializeSpanTools = ({
       limit = 100,
       includeAnnotations = false,
     }) => {
-      const resolvedProjectIdentifier = projectIdentifier || projectName;
-      if (!resolvedProjectIdentifier) {
-        throw new Error("projectIdentifier or legacy projectName is required");
-      }
+      const resolvedProjectIdentifier = requirePreferredIdentifier({
+        identifier: projectIdentifier,
+        legacyIdentifier: projectName,
+        label: "projectIdentifier",
+        legacyLabel: "projectName",
+      });
 
       const response = await fetchProjectSpans({
         client,
@@ -173,10 +176,12 @@ export const initializeSpanTools = ({
       cursor,
       limit = 100,
     }) => {
-      const resolvedProjectIdentifier = projectIdentifier || projectName;
-      if (!resolvedProjectIdentifier) {
-        throw new Error("projectIdentifier or legacy projectName is required");
-      }
+      const resolvedProjectIdentifier = requirePreferredIdentifier({
+        identifier: projectIdentifier,
+        legacyIdentifier: projectName,
+        label: "projectIdentifier",
+        legacyLabel: "projectName",
+      });
 
       const params: NonNullable<
         Types["V1"]["operations"]["listSpanAnnotationsBySpanIds"]["parameters"]["query"]

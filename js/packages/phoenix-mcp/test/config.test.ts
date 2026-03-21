@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_PHOENIX_ENDPOINT, resolveConfig } from "../src/config";
+import {
+  DEFAULT_PHOENIX_ENDPOINT,
+  loadConfigFromEnvironment,
+  resolveConfig,
+} from "../src/config";
 
 describe("resolveConfig", () => {
   afterEach(() => {
@@ -37,5 +41,15 @@ describe("resolveConfig", () => {
     });
 
     expect(config.baseUrl).toBe(DEFAULT_PHOENIX_ENDPOINT);
+  });
+
+  it("loads headers from the shared phoenix config helpers", () => {
+    vi.stubEnv("PHOENIX_CLIENT_HEADERS", '{"X-Test":"value"}');
+
+    const config = loadConfigFromEnvironment();
+
+    expect(config.headers).toEqual({
+      "X-Test": "value",
+    });
   });
 });

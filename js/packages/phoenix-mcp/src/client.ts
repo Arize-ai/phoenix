@@ -5,6 +5,10 @@ import {
 } from "@arizeai/phoenix-client";
 
 import type { PhoenixMcpConfig } from "./config.js";
+import {
+  getRelayGlobalIdIfType,
+  requireIdentifier,
+} from "./identifiers.js";
 
 export interface CreatePhoenixClientOptions {
   config: PhoenixMcpConfig;
@@ -30,111 +34,41 @@ export function createPhoenixClient({
   });
 }
 
-export interface ResolveProjectIdOptions {
-  client: PhoenixClient;
-  projectIdentifier: string;
-}
-
 export interface ResolveDatasetIdOptions {
   client: PhoenixClient;
   datasetIdentifier: string;
 }
 
-function looksLikeRelayGlobalId({
-  identifier,
-  typeName,
-}: {
-  identifier: string;
-  typeName: string;
-}): boolean {
-  const trimmedIdentifier = identifier.trim();
-  if (!trimmedIdentifier) {
-    return false;
-  }
-
-  const normalizedIdentifier =
-    trimmedIdentifier.length % 4 === 0
-      ? trimmedIdentifier
-      : `${trimmedIdentifier}${"=".repeat(4 - (trimmedIdentifier.length % 4))}`;
-
-  try {
-    const decodedIdentifier = Buffer.from(
-      normalizedIdentifier,
-      "base64"
-    ).toString("utf8");
-    const reEncodedIdentifier = Buffer.from(decodedIdentifier, "utf8")
-      .toString("base64")
-      .replace(/=+$/, "");
-
-    return (
-      reEncodedIdentifier === trimmedIdentifier.replace(/=+$/, "") &&
-      decodedIdentifier.startsWith(`${typeName}:`)
-    );
-  } catch {
-    return false;
-  }
-}
-
-export function looksLikePhoenixProjectId(projectIdentifier: string): boolean {
-  const trimmedIdentifier = projectIdentifier.trim();
-  if (!trimmedIdentifier) {
-    return false;
-  }
-
-  return looksLikeRelayGlobalId({
-    identifier: trimmedIdentifier,
-    typeName: "Project",
-  });
-}
-
-export function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
-  const trimmedIdentifier = datasetIdentifier.trim();
-  if (!trimmedIdentifier) {
-    return false;
-  }
-
-  return looksLikeRelayGlobalId({
-    identifier: trimmedIdentifier,
-    typeName: "Dataset",
-  });
-}
-
-export async function resolveProjectId({
-  client,
-  projectIdentifier,
-}: ResolveProjectIdOptions): Promise<string> {
-  if (looksLikePhoenixProjectId(projectIdentifier)) {
-    return projectIdentifier;
-  }
-
-  const response = await client.GET("/v1/projects/{project_identifier}", {
-    params: {
-      path: {
-        project_identifier: projectIdentifier,
-      },
-    },
-  });
-
-  const data = getResponseData({
-    response,
-    errorPrefix: `Failed to resolve project "${projectIdentifier}"`,
-  });
-
-  return data.data.id;
+export function isPhoenixDatasetId(datasetIdentifier: string): boolean {
+  return (
+    getRelayGlobalIdIfType({
+      identifier: datasetIdentifier,
+      expectedTypeName: "Dataset",
+    }) !== null
+  );
 }
 
 export async function resolveDatasetId({
   client,
   datasetIdentifier,
 }: ResolveDatasetIdOptions): Promise<string> {
-  if (looksLikePhoenixDatasetId(datasetIdentifier)) {
-    return datasetIdentifier;
+  const normalizedDatasetIdentifier = requireIdentifier({
+    identifier: datasetIdentifier,
+    label: "datasetIdentifier",
+  });
+  const datasetId = getRelayGlobalIdIfType({
+    identifier: normalizedDatasetIdentifier,
+    expectedTypeName: "Dataset",
+  });
+
+  if (datasetId) {
+    return datasetId;
   }
 
   const response = await client.GET("/v1/datasets", {
     params: {
       query: {
-        name: datasetIdentifier,
+        name: normalizedDatasetIdentifier,
         limit: 1,
       },
     },
@@ -142,11 +76,11 @@ export async function resolveDatasetId({
 
   const data = getResponseData({
     response,
-    errorPrefix: `Failed to resolve dataset "${datasetIdentifier}"`,
+    errorPrefix: `Failed to resolve dataset "${normalizedDatasetIdentifier}"`,
   });
 
   if (data.data.length === 0) {
-    throw new Error(`Dataset not found: "${datasetIdentifier}"`);
+    throw new Error(`Dataset not found: "${normalizedDatasetIdentifier}"`);
   }
 
   return data.data[0]!.id;

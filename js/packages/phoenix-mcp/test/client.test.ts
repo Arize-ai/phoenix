@@ -1,44 +1,45 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  looksLikePhoenixDatasetId,
-  looksLikePhoenixProjectId,
+  isPhoenixDatasetId,
   resolveDatasetId,
-  resolveProjectId,
 } from "../src/client";
+import { parseRelayGlobalId } from "../src/identifiers";
 
-describe("identifier helpers", () => {
-  it("recognizes relay project IDs", () => {
-    expect(looksLikePhoenixProjectId("UHJvamVjdDox")).toBe(true);
-    expect(looksLikePhoenixProjectId("default")).toBe(false);
-    expect(looksLikePhoenixProjectId("cafe")).toBe(false);
+describe("relay ID helpers", () => {
+  it("parses relay IDs into type and node ID parts", () => {
+    expect(parseRelayGlobalId(" UHJvamVjdDox ")).toEqual({
+      typeName: "Project",
+      nodeId: "1",
+    });
+  });
+
+  it("rejects non-relay IDs", () => {
+    expect(parseRelayGlobalId("default")).toBeNull();
+    expect(parseRelayGlobalId("cafe")).toBeNull();
   });
 
   it("recognizes relay dataset IDs", () => {
-    expect(looksLikePhoenixDatasetId("RGF0YXNldDox")).toBe(true);
-    expect(looksLikePhoenixDatasetId("support-dataset")).toBe(false);
-    expect(looksLikePhoenixDatasetId("dead")).toBe(false);
+    expect(isPhoenixDatasetId("RGF0YXNldDox")).toBe(true);
+    expect(isPhoenixDatasetId("support-dataset")).toBe(false);
+    expect(isPhoenixDatasetId("dead")).toBe(false);
   });
 });
 
-describe("entity resolution", () => {
-  it("resolves project names through the API", async () => {
+describe("dataset resolution", () => {
+  it("returns trimmed relay dataset IDs without calling the API", async () => {
     const client = {
-      GET: vi.fn().mockResolvedValue({
-        data: {
-          data: {
-            id: "abc123",
-          },
-        },
-      }),
+      GET: vi.fn(),
     } as never;
 
     await expect(
-      resolveProjectId({
+      resolveDatasetId({
         client,
-        projectIdentifier: "default",
+        datasetIdentifier: " RGF0YXNldDox ",
       })
-    ).resolves.toBe("abc123");
+    ).resolves.toBe("RGF0YXNldDox");
+
+    expect(client.GET).not.toHaveBeenCalled();
   });
 
   it("resolves dataset names through the API", async () => {
@@ -60,5 +61,14 @@ describe("entity resolution", () => {
         datasetIdentifier: "support-dataset",
       })
     ).resolves.toBe("def456");
+
+    expect(client.GET).toHaveBeenCalledWith("/v1/datasets", {
+      params: {
+        query: {
+          name: "support-dataset",
+          limit: 1,
+        },
+      },
+    });
   });
 });

@@ -2,7 +2,8 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { getResponseData, resolveProjectId } from "./client.js";
+import { getResponseData } from "./client.js";
+import { requireIdentifier } from "./identifiers.js";
 import { jsonResponse } from "./toolResults.js";
 
 type SessionAnnotationsQuery = NonNullable<
@@ -36,7 +37,10 @@ async function fetchSessionAnnotations({
   projectIdentifier: string;
   sessionId: string;
 }) {
-  const projectId = await resolveProjectId({ client, projectIdentifier });
+  const normalizedProjectIdentifier = requireIdentifier({
+    identifier: projectIdentifier,
+    label: "projectIdentifier",
+  });
   const annotations: unknown[] = [];
   let cursor: string | undefined;
 
@@ -55,7 +59,7 @@ async function fetchSessionAnnotations({
       {
         params: {
           path: {
-            project_identifier: projectId,
+            project_identifier: normalizedProjectIdentifier,
           },
           query,
         },
@@ -89,7 +93,10 @@ export const initializeSessionTools = ({
       order: z.enum(["asc", "desc"]).default("desc").optional(),
     },
     async ({ projectIdentifier, limit, order = "desc" }) => {
-      const projectId = await resolveProjectId({ client, projectIdentifier });
+      const normalizedProjectIdentifier = requireIdentifier({
+        identifier: projectIdentifier,
+        label: "projectIdentifier",
+      });
       const sessions: unknown[] = [];
       let cursor: string | undefined;
 
@@ -100,7 +107,7 @@ export const initializeSessionTools = ({
           {
             params: {
               path: {
-                project_identifier: projectId,
+                project_identifier: normalizedProjectIdentifier,
               },
               query: {
                 cursor,
@@ -112,7 +119,7 @@ export const initializeSessionTools = ({
         );
         const data = getResponseData({
           response,
-          errorPrefix: `Failed to fetch sessions for project "${projectIdentifier}"`,
+          errorPrefix: `Failed to fetch sessions for project "${normalizedProjectIdentifier}"`,
         });
 
         sessions.push(...data.data);

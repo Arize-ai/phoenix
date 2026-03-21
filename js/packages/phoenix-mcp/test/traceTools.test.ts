@@ -37,11 +37,19 @@ describe("resolveTraceIdByPrefix", () => {
     await expect(
       resolveTraceIdByPrefix({
         client: {} as never,
-        projectId: "project-1",
         projectIdentifier: "default",
         traceIdPrefix: "abc",
       })
     ).resolves.toBe("abc123");
+
+    expect(mockGetTraces).toHaveBeenCalledWith({
+      client: {} as never,
+      project: { project: "default" },
+      cursor: null,
+      limit: 100,
+      sort: "start_time",
+      order: "desc",
+    });
   });
 
   it("throws when a trace ID prefix matches more than one trace", async () => {
@@ -60,7 +68,6 @@ describe("resolveTraceIdByPrefix", () => {
     await expect(
       resolveTraceIdByPrefix({
         client: {} as never,
-        projectId: "project-1",
         projectIdentifier: "default",
         traceIdPrefix: "abc",
       })
@@ -82,7 +89,6 @@ describe("resolveTraceIdByPrefix", () => {
     await expect(
       resolveTraceIdByPrefix({
         client: {} as never,
-        projectId: "project-1",
         projectIdentifier: "default",
         traceIdPrefix: "abc",
       })

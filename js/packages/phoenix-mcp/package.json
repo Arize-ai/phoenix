@@ -31,6 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "glob": "^13.0.6",

@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
 import { getResponseData, resolveDatasetId } from "./client.js";
+import { requirePreferredIdentifier } from "./identifiers.js";
 import { jsonResponse } from "./toolResults.js";
 
 const LIST_DATASETS_DESCRIPTION = `Get a list of all datasets.
@@ -115,16 +116,6 @@ const datasetIdentifierSchema = z
     }
   );
 
-function getDatasetIdentifier({
-  datasetIdentifier,
-  datasetId,
-}: {
-  datasetIdentifier?: string;
-  datasetId?: string;
-}): string {
-  return datasetIdentifier || datasetId || "";
-}
-
 export const initializeDatasetTools = ({
   client,
   server,
@@ -172,9 +163,11 @@ export const initializeDatasetTools = ({
     async ({ datasetIdentifier, datasetId }) => {
       const resolvedDatasetId = await resolveDatasetId({
         client,
-        datasetIdentifier: getDatasetIdentifier({
-          datasetIdentifier,
-          datasetId,
+        datasetIdentifier: requirePreferredIdentifier({
+          identifier: datasetIdentifier,
+          legacyIdentifier: datasetId,
+          label: "datasetIdentifier",
+          legacyLabel: "datasetId",
         }),
       });
 
@@ -204,9 +197,11 @@ export const initializeDatasetTools = ({
     async ({ datasetIdentifier, datasetId, versionId, splits }) => {
       const resolvedDatasetId = await resolveDatasetId({
         client,
-        datasetIdentifier: getDatasetIdentifier({
-          datasetIdentifier,
-          datasetId,
+        datasetIdentifier: requirePreferredIdentifier({
+          identifier: datasetIdentifier,
+          legacyIdentifier: datasetId,
+          label: "datasetIdentifier",
+          legacyLabel: "datasetId",
         }),
       });
 
@@ -237,9 +232,11 @@ export const initializeDatasetTools = ({
     async ({ datasetIdentifier, datasetId, limit = 100 }) => {
       const resolvedDatasetId = await resolveDatasetId({
         client,
-        datasetIdentifier: getDatasetIdentifier({
-          datasetIdentifier,
-          datasetId,
+        datasetIdentifier: requirePreferredIdentifier({
+          identifier: datasetIdentifier,
+          legacyIdentifier: datasetId,
+          label: "datasetIdentifier",
+          legacyLabel: "datasetId",
         }),
       });
 

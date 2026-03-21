@@ -7,8 +7,8 @@ import type {
 import {
   type ProjectSpansQuery,
   getResponseData,
-  resolveProjectId,
 } from "./client.js";
+import { requireIdentifier } from "./identifiers.js";
 import type { SpanAnnotation, SpanWithAnnotations } from "./traceUtils.js";
 
 type Span = componentsV1["schemas"]["Span"];
@@ -107,7 +107,10 @@ export async function fetchProjectSpans({
   filters: SpanFilterInput;
   totalLimit?: number;
 }): Promise<{ spans: Span[]; nextCursor: string | null }> {
-  const projectId = await resolveProjectId({ client, projectIdentifier });
+  const normalizedProjectIdentifier = requireIdentifier({
+    identifier: projectIdentifier,
+    label: "projectIdentifier",
+  });
   const collectedSpans: Span[] = [];
   let cursor: string | undefined = filters.cursor;
   const pageLimit = Math.min(totalLimit || filters.limit || 100, 1000);
@@ -118,7 +121,7 @@ export async function fetchProjectSpans({
       {
         params: {
           path: {
-            project_identifier: projectId,
+            project_identifier: normalizedProjectIdentifier,
           },
           query: buildSpanQuery({
             ...filters,
@@ -131,7 +134,7 @@ export async function fetchProjectSpans({
 
     const data = getResponseData({
       response,
-      errorPrefix: `Failed to fetch spans for project "${projectIdentifier}"`,
+      errorPrefix: `Failed to fetch spans for project "${normalizedProjectIdentifier}"`,
     });
 
     collectedSpans.push(...data.data);
@@ -163,14 +166,14 @@ function chunkArray<TValue>(values: TValue[], size: number): TValue[][] {
 
 async function fetchSpanAnnotationsForChunk({
   client,
-  projectId,
+  projectIdentifier,
   spanIds,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit,
 }: {
   client: PhoenixClient;
-  projectId: string;
+  projectIdentifier: string;
   spanIds: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
@@ -200,7 +203,7 @@ async function fetchSpanAnnotationsForChunk({
       {
         params: {
           path: {
-            project_identifier: projectId,
+            project_identifier: projectIdentifier,
           },
           query,
         },
@@ -209,7 +212,7 @@ async function fetchSpanAnnotationsForChunk({
 
     const data = getResponseData({
       response,
-      errorPrefix: `Failed to fetch span annotations for project "${projectId}"`,
+      errorPrefix: `Failed to fetch span annotations for project "${projectIdentifier}"`,
     });
 
     annotations.push(...data.data);
@@ -240,7 +243,10 @@ export async function fetchSpanAnnotations({
     return [];
   }
 
-  const projectId = await resolveProjectId({ client, projectIdentifier });
+  const normalizedProjectIdentifier = requireIdentifier({
+    identifier: projectIdentifier,
+    label: "projectIdentifier",
+  });
   const uniqueSpanIds = Array.from(new Set(spanIds));
   const chunks = chunkArray(uniqueSpanIds, DEFAULT_SPAN_IDS_CHUNK_SIZE);
   const allAnnotations: SpanAnnotation[] = [];
@@ -255,7 +261,7 @@ export async function fetchSpanAnnotations({
       batch.map((spanIdsChunk) =>
         fetchSpanAnnotationsForChunk({
           client,
-          projectId,
+          projectIdentifier: normalizedProjectIdentifier,
           spanIds: spanIdsChunk,
           includeAnnotationNames,
           excludeAnnotationNames,
