@@ -50,9 +50,9 @@ spans_df = client.spans.get_spans_dataframe(
 )
 
 # 2. Run evaluators
-from phoenix.evals import async_evaluate_dataframe
+from phoenix.evals import evaluate_dataframe
 
-results_df = await async_evaluate_dataframe(
+results_df = evaluate_dataframe(
     dataframe=spans_df,
     evaluators=[quality_eval, safety_eval],
     concurrency=5,

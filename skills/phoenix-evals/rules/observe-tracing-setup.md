@@ -104,11 +104,11 @@ const { traces } = await getTraces({
 ### Python
 
 ```python
-from phoenix.evals import async_evaluate_dataframe
+from phoenix.evals import evaluate_dataframe
 from phoenix.evals.utils import to_annotation_dataframe
 
 # Run evaluations
-results_df = await async_evaluate_dataframe(dataframe=spans_df, evaluators=[my_eval])
+results_df = evaluate_dataframe(dataframe=spans_df, evaluators=[my_eval])
 
 # Format results for Phoenix annotations
 annotations_df = to_annotation_dataframe(results_df)
