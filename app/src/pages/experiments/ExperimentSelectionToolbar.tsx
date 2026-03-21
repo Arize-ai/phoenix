@@ -170,13 +170,17 @@ export function ExperimentSelectionToolbar(
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
+              {deleteError && (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {deleteError}
+                  </Alert>
+                </View>
+              )}
               <View padding="size-200">
                 <Text color="danger">
                   {`Are you sure you want to delete these experiments? This will also delete all associated annotations and traces, and it cannot be undone.`}
                 </Text>
-                {deleteError && (
-                  <Alert variant="danger">{deleteError}</Alert>
-                )}
               </View>
               <View
                 paddingEnd="size-200"

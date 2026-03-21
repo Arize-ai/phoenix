@@ -14,7 +14,6 @@ export type EditDatasetDialogProps = {
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
   onDatasetEdited: () => void;
-  onDatasetEditError: (error: Error) => void;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
 };
@@ -25,7 +24,6 @@ export function EditDatasetDialog({
   datasetDescription,
   datasetMetadata,
   onDatasetEdited,
-  onDatasetEditError,
   isOpen,
   onOpenChange,
 }: EditDatasetDialogProps) {
@@ -53,7 +51,6 @@ export function EditDatasetDialog({
               datasetDescription={datasetDescription}
               datasetMetadata={datasetMetadata}
               onDatasetEdited={handleSuccess}
-              onDatasetEditError={onDatasetEditError}
             />
           </DialogContent>
         </Dialog>

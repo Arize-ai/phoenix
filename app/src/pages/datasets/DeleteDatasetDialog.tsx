@@ -1,8 +1,9 @@
-import { startTransition, useCallback } from "react";
+import { startTransition, useCallback, useState } from "react";
 import { useMutation } from "react-relay";
 import { graphql } from "relay-runtime";
 
 import {
+  Alert,
   Button,
   Dialog,
   Flex,
@@ -20,6 +21,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialogMutation.graphql";
 
@@ -27,7 +29,6 @@ export type DeleteDatasetDialogProps = {
   datasetId: string;
   datasetName: string;
   onDatasetDelete: () => void;
-  onDatasetDeleteError: (error: Error) => void;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
 };
@@ -36,10 +37,10 @@ export function DeleteDatasetDialog({
   datasetId,
   datasetName,
   onDatasetDelete,
-  onDatasetDeleteError,
   isOpen,
   onOpenChange,
 }: DeleteDatasetDialogProps) {
+  const [error, setError] = useState<string | null>(null);
   const [commitDelete, isCommittingDelete] =
     useMutation<DeleteDatasetDialogMutation>(graphql`
       mutation DeleteDatasetDialogMutation($datasetId: ID!) {
@@ -62,20 +63,21 @@ export function DeleteDatasetDialog({
           }
         },
         onError: (error) => {
-          onDatasetDeleteError(error);
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setError(formattedError?.[0] ?? error.message);
         },
       });
     });
-  }, [
-    commitDelete,
-    datasetId,
-    onDatasetDelete,
-    onDatasetDeleteError,
-    onOpenChange,
-  ]);
+  }, [commitDelete, datasetId, onDatasetDelete, onOpenChange]);
 
   return (
-    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (open) setError(null);
+        onOpenChange?.(open);
+      }}
+    >
       <Modal size="S">
         <Dialog>
           <DialogContent>
@@ -85,6 +87,13 @@ export function DeleteDatasetDialog({
                 <DialogCloseButton />
               </DialogTitleExtra>
             </DialogHeader>
+            {error && (
+              <View paddingX="size-200" paddingTop="size-100">
+                <Alert variant="danger" banner>
+                  {error}
+                </Alert>
+              </View>
+            )}
             <View padding="size-200">
               <Text color="danger">
                 {`Are you sure you want to delete dataset ${datasetName}? This will also delete all associated experiments and traces, and it cannot be undone.`}

@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
+
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { EditDatasetFormMutation } from "./__generated__/EditDatasetFormMutation.graphql";
 import type { DatasetFormParams } from "./DatasetForm";
@@ -9,7 +12,6 @@ export function EditDatasetForm({
   datasetId,
   datasetDescription,
   onDatasetEdited,
-  onDatasetEditError,
   datasetMetadata,
 }: {
   datasetName: string;
@@ -17,8 +19,8 @@ export function EditDatasetForm({
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
   onDatasetEdited: () => void;
-  onDatasetEditError: (error: Error) => void;
 }) {
+  const [error, setError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
     mutation EditDatasetFormMutation(
       $datasetId: ID!
@@ -44,6 +46,7 @@ export function EditDatasetForm({
   `);
 
   const onSubmit = (params: DatasetFormParams) => {
+    setError(null);
     commit({
       variables: {
         datasetId,
@@ -54,7 +57,8 @@ export function EditDatasetForm({
         onDatasetEdited();
       },
       onError: (error) => {
-        onDatasetEditError(error);
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
+        setError(formattedError?.[0] ?? error.message);
       },
     });
   };
@@ -68,6 +72,7 @@ export function EditDatasetForm({
       isSubmitting={isCommitting}
       submitButtonText={isCommitting ? "Saving..." : "Save"}
       formMode="edit"
+      errorMessage={error}
     />
   );
 }

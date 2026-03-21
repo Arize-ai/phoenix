@@ -26,9 +26,7 @@ type DatasetActionMenuProps = {
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
   onDatasetDelete: () => void;
-  onDatasetDeleteError: (error: Error) => void;
   onDatasetEdit: () => void;
-  onDatasetEditError: (error: Error) => void;
 };
 
 enum DatasetAction {
@@ -44,9 +42,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
     datasetDescription,
     datasetMetadata,
     onDatasetDelete,
-    onDatasetDeleteError,
     onDatasetEdit,
-    onDatasetEditError,
   } = props;
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -136,7 +132,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         datasetId={datasetId}
         datasetName={datasetName}
         onDatasetDelete={onDatasetDelete}
-        onDatasetDeleteError={onDatasetDeleteError}
         isOpen={isDeleteOpen}
         onOpenChange={setIsDeleteOpen}
       />
@@ -148,7 +143,6 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         datasetDescription={datasetDescription}
         datasetMetadata={datasetMetadata}
         onDatasetEdited={onDatasetEdit}
-        onDatasetEditError={onDatasetEditError}
         isOpen={isEditOpen}
         onOpenChange={setIsEditOpen}
       />
