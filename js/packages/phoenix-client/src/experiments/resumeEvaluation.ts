@@ -3,8 +3,13 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
-import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
+import type {
+  GlobalTracerProviderRegistration,
+  NodeTracerProvider,
+  Tracer,
+} from "@arizeai/phoenix-otel";
 import {
+  attachGlobalTracerProvider,
   type DiagLogLevel,
   objectAsAttributes,
   register,
@@ -29,6 +34,7 @@ import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
 import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
+import { cleanupOwnedTracerProvider } from "./tracing";
 
 /**
  * Error thrown when evaluation is aborted due to a failure in stopOnFirstError mode.
@@ -207,7 +213,11 @@ function setupEvaluationTracer({
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
   setGlobalTracerProvider: boolean;
-}): { provider: NodeTracerProvider; tracer: Tracer } | null {
+}): {
+  provider: NodeTracerProvider;
+  tracer: Tracer;
+  globalRegistration: GlobalTracerProviderRegistration | null;
+} | null {
   if (!projectName) {
     return null;
   }
@@ -218,11 +228,14 @@ function setupEvaluationTracer({
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
-    global: setGlobalTracerProvider,
+    global: false,
   });
+  const globalRegistration = setGlobalTracerProvider
+    ? attachGlobalTracerProvider(provider)
+    : null;
 
   const tracer = provider.getTracer(projectName);
-  return { provider, tracer };
+  return { provider, tracer, globalRegistration };
 }
 
 /**
@@ -329,252 +342,257 @@ export async function resumeEvaluation({
   });
 
   const provider = tracerSetup?.provider ?? null;
+  const globalRegistration = tracerSetup?.globalRegistration ?? null;
   const evalTracer = tracerSetup?.tracer ?? null;
 
-  // Build evaluation names list for query - derive from evaluator names
-  const evaluationNamesList = evaluators.map((e) => e.name);
+  try {
+    // Build evaluation names list for query - derive from evaluator names
+    const evaluationNamesList = evaluators.map((e) => e.name);
 
-  // Create a CSP-style bounded buffer for evaluation distribution
-  const evalChannel = new Channel<EvalItem>(
-    pageSize * CHANNEL_CAPACITY_MULTIPLIER
-  );
+    // Create a CSP-style bounded buffer for evaluation distribution
+    const evalChannel = new Channel<EvalItem>(
+      pageSize * CHANNEL_CAPACITY_MULTIPLIER
+    );
 
-  // Abort controller for stopOnFirstError coordination
-  const abortController = new AbortController();
-  const { signal } = abortController;
+    // Abort controller for stopOnFirstError coordination
+    const abortController = new AbortController();
+    const { signal } = abortController;
 
-  let totalProcessed = 0;
-  let totalCompleted = 0;
-  let totalFailed = 0;
+    let totalProcessed = 0;
+    let totalCompleted = 0;
+    let totalFailed = 0;
 
-  // Producer: Fetch incomplete evaluations and send to channel
-  async function fetchIncompleteEvaluations(): Promise<void> {
-    let cursor: string | null = null;
+    // Producer: Fetch incomplete evaluations and send to channel
+    async function fetchIncompleteEvaluations(): Promise<void> {
+      let cursor: string | null = null;
 
-    try {
-      do {
-        // Stop fetching if abort signal received
-        if (signal.aborted) {
-          logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
-          break;
-        }
-
-        let res: {
-          data?: components["schemas"]["GetIncompleteEvaluationsResponseBody"];
-          error?: unknown;
-        };
-
-        try {
-          res = await client.GET(
-            "/v1/experiments/{experiment_id}/incomplete-evaluations",
-            {
-              params: {
-                path: {
-                  experiment_id: experimentId,
-                },
-                query: {
-                  cursor,
-                  limit: pageSize,
-                  evaluation_name: evaluationNamesList,
-                },
-              },
-            }
-          );
-        } catch (error: unknown) {
-          // Check for version compatibility issues and throw helpful error
-          try {
-            await handleEvaluationFetchError(
-              error,
-              client,
-              "resume_evaluation"
-            );
-            // TypeScript: handleEvaluationFetchError never returns, but add throw for safety
-            throw new Error("handleEvaluationFetchError should never return");
-          } catch (handledError) {
-            // Wrap the error (from handleEvaluationFetchError or original) in semantic error type
-            throw new EvaluationFetchError(
-              "Failed to fetch incomplete evaluations from server",
-              handledError instanceof Error ? handledError : undefined
-            );
-          }
-        }
-
-        // Check for API errors
-        if (res.error) {
-          throw new EvaluationFetchError(
-            `Failed to fetch incomplete evaluations: ${ensureString(res.error)}`
-          );
-        }
-
-        cursor = res.data?.next_cursor ?? null;
-        const batchIncomplete = res.data?.data;
-        invariant(batchIncomplete, "Failed to fetch incomplete evaluations");
-
-        if (batchIncomplete.length === 0) {
-          if (totalProcessed === 0) {
-            logger.info(
-              `${PROGRESS_PREFIX.completed}No incomplete evaluations found.`
-            );
-          }
-          break;
-        }
-
-        if (totalProcessed === 0) {
-          logger.info(`${PROGRESS_PREFIX.start}Resuming evaluations.`);
-        }
-
-        // Build evaluation tasks and send to channel
-        let batchCount = 0;
-        for (const incomplete of batchIncomplete) {
-          // Stop sending items if abort signal received
+      try {
+        do {
+          // Stop fetching if abort signal received
           if (signal.aborted) {
+            logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
             break;
           }
 
-          const incompleteEval = buildIncompleteEvaluation(incomplete);
+          let res: {
+            data?: components["schemas"]["GetIncompleteEvaluationsResponseBody"];
+            error?: unknown;
+          };
 
-          const evaluatorsToRun = evaluators.filter((evaluator) =>
-            shouldRunEvaluator(evaluator, incompleteEval)
-          );
+          try {
+            res = await client.GET(
+              "/v1/experiments/{experiment_id}/incomplete-evaluations",
+              {
+                params: {
+                  path: {
+                    experiment_id: experimentId,
+                  },
+                  query: {
+                    cursor,
+                    limit: pageSize,
+                    evaluation_name: evaluationNamesList,
+                  },
+                },
+              }
+            );
+          } catch (error: unknown) {
+            // Check for version compatibility issues and throw helpful error
+            try {
+              await handleEvaluationFetchError(
+                error,
+                client,
+                "resume_evaluation"
+              );
+              // TypeScript: handleEvaluationFetchError never returns, but add throw for safety
+              throw new Error("handleEvaluationFetchError should never return");
+            } catch (handledError) {
+              // Wrap the error (from handleEvaluationFetchError or original) in semantic error type
+              throw new EvaluationFetchError(
+                "Failed to fetch incomplete evaluations from server",
+                handledError instanceof Error ? handledError : undefined
+              );
+            }
+          }
 
-          // Flatten: Send one channel item per evaluator
-          for (const evaluator of evaluatorsToRun) {
+          // Check for API errors
+          if (res.error) {
+            throw new EvaluationFetchError(
+              `Failed to fetch incomplete evaluations: ${ensureString(res.error)}`
+            );
+          }
+
+          cursor = res.data?.next_cursor ?? null;
+          const batchIncomplete = res.data?.data;
+          invariant(batchIncomplete, "Failed to fetch incomplete evaluations");
+
+          if (batchIncomplete.length === 0) {
+            if (totalProcessed === 0) {
+              logger.info(
+                `${PROGRESS_PREFIX.completed}No incomplete evaluations found.`
+              );
+            }
+            break;
+          }
+
+          if (totalProcessed === 0) {
+            logger.info(`${PROGRESS_PREFIX.start}Resuming evaluations.`);
+          }
+
+          // Build evaluation tasks and send to channel
+          let batchCount = 0;
+          for (const incomplete of batchIncomplete) {
             // Stop sending items if abort signal received
             if (signal.aborted) {
               break;
             }
 
-            await evalChannel.send({ incompleteEval, evaluator });
-            batchCount++;
-            totalProcessed++;
+            const incompleteEval = buildIncompleteEvaluation(incomplete);
+
+            const evaluatorsToRun = evaluators.filter((evaluator) =>
+              shouldRunEvaluator(evaluator, incompleteEval)
+            );
+
+            // Flatten: Send one channel item per evaluator
+            for (const evaluator of evaluatorsToRun) {
+              // Stop sending items if abort signal received
+              if (signal.aborted) {
+                break;
+              }
+
+              await evalChannel.send({ incompleteEval, evaluator });
+              batchCount++;
+              totalProcessed++;
+            }
           }
-        }
 
-        logger.debug(
-          `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
-        );
-      } while (cursor !== null && !signal.aborted);
-    } catch (error) {
-      // Re-throw with context preservation
-      if (error instanceof EvaluationFetchError) {
-        throw error;
-      }
-      // ChannelError from blocked send() should bubble up naturally
-      // (happens when channel closes while producer is blocked)
-      if (error instanceof ChannelError) {
-        throw error;
-      }
-      // Wrap any unexpected errors from channel operations
-      throw new EvaluationFetchError(
-        "Unexpected error during evaluation fetch",
-        error instanceof Error ? error : undefined
-      );
-    } finally {
-      evalChannel.close(); // Signal workers we're done
-    }
-  }
-
-  // Worker: Process evaluations from channel
-  async function processEvaluationsFromChannel(): Promise<void> {
-    for await (const item of evalChannel) {
-      // Stop processing if abort signal received
-      if (signal.aborted) {
-        break;
-      }
-
-      try {
-        await runSingleEvaluation({
-          client,
-          experimentId,
-          evaluator: item.evaluator,
-          experimentRun: item.incompleteEval.experimentRun,
-          datasetExample: item.incompleteEval.datasetExample,
-          tracer: evalTracer,
-        });
-        totalCompleted++;
+          logger.debug(
+            `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} evaluation tasks.`
+          );
+        } while (cursor !== null && !signal.aborted);
       } catch (error) {
-        totalFailed++;
-        logger.error(
-          `Failed to run evaluator "${item.evaluator.name}" for run ${item.incompleteEval.experimentRun.id}: ${error}`
-        );
-
-        // If stopOnFirstError is enabled, abort and re-throw
-        if (stopOnFirstError) {
-          logger.warn("Stopping on first error");
-          abortController.abort();
+        // Re-throw with context preservation
+        if (error instanceof EvaluationFetchError) {
           throw error;
         }
+        // ChannelError from blocked send() should bubble up naturally
+        // (happens when channel closes while producer is blocked)
+        if (error instanceof ChannelError) {
+          throw error;
+        }
+        // Wrap any unexpected errors from channel operations
+        throw new EvaluationFetchError(
+          "Unexpected error during evaluation fetch",
+          error instanceof Error ? error : undefined
+        );
+      } finally {
+        evalChannel.close(); // Signal workers we're done
       }
     }
-  }
 
-  // Start concurrent execution
-  // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
-  let executionError: Error | null = null;
-  try {
-    const producerTask = fetchIncompleteEvaluations();
-    const workerTasks = Array.from({ length: concurrency }, () =>
-      processEvaluationsFromChannel()
-    );
+    // Worker: Process evaluations from channel
+    async function processEvaluationsFromChannel(): Promise<void> {
+      for await (const item of evalChannel) {
+        // Stop processing if abort signal received
+        if (signal.aborted) {
+          break;
+        }
 
-    // Wait for producer and all workers to finish
-    await Promise.all([producerTask, ...workerTasks]);
-  } catch (error) {
-    // Classify and handle errors based on their nature
-    const err = error instanceof Error ? error : new Error(String(error));
+        try {
+          await runSingleEvaluation({
+            client,
+            experimentId,
+            evaluator: item.evaluator,
+            experimentRun: item.incompleteEval.experimentRun,
+            datasetExample: item.incompleteEval.datasetExample,
+            tracer: evalTracer,
+          });
+          totalCompleted++;
+        } catch (error) {
+          totalFailed++;
+          logger.error(
+            `Failed to run evaluator "${item.evaluator.name}" for run ${item.incompleteEval.experimentRun.id}: ${error}`
+          );
 
-    // Always surface producer/infrastructure errors
-    if (error instanceof EvaluationFetchError) {
-      // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-      logger.error(`Critical: Failed to fetch evaluations from server`);
-      executionError = err;
-    } else if (error instanceof ChannelError && signal.aborted) {
-      // Channel closed due to intentional abort - wrap in semantic error
-      executionError = new EvaluationAbortedError(
-        "Evaluation stopped due to error in concurrent evaluator",
-        err
+          // If stopOnFirstError is enabled, abort and re-throw
+          if (stopOnFirstError) {
+            logger.warn("Stopping on first error");
+            abortController.abort();
+            throw error;
+          }
+        }
+      }
+    }
+
+    // Start concurrent execution
+    // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
+    let executionError: Error | null = null;
+    try {
+      const producerTask = fetchIncompleteEvaluations();
+      const workerTasks = Array.from({ length: concurrency }, () =>
+        processEvaluationsFromChannel()
       );
-    } else if (stopOnFirstError) {
-      // Worker error in stopOnFirstError mode - already logged by worker
-      executionError = err;
-    } else {
-      // Unexpected error (not from worker, not from producer fetch)
-      // This could be a bug in our code or infrastructure failure
-      logger.error(`Unexpected error during evaluation: ${err.message}`);
-      executionError = err;
+
+      // Wait for producer and all workers to finish
+      await Promise.all([producerTask, ...workerTasks]);
+    } catch (error) {
+      // Classify and handle errors based on their nature
+      const err = error instanceof Error ? error : new Error(String(error));
+
+      // Always surface producer/infrastructure errors
+      if (error instanceof EvaluationFetchError) {
+        // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+        logger.error(`Critical: Failed to fetch evaluations from server`);
+        executionError = err;
+      } else if (error instanceof ChannelError && signal.aborted) {
+        // Channel closed due to intentional abort - wrap in semantic error
+        executionError = new EvaluationAbortedError(
+          "Evaluation stopped due to error in concurrent evaluator",
+          err
+        );
+      } else if (stopOnFirstError) {
+        // Worker error in stopOnFirstError mode - already logged by worker
+        executionError = err;
+      } else {
+        // Unexpected error (not from worker, not from producer fetch)
+        // This could be a bug in our code or infrastructure failure
+        logger.error(`Unexpected error during evaluation: ${err.message}`);
+        executionError = err;
+      }
+    } finally {
+      // Ensure channel is closed even if there are unexpected errors
+      // This is a safety net in case producer's finally block didn't execute
+      if (!evalChannel.isClosed) {
+        evalChannel.close();
+      }
+    }
+
+    // Only show completion message if we didn't stop on error
+    if (!executionError) {
+      logger.info(`${PROGRESS_PREFIX.completed}Evaluations completed.`);
+    }
+
+    if (totalFailed > 0 && !executionError) {
+      logger.warn(
+        `${totalFailed} out of ${totalProcessed} evaluations failed.`
+      );
+    }
+
+    logEvalResumeSummary(logger, {
+      experimentId: experiment.id,
+      processed: totalProcessed,
+      completed: totalCompleted,
+      failed: totalFailed,
+    });
+
+    // Re-throw error if evaluation failed
+    if (executionError) {
+      throw executionError;
     }
   } finally {
-    // Ensure channel is closed even if there are unexpected errors
-    // This is a safety net in case producer's finally block didn't execute
-    if (!evalChannel.isClosed) {
-      evalChannel.close();
-    }
-  }
-
-  // Only show completion message if we didn't stop on error
-  if (!executionError) {
-    logger.info(`${PROGRESS_PREFIX.completed}Evaluations completed.`);
-  }
-
-  if (totalFailed > 0 && !executionError) {
-    logger.warn(`${totalFailed} out of ${totalProcessed} evaluations failed.`);
-  }
-
-  logEvalResumeSummary(logger, {
-    experimentId: experiment.id,
-    processed: totalProcessed,
-    completed: totalCompleted,
-    failed: totalFailed,
-  });
-
-  // Flush spans (if tracer was initialized)
-  if (provider) {
-    await provider.forceFlush();
-  }
-
-  // Re-throw error if evaluation failed
-  if (executionError) {
-    throw executionError;
+    await cleanupOwnedTracerProvider({
+      provider,
+      globalRegistration,
+    });
   }
 }
 
