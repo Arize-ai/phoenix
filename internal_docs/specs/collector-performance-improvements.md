@@ -329,46 +329,45 @@ Each Phoenix instance has its own `BulkInserter`. Multiple instances against the
 
 ## Performance Results
 
-Benchmarked with `scripts/perf/collector/benchmark_span_insertion.py` — 20 measurement batches per configuration, 3 warmup batches discarded, randomized configuration order.
+### Cross-Revision Comparison (PostgreSQL 14, `main` vs branch)
 
-### PostgreSQL (local PG 14)
+Measured using `compare_collector_benchmarks.py`, which runs the **same harness** against production code from two git refs via `_BENCHMARK_SRC_OVERRIDE` import override. Each sample gets a fresh DB (cold-start isolated write cost). The `bulk_inserter` runner exercises the full `BulkInserter` async pipeline (enqueue → batch → drain).
 
-| Topology  | Batch Size | Old (spans/s) | New (spans/s) | Improvement | Query Reduction |
-| --------- | ---------- | ------------- | ------------- | ----------- | --------------- |
-| branching | 100        | 157           | 477           | **+204%**   | 19.7%           |
-| branching | 500        | 245           | 429           | **+75%**    | 19.9%           |
-| branching | 1000       | 245           | 480           | **+96%**    | 20.0%           |
-| linear    | 100        | 218           | 489           | **+125%**   | 19.6%           |
-| linear    | 500        | 252           | 480           | **+90%**    | 19.9%           |
-| linear    | 1000       | 251           | 489           | **+95%**    | 20.0%           |
-| mixed     | 100        | 192           | 477           | **+148%**   | 19.7%           |
-| mixed     | 500        | 287           | 466           | **+62%**    | 19.9%           |
-| mixed     | 1000       | 284           | 487           | **+72%**    | 20.0%           |
+| Topology  | Batch | main (spans/s) | Branch (spans/s) | Throughput Delta | Query Reduction |
+| --------- | ----: | --------------: | ----------------: | ---------------: | --------------: |
+| linear    |   100 |            71.3 |              90.8 |        **+27%**  |          -37.8% |
+| linear    |   500 |           173.9 |             334.1 |        **+92%**  |          -38.0% |
+| branching |   100 |            65.4 |              90.8 |        **+39%**  |          -44.0% |
+| branching |   500 |           118.0 |             259.8 |       **+120%**  |          -38.9% |
+| mixed     |   100 |            64.9 |              90.8 |        **+40%**  |          -43.0% |
+| mixed     |   500 |           143.4 |             333.1 |       **+132%**  |          -39.0% |
 
-### SQLite (in-memory, sqlean)
+**Environment:** PostgreSQL 14 (local), Python 3.10.18, macOS arm64, 5 measurement samples per config, seed=42
 
-| Topology  | Batch Size | Old (spans/s) | New (spans/s) | Improvement |
-| --------- | ---------- | ------------- | ------------- | ----------- |
-| branching | 100        | 317           | 449           | +41.6%      |
-| branching | 500        | 329           | 442           | +34.5%      |
-| branching | 1000       | 336           | 426           | +26.9%      |
-| linear    | 100        | 304           | 449           | +47.8%      |
-| linear    | 500        | 315           | 459           | +46.0%      |
-| linear    | 1000       | 319           | 446           | +39.9%      |
-| mixed     | 100        | 323           | 443           | +37.0%      |
-| mixed     | 500        | 331           | 442           | +33.6%      |
-| mixed     | 1000       | 320           | 453           | +41.4%      |
+### Testing Strategy
 
-### Query Counts (PostgreSQL)
+The benchmark harness uses a **same-harness, different-production-code** strategy for cross-revision comparison:
 
-Measured via SQLAlchemy `before_cursor_execute` event hook. Counts include all SQL statements (INSERT, SELECT, UPDATE, SAVEPOINT, RELEASE).
+1. **One harness, two code paths** — `compare_collector_benchmarks.py` creates detached git worktrees for each ref. The harness script (`benchmark_span_insertion.py`) always runs from the current checkout. The `_BENCHMARK_SRC_OVERRIDE` env var tells the harness to replace `phoenix.*` imports with the worktree's code, so `import phoenix.db.insertion.span` resolves to each ref's production code while CLI, workload generation, runners, and JSON schema stay identical.
 
-| Batch Size | Topology  | Old Queries | New Queries | Reduction |
-| ---------- | --------- | ----------- | ----------- | --------- |
-| 100        | linear    | 500         | 402         | 19.6%     |
-| 500        | linear    | 2,500       | 2,002       | 19.9%     |
-| 1,000      | linear    | 5,000       | 4,002       | 20.0%     |
-| 1,000      | branching | 5,445       | 4,358       | 20.0%     |
+2. **Fresh DB per sample** — Each measurement sample creates a new PostgreSQL schema (via `server_settings` search_path), runs `create_all`, measures one batch write, then drops the schema. This isolates cold-start write cost with no cross-sample contamination from warm caches or accumulated data.
+
+3. **Same-runner comparison only** — Results are joined by `(runner, topology, batch_size, session_mode, project_mode, token_mode)`. Cross-runner comparisons (e.g., `direct_write` vs `bulk_inserter`) are never produced.
+
+4. **Seed-based reproducibility** — All workload generation uses `random.Random(seed)` for deterministic span IDs, trace structure, and attribute values. Same seed = same workload across both refs.
+
+5. **Correctness verification** — `--verify-correctness` flag validates after each sample: span count, trace time ranges, and cumulative value accumulation match expectations.
+
+```bash
+# Cross-revision comparison (main vs current branch)
+uv run python scripts/perf/collector/compare_collector_benchmarks.py \
+  --base-ref main --candidate-ref HEAD \
+  --runners bulk_inserter \
+  --batch-sizes 100,500 --topologies linear,branching,mixed \
+  --runs 5 --seed 42 \
+  --db-url "postgresql+asyncpg://user@localhost/dbname" \
+  --output scripts/perf/collector/out/comparison
+```
 
 ## Files Changed
 
@@ -390,17 +389,26 @@ Measured via SQLAlchemy `before_cursor_execute` event hook. Counts include all S
 ## Running the Benchmark
 
 ```bash
-# SQLite (in-memory, default)
-uv run python scripts/perf/collector/benchmark_span_insertion.py
-
-# PostgreSQL
+# Single-revision benchmark (SQLite, default)
 uv run python scripts/perf/collector/benchmark_span_insertion.py \
-  --db-url postgresql://user@localhost/dbname
+  --runners direct_write,bulk_inserter --runs 5 --seed 42
 
-# Custom configuration
+# Single-revision benchmark (PostgreSQL, with correctness verification)
 uv run python scripts/perf/collector/benchmark_span_insertion.py \
-  --batch-sizes 100,500,1000 \
-  --topologies linear,branching,mixed \
-  --runs 20 \
-  --output scripts/perf/collector/
+  --runners direct_write,bulk_inserter \
+  --batch-sizes 100,500 --topologies linear,branching,mixed \
+  --runs 5 --seed 42 --verify-correctness \
+  --db-url "postgresql+asyncpg://user@localhost/dbname" \
+  --output scripts/perf/collector/out/current
+
+# Cross-revision comparison (main vs current branch on PostgreSQL)
+uv run python scripts/perf/collector/compare_collector_benchmarks.py \
+  --base-ref main --candidate-ref HEAD \
+  --runners bulk_inserter \
+  --batch-sizes 100,500 --topologies linear,branching,mixed \
+  --runs 5 --seed 42 \
+  --db-url "postgresql+asyncpg://user@localhost/dbname" \
+  --output scripts/perf/collector/out/comparison
 ```
+
+**Note:** The `direct_write` runner requires `SpanBatchWriter` which only exists on this branch. For cross-revision comparisons against `main`, use `--runners bulk_inserter` only.

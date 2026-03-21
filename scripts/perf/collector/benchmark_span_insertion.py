@@ -13,6 +13,32 @@ Usage:
 
 from __future__ import annotations
 
+# Allow the comparison driver to override which phoenix code is imported.
+# This must happen before any `from phoenix.*` imports.  Editable installs
+# add the repo's src/ to sys.path via .pth files processed at startup, and
+# phoenix is a namespace package that combines ALL matching directories on
+# sys.path.  Simply prepending the worktree path is insufficient — we must
+# also remove the current checkout's phoenix src so the namespace package
+# doesn't merge both trees.
+import os as _os
+import sys as _sys
+
+if _src_override := _os.environ.get("_BENCHMARK_SRC_OVERRIDE"):
+    _override_real = _os.path.realpath(_src_override)
+    # Remove any existing phoenix src directories from sys.path, keeping only
+    # the override path itself.
+    _sys.path[:] = [
+        p
+        for p in _sys.path
+        if _os.path.realpath(p) == _override_real
+        or not _os.path.isdir(_os.path.join(p, "phoenix", "db"))
+    ]
+    _sys.path.insert(0, _override_real)
+    # Clear cached phoenix modules so re-import uses the new path
+    for _key in list(_sys.modules):
+        if _key == "phoenix" or _key.startswith("phoenix."):
+            del _sys.modules[_key]
+
 import argparse
 import asyncio
 import json
@@ -601,25 +627,22 @@ async def _create_pg_engine(db_url: str) -> AsyncEngine:
 
     schema_name = f"benchmark_{uuid.uuid4().hex[:8]}"
 
+    # Create a temporary engine to set up the schema
+    setup_engine = create_async_engine(url, json_serializer=_json_serializer)
+    async with setup_engine.begin() as conn:
+        await conn.execute(text(f"CREATE SCHEMA {schema_name}"))
+        await conn.execute(text(f"SET search_path TO {schema_name}"))
+        await conn.run_sync(models.Base.metadata.create_all)
+    await setup_engine.dispose()
+
+    # Create the real engine with search_path baked into every connection
     engine = create_async_engine(
         url,
         json_serializer=_json_serializer,
         pool_size=5,
         max_overflow=0,
+        connect_args={"server_settings": {"search_path": schema_name}},
     )
-
-    # Create isolated schema and tables
-    async with engine.begin() as conn:
-        await conn.execute(text(f"CREATE SCHEMA {schema_name}"))
-        await conn.execute(text(f"SET search_path TO {schema_name}"))
-        await conn.run_sync(models.Base.metadata.create_all)
-
-    # Set search_path for all future connections via pool events
-    @event.listens_for(engine.sync_engine, "connect")
-    def _set_search_path(dbapi_conn: Any, _: Any) -> None:
-        cursor = dbapi_conn.cursor()
-        cursor.execute(f"SET search_path TO {schema_name}")
-        cursor.close()
 
     # Store schema name for cleanup
     _KEEPERS[id(engine)] = schema_name
@@ -799,6 +822,12 @@ class _BenchmarkBulkInserter:
         return await self._inserter.__aenter__()
 
     async def __aexit__(self, *args: Any) -> None:
+        # Use extended timeout if the BulkInserter has the _wake_event
+        # attribute (current branch). Fall back to the original __aexit__
+        # for older versions (e.g., main) that lack it.
+        if not hasattr(self._inserter, "_wake_event"):
+            await self._inserter.__aexit__(*args)
+            return
         self._inserter._running = False
         self._inserter._wake_event.set()
         if self._inserter._task:
@@ -857,6 +886,18 @@ class BulkInserterRunner:
             async with inserter as (_, enqueue_span, __, ___):
                 for span in spans:
                     await enqueue_span(span, "bench")
+                # Wait for processing to complete inside the context manager.
+                # main's __aexit__ immediately cancels the task (no drain),
+                # and even the current branch's 5s timeout is too short for
+                # large batches. Poll the spans deque (works on both main and
+                # current branch) + a settling delay to let in-flight writes
+                # commit after spans are dequeued.
+                for _ in range(600):  # up to 60s
+                    if not raw_inserter._spans:
+                        await asyncio.sleep(1.0)
+                        if not raw_inserter._spans:
+                            break
+                    await asyncio.sleep(0.1)
 
             elapsed = time.perf_counter() - start
             query_count = counter.stop()

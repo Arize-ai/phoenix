@@ -68,6 +68,7 @@ def _run_benchmark(
     seed: Optional[int],
     batch_sizes: str,
     topologies: str,
+    runners: Optional[str],
     label: str,
 ) -> dict[str, Any]:
     """Run the benchmark harness against code in *worktree_src*.
@@ -80,9 +81,12 @@ def _run_benchmark(
     harness = repo_root / "scripts" / "perf" / "collector" / "benchmark_span_insertion.py"
 
     env = os.environ.copy()
-    # Prepend the worktree's src so `import phoenix.*` picks up that ref's code
-    existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = worktree_src + (os.pathsep + existing if existing else "")
+    # Tell the harness to override phoenix imports from the worktree's src.
+    # We use a dedicated env var instead of PYTHONPATH because editable installs
+    # register the package via importlib metadata, making PYTHONPATH ineffective
+    # for overriding already-installed packages. The harness reads this var and
+    # manipulates sys.path + clears cached phoenix modules before any imports.
+    env["_BENCHMARK_SRC_OVERRIDE"] = worktree_src
 
     cmd: list[str] = [
         sys.executable,
@@ -100,6 +104,8 @@ def _run_benchmark(
         cmd.extend(["--db-url", db_url])
     if seed is not None:
         cmd.extend(["--seed", str(seed)])
+    if runners is not None:
+        cmd.extend(["--runners", runners])
 
     print(f"\n{'=' * 60}")
     print(f"  Running benchmark for: {label}")
@@ -271,6 +277,7 @@ def run_comparison(
     output_dir: Optional[Path] = None,
     batch_sizes: str = "100,500,1000",
     topologies: str = "linear,branching,mixed",
+    runners: Optional[str] = None,
 ) -> dict[str, Any]:
     """Run the benchmark against two refs and return combined results.
 
@@ -307,6 +314,7 @@ def run_comparison(
             seed=seed,
             batch_sizes=batch_sizes,
             topologies=topologies,
+            runners=runners,
             label=f"base ({base_ref} = {base_sha[:12]})",
         )
 
@@ -318,6 +326,7 @@ def run_comparison(
             seed=seed,
             batch_sizes=batch_sizes,
             topologies=topologies,
+            runners=runners,
             label=f"candidate ({candidate_ref} = {candidate_sha[:12]})",
         )
 
@@ -415,6 +424,12 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default="linear,branching,mixed",
         help="Comma-separated topologies (default: linear,branching,mixed)",
     )
+    parser.add_argument(
+        "--runners",
+        type=str,
+        default=None,
+        help="Comma-separated runner names to pass to the harness (default: harness default)",
+    )
     return parser.parse_args(argv)
 
 
@@ -432,6 +447,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         output_dir=output_dir,
         batch_sizes=args.batch_sizes,
         topologies=args.topologies,
+        runners=args.runners,
     )
 
 
