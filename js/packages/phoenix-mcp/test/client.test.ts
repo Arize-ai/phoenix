@@ -8,18 +8,16 @@ import {
 } from "../src/client";
 
 describe("identifier helpers", () => {
-  it("recognizes hex-like project IDs", () => {
-    expect(looksLikePhoenixProjectId("abcdef1234")).toBe(true);
+  it("recognizes relay project IDs", () => {
+    expect(looksLikePhoenixProjectId("UHJvamVjdDox")).toBe(true);
     expect(looksLikePhoenixProjectId("default")).toBe(false);
-  });
-
-  it("recognizes hex-like dataset IDs", () => {
-    expect(looksLikePhoenixDatasetId("abcdef1234")).toBe(true);
-    expect(looksLikePhoenixDatasetId("support-dataset")).toBe(false);
+    expect(looksLikePhoenixProjectId("cafe")).toBe(false);
   });
 
   it("recognizes relay dataset IDs", () => {
     expect(looksLikePhoenixDatasetId("RGF0YXNldDox")).toBe(true);
+    expect(looksLikePhoenixDatasetId("support-dataset")).toBe(false);
+    expect(looksLikePhoenixDatasetId("dead")).toBe(false);
   });
 });
 

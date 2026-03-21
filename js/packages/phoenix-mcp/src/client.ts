@@ -81,13 +81,10 @@ export function looksLikePhoenixProjectId(projectIdentifier: string): boolean {
     return false;
   }
 
-  return (
-    /^[0-9a-fA-F]+$/.test(trimmedIdentifier) ||
-    looksLikeRelayGlobalId({
-      identifier: trimmedIdentifier,
-      typeName: "Project",
-    })
-  );
+  return looksLikeRelayGlobalId({
+    identifier: trimmedIdentifier,
+    typeName: "Project",
+  });
 }
 
 export function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
@@ -96,13 +93,10 @@ export function looksLikePhoenixDatasetId(datasetIdentifier: string): boolean {
     return false;
   }
 
-  return (
-    /^[0-9a-fA-F]+$/.test(trimmedIdentifier) ||
-    looksLikeRelayGlobalId({
-      identifier: trimmedIdentifier,
-      typeName: "Dataset",
-    })
-  );
+  return looksLikeRelayGlobalId({
+    identifier: trimmedIdentifier,
+    typeName: "Dataset",
+  });
 }
 
 export async function resolveProjectId({
