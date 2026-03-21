@@ -32,7 +32,6 @@ from sqlalchemy import StaticPool, event
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.db import models
-from phoenix.db.bulk_inserter import SpanBatchWriter
 from phoenix.db.engines import _dumps as _json_serializer
 from phoenix.db.engines import set_sqlite_pragma
 from phoenix.server.types import DbSessionFactory
@@ -735,6 +734,8 @@ class DirectWriteRunner:
         workload: WorkloadSpec,
     ) -> SampleResult:
         from unittest.mock import MagicMock
+
+        from phoenix.db.bulk_inserter import SpanBatchWriter
 
         engine = await engine_factory()
         try:
