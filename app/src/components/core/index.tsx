@@ -48,3 +48,4 @@ export * from "./utility/Truncate";
 export * from "./datetime/DateField";
 export * from "./datetime/TimeField";
 export * from "./timer";
+export * from "./id";

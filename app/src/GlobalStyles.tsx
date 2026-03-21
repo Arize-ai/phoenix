@@ -920,9 +920,9 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.1)"
-    };
+    --global-overlay-shadow-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.8)"
+      : "rgba(0, 0, 0, 0.1)"};
   }
 `;
 
@@ -1008,7 +1008,9 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color-hover: ${theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"}
+    --global-card-header-background-color-hover: ${theme === "dark"
+      ? "rgba(255, 255, 255, 0.07)"
+      : "rgba(0, 0, 0, 0.03)"};
   }
 `;
 
@@ -1053,6 +1055,26 @@ const tableCSS = (theme: Theme) => css`
       --global-dimension-static-size-100
     );
     --global-table-cell-controls-gap: var(--global-dimension-static-size-50);
+  }
+`;
+
+const badgeSizingCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-badge-padding-y-s: 0px;
+    --global-badge-padding-x-s: var(--global-dimension-size-75);
+    --global-badge-font-size-s: var(--global-font-size-xs);
+
+    --global-badge-padding-y-m: var(--global-dimension-size-25);
+    --global-badge-padding-x-m: var(--global-dimension-size-100);
+    --global-badge-font-size-m: var(--global-font-size-s);
+
+    --global-badge-padding-y-l: var(--global-dimension-size-50);
+    --global-badge-padding-x-l: var(--global-dimension-size-100);
+    --global-badge-font-size-l: var(--global-font-size-m);
+
+    --global-badge-gap: var(--global-dimension-size-50);
+    --global-badge-border-radius: var(--global-rounding-small);
   }
 `;
 
@@ -1108,7 +1130,8 @@ export const derivedCSS = (theme: Theme) =>
     roundingCSS(theme),
     tableCSS(theme),
     borderAndGridCSS(theme),
-    resizeHandleCSS(theme)
+    resizeHandleCSS(theme),
+    badgeSizingCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

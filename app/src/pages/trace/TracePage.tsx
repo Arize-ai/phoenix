@@ -7,12 +7,12 @@ import {
   Loading,
   Modal,
   ModalOverlay,
+  TitleWithID,
 } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
-  DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
@@ -52,7 +52,7 @@ export function TracePage() {
               <DialogHeader>
                 <Flex direction="row" gap="size-200" justifyContent="center">
                   <TraceDetailsPaginator currentId={paginationSubjectId} />
-                  <DialogTitle>Trace Details</DialogTitle>
+                  <TitleWithID title="Trace" id={traceId as string} />
                 </Flex>
                 <DialogTitleExtra>
                   <ShareLinkButton

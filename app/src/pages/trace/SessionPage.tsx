@@ -6,14 +6,13 @@ import {
   ErrorBoundary,
   Modal,
   ModalOverlay,
-} from "@phoenix/components";
-import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
+  TitleWithID,
+} from "@phoenix/components";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
@@ -51,7 +50,10 @@ export function SessionPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Session ID: {loaderData.session?.sessionId ?? "--"}
+                <TitleWithID
+                  title="Session"
+                  id={loaderData.session.sessionId || ""}
+                />
               </DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton slot="close" />
