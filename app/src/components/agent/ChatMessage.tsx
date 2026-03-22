@@ -1,11 +1,11 @@
 import { css } from "@emotion/react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
-import { Streamdown } from "streamdown";
 
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
 } from "@phoenix/agent/tools/bash";
+import { MarkdownBlock } from "@phoenix/components/markdown";
 
 const userMessageCSS = css`
   align-self: flex-end;
@@ -227,7 +227,11 @@ export function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
     <div css={assistantMessageCSS}>
       {parts.map((part, i) => {
         if (isTextUIPart(part)) {
-          return <Streamdown key={i}>{part.text}</Streamdown>;
+          return (
+            <MarkdownBlock key={i} mode="markdown" margin="none">
+              {part.text}
+            </MarkdownBlock>
+          );
         }
 
         if (isToolUIPart(part)) {
