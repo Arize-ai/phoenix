@@ -136,9 +136,7 @@ function CSVOnlyRender(args: FileDropZoneProps) {
         <View marginTop="size-200">
           <Text color="danger">
             Rejected:{" "}
-            {rejections
-              .map((r) => `${r.file.name} (${r.message})`)
-              .join(", ")}
+            {rejections.map((r) => `${r.file.name} (${r.message})`).join(", ")}
           </Text>
         </View>
       )}
@@ -367,9 +365,7 @@ function WithSizeLimitRender(args: FileDropZoneProps) {
         <View marginTop="size-200">
           <Text color="danger">
             Rejected:{" "}
-            {rejections
-              .map((r) => `${r.file.name} (${r.message})`)
-              .join(", ")}
+            {rejections.map((r) => `${r.file.name} (${r.message})`).join(", ")}
           </Text>
         </View>
       )}

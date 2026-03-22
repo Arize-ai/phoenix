@@ -1,4 +1,5 @@
 import type { Meta } from "@storybook/react";
+
 import { LinkButton } from "@phoenix/components";
 
 const meta: Meta = {
