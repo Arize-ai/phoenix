@@ -30,6 +30,10 @@ const toolPartCSS = css`
   background: var(--global-color-gray-100);
   overflow: hidden;
 
+  &:has(+ :not(.tool-part)) {
+    margin-bottom: var(--global-dimension-size-150);
+  }
+
   summary {
     cursor: pointer;
     list-style: none;
@@ -153,7 +157,7 @@ function ToolPart({
   const isError = part.state === "output-error";
 
   return (
-    <details css={toolPartCSS}>
+    <details className="tool-part" css={toolPartCSS}>
       <summary>
         <div className="tool-part__summary">
           <span className="tool-part__title">Tool: {toolName}</span>
