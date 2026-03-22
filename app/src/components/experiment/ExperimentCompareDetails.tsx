@@ -82,6 +82,7 @@ export type ExperimentCompareDetailsProps = {
 type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
 
 const SIDEBAR_PANEL_DEFAULT_SIZE = 25;
+const SIDEBAR_PANEL_DEFAULT_SIZE_STRING = `${SIDEBAR_PANEL_DEFAULT_SIZE}%`;
 
 export function ExperimentCompareDetails({
   datasetId,
@@ -270,7 +271,7 @@ export function ExperimentCompareDetails({
   return (
     <Group orientation="vertical">
       <Panel
-        defaultSize={35}
+        defaultSize="35%"
         panelRef={inputPanelRef}
         style={{
           minHeight: 78, // card header height (46px) + padding (2 * 16px)
@@ -293,10 +294,10 @@ export function ExperimentCompareDetails({
                 if (panel) {
                   if (isCollapsed) {
                     // Shrink panel to minimum size when collapsed
-                    panel.resize(0);
+                    panel.resize("0%");
                   } else {
                     // Expand panel to default size when expanded
-                    panel.resize(35);
+                    panel.resize("35%");
                   }
                 }
               }}
@@ -361,7 +362,7 @@ export function ExperimentRunOutputs() {
     <Group orientation="horizontal">
       {isSideBarOpen ? (
         <Panel
-          defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
+          defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE_STRING}
           panelRef={sidebarPanelRef}
           collapsible
           id="experiment-compare-details-outputs-sidebar-panel"
@@ -398,7 +399,7 @@ export function ExperimentRunOutputs() {
                   if (sidebarPanel) {
                     const { asPercentage: size } = sidebarPanel.getSize();
                     if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
-                      sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
+                      sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE_STRING);
                     }
                   }
                 }}

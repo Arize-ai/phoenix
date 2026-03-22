@@ -157,7 +157,7 @@ export function DatasetForm({
         {onCancel && (
           <Button
             variant="default"
-            size="S"
+            size="M"
             onPress={onCancel}
             isDisabled={isSubmitting}
           >
@@ -167,7 +167,7 @@ export function DatasetForm({
         <Button
           isDisabled={(formMode === "edit" ? !isDirty : false) || isSubmitting}
           variant={isDirty ? "primary" : "default"}
-          size="S"
+          size="M"
           type="submit"
         >
           {submitButtonText}

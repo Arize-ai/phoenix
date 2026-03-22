@@ -1,7 +1,12 @@
 import { css } from "@emotion/react";
 import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
@@ -292,10 +297,19 @@ function PlaygroundContent() {
     }
   }, [isRunning]);
 
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "playground-panels",
+    storage: localStorage,
+  });
+
   return (
     <Fragment key="playground-content">
-      <Group orientation="vertical">
-        <Panel>
+      <Group
+        orientation="vertical"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
+      >
+        <Panel id="prompts">
           <div css={playgroundPromptPanelContentCSS}>
             <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
               <Disclosure id="prompts" size="L">
@@ -335,7 +349,7 @@ function PlaygroundContent() {
           </div>
         </Panel>
         <Separator css={compactResizeHandleCSS} />
-        <Panel>
+        <Panel id="io">
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>
               <PlaygroundDatasetSection

@@ -1092,8 +1092,6 @@ const resizeHandleCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --global-resize-handle-background-color: var(--global-border-color-default);
-    --global-resize-handle-background-color-hover: var(--global-color-gray-300);
-    --global-resize-handle-indicator-color: var(--global-color-gray-300);
     --global-resize-handle-indicator-color-hover: var(--global-color-primary);
   }
 `;
