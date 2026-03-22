@@ -32,7 +32,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const colors = useCategoryChartColors();
 
   if (active && payload && payload.length) {
@@ -43,20 +43,20 @@ function TooltipContent({
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">
-            {label}
+            {String(label)}
           </Text>
         )}
         <ChartTooltipItem
           color={colors.category1}
           shape="circle"
           name="Prompt cost"
-          value={costFormatter(promptCost)}
+          value={costFormatter(Number(promptCost))}
         />
         <ChartTooltipItem
           color={colors.category2}
           shape="circle"
           name="Completion cost"
-          value={costFormatter(completionCost)}
+          value={costFormatter(Number(completionCost))}
         />
       </ChartTooltip>
     );

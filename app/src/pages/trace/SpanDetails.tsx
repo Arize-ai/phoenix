@@ -13,10 +13,10 @@ import { Fragment, Suspense, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
-  type ImperativePanelHandle,
+  Group as PanelGroup,
   Panel,
-  PanelGroup,
-  PanelResizeHandle,
+  type PanelImperativeHandle,
+  Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 
@@ -156,7 +156,7 @@ export function SpanDetails({
     (state) => state.setIsAnnotatingSpans
   );
 
-  const asidePanelRef = useRef<ImperativePanelHandle>(null);
+  const asidePanelRef = useRef<PanelImperativeHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView = spanDetailsContainerDimensions?.width
@@ -258,8 +258,8 @@ export function SpanDetails({
   }, [span]);
 
   return (
-    <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
-      <Panel order={1}>
+    <PanelGroup orientation="horizontal" id="span-details-layout">
+      <Panel>
         <Flex
           direction="column"
           flex="1 1 auto"
@@ -307,7 +307,7 @@ export function SpanDetails({
                     const asidePanel = asidePanelRef.current;
                     // expand the panel if it is not the minimum size already
                     if (asidePanel) {
-                      const size = asidePanel.getSize();
+                      const { asPercentage: size } = asidePanel.getSize();
                       if (size < ASIDE_PANEL_DEFAULT_SIZE) {
                         asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
                       }
@@ -386,13 +386,14 @@ export function SpanDetails({
       {isAnnotatingSpans && <PanelResizeHandle css={compactResizeHandleCSS} />}
       {isAnnotatingSpans && (
         <Panel
-          order={2}
-          ref={asidePanelRef}
+          panelRef={asidePanelRef}
           defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
           minSize={10}
           collapsible
-          onCollapse={() => {
-            setIsAnnotatingSpans(false);
+          onResize={(panelSize) => {
+            if (panelSize.asPercentage === 0) {
+              setIsAnnotatingSpans(false);
+            }
           }}
         >
           <SpanAside span={span} />

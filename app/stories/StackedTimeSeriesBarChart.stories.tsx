@@ -152,7 +152,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const chartColors = useSequentialChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
 

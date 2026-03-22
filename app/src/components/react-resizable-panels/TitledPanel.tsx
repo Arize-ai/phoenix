@@ -7,11 +7,11 @@ import React, {
   useState,
 } from "react";
 import type {
-  ImperativePanelHandle,
+  PanelImperativeHandle,
   PanelProps,
-  PanelResizeHandleProps,
+  SeparatorProps,
 } from "react-resizable-panels";
-import { Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Separator } from "react-resizable-panels";
 
 import { Icon, Icons } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
@@ -20,14 +20,14 @@ import { compactResizeHandleCSS } from "@phoenix/components/resize";
  * A panel with a title that can be collapsed and expanded.
  *
  * Add `resizable` prop to make the panel resizable with an automatically added handle.
- * The first TitledPanel in a PanelGroup SHOULD NOT be resizable or things will break.
+ * The first TitledPanel in a Group SHOULD NOT be resizable or things will break.
  */
 export const TitledPanel = forwardRef<
-  ImperativePanelHandle | null,
+  PanelImperativeHandle | null,
   PropsWithChildren<{
     title: React.ReactNode;
-    panelProps?: PanelProps;
-    panelResizeHandleProps?: PanelResizeHandleProps;
+    panelProps?: Omit<PanelProps, "onResize">;
+    panelResizeHandleProps?: SeparatorProps;
     resizable?: boolean;
     bordered?: boolean;
     disabled?: boolean;
@@ -45,10 +45,10 @@ export const TitledPanel = forwardRef<
     },
     ref
   ) => {
-    const panelRef = useRef<ImperativePanelHandle | null>(null);
+    const panelRef = useRef<PanelImperativeHandle | null>(null);
     useImperativeHandle<
-      ImperativePanelHandle | null,
-      ImperativePanelHandle | null
+      PanelImperativeHandle | null,
+      PanelImperativeHandle | null
     >(ref, () => panelRef.current);
     const [collapsed, setCollapsed] = useState(false);
 
@@ -64,7 +64,7 @@ export const TitledPanel = forwardRef<
     return (
       <>
         {resizable && (
-          <PanelResizeHandle
+          <Separator
             {...panelResizeHandleProps}
             data-bordered={bordered}
             css={css(
@@ -76,7 +76,7 @@ export const TitledPanel = forwardRef<
                 &[data-bordered="true"] {
                   background-color: var(--global-border-color-default);
                 }
-                &[data-panel-group-direction="vertical"] {
+                &[aria-orientation="horizontal"] {
                   height: 1px;
                 }
                 &:hover,
@@ -85,9 +85,6 @@ export const TitledPanel = forwardRef<
                 &:focus-visible {
                   // Make hover target bigger
                   background-color: var(--global-color-primary);
-                }
-                &:not([data-resize-handle-state="drag"]) ~ [data-panel] {
-                  // transition: flex 0.2s ease-in-out;
                 }
               `
             )}
@@ -104,15 +101,11 @@ export const TitledPanel = forwardRef<
         <Panel
           maxSize={100}
           {...panelProps}
-          ref={panelRef}
+          panelRef={panelRef}
           collapsible
-          onCollapse={() => {
-            setCollapsed(true);
-            panelProps?.onCollapse?.();
-          }}
-          onExpand={() => {
-            setCollapsed(false);
-            panelProps?.onExpand?.();
+          onResize={(panelSize) => {
+            const isCollapsed = panelSize.asPercentage === 0;
+            setCollapsed(isCollapsed);
           }}
         >
           {children}

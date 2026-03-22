@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
 
 import { Flex, View } from "@phoenix/components";
@@ -120,7 +120,7 @@ export const EvaluatorForm = () => {
     useShallow(evaluatorFormSelector)
   );
   return (
-    <PanelGroup direction="horizontal" style={{ flex: 1, minHeight: 0 }}>
+    <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
       <Panel
         defaultSize={50}
         style={panelStyle}
@@ -145,7 +145,7 @@ export const EvaluatorForm = () => {
         {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
         {evaluatorKind === "BUILTIN" && <CodeEvaluatorForm />}
       </Panel>
-      <PanelResizeHandle css={compactResizeHandleCSS} />
+      <Separator css={compactResizeHandleCSS} />
       <Panel
         defaultSize={50}
         style={panelStyle}
@@ -167,7 +167,7 @@ export const EvaluatorForm = () => {
           <EvaluatorInputPreview />
         </Flex>
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 };
 

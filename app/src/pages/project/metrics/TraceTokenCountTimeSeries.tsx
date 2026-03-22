@@ -38,7 +38,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const chartColors = useCategoryChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {

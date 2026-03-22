@@ -2,8 +2,8 @@ import { Suspense, useRef } from "react";
 import { FocusScope } from "react-aria";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useFragment } from "react-relay";
-import type { ImperativePanelHandle } from "react-resizable-panels";
-import { PanelGroup } from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
+import { Group } from "react-resizable-panels";
 
 import { Flex, KeyboardToken, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -80,26 +80,26 @@ export function SpanAside(props: SpanAsideProps) {
     props.span
   );
 
-  const editAnnotationsPanelRef = useRef<ImperativePanelHandle>(null);
-  const notesPanelRef = useRef<ImperativePanelHandle>(null);
+  const editAnnotationsPanelRef = useRef<PanelImperativeHandle>(null);
+  const notesPanelRef = useRef<PanelImperativeHandle>(null);
   useHotkeys(EDIT_ANNOTATION_HOTKEY, () => {
     // open the span annotations editor if it is closed
     if (
       editAnnotationsPanelRef.current &&
       editAnnotationsPanelRef.current.isCollapsed()
     ) {
-      editAnnotationsPanelRef.current.expand(50);
+      editAnnotationsPanelRef.current.expand();
     }
   });
   useHotkeys(NOTE_HOTKEY, () => {
     // open the span notes editor if it is closed
     if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
-      notesPanelRef.current.expand(50);
+      notesPanelRef.current.expand();
     }
   });
 
   return (
-    <PanelGroup direction="vertical" autoSaveId="span-aside-layout">
+    <Group orientation="vertical">
       <Suspense>
         <SpanAsideAnnotationList span={data} />
       </Suspense>
@@ -112,8 +112,8 @@ export function SpanAside(props: SpanAsideProps) {
             <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
         }
-        panelProps={{ order: 2, minSize: 10 }}
-      >
+        panelProps={{ minSize: 10 }}
+>
         <View height="100%" maxHeight="100%">
           <SpanAnnotationsEditor
             // remount the editor when the span id changes
@@ -133,7 +133,7 @@ export function SpanAside(props: SpanAsideProps) {
             <KeyboardToken>{NOTE_HOTKEY}</KeyboardToken>
           </Flex>
         }
-        panelProps={{ order: 3, minSize: 10 }}
+        panelProps={{ minSize: 10 }}
       >
         <View height="100%" maxHeight="100%" padding="size-100">
           <Suspense fallback={<SpanNotesEditorSkeleton />}>
@@ -141,7 +141,7 @@ export function SpanAside(props: SpanAsideProps) {
           </Suspense>
         </View>
       </TitledPanel>
-    </PanelGroup>
+    </Group>
   );
 }
 
@@ -174,13 +174,13 @@ function SpanAsideAnnotationList(props: {
     `,
     props.span
   );
-  const annotationListPanelRef = useRef<ImperativePanelHandle>(null);
+  const annotationListPanelRef = useRef<PanelImperativeHandle>(null);
   useHotkeys(SPAN_ANNOTATION_LIST_HOTKEY, () => {
     if (
       annotationListPanelRef.current &&
       annotationListPanelRef.current.isCollapsed()
     ) {
-      annotationListPanelRef.current.expand(50);
+      annotationListPanelRef.current.expand();
     }
   });
   const hasAnnotations = data.spanAnnotations.length > 0;
@@ -195,7 +195,6 @@ function SpanAsideAnnotationList(props: {
       }
       disabled={!hasAnnotations}
       panelProps={{
-        order: 1,
         defaultSize: hasAnnotations ? 20 : 0,
         minSize: hasAnnotations ? 20 : 0,
       }}

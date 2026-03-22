@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import type { CardProps } from "@phoenix/components";
 import {
@@ -86,10 +86,7 @@ export function PlaygroundExperimentRunDetailsDialog({
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <PanelGroup
-          direction="vertical"
-          autoSaveId="example-compare-panel-group"
-        >
+        <Group orientation="vertical">
           <Panel defaultSize={33}>
             <View overflow="auto" height="100%" padding="size-200">
               <Flex direction="row" gap="size-200" flex="1 1 auto">
@@ -126,7 +123,7 @@ export function PlaygroundExperimentRunDetailsDialog({
               </Flex>
             </View>
           </Panel>
-          <PanelResizeHandle css={resizeHandleCSS} />
+          <Separator css={resizeHandleCSS} />
           <Panel defaultSize={67}>
             <Flex direction="column" height="100%">
               <View
@@ -193,7 +190,7 @@ export function PlaygroundExperimentRunDetailsDialog({
               </div>
             </Flex>
           </Panel>
-        </PanelGroup>
+        </Group>
       </DialogContent>
     </Dialog>
   );

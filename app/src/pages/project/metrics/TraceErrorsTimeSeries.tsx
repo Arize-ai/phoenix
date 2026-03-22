@@ -39,7 +39,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const SemanticChartColors = useSemanticChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {

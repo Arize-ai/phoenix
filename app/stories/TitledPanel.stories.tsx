@@ -1,5 +1,5 @@
 import type { Meta, StoryFn } from "@storybook/react";
-import { Panel, PanelGroup } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 
 import { Card, Text, Token, View } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
@@ -19,7 +19,7 @@ export default meta;
 const Template: StoryFn = (args) => (
   <Card title="TitledPanel">
     <View {...bodyStyle}>
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <TitledPanel title="Regular Panel">
           <View padding="size-200">
             <Text>This is a non-resizable panel with title</Text>
@@ -30,7 +30,7 @@ const Template: StoryFn = (args) => (
             <Text>This is a basic panel with a title</Text>
           </View>
         </TitledPanel>
-      </PanelGroup>
+      </Group>
     </View>
   </Card>
 );
@@ -43,7 +43,7 @@ export const Default: Meta<typeof TitledPanel> = {
 const WithCustomContentTemplate: StoryFn = (args) => (
   <Card title="TitledPanel with Custom Content">
     <View {...bodyStyle}>
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <Panel>
           <View padding="size-200">
             <Text>This is a regular panel with some content</Text>
@@ -58,7 +58,7 @@ const WithCustomContentTemplate: StoryFn = (args) => (
             </p>
           </View>
         </TitledPanel>
-      </PanelGroup>
+      </Group>
     </View>
   </Card>
 );
@@ -71,7 +71,7 @@ export const WithCustomContent: Meta<typeof TitledPanel> = {
 const MultiplePanelsTemplate: StoryFn = (args) => (
   <Card title="Multiple TitledPanels">
     <View {...bodyStyle}>
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <TitledPanel title="Regular Panel">
           <View padding="size-200">
             <Text>This is the main content panel</Text>
@@ -92,7 +92,7 @@ const MultiplePanelsTemplate: StoryFn = (args) => (
             <Text>This is the third titled panel</Text>
           </View>
         </TitledPanel>
-      </PanelGroup>
+      </Group>
     </View>
   </Card>
 );
@@ -105,7 +105,7 @@ export const MultiplePanels: Meta<typeof TitledPanel> = {
 const WithCustomTitleTemplate: StoryFn = (args) => (
   <Card title="TitledPanel with Custom Title">
     <View {...bodyStyle}>
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <Panel>
           <View padding="size-200">
             <Text>This is the main content area</Text>
@@ -130,7 +130,7 @@ const WithCustomTitleTemplate: StoryFn = (args) => (
             This panel has a custom title with additional elements
           </div>
         </TitledPanel>
-      </PanelGroup>
+      </Group>
     </View>
   </Card>
 );

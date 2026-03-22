@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { useCallback, useEffect } from "react";
-import { Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Separator } from "react-resizable-panels";
 
 import {
   Button,
@@ -89,7 +89,7 @@ export function AgentChatPanel() {
 
   return (
     <>
-      <PanelResizeHandle css={compactResizeHandleCSS} />
+      <Separator css={compactResizeHandleCSS} />
       <Panel minSize={20} maxSize={50} defaultSize={30}>
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>

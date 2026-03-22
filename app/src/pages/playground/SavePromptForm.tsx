@@ -158,7 +158,7 @@ export function SavePromptForm({
               allowsCustomValue
               onChange={(promptId) => {
                 onChange(promptId);
-                setSelectedPromptId(promptId);
+                setSelectedPromptId(promptId as string | null);
               }}
               promptId={selectedPromptId}
             />

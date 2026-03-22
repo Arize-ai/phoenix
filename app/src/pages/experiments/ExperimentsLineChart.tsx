@@ -50,7 +50,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const { gray300 } = useSequentialChartColors();
   const { theme } = useTheme();
   // Use the same color logic as the chart lines

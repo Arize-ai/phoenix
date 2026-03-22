@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -47,22 +47,22 @@ export function ExperimentsPage() {
 
   return (
     <>
-      <PanelGroup direction="vertical" autoSaveId="experiments-layout">
-        <Panel order={0} minSize={20} maxSize={30} defaultSize={20} collapsible>
+      <Group orientation="vertical">
+        <Panel minSize={20} maxSize={30} defaultSize={20} collapsible>
           <View paddingX="size-200" paddingY="size-100">
             <Heading level={2}>Experiments Analysis</Heading>
           </View>
           <ExperimentsChart datasetId={datasetId} />
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel order={1}>
+        <Separator css={resizeHandleCSS} />
+        <Panel>
           <View height="100%" overflow="hidden" flex="1 1 auto">
             <ErrorBoundary fallback={ErrorBoundaryFallback}>
               <ExperimentsTable dataset={data.dataset} />
             </ErrorBoundary>
           </View>
         </Panel>
-      </PanelGroup>
+      </Group>
       <Suspense>
         <Outlet />
       </Suspense>

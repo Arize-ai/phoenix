@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
-import { Panel, PanelGroup } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
@@ -79,7 +79,7 @@ export function Layout() {
           <SideNavToggleButton />
           <NavBreadcrumb />
         </TopNavbar>
-        <PanelGroup direction="horizontal">
+        <Group orientation="horizontal">
           <Panel>
             <div data-testid="content" css={contentCSS}>
               <Suspense fallback={<Loading />}>
@@ -88,7 +88,7 @@ export function Layout() {
             </div>
           </Panel>
           <AgentChatPanel />
-        </PanelGroup>
+        </Group>
       </div>
     </div>
   );

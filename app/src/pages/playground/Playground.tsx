@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
@@ -294,7 +294,7 @@ function PlaygroundContent() {
 
   return (
     <Fragment key="playground-content">
-      <PanelGroup direction="vertical" autoSaveId="playground-panels">
+      <Group orientation="vertical">
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
             <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
@@ -334,7 +334,7 @@ function PlaygroundContent() {
             </DisclosureGroup>
           </div>
         </Panel>
-        <PanelResizeHandle css={compactResizeHandleCSS} />
+        <Separator css={compactResizeHandleCSS} />
         <Panel>
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>
@@ -390,7 +390,7 @@ function PlaygroundContent() {
             </div>
           )}
         </Panel>
-      </PanelGroup>
+      </Group>
       <ConfirmNavigationDialog
         blocker={blocker}
         message={

@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import type { CardProps } from "@phoenix/components";
 import {
@@ -101,7 +101,7 @@ function ViewModeSelect({
  */
 function ExampleDetailsDialogSkeleton() {
   return (
-    <PanelGroup direction="vertical" autoSaveId="example-panel-group">
+    <Group orientation="vertical">
       <Panel defaultSize={65}>
         <div
           css={css`
@@ -126,7 +126,7 @@ function ExampleDetailsDialogSkeleton() {
           </Flex>
         </div>
       </Panel>
-      <PanelResizeHandle css={resizeHandleCSS} />
+      <Separator css={resizeHandleCSS} />
       <Panel defaultSize={35}>
         <Flex direction="column" height="100%">
           <View
@@ -149,7 +149,7 @@ function ExampleDetailsDialogSkeleton() {
           </View>
         </Flex>
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 }
 
@@ -273,7 +273,7 @@ function ExampleDetailsDialogContent({
           <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
-      <PanelGroup direction="vertical" autoSaveId="example-panel-group">
+      <Group orientation="vertical">
         <Panel defaultSize={65}>
           <div
             css={css`
@@ -342,7 +342,7 @@ function ExampleDetailsDialogContent({
             </Flex>
           </div>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <Separator css={resizeHandleCSS} />
         <Panel defaultSize={35}>
           <Flex direction="column" height="100%">
             <View
@@ -359,7 +359,7 @@ function ExampleDetailsDialogContent({
             <ExampleExperimentRunsTable example={data.example} />
           </Flex>
         </Panel>
-      </PanelGroup>
+      </Group>
     </>
   );
 }

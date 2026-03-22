@@ -14,15 +14,15 @@ const REMAINING_TEXT = "remaining";
 function TooltipContent({
   active,
   payload,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   if (active && payload && payload.length) {
     return (
       <ChartTooltip>
         <ChartTooltipItem
           shape="square"
           color={payload[0].payload.fill || "transparent"}
-          name={payload[0].name || "--"}
-          value={storageSizeFormatter(payload[0].value || 0)}
+          name={String(payload[0].name) || "--"}
+          value={storageSizeFormatter(Number(payload[0].value) || 0)}
         />
       </ChartTooltip>
     );

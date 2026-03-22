@@ -3,7 +3,7 @@ import type { PropsWithChildren } from "react";
 import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -125,9 +125,8 @@ export function TraceDetails(props: TraceDetailsProps) {
         costSummary={costSummary}
         sessionId={data.project.trace?.projectSessionId}
       />
-      <PanelGroup
-        direction="horizontal"
-        autoSaveId="trace-panel-group"
+      <Group
+        orientation="horizontal"
         css={css`
           flex: 1 1 auto;
           overflow: hidden;
@@ -150,7 +149,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             />
           </ScrollingPanelContent>
         </Panel>
-        <PanelResizeHandle css={compactResizeHandleCSS} />
+        <Separator css={compactResizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
@@ -160,7 +159,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             ) : null}
           </ScrollingTabsWrapper>
         </Panel>
-      </PanelGroup>
+      </Group>
     </main>
   );
 }

@@ -39,7 +39,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     const errorValue = payload[0]?.value ?? null;
@@ -48,30 +48,30 @@ function TooltipContent({
     const unsetColor = payload[1]?.color ?? null;
     const okValue = payload[2]?.value ?? null;
     const okColor = payload[2]?.color ?? null;
-    const okString = intFormatter(okValue);
-    const unsetString = intFormatter(unsetValue);
-    const errorString = intFormatter(errorValue);
+    const okString = intFormatter(Number(okValue));
+    const unsetString = intFormatter(Number(unsetValue));
+    const errorString = intFormatter(Number(errorValue));
     return (
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(label)
+            new Date(String(label))
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={errorColor}
+          color={errorColor ?? "transparent"}
           shape="circle"
           name="error"
           value={errorString}
         />
         <ChartTooltipItem
-          color={unsetColor}
+          color={unsetColor ?? "transparent"}
           shape="circle"
           name="unset"
           value={unsetString}
         />
         <ChartTooltipItem
-          color={okColor}
+          color={okColor ?? "transparent"}
           shape="circle"
           name="ok"
           value={okString}

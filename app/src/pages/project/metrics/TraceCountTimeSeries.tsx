@@ -37,7 +37,7 @@ function TooltipContent({
   active,
   payload,
   label,
-}: TooltipContentProps<number, string>) {
+}: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
@@ -45,23 +45,23 @@ function TooltipContent({
     const errorColor = payload[0]?.color ?? null;
     const okValue = payload[1]?.value ?? null;
     const okColor = payload[1]?.color ?? null;
-    const okString = intFormatter(okValue);
-    const errorString = intFormatter(errorValue);
+    const okString = intFormatter(Number(okValue));
+    const errorString = intFormatter(Number(errorValue));
     return (
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(label)
+            new Date(String(label))
           )}`}</Text>
         )}
         <ChartTooltipItem
-          color={errorColor}
+          color={errorColor ?? "transparent"}
           shape="circle"
           name="error"
           value={errorString}
         />
         <ChartTooltipItem
-          color={okColor}
+          color={okColor ?? "transparent"}
           shape="circle"
           name="ok"
           value={okString}

@@ -11,7 +11,7 @@ export const resizeHandleCSS = css`
   --resize-icon-width: 24px;
   --resize-icon-height: 2px;
   outline: none;
-  &[data-panel-group-direction="vertical"] {
+  &[aria-orientation="horizontal"] {
     height: var(--resize-handle-size);
     flex-direction: column;
     &:before,
@@ -20,7 +20,7 @@ export const resizeHandleCSS = css`
       height: var(--resize-icon-height);
     }
   }
-  &[data-panel-group-direction="horizontal"] {
+  &[aria-orientation="vertical"] {
     width: var(--resize-handle-size);
     flex-direction: row;
     &:before,
@@ -53,16 +53,15 @@ export const compactResizeHandleCSS = css`
   background-color: var(--global-resize-handle-background-color);
   --resize-handle-size: 1px;
   outline: none;
-  &[data-panel-group-direction="vertical"] {
+  &[aria-orientation="horizontal"] {
     height: var(--resize-handle-size);
   }
-  &[data-panel-group-direction="horizontal"] {
+  &[aria-orientation="vertical"] {
     width: var(--resize-handle-size);
   }
 
   &:hover,
-  &[data-resize-handle-state="hover"],
-  &[data-resize-handle-state="drag"] {
+  &:active {
     background-color: var(--global-resize-handle-indicator-color-hover);
   }
 `;

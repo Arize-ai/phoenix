@@ -3,8 +3,8 @@ import { range } from "lodash";
 import { useMemo, useRef, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { ImperativePanelHandle } from "react-resizable-panels";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import type { PanelImperativeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
   Button,
@@ -92,7 +92,7 @@ export function ExperimentCompareDetails({
   defaultSelectedRepetitionNumber,
   openTraceDialog,
 }: ExperimentCompareDetailsProps) {
-  const inputPanelRef = useRef<ImperativePanelHandle>(null);
+  const inputPanelRef = useRef<PanelImperativeHandle>(null);
   const experimentIds = useMemo(
     () => [baseExperimentId, ...compareExperimentIds],
     [baseExperimentId, compareExperimentIds]
@@ -268,10 +268,10 @@ export function ExperimentCompareDetails({
   }, [experimentRuns, experimentIds, experimentsById]);
 
   return (
-    <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
+    <Group orientation="vertical">
       <Panel
         defaultSize={35}
-        ref={inputPanelRef}
+        panelRef={inputPanelRef}
         style={{
           minHeight: 78, // card header height (46px) + padding (2 * 16px)
         }}
@@ -306,7 +306,7 @@ export function ExperimentCompareDetails({
           </View>
         </div>
       </Panel>
-      <PanelResizeHandle css={resizeHandleCSS} />
+      <Separator css={resizeHandleCSS} />
       <Panel defaultSize={65}>
         <div
           css={css`
@@ -335,7 +335,7 @@ export function ExperimentCompareDetails({
           </ExperimentCompareDetailsProvider>
         </div>
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 }
 
@@ -356,17 +356,20 @@ export function ExperimentRunOutputs() {
   );
 
   const [isSideBarOpen, setIsSideBarOpen] = useState(true);
-  const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
+  const sidebarPanelRef = useRef<PanelImperativeHandle>(null);
   return (
-    <PanelGroup direction="horizontal">
+    <Group orientation="horizontal">
       {isSideBarOpen ? (
         <Panel
           defaultSize={SIDEBAR_PANEL_DEFAULT_SIZE}
-          ref={sidebarPanelRef}
+          panelRef={sidebarPanelRef}
           collapsible
           id="experiment-compare-details-outputs-sidebar-panel"
-          order={1}
-          onCollapse={() => setIsSideBarOpen(false)}
+          onResize={(panelSize) => {
+            if (panelSize.asPercentage === 0) {
+              setIsSideBarOpen(false);
+            }
+          }}
           style={{
             minWidth: 300,
           }}
@@ -375,9 +378,9 @@ export function ExperimentRunOutputs() {
         </Panel>
       ) : null}
       {isSideBarOpen ? (
-        <PanelResizeHandle css={compactResizeHandleCSS} />
+        <Separator css={compactResizeHandleCSS} />
       ) : null}
-      <Panel id="experiment-compare-details-outputs-main-panel" order={2}>
+      <Panel id="experiment-compare-details-outputs-main-panel">
         <Flex direction="column" height="100%">
           <View
             paddingX="size-200"
@@ -395,7 +398,7 @@ export function ExperimentRunOutputs() {
                   const sidebarPanel = sidebarPanelRef.current;
                   // expand the panel if it is not the minimum size already
                   if (sidebarPanel) {
-                    const size = sidebarPanel.getSize();
+                    const size = sidebarPanel.getSize().asPercentage;
                     if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
                       sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
                     }
@@ -450,7 +453,7 @@ export function ExperimentRunOutputs() {
           </ul>
         </Flex>
       </Panel>
-    </PanelGroup>
+    </Group>
   );
 }
 
