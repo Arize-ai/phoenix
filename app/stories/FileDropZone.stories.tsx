@@ -83,67 +83,71 @@ const meta: Meta<typeof FileDropZone> = {
 
 export default meta;
 
-export const Default: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<File[]>([]);
+function DefaultRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<File[]>([]);
 
-    return (
-      <View width="size-6000">
-        <FileDropZone
-          {...args}
-          onSelect={(newFiles) => {
-            setFiles(newFiles);
-          }}
-        />
-        {files.length > 0 && (
-          <View marginTop="size-200">
-            <Text>Selected: {files.map((f) => f.name).join(", ")}</Text>
-          </View>
-        )}
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileDropZone
+        {...args}
+        onSelect={(newFiles) => {
+          setFiles(newFiles);
+        }}
+      />
+      {files.length > 0 && (
+        <View marginTop="size-200">
+          <Text>Selected: {files.map((f) => f.name).join(", ")}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export const Default: StoryObj<FileDropZoneProps> = {
+  render: DefaultRender,
 
   args: {},
 };
 
-export const CSVOnly: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<File[]>([]);
-    const [rejections, setRejections] = useState<FileRejection[]>([]);
+function CSVOnlyRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [rejections, setRejections] = useState<FileRejection[]>([]);
 
-    return (
-      <View width="size-6000">
-        <FileDropZone
-          {...args}
-          onSelect={(newFiles) => {
-            setFiles(newFiles);
-            setRejections([]);
-          }}
-          onSelectRejected={(rejected) => {
-            setRejections(rejected);
-          }}
-        />
-        {files.length > 0 && (
-          <View marginTop="size-200">
-            <Text color="success">
-              Accepted: {files.map((f) => f.name).join(", ")}
-            </Text>
-          </View>
-        )}
-        {rejections.length > 0 && (
-          <View marginTop="size-200">
-            <Text color="danger">
-              Rejected:{" "}
-              {rejections
-                .map((r) => `${r.file.name} (${r.message})`)
-                .join(", ")}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileDropZone
+        {...args}
+        onSelect={(newFiles) => {
+          setFiles(newFiles);
+          setRejections([]);
+        }}
+        onSelectRejected={(rejected) => {
+          setRejections(rejected);
+        }}
+      />
+      {files.length > 0 && (
+        <View marginTop="size-200">
+          <Text color="success">
+            Accepted: {files.map((f) => f.name).join(", ")}
+          </Text>
+        </View>
+      )}
+      {rejections.length > 0 && (
+        <View marginTop="size-200">
+          <Text color="danger">
+            Rejected:{" "}
+            {rejections
+              .map((r) => `${r.file.name} (${r.message})`)
+              .join(", ")}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export const CSVOnly: StoryObj<FileDropZoneProps> = {
+  render: CSVOnlyRender,
 
   args: {
     acceptedFileTypes: [".csv", "text/csv"],
@@ -151,29 +155,31 @@ export const CSVOnly: StoryObj<FileDropZoneProps> = {
   },
 };
 
-export const MultipleJSONFiles: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<File[]>([]);
+function MultipleJSONFilesRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<File[]>([]);
 
-    return (
-      <View width="size-6000">
-        <FileDropZone
-          {...args}
-          onSelect={(newFiles) => {
-            setFiles((prev) => [...prev, ...newFiles]);
-          }}
-        />
-        {files.length > 0 && (
-          <View marginTop="size-200">
-            <Text>
-              Selected {files.length} file(s):{" "}
-              {files.map((f) => f.name).join(", ")}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileDropZone
+        {...args}
+        onSelect={(newFiles) => {
+          setFiles((prev) => [...prev, ...newFiles]);
+        }}
+      />
+      {files.length > 0 && (
+        <View marginTop="size-200">
+          <Text>
+            Selected {files.length} file(s):{" "}
+            {files.map((f) => f.name).join(", ")}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export const MultipleJSONFiles: StoryObj<FileDropZoneProps> = {
+  render: MultipleJSONFilesRender,
 
   args: {
     acceptedFileTypes: [".json", ".jsonl", "application/json"],
@@ -182,36 +188,38 @@ export const MultipleJSONFiles: StoryObj<FileDropZoneProps> = {
   },
 };
 
-export const WithFileList: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<FileWithProgress[]>([]);
+function WithFileListRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
 
-    const handleSelect = useCallback((newFiles: File[]) => {
-      const newFilesWithProgress: FileWithProgress[] = newFiles.map((file) => ({
-        file,
-        status: "pending" as const,
-      }));
-      setFiles((prev) => [...prev, ...newFilesWithProgress]);
-    }, []);
+  const handleSelect = useCallback((newFiles: File[]) => {
+    const newFilesWithProgress: FileWithProgress[] = newFiles.map((file) => ({
+      file,
+      status: "pending" as const,
+    }));
+    setFiles((prev) => [...prev, ...newFilesWithProgress]);
+  }, []);
 
-    const handleRemove = useCallback((fileToRemove: File) => {
-      setFiles((prev) =>
-        prev.filter(
-          (f) =>
-            f.file.name !== fileToRemove.name ||
-            f.file.size !== fileToRemove.size ||
-            f.file.lastModified !== fileToRemove.lastModified
-        )
-      );
-    }, []);
-
-    return (
-      <Flex direction="column" gap="size-200" width="size-6000">
-        <FileDropZone {...args} onSelect={handleSelect} />
-        <FileList files={files} onRemove={handleRemove} />
-      </Flex>
+  const handleRemove = useCallback((fileToRemove: File) => {
+    setFiles((prev) =>
+      prev.filter(
+        (f) =>
+          f.file.name !== fileToRemove.name ||
+          f.file.size !== fileToRemove.size ||
+          f.file.lastModified !== fileToRemove.lastModified
+      )
     );
-  },
+  }, []);
+
+  return (
+    <Flex direction="column" gap="size-200" width="size-6000">
+      <FileDropZone {...args} onSelect={handleSelect} />
+      <FileList files={files} onRemove={handleRemove} />
+    </Flex>
+  );
+}
+
+export const WithFileList: StoryObj<FileDropZoneProps> = {
+  render: WithFileListRender,
 
   args: {
     allowsMultiple: true,
@@ -219,58 +227,60 @@ export const WithFileList: StoryObj<FileDropZoneProps> = {
   },
 };
 
+function WithUploadProgressRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
+
+  const simulateUpload = useCallback((file: File) => {
+    const newFile: FileWithProgress = {
+      file,
+      status: "uploading",
+      progress: 0,
+    };
+
+    setFiles((prev) => [...prev, newFile]);
+
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 20;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.file === file ? { ...f, status: "complete", progress: 100 } : f
+          )
+        );
+      } else {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.file === file ? { ...f, progress: Math.round(progress) } : f
+          )
+        );
+      }
+    }, 300);
+  }, []);
+
+  const handleSelect = useCallback(
+    (newFiles: File[]) => {
+      newFiles.forEach(simulateUpload);
+    },
+    [simulateUpload]
+  );
+
+  const handleRemove = useCallback((fileToRemove: File) => {
+    setFiles((prev) => prev.filter((f) => f.file !== fileToRemove));
+  }, []);
+
+  return (
+    <Flex direction="column" gap="size-200" width="size-6000">
+      <FileDropZone {...args} onSelect={handleSelect} />
+      <FileList files={files} onRemove={handleRemove} />
+    </Flex>
+  );
+}
+
 export const WithUploadProgress: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<FileWithProgress[]>([]);
-
-    const simulateUpload = useCallback((file: File) => {
-      const newFile: FileWithProgress = {
-        file,
-        status: "uploading",
-        progress: 0,
-      };
-
-      setFiles((prev) => [...prev, newFile]);
-
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.file === file ? { ...f, status: "complete", progress: 100 } : f
-            )
-          );
-        } else {
-          setFiles((prev) =>
-            prev.map((f) =>
-              f.file === file ? { ...f, progress: Math.round(progress) } : f
-            )
-          );
-        }
-      }, 300);
-    }, []);
-
-    const handleSelect = useCallback(
-      (newFiles: File[]) => {
-        newFiles.forEach(simulateUpload);
-      },
-      [simulateUpload]
-    );
-
-    const handleRemove = useCallback((fileToRemove: File) => {
-      setFiles((prev) => prev.filter((f) => f.file !== fileToRemove));
-    }, []);
-
-    return (
-      <Flex direction="column" gap="size-200" width="size-6000">
-        <FileDropZone {...args} onSelect={handleSelect} />
-        <FileList files={files} onRemove={handleRemove} />
-      </Flex>
-    );
-  },
+  render: WithUploadProgressRender,
 
   args: {
     allowsMultiple: true,
@@ -278,49 +288,51 @@ export const WithUploadProgress: StoryObj<FileDropZoneProps> = {
   },
 };
 
-export const FileListWithRenderFunction: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<FileWithProgress[]>([]);
+function FileListWithRenderFunctionRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
 
-    const handleSelect = useCallback((newFiles: File[]) => {
-      const newFilesWithProgress: FileWithProgress[] = newFiles.map((file) => ({
-        file,
-        status: "pending" as const,
-      }));
-      setFiles((prev) => [...prev, ...newFilesWithProgress]);
-    }, []);
+  const handleSelect = useCallback((newFiles: File[]) => {
+    const newFilesWithProgress: FileWithProgress[] = newFiles.map((file) => ({
+      file,
+      status: "pending" as const,
+    }));
+    setFiles((prev) => [...prev, ...newFilesWithProgress]);
+  }, []);
 
-    const handleRemove = useCallback((fileToRemove: File) => {
-      setFiles((prev) =>
-        prev.filter(
-          (f) =>
-            f.file.name !== fileToRemove.name ||
-            f.file.size !== fileToRemove.size ||
-            f.file.lastModified !== fileToRemove.lastModified
-        )
-      );
-    }, []);
-
-    return (
-      <Flex direction="column" gap="size-200" width="size-6000">
-        <FileDropZone {...args} onSelect={handleSelect} />
-        <FileList files={files} onRemove={handleRemove}>
-          {(fileWithProgress) => (
-            <li css={fileChipCSS}>
-              <span>{fileWithProgress.file.name}</span>
-              <button
-                onClick={() => handleRemove(fileWithProgress.file)}
-                css={fileChipRemoveButtonCSS}
-                aria-label={`Remove ${fileWithProgress.file.name}`}
-              >
-                ×
-              </button>
-            </li>
-          )}
-        </FileList>
-      </Flex>
+  const handleRemove = useCallback((fileToRemove: File) => {
+    setFiles((prev) =>
+      prev.filter(
+        (f) =>
+          f.file.name !== fileToRemove.name ||
+          f.file.size !== fileToRemove.size ||
+          f.file.lastModified !== fileToRemove.lastModified
+      )
     );
-  },
+  }, []);
+
+  return (
+    <Flex direction="column" gap="size-200" width="size-6000">
+      <FileDropZone {...args} onSelect={handleSelect} />
+      <FileList files={files} onRemove={handleRemove}>
+        {(fileWithProgress) => (
+          <li css={fileChipCSS}>
+            <span>{fileWithProgress.file.name}</span>
+            <button
+              onClick={() => handleRemove(fileWithProgress.file)}
+              css={fileChipRemoveButtonCSS}
+              aria-label={`Remove ${fileWithProgress.file.name}`}
+            >
+              ×
+            </button>
+          </li>
+        )}
+      </FileList>
+    </Flex>
+  );
+}
+
+export const FileListWithRenderFunction: StoryObj<FileDropZoneProps> = {
+  render: FileListWithRenderFunctionRender,
 
   args: {
     allowsMultiple: true,
@@ -328,43 +340,45 @@ export const FileListWithRenderFunction: StoryObj<FileDropZoneProps> = {
   },
 };
 
-export const WithSizeLimit: StoryObj<FileDropZoneProps> = {
-  render: (args) => {
-    const [files, setFiles] = useState<File[]>([]);
-    const [rejections, setRejections] = useState<FileRejection[]>([]);
+function WithSizeLimitRender(args: FileDropZoneProps) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [rejections, setRejections] = useState<FileRejection[]>([]);
 
-    return (
-      <View width="size-6000">
-        <FileDropZone
-          {...args}
-          onSelect={(newFiles) => {
-            setFiles(newFiles);
-            setRejections([]);
-          }}
-          onSelectRejected={(rejected) => {
-            setRejections(rejected);
-          }}
-        />
-        {files.length > 0 && (
-          <View marginTop="size-200">
-            <Text color="success">
-              Accepted: {files.map((f) => f.name).join(", ")}
-            </Text>
-          </View>
-        )}
-        {rejections.length > 0 && (
-          <View marginTop="size-200">
-            <Text color="danger">
-              Rejected:{" "}
-              {rejections
-                .map((r) => `${r.file.name} (${r.message})`)
-                .join(", ")}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileDropZone
+        {...args}
+        onSelect={(newFiles) => {
+          setFiles(newFiles);
+          setRejections([]);
+        }}
+        onSelectRejected={(rejected) => {
+          setRejections(rejected);
+        }}
+      />
+      {files.length > 0 && (
+        <View marginTop="size-200">
+          <Text color="success">
+            Accepted: {files.map((f) => f.name).join(", ")}
+          </Text>
+        </View>
+      )}
+      {rejections.length > 0 && (
+        <View marginTop="size-200">
+          <Text color="danger">
+            Rejected:{" "}
+            {rejections
+              .map((r) => `${r.file.name} (${r.message})`)
+              .join(", ")}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+export const WithSizeLimit: StoryObj<FileDropZoneProps> = {
+  render: WithSizeLimitRender,
 
   args: {
     maxFileSize: 1024 * 1024,
@@ -438,49 +452,53 @@ export const MultipleSideBySide: StoryFn = () => {
   );
 };
 
-export const FileInputDefault: StoryObj<FileInputProps> = {
-  render: () => {
-    const [file, setFile] = useState<File | null>(null);
+function FileInputDefaultRender() {
+  const [file, setFile] = useState<File | null>(null);
 
-    return (
-      <View width="size-6000">
-        <FileInput
-          file={file}
-          onSelect={(files) => setFile(files[0] ?? null)}
-          onClear={() => setFile(null)}
-        />
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileInput
+        file={file}
+        onSelect={(files) => setFile(files[0] ?? null)}
+        onClear={() => setFile(null)}
+      />
+    </View>
+  );
+}
+
+export const FileInputDefault: StoryObj<FileInputProps> = {
+  render: FileInputDefaultRender,
 
   name: "FileInput / Default",
 };
 
-export const FileInputWithDescription: StoryObj<FileInputProps> = {
-  render: () => {
-    const [file, setFile] = useState<File | null>(null);
+function FileInputWithDescriptionRender() {
+  const [file, setFile] = useState<File | null>(null);
 
-    return (
-      <View width="size-6000">
-        <FileInput
-          file={file}
-          acceptedFileTypes={[".csv", ".jsonl"]}
-          onSelect={(files) => setFile(files[0] ?? null)}
-          onClear={() => setFile(null)}
-        >
-          {file ? (
-            <Text slot="description" color="success">
-              File loaded successfully
-            </Text>
-          ) : (
-            <Text slot="description" color="text-700">
-              Accepts CSV and JSONL files
-            </Text>
-          )}
-        </FileInput>
-      </View>
-    );
-  },
+  return (
+    <View width="size-6000">
+      <FileInput
+        file={file}
+        acceptedFileTypes={[".csv", ".jsonl"]}
+        onSelect={(files) => setFile(files[0] ?? null)}
+        onClear={() => setFile(null)}
+      >
+        {file ? (
+          <Text slot="description" color="success">
+            File loaded successfully
+          </Text>
+        ) : (
+          <Text slot="description" color="text-700">
+            Accepts CSV and JSONL files
+          </Text>
+        )}
+      </FileInput>
+    </View>
+  );
+}
+
+export const FileInputWithDescription: StoryObj<FileInputProps> = {
+  render: FileInputWithDescriptionRender,
 
   name: "FileInput / With Description",
 };
@@ -509,62 +527,64 @@ const dropZoneFormCSS = css`
   background-color: var(--global-color-gray-50);
 `;
 
-export const DropZoneWithOverlay: StoryObj = {
-  render: () => {
-    const [file, setFile] = useState<File | null>(null);
+function DropZoneWithOverlayRender() {
+  const [file, setFile] = useState<File | null>(null);
 
-    const handleSelect = useCallback((files: File[]) => {
-      if (files.length > 0) {
-        setFile(files[0]);
-      }
-    }, []);
+  const handleSelect = useCallback((files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+    }
+  }, []);
 
-    const handleDrop = useCallback(async (e: { items: DropItem[] }) => {
-      const fileItems = e.items.filter(
-        (item): item is FileDropItem => item.kind === "file"
-      );
-      const results = await Promise.allSettled(
-        fileItems.map((item) => item.getFile())
-      );
-      const files = results
-        .filter(
-          (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
-        )
-        .map((r) => r.value);
-      if (files.length > 0) {
-        setFile(files[0]);
-      }
-    }, []);
-
-    return (
-      <View width="size-6000">
-        <DropZone onDrop={handleDrop} getDropOperation={() => "copy"}>
-          <DropOverlay>
-            {file ? "Drop file to replace current" : "Drop file"}
-          </DropOverlay>
-          <div css={dropZoneFormCSS}>
-            <FileInput
-              file={file}
-              acceptedFileTypes={[".csv", ".json"]}
-              onSelect={handleSelect}
-              onClear={() => setFile(null)}
-            >
-              {file ? (
-                <Text slot="description" color="success">
-                  File ready
-                </Text>
-              ) : (
-                <Text slot="description" color="text-700">
-                  Drop a file anywhere on this form, or browse
-                </Text>
-              )}
-            </FileInput>
-            <Text>Other form fields would go here...</Text>
-          </div>
-        </DropZone>
-      </View>
+  const handleDrop = useCallback(async (e: { items: DropItem[] }) => {
+    const fileItems = e.items.filter(
+      (item): item is FileDropItem => item.kind === "file"
     );
-  },
+    const results = await Promise.allSettled(
+      fileItems.map((item) => item.getFile())
+    );
+    const files = results
+      .filter(
+        (r): r is PromiseFulfilledResult<File> => r.status === "fulfilled"
+      )
+      .map((r) => r.value);
+    if (files.length > 0) {
+      setFile(files[0]);
+    }
+  }, []);
+
+  return (
+    <View width="size-6000">
+      <DropZone onDrop={handleDrop} getDropOperation={() => "copy"}>
+        <DropOverlay>
+          {file ? "Drop file to replace current" : "Drop file"}
+        </DropOverlay>
+        <div css={dropZoneFormCSS}>
+          <FileInput
+            file={file}
+            acceptedFileTypes={[".csv", ".json"]}
+            onSelect={handleSelect}
+            onClear={() => setFile(null)}
+          >
+            {file ? (
+              <Text slot="description" color="success">
+                File ready
+              </Text>
+            ) : (
+              <Text slot="description" color="text-700">
+                Drop a file anywhere on this form, or browse
+              </Text>
+            )}
+          </FileInput>
+          <Text>Other form fields would go here...</Text>
+        </div>
+      </DropZone>
+    </View>
+  );
+}
+
+export const DropZoneWithOverlay: StoryObj = {
+  render: DropZoneWithOverlayRender,
 
   name: "DropZone / With Overlay",
 };

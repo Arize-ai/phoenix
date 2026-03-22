@@ -1,7 +1,5 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 import { useState } from "react";
-
-import type { TimeRangeFormProps } from "@phoenix/components";
 import {
   Button,
   Dialog,

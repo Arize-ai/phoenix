@@ -1,6 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
-
-import type { PageHeaderProps } from "@phoenix/components";
+import type { Meta } from "@storybook/react";
 import {
   Button,
   Flex,

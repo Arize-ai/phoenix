@@ -1,7 +1,6 @@
 import type { Meta, StoryFn } from "@storybook/react";
 import { useCallback, useState } from "react";
 
-import type { TimerProps } from "@phoenix/components";
 import { Timer } from "@phoenix/components";
 
 const meta: Meta = {

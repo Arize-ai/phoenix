@@ -1,7 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
-
-import type { ButtonProps } from "@phoenix/components";
+import type { Meta } from "@storybook/react";
 import { Button } from "@phoenix/components";
 import { Keyboard, VisuallyHidden } from "@phoenix/components/core/content";
 const meta: Meta = {

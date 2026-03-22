@@ -1,6 +1,5 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
-import type { CopyActionMenuProps } from "@phoenix/components";
 import { CopyActionMenu, View } from "@phoenix/components";
 
 const meta: Meta = {

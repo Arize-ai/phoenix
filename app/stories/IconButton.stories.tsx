@@ -1,8 +1,7 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 
 import { Button } from "../src/components/core/button/Button";
-import type { IconButtonProps } from "../src/components/core/button/IconButton";
 import { IconButton } from "../src/components/core/button/IconButton";
 import { Icon } from "../src/components/core/icon/Icon";
 import {

@@ -1,5 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
-import type { ComponentProps } from "react";
+import type { Meta } from "@storybook/react";
 import type { QueuedToast } from "react-aria-components";
 
 import { Toast } from "@phoenix/components";

@@ -2,7 +2,6 @@ import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
 
 import { Button } from "@phoenix/components/core/button/Button";
-import type { RecordIconProps } from "@phoenix/components/core/icon/RecordIcon";
 import { RecordIcon } from "@phoenix/components/core/icon/RecordIcon";
 
 const meta: Meta = {

@@ -1,4 +1,4 @@
-import type { Meta, StoryFn } from "@storybook/react";
+import type { Meta } from "@storybook/react";
 import { useState } from "react";
 
 import type { SwitchProps } from "@phoenix/components";
