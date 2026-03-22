@@ -43,7 +43,8 @@
     "tsc-alias": "1.8.11",
     "typedoc": "^0.28.17",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.17"
+    "vite": "^8.0.1",
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=10",

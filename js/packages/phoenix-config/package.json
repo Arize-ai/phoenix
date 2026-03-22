@@ -38,10 +38,9 @@
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.17.22",
-    "vitest": "^4.0.10"
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=18"

@@ -98,7 +98,7 @@
     "openai": "^6.10.0",
     "openapi-typescript": "^7.6.1",
     "tsx": "^4.19.3",
-    "vitest": "^4.0.10"
+    "vitest": "^4.1.0"
   },
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",

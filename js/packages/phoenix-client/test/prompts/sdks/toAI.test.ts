@@ -4,7 +4,6 @@ import invariant from "tiny-invariant";
 import {
   afterEach,
   assertType,
-  beforeEach,
   describe,
   expect,
   it,
@@ -19,26 +18,24 @@ import {
   BASE_MOCK_PROMPT_VERSION_TOOLS,
 } from "./data";
 
+// replace calls to openai with a mock
+vi.mock("@ai-sdk/openai", () => ({
+  openai: vi.fn(),
+}));
+
+// replace calls to streamText, generateText, streamObject, and generateObject with a mock
+vi.mock(import("ai"), async (importOriginal) => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    streamText: vi.fn(),
+    generateText: vi.fn(),
+    streamObject: vi.fn(),
+    generateObject: vi.fn(),
+  };
+});
+
 describe("toAI type compatibility", () => {
-  beforeEach(() => {
-    // replace calls to openai with a mock
-    vi.mock("@ai-sdk/openai", () => ({
-      openai: vi.fn(),
-    }));
-
-    // replace calls to streamText, generateText, streamObject, and generateObject with a mock
-    vi.mock(import("ai"), async (importOriginal) => {
-      const mod = await importOriginal();
-      return {
-        ...mod,
-        streamText: vi.fn(),
-        generateText: vi.fn(),
-        streamObject: vi.fn(),
-        generateObject: vi.fn(),
-      };
-    });
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
