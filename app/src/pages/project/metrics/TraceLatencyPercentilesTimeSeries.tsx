@@ -51,7 +51,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
               key={index}
               color={entry.color || "#ffffff"}
               shape="line"
-              name={String(entry.dataKey) || "unknown"}
+              name={String(entry.dataKey || "unknown")}
               value={`${formatFloat(Number(entry.value))} s`}
             />
           );

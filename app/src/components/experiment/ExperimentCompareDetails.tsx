@@ -396,7 +396,7 @@ export function ExperimentRunOutputs() {
                   const sidebarPanel = sidebarPanelRef.current;
                   // expand the panel if it is not the minimum size already
                   if (sidebarPanel) {
-                    const size = sidebarPanel.getSize().asPercentage;
+                    const { asPercentage: size } = sidebarPanel.getSize();
                     if (size < SIDEBAR_PANEL_DEFAULT_SIZE) {
                       sidebarPanel.resize(SIDEBAR_PANEL_DEFAULT_SIZE);
                     }

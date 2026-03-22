@@ -18,7 +18,7 @@ function TooltipContent({ active, payload }: TooltipContentProps) {
         <ChartTooltipItem
           shape="square"
           color={payload[0].payload.fill || "transparent"}
-          name={String(payload[0].name) || "--"}
+          name={String(payload[0].name ?? "--")}
           value={storageSizeFormatter(Number(payload[0].value) || 0)}
         />
       </ChartTooltip>
