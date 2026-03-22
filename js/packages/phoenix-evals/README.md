@@ -128,7 +128,7 @@ console.log(faithfulnessResult);
 
 // Correctness: checks if the output is factually correct
 const correctnessEvaluator = createCorrectnessEvaluator({ model });
-const correctnessResult = await correctnessEvaluator({
+const correctnessResult = await correctnessEvaluator.evaluate({
   input: "What is the capital of France?",
   output: "Paris is the capital of France.",
 });
@@ -137,11 +137,12 @@ console.log(correctnessResult);
 
 // Document Relevance: checks if a retrieved document is relevant to the query
 const relevanceEvaluator = createDocumentRelevanceEvaluator({ model });
-const relevanceResult = await relevanceEvaluator({
+const relevanceResult = await relevanceEvaluator.evaluate({
   input: "What is the capital of France?",
   documentText: "Paris is the capital of France and a major European city.",
 });
 console.log(relevanceResult);
+// Output: { label: "relevant", score: 1, explanation: "..." }
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 
