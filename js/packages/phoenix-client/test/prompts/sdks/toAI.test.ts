@@ -1,14 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText, streamText } from "ai";
 import invariant from "tiny-invariant";
-import {
-  afterEach,
-  assertType,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, assertType, describe, expect, it, vi } from "vitest";
 
 import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
