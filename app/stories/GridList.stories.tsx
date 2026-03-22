@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { Meta, StoryFn } from "@storybook/react";
+import type { StoryObj, Meta, StoryFn } from "@storybook/react";
 
 import type { GridListProps } from "@phoenix/components";
 import {
@@ -41,23 +41,21 @@ const Template: StoryFn<Omit<GridListProps<object>, "children">> = (props) => (
   </div>
 );
 
-/**
- * Basic grid list with single selection
- */
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
 
-Default.args = {
-  selectionMode: "single",
+  args: {
+    selectionMode: "single",
+  },
 };
 
-/**
- * Grid list with checkboxes for multiple selection
- */
-export const WithCheckboxes = Template.bind({});
+export const WithCheckboxes = {
+  render: Template,
 
-WithCheckboxes.args = {
-  selectionMode: "multiple",
-  selectionBehavior: "toggle",
+  args: {
+    selectionMode: "multiple",
+    selectionBehavior: "toggle",
+  },
 };
 
 const SAMPLE_ANNOTATIONS: Annotation[] = [
@@ -69,109 +67,102 @@ const SAMPLE_ANNOTATIONS: Annotation[] = [
   { name: "Coherence", label: "Fair", score: 0.71 },
 ];
 
-/**
- * Grid list with subtitle and trailing content
- */
-export const WithSubtitleAndTrailingContent: StoryFn<
+export const WithSubtitleAndTrailingContent: StoryObj<
   Omit<GridListProps<object>, "children">
-> = (props) => (
-  <div
-    css={css`
-      border: 1px solid var(--global-color-gray-300);
-      border-radius: var(--global-rounding-small);
-    `}
-  >
-    <GridList aria-label="Items with details" {...props}>
-      {SAMPLE_ANNOTATIONS.map((annotation, index) => (
-        <GridListItem
-          key={index}
-          textValue={`Item ${index + 1}`}
-          subtitle={
-            <AnnotationNameAndValue
-              annotation={annotation}
-              displayPreference="none"
-              size="S"
-            />
-          }
-          trailingContent={
-            <IconButton size="S" aria-label="More options">
-              <Icon svg={<Icons.MoreHorizontalOutline />} />
-            </IconButton>
-          }
-        >
-          <Text>Item {index + 1}</Text>
-        </GridListItem>
-      ))}
-    </GridList>
-  </div>
-);
+> = {
+  render: (props) => (
+    <div
+      css={css`
+        border: 1px solid var(--global-color-gray-300);
+        border-radius: var(--global-rounding-small);
+      `}
+    >
+      <GridList aria-label="Items with details" {...props}>
+        {SAMPLE_ANNOTATIONS.map((annotation, index) => (
+          <GridListItem
+            key={index}
+            textValue={`Item ${index + 1}`}
+            subtitle={
+              <AnnotationNameAndValue
+                annotation={annotation}
+                displayPreference="none"
+                size="S"
+              />
+            }
+            trailingContent={
+              <IconButton size="S" aria-label="More options">
+                <Icon svg={<Icons.MoreHorizontalOutline />} />
+              </IconButton>
+            }
+          >
+            <Text>Item {index + 1}</Text>
+          </GridListItem>
+        ))}
+      </GridList>
+    </div>
+  ),
 
-WithSubtitleAndTrailingContent.args = {
-  selectionMode: "multiple",
-  selectionBehavior: "toggle",
+  args: {
+    selectionMode: "multiple",
+    selectionBehavior: "toggle",
+  },
 };
 
-/**
- * Empty grid list
- */
-export const Empty: StoryFn<Omit<GridListProps<object>, "children">> = (
-  props
-) => (
-  <div
-    css={css`
-      border: 1px solid var(--global-color-gray-300);
-      border-radius: var(--global-rounding-small);
-    `}
-  >
-    <GridList
-      aria-label="Empty grid list"
-      renderEmptyState={() => (
-        <View padding="size-100">
-          <Text color="gray-300" size="S">
-            No items found
-          </Text>
-        </View>
-      )}
-      {...props}
-    ></GridList>
-  </div>
-);
+export const Empty: StoryObj<Omit<GridListProps<object>, "children">> = {
+  render: (props) => (
+    <div
+      css={css`
+        border: 1px solid var(--global-color-gray-300);
+        border-radius: var(--global-rounding-small);
+      `}
+    >
+      <GridList
+        aria-label="Empty grid list"
+        renderEmptyState={() => (
+          <View padding="size-100">
+            <Text color="gray-300" size="S">
+              No items found
+            </Text>
+          </View>
+        )}
+        {...props}
+      ></GridList>
+    </div>
+  ),
+};
 
-/**
- * Grid list with sections
- */
-export const WithSections: StoryFn<Omit<GridListProps<object>, "children">> = (
-  props
-) => (
-  <div
-    css={css`
-      border: 1px solid var(--global-color-gray-300);
-      border-radius: var(--global-rounding-small);
-    `}
-  >
-    <GridList aria-label="Grid list with sections" {...props}>
-      <GridListSection>
-        <GridListSectionTitle title="Category A" />
-        <GridListItem>Item A1</GridListItem>
-        <GridListItem>Item A2</GridListItem>
-        <GridListItem>Item A3</GridListItem>
-      </GridListSection>
-      <GridListSection>
-        <GridListSectionTitle title="Category B" />
-        <GridListItem>Item B1</GridListItem>
-        <GridListItem>Item B2</GridListItem>
-        <GridListItem>Item B3</GridListItem>
-      </GridListSection>
-      <GridListSection>
-        <GridListSectionTitle title="Category C" />
-        <GridListItem>Item C1</GridListItem>
-        <GridListItem>Item C2</GridListItem>
-      </GridListSection>
-    </GridList>
-  </div>
-);
+export const WithSections: StoryObj<Omit<GridListProps<object>, "children">> = {
+  render: (props) => (
+    <div
+      css={css`
+        border: 1px solid var(--global-color-gray-300);
+        border-radius: var(--global-rounding-small);
+      `}
+    >
+      <GridList aria-label="Grid list with sections" {...props}>
+        <GridListSection>
+          <GridListSectionTitle title="Category A" />
+          <GridListItem>Item A1</GridListItem>
+          <GridListItem>Item A2</GridListItem>
+          <GridListItem>Item A3</GridListItem>
+        </GridListSection>
+        <GridListSection>
+          <GridListSectionTitle title="Category B" />
+          <GridListItem>Item B1</GridListItem>
+          <GridListItem>Item B2</GridListItem>
+          <GridListItem>Item B3</GridListItem>
+        </GridListSection>
+        <GridListSection>
+          <GridListSectionTitle title="Category C" />
+          <GridListItem>Item C1</GridListItem>
+          <GridListItem>Item C2</GridListItem>
+        </GridListSection>
+      </GridList>
+    </div>
+  ),
 
-WithSections.args = {
-  selectionMode: "multiple",
-  selectionBehavior: "toggle",
+  args: {
+    selectionMode: "multiple",
+    selectionBehavior: "toggle",
+  },
 };

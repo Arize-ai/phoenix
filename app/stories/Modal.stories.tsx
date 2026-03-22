@@ -52,7 +52,9 @@ const Template: StoryFn<ModalProps> = (args) => (
   </DialogTrigger>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};
 
 const SlideoverTemplate: StoryFn<ModalProps> = (args) => (
   <DialogTrigger>
@@ -80,7 +82,9 @@ const SlideoverTemplate: StoryFn<ModalProps> = (args) => (
   </DialogTrigger>
 );
 
-export const Slideover = SlideoverTemplate.bind({});
+export const Slideover = {
+  render: SlideoverTemplate,
+};
 
 const NoOverlayTemplate: StoryFn<ModalProps> = (args) => (
   <Flex gap="size-200" direction="column">
@@ -123,4 +127,6 @@ const NoOverlayTemplate: StoryFn<ModalProps> = (args) => (
   </Flex>
 );
 
-export const NoOverlay = NoOverlayTemplate.bind({});
+export const NoOverlay = {
+  render: NoOverlayTemplate,
+};

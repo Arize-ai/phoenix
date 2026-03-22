@@ -13,29 +13,28 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<CopyActionMenuProps> = (args) => (
-  <CopyActionMenu {...args} />
-);
-
-export const Default = Template.bind({});
-Default.args = {
-  items: [
-    { name: "Project Name", value: "my-project", iconKey: "TextOutline" },
-    { name: "Project ID", value: "proj_abc123", iconKey: "IDOutline" },
-  ],
+export const Default = {
+  args: {
+    items: [
+      { name: "Project Name", value: "my-project", iconKey: "TextOutline" },
+      { name: "Project ID", value: "proj_abc123", iconKey: "IDOutline" },
+    ],
+  },
 };
 
-export const WithoutIcons = Template.bind({});
-WithoutIcons.args = {
-  items: [
-    { name: "Name", value: "example-name" },
-    { name: "ID", value: "id_12345" },
-  ],
+export const WithoutIcons = {
+  args: {
+    items: [
+      { name: "Name", value: "example-name" },
+      { name: "ID", value: "id_12345" },
+    ],
+  },
 };
 
-export const SingleItem = Template.bind({});
-SingleItem.args = {
-  items: [{ name: "API Key", value: "sk-abc123", iconKey: "KeyOutline" }],
+export const SingleItem = {
+  args: {
+    items: [{ name: "API Key", value: "sk-abc123", iconKey: "KeyOutline" }],
+  },
 };
 
 export const ManyItems: StoryFn = () => (

@@ -33,8 +33,10 @@ const Template: StoryFn<TagGroupProps> = (args) => (
   </TagGroup>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
 
-Default.args = {
-  selectionMode: "multiple",
+  args: {
+    selectionMode: "multiple",
+  },
 };

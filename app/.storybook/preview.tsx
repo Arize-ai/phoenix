@@ -1,8 +1,8 @@
-import type { DocsContainerProps } from "@storybook/blocks";
-import { DocsContainer } from "@storybook/blocks";
-import { addons as previewAddons } from "@storybook/preview-api";
+import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
+import { DocsContainer } from "@storybook/addon-docs/blocks";
+import { addons as previewAddons } from "storybook/preview-api";
 import type { Preview } from "@storybook/react";
-import { themes } from "@storybook/theming";
+import { themes } from "storybook/theming";
 import React, { useEffect, useState } from "react";
 import { MemoryRouter } from "react-router";
 
@@ -121,20 +121,12 @@ function ThemedStory({
 }
 
 /**
- * Resolves the toolbar theme selection to concrete theme(s) and renders
- * the story in the appropriate wrapper(s).
+ * Hook that resolves the toolbar theme selection to concrete theme(s),
+ * emits theme mode to the channel, and tracks system theme.
  */
-function StoryWithTheme({
-  Story,
-  themeMode,
-}: {
-  Story: React.ComponentType;
-  themeMode: string;
-}) {
-  // Pass true to emit system theme changes to the manager
+function useResolvedThemes(themeMode: string) {
   const systemTheme = useSystemTheme(true);
 
-  // Emit theme mode to the channel so DocsContainer can pick it up
   useEffect(() => {
     try {
       previewAddons.getChannel().emit(THEME_MODE_CHANGE_EVENT, themeMode);
@@ -143,44 +135,9 @@ function StoryWithTheme({
     }
   }, [themeMode]);
 
-  let resolvedThemes: ProviderTheme[];
-  if (themeMode === "both") {
-    resolvedThemes = ["light", "dark"];
-  } else if (themeMode === "auto") {
-    resolvedThemes = [systemTheme];
-  } else {
-    resolvedThemes = [themeMode as ProviderTheme];
-  }
-
-  const isBoth = resolvedThemes.length > 1;
-  const padding = isBoth ? "var(--global-dimension-size-500)" : "0";
-
-  if (!isBoth) {
-    return (
-      <ThemedStory theme={resolvedThemes[0]} padding={padding}>
-        <Story />
-      </ThemedStory>
-    );
-  }
-
-  return (
-    <ul
-      style={{
-        display: "flex",
-        flexDirection: "row",
-        width: "100%",
-        height: "100%",
-      }}
-    >
-      {resolvedThemes.map((theme) => (
-        <li key={theme} style={{ flex: 1 }}>
-          <ThemedStory theme={theme} padding={padding}>
-            <Story />
-          </ThemedStory>
-        </li>
-      ))}
-    </ul>
-  );
+  if (themeMode === "both") return ["light", "dark"] as ProviderTheme[];
+  if (themeMode === "auto") return [systemTheme];
+  return [themeMode as ProviderTheme];
 }
 
 const preview: Preview = {
@@ -246,7 +203,36 @@ const preview: Preview = {
   decorators: [
     (Story, { globals }) => {
       const themeMode = globals.theme ?? "auto";
-      return <StoryWithTheme Story={Story} themeMode={themeMode} />;
+      const resolvedThemes = useResolvedThemes(themeMode);
+      const isBoth = resolvedThemes.length > 1;
+      const padding = isBoth ? "var(--global-dimension-size-500)" : "0";
+
+      if (!isBoth) {
+        return (
+          <ThemedStory theme={resolvedThemes[0]} padding={padding}>
+            <Story />
+          </ThemedStory>
+        );
+      }
+
+      return (
+        <ul
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          {resolvedThemes.map((theme) => (
+            <li key={theme} style={{ flex: 1 }}>
+              <ThemedStory theme={theme} padding={padding}>
+                <Story />
+              </ThemedStory>
+            </li>
+          ))}
+        </ul>
+      );
     },
   ],
 };

@@ -1,6 +1,6 @@
-import { addons } from "@storybook/manager-api";
-import { themes } from "@storybook/theming";
-import { create } from "@storybook/theming/create";
+import { addons } from "storybook/manager-api";
+import { themes } from "storybook/theming";
+import { create } from "storybook/theming/create";
 
 const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 

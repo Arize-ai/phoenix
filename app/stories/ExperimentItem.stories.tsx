@@ -287,101 +287,101 @@ const Template: Story = (args) => {
   );
 };
 
-/**
- * Successful experiment run with annotations and output
- */
-export const WithSuccessfulRun = Template.bind({});
-WithSuccessfulRun.args = {
-  experiment: mockExperiment,
-  experimentRepetition: mockExperimentRepetition,
-  experimentIndex: 0,
-};
+export const WithSuccessfulRun = {
+  render: Template,
 
-/**
- * Experiment with no run data - shows empty state
- */
-export const NoRun = Template.bind({});
-NoRun.args = {
-  experiment: mockExperiment,
-  experimentRepetition: {
-    experimentId: "exp-1",
-    repetitionNumber: 1,
+  args: {
+    experiment: mockExperiment,
+    experimentRepetition: mockExperimentRepetition,
+    experimentIndex: 0,
   },
-  experimentIndex: 0,
 };
 
-/**
- * Experiment run that resulted in an error
- */
-export const WithError = Template.bind({});
-WithError.args = {
-  experiment: mockExperiment,
-  experimentRepetition: mockErrorExperimentRepetition,
-  experimentIndex: 1,
+export const NoRun = {
+  render: Template,
+
+  args: {
+    experiment: mockExperiment,
+    experimentRepetition: {
+      experimentId: "exp-1",
+      repetitionNumber: 1,
+    },
+    experimentIndex: 0,
+  },
 };
 
-/**
- * Experiment run with repetition number displayed
- */
-export const WithRepetitions = Template.bind({});
-WithRepetitions.args = {
-  experiment: mockExperimentWithRepetitions,
-  experimentRepetition: mockRepetitionExperimentRepetition,
-  experimentIndex: 2,
+export const WithError = {
+  render: Template,
+
+  args: {
+    experiment: mockExperiment,
+    experimentRepetition: mockErrorExperimentRepetition,
+    experimentIndex: 1,
+  },
 };
 
-/**
- * Experiment with long name that gets truncated
- */
-export const LongName = Template.bind({});
-LongName.args = {
-  experiment: mockLongNameExperiment,
-  experimentRepetition: mockExperimentRepetition,
-  experimentIndex: 3,
+export const WithRepetitions = {
+  render: Template,
+
+  args: {
+    experiment: mockExperimentWithRepetitions,
+    experimentRepetition: mockRepetitionExperimentRepetition,
+    experimentIndex: 2,
+  },
 };
 
-/**
- * Experiment run with no annotations
- */
-export const NoAnnotations = Template.bind({});
-NoAnnotations.args = {
-  experiment: mockExperiment,
-  experimentRepetition: {
-    experimentId: "exp-1",
-    repetitionNumber: 1,
-    experimentRun: {
-      ...mockExperimentRepetition.experimentRun!,
-      annotations: {
-        edges: [],
+export const LongName = {
+  render: Template,
+
+  args: {
+    experiment: mockLongNameExperiment,
+    experimentRepetition: mockExperimentRepetition,
+    experimentIndex: 3,
+  },
+};
+
+export const NoAnnotations = {
+  render: Template,
+
+  args: {
+    experiment: mockExperiment,
+    experimentRepetition: {
+      experimentId: "exp-1",
+      repetitionNumber: 1,
+      experimentRun: {
+        ...mockExperimentRepetition.experimentRun!,
+        annotations: {
+          edges: [],
+        },
       },
     },
+    experimentIndex: 0,
   },
-  experimentIndex: 0,
 };
 
-/**
- * Experiment run with no trace data
- */
-export const NoTrace = Template.bind({});
-NoTrace.args = {
-  experiment: mockExperiment,
-  experimentRepetition: {
-    experimentId: "exp-1",
-    repetitionNumber: 1,
-    experimentRun: {
-      ...mockExperimentRepetition.experimentRun!,
-      trace: null,
-      annotations: {
-        edges: mockExperimentRepetition.experimentRun!.annotations.edges.map(
-          (edge) => ({
-            annotation: {
-              ...edge.annotation,
-              trace: null,
-            },
-          })
-        ),
+export const NoTrace = {
+  render: Template,
+
+  args: {
+    experiment: mockExperiment,
+    experimentRepetition: {
+      experimentId: "exp-1",
+      repetitionNumber: 1,
+      experimentRun: {
+        ...mockExperimentRepetition.experimentRun!,
+        trace: null,
+        annotations: {
+          edges: mockExperimentRepetition.experimentRun!.annotations.edges.map(
+            (edge) => ({
+              annotation: {
+                ...edge.annotation,
+                trace: null,
+              },
+            })
+          ),
+        },
       },
     },
+    experimentIndex: 0,
   },
-  experimentIndex: 0,
 };

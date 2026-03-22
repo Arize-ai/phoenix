@@ -23,11 +23,6 @@ const meta: Meta = {
 
 export default meta;
 
-/**
- * Demonstrates how timezone preferences affect time formatting across the application.
- * The ViewerPreferences component allows changing the display timezone, and the
- * TimeRangeSelector and time formatters respond to those changes.
- */
 export const TimezoneDemo: StoryFn = () => {
   const [timeRange, setTimeRange] = useState<OpenTimeRangeWithKey>({
     timeRangeKey: "7d",

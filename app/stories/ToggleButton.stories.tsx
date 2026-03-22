@@ -22,29 +22,41 @@ const Template: StoryFn<typeof ToggleButton> = (args) => {
   );
 };
 
-export const Basic = Template.bind({});
-Basic.args = {
-  children: "Click Me",
-  isSelected: false,
+export const Basic = {
+  render: Template,
+
+  args: {
+    children: "Click Me",
+    isSelected: false,
+  },
 };
 
-export const Selected = Template.bind({});
-Selected.args = {
-  children: "Selected Button",
-  isSelected: true,
+export const Selected = {
+  render: Template,
+
+  args: {
+    children: "Selected Button",
+    isSelected: true,
+  },
 };
 
-export const WithIcon = Template.bind({});
-WithIcon.args = {
-  children: "With Icon",
-  isSelected: false,
-  leadingVisual: <Icon svg={<Icons.PlusCircleOutline />} />,
+export const WithIcon = {
+  render: Template,
+
+  args: {
+    children: "With Icon",
+    isSelected: false,
+    leadingVisual: <Icon svg={<Icons.PlusCircleOutline />} />,
+  },
 };
 
-export const Disabled = Template.bind({});
-Disabled.args = {
-  children: "Disabled Button",
-  isSelected: false,
-  isDisabled: true,
-  onPress: () => {},
+export const Disabled = {
+  render: Template,
+
+  args: {
+    children: "Disabled Button",
+    isSelected: false,
+    isDisabled: true,
+    onPress: () => {},
+  },
 };

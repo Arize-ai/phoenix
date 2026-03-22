@@ -26,12 +26,10 @@ const Template: StoryFn<DateFieldProps<DateValue>> = (args) => (
   </DateField>
 );
 
-/**
- * DateFields are used to type in dates within the UI
- */
-export const Default = Template.bind({});
-
-Default.args = {};
+export const Default = {
+  render: Template,
+  args: {},
+};
 
 export const InternationalizedIndia = () => (
   <I18nProvider locale="hi-IN-u-ca-indian">

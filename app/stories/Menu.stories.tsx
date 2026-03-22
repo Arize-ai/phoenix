@@ -98,22 +98,24 @@ const NESTED_MENU_ITEMS = [
   },
 ];
 
-export const Template = () => {
-  return (
-    <MenuTrigger>
-      <Button>Open Menu</Button>
-      <Popover>
-        <Menu>
-          <MenuItem>Item 1</MenuItem>
-          <MenuItem>Item 2</MenuItem>
-          <MenuItem>Item 3</MenuItem>
-        </Menu>
-      </Popover>
-    </MenuTrigger>
-  );
-};
+export const Template = {
+  render: () => {
+    return (
+      <MenuTrigger>
+        <Button>Open Menu</Button>
+        <Popover>
+          <Menu>
+            <MenuItem>Item 1</MenuItem>
+            <MenuItem>Item 2</MenuItem>
+            <MenuItem>Item 3</MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+    );
+  },
 
-Template.args = {};
+  args: {},
+};
 
 export const DynamicSearchableMenu = () => {
   const { contains } = useFilter({ sensitivity: "base" });

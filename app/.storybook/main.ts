@@ -1,15 +1,14 @@
-import { resolve } from "path";
+import { resolve } from "node:path";
 import type { StorybookConfig } from "@storybook/react-vite";
 import { mergeConfig } from "vite";
 
 const config: StorybookConfig = {
-  stories: ["../stories/*.mdx", "../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  stories: ["../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
   addons: [
-    "@storybook/addon-essentials",
+    "@storybook/addon-docs",
     "@chromatic-com/storybook",
-    "@storybook/addon-interactions",
     "@storybook/addon-designs",
-    "react-docgen-typescript",
+    "@storybook/addon-vitest"
   ],
   framework: {
     name: "@storybook/react-vite",
@@ -23,11 +22,11 @@ const config: StorybookConfig = {
     return mergeConfig(config, {
       // customize the Vite config here
       optimizeDeps: {
-        include: ["@storybook/addon-interactions", "@emotion/react"],
+        include: ["@emotion/react"],
       },
       resolve: {
         alias: {
-          "@phoenix": resolve(__dirname, "../src"),
+          "@phoenix": resolve(import.meta.dirname, "../src"),
         },
       },
     });

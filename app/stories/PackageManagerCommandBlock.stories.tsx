@@ -21,7 +21,7 @@ type Story = StoryObj<typeof meta>;
 
 export const TypeScript: Story = {
   args: {
-    language: "TypeScript",
+    language: "Python",
     packages: ["@arizeai/phoenix-otel"],
   },
   render: (args) => {

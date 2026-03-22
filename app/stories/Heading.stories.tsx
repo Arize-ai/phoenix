@@ -13,9 +13,6 @@ const meta: Meta = {
 
 export default meta;
 
-/**
- * A gallery of all the variants
- */
 export const Gallery = () => {
   return (
     <Flex direction="row" gap="size-200">

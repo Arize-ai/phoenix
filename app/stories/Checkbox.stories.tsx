@@ -16,65 +16,45 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<typeof Checkbox> = (args) => <Checkbox {...args} />;
-
-/**
- * Basic checkbox with label
- */
-export const Default = Template.bind({});
-
-Default.args = {
-  children: "Checkbox label",
+export const Default = {
+  args: {
+    children: "Checkbox label",
+  },
 };
 
-/**
- * Pre-checked checkbox
- */
-export const Checked = Template.bind({});
-
-Checked.args = {
-  children: "Checked checkbox",
-  isSelected: true,
+export const Checked = {
+  args: {
+    children: "Checked checkbox",
+    isSelected: true,
+  },
 };
 
-/**
- * Disabled checkbox
- */
-export const Disabled = Template.bind({});
-
-Disabled.args = {
-  children: "Disabled checkbox",
-  isDisabled: true,
+export const Disabled = {
+  args: {
+    children: "Disabled checkbox",
+    isDisabled: true,
+  },
 };
 
-/**
- * Checkbox in indeterminate state
- */
-export const Indeterminate = Template.bind({});
-
-Indeterminate.args = {
-  children: "Indeterminate checkbox",
-  isIndeterminate: true,
+export const Indeterminate = {
+  args: {
+    children: "Indeterminate checkbox",
+    isIndeterminate: true,
+  },
 };
 
-/**
- * Checkbox with custom children content
- */
-export const WithChildren = Template.bind({});
-
-WithChildren.args = {
-  children: (
-    <>
-      <strong>Bold text</strong> and <em>italic text</em>
-    </>
-  ),
+export const WithChildren = {
+  args: {
+    children: (
+      <>
+        <strong>Bold text</strong> and <em>italic text</em>
+      </>
+    ),
+  },
 };
 
-/**
- * Checkbox with no label
- */
-export const NoLabel = Template.bind({});
-
-NoLabel.args = {
-  children: null,
+export const NoLabel = {
+  args: {
+    children: null,
+  },
 };

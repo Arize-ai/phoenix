@@ -63,11 +63,15 @@ const Template: StoryFn<CredentialFieldProps> = (args) => (
   </CredentialField>
 );
 
-export const Default = Template.bind({});
-Default.args = {};
+export const Default = {
+  render: Template,
+  args: {},
+};
 
-export const Empty = Template.bind({});
-Empty.args = {};
+export const Empty = {
+  render: Template,
+  args: {},
+};
 
 export const WithError: StoryFn = () => (
   <CredentialField isInvalid>

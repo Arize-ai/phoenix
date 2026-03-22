@@ -53,21 +53,13 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<IconButtonProps> = (args) => <IconButton {...args} />;
-
-/**
- * IconButtons are used to perform actions with just an icon
- */
-export const Default = Template.bind({});
-
-Default.args = {
-  children: <Icon svg={<SearchOutline />} />,
-  "aria-label": "Search",
+export const Default = {
+  args: {
+    children: <Icon svg={<SearchOutline />} />,
+    "aria-label": "Search",
+  },
 };
 
-/**
- * Different sizes available for IconButton
- */
 export const Sizes = () => (
   <div
     css={css`
@@ -85,9 +77,6 @@ export const Sizes = () => (
   </div>
 );
 
-/**
- * Various icons in IconButtons
- */
 export const DifferentIcons = () => (
   <div
     css={css`
@@ -121,37 +110,28 @@ export const DifferentIcons = () => (
   </div>
 );
 
-/**
- * IconButton in disabled state
- */
-export const Disabled = Template.bind({});
-
-Disabled.args = {
-  children: <Icon svg={<SettingsOutline />} />,
-  isDisabled: true,
-  "aria-label": "Settings (disabled)",
+export const Disabled = {
+  args: {
+    children: <Icon svg={<SettingsOutline />} />,
+    isDisabled: true,
+    "aria-label": "Settings (disabled)",
+  },
 };
 
-/**
- * IconButton with custom styling
- */
-export const CustomStyling = Template.bind({});
-
-CustomStyling.args = {
-  children: <Icon svg={<SearchOutline />} />,
-  "aria-label": "Custom search",
-  css: css`
-    --global-text-color-700: var(--global-color-blue-600);
-    &[data-hovered] {
-      background-color: var(--global-color-blue-100);
-      --global-text-color-900: var(--global-color-blue-800);
-    }
-  `,
+export const CustomStyling = {
+  args: {
+    children: <Icon svg={<SearchOutline />} />,
+    "aria-label": "Custom search",
+    css: css`
+      --global-text-color-700: var(--global-color-blue-600);
+      &[data-hovered] {
+        background-color: var(--global-color-blue-100);
+        --global-text-color-900: var(--global-color-blue-800);
+      }
+    `,
+  },
 };
 
-/**
- * Different sizes with different icons
- */
 export const SizeVariations = () => (
   <div
     css={css`
@@ -203,20 +183,14 @@ export const SizeVariations = () => (
   </div>
 );
 
-/**
- * IconButton with onPress handler
- */
-export const Interactive = Template.bind({});
-
-Interactive.args = {
-  children: <Icon svg={<SearchOutline />} />,
-  "aria-label": "Interactive search",
-  onPress: () => alert("IconButton pressed!"),
+export const Interactive = {
+  args: {
+    children: <Icon svg={<SearchOutline />} />,
+    "aria-label": "Interactive search",
+    onPress: () => alert("IconButton pressed!"),
+  },
 };
 
-/**
- * IconButtons with different colors using the color prop
- */
 export const ButtonColors = () => (
   <div
     css={css`
@@ -247,10 +221,6 @@ export const ButtonColors = () => (
   </div>
 );
 
-/**
- * Comparison of IconButtons with regular Buttons that have leadingVisual icons
- * to verify proper size alignment
- */
 export const SizeComparison = () => (
   <div
     css={css`

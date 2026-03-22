@@ -30,7 +30,9 @@ const Template: StoryFn<NumberFieldProps> = (args) => (
   </NumberField>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};
 
 export const Gallery = () => (
   <Flex direction="column" gap="size-50" width="600px">

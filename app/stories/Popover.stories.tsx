@@ -32,4 +32,6 @@ const Template: StoryFn<DialogTriggerProps> = (args) => (
   </DialogTrigger>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};

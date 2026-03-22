@@ -397,58 +397,58 @@ const Template: Story = (args) => {
   );
 };
 
-/**
- * Default comparison with multiple experiments including successful runs
- */
-export const Default = Template.bind({});
-Default.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-2", "exp-3"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-  referenceOutput: mockReferenceOutput,
-};
+export const Default = {
+  render: Template,
 
-/**
- * Comparison including an experiment with no runs
- */
-export const WithNoRunExperiment = Template.bind({});
-WithNoRunExperiment.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-2", "exp-3", "exp-4"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-  referenceOutput: mockReferenceOutput,
-};
-
-/**
- * Single experiment comparison (base only)
- */
-export const SingleExperiment = Template.bind({});
-SingleExperiment.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: [],
-  experimentsById: { "exp-1": mockExperiments["exp-1"] },
-  experimentRepetitionsByExperimentId: {
-    "exp-1": mockExperimentRepetitions["exp-1"],
+  args: {
+    baseExperimentId: "exp-1",
+    compareExperimentIds: ["exp-2", "exp-3"],
+    experimentsById: mockExperiments,
+    experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+    annotationSummaries: mockAnnotationSummaries,
+    referenceOutput: mockReferenceOutput,
   },
-  annotationSummaries: mockAnnotationSummaries,
-  referenceOutput: mockReferenceOutput,
 };
 
-/**
- * Comparison with experiments containing errors
- */
-export const WithErrors = Template.bind({});
-WithErrors.args = {
-  baseExperimentId: "exp-2",
-  compareExperimentIds: ["exp-3"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-  referenceOutput: mockReferenceOutput,
+export const WithNoRunExperiment = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "exp-1",
+    compareExperimentIds: ["exp-2", "exp-3", "exp-4"],
+    experimentsById: mockExperiments,
+    experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+    annotationSummaries: mockAnnotationSummaries,
+    referenceOutput: mockReferenceOutput,
+  },
+};
+
+export const SingleExperiment = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "exp-1",
+    compareExperimentIds: [],
+    experimentsById: { "exp-1": mockExperiments["exp-1"] },
+    experimentRepetitionsByExperimentId: {
+      "exp-1": mockExperimentRepetitions["exp-1"],
+    },
+    annotationSummaries: mockAnnotationSummaries,
+    referenceOutput: mockReferenceOutput,
+  },
+};
+
+export const WithErrors = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "exp-2",
+    compareExperimentIds: ["exp-3"],
+    experimentsById: mockExperiments,
+    experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+    annotationSummaries: mockAnnotationSummaries,
+    referenceOutput: mockReferenceOutput,
+  },
 };
 
 const mockEdgeCaseExperiments: Record<string, Experiment> = {
@@ -1021,41 +1021,42 @@ const mockEdgeCaseReferenceOutput: ReferenceOutput = {
     "Expected comprehensive analysis with detailed explanations, proper formatting, and relevant examples that demonstrate thorough understanding of the topic.",
 };
 
-/**
- * Annotation edge cases with multiple repetitions - demonstrates mixed score/label types and long labels
- */
-export const AnnotationEdgeCases = Template.bind({});
-AnnotationEdgeCases.args = {
-  baseExperimentId: "edge-exp-1",
-  compareExperimentIds: ["edge-exp-2", "edge-exp-3"],
-  experimentsById: mockEdgeCaseExperiments,
-  experimentRepetitionsByExperimentId: mockEdgeCaseRepetitions,
-  annotationSummaries: mockEdgeCaseAnnotationSummaries,
-  referenceOutput: mockEdgeCaseReferenceOutput,
+export const AnnotationEdgeCases = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "edge-exp-1",
+    compareExperimentIds: ["edge-exp-2", "edge-exp-3"],
+    experimentsById: mockEdgeCaseExperiments,
+    experimentRepetitionsByExperimentId: mockEdgeCaseRepetitions,
+    annotationSummaries: mockEdgeCaseAnnotationSummaries,
+    referenceOutput: mockEdgeCaseReferenceOutput,
+  },
 };
 
-/**
- * Annotation edge cases with single repetitions - same edge cases but each experiment has only one repetition
- */
-export const AnnotationEdgeCasesSingleRepetition = Template.bind({});
-AnnotationEdgeCasesSingleRepetition.args = {
-  baseExperimentId: "single-edge-exp-1",
-  compareExperimentIds: ["single-edge-exp-2", "single-edge-exp-3"],
-  experimentsById: mockSingleRepetitionEdgeCaseExperiments,
-  experimentRepetitionsByExperimentId: mockSingleRepetitionEdgeCaseRepetitions,
-  annotationSummaries: mockEdgeCaseAnnotationSummaries,
-  referenceOutput: mockEdgeCaseReferenceOutput,
+export const AnnotationEdgeCasesSingleRepetition = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "single-edge-exp-1",
+    compareExperimentIds: ["single-edge-exp-2", "single-edge-exp-3"],
+    experimentsById: mockSingleRepetitionEdgeCaseExperiments,
+    experimentRepetitionsByExperimentId:
+      mockSingleRepetitionEdgeCaseRepetitions,
+    annotationSummaries: mockEdgeCaseAnnotationSummaries,
+    referenceOutput: mockEdgeCaseReferenceOutput,
+  },
 };
 
-/**
- * Comparison without reference output - demonstrates the interface when no ground truth is available
- */
-export const WithoutReferenceOutput = Template.bind({});
-WithoutReferenceOutput.args = {
-  baseExperimentId: "exp-1",
-  compareExperimentIds: ["exp-2", "exp-3"],
-  experimentsById: mockExperiments,
-  experimentRepetitionsByExperimentId: mockExperimentRepetitions,
-  annotationSummaries: mockAnnotationSummaries,
-  referenceOutput: null,
+export const WithoutReferenceOutput = {
+  render: Template,
+
+  args: {
+    baseExperimentId: "exp-1",
+    compareExperimentIds: ["exp-2", "exp-3"],
+    experimentsById: mockExperiments,
+    experimentRepetitionsByExperimentId: mockExperimentRepetitions,
+    annotationSummaries: mockAnnotationSummaries,
+    referenceOutput: null,
+  },
 };

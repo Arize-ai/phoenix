@@ -12,33 +12,22 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<CounterProps> = (args) => <Counter {...args} />;
-
-/**
- * Counters are used to perform actions within the UI
- */
-export const Default = Template.bind({});
-
-Default.args = {
-  children: "9",
+export const Default = {
+  args: {
+    children: "9",
+  },
 };
 
-/**
- * Use the `variant` prop to change the appearance of the Counter
- */
-export const Danger = Template.bind({});
-
-Danger.args = {
-  children: "12,000",
-  variant: "danger",
+export const Danger = {
+  args: {
+    children: "12,000",
+    variant: "danger",
+  },
 };
 
-/**
- * The `quiet` variant removes the border and background
- */
-export const Quiet = Template.bind({});
-
-Quiet.args = {
-  children: "1.2k",
-  variant: "quiet",
+export const Quiet = {
+  args: {
+    children: "1.2k",
+    variant: "quiet",
+  },
 };

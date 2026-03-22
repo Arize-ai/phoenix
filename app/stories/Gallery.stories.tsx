@@ -291,4 +291,6 @@ const Template: StoryFn = () => {
   );
 };
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};

@@ -31,9 +31,6 @@ const colors: TextProps["color"][] = [
 
 const fontFamilies: TextProps["fontFamily"][] = ["default", "mono"];
 
-/**
- * A gallery of all the variants
- */
 export const Gallery = () => {
   return (
     <Flex direction="row" gap="size-200" alignItems="start" height="1000px">

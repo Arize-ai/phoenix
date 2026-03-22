@@ -1,5 +1,5 @@
-import type { Meta, StoryFn } from "@storybook/react";
-import { fn } from "@storybook/test";
+import type { StoryObj, Meta, StoryFn } from "@storybook/react";
+import { fn } from "storybook/test";
 
 import type { SearchFieldProps } from "@phoenix/components";
 import {
@@ -64,34 +64,31 @@ const Template: StoryFn<SearchFieldProps> = (args) => (
   </SearchField>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};
 
-/**
- * SearchField without the search icon
- */
-export const WithoutIcon: StoryFn<SearchFieldProps> = (args) => (
-  <SearchField {...args}>
-    <Label>Search without Icon</Label>
-    <Input placeholder="Search..." />
-  </SearchField>
-);
-
-/**
- * Quiet variant - no border, transparent background
- */
-export const Quiet: StoryFn<SearchFieldProps> = (args) => (
-  <div style={{ background: "var(--global-color-gray-200)", padding: 16 }}>
-    <SearchField {...args} variant="quiet">
-      <Label>Quiet Search</Label>
-      <SearchIcon />
+export const WithoutIcon: StoryObj<SearchFieldProps> = {
+  render: (args) => (
+    <SearchField {...args}>
+      <Label>Search without Icon</Label>
       <Input placeholder="Search..." />
     </SearchField>
-  </div>
-);
+  ),
+};
 
-/**
- * Gallery showcasing different states and configurations
- */
+export const Quiet: StoryObj<SearchFieldProps> = {
+  render: (args) => (
+    <div style={{ background: "var(--global-color-gray-200)", padding: 16 }}>
+      <SearchField {...args} variant="quiet">
+        <Label>Quiet Search</Label>
+        <SearchIcon />
+        <Input placeholder="Search..." />
+      </SearchField>
+    </div>
+  ),
+};
+
 export const Gallery = () => (
   <Flex direction="column" gap="size-200" width="400px">
     {/* Basic with icon */}

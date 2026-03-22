@@ -20,9 +20,7 @@ const Template: StoryFn<TimeFieldProps<TimeValue>> = (args) => (
   </TimeField>
 );
 
-/**
- * DateFields are used to type in dates within the UI
- */
-export const Default = Template.bind({});
-
-Default.args = {};
+export const Default = {
+  render: Template,
+  args: {},
+};

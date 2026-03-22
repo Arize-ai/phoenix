@@ -21,8 +21,10 @@ const Template: StoryFn<Omit<ListBoxProps<object>, "children">> = (props) => (
   </ListBox>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
 
-Default.args = {
-  selectionMode: "single",
+  args: {
+    selectionMode: "single",
+  },
 };

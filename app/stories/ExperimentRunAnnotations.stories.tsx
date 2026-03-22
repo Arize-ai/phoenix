@@ -205,337 +205,337 @@ const Template: Story = (args) => {
   );
 };
 
-/**
- * Default annotation stack with multiple annotations including scores and labels
- */
-export const Default = Template.bind({});
-Default.args = {
-  experimentRun: mockExperimentRunWithAnnotations,
+export const Default = {
+  render: Template,
+
+  args: {
+    experimentRun: mockExperimentRunWithAnnotations,
+  },
 };
 
-/**
- * Annotation stack with no annotations - shows empty state
- */
-export const NoAnnotations = Template.bind({});
-NoAnnotations.args = {
-  experimentRun: mockExperimentRunNoAnnotations,
+export const NoAnnotations = {
+  render: Template,
+
+  args: {
+    experimentRun: mockExperimentRunNoAnnotations,
+  },
 };
 
-/**
- * Annotation stack with only score-based annotations
- */
-export const ScoreOnly = Template.bind({});
-ScoreOnly.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness",
-            label: null,
-            score: 0.87,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-score-1",
-              projectId: "project-456",
+export const ScoreOnly = {
+  render: Template,
+
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness",
+              label: null,
+              score: 0.87,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-score-1",
+                projectId: "project-456",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-2",
-            name: "has_results",
-            label: null,
-            score: 0.92,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-score-2",
-              projectId: "project-456",
+          {
+            annotation: {
+              id: "ann-2",
+              name: "has_results",
+              label: null,
+              score: 0.92,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-score-2",
+                projectId: "project-456",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: null,
-            score: 1.0,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-score-3",
-              projectId: "project-456",
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: null,
+              score: 1.0,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-score-3",
+                projectId: "project-456",
+              },
             },
           },
-        },
-      ],
+        ],
+      },
     },
   },
 };
 
-/**
- * Annotation stack with only label-based annotations
- */
-export const LabelsOnly = Template.bind({});
-LabelsOnly.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness",
-            label: "correct",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-label-1",
-              projectId: "project-789",
+export const LabelsOnly = {
+  render: Template,
+
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness",
+              label: "correct",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-label-1",
+                projectId: "project-789",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-2",
-            name: "has_results",
-            label: "yes",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-label-2",
-              projectId: "project-789",
+          {
+            annotation: {
+              id: "ann-2",
+              name: "has_results",
+              label: "yes",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-label-2",
+                projectId: "project-789",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: "valid",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-label-3",
-              projectId: "project-789",
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: "valid",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-label-3",
+                projectId: "project-789",
+              },
             },
           },
-        },
-      ],
+        ],
+      },
     },
   },
 };
 
-/**
- * Annotation stack with mixed annotation types and missing annotations
- */
-export const MixedWithMissing = Template.bind({});
-MixedWithMissing.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness",
-            label: null,
-            score: 0.75,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-mixed-1",
-              projectId: "project-456",
+export const MixedWithMissing = {
+  render: Template,
+
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness",
+              label: null,
+              score: 0.75,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-mixed-1",
+                projectId: "project-456",
+              },
             },
           },
-        },
-        // Missing "has_results" annotation
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: "good",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-mixed-2",
-              projectId: "project-456",
+          // Missing "has_results" annotation
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: "good",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-mixed-2",
+                projectId: "project-456",
+              },
             },
           },
-        },
-      ],
+        ],
+      },
     },
   },
 };
 
-/**
- * Annotation stack with very long annotation names that need truncation
- */
-export const LongAnnotationNames = Template.bind({});
-LongAnnotationNames.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
-            label: "correct",
-            score: 0.85,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-long-1",
-              projectId: "project-456",
-            },
-          },
-        },
-        {
-          annotation: {
-            id: "ann-2",
-            name: "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
-            label: null,
-            score: 0.92,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-long-2",
-              projectId: "project-456",
-            },
-          },
-        },
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: "good",
-            score: 0.78,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-long-3",
-              projectId: "project-456",
-            },
-          },
-        },
-      ],
-    },
-  },
-  annotationSummaries: [
-    {
-      annotationName:
-        "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName:
-        "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-    {
-      annotationName: "sql_syntax_valid",
-      minScore: 0.0,
-      maxScore: 1.0,
-    },
-  ],
-};
+export const LongAnnotationNames = {
+  render: Template,
 
-/**
- * Annotation stack with very long annotation values that need truncation
- */
-export const LongAnnotationValues = Template.bind({});
-LongAnnotationValues.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness",
-            label:
-              "This is an extremely long annotation value that contains detailed feedback about the quality of the generated response and should be truncated properly in the UI to maintain good layout and readability",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-value-1",
-              projectId: "project-456",
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
+              label: "correct",
+              score: 0.85,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-long-1",
+                projectId: "project-456",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-2",
-            name: "has_results",
-            label:
-              "A very long error message that describes exactly what went wrong during the execution of this particular experiment run including stack traces and detailed debugging information",
-            score: null,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-value-2",
-              projectId: "project-456",
+          {
+            annotation: {
+              id: "ann-2",
+              name: "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
+              label: null,
+              score: 0.92,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-long-2",
+                projectId: "project-456",
+              },
             },
           },
-        },
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: null,
-            score: 0.95,
-            metadata: null,
-            trace: {
-              traceId: "eval-trace-value-3",
-              projectId: "project-456",
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: "good",
+              score: 0.78,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-long-3",
+                projectId: "project-456",
+              },
             },
           },
-        },
-      ],
+        ],
+      },
     },
+    annotationSummaries: [
+      {
+        annotationName:
+          "qa_correctness_with_very_long_name_that_should_be_truncated_in_the_ui_to_prevent_layout_issues",
+        minScore: 0.0,
+        maxScore: 1.0,
+      },
+      {
+        annotationName:
+          "has_results_with_another_extremely_long_annotation_name_for_testing_truncation_behavior",
+        minScore: 0.0,
+        maxScore: 1.0,
+      },
+      {
+        annotationName: "sql_syntax_valid",
+        minScore: 0.0,
+        maxScore: 1.0,
+      },
+    ],
   },
 };
 
-/**
- * Annotation stack with no trace links - shows annotations without trace buttons
- */
-export const NoTraces = Template.bind({});
-NoTraces.args = {
-  experimentRun: {
-    ...mockExperimentRunWithAnnotations,
-    trace: null,
-    annotations: {
-      edges: [
-        {
-          annotation: {
-            id: "ann-1",
-            name: "qa_correctness",
-            label: "correct",
-            score: 0.95,
-            metadata: null,
-            trace: null,
+export const LongAnnotationValues = {
+  render: Template,
+
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness",
+              label:
+                "This is an extremely long annotation value that contains detailed feedback about the quality of the generated response and should be truncated properly in the UI to maintain good layout and readability",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-value-1",
+                projectId: "project-456",
+              },
+            },
           },
-        },
-        {
-          annotation: {
-            id: "ann-2",
-            name: "has_results",
-            label: null,
-            score: 1.0,
-            metadata: null,
-            trace: null,
+          {
+            annotation: {
+              id: "ann-2",
+              name: "has_results",
+              label:
+                "A very long error message that describes exactly what went wrong during the execution of this particular experiment run including stack traces and detailed debugging information",
+              score: null,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-value-2",
+                projectId: "project-456",
+              },
+            },
           },
-        },
-        {
-          annotation: {
-            id: "ann-3",
-            name: "sql_syntax_valid",
-            label: "valid",
-            score: 1.0,
-            metadata: null,
-            trace: null,
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: null,
+              score: 0.95,
+              metadata: null,
+              trace: {
+                traceId: "eval-trace-value-3",
+                projectId: "project-456",
+              },
+            },
           },
-        },
-      ],
+        ],
+      },
+    },
+  },
+};
+
+export const NoTraces = {
+  render: Template,
+
+  args: {
+    experimentRun: {
+      ...mockExperimentRunWithAnnotations,
+      trace: null,
+      annotations: {
+        edges: [
+          {
+            annotation: {
+              id: "ann-1",
+              name: "qa_correctness",
+              label: "correct",
+              score: 0.95,
+              metadata: null,
+              trace: null,
+            },
+          },
+          {
+            annotation: {
+              id: "ann-2",
+              name: "has_results",
+              label: null,
+              score: 1.0,
+              metadata: null,
+              trace: null,
+            },
+          },
+          {
+            annotation: {
+              id: "ann-3",
+              name: "sql_syntax_valid",
+              label: "valid",
+              score: 1.0,
+              metadata: null,
+              trace: null,
+            },
+          },
+        ],
+      },
     },
   },
 };

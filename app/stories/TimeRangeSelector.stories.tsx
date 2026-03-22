@@ -41,9 +41,7 @@ const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
   );
 };
 
-/**
- * Used to specify a time range in a pop up or modal
- */
-export const Default = Template.bind({});
-
-Default.args = {};
+export const Default = {
+  render: Template,
+  args: {},
+};

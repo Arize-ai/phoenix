@@ -75,10 +75,12 @@ const Template: StoryFn<ComboBoxProps<object>> = (args) => (
   </View>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
 
-Default.args = {
-  label: "Ice cream flavor",
+  args: {
+    label: "Ice cream flavor",
+  },
 };
 
 export function Gallery() {

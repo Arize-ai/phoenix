@@ -44,87 +44,80 @@ const Template: StoryFn = (args) => (
   </Card>
 );
 
-/**
- * Basic card with default styling and simple content
- */
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
 
-Default.args = {
-  title: "Card Title",
-  width: "400px",
+  args: {
+    title: "Card Title",
+    width: "400px",
+  },
 };
 
-/**
- * Card with subtitle
- */
-export const WithSubtitle = Template.bind({});
+export const WithSubtitle = {
+  render: Template,
 
-WithSubtitle.args = {
-  title: "Card Title",
-  subTitle: "This is a subtitle that provides additional context",
-  width: "400px",
+  args: {
+    title: "Card Title",
+    subTitle: "This is a subtitle that provides additional context",
+    width: "400px",
+  },
 };
 
-/**
- * Collapsible card
- */
-export const Collapsible = Template.bind({});
+export const Collapsible = {
+  render: Template,
 
-Collapsible.args = {
-  title: "Collapsible Card",
-  subTitle: "Click the header to expand/collapse",
-  collapsible: true,
-  width: "400px",
+  args: {
+    title: "Collapsible Card",
+    subTitle: "Click the header to expand/collapse",
+    collapsible: true,
+    width: "400px",
+  },
 };
 
-/**
- * Card with extra content in header
- */
-export const WithExtra = Template.bind({});
+export const WithExtra = {
+  render: Template,
 
-WithExtra.args = {
-  title: "Card with Extra Content",
-  subTitle: "Header contains additional elements",
-  extra: <Button size="S">Action</Button>,
-  width: "400px",
+  args: {
+    title: "Card with Extra Content",
+    subTitle: "Header contains additional elements",
+    extra: <Button size="S">Action</Button>,
+    width: "400px",
+  },
 };
 
-/**
- * Card with titleExtra prop
- */
-export const WithTitleExtra = Template.bind({});
+export const WithTitleExtra = {
+  render: Template,
 
-WithTitleExtra.args = {
-  title: "Experiment Results",
-  titleExtra: (
-    <Token color="var(--global-color-yellow-500)" size="S">
-      #42
-    </Token>
-  ),
-  width: "400px",
+  args: {
+    title: "Experiment Results",
+    titleExtra: (
+      <Token color="var(--global-color-yellow-500)" size="S">
+        #42
+      </Token>
+    ),
+    width: "400px",
+  },
 };
 
-/**
- * Card without title separator
- */
-export const WithoutTitleSeparator = Template.bind({});
+export const WithoutTitleSeparator = {
+  render: Template,
 
-WithoutTitleSeparator.args = {
-  title: "Card Without Separator",
-  subTitle: "This card has no separator between title and content",
-  titleSeparator: false,
-  width: "400px",
+  args: {
+    title: "Card Without Separator",
+    subTitle: "This card has no separator between title and content",
+    titleSeparator: false,
+    width: "400px",
+  },
 };
 
-/**
- * Collapsible card that starts closed
- */
-export const DefaultClosed = Template.bind({});
+export const DefaultClosed = {
+  render: Template,
 
-DefaultClosed.args = {
-  title: "Default Closed Card",
-  subTitle: "This card starts in a collapsed state",
-  collapsible: true,
-  defaultOpen: false,
-  width: "400px",
+  args: {
+    title: "Default Closed Card",
+    subTitle: "This card starts in a collapsed state",
+    collapsible: true,
+    defaultOpen: false,
+    width: "400px",
+  },
 };

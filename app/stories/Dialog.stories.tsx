@@ -79,7 +79,9 @@ const Template: StoryFn<StoryArgs> = ({ placement = "bottom", ...args }) => (
   </DialogTrigger>
 );
 
-export const Default = Template.bind({});
+export const Default = {
+  render: Template,
+};
 
 const ControlledTemplate: StoryFn<StoryArgs> = ({
   placement = "bottom",
@@ -155,4 +157,6 @@ const ControlledTemplate: StoryFn<StoryArgs> = ({
   );
 };
 
-export const ControlledNestedDialogs = ControlledTemplate.bind({});
+export const ControlledNestedDialogs = {
+  render: ControlledTemplate,
+};

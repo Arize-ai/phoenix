@@ -37,27 +37,15 @@ const latencyThresholds: LatencyThresholds = {
 
 export default meta;
 
-const Template: StoryFn<{
-  latencyMs: number;
-  size?: "S" | "M" | "L" | "XL";
-  showIcon?: boolean;
-  latencyThresholds?: LatencyThresholds;
-}> = (args) => <LatencyText {...args} />;
-
-/**
- * Default LatencyText component showing moderate latency
- */
-export const Default = Template.bind({});
-Default.args = {
-  latencyMs: 1500,
-  size: "M",
-  showIcon: true,
-  latencyThresholds,
+export const Default = {
+  args: {
+    latencyMs: 1500,
+    size: "M",
+    showIcon: true,
+    latencyThresholds,
+  },
 };
 
-/**
- * All color ranges displayed together: green (fast), yellow (moderate), red (slow)
- */
 export const ColorRanges: StoryFn = () => (
   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
     <LatencyText

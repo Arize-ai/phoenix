@@ -15,16 +15,16 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<RecordIconProps> = (args) => <RecordIcon {...args} />;
-
-export const Default = Template.bind({});
-Default.args = {
-  isActive: false,
+export const Default = {
+  args: {
+    isActive: false,
+  },
 };
 
-export const Active = Template.bind({});
-Active.args = {
-  isActive: true,
+export const Active = {
+  args: {
+    isActive: true,
+  },
 };
 
 export const InButton: StoryFn = () => {

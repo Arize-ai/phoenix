@@ -45,21 +45,12 @@ const meta: Meta<SwitchProps> = {
 
 export default meta;
 
-/**
- * Basic switch component with customizable label
- */
-const Template: StoryFn<SwitchProps> = (args: SwitchProps) => (
-  <Switch {...args} />
-);
-
-export const Default = Template.bind({});
-Default.args = {
-  children: "Enable notifications",
+export const Default = {
+  args: {
+    children: "Enable notifications",
+  },
 };
 
-/**
- * Controlled switch with state management
- */
 export const Controlled = () => {
   const [isSelected, setIsSelected] = useState(false);
 
@@ -70,9 +61,6 @@ export const Controlled = () => {
   );
 };
 
-/**
- * Gallery showing essential switch variants
- */
 export const Gallery = () => (
   <Flex direction="column" gap="size-100" width="300px">
     <Switch>Default switch</Switch>
