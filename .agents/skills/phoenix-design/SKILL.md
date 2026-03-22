@@ -20,6 +20,12 @@ See [rules/bem.md](rules/bem.md) for the full naming guide, including:
 - Separator conventions (`__` for elements, `--` for modifiers)
 - Compound naming rules and examples
 
+## Error Display
+
+Never use toasts for errors — they are ephemeral and inaccessible. Use inline `<Alert variant="danger">` banners instead, with error state local to the component that owns the mutation.
+
+See [rules/error-display.md](rules/error-display.md) for the full pattern, including dialog placement, state lifecycle, and when toasts ARE appropriate (success only).
+
 ## CSS Design Tokens
 
 Design tokens are CSS custom properties that encode design decisions. They are the source of truth for colors, sizing, typography, borders, and spacing across the Phoenix UI.

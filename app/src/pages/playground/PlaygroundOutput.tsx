@@ -363,7 +363,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return;
     }
-    if (apiError !== null) setApiError(null);
+    setApiError(null);
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
@@ -432,7 +432,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     return disposable.dispose;
   }, [
     credentials,
-    apiError,
     environment,
     generateChatCompletion,
     instanceId,
