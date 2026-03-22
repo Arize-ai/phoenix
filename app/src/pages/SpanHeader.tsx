@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Text } from "@phoenix/components";
+import { Flex, IDBadge, Text } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -11,6 +11,7 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
+import { CopySpanIDButton } from "./trace/CopySpanIDButton";
 
 type SpanHeaderProps = {
   span: SpanHeader_span$key;
@@ -23,6 +24,7 @@ export function SpanHeader(props: SpanHeaderProps) {
         id
         name
         spanKind
+        spanId
         code: statusCode
         latencyMs
         startTime
@@ -59,6 +61,8 @@ export function SpanHeader(props: SpanHeaderProps) {
               font-size: var(--global-font-size-m);
             `}
           />
+          <IDBadge id={span.spanId} />
+          <CopySpanIDButton spanId={span.spanId} />
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           {typeof span.latencyMs === "number" ? (

@@ -23,6 +23,11 @@ export type CopyToClipboardButtonProps = Omit<
    * The text to copy to the clipboard
    */
   text: string | RefObject<string | null>;
+  /**
+   * The text to display in the tooltip
+   * @default "Copy"
+   */
+  tooltipText?: string;
 };
 
 const copyToClipboardButtonCSS = css`
@@ -34,7 +39,7 @@ const copyToClipboardButtonCSS = css`
  * An Icon button that copies the given text to the clipboard when clicked.
  */
 export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
-  const { text, size = "S", ...otherProps } = props;
+  const { text, size = "S", tooltipText = "Copy", ...otherProps } = props;
   const [isCopied, setIsCopied] = useState(false);
 
   const onPress = useCallback(() => {
@@ -60,7 +65,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
           {...otherProps}
           className="copy-button"
         />
-        <Tooltip offset={1}>Copy</Tooltip>
+        <Tooltip offset={1}>{tooltipText}</Tooltip>
       </TooltipTrigger>
     </div>
   );

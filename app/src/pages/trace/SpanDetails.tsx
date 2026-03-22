@@ -94,7 +94,6 @@ import type {
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { DocumentItem } from "./DocumentItem";
 import { PreBlock, ReadonlyJSONBlock } from "./ReadonlyJSONBlock";
-import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
 import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
@@ -323,10 +322,6 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
-                <SpanActionMenu
-                  traceId={span.trace.traceId}
-                  spanId={span.spanId}
-                />
               </Flex>
             </Flex>
           </View>
