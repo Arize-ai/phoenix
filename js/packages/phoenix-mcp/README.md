@@ -128,7 +128,7 @@ The MCP server covers the main operational Phoenix workflows:
 
 **Datasets** — `list-datasets`, `get-dataset`, `get-dataset-examples`, `get-dataset-experiments`, `add-dataset-examples`
 
-**Experiments** — `list-experiments-for-dataset`, `get-experiment`
+**Experiments** — `list-experiments-for-dataset`, `get-experiment-by-id`
 
 For Phoenix documentation search, use the separate Phoenix Docs MCP server instead of this package.
 
