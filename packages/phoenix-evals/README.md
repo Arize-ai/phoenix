@@ -58,11 +58,74 @@ scores = evaluator.evaluate(
 scores[0].pretty_print()
 ```
 
+## Pre-Built Evaluators
+
+The `phoenix.evals.metrics` module provides ready-to-use evaluators for common tasks:
+
+| Evaluator | Class | Description |
+| --------- | ----- | ----------- |
+| Faithfulness | `FaithfulnessEvaluator` | Detects hallucinations — checks if output is grounded in context |
+| Conciseness | `ConcisenessEvaluator` | Evaluates whether the response is appropriately concise |
+| Correctness | `CorrectnessEvaluator` | Checks if the output is factually correct |
+| Document Relevance | `DocumentRelevanceEvaluator` | Measures how relevant a retrieved document is to a query |
+| Refusal | `RefusalEvaluator` | Detects whether the model refused to answer |
+| Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
+| Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
+| Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+| Exact Match | `exact_match` | Checks for exact string equality between output and expected |
+| Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
+| Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |
+
+```python
+from phoenix.evals.llm import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator, exact_match, MatchesRegex
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+# LLM-powered faithfulness evaluator
+faithfulness = FaithfulnessEvaluator(llm=llm)
+scores = faithfulness.evaluate({
+    "input": "What is the capital of France?",
+    "context": "Paris is the capital of France.",
+    "output": "The capital of France is Berlin.",
+})
+scores[0].pretty_print()
+# Score(name='faithfulness', score=0.0, label='unfaithful', explanation='...')
+
+# Code-based exact match
+match_result = exact_match({"output": "Paris", "expected": "Paris"})
+
+# Regex match
+regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({
+    "output": "2024-03-15"
+})
+```
+
+## LLM Providers
+
+The `LLM` class supports multiple AI providers:
+
+```python
+from phoenix.evals.llm import LLM
+
+# OpenAI
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Anthropic
+llm = LLM(provider="anthropic", model="claude-3-5-sonnet-20241022")
+
+# Google Gemini
+llm = LLM(provider="google", model="gemini-1.5-pro")
+
+# LiteLLM (unified interface for 100+ providers)
+llm = LLM(provider="litellm", model="gpt-4o")
+```
+
 ## Evaluating Dataframes
 
 ```python
 import pandas as pd
-from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier, evaluate_dataframe, async_evaluate_dataframe
 from phoenix.evals.llm import LLM
 
 # Create an LLM instance
@@ -89,13 +152,19 @@ df = pd.DataFrame([
     {"input": "What's the weather like?", "output": "I can help you with password resets."},
 ])
 
-# Evaluate the dataframe
+# Synchronous evaluation
 results_df = evaluate_dataframe(
     dataframe=df,
     evaluators=[relevance_evaluator, helpfulness_evaluator],
 )
-
 print(results_df.head())
+
+# Async evaluation (up to 20x faster with large dataframes)
+import asyncio
+results_df = asyncio.run(async_evaluate_dataframe(
+    dataframe=df,
+    evaluators=[relevance_evaluator, helpfulness_evaluator],
+))
 ```
 
 ## Documentation

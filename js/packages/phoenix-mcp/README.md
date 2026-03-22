@@ -112,16 +112,23 @@ Make sure to set these in a `.env` file. See `.env.example`.
 
 ## Tool Coverage
 
-The MCP server now covers the main operational Phoenix workflows:
+The MCP server covers the main operational Phoenix workflows:
 
-- `list-projects`, `get-project`
-- `list-traces`, `get-trace`
-- `get-spans`, `get-span-annotations`
-- `list-sessions`, `get-session`
-- `list-annotation-configs`
-- `list-datasets`, `get-dataset`, `get-dataset-examples`, `get-dataset-experiments`, `add-dataset-examples`
-- `list-experiments-for-dataset`, `get-experiment-by-id`
-- `list-prompts`, `get-prompt`, legacy prompt getter aliases, prompt version/tag tools, `upsert-prompt`
+**Prompts** — `list-prompts`, `get-prompt`, `get-latest-prompt`, `get-prompt-by-identifier`, `get-prompt-version`, `list-prompt-versions`, `get-prompt-version-by-tag`, `list-prompt-version-tags`, `add-prompt-version-tag`, `upsert-prompt`
+
+**Projects** — `list-projects`, `get-project`
+
+**Traces** — `list-traces`, `get-trace`
+
+**Spans** — `get-spans`, `get-span-annotations`
+
+**Sessions** — `list-sessions`, `get-session`
+
+**Annotation Configs** — `list-annotation-configs`
+
+**Datasets** — `list-datasets`, `get-dataset`, `get-dataset-examples`, `get-dataset-experiments`, `add-dataset-examples`
+
+**Experiments** — `list-experiments-for-dataset`, `get-experiment`
 
 For Phoenix documentation search, use the separate Phoenix Docs MCP server instead of this package.
 

@@ -291,6 +291,21 @@ px session my-session-id --include-annotations --format raw | jq '.traces'
 
 ---
 
+### `px annotation-config`
+
+List annotation configurations defined in your Phoenix instance.
+
+```bash
+px annotation-config --format raw --no-progress | jq '.[].name'
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress`     | Suppress progress output   | —        |
+
+---
+
 ### `px auth status`
 
 Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.

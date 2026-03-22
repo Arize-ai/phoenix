@@ -334,6 +334,67 @@ annotations = [
 client.spans.log_span_annotations(span_annotations=annotations)
 ```
 
+### Sessions
+
+Retrieve and annotate conversation sessions:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# List sessions for a project
+sessions = client.sessions.list(project_name="my-llm-app")
+for session in sessions:
+    print(f"Session: {session['session_id']}")
+
+# Get conversation turns for a session
+turns = client.sessions.get_session_turns(session_id="my-session-id")
+for turn in turns:
+    print(f"Input: {turn.get('input', {}).get('value')}")
+    print(f"Output: {turn.get('output', {}).get('value')}")
+
+# Add a session-level annotation
+client.sessions.add_session_annotation(
+    session_id="my-session-id",
+    annotation_name="user-satisfaction",
+    label="satisfied",
+    score=0.9,
+    annotator_kind="HUMAN",
+)
+```
+
+### Experiments
+
+Run tasks across datasets and evaluate their outputs:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Get an existing dataset to run the experiment on
+dataset = client.datasets.get_dataset(dataset="my-dataset")
+
+# Define a task function
+def my_task(example):
+    # Your LLM call or business logic here
+    return f"Result for: {example['input']['question']}"
+
+# Run an experiment
+experiment = client.experiments.run_experiment(
+    dataset=dataset,
+    task=my_task,
+    experiment_name="my-experiment",
+)
+print(f"Experiment URL: {experiment.url}")
+
+# Retrieve an existing experiment
+ran_experiment = client.experiments.get_experiment(experiment_id="my-experiment-id")
+for run in ran_experiment.runs:
+    print(f"Output: {run.output}, Error: {run.error}")
+```
+
 ### Projects
 
 Manage Phoenix projects that organize your AI application data:

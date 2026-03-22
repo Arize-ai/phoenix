@@ -91,25 +91,58 @@ See the complete example in [`examples/classifier_example.ts`](examples/classifi
 
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
 
+All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` module:
+
+| Evaluator | Function | Description |
+| --------- | -------- | ----------- |
+| Faithfulness | `createFaithfulnessEvaluator` | Detects hallucinations — checks if the output is grounded in the provided context |
+| Conciseness | `createConcisenessEvaluator` | Evaluates whether the response is appropriately concise |
+| Correctness | `createCorrectnessEvaluator` | Checks if the output is factually correct given the input |
+| Document Relevance | `createDocumentRelevanceEvaluator` | Measures how relevant a retrieved document is to the query |
+| Refusal | `createRefusalEvaluator` | Detects whether the model refused to answer |
+| Tool Invocation | `createToolInvocationEvaluator` | Evaluates whether the correct tool was invoked with the right arguments |
+| Tool Selection | `createToolSelectionEvaluator` | Checks whether the right tool was selected for the task |
+| Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+
 ```typescript
-import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
+import {
+  createFaithfulnessEvaluator,
+  createConcisenessEvaluator,
+  createCorrectnessEvaluator,
+  createDocumentRelevanceEvaluator,
+  createRefusalEvaluator,
+} from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
+
 const model = openai("gpt-4o-mini");
 
-// Faithfulness Detection
-const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model,
-});
-
-// Use the evaluators
-const result = await faithfulnessEvaluator({
+// Faithfulness: checks if the output is grounded in the context
+const faithfulnessEvaluator = createFaithfulnessEvaluator({ model });
+const faithfulnessResult = await faithfulnessEvaluator({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
 });
-
-console.log(result);
+console.log(faithfulnessResult);
 // Output: { label: "unfaithful", score: 0, explanation: "..." }
+
+// Correctness: checks if the output is factually correct
+const correctnessEvaluator = createCorrectnessEvaluator({ model });
+const correctnessResult = await correctnessEvaluator({
+  input: "What is the capital of France?",
+  output: "Paris is the capital of France.",
+});
+console.log(correctnessResult);
+// Output: { label: "correct", score: 1, explanation: "..." }
+
+// Document Relevance: checks if a retrieved document is relevant to the query
+const relevanceEvaluator = createDocumentRelevanceEvaluator({ model });
+const relevanceResult = await relevanceEvaluator({
+  input: "What is the capital of France?",
+  documentText: "Paris is the capital of France and a major European city.",
+});
+console.log(relevanceResult);
+// Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 
 ### Data Mapping
@@ -117,10 +150,8 @@ console.log(result);
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:
 
 ```typescript
-import {
-  bindEvaluator,
-  createFaithfulnessEvaluator,
-} from "@arizeai/phoenix-evals";
+import { bindEvaluator } from "@arizeai/phoenix-evals";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
 
 const model = openai("gpt-4o-mini");

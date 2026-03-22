@@ -492,6 +492,48 @@ console.log(result.data); // array of span annotation objects
 | `cursor`                 | `string \| null`    | Pagination cursor                                |
 | `limit`                  | `number`            | Maximum annotations to return                    |
 
+## Sessions
+
+The `@arizeai/phoenix-client` package provides a `sessions` export for managing conversation sessions and their annotations.
+
+### Fetching Sessions
+
+Use `listSessions` to list all sessions for a project, or `getSession` to retrieve a single session by ID.
+
+```ts
+import {
+  listSessions,
+  getSession,
+  addSessionAnnotation,
+} from "@arizeai/phoenix-client/sessions";
+
+// List all sessions for a project
+const sessions = await listSessions({
+  project: { projectName: "my-project" },
+});
+for (const session of sessions) {
+  console.log(`Session: ${session.sessionId}, Traces: ${session.traces.length}`);
+}
+
+// Get a single session by its ID
+const session = await getSession({ sessionId: "my-session-id" });
+console.log(session.traces); // array of trace summaries in the session
+```
+
+### Adding Session Annotations
+
+```ts
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: "my-session-id",
+    name: "user-satisfaction",
+    label: "satisfied",
+    score: 0.9,
+    annotatorKind: "HUMAN",
+  },
+});
+```
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:
