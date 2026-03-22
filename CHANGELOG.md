@@ -1,5 +1,56 @@
 # Changelog
 
+## [13.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.15.0...arize-phoenix-v13.16.0) (2026-03-22)
+
+
+### Features
+
+* Add backend skill ([#12117](https://github.com/Arize-ai/phoenix/issues/12117)) ([cc8de3b](https://github.com/Arize-ai/phoenix/commit/cc8de3b9d23a2579f50f9c76e20efeb7adf432c7))
+* add configurable package manager preference per language ([#12140](https://github.com/Arize-ai/phoenix/issues/12140)) ([bf35656](https://github.com/Arize-ai/phoenix/commit/bf35656c7b548c058467e6bef2f486ea1c83dfcf))
+* add copy name/ID action menu to nav breadcrumbs ([#12150](https://github.com/Arize-ai/phoenix/issues/12150)) ([bc3ae84](https://github.com/Arize-ai/phoenix/commit/bc3ae84da81bd8e15cebea8f39efed4bf3b24d6b))
+* add copy-to-clipboard to session, span, and trace ID cells ([#12237](https://github.com/Arize-ai/phoenix/issues/12237)) ([ad32209](https://github.com/Arize-ai/phoenix/commit/ad32209169efd150f2a14aa65295b779bf6bb6b6))
+* add expectedRunCount experiment field and experiments table fraction ([#12277](https://github.com/Arize-ai/phoenix/issues/12277)) ([d1367fb](https://github.com/Arize-ai/phoenix/commit/d1367fb435b2bb4abff30c797aa1a8198fc1bea2))
+* add GET /v1/user endpoint and phoenix-rest-api skill ([#12274](https://github.com/Arize-ai/phoenix/issues/12274)) ([b5188ea](https://github.com/Arize-ai/phoenix/commit/b5188ea92eeb76ed0155e999b8fa0fc00519f32c))
+* add integration snippets to tracing onboarding page ([#12109](https://github.com/Arize-ai/phoenix/issues/12109)) ([af36e2c](https://github.com/Arize-ai/phoenix/commit/af36e2cdd0d923cd39a27249173d2055fe21cc89))
+* Add spans command to Phoenix CLI for fetching and filtering spans ([#12241](https://github.com/Arize-ai/phoenix/issues/12241)) ([65e52c2](https://github.com/Arize-ai/phoenix/commit/65e52c2ea1da7f92685414ec45b2a842e1234ac8))
+* Add trace-level and annotation APIs to evals skill ([#12304](https://github.com/Arize-ai/phoenix/issues/12304)) ([120b2a8](https://github.com/Arize-ai/phoenix/commit/120b2a89590fcf73245cb975410bb1227aef4ead))
+* Add TypeScript onboarding snippets for LangChain, OpenAI, Anthropic, and Mastra ([#12186](https://github.com/Arize-ai/phoenix/issues/12186)) ([6d4e8d7](https://github.com/Arize-ai/phoenix/commit/6d4e8d7e863291cc60ceca7704d5588ddbfdead1))
+* agent context and side-bar ([#12181](https://github.com/Arize-ai/phoenix/issues/12181)) ([daa94db](https://github.com/Arize-ai/phoenix/commit/daa94db742f1afd1242598d56b4ca8a49fbaf8be))
+* **agent:** add browser bash tool execution ([#12196](https://github.com/Arize-ai/phoenix/issues/12196)) ([37f90ce](https://github.com/Arize-ai/phoenix/commit/37f90ce5a92248c94db6839805fb764db18db173))
+* **app:** add core Badge component ([#12300](https://github.com/Arize-ai/phoenix/issues/12300)) ([498a2b0](https://github.com/Arize-ai/phoenix/commit/498a2b008eadd8671f32b8019f5cf3c96c005076))
+* deprecate useNotifyError and replace error toasts with inline Alert banners ([#12136](https://github.com/Arize-ai/phoenix/issues/12136)) ([4bb1c50](https://github.com/Arize-ai/phoenix/commit/4bb1c507248a67a35b3b8c779e49d4aa674e6f9a))
+* Figma MCP and storybook skills ([#11510](https://github.com/Arize-ai/phoenix/issues/11510)) ([c65c6fb](https://github.com/Arize-ai/phoenix/commit/c65c6fbfa384d6c84dc2b0f9ac54f09d04f70063))
+* ID icon ([#12297](https://github.com/Arize-ai/phoenix/issues/12297)) ([e1e05f1](https://github.com/Arize-ai/phoenix/commit/e1e05f116d9f7d31582414bbaf3b0db055c4aca9))
+* new icons for mastra, llamaindex, bedrock ([#12232](https://github.com/Arize-ai/phoenix/issues/12232)) ([8b7a5c0](https://github.com/Arize-ai/phoenix/commit/8b7a5c0219b202c9c7c35029484ebf6f5b12b973))
+* **onboarding:** add Bedrock integration and language tab icons ([#12214](https://github.com/Arize-ai/phoenix/issues/12214)) ([a3e8365](https://github.com/Arize-ai/phoenix/commit/a3e8365fb4a8ffdcd33cc9af3a91462ba40c5b31))
+* **onboarding:** add Python integration snippets ([#12197](https://github.com/Arize-ai/phoenix/issues/12197)) ([42a7a1b](https://github.com/Arize-ai/phoenix/commit/42a7a1b2920580f4dbd3182df88575b277fe2b02))
+* **onboarding:** expand integration list and add search filter ([#12250](https://github.com/Arize-ai/phoenix/issues/12250)) ([329342e](https://github.com/Arize-ai/phoenix/commit/329342e06830732ceab638d82d76bbeefcb3a322))
+* **playground:** canonical hub-and-spoke tool choice and response format ([#12108](https://github.com/Arize-ai/phoenix/issues/12108)) ([b38a838](https://github.com/Arize-ai/phoenix/commit/b38a83812f3d0c1052669130053078c3e2d37a1e))
+* tracing onboarding UI refinements ([#12177](https://github.com/Arize-ai/phoenix/issues/12177)) ([ff36b53](https://github.com/Arize-ai/phoenix/commit/ff36b53601259a5d51b85ffaad017d513908bfec))
+* **ui:** add collapse top-level keys toggle for dataset upload ([#12058](https://github.com/Arize-ai/phoenix/issues/12058)) ([8f7c7d5](https://github.com/Arize-ai/phoenix/commit/8f7c7d594b7ff4b20ddfe6e605652db06a0a87a0))
+* **ui:** add Shimmer component for AI loading states ([#12126](https://github.com/Arize-ai/phoenix/issues/12126)) ([0cb2548](https://github.com/Arize-ai/phoenix/commit/0cb2548ff9ddd93ae2059e07f1a4f1442d8a5b06))
+
+
+### Bug Fixes
+
+* consistent backgrop ([#12298](https://github.com/Arize-ai/phoenix/issues/12298)) ([42e9959](https://github.com/Arize-ai/phoenix/commit/42e99594d3dd41a7083102ac5ef48fb54ab44e17))
+* **datasets:** replace fetchQuery with loadQuery in react router loaders ([#12225](https://github.com/Arize-ai/phoenix/issues/12225)) ([8d94982](https://github.com/Arize-ai/phoenix/commit/8d949824dcbbc5f17ed95c03d8891b18f2696b3f))
+* **deps:** update arize-phoenix-client to 2.0.1 ([#12153](https://github.com/Arize-ai/phoenix/issues/12153)) ([a5fb8b1](https://github.com/Arize-ai/phoenix/commit/a5fb8b1e4c7ad4db71f23b77bd71df70512661a9))
+* **deps:** update arize-phoenix-client to 2.1.0 ([#12207](https://github.com/Arize-ai/phoenix/issues/12207)) ([7ddb6e1](https://github.com/Arize-ai/phoenix/commit/7ddb6e1e1f172c5e66a760ca5370141c271299ac))
+* **docker:** use published uv 0.10.9 trixie-slim base image ([#12273](https://github.com/Arize-ai/phoenix/issues/12273)) ([ed9acd9](https://github.com/Arize-ai/phoenix/commit/ed9acd9ec01fbc6acac0dcdd54cfc46802f3157f))
+* fix link to server evals docs ([#12138](https://github.com/Arize-ai/phoenix/issues/12138)) ([3edc9cb](https://github.com/Arize-ai/phoenix/commit/3edc9cb50884aeaa9b72f4a2f717c215a202ab8e))
+* migrate llms.txt to standard llmstxt.org format ([#12189](https://github.com/Arize-ai/phoenix/issues/12189)) ([d320b93](https://github.com/Arize-ai/phoenix/commit/d320b93eb23410505a02cebea68925c1c712612a))
+* **playground:** require tool parameters, normalize empty schema, show tool_choice in UI ([#12185](https://github.com/Arize-ai/phoenix/issues/12185)) ([c625262](https://github.com/Arize-ai/phoenix/commit/c62526293fe3d0f4b958a2aaea30e06bd9605e47))
+
+
+### Documentation
+
+* Add Phoenix release notes for 03-11-2026 through 03-18-2026 ([#12211](https://github.com/Arize-ai/phoenix/issues/12211)) ([dd9a840](https://github.com/Arize-ai/phoenix/commit/dd9a84059f2dd600def1f8a3c7e413a89562ec62))
+* **cli:** add changeset, README, and skill docs for `px docs fetch` ([#12162](https://github.com/Arize-ai/phoenix/issues/12162)) ([c0836c3](https://github.com/Arize-ai/phoenix/commit/c0836c31e463912eb0e628f836bb9d09161161f9))
+* promote coding agents to top-level docs nav ([#12290](https://github.com/Arize-ai/phoenix/issues/12290)) ([45b5fb0](https://github.com/Arize-ai/phoenix/commit/45b5fb0b0970e395ca31d9526da01375da49b736))
+* refine llms.txt: expand coverage, drop integrations, optimize conciseness ([#12191](https://github.com/Arize-ai/phoenix/issues/12191)) ([565041c](https://github.com/Arize-ai/phoenix/commit/565041c17d5a2027fe796d2f84c44e39af0948a3))
+* rewrite CONTRIBUTING.md to set clear contribution expectations ([#12184](https://github.com/Arize-ai/phoenix/issues/12184)) ([80ef394](https://github.com/Arize-ai/phoenix/commit/80ef3943956d6fb6a29ad7f20cdbc69025002215))
+
 ## [13.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.14.0...arize-phoenix-v13.15.0) (2026-03-13)
 
 
