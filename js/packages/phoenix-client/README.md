@@ -243,13 +243,15 @@ import {
 } from "@arizeai/phoenix-client/datasets";
 
 // Get full dataset with examples
-const dataset = await getDataset({ datasetId: "my-dataset-id" });
+const dataset = await getDataset({ dataset: { datasetId: "my-dataset-id" } });
 
 // Get metadata only (no examples)
-const info = await getDatasetInfo({ datasetName: "questions" });
+const info = await getDatasetInfo({ dataset: { datasetName: "questions" } });
 
 // Get examples for a specific dataset version
-const examples = await getDatasetExamples({ datasetId: "my-dataset-id" });
+const examples = await getDatasetExamples({
+  dataset: { datasetId: "my-dataset-id" },
+});
 ```
 
 ### Appending Examples to a Dataset
@@ -258,7 +260,7 @@ const examples = await getDatasetExamples({ datasetId: "my-dataset-id" });
 import { appendDatasetExamples } from "@arizeai/phoenix-client/datasets";
 
 await appendDatasetExamples({
-  datasetId: "my-dataset-id",
+  dataset: { datasetId: "my-dataset-id" },
   examples: [
     {
       input: { question: "What is the capital of Germany" },
@@ -367,10 +369,10 @@ import {
 } from "@arizeai/phoenix-client/experiments";
 
 // List all experiments for a dataset
-const experiments = await listExperiments("dataset-id");
+const experiments = await listExperiments({ datasetId: "dataset-id" });
 
 // Get a single experiment with all run data
-const experiment = await getExperiment("experiment-id");
+const experiment = await getExperiment({ experimentId: "experiment-id" });
 
 // Resume incomplete experiment runs
 await resumeExperiment({
@@ -385,7 +387,7 @@ await resumeEvaluation({
 });
 
 // Delete an experiment
-await deleteExperiment("experiment-id");
+await deleteExperiment({ experimentId: "experiment-id" });
 ```
 
 ### Using phoenix-evals Evaluators in Experiments
@@ -669,7 +671,7 @@ await logDocumentAnnotations({
 ```ts
 import { deleteSpan } from "@arizeai/phoenix-client/spans";
 
-await deleteSpan("span-global-id");
+await deleteSpan({ spanIdentifier: "span-global-id" });
 ```
 
 ## Sessions
@@ -753,10 +755,10 @@ import {
 } from "@arizeai/phoenix-client/sessions";
 
 // Delete a single session
-await deleteSession("session-id");
+await deleteSession({ sessionId: "session-id" });
 
 // Bulk delete
-await deleteSessions(["session-1", "session-2", "session-3"]);
+await deleteSessions({ sessionIds: ["session-1", "session-2", "session-3"] });
 ```
 
 ## Examples
