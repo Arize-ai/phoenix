@@ -387,12 +387,13 @@ experiment = client.experiments.run_experiment(
     task=my_task,
     experiment_name="my-experiment",
 )
-print(f"Experiment URL: {experiment.url}")
+# experiment.url is not available on the returned object
+# The URL is printed to stdout by run_experiment()
 
 # Retrieve an existing experiment
 ran_experiment = client.experiments.get_experiment(experiment_id="my-experiment-id")
-for run in ran_experiment.runs:
-    print(f"Output: {run.output}, Error: {run.error}")
+for run in ran_experiment["task_runs"]:
+    print(f"Output: {run['output']}, Error: {run['error']}")
 ```
 
 ### Projects
