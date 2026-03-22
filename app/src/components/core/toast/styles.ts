@@ -37,9 +37,7 @@ export const toastCss = css`
     --toast-background-color: lch(
       from var(--internal-token-color) 18 calc(c * 0.2) h
     );
-    --toast-color: lch(
-      from var(--internal-token-color) 90 calc(c * 0.8) h
-    );
+    --toast-color: lch(from var(--internal-token-color) 90 calc(c * 0.8) h);
     backdrop-filter: blur(4px);
   }
   background: var(--toast-background-color);

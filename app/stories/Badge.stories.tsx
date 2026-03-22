@@ -37,7 +37,7 @@ type Story = StoryObj<typeof Badge>;
 export const Default: Story = {
   args: {
     children: "Archived",
-    variant: "default"
+    variant: "default",
   },
 };
 

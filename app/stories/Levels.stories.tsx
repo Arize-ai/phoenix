@@ -70,7 +70,10 @@ type SemanticLevel = {
   cssVar: string;
   badge: { variant: "info" | "success" | "warning" | "danger"; label: string };
   token: { color: string; label: string };
-  alert: { variant: "info" | "success" | "warning" | "danger"; message: string };
+  alert: {
+    variant: "info" | "success" | "warning" | "danger";
+    message: string;
+  };
   toast?: {
     variant: NotificationParams["variant"];
     title: string;
@@ -124,10 +127,7 @@ const Template: StoryFn = () => {
         {levels.map((level) => (
           <div key={level.name} css={levelRowCSS}>
             <Flex direction="row" gap="size-100" alignItems="center">
-              <div
-                css={swatchCSS}
-                style={{ backgroundColor: level.cssVar }}
-              />
+              <div css={swatchCSS} style={{ backgroundColor: level.cssVar }} />
               <p css={sectionTitleCSS}>{level.name}</p>
               <p css={labelCSS}>--global-color-{level.name.toLowerCase()}</p>
             </Flex>
@@ -163,9 +163,7 @@ const Template: StoryFn = () => {
               <p css={labelCSS} style={{ marginBottom: 4 }}>
                 Alert
               </p>
-              <Alert variant={level.alert.variant}>
-                {level.alert.message}
-              </Alert>
+              <Alert variant={level.alert.variant}>{level.alert.message}</Alert>
             </div>
 
             {level.toast && (
