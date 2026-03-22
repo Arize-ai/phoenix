@@ -218,9 +218,7 @@ function DatasetLabelList({
             ) : undefined
           }
         >
-          {mode === "create"
-            ? "Create New Label"
-            : "Assign labels"}
+          {mode === "create" ? "Create New Label" : "Assign labels"}
         </MenuHeaderTitle>
       </MenuHeader>
       {mode === "apply" && (

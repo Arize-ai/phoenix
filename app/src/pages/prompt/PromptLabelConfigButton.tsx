@@ -13,8 +13,6 @@ import {
   ColorSwatch,
   Dialog,
   DialogTrigger,
-  Flex,
-  Heading,
   Icon,
   IconButton,
   Icons,
@@ -23,6 +21,9 @@ import {
   Loading,
   Menu,
   MenuEmpty,
+  MenuFooter,
+  MenuHeader,
+  MenuHeaderTitle,
   MenuItem,
   Modal,
   Popover,
@@ -30,7 +31,6 @@ import {
   SearchField,
   type Selection,
   useFilter,
-  View,
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
@@ -238,32 +238,21 @@ function PromptLabelList({
   return (
     <>
       <Autocomplete filter={contains}>
-        <View
-          padding="size-100"
-          paddingTop="size-50"
-          borderBottomWidth="thin"
-          borderColor="default"
-          minWidth={300}
-        >
-          <Flex direction="column" gap="size-50">
-            <Flex
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Heading level={4} weight="heavy">
-                Assign labels to this prompt
-              </Heading>
+        <MenuHeader>
+          <MenuHeaderTitle
+            trailingContent={
               <IconButton size="S" onPress={onNewLabelPress}>
                 <Icon svg={<Icons.PlusOutline />} />
               </IconButton>
-            </Flex>
-            <SearchField aria-label="Search labels" variant="quiet" autoFocus>
-              <SearchIcon />
-              <Input placeholder="Search labels..." />
-            </SearchField>
-          </Flex>
-        </View>
+            }
+          >
+            Assign labels to this prompt
+          </MenuHeaderTitle>
+          <SearchField aria-label="Search labels" variant="quiet" autoFocus>
+            <SearchIcon />
+            <Input placeholder="Search labels..." />
+          </SearchField>
+        </MenuHeader>
         <Menu
           aria-label="labels"
           items={labels}
@@ -289,11 +278,11 @@ function PromptLabelList({
           )}
         </Menu>
       </Autocomplete>
-      <View padding="size-100" borderTopColor="default" borderTopWidth="thin">
+      <MenuFooter>
         <LinkButton variant="quiet" size="S" to="/settings/prompts">
           Edit Labels
         </LinkButton>
-      </View>
+      </MenuFooter>
     </>
   );
 }
