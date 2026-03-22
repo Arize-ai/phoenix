@@ -920,13 +920,13 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${theme === "dark"
-      ? "rgba(0, 0, 0, 0.8)"
-      : "rgba(0, 0, 0, 0.1)"};
+    --global-overlay-shadow-color: ${
+      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.1)"
+    };
 
-    --global-overlay-backdrop-color: ${theme === "dark"
-      ? "rgba(0, 0, 0, 0.8)"
-      : "rgba(0, 0, 0, 0.6)"};
+    --global-overlay-backdrop-color: ${
+      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.6)"
+    };
   }
 `;
 
@@ -1012,9 +1012,9 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color-hover: ${theme === "dark"
-      ? "rgba(255, 255, 255, 0.07)"
-      : "rgba(0, 0, 0, 0.03)"};
+    --global-card-header-background-color-hover: ${
+      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
+    };
   }
 `;
 

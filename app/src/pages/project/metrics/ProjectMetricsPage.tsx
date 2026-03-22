@@ -35,8 +35,8 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
   return (
     <div
       css={css`
-        padding: var(--global-dimension-size-100)
-          var(--global-dimension-size-200) 0 var(--global-dimension-size-200);
+        padding: var(--global-dimension-size-100) var(--global-dimension-size-200) 0
+          var(--global-dimension-size-200);
 
         display: flex;
         flex-direction: row;

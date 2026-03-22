@@ -2,9 +2,11 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
 export const cardCSS = (style?: CSSProperties) => css`
-  ${style?.borderColor
-    ? `--global-card-border-color: ${style.borderColor};`
-    : ""}
+  ${
+    style?.borderColor
+      ? `--global-card-border-color: ${style.borderColor};`
+      : ""
+  }
   --collapsible-card-animation-duration: 200ms;
   --collapsible-card-icon-size: var(--global-dimension-size-300);
 

@@ -193,9 +193,7 @@ export function CustomProvidersCard({
         first: { type: "Int", defaultValue: 50 }
       ) {
         generativeModelCustomProviders(first: $first, after: $after)
-          @connection(
-            key: "CustomProvidersCard_generativeModelCustomProviders"
-          ) {
+          @connection(key: "CustomProvidersCard_generativeModelCustomProviders") {
           edges {
             node {
               id

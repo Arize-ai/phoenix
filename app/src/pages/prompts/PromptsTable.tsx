@@ -70,12 +70,8 @@ export function PromptsTable(props: PromptsTableProps) {
           filter: { type: "PromptFilter", defaultValue: null }
           labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          prompts(
-            first: $first
-            after: $after
-            filter: $filter
-            labelIds: $labelIds
-          ) @connection(key: "PromptsTable_prompts") {
+          prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds)
+            @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
                 id

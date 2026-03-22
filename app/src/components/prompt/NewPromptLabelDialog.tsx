@@ -29,10 +29,7 @@ export function NewPromptLabelDialog(props: NewPromptLabelDialogProps) {
       ) {
         createPromptLabel(input: $label) {
           promptLabels
-            @prependNode(
-              connections: $connections
-              edgeTypeName: "PromptLabelEdge"
-            ) {
+            @prependNode(connections: $connections, edgeTypeName: "PromptLabelEdge") {
             id
             name
             color

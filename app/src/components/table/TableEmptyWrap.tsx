@@ -10,8 +10,7 @@ export function TableEmptyWrap(props: PropsWithChildren) {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--global-dimension-size-300)
-              var(--global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
           `}
         >
           {children}

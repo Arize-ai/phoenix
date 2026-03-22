@@ -152,9 +152,7 @@ const ProjectConfigCard = ({
 
   const [commit, isCommitting] =
     useMutation<ProjectConfigPagePatchProjectMutation>(graphql`
-      mutation ProjectConfigPagePatchProjectMutation(
-        $input: PatchProjectInput!
-      ) {
+      mutation ProjectConfigPagePatchProjectMutation($input: PatchProjectInput!) {
         patchProject(input: $input) {
           project {
             id

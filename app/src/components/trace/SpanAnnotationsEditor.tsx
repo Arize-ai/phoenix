@@ -163,10 +163,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             query {
               node(id: $spanId) {

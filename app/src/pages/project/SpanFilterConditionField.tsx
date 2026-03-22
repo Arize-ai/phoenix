@@ -220,10 +220,7 @@ async function isConditionValid(condition: string, projectId: string) {
     await fetchQuery<SpanFilterConditionFieldValidationQuery>(
       environment,
       graphql`
-        query SpanFilterConditionFieldValidationQuery(
-          $condition: String!
-          $id: ID!
-        ) {
+        query SpanFilterConditionFieldValidationQuery($condition: String!, $id: ID!) {
           project: node(id: $id) {
             ... on Project {
               validateSpanFilterCondition(condition: $condition) {

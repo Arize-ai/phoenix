@@ -29,9 +29,7 @@ export function GeneratePersonalAPIKeyButton({
 }: GeneratePersonalAPIKeyButtonProps) {
   const [commit, isCommitting] =
     useMutation<GeneratePersonalAPIKeyButtonMutation>(graphql`
-      mutation GeneratePersonalAPIKeyButtonMutation(
-        $input: CreateUserApiKeyInput!
-      ) {
+      mutation GeneratePersonalAPIKeyButtonMutation($input: CreateUserApiKeyInput!) {
         createUserApiKey(input: $input) {
           jwt
           apiKey {

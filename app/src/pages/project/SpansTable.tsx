@@ -173,10 +173,7 @@ export function SpansTable(props: SpansTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
-          sort: {
-            type: "SpanSort"
-            defaultValue: { col: startTime, dir: desc }
-          }
+          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name

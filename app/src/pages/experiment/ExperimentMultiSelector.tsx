@@ -83,8 +83,7 @@ export function ExperimentMultiSelector(props: {
             }
           }
         }
-        baseExperiment: node(id: $baseExperimentId)
-          @include(if: $hasBaseExperiment) {
+        baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {
           ... on Experiment {
             id
             name

@@ -53,14 +53,8 @@ export function ProjectPageHeader(props: {
             cost
           }
         }
-        latencyMsP50: latencyMsQuantile(
-          probability: 0.50
-          timeRange: $timeRange
-        )
-        latencyMsP99: latencyMsQuantile(
-          probability: 0.99
-          timeRange: $timeRange
-        )
+        latencyMsP50: latencyMsQuantile(probability: 0.50, timeRange: $timeRange)
+        latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)
         spanAnnotationNames
         documentEvaluationNames
       }

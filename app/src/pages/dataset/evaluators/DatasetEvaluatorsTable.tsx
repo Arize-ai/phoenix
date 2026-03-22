@@ -31,12 +31,8 @@ export const useDatasetEvaluatorsTable = (
         sort: { type: "DatasetEvaluatorSort", defaultValue: null }
         filter: { type: "DatasetEvaluatorFilter", defaultValue: null }
       ) {
-        datasetEvaluators(
-          first: $first
-          after: $after
-          sort: $sort
-          filter: $filter
-        ) @connection(key: "DatasetEvaluatorsTable_datasetEvaluators") {
+        datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter)
+          @connection(key: "DatasetEvaluatorsTable_datasetEvaluators") {
           __id
           edges {
             node {

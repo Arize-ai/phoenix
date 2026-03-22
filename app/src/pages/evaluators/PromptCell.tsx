@@ -72,10 +72,12 @@ export const PromptLink = ({
       to={to}
       css={css`
         text-decoration: none;
-        ${wrapWidth != null &&
-        css`
+        ${
+          wrapWidth != null &&
+          css`
           max-width: ${wrapWidth}px;
-        `}
+        `
+        }
       `}
     >
       <Flex

@@ -20,9 +20,7 @@ export function ManualProjectGuide({
 
   const [commit, isCommitting] =
     useMutation<ManualProjectGuideCreateProjectMutation>(graphql`
-      mutation ManualProjectGuideCreateProjectMutation(
-        $input: CreateProjectInput!
-      ) {
+      mutation ManualProjectGuideCreateProjectMutation($input: CreateProjectInput!) {
         createProject(input: $input) {
           project {
             id

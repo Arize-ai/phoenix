@@ -59,9 +59,9 @@ export function LazyEditorWrapper({
     <div
       ref={wrapperRef}
       css={css`
-        min-height: ${!isInitialized
-          ? `${preInitializationMinHeight}px`
-          : "auto"};
+        min-height: ${
+          !isInitialized ? `${preInitializationMinHeight}px` : "auto"
+        };
       `}
     >
       {children}

@@ -121,10 +121,7 @@ export function AnnotationConfigList(props: {
           $filterUserIds: [ID!]
         ) {
           addAnnotationConfigToProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             query {
               projectNode: node(id: $projectId) {
@@ -156,10 +153,7 @@ export function AnnotationConfigList(props: {
           $filterUserIds: [ID!]
         ) {
           removeAnnotationConfigFromProject(
-            input: {
-              projectId: $projectId
-              annotationConfigId: $annotationConfigId
-            }
+            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
           ) {
             query {
               projectNode: node(id: $projectId) {

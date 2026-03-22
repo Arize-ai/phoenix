@@ -127,8 +127,7 @@ export const EvaluatorForm = () => {
         css={css`
           display: flex;
           flex-direction: column;
-          padding: var(--global-dimension-size-100)
-            var(--global-dimension-size-200);
+          padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
           box-sizing: border-box;
         `}
       >
