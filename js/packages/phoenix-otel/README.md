@@ -23,13 +23,14 @@
 
 A lightweight wrapper around OpenTelemetry for Node.js applications that simplifies sending traces to [Arize Phoenix](https://github.com/Arize-ai/phoenix). This package provides an easy-to-use `register` function that handles all the boilerplate configuration for OpenTelemetry tracing.
 
-> **Note**: This package is under active development and APIs may change.
-
 ## Features
 
 - **Simple Setup** - One-line configuration with sensible defaults
 - **Environment Variables** - Automatic configuration from environment variables
 - **Batch Processing** - Built-in batch span processing for production use
+- **Custom Span Processors** - Bring your own span processors for advanced use cases
+- **Auto-Instrumentation** - Register OpenTelemetry instrumentations in one call
+- **Re-exported APIs** - Convenient access to common OpenTelemetry primitives
 
 ## Installation
 
@@ -93,6 +94,7 @@ The `register` function accepts the following parameters:
 | `headers`          | `Record<string, string>` | `{}`                      | Custom headers for OTLP requests                       |
 | `batch`            | `boolean`                | `true`                    | Use batch span processing (recommended for production) |
 | `instrumentations` | `Instrumentation[]`      | `undefined`               | Array of OpenTelemetry instrumentations to register    |
+| `spanProcessors`   | `SpanProcessor[]`        | `undefined`               | Custom span processors (overrides default processor)   |
 | `global`           | `boolean`                | `true`                    | Register the tracer provider globally                  |
 | `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
 
@@ -225,6 +227,27 @@ register({
     "X-Custom-Header": "custom-value",
     "X-Environment": process.env.NODE_ENV || "development",
   },
+});
+```
+
+### Custom Span Processors
+
+Override the default span processor with your own for advanced use cases:
+
+```typescript
+import { register } from "@arizeai/phoenix-otel";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+
+register({
+  projectName: "my-app",
+  spanProcessors: [
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: "https://my-custom-collector.example.com/v1/traces",
+      })
+    ),
+  ],
 });
 ```
 

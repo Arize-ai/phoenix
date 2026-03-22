@@ -403,6 +403,24 @@ $ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
 
 ---
 
+### `px annotation-config list`
+
+List all Phoenix annotation configurations. Annotation configs define the available labels, scores, and freeform annotation types for human or automated evaluation.
+
+```bash
+px annotation-config list
+px annotation-config list --format raw --no-progress | jq '.[].name'
+px annotation-config list --limit 10
+```
+
+| Option              | Description                         | Default  |
+| ------------------- | ----------------------------------- | -------- |
+| `--limit <number>`  | Maximum number of configs to return | —        |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty` |
+| `--no-progress`     | Suppress progress output            | —        |
+
+---
+
 ### `px docs fetch`
 
 Download Phoenix documentation markdown files for use by coding agents. Fetches pages from the [llms.txt](https://arize.com/docs/phoenix/llms.txt) index, filtered by workflow category, and writes them to a local directory with auto-generated index files.

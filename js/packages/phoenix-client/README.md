@@ -22,7 +22,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-client/README.md" />
 </p>
 
-This package provides a TypeScript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
+A comprehensive TypeScript client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. Create datasets, run experiments, manage prompts, query traces and spans, track sessions, and more — all with full type safety.
 
 ## Installation
 
@@ -65,7 +65,16 @@ const phoenix = createClient({
 
 ## Prompts
 
-`@arizeai/phoenix-client` provides a `prompts` export that exposes utilities for working with prompts for LLMs.
+`@arizeai/phoenix-client` provides a `prompts` export that exposes utilities for working with prompts for LLMs. Prompts support multiple model providers including OpenAI, Azure OpenAI, Anthropic, Google, DeepSeek, XAI, Ollama, and AWS.
+
+### Listing Prompts
+
+```ts
+import { listPrompts } from "@arizeai/phoenix-client/prompts";
+
+const prompts = await listPrompts();
+// prompts is an array of prompt metadata objects
+```
 
 ### Creating a Prompt and push it to Phoenix
 
@@ -211,6 +220,54 @@ const { datasetId } = await createDataset({
 // You can now use datasetId to run experiments or add more examples
 ```
 
+### Create or Get a Dataset
+
+Use `createOrGetDataset` for idempotent dataset creation — it returns the existing dataset if one already exists with the same name.
+
+```ts
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+
+const dataset = await createOrGetDataset({
+  name: "questions",
+  description: "a simple dataset of questions",
+});
+```
+
+### Fetching Dataset Info and Examples
+
+```ts
+import {
+  getDataset,
+  getDatasetInfo,
+  getDatasetExamples,
+} from "@arizeai/phoenix-client/datasets";
+
+// Get full dataset with examples
+const dataset = await getDataset({ datasetId: "my-dataset-id" });
+
+// Get metadata only (no examples)
+const info = await getDatasetInfo({ datasetName: "questions" });
+
+// Get examples for a specific dataset version
+const examples = await getDatasetExamples({ datasetId: "my-dataset-id" });
+```
+
+### Appending Examples to a Dataset
+
+```ts
+import { appendDatasetExamples } from "@arizeai/phoenix-client/datasets";
+
+await appendDatasetExamples({
+  datasetId: "my-dataset-id",
+  examples: [
+    {
+      input: { question: "What is the capital of Germany" },
+      output: { answer: "Berlin" },
+    },
+  ],
+});
+```
+
 ## Experiments
 
 The `@arizeai/phoenix-client` package provides an experiments API for running and evaluating tasks on datasets. This is useful for benchmarking models, evaluating outputs, and tracking experiment results in Phoenix.
@@ -297,6 +354,59 @@ const experiment = await runExperiment({
 ```
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
+
+### Managing Experiments
+
+```ts
+import {
+  getExperiment,
+  listExperiments,
+  deleteExperiment,
+  resumeExperiment,
+  resumeEvaluation,
+} from "@arizeai/phoenix-client/experiments";
+
+// List all experiments for a dataset
+const experiments = await listExperiments("dataset-id");
+
+// Get a single experiment with all run data
+const experiment = await getExperiment("experiment-id");
+
+// Resume incomplete experiment runs
+await resumeExperiment({
+  experimentId: "experiment-id",
+  task: async (example) => `hello ${example.input.name}`,
+});
+
+// Resume incomplete evaluations
+await resumeEvaluation({
+  experimentId: "experiment-id",
+  evaluators,
+});
+
+// Delete an experiment
+await deleteExperiment("experiment-id");
+```
+
+### Using phoenix-evals Evaluators in Experiments
+
+The `fromPhoenixLLMEvaluator` helper bridges `@arizeai/phoenix-evals` evaluators into the experiment framework:
+
+```ts
+import { fromPhoenixLLMEvaluator } from "@arizeai/phoenix-client/experiments";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
+import { openai } from "@ai-sdk/openai";
+
+const faithfulnessEvaluator = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const experiment = await runExperiment({
+  dataset: { datasetId },
+  task,
+  evaluators: [fromPhoenixLLMEvaluator(faithfulnessEvaluator)],
+});
+```
 
 ## Traces
 
@@ -492,6 +602,163 @@ console.log(result.data); // array of span annotation objects
 | `cursor`                 | `string \| null`    | Pagination cursor                                |
 | `limit`                  | `number`            | Maximum annotations to return                    |
 
+### Span Notes
+
+Add freeform notes to spans:
+
+```ts
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  spanNote: {
+    spanId: "f8b1c3a2d4e5f678",
+    title: "Investigation",
+    note: "This span shows high latency due to cold start",
+    annotatorKind: "HUMAN",
+  },
+});
+```
+
+### Document Annotations
+
+Annotate individual documents within retriever spans:
+
+```ts
+import {
+  addDocumentAnnotation,
+  logDocumentAnnotations,
+} from "@arizeai/phoenix-client/spans";
+
+// Single document annotation
+await addDocumentAnnotation({
+  documentAnnotation: {
+    spanId: "f8b1c3a2d4e5f678",
+    documentIndex: 0,
+    name: "relevance",
+    label: "relevant",
+    score: 0.95,
+    annotatorKind: "LLM",
+  },
+});
+
+// Batch document annotations
+await logDocumentAnnotations({
+  documentAnnotations: [
+    {
+      spanId: "f8b1c3a2d4e5f678",
+      documentIndex: 0,
+      name: "relevance",
+      label: "relevant",
+      score: 0.95,
+      annotatorKind: "LLM",
+    },
+    {
+      spanId: "f8b1c3a2d4e5f678",
+      documentIndex: 1,
+      name: "relevance",
+      label: "unrelated",
+      score: 0.1,
+      annotatorKind: "LLM",
+    },
+  ],
+});
+```
+
+### Deleting Spans
+
+```ts
+import { deleteSpan } from "@arizeai/phoenix-client/spans";
+
+await deleteSpan("span-global-id");
+```
+
+## Sessions
+
+The `@arizeai/phoenix-client` package provides a `sessions` export for managing conversation sessions — groups of related traces that form a multi-turn interaction.
+
+### Listing Sessions
+
+```ts
+import { listSessions } from "@arizeai/phoenix-client/sessions";
+
+const result = await listSessions({
+  project: { projectName: "my-project" },
+  limit: 20,
+});
+console.log(result.data); // array of session objects
+```
+
+### Fetching a Session
+
+```ts
+import { getSession, getSessionTurns } from "@arizeai/phoenix-client/sessions";
+
+// Get session metadata and traces
+const session = await getSession({ sessionId: "my-session-id" });
+
+// Extract conversation turns (input/output pairs) from a session
+const turns = await getSessionTurns({ sessionId: "my-session-id" });
+for (const turn of turns) {
+  console.log("User:", turn.input);
+  console.log("Assistant:", turn.output);
+}
+```
+
+### Session Annotations
+
+```ts
+import {
+  addSessionAnnotation,
+  logSessionAnnotations,
+} from "@arizeai/phoenix-client/sessions";
+
+// Single annotation
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: "my-session-id",
+    name: "quality",
+    label: "good",
+    score: 0.9,
+    annotatorKind: "HUMAN",
+  },
+});
+
+// Batch annotations
+await logSessionAnnotations({
+  sessionAnnotations: [
+    {
+      sessionId: "session-1",
+      name: "quality",
+      label: "good",
+      score: 0.9,
+      annotatorKind: "HUMAN",
+    },
+    {
+      sessionId: "session-2",
+      name: "quality",
+      label: "poor",
+      score: 0.2,
+      annotatorKind: "HUMAN",
+    },
+  ],
+});
+```
+
+### Deleting Sessions
+
+```ts
+import {
+  deleteSession,
+  deleteSessions,
+} from "@arizeai/phoenix-client/sessions";
+
+// Delete a single session
+await deleteSession("session-id");
+
+// Bulk delete
+await deleteSessions(["session-1", "session-2", "session-3"]);
+```
+
 ## Examples
 
 To run examples, install dependencies using `pnpm` and run:
@@ -506,12 +773,13 @@ pnpx tsx examples/list_datasets.ts
 
 This package utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
 
-Because of this, this package only works with the `arize-phonix` server 8.0.0 and above.
+Because of this, this package only works with the `arize-phoenix` server 8.0.0 and above.
 
 Compatibility Table:
 
 | Phoenix Client Version | Phoenix Server Version |
 | ---------------------- | ---------------------- |
+| ^6.0.0                 | ^13.15.0               |
 | ^2.0.0                 | ^9.0.0                 |
 | ^1.0.0                 | ^8.0.0                 |
 

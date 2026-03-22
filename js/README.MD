@@ -20,6 +20,8 @@ Official TypeScript libraries for interacting with a running [Arize Phoenix](htt
 
 | Package                   | Description                                                                            | Version                                                          |
 | ------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `@arizeai/phoenix-otel`   | lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.       | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)   |
 | `@arizeai/phoenix-client` | strongly-typed REST & prompt SDK for creating datasets, running experiments, and more. | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client) |
+| `@arizeai/phoenix-otel`   | lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.       | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)   |
 | `@arizeai/phoenix-evals`  | LLM-powered evaluators and helpers for scoring model outputs.                          | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)  |
+| `@arizeai/phoenix-cli`    | command-line interface to fetch traces, inspect datasets, query experiments, and more. | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)    |
+| `@arizeai/phoenix-mcp`    | Model Context Protocol server for integrating Phoenix with AI coding assistants.       | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)    |

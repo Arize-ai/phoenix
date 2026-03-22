@@ -22,7 +22,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-evals/README.md" />
 </p>
 
-This package provides a TypeScript evaluation library. It is vendor agnostic and can be used in isolation of any framework or platform. This package is still under active development and is subject to change.
+A vendor-agnostic TypeScript evaluation library for scoring LLM outputs. Includes pre-built evaluators for faithfulness, correctness, hallucination detection, tool use, and more — plus a flexible framework for building custom evaluators.
 
 ## Installation
 
@@ -89,27 +89,148 @@ See the complete example in [`examples/classifier_example.ts`](examples/classifi
 
 ### Pre-Built Evaluators
 
-The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
+The library includes pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK compatible model.
+
+#### Faithfulness
+
+Evaluates whether an answer is faithful to the provided reference context.
 
 ```typescript
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
 import { openai } from "@ai-sdk/openai";
-const model = openai("gpt-4o-mini");
 
-// Faithfulness Detection
-const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model,
-});
+const evaluator = createFaithfulnessEvaluator({ model: openai("gpt-4o-mini") });
 
-// Use the evaluators
-const result = await faithfulnessEvaluator({
+const result = await evaluator({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
 });
-
-console.log(result);
 // Output: { label: "unfaithful", score: 0, explanation: "..." }
+```
+
+#### Correctness
+
+Evaluates factual accuracy, completeness, and logical consistency.
+
+```typescript
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createCorrectnessEvaluator({ model: openai("gpt-4o-mini") });
+
+const result = await evaluator({
+  input: "What is 2 + 2?",
+  output: "4",
+});
+// Output: { label: "correct", score: 1, explanation: "..." }
+```
+
+#### Refusal Detection
+
+Detects when an LLM refuses, declines, or avoids answering.
+
+```typescript
+import { createRefusalEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createRefusalEvaluator({ model: openai("gpt-4o-mini") });
+
+const result = await evaluator({
+  input: "Tell me about X",
+  output: "I'm sorry, I can't help with that.",
+});
+// Output: { label: "refused", score: 0, explanation: "..." }
+```
+
+#### Document Relevance
+
+Determines if a document is relevant to a given query.
+
+```typescript
+import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createDocumentRelevanceEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await evaluator({
+  input: "What is machine learning?",
+  documentText: "Machine learning is a subset of artificial intelligence...",
+});
+// Output: { label: "relevant", score: 1, explanation: "..." }
+```
+
+#### Conciseness
+
+Evaluates whether output is concise and free of unnecessary content.
+
+```typescript
+import { createConcisenessEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createConcisenessEvaluator({ model: openai("gpt-4o-mini") });
+
+const result = await evaluator({
+  input: "What is the capital of France?",
+  output: "Paris.",
+});
+// Output: { label: "concise", score: 1, explanation: "..." }
+```
+
+#### Tool Selection
+
+Evaluates whether the correct tool was selected for a given context.
+
+```typescript
+import { createToolSelectionEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createToolSelectionEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await evaluator({
+  input: "What's the weather in Paris?",
+  availableTools: "get_weather: Returns weather for a city\nsearch: Web search",
+  toolSelection: "get_weather",
+});
+// Output: { label: "correct", score: 1, explanation: "..." }
+```
+
+#### Tool Invocation
+
+Evaluates whether a tool was invoked correctly with proper arguments.
+
+```typescript
+import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createToolInvocationEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await evaluator({
+  input: "What's the weather in Paris?",
+  availableTools: '{"get_weather": {"parameters": {"city": "string"}}}',
+  toolSelection: '{"name": "get_weather", "arguments": {"city": "Paris"}}',
+});
+// Output: { label: "correct", score: 1, explanation: "..." }
+```
+
+#### Tool Response Handling
+
+Evaluates whether the agent properly handled a tool's response.
+
+```typescript
+import { createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals/llm";
+
+const evaluator = createToolResponseHandlingEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await evaluator({
+  input: "What's the weather in Paris?",
+  toolCall: '{"name": "get_weather", "arguments": {"city": "Paris"}}',
+  toolResult: '{"temperature": 22, "condition": "sunny"}',
+  output: "The weather in Paris is 22°C and sunny.",
+});
+// Output: { label: "correct", score: 1, explanation: "..." }
 ```
 
 ### Data Mapping
@@ -153,6 +274,48 @@ const result = await evaluator.evaluate({
 Mapping supports simple properties (`"fieldName"`), dot notation (`"user.profile.name"`), array access (`"items[0].id"`), JSONPath expressions (`"$.items[*].id"`), and function extractors (`(data) => data.customField`).
 
 See the complete example in [`examples/bind_evaluator_example.ts`](examples/bind_evaluator_example.ts).
+
+### Creating Custom Evaluators
+
+The `createEvaluator` helper wraps any function into a full evaluator with metadata and optional telemetry. It normalizes return values automatically — numbers become scores, strings become labels, and objects are passed through.
+
+```typescript
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+// A simple code-based evaluator
+const lengthEvaluator = createEvaluator(
+  async ({ output }: { output: string }) => {
+    return { score: output.length, label: output.length > 100 ? "long" : "short" };
+  },
+  { name: "length-check", kind: "CODE" }
+);
+
+const result = await lengthEvaluator.evaluate({ output: "Hello world" });
+// Output: { score: 11, label: "short" }
+```
+
+### Prompt Templates
+
+The library provides utilities for working with Mustache-based prompt templates:
+
+```typescript
+import { formatTemplate, getTemplateVariables } from "@arizeai/phoenix-evals";
+
+// Extract variable names from a template
+const vars = getTemplateVariables({
+  template: "Answer the question: {{question}} using context: {{context}}",
+});
+// vars: ["question", "context"]
+
+// Render a template with variables
+const rendered = formatTemplate({
+  template: "Answer the question: {{question}} using context: {{context}}",
+  variables: { question: "What is AI?", context: "AI is artificial intelligence." },
+});
+// rendered: "Answer the question: What is AI? using context: AI is artificial intelligence."
+```
+
+Templates also work with message arrays for chat-style prompts.
 
 ## Experimentation with Phoenix
 

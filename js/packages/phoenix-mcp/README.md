@@ -26,16 +26,16 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-mcp/README.md" />
 </p>
 
-Phoenix MCP Server is an implementation of the Model Context Protocol for the Arize Phoenix platform. It provides a unified interface to Phoenix's capabilities.
+Phoenix MCP Server is an implementation of the [Model Context Protocol](https://modelcontextprotocol.io/) for the Arize Phoenix platform. It provides a unified interface to Phoenix's capabilities, enabling AI coding assistants like Claude, Cursor, Codex, and others to interact with your observability data.
 
 You can use Phoenix MCP Server for:
 
 - **Projects Management**: List and explore projects that organize your observability data
-- **Traces, Spans & Annotations**: Retrieve traces, spans, and annotation configs for analysis and debugging
-- **Sessions**: Explore conversation flows and session-level annotations
-- **Prompts Management**: Create, list, update, and iterate on prompts
-- **Datasets**: Explore datasets and synthesize new examples
-- **Experiments**: Pull experiment results and visualize them with the help of an LLM
+- **Traces & Spans**: Retrieve traces, spans, and annotation configs for analysis and debugging
+- **Sessions**: Explore conversation flows and session-level data
+- **Prompts Management**: Create, list, update, version, and tag prompts
+- **Datasets**: Explore datasets, view examples, and add new examples
+- **Experiments**: Pull experiment results, list experiments per dataset, and inspect run data
 
 Don't see a use-case covered? `@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
 
@@ -112,16 +112,62 @@ Make sure to set these in a `.env` file. See `.env.example`.
 
 ## Tool Coverage
 
-The MCP server now covers the main operational Phoenix workflows:
+The MCP server provides 27 tools covering all major Phoenix workflows:
 
-- `list-projects`, `get-project`
-- `list-traces`, `get-trace`
-- `get-spans`, `get-span-annotations`
-- `list-sessions`, `get-session`
-- `list-annotation-configs`
-- `list-datasets`, `get-dataset`, `get-dataset-examples`, `get-dataset-experiments`, `add-dataset-examples`
-- `list-experiments-for-dataset`, `get-experiment-by-id`
-- `list-prompts`, `get-prompt`, legacy prompt getter aliases, prompt version/tag tools, `upsert-prompt`
+### Projects
+| Tool | Description |
+| ---- | ----------- |
+| `list-projects` | List all projects |
+| `get-project` | Get a project by name or ID |
+
+### Traces & Spans
+| Tool | Description |
+| ---- | ----------- |
+| `list-traces` | List traces for a project (newest first) |
+| `get-trace` | Get a single trace by trace ID |
+| `get-spans` | Get spans with filtering (by kind, status, name, trace ID) |
+| `get-span-annotations` | Get annotations for a list of span IDs |
+
+### Sessions
+| Tool | Description |
+| ---- | ----------- |
+| `list-sessions` | List sessions for a project |
+| `get-session` | Get a session by GlobalID or session_id |
+
+### Datasets
+| Tool | Description |
+| ---- | ----------- |
+| `list-datasets` | List all datasets |
+| `get-dataset` | Get dataset metadata by name or ID |
+| `get-dataset-examples` | Get examples from a dataset |
+| `get-dataset-experiments` | List experiments run on a dataset |
+| `add-dataset-examples` | Add examples to an existing dataset |
+
+### Experiments
+| Tool | Description |
+| ---- | ----------- |
+| `list-experiments-for-dataset` | List experiments for a given dataset |
+| `get-experiment-by-id` | Get experiment with metadata and results |
+
+### Prompts
+| Tool | Description |
+| ---- | ----------- |
+| `list-prompts` | List all prompts |
+| `get-prompt` | Get a prompt (supports identifier, tag, or version ID) |
+| `get-latest-prompt` | Get the latest version of a prompt |
+| `get-prompt-by-identifier` | Get a prompt's latest version by name or ID |
+| `get-prompt-version` | Get a specific prompt version by version ID |
+| `upsert-prompt` | Create or update a prompt with template and config |
+| `list-prompt-versions` | List all versions for a prompt |
+| `get-prompt-version-by-tag` | Get a prompt version by tag name |
+| `list-prompt-version-tags` | List all tags for a prompt version |
+| `add-prompt-version-tag` | Add a tag to a prompt version |
+
+### Other
+| Tool | Description |
+| ---- | ----------- |
+| `list-annotation-configs` | List annotation configs (labels, scores, types) |
+| `phoenix-support` | Get help with Phoenix and OpenInference |
 
 For Phoenix documentation search, use the separate Phoenix Docs MCP server instead of this package.
 
