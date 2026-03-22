@@ -1,9 +1,6 @@
 import type { InitialFiles } from "just-bash";
 
-export type AgentContextRefreshReason =
-  | "navigation"
-  | "time-range-change"
-  | "manual";
+export type AgentContextRefreshReason = "navigation" | "time-range-change";
 
 export type AgentPageKind = "generic" | "project" | "trace";
 

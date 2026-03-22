@@ -1,6 +1,6 @@
 import { graphql } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
+import { PHOENIX_ROOT } from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
 
 import type { GeneratedContextFile } from "../types";
 import { createGraphqlContextFile, createJsonContextFile } from "./shared";

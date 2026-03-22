@@ -4,7 +4,7 @@ import { useLocation, useMatches, type UIMatch } from "react-router";
 import type {
   AgentPageContext,
   AgentTimeRangeContext,
-} from "@phoenix/agent/context/pageContextTypes";
+} from "@phoenix/agent/tools/bash/context/pageContextTypes";
 import { useNullableTimeRangeContext } from "@phoenix/components/datetime/TimeRangeContext";
 
 type BuildAgentPageContextOptions = {

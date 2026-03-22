@@ -93,13 +93,11 @@ export function Chat({
   chatApiUrl,
   modelMenuValue,
   onModelChange,
-  onRefreshContext,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
-  onRefreshContext: () => Promise<void>;
 }) {
   const store = useAgentStore();
 
@@ -170,15 +168,6 @@ export function Chat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, status]);
 
-  const handleSendMessage = async (text: string) => {
-    // TODO: this should materialize into a user-triggered tool call
-    if (text.trim() === "/refresh") {
-      await onRefreshContext();
-    }
-
-    sendMessage({ text });
-  };
-
   return (
     <div css={chatCSS}>
       <div className="chat__scroll">
@@ -200,7 +189,7 @@ export function Chat({
         <View paddingX="size-100">
           <div className="chat__input-container">
             <MessageBar
-              onSendMessage={handleSendMessage}
+              onSendMessage={(text) => sendMessage({ text })}
               isSending={status === "submitted" || status === "streaming"}
               placeholder="Send a message…"
               icon={<Icon svg={<Icons.ArrowUpwardOutline />} />}

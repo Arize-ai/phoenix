@@ -1,3 +1,4 @@
+// --- Bash tool ---
 export { bashToolDefinition, getBashToolInput } from "./bashToolSchema";
 export {
   applyBashToolFilesystemPolicy,
@@ -26,3 +27,11 @@ export type {
   BashToolCommandResult,
   BashToolRuntime,
 } from "./bashToolTypes";
+
+// --- Page context (drives the /phoenix virtual filesystem) ---
+export { useCurrentAgentPageContext } from "./context/pageContext";
+export { refreshAgentSessionContext } from "./context/refreshAgentContext";
+export type {
+  AgentContextRefreshReason,
+  AgentPageContext,
+} from "./context/pageContextTypes";

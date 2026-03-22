@@ -1,4 +1,4 @@
-import type { AdapterMetadata } from "@phoenix/agent/context/pageContextTypes";
+import type { AdapterMetadata } from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 export function createManifestFile({
   metadata,

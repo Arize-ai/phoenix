@@ -1,5 +1,5 @@
-import { refreshAgentSessionContext } from "@phoenix/agent/context/refreshAgentContext";
 import { getOrCreateBashToolRuntime } from "@phoenix/agent/tools/bash/bashToolSessionRegistry";
+import { refreshAgentSessionContext } from "@phoenix/agent/tools/bash/context/refreshAgentContext";
 
 vi.mock("@phoenix/authFetch", () => ({
   authFetch: vi.fn(),
@@ -72,7 +72,7 @@ describe("refreshAgentSessionContext", () => {
     expect(workspaceWrite.stdout).toContain("ok");
   });
 
-  it("overwrites /phoenix on manual refresh while preserving workspace files", async () => {
+  it("overwrites /phoenix on subsequent refresh while preserving workspace files", async () => {
     await refreshAgentSessionContext({
       sessionId: "session-refresh",
       refreshReason: "navigation",
@@ -103,7 +103,7 @@ describe("refreshAgentSessionContext", () => {
 
     await refreshAgentSessionContext({
       sessionId: "session-refresh",
-      refreshReason: "manual",
+      refreshReason: "time-range-change",
       pageContext: {
         pathname: "/projects/project-1/spans",
         search: "",
@@ -134,7 +134,7 @@ describe("refreshAgentSessionContext", () => {
     );
 
     expect(workspaceFile.stdout).toContain("workspace");
-    expect(metadata.stdout).toContain('"refreshReason": "manual"');
+    expect(metadata.stdout).toContain('"refreshReason": "time-range-change"');
     expect(metadata.stdout).toContain('"timeRangeKey": "1d"');
   });
 

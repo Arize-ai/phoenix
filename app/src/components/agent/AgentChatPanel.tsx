@@ -42,7 +42,6 @@ export function AgentChatPanel() {
     createSession,
     closePanel,
     handleModelChange,
-    handleRefreshContext,
   } = useAgentChatPanelState();
 
   if (!isAgentsEnabled || !isOpen) {
@@ -78,7 +77,6 @@ export function AgentChatPanel() {
             chatApiUrl={chatApiUrl}
             modelMenuValue={menuValue}
             onModelChange={handleModelChange}
-            onRefreshContext={handleRefreshContext}
           />
         </div>
       </Panel>

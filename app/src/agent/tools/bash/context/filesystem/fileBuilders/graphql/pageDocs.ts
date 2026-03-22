@@ -1,5 +1,5 @@
-import { PHOENIX_ROOT } from "@phoenix/agent/context/filesystem/pathConstants";
-import type { AgentPageContext } from "@phoenix/agent/context/pageContextTypes";
+import { PHOENIX_ROOT } from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
+import type { AgentPageContext } from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 import { formatJsonBlock } from "./shared";
 

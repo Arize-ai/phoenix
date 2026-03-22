@@ -1,17 +1,17 @@
 import type { InitialFiles } from "just-bash";
 
-import { createManifestFile } from "@phoenix/agent/context/filesystem/manifest";
+import { createManifestFile } from "@phoenix/agent/tools/bash/context/filesystem/manifest";
 import {
   getPhoenixTopLevelIndexPaths,
   PHOENIX_META_ROOT,
   PHOENIX_ROOT,
-} from "@phoenix/agent/context/filesystem/pathConstants";
+} from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
 import type {
   AdapterResult,
   AdapterMetadata,
   AgentContextRefreshReason,
   AgentPageContext,
-} from "@phoenix/agent/context/pageContextTypes";
+} from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 import { buildGraphqlContextFiles } from "./fileBuilders/buildGraphqlContextFiles";
 

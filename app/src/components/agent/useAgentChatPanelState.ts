@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { useCurrentAgentPageContext } from "@phoenix/agent/context/pageContext";
-import type {
-  AgentContextRefreshReason,
-  AgentPageContext,
-} from "@phoenix/agent/context/pageContextTypes";
-import { refreshAgentSessionContext } from "@phoenix/agent/context/refreshAgentContext";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import {
+  garbageCollectBashToolRuntimes,
+  refreshAgentSessionContext,
+  useCurrentAgentPageContext,
+  type AgentContextRefreshReason,
+  type AgentPageContext,
+} from "@phoenix/agent/tools/bash";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
@@ -71,6 +72,7 @@ function getRefreshReason({
  * Encapsulates the non-visual state and side effects that drive AgentChatPanel.
  */
 export function useAgentChatPanelState() {
+  const store = useAgentStore();
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
@@ -108,6 +110,24 @@ export function useAgentChatPanelState() {
       createSession();
     }
   }, [isOpen, activeSessionId, createSession]);
+
+  // Garbage-collect bash runtimes for sessions that are no longer active.
+  // Eagerly evicts inactive runtimes so stale `/phoenix` context files don't
+  // survive session churn. When session switching ships, the debug flag
+  // can become a user-facing retention preference.
+  useEffect(() => {
+    const syncBashRuntimeRegistry = () => {
+      const state = store.getState();
+      garbageCollectBashToolRuntimes({
+        activeSessionId: state.activeSessionId,
+        sessionIds: state.sessions,
+        retainInactiveSessions: state.debug.retainInactiveBashSessions,
+      });
+    };
+
+    syncBashRuntimeRegistry();
+    return store.subscribe(syncBashRuntimeRegistry);
+  }, [store]);
 
   const menuValue: ModelMenuValue = useMemo(
     () => ({
@@ -196,18 +216,6 @@ export function useAgentChatPanelState() {
     });
   }, [activeSessionId, autoRefreshPageContext, isOpen, refreshSessionContext]);
 
-  const handleRefreshContext = useCallback(async () => {
-    if (!activeSessionId) {
-      return;
-    }
-
-    await refreshSessionContext({
-      pageContext,
-      refreshReason: "manual",
-      sessionId: activeSessionId,
-    });
-  }, [activeSessionId, pageContext, refreshSessionContext]);
-
   const closePanel = useCallback(() => {
     setIsOpen(false);
   }, [setIsOpen]);
@@ -220,6 +228,5 @@ export function useAgentChatPanelState() {
     createSession,
     closePanel,
     handleModelChange,
-    handleRefreshContext,
   };
 }
