@@ -428,7 +428,7 @@ function SpanNodeWrap(
         border-left: 4px solid transparent;
         box-sizing: border-box;
         &:hover {
-          background-color: var(--global-color-gray-100);
+          background-color: var(--global-color-gray-75);
         }
         &.is-selected {
           background-color: var(--global-color-gray-200);

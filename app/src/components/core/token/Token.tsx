@@ -58,9 +58,7 @@ const tokenBaseCSS = css`
   line-height: var(--global-line-height-s);
   padding: 0 var(--global-dimension-static-size-100);
   border-radius: var(--global-rounding-large);
-  border: 1px solid
-    lch(from var(--internal-token-color) calc((l) * infinity) c h / 0.3);
-  color: lch(from var(--internal-token-color) calc((50 - l) * infinity) 0 0);
+  border: 1px solid transparent;
   user-select: none;
   max-width: var(--token-max-width);
 
@@ -88,17 +86,15 @@ const tokenBaseCSS = css`
   }
 
   &[data-theme="light"] {
-    background: lch(from var(--internal-token-color) l c h / 0.3);
-    border-color: lch(from var(--internal-token-color) l c h / 0.5);
-    color: lch(from var(--internal-token-color) calc((50 - l) * infinity) c h);
+    background: lch(from var(--internal-token-color) 92 calc(c * 0.6) h);
+    border-color: lch(from var(--internal-token-color) 80 calc(c * 0.7) h);
+    color: lch(from var(--internal-token-color) 35 c h);
   }
 
   &[data-theme="dark"] {
-    background: lch(from var(--internal-token-color) l c h / 0.2);
-    border-color: lch(from var(--internal-token-color) l c h / 0.4);
-    color: lch(
-      from var(--internal-token-color) calc((l) * infinity) c h / 1
-    );
+    background: lch(from var(--internal-token-color) 25 calc(c * 0.4) h);
+    border-color: lch(from var(--internal-token-color) 40 calc(c * 0.5) h);
+    color: lch(from var(--internal-token-color) 85 calc(c * 0.8) h);
   }
 
   &[data-interactive]:not([data-disabled]) {
