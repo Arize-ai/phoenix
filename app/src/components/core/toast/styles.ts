@@ -25,26 +25,21 @@ export const toastCss = css`
   --toast-color: var(--global-static-color-900);
   &[data-theme="light"] {
     --toast-border: 1px solid
-      lch(from var(--internal-token-color) calc((50 - l) * infinity) 0 0);
-    --toast-background-color: var(--internal-token-color);
-    --toast-color: lch(
-      from var(--internal-token-color) calc((50 - l) * infinity) 0 0
+      lch(from var(--internal-token-color) l c h / 0.3);
+    --toast-background-color: lch(
+      from var(--internal-token-color) l c h / 0.1
     );
+    --toast-color: var(--internal-token-color);
   }
   &[data-theme="dark"] {
-    // generate a new dark token bg color from the input color
-    --scoped-token-dark-bg: lch(
-      from var(--internal-token-color) l c h / calc(alpha - 0.8)
-    );
     --toast-border: 1px solid
-      lch(from var(--internal-token-color) calc((l) * infinity) c h / 0.3);
-    --toast-background-color: var(--scoped-token-dark-bg);
-    // generate a new dark token text color from the input color
-    --toast-color: lch(
-      from var(--scoped-token-dark-bg) calc((l) * infinity) c h / 1
+      lch(from var(--internal-token-color) l c h / 0.4);
+    --toast-background-color: lch(
+      from var(--internal-token-color) l c h / 0.2
     );
-    // because the background may render with transparency, add a blur to improve
-    // text readability
+    --toast-color: lch(
+      from var(--internal-token-color) calc((l) * infinity) c h / 1
+    );
     backdrop-filter: blur(4px);
   }
   background: var(--toast-background-color);

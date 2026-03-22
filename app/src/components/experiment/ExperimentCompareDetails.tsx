@@ -307,7 +307,7 @@ export function ExperimentCompareDetails({
         </div>
       </Panel>
       <Separator css={resizeHandleCSS} />
-      <Panel defaultSize={65}>
+      <Panel defaultSize="65%">
         <div
           css={css`
             overflow-y: auto;

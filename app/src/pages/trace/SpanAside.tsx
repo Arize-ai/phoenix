@@ -112,7 +112,7 @@ export function SpanAside(props: SpanAsideProps) {
             <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
         }
-        panelProps={{ minSize: 10 }}
+        panelProps={{ minSize: "10%" }}
       >
         <View height="100%" maxHeight="100%">
           <SpanAnnotationsEditor
@@ -133,7 +133,7 @@ export function SpanAside(props: SpanAsideProps) {
             <KeyboardToken>{NOTE_HOTKEY}</KeyboardToken>
           </Flex>
         }
-        panelProps={{ minSize: 10 }}
+        panelProps={{ minSize: "10%" }}
       >
         <View height="100%" maxHeight="100%" padding="size-100">
           <Suspense fallback={<SpanNotesEditorSkeleton />}>
@@ -195,8 +195,8 @@ function SpanAsideAnnotationList(props: {
       }
       disabled={!hasAnnotations}
       panelProps={{
-        defaultSize: hasAnnotations ? 20 : 0,
-        minSize: hasAnnotations ? 20 : 0,
+        defaultSize: hasAnnotations ? "20%" : "0%",
+        minSize: hasAnnotations ? "20%" : "0%",
       }}
     >
       <FocusScope>

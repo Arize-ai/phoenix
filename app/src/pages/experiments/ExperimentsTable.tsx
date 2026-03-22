@@ -324,6 +324,7 @@ export function ExperimentsTable({
     {
       header: "created at",
       accessorKey: "createdAt",
+      minSize: 200,
       cell: TimestampCell,
     },
     {

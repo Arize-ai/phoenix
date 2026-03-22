@@ -610,8 +610,8 @@ export const darkThemeCSS = css`
     --global-text-color-300: rgba(255, 255, 255, 0.3);
 
     // Link colors
-    --global-link-color: rgb(114, 217, 255);
-    --global-link-color-visited: var(--global-color-purple-900);
+    --global-link-color: var(--global-color-blue-800);
+    --global-link-color-visited: var(--global-color-purple-800);
 
     // Floating toolbar colors
     --floating-toolbar-background-color: var(--global-color-gray-200);
@@ -872,8 +872,8 @@ export const lightThemeCSS = css`
     --global-text-color-500: rgba(0, 0, 0, 0.5);
     --global-text-color-300: rgba(0, 0, 0, 0.3);
 
-    --global-link-color: rgb(9, 105, 218);
-    --global-link-color-visited: var(--global-color-purple-900);
+    --global-link-color: var(--global-color-blue-800);
+    --global-link-color-visited: var(--global-color-purple-800);
 
     // Floating toolbar colors
     --floating-toolbar-background-color: var(--global-color-gray-75);
@@ -925,7 +925,7 @@ const baseTokensCSS = (theme: Theme) => css`
     };
 
     --global-overlay-backdrop-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.6)"
+      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.4)"
     };
   }
 `;
@@ -974,6 +974,8 @@ const buttonCSS = (theme: Theme) => css`
       --global-color-success-900
     );
     --global-button-success-border-color: var(--global-color-success);
+    --global-button-kbd-background-color: var(--global-color-gray-300);
+    --global-button-primary-kbd-background-color: var(--global-color-gray-700);
   }
 `;
 
@@ -992,10 +994,9 @@ const checkboxCSS = (theme: Theme) => css`
 const disclosureCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-disclosure-background-color-active: rgba(
-      var(--global-color-gray-900-rgb),
-      0.05
-    );
+    --global-disclosure-background-color-active: ${
+      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
+    };
   }
 `;
 

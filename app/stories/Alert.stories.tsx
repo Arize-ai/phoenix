@@ -14,6 +14,10 @@ const meta: Meta<typeof Alert> = {
 export default meta;
 type Story = StoryObj<typeof Alert>;
 
+/**
+ * Informative alerts use blue to convey neutral or contextual information.
+ * Use for: tips, onboarding hints, general notices.
+ */
 export const Info: Story = {
   args: {
     variant: "info",
@@ -21,6 +25,21 @@ export const Info: Story = {
   },
 };
 
+/**
+ * Success alerts use green to convey positive outcomes.
+ * Use for: completed actions, saved changes, successful operations.
+ */
+export const Success: Story = {
+  args: {
+    variant: "success",
+    children: "This is a success alert",
+  },
+};
+
+/**
+ * Warning alerts use orange to convey caution or pending action.
+ * Use for: degraded state, approaching limits, non-blocking issues.
+ */
 export const Warning: Story = {
   args: {
     variant: "warning",
@@ -28,17 +47,14 @@ export const Warning: Story = {
   },
 };
 
+/**
+ * Danger alerts use red to convey errors or critical states.
+ * Use for: failed operations, blocking errors, destructive confirmations.
+ */
 export const Danger: Story = {
   args: {
     variant: "danger",
     children: "This is a danger alert",
-  },
-};
-
-export const Success: Story = {
-  args: {
-    variant: "success",
-    children: "This is a success alert",
   },
 };
 

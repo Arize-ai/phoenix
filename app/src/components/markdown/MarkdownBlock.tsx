@@ -26,10 +26,8 @@ export function MarkdownBlock({
         `;
 
   return mode === "markdown" ? (
-    <div css={markdownCSS}>
-      <Markdown remarkPlugins={[remarkGfm]} css={spacingCSS}>
-        {children}
-      </Markdown>
+    <div css={css(markdownCSS, spacingCSS)}>
+      <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
     </div>
   ) : (
     <PrettyText preCSS={spacingCSS}>{children}</PrettyText>

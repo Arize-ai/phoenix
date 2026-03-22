@@ -35,7 +35,7 @@ export type ExperimentsLineChartData = {
   [scoreKey: string]: number | string;
 };
 
-const chartMargins = { top: 8, right: 18, left: 18, bottom: 58 };
+const chartMargins = { top: 8, right: 18, left: 18, bottom: 12 };
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 4,

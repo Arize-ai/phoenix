@@ -102,7 +102,7 @@ function ViewModeSelect({
 function ExampleDetailsDialogSkeleton() {
   return (
     <Group orientation="vertical">
-      <Panel defaultSize={65}>
+      <Panel defaultSize="65%">
         <div
           css={css`
             overflow-y: auto;
@@ -127,7 +127,7 @@ function ExampleDetailsDialogSkeleton() {
         </div>
       </Panel>
       <Separator css={resizeHandleCSS} />
-      <Panel defaultSize={35}>
+      <Panel defaultSize="35%">
         <Flex direction="column" height="100%">
           <View
             paddingStart="size-200"
@@ -274,7 +274,7 @@ function ExampleDetailsDialogContent({
         </DialogTitleExtra>
       </DialogHeader>
       <Group orientation="vertical">
-        <Panel defaultSize={65}>
+        <Panel defaultSize="65%">
           <div
             css={css`
               overflow-y: auto;
@@ -343,7 +343,7 @@ function ExampleDetailsDialogContent({
           </div>
         </Panel>
         <Separator css={resizeHandleCSS} />
-        <Panel defaultSize={35}>
+        <Panel defaultSize="35%">
           <Flex direction="column" height="100%">
             <View
               paddingStart="size-200"

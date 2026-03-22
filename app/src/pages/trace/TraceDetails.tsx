@@ -3,7 +3,12 @@ import type { PropsWithChildren } from "react";
 import { Suspense, useMemo } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 import { useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -109,6 +114,11 @@ export function TraceDetails(props: TraceDetailsProps) {
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "trace-details-layout",
+    storage: localStorage,
+  });
+
   return (
     <main
       css={css`
@@ -127,12 +137,14 @@ export function TraceDetails(props: TraceDetailsProps) {
       />
       <Group
         orientation="horizontal"
+        defaultLayout={defaultLayout}
+        onLayoutChanged={onLayoutChanged}
         css={css`
           flex: 1 1 auto;
           overflow: hidden;
         `}
       >
-        <Panel defaultSize={30} minSize={5}>
+        <Panel id="trace-tree" defaultSize="30%" minSize="5%">
           <ScrollingPanelContent>
             <ConnectedTraceTree
               trace={data.project.trace}
@@ -150,7 +162,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           </ScrollingPanelContent>
         </Panel>
         <Separator css={compactResizeHandleCSS} />
-        <Panel>
+        <Panel id="span-details">
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>

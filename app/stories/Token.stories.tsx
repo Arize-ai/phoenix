@@ -118,13 +118,13 @@ const SizeTemplate: StoryFn<TokenProps> = (args) => (
   <Card title="Token Size">
     <View width="600px" padding="size-200">
       <Flex gap="size-100" wrap>
-        <Token {...args} size="S" color="var(--global-color-primary)">
+        <Token {...args} size="S" color="var(--global-color-info)">
           Small Token
         </Token>
-        <Token {...args} size="M" color="var(--global-color-primary)">
+        <Token {...args} size="M" color="var(--global-color-info)">
           Medium Token
         </Token>
-        <Token {...args} size="L" color="var(--global-color-primary)">
+        <Token {...args} size="L" color="var(--global-color-info)">
           Large Token
         </Token>
       </Flex>
@@ -143,15 +143,18 @@ const GroupTemplate: StoryFn<TokenProps> = (args) => (
   <Card title="Token Group">
     <View width="600px" padding="size-200">
       <Flex gap="size-100" wrap>
-        <Token {...args}>Default Token</Token>
-        <Token {...args} color="var(--global-color-primary)">
-          Primary Token
-        </Token>
-        <Token {...args} color="var(--global-color-danger)">
-          Danger Token
+        <Token {...args}>Default</Token>
+        <Token {...args} color="var(--global-color-info)">
+          Info
         </Token>
         <Token {...args} color="var(--global-color-success)">
-          Success Token
+          Success
+        </Token>
+        <Token {...args} color="var(--global-color-warning)">
+          Warning
+        </Token>
+        <Token {...args} color="var(--global-color-danger)">
+          Danger
         </Token>
       </Flex>
     </View>
@@ -177,7 +180,7 @@ const TruncatedTemplate: StoryFn<TokenProps> = (args) => (
         <Token {...args} maxWidth="100px">
           Custom maxWidth=`&quot;`100px`&quot;` for narrower spaces
         </Token>
-        <Token {...args} maxWidth="300px" color="var(--global-color-primary)">
+        <Token {...args} maxWidth="300px" color="var(--global-color-info)">
           Custom maxWidth=`&quot;`300px`&quot;` allows more text before
           truncation happens
         </Token>

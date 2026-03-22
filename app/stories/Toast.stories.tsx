@@ -23,6 +23,9 @@ const defaultToast: QueuedToast<NotificationParams> = {
   },
 };
 
+/**
+ * Default toasts use neutral styling for general notifications.
+ */
 export const Default = {
   args: {
     toast: {
@@ -35,7 +38,11 @@ export const Default = {
   },
 };
 
-export const SuccessToast = {
+/**
+ * Success toasts use green to confirm positive outcomes.
+ * Use for: saved changes, completed actions, successful operations.
+ */
+export const Success = {
   args: {
     toast: {
       ...defaultToast,
@@ -49,7 +56,11 @@ export const SuccessToast = {
   },
 };
 
-export const ErrorToast = {
+/**
+ * Error toasts use red to convey failures or critical issues.
+ * Use for: failed operations, network errors, permission denied.
+ */
+export const Error = {
   args: {
     toast: {
       ...defaultToast,
@@ -63,7 +74,10 @@ export const ErrorToast = {
   },
 };
 
-export const ActionToast = {
+/**
+ * Toasts can include an action button for quick follow-up.
+ */
+export const WithAction = {
   args: {
     toast: {
       ...defaultToast,

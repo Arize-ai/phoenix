@@ -35,26 +35,19 @@ export function UserPicture({
       --internal-avatar-color: ${wordColor};
 
       &[data-theme="light"] {
-        background: var(--internal-avatar-color);
+        background: lch(from var(--internal-avatar-color) l c h / 0.3);
         border: 1px solid
-          lch(from var(--internal-avatar-color) calc(l * infinity) c h / 0.3);
-        color: lch(
-          from var(--internal-avatar-color) calc((50 - l) * infinity) 0 0
-        );
+          lch(from var(--internal-avatar-color) l c h / 0.5);
+        color: var(--internal-avatar-color);
       }
 
       &[data-theme="dark"] {
-        --scoped-avatar-dark-bg: lch(
-          from var(--internal-avatar-color) calc(l * 0.7) c h
-        );
-        background: linear-gradient(
-          120deg,
-          var(--scoped-avatar-dark-bg),
-          lch(from var(--scoped-avatar-dark-bg) calc(l * 0.6) c h)
-        );
+        background: lch(from var(--internal-avatar-color) l c h / 0.2);
         border: 1px solid
-          lch(from var(--scoped-avatar-dark-bg) calc(l * infinity) c h / 0.2);
-        color: lch(from var(--scoped-avatar-dark-bg) calc(l * infinity) c h);
+          lch(from var(--internal-avatar-color) l c h / 0.4);
+        color: lch(
+          from var(--internal-avatar-color) calc((l) * infinity) c h / 1
+        );
       }
 
       img {

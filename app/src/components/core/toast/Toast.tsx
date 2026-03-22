@@ -37,7 +37,7 @@ const colorFromVariant = (
     case "error":
       return "var(--global-color-danger)";
     default:
-      return "var(--global-color-gray-100)";
+      return "var(--global-color-gray-600)";
   }
 };
 

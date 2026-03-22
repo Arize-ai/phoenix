@@ -428,11 +428,11 @@ function SpanNodeWrap(
         border-left: 4px solid transparent;
         box-sizing: border-box;
         &:hover {
-          background-color: var(--global-color-gray-200);
+          background-color: var(--global-color-gray-100);
         }
         &.is-selected {
-          background-color: var(--global-color-primary-100);
-          border-color: var(--global-color-primary-200);
+          background-color: var(--global-color-gray-200);
+          border-color: var(--global-color-gray-300);
         }
         & > *:first-of-type {
           margin-left: calc(
@@ -469,7 +469,7 @@ function SpanTreeEdgeConnector({
           ${
             isError
               ? "var(--global-color-danger)"
-              : "var(--global-color-gray-500)"
+              : "var(--global-color-gray-300)"
           };
         z-index: ${isError ? 1 : 0};
         top: 0;
@@ -492,7 +492,7 @@ function SpanTreeEdge({
   const isError = statusCode === "ERROR";
   const color = isError
     ? "var(--global-color-danger)"
-    : "var(--global-color-gray-500)";
+    : "var(--global-color-gray-300)";
   const zIndex = isError ? 1 : 0;
   return (
     <div
@@ -546,9 +546,9 @@ const collapseButtonCSS = css`
   transition: transform 0.2s;
   transition: background-color 0.5s;
   flex: none;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
   &:hover {
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: rgba(0, 0, 0, 0.15);
   }
   &.is-collapsed {
     transform: rotate(-90deg);

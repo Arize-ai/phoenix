@@ -99,7 +99,7 @@ export const TitledPanel = forwardRef<
           {title}
         </PanelTitle>
         <Panel
-          maxSize={100}
+          maxSize="100%"
           {...panelProps}
           panelRef={panelRef}
           collapsible
@@ -122,7 +122,7 @@ const panelTitleCSS = css`
   width: 100%;
   &:hover {
     cursor: pointer;
-    background-color: var(--global-input-field-background-color-active);
+    background-color: var(--global-card-header-background-color-hover);
   }
   &:hover[disabled] {
     cursor: default;

@@ -12,6 +12,7 @@ export function Link(props: LinkProps) {
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--global-link-color);
       `}
     >
       <RouterLink

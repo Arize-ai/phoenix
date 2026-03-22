@@ -94,7 +94,7 @@ export const buttonCSS = css`
   }
 
   kbd {
-    background-color: var(--global-color-gray-400);
+    background-color: var(--global-button-kbd-background-color);
     border-radius: var(--global-rounding-small);
     padding: var(--global-dimension-size-50) var(--global-dimension-size-75);
     font-size: var(--global-font-size-xs);
@@ -108,7 +108,7 @@ export const buttonCSS = css`
 
   &[data-variant="primary"] {
     kbd {
-      background-color: var(--global-color-gray-700);
+      background-color: var(--global-button-primary-kbd-background-color);
     }
   }
 `;

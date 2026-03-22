@@ -26,7 +26,7 @@ interface TokenProps
    *
    * Can be any valid CSS color value, including CSS variables.
    *
-   * @default "var(--global-color-gray-300)"
+   * @default "var(--global-color-gray-600)"
    */
   color?: string;
   /**
@@ -88,19 +88,17 @@ const tokenBaseCSS = css`
   }
 
   &[data-theme="light"] {
-    background: var(--internal-token-color);
-    border-color: var(--internal-token-color);
-    color: lch(from var(--internal-token-color) calc((55 - l) * infinity) 0 0);
+    background: lch(from var(--internal-token-color) l c h / 0.3);
+    border-color: lch(from var(--internal-token-color) l c h / 0.5);
+    color: lch(from var(--internal-token-color) calc((50 - l) * infinity) c h);
   }
 
   &[data-theme="dark"] {
-    // generate a new dark token bg color from the input color
-    --scoped-token-dark-bg: lch(
-      from var(--internal-token-color) l c h / calc(alpha - 0.8)
+    background: lch(from var(--internal-token-color) l c h / 0.2);
+    border-color: lch(from var(--internal-token-color) l c h / 0.4);
+    color: lch(
+      from var(--internal-token-color) calc((l) * infinity) c h / 1
     );
-    background: var(--scoped-token-dark-bg);
-    // generate a new dark token text color from the input color
-    color: lch(from var(--scoped-token-dark-bg) calc((l) * infinity) c h / 1);
   }
 
   &[data-interactive]:not([data-disabled]) {
@@ -173,7 +171,7 @@ function Token(
     children,
     isDisabled,
     css: cssProp,
-    color = "var(--global-color-gray-300)",
+    color = "var(--global-color-gray-600)",
     onPress,
     onRemove,
     size = "M",

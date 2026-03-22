@@ -309,7 +309,7 @@ export function SpanDetails({
                     if (asidePanel) {
                       const { asPercentage: size } = asidePanel.getSize();
                       if (size < ASIDE_PANEL_DEFAULT_SIZE) {
-                        asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
+                        asidePanel.resize(`${ASIDE_PANEL_DEFAULT_SIZE}%`);
                       }
                     }
                   }}
@@ -387,8 +387,9 @@ export function SpanDetails({
       {isAnnotatingSpans && (
         <Panel
           panelRef={asidePanelRef}
-          defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
-          minSize={10}
+          defaultSize={`${ASIDE_PANEL_DEFAULT_SIZE}%`}
+          minSize="20%"
+          maxSize="50%"
           collapsible
           onResize={(panelSize) => {
             if (panelSize.asPercentage === 0) {
@@ -967,7 +968,7 @@ function RetrieverSpanInfo(props: {
                     <DocumentItem
                       document={document}
                       documentAnnotations={documentEvaluationsMap[idx]}
-                      borderColor={"seafoam-700"}
+                      borderColor={"seafoam-300"}
                       backgroundColor={"seafoam-100"}
                       tokenColor="var(--global-color-seafoam-1000)"
                       spanNodeId={span.id}
@@ -1049,7 +1050,7 @@ function RerankerSpanInfo(props: {
                 <li key={idx}>
                   <DocumentItem
                     document={document}
-                    borderColor={"seafoam-700"}
+                    borderColor={"seafoam-300"}
                     backgroundColor={"seafoam-100"}
                     tokenColor="var(--global-color-seafoam-1000)"
                   />
@@ -1078,9 +1079,9 @@ function RerankerSpanInfo(props: {
                 <li key={idx}>
                   <DocumentItem
                     document={document}
-                    borderColor={"celery-700"}
+                    borderColor={"celery-300"}
                     backgroundColor={"celery-100"}
-                    tokenColor="var(--global-color-celery-1000)"
+                    tokenColor="var(--global-color-celery-500)"
                   />
                 </li>
               );
@@ -1484,7 +1485,7 @@ function LLMToolSchema({
       titleExtra={<Counter>#{index + 1}</Counter>}
       {...defaultCardProps}
       backgroundColor="yellow-100"
-      borderColor="yellow-700"
+      borderColor="yellow-300"
       extra={<CopyToClipboardButton text={toolSchema} />}
     >
       <CodeBlock value={toolSchema} mimeType={"json"} />
@@ -1550,7 +1551,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
           <li key={idx}>
             <View
               backgroundColor="gray-100"
-              borderColor="gray-500"
+              borderColor="gray-300"
               borderWidth="thin"
               borderRadius="medium"
               padding="size-100"

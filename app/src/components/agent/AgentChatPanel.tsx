@@ -90,7 +90,7 @@ export function AgentChatPanel() {
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel minSize={20} maxSize={50} defaultSize={30}>
+      <Panel minSize="20%" maxSize="50%" defaultSize="30%">
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>
             <Flex direction="row" alignItems="center" gap="size-50">

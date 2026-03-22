@@ -48,11 +48,15 @@ export function ExperimentsPage() {
   return (
     <>
       <Group orientation="vertical">
-        <Panel minSize={20} maxSize={30} defaultSize={20} collapsible>
-          <View paddingX="size-200" paddingY="size-100">
-            <Heading level={2}>Experiments Analysis</Heading>
-          </View>
-          <ExperimentsChart datasetId={datasetId} />
+        <Panel minSize="20%" maxSize="30%" defaultSize="25%">
+          <Flex direction="column" height="100%">
+            <View paddingX="size-200" paddingY="size-100">
+              <Heading level={2}>Experiments Analysis</Heading>
+            </View>
+            <View flex="1 1 auto" overflow="hidden">
+              <ExperimentsChart datasetId={datasetId} />
+            </View>
+          </Flex>
         </Panel>
         <Separator css={resizeHandleCSS} />
         <Panel>

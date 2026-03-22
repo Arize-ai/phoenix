@@ -87,7 +87,7 @@ export function PlaygroundExperimentRunDetailsDialog({
           </DialogTitleExtra>
         </DialogHeader>
         <Group orientation="vertical">
-          <Panel defaultSize={33}>
+          <Panel defaultSize="33%">
             <View overflow="auto" height="100%" padding="size-200">
               <Flex direction="row" gap="size-200" flex="1 1 auto">
                 <View width="50%">
@@ -124,7 +124,7 @@ export function PlaygroundExperimentRunDetailsDialog({
             </View>
           </Panel>
           <Separator css={resizeHandleCSS} />
-          <Panel defaultSize={67}>
+          <Panel defaultSize="67%">
             <Flex direction="column" height="100%">
               <View
                 paddingStart="size-200"
