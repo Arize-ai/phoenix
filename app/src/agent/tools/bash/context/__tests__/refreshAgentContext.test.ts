@@ -65,11 +65,6 @@ describe("refreshAgentSessionContext", () => {
             params: { projectId: "project-1" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "7d",
-          start: "2026-03-10T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
     });
 
@@ -89,7 +84,6 @@ describe("refreshAgentSessionContext", () => {
 
     expect(metadata.stdout).toContain('"params": {');
     expect(metadata.stdout).toContain('"projectId": "project-1"');
-    expect(metadata.stdout).toContain('"timeRangeKey": "7d"');
     expect(pageContext.stdout).toContain('"routeMatches"');
     expect(schema.stdout).toContain("ok");
     await expect(
@@ -114,11 +108,6 @@ describe("refreshAgentSessionContext", () => {
             params: { projectId: "project-1" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "7d",
-          start: "2026-03-10T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
     });
 
@@ -129,24 +118,19 @@ describe("refreshAgentSessionContext", () => {
 
     await refreshAgentSessionContext({
       sessionId: "session-refresh",
-      refreshReason: "time-range-change",
+      refreshReason: "navigation",
       pageContext: {
-        pathname: "/projects/project-1/spans",
+        pathname: "/projects/project-1/traces",
         search: "",
         params: { projectId: "project-1" },
         searchParams: {},
         routeMatches: [
           {
-            id: "project-spans",
-            pathname: "/projects/project-1/spans",
+            id: "project-traces",
+            pathname: "/projects/project-1/traces",
             params: { projectId: "project-1" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "1d",
-          start: "2026-03-16T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
     });
 
@@ -160,8 +144,8 @@ describe("refreshAgentSessionContext", () => {
     );
 
     expect(workspaceFile.stdout).toContain("workspace");
-    expect(metadata.stdout).toContain('"refreshReason": "time-range-change"');
-    expect(metadata.stdout).toContain('"timeRangeKey": "1d"');
+    expect(metadata.stdout).toContain('"refreshReason": "navigation"');
+    expect(metadata.stdout).toContain("/projects/project-1/traces");
   });
 
   it("skips replacing /phoenix when the refresh becomes stale", async () => {
@@ -180,34 +164,24 @@ describe("refreshAgentSessionContext", () => {
             params: { projectId: "project-1" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "7d",
-          start: "2026-03-10T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
     });
 
     await refreshAgentSessionContext({
       sessionId: "session-stale-refresh",
-      refreshReason: "time-range-change",
+      refreshReason: "navigation",
       pageContext: {
-        pathname: "/projects/project-1/spans",
+        pathname: "/projects/project-2/spans",
         search: "",
-        params: { projectId: "project-1" },
+        params: { projectId: "project-2" },
         searchParams: {},
         routeMatches: [
           {
             id: "project-spans",
-            pathname: "/projects/project-1/spans",
-            params: { projectId: "project-1" },
+            pathname: "/projects/project-2/spans",
+            params: { projectId: "project-2" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "1d",
-          start: "2026-03-16T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
       canReplacePhoenixContext: () => false,
     });
@@ -217,9 +191,8 @@ describe("refreshAgentSessionContext", () => {
       "cat /phoenix/_meta/context.json"
     );
 
-    expect(metadata.stdout).toContain('"refreshReason": "navigation"');
-    expect(metadata.stdout).toContain('"timeRangeKey": "7d"');
-    expect(metadata.stdout).not.toContain('"timeRangeKey": "1d"');
+    expect(metadata.stdout).toContain('"projectId": "project-1"');
+    expect(metadata.stdout).not.toContain('"projectId": "project-2"');
   });
 
   it("executes phoenix-gql queries from strings, stdin, and files", async () => {
@@ -270,7 +243,6 @@ describe("refreshAgentSessionContext", () => {
             params: { datasetId: "RGF0YXNldDox" },
           },
         ],
-        timeRange: null,
       },
     });
 
@@ -325,7 +297,7 @@ EOF`
     );
   });
 
-  it("emits schema-safe project recipe variables and actionable graphql errors", async () => {
+  it("emits project recipe variables and surfaces actionable graphql errors", async () => {
     await refreshAgentSessionContext({
       sessionId: "session-project-recipe-vars",
       refreshReason: "navigation",
@@ -341,11 +313,6 @@ EOF`
             params: { projectId: "project-1" },
           },
         ],
-        timeRange: {
-          timeRangeKey: "7d",
-          start: "2026-03-10T00:00:00.000Z",
-          end: "2026-03-17T00:00:00.000Z",
-        },
       },
     });
 
@@ -379,9 +346,7 @@ EOF`
       "phoenix-gql /phoenix/graphql/recipes/project-recent-traces.graphql --vars-file /phoenix/graphql/recipes/project-recipes.variables.json"
     );
 
-    expect(varsFile.stdout).toContain('"start": "2026-03-10T00:00:00.000Z"');
-    expect(varsFile.stdout).toContain('"end": "2026-03-17T00:00:00.000Z"');
-    expect(varsFile.stdout).not.toContain("timeRangeKey");
+    expect(varsFile.stdout).toContain('"id": "project-1"');
     expect(gqlResult.exitCode).toBe(1);
     expect(gqlResult.stderr).toContain("GraphQL errors:");
     expect(gqlResult.stderr).toContain('Field "timeRangeKey" is not defined');

@@ -32,6 +32,13 @@ const panelContentCSS = css`
   border-top: 1px solid var(--global-border-color-subtle);
 `;
 
+/**
+ * Resizable side panel that hosts the PXI agent chat.
+ *
+ * Renders inside the main {@link Layout} within a `react-resizable-panels`
+ * Group. Returns `null` when the `agents` feature flag is off or the panel
+ * is closed, so it adds zero overhead to the default layout.
+ */
 export function AgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {

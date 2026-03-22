@@ -1,15 +1,25 @@
 import { BASH_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/bash/bashToolCapabilities";
 
+/**
+ * Ordered lines that compose the agent system prompt.
+ *
+ * Each registered tool contributes its own behavioural guidelines here.
+ * The lines are joined with newlines into {@link AGENT_SYSTEM_PROMPT}
+ * and sent with every chat request via {@link buildAgentChatRequestBody}.
+ */
 const AGENT_SYSTEM_PROMPT_LINES = [
   "You are PXI, Phoenix's in-product agent.",
   ...BASH_TOOL_SYSTEM_PROMPT_LINES,
 ] as const;
 
 /**
- * Centralized system prompt for the in-product Phoenix agent.
+ * The fully assembled system prompt string sent to the model.
  */
 export const AGENT_SYSTEM_PROMPT = AGENT_SYSTEM_PROMPT_LINES.join("\n");
 
+/**
+ * Returns a mutable copy of the system prompt lines for inspection or testing.
+ */
 export function getAgentSystemPromptLines() {
   return [...AGENT_SYSTEM_PROMPT_LINES];
 }

@@ -4,7 +4,6 @@ import {
   garbageCollectBashToolRuntimes,
   refreshAgentSessionContext,
   useCurrentAgentPageContext,
-  type AgentContextRefreshReason,
   type AgentPageContext,
 } from "@phoenix/agent/tools/bash";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -12,15 +11,18 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
 
+/**
+ * Snapshot of the values that were current the last time the bash tool's
+ * `/phoenix` context files were regenerated. Compared against the live
+ * page context to decide whether a navigation-triggered refresh is needed.
+ */
 type PreviousRefreshSnapshot = {
   pathname: string;
   search: string;
-  timeRangeKey: string | null;
-  timeRangeStart: string | null;
-  timeRangeEnd: string | null;
   sessionId: string | null;
 };
 
+/** Captures the current page context + session into a comparable snapshot. */
 function createRefreshSnapshot({
   pageContext,
   sessionId,
@@ -31,14 +33,19 @@ function createRefreshSnapshot({
   return {
     pathname: pageContext.pathname,
     search: pageContext.search,
-    timeRangeKey: pageContext.timeRange?.timeRangeKey ?? null,
-    timeRangeStart: pageContext.timeRange?.start ?? null,
-    timeRangeEnd: pageContext.timeRange?.end ?? null,
     sessionId,
   };
 }
 
-function getRefreshReason({
+/**
+ * Returns `true` if the page context has changed in a way that warrants
+ * regenerating the bash tool's `/phoenix` context files, comparing
+ * the current state against the last refresh snapshot.
+ *
+ * A new or different session always triggers a refresh. Within the same
+ * session, a change in pathname or search params triggers a refresh.
+ */
+function shouldRefreshContext({
   previousRefresh,
   pageContext,
   sessionId,
@@ -46,30 +53,30 @@ function getRefreshReason({
   previousRefresh: PreviousRefreshSnapshot | null;
   pageContext: AgentPageContext;
   sessionId: string | null;
-}): AgentContextRefreshReason | null {
+}): boolean {
   if (previousRefresh === null || previousRefresh.sessionId !== sessionId) {
-    return "navigation";
+    return true;
   }
 
-  const isSameLocation =
-    previousRefresh.pathname === pageContext.pathname &&
-    previousRefresh.search === pageContext.search;
-
-  if (!isSameLocation) {
-    return "navigation";
-  }
-
-  const hasTimeRangeChanged =
-    previousRefresh.timeRangeKey !==
-      (pageContext.timeRange?.timeRangeKey ?? null) ||
-    previousRefresh.timeRangeStart !== (pageContext.timeRange?.start ?? null) ||
-    previousRefresh.timeRangeEnd !== (pageContext.timeRange?.end ?? null);
-
-  return hasTimeRangeChanged ? "time-range-change" : null;
+  return (
+    previousRefresh.pathname !== pageContext.pathname ||
+    previousRefresh.search !== pageContext.search
+  );
 }
 
 /**
- * Encapsulates the non-visual state and side effects that drive AgentChatPanel.
+ * Encapsulates the non-visual state and side effects that drive
+ * {@link AgentChatPanel}.
+ *
+ * Responsibilities:
+ * - Creates a session automatically when the panel opens
+ * - Refreshes the bash tool's `/phoenix` context files on navigation
+ *   (races are resolved via a monotonic request ID)
+ * - Garbage-collects bash runtimes for sessions that are no longer active
+ * - Derives the chat API URL and model menu value from the store
+ *
+ * All bash-tool-specific side effects are co-located here so that
+ * {@link AgentContext} and the rest of the app remain tool-agnostic.
  */
 export function useAgentChatPanelState() {
   const store = useAgentStore();
@@ -93,7 +100,6 @@ export function useAgentChatPanelState() {
       params: pageContext.params,
       searchParams: pageContext.searchParams,
       routeMatches: pageContext.routeMatches,
-      timeRange: pageContext.timeRange,
     }),
     [
       pageContext.pathname,
@@ -101,7 +107,6 @@ export function useAgentChatPanelState() {
       pageContext.params,
       pageContext.searchParams,
       pageContext.routeMatches,
-      pageContext.timeRange,
     ]
   );
 
@@ -166,11 +171,9 @@ export function useAgentChatPanelState() {
   const refreshSessionContext = useCallback(
     async ({
       pageContext,
-      refreshReason,
       sessionId,
     }: {
       pageContext: AgentPageContext;
-      refreshReason: AgentContextRefreshReason;
       sessionId: string | null;
     }) => {
       const refreshRequestId = ++latestRefreshRequestIdRef.current;
@@ -182,7 +185,7 @@ export function useAgentChatPanelState() {
       await refreshAgentSessionContext({
         sessionId,
         pageContext,
-        refreshReason,
+        refreshReason: "navigation",
         canReplacePhoenixContext: () =>
           latestRefreshRequestIdRef.current === refreshRequestId,
       });
@@ -199,19 +202,18 @@ export function useAgentChatPanelState() {
       return;
     }
 
-    const refreshReason = getRefreshReason({
+    const needsRefresh = shouldRefreshContext({
       previousRefresh: previousRefreshRef.current,
       pageContext: autoRefreshPageContext,
       sessionId: activeSessionId,
     });
 
-    if (!refreshReason) {
+    if (!needsRefresh) {
       return;
     }
 
     void refreshSessionContext({
       pageContext: autoRefreshPageContext,
-      refreshReason,
       sessionId: activeSessionId,
     });
   }, [activeSessionId, autoRefreshPageContext, isOpen, refreshSessionContext]);

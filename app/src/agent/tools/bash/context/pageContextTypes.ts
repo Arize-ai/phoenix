@@ -1,14 +1,8 @@
 import type { InitialFiles } from "just-bash";
 
-export type AgentContextRefreshReason = "navigation" | "time-range-change";
+export type AgentContextRefreshReason = "navigation";
 
 export type AgentPageKind = "generic" | "project" | "trace";
-
-export interface AgentTimeRangeContext {
-  timeRangeKey: string | null;
-  start: string | null;
-  end: string | null;
-}
 
 export interface AgentPageContext {
   pathname: string;
@@ -20,7 +14,6 @@ export interface AgentPageContext {
     pathname: string;
     params: Record<string, string>;
   }>;
-  timeRange: AgentTimeRangeContext | null;
 }
 
 export interface AdapterMetadata {
@@ -29,7 +22,6 @@ export interface AdapterMetadata {
   pathname: string;
   search: string;
   params: Record<string, string>;
-  timeRange: AgentTimeRangeContext | null;
   files: string[];
 }
 

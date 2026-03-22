@@ -16,9 +16,6 @@ export function createManifestFile({
     Object.keys(metadata.params).length > 0
       ? `Route params: ${JSON.stringify(metadata.params)}`
       : null,
-    metadata.timeRange
-      ? `Time range: ${metadata.timeRange.start ?? "open"} -> ${metadata.timeRange.end ?? "open"}`
-      : null,
     "",
     "## Files",
     ...metadata.files.map((filePath) => `- ${filePath}`),

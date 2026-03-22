@@ -4,11 +4,7 @@ import { PHOENIX_ROOT } from "@phoenix/agent/tools/bash/context/filesystem/pathC
 import type { AgentPageContext } from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 import type { GeneratedContextFile } from "../types";
-import {
-  createGraphqlContextFile,
-  createJsonContextFile,
-  toGraphqlTimeRange,
-} from "./shared";
+import { createGraphqlContextFile, createJsonContextFile } from "./shared";
 
 const projectByIdQuery = graphql`
   query projectPageContextProjectByIdQuery($id: ID!) {
@@ -145,9 +141,6 @@ export function buildProjectRecipeFiles(
 
   const sharedVariables = {
     id: projectId,
-    ...(toGraphqlTimeRange(pageContext.timeRange)
-      ? { timeRange: toGraphqlTimeRange(pageContext.timeRange) }
-      : {}),
   };
 
   return [

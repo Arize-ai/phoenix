@@ -130,6 +130,12 @@ function stringifyToolValue(value: unknown) {
   }
 }
 
+/**
+ * Collapsible detail view for a single tool invocation within an assistant
+ * message. For bash tool calls it shows the command, exit code, duration,
+ * and stdout/stderr using typed helpers from the bash tool barrel.
+ * Falls back to generic JSON rendering for unknown tools.
+ */
 function ToolPart({
   part,
 }: {
@@ -199,6 +205,7 @@ function ToolPart({
   );
 }
 
+/** Renders a user message bubble (right-aligned, primary colour). */
 export function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
   return (
     <div css={userMessageCSS}>
@@ -210,6 +217,11 @@ export function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
   );
 }
 
+/**
+ * Renders an assistant message consisting of interleaved text and tool-call
+ * parts. Text is rendered via Streamdown (markdown); tool calls are rendered
+ * as collapsible {@link ToolPart} details.
+ */
 export function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
   return (
     <div css={assistantMessageCSS}>

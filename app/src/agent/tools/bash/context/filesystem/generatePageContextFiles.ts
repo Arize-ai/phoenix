@@ -16,7 +16,7 @@ import type {
 import { buildGraphqlContextFiles } from "./fileBuilders/buildGraphqlContextFiles";
 
 const PAGE_CONTEXT_MANIFEST_FRAGMENT =
-  "Page context includes the current pathname, route hierarchy, route params, search params, and time range only.";
+  "Page context includes the current pathname, route hierarchy, route params, and search params.";
 
 function createJsonFile(payload: unknown) {
   return JSON.stringify(payload, null, 2);
@@ -49,7 +49,6 @@ function createMetadata({
     pathname: pageContext.pathname,
     search: pageContext.search,
     params: pageContext.params,
-    timeRange: pageContext.timeRange,
     files: [...files].sort(),
   };
 }

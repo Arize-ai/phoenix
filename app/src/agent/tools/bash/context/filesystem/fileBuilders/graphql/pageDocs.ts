@@ -35,7 +35,6 @@ Use this file for initial orientation.
 - pathname: ${pageContext.pathname}
 - params: ${formatJsonBlock(pageContext.params)}
 - search params: ${formatJsonBlock(pageContext.searchParams)}
-- time range: ${formatJsonBlock(pageContext.timeRange)}
 
 Helpful files:
 - ${PHOENIX_ROOT}/page-context.json

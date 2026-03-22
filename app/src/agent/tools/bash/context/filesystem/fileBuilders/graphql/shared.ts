@@ -1,7 +1,6 @@
 import type { ConcreteRequest, GraphQLTaggedNode } from "relay-runtime";
 
 import { PHOENIX_ROOT } from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
-import type { AgentPageContext } from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 import type { GeneratedContextFile } from "../types";
 
@@ -35,19 +34,6 @@ Notes:
 
 export function formatJsonBlock(value: unknown) {
   return JSON.stringify(value, null, 2);
-}
-
-export function toGraphqlTimeRange(timeRange: AgentPageContext["timeRange"]) {
-  if (!timeRange) {
-    return null;
-  }
-
-  const graphqlTimeRange = {
-    ...(timeRange.start ? { start: timeRange.start } : {}),
-    ...(timeRange.end ? { end: timeRange.end } : {}),
-  };
-
-  return Object.keys(graphqlTimeRange).length > 0 ? graphqlTimeRange : null;
 }
 
 export function getGraphqlRequestText(

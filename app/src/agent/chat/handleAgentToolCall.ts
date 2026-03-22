@@ -15,6 +15,13 @@ type HandleAgentToolCallOptions = {
   addToolOutput: AddToolOutput;
 };
 
+/**
+ * Dispatches an AI-SDK tool call to the appropriate client-side handler.
+ *
+ * Each tool registered in {@link agentToolDefinitions} must have a
+ * corresponding case here. Unrecognised tool names produce an error
+ * output so the model can self-correct.
+ */
 export async function handleAgentToolCall({
   toolCall,
   sessionId,

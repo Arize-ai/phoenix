@@ -8,7 +8,6 @@ export const PHOENIX_DATASETS_ROOT = `${PHOENIX_ROOT}/datasets`;
 export const PHOENIX_EXPERIMENTS_ROOT = `${PHOENIX_ROOT}/experiments`;
 export const PHOENIX_PROMPTS_ROOT = `${PHOENIX_ROOT}/prompts`;
 export const PHOENIX_EVALUATORS_ROOT = `${PHOENIX_ROOT}/evaluators`;
-export const PHOENIX_TIME_RANGES_ROOT = `${PHOENIX_ROOT}/time_ranges`;
 
 export function getPhoenixProjectRoot(projectId: string) {
   return `${PHOENIX_PROJECTS_ROOT}/${projectId}`;
@@ -30,6 +29,5 @@ export function getPhoenixTopLevelIndexPaths() {
     `${PHOENIX_EXPERIMENTS_ROOT}/INDEX.json`,
     `${PHOENIX_PROMPTS_ROOT}/INDEX.json`,
     `${PHOENIX_EVALUATORS_ROOT}/INDEX.json`,
-    `${PHOENIX_TIME_RANGES_ROOT}/INDEX.json`,
   ] as const;
 }

@@ -1,17 +1,12 @@
 import { useMemo } from "react";
 import { useLocation, useMatches, type UIMatch } from "react-router";
 
-import type {
-  AgentPageContext,
-  AgentTimeRangeContext,
-} from "@phoenix/agent/tools/bash/context/pageContextTypes";
-import { useNullableTimeRangeContext } from "@phoenix/components/datetime/TimeRangeContext";
+import type { AgentPageContext } from "@phoenix/agent/tools/bash/context/pageContextTypes";
 
 type BuildAgentPageContextOptions = {
   pathname: string;
   search: string;
   matches: UIMatch[];
-  timeRange: AgentTimeRangeContext | null;
 };
 
 function collectSearchParams(search: string) {
@@ -73,11 +68,15 @@ function collectRouteParams(matches: UIMatch[]) {
   }, {});
 }
 
+/**
+ * Builds a serializable snapshot of the current page context from React
+ * Router state. This snapshot is written into the bash tool's `/phoenix`
+ * virtual filesystem so the agent knows which page the user is viewing.
+ */
 export function buildAgentPageContext({
   pathname,
   search,
   matches,
-  timeRange,
 }: BuildAgentPageContextOptions): AgentPageContext {
   const params = collectRouteParams(matches);
   const normalizedPathname = stripBasename(pathname);
@@ -88,28 +87,16 @@ export function buildAgentPageContext({
     params,
     searchParams: collectSearchParams(search),
     routeMatches: collectRouteMatchContext(matches),
-    timeRange,
   };
 }
 
-export function getAgentTimeRangeContext(
-  timeRangeContext: ReturnType<typeof useNullableTimeRangeContext>
-): AgentTimeRangeContext | null {
-  if (!timeRangeContext) {
-    return null;
-  }
-
-  return {
-    timeRangeKey: timeRangeContext.timeRange.timeRangeKey,
-    start: timeRangeContext.timeRange.start?.toISOString() ?? null,
-    end: timeRangeContext.timeRange.end?.toISOString() ?? null,
-  };
-}
-
+/**
+ * Hook that derives the current {@link AgentPageContext} from React Router.
+ * Re-computes only when the pathname, search, or route matches change.
+ */
 export function useCurrentAgentPageContext() {
   const location = useLocation();
   const matches = useMatches();
-  const timeRangeContext = useNullableTimeRangeContext();
 
   return useMemo(
     () =>
@@ -117,8 +104,7 @@ export function useCurrentAgentPageContext() {
         pathname: location.pathname,
         search: location.search,
         matches,
-        timeRange: getAgentTimeRangeContext(timeRangeContext),
       }),
-    [location.pathname, location.search, matches, timeRangeContext]
+    [location.pathname, location.search, matches]
   );
 }

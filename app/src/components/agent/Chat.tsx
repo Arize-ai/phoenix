@@ -88,6 +88,21 @@ const chatCSS = css`
   }
 `;
 
+/**
+ * Core chat UI for a single agent conversation.
+ *
+ * Wraps the AI SDK `useChat` hook with Phoenix-specific configuration:
+ * - Sends tool definitions and system prompt via {@link buildAgentChatRequestBody}
+ * - Dispatches client-side tool calls through {@link handleAgentToolCall}
+ * - Persists messages to the Zustand agent store on completion and unmount
+ *
+ * The parent component keys this on `sessionId + chatApiUrl`, so it fully
+ * remounts when **either** the session or the model changes. This is
+ * intentional: `chatApiUrl` encodes model params, and the AI SDK transport
+ * captures the URL at construction time, so a model switch requires a fresh
+ * `useChat` instance. Messages are persisted to the store before unmount so
+ * the conversation survives the remount.
+ */
 export function Chat({
   sessionId,
   chatApiUrl,
