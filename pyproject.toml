@@ -91,7 +91,6 @@ dev = [
   "boto3",
   "debugpy",
   "deepdiff==8.6.2",
-  "diskcache",
   "Faker>=30.1.0",
   "freezegun",
   "google-genai>=1.0.0",

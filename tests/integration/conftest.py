@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
@@ -10,17 +11,16 @@ from typing import Callable, Literal, Optional, cast
 
 import pytest
 from _pytest.fixtures import SubRequest
-from diskcache import Cache  # type: ignore[import-untyped]
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.client.__generated__ import v1
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
+from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
@@ -50,29 +50,50 @@ from ._helpers import (
 
 # Cross-process port reservation cache shared across all pytest-xdist workers.
 # pick_unused_port() finds a free port at the OS level, but two workers can race
-# to claim the same port before either has bound to it (TOCTOU). This diskcache
-# acts as a global registry: cache.add() is atomic across processes, so only one
-# worker can claim a given port. Entries expire after the TTL so stale entries
-# from crashed runs do not permanently crowd out ports.
+# to claim the same port before either has bound to it (TOCTOU). This file-based
+# registry uses O_CREAT | O_EXCL for atomic cross-process reservation, so only
+# one worker can claim a given port. Stale entries from crashed runs are expired
+# based on file modification time.
 _PORT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "phoenix-test-ports")
+_PORT_CACHE_TTL = 5 * 60  # seconds
+
+
+def _port_cache_add(port: int) -> bool:
+    """Atomically reserve a port using file-based locking.
+
+    Returns True only if the port was freshly reserved.
+    Uses O_CREAT | O_EXCL which is atomic across processes.
+    """
+    os.makedirs(_PORT_CACHE_DIR, exist_ok=True)
+    path = os.path.join(_PORT_CACHE_DIR, str(port))
+    # Expire stale entries from previous runs
+    try:
+        if time.time() - os.path.getmtime(path) > _PORT_CACHE_TTL:
+            os.unlink(path)
+    except OSError:
+        pass
+    # Atomic create-if-not-exists
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(fd)
+        return True
+    except FileExistsError:
+        return False
 
 
 @pytest.fixture(scope="session")
 def _ports() -> Iterator[Iterator[int]]:
-    def _allocate(cache: Cache) -> Iterator[int]:
+    def _allocate() -> Iterator[int]:
         while True:
             for _ in range(100):
                 candidate = pick_unused_port()
-                # cache.add() is atomic across processes: returns True only
-                # if the key was freshly inserted (i.e., not yet claimed).
-                if cache.add(str(candidate), True, expire=5 * 60):
+                if _port_cache_add(candidate):
                     yield candidate
                     break
             else:
                 raise RuntimeError("Failed to allocate unique test port after 100 attempts")
 
-    with Cache(_PORT_CACHE_DIR) as cache:
-        yield _allocate(cache)
+    yield _allocate()
 
 
 @pytest.fixture(scope="session")
