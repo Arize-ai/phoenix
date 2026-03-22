@@ -105,7 +105,7 @@ export const TitledPanel = forwardRef<
           collapsible
           onResize={(panelSize) => {
             const isCollapsed = panelSize.asPercentage === 0;
-            setCollapsed(isCollapsed);
+            setCollapsed((prev) => (prev === isCollapsed ? prev : isCollapsed));
           }}
         >
           {children}

@@ -471,6 +471,7 @@ function SpanAnnotationsList(props: {
   const handleDelete = useCallback(
     (annotation: Annotation) =>
       new Promise<AnnotationFormMutationResult>((resolve) => {
+        setError(null);
         if (annotation.id) {
           commitDeleteAnnotation({
             variables: {
@@ -556,6 +557,7 @@ function SpanAnnotationsList(props: {
   const handleEdit = useCallback(
     (data: Annotation) => {
       return new Promise<AnnotationFormMutationResult>((resolve) => {
+        setError(null);
         const annotationId = data.id;
         if (annotationId) {
           startTransition(() => {
@@ -629,6 +631,7 @@ function SpanAnnotationsList(props: {
   const handleCreate = useCallback(
     (data: AnnotationFormData) =>
       new Promise<AnnotationFormMutationResult>((resolve) => {
+        setError(null);
         commitCreateAnnotation({
           variables: {
             input: {

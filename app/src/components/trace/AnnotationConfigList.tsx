@@ -226,13 +226,11 @@ export function AnnotationConfigList(props: {
         return;
       }
       const newSelectedIds = new Set(Array.from(keys) as string[]);
-      // Add configs that are newly selected
       for (const configId of newSelectedIds) {
         if (!annotationConfigIdsInProject.has(configId)) {
           addAnnotationConfigToProject(configId);
         }
       }
-      // Remove configs that were deselected
       for (const configId of annotationConfigIdsInProject) {
         if (!newSelectedIds.has(configId)) {
           removeAnnotationConfigFromProject(configId);

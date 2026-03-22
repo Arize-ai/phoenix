@@ -2,7 +2,11 @@ import type { PhoenixClient, Types } from "@arizeai/phoenix-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
-import { DEFAULT_TRACE_PAGE_SIZE, MAX_SESSION_PAGE_SIZE } from "./constants.js";
+import {
+  DEFAULT_TRACE_PAGE_SIZE,
+  MAX_SESSION_PAGE_SIZE,
+  MAX_SPAN_QUERY_LIMIT,
+} from "./constants.js";
 import { requireIdentifier } from "./identifiers.js";
 import { fetchAllPages } from "./pagination.js";
 import { resolveProjectIdentifier } from "./projectUtils.js";
@@ -57,7 +61,7 @@ async function fetchSessionAnnotations({
   });
 
   return fetchAllPages({
-    limit: Infinity,
+    limit: MAX_SPAN_QUERY_LIMIT,
     fetchPage: async (cursor, pageSize) => {
       const query: SessionAnnotationsQuery = {
         session_ids: [sessionId],

@@ -31,7 +31,6 @@ export async function resolveDatasetId({
   datasetId?: string;
   datasetName?: string;
 }): Promise<string> {
-  // Prefer datasetId when provided
   if (datasetId) {
     const normalizedId = requireIdentifier({
       identifier: datasetId,
