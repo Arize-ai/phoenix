@@ -28,11 +28,7 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByCostQuery } from "./__generated__/TopModelsByCostQuery.graphql";
 
-function TooltipContent({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const colors = useCategoryChartColors();
 
   if (active && payload && payload.length) {

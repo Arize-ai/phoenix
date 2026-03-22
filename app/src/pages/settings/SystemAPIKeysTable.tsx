@@ -50,7 +50,9 @@ export function SystemAPIKeysTable({
   const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
-    mutation SystemAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
+      $input: DeleteApiKeyInput!
+    ) {
       deleteSystemApiKey(input: $input) {
         __typename
         apiKeyId

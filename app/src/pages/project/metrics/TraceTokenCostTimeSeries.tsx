@@ -34,11 +34,7 @@ import {
 
 import type { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
 
-function TooltipContent({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const chartColors = useCategoryChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {

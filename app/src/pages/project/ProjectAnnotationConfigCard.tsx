@@ -212,7 +212,10 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           addAnnotationConfigToProject(
-            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations
@@ -230,7 +233,10 @@ const ProjectAnnotationConfigCardContent = (
           $annotationConfigId: ID!
         ) {
           removeAnnotationConfigFromProject(
-            input: { projectId: $projectId, annotationConfigId: $annotationConfigId }
+            input: {
+              projectId: $projectId
+              annotationConfigId: $annotationConfigId
+            }
           ) {
             project {
               ...ProjectAnnotationConfigCardContent_project_annotations

@@ -330,13 +330,17 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
         /* Add vertical padding to quiet SearchFields in header */
         .search-field[data-variant="quiet"] .react-aria-Input,
         .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
           border-bottom-color: var(--global-menu-border-color);
         }
         * + .search-field[data-variant="quiet"] .react-aria-Input,
         *
           + .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
           border-top-color: var(--global-menu-border-color);
         }
       `}

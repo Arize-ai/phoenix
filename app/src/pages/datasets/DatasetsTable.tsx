@@ -95,7 +95,10 @@ export function DatasetsTable(props: DatasetsTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
-          sort: { type: "DatasetSort", defaultValue: { col: createdAt, dir: desc } }
+          sort: {
+            type: "DatasetSort"
+            defaultValue: { col: createdAt, dir: desc }
+          }
           filter: { type: "DatasetFilter", defaultValue: null }
         ) {
           datasets(first: $first, after: $after, sort: $sort, filter: $filter)

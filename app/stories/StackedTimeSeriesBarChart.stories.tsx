@@ -148,11 +148,7 @@ const highVolumeData = [
   },
 ];
 
-function TooltipContent({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const chartColors = useSequentialChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
 

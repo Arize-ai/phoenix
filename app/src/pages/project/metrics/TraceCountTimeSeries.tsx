@@ -33,11 +33,7 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
 
-function TooltipContent({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
     // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)

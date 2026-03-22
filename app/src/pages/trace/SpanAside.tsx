@@ -113,7 +113,7 @@ export function SpanAside(props: SpanAsideProps) {
           </Flex>
         }
         panelProps={{ minSize: 10 }}
->
+      >
         <View height="100%" maxHeight="100%">
           <SpanAnnotationsEditor
             // remount the editor when the span id changes

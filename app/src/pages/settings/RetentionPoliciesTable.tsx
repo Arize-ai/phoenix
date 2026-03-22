@@ -70,7 +70,9 @@ export const RetentionPoliciesTable = ({
         first: { type: "Int", defaultValue: 1000 }
       ) {
         projectTraceRetentionPolicies(first: $first, after: $after)
-          @connection(key: "RetentionPoliciesTable_projectTraceRetentionPolicies") {
+          @connection(
+            key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
+          ) {
           edges {
             node {
               ...RetentionPoliciesTable_retentionPolicy

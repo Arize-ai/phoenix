@@ -71,7 +71,10 @@ const EvaluatorExampleSelectContent = ({
 }: EvaluatorExampleSelectProps) => {
   const data = useLazyLoadQuery<EvaluatorExampleSelectQuery>(
     graphql`
-      query EvaluatorExampleSelectQuery($datasetId: ID!, $hasDataset: Boolean!) {
+      query EvaluatorExampleSelectQuery(
+        $datasetId: ID!
+        $hasDataset: Boolean!
+      ) {
         dataset: node(id: $datasetId) @include(if: $hasDataset) {
           ... on Dataset {
             examples(first: 20) {

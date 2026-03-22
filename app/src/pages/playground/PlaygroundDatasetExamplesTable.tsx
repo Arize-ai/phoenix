@@ -985,12 +985,19 @@ export function PlaygroundDatasetExamplesTable({
 
   const { dataset } = useLazyLoadQuery<PlaygroundDatasetExamplesTableQuery>(
     graphql`
-      query PlaygroundDatasetExamplesTableQuery($datasetId: ID!, $splitIds: [ID!]) {
+      query PlaygroundDatasetExamplesTableQuery(
+        $datasetId: ID!
+        $splitIds: [ID!]
+      ) {
         dataset: node(id: $datasetId) {
-          ...PlaygroundDatasetExamplesTableFragment @arguments(splitIds: $splitIds)
+          ...PlaygroundDatasetExamplesTableFragment
+            @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
-            latestVersions: versions(first: 1, sort: { col: createdAt, dir: desc }) {
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
               edges {
                 version: node {
                   id

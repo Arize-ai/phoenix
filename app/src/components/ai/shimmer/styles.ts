@@ -32,10 +32,7 @@ export const shimmerBaseCSS = css`
       var(--global-background-color-default),
       transparent calc(50% + var(--shimmer-spread))
     ),
-    linear-gradient(
-      var(--global-text-color-700),
-      var(--global-text-color-700)
-    );
+    linear-gradient(var(--global-text-color-700), var(--global-text-color-700));
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -47,7 +44,9 @@ export const shimmerBaseCSS = css`
 `;
 
 export const getShimmerAnimationCSS = (duration: number) => css`
-  background-size: 250% 100%, auto;
+  background-size:
+    250% 100%,
+    auto;
   animation: ${shimmerKeyframes} ${duration}s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {

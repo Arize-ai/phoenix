@@ -44,7 +44,10 @@ export const DatasetPageQueryNode = graphql`
           name
           color
         }
-        latestVersions: versions(first: 1, sort: { col: createdAt, dir: desc }) {
+        latestVersions: versions(
+          first: 1
+          sort: { col: createdAt, dir: desc }
+        ) {
           edges {
             version: node {
               id

@@ -466,11 +466,9 @@ function SpanTreeEdgeConnector({
       css={css`
         position: absolute;
         border-left: 1px solid
-          ${
-            isError
-              ? "var(--global-color-danger)"
-              : "var(--global-color-gray-500)"
-          };
+          ${isError
+            ? "var(--global-color-danger)"
+            : "var(--global-color-gray-500)"};
         z-index: ${isError ? 1 : 0};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;

@@ -73,7 +73,11 @@ export function APIKeysCard() {
         $expiresAt: DateTime = null
       ) {
         createSystemApiKey(
-          input: { name: $name, description: $description, expiresAt: $expiresAt }
+          input: {
+            name: $name
+            description: $description
+            expiresAt: $expiresAt
+          }
         ) {
           jwt
           query {

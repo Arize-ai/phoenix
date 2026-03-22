@@ -19,7 +19,10 @@ export async function promptTagRedirectLoader(args: LoaderFunctionArgs) {
   const response = await fetchQuery<promptTagRedirectLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query promptTagRedirectLoaderQuery($promptId: ID!, $tagName: Identifier!) {
+      query promptTagRedirectLoaderQuery(
+        $promptId: ID!
+        $tagName: Identifier!
+      ) {
         prompt: node(id: $promptId) {
           __typename
           ... on Prompt {

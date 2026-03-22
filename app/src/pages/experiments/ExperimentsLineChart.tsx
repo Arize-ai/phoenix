@@ -46,11 +46,7 @@ const latencyFormatter = (value: number | null | undefined) => {
   return `${format(".1f")(value / 1000)}s`;
 };
 
-function TooltipContent({
-  active,
-  payload,
-  label,
-}: TooltipContentProps) {
+function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { gray300 } = useSequentialChartColors();
   const { theme } = useTheme();
   // Use the same color logic as the chart lines
