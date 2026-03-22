@@ -46,11 +46,9 @@ export interface AlertProps {
 
 const alertCSS = css`
   --alert-base-color: var(--global-color-info);
-  --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.1);
-  --alert-border-color: lch(from var(--alert-base-color) l c h / 0.3);
-  --alert-text-color: lch(
-    from var(--alert-base-color) calc((50 - l) * infinity) 0 0
-  );
+  --alert-bg-color: lch(from var(--alert-base-color) 96 calc(c * 0.3) h);
+  --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
+  --alert-text-color: lch(from var(--alert-base-color) 45 c h);
 
   padding: var(--global-dimension-static-size-100)
     var(--global-dimension-static-size-200);
@@ -86,17 +84,15 @@ const alertCSS = css`
   }
 
   &[data-theme="light"] {
-    --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.1);
-    --alert-border-color: lch(from var(--alert-base-color) l c h / 0.3);
-    --alert-text-color: var(--alert-base-color);
+    --alert-bg-color: lch(from var(--alert-base-color) 96 calc(c * 0.3) h);
+    --alert-border-color: lch(from var(--alert-base-color) 88 calc(c * 0.4) h);
+    --alert-text-color: lch(from var(--alert-base-color) 45 c h);
   }
 
   &[data-theme="dark"] {
-    --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.2);
-    --alert-border-color: lch(from var(--alert-base-color) l c h / 0.4);
-    --alert-text-color: lch(
-      from var(--alert-base-color) calc((l) * infinity) c h / 1
-    );
+    --alert-bg-color: lch(from var(--alert-base-color) 18 calc(c * 0.2) h);
+    --alert-border-color: lch(from var(--alert-base-color) 28 calc(c * 0.3) h);
+    --alert-text-color: lch(from var(--alert-base-color) 90 calc(c * 0.8) h);
   }
 
   .alert__icon-title-wrap {

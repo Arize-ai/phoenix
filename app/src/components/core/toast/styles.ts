@@ -25,20 +25,20 @@ export const toastCss = css`
   --toast-color: var(--global-static-color-900);
   &[data-theme="light"] {
     --toast-border: 1px solid
-      lch(from var(--internal-token-color) l c h / 0.3);
+      lch(from var(--internal-token-color) 88 calc(c * 0.4) h);
     --toast-background-color: lch(
-      from var(--internal-token-color) l c h / 0.1
+      from var(--internal-token-color) 96 calc(c * 0.3) h
     );
-    --toast-color: var(--internal-token-color);
+    --toast-color: lch(from var(--internal-token-color) 45 c h);
   }
   &[data-theme="dark"] {
     --toast-border: 1px solid
-      lch(from var(--internal-token-color) l c h / 0.4);
+      lch(from var(--internal-token-color) 28 calc(c * 0.3) h);
     --toast-background-color: lch(
-      from var(--internal-token-color) l c h / 0.2
+      from var(--internal-token-color) 18 calc(c * 0.2) h
     );
     --toast-color: lch(
-      from var(--internal-token-color) calc((l) * infinity) c h / 1
+      from var(--internal-token-color) 90 calc(c * 0.8) h
     );
     backdrop-filter: blur(4px);
   }

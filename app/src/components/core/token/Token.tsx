@@ -86,15 +86,15 @@ const tokenBaseCSS = css`
   }
 
   &[data-theme="light"] {
-    background: lch(from var(--internal-token-color) 92 calc(c * 0.6) h);
-    border-color: lch(from var(--internal-token-color) 80 calc(c * 0.7) h);
-    color: lch(from var(--internal-token-color) 35 c h);
+    background: lch(from var(--internal-token-color) 96 calc(c * 0.3) h);
+    border-color: lch(from var(--internal-token-color) 88 calc(c * 0.4) h);
+    color: lch(from var(--internal-token-color) 45 c h);
   }
 
   &[data-theme="dark"] {
-    background: lch(from var(--internal-token-color) 25 calc(c * 0.4) h);
-    border-color: lch(from var(--internal-token-color) 40 calc(c * 0.5) h);
-    color: lch(from var(--internal-token-color) 85 calc(c * 0.8) h);
+    background: lch(from var(--internal-token-color) 18 calc(c * 0.2) h);
+    border-color: lch(from var(--internal-token-color) 28 calc(c * 0.3) h);
+    color: lch(from var(--internal-token-color) 90 calc(c * 0.8) h);
   }
 
   &[data-interactive]:not([data-disabled]) {

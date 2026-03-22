@@ -6,9 +6,9 @@ import type { BadgeProps } from "./types";
 
 const badgeCSS = css`
   --badge-base-color: var(--global-color-gray-600);
-  --badge-bg-color: lch(from var(--badge-base-color) l c h / 0.1);
-  --badge-border-color: lch(from var(--badge-base-color) l c h / 0.3);
-  --badge-text-color: var(--badge-base-color);
+  --badge-bg-color: lch(from var(--badge-base-color) 96 calc(c * 0.3) h);
+  --badge-border-color: lch(from var(--badge-base-color) 88 calc(c * 0.4) h);
+  --badge-text-color: lch(from var(--badge-base-color) 45 c h);
 
   display: inline-flex;
   align-items: center;
@@ -56,16 +56,14 @@ const badgeCSS = css`
 
   /* Theme-aware color derivation */
   &[data-theme="light"] {
-    --badge-bg-color: lch(from var(--badge-base-color) l c h / 0.1);
-    --badge-border-color: lch(from var(--badge-base-color) l c h / 0.3);
-    --badge-text-color: var(--badge-base-color);
+    --badge-bg-color: lch(from var(--badge-base-color) 96 calc(c * 0.3) h);
+    --badge-border-color: lch(from var(--badge-base-color) 88 calc(c * 0.4) h);
+    --badge-text-color: lch(from var(--badge-base-color) 45 c h);
   }
   &[data-theme="dark"] {
-    --badge-bg-color: lch(from var(--badge-base-color) l c h / 0.2);
-    --badge-border-color: lch(from var(--badge-base-color) l c h / 0.4);
-    --badge-text-color: lch(
-      from var(--badge-base-color) calc((l) * infinity) c h / 1
-    );
+    --badge-bg-color: lch(from var(--badge-base-color) 18 calc(c * 0.2) h);
+    --badge-border-color: lch(from var(--badge-base-color) 28 calc(c * 0.3) h);
+    --badge-text-color: lch(from var(--badge-base-color) 90 calc(c * 0.8) h);
   }
 `;
 
