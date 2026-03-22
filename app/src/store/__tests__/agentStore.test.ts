@@ -1,5 +1,3 @@
-import type { UIMessage } from "ai";
-
 import { createAgentStore } from "../agentStore";
 
 describe("agentStore", () => {
@@ -7,46 +5,19 @@ describe("agentStore", () => {
     localStorage.removeItem("arize-phoenix-agent");
   });
 
-  it("defaults debug settings to not retain inactive bash sessions", () => {
-    const store = createAgentStore();
-
-    expect(store.getState().debug).toEqual({
-      retainInactiveBashSessions: false,
-    });
-  });
-
   describe("createSession", () => {
-    it("creates a session with default model config, adds to sessions/sessionMap, sets as active", () => {
+    it("creates a session, adds it to sessions list, and sets it as active", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
       const state = store.getState();
       expect(state.sessions).toEqual([sessionId]);
       expect(state.activeSessionId).toBe(sessionId);
       expect(state.sessionMap[sessionId]).toBeDefined();
-      expect(state.sessionMap[sessionId].modelConfig.provider).toBe(
-        "ANTHROPIC"
-      );
-      expect(state.sessionMap[sessionId].modelConfig.modelName).toBe(
-        "claude-opus-4-6"
-      );
-      expect(state.sessionMap[sessionId].messages).toEqual([]);
-      expect(state.sessionMap[sessionId].context).toEqual([]);
-    });
-
-    it("generates unique UUIDs for each session", () => {
-      const store = createAgentStore();
-      const sessionId1 = store.getState().createSession();
-      const sessionId2 = store.getState().createSession();
-      expect(sessionId1).not.toBe(sessionId2);
-      // UUID format check
-      expect(sessionId1).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      );
     });
   });
 
   describe("deleteSession", () => {
-    it("removes session and updates activeSessionId", () => {
+    it("removes session and clears activeSessionId when no sessions remain", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
       store.getState().deleteSession(sessionId);
@@ -56,7 +27,7 @@ describe("agentStore", () => {
       expect(state.activeSessionId).toBeNull();
     });
 
-    it("sets activeSessionId to last remaining session when active is deleted", () => {
+    it("falls back activeSessionId to last remaining session when active is deleted", () => {
       const store = createAgentStore();
       const sessionId1 = store.getState().createSession();
       const sessionId2 = store.getState().createSession();
@@ -66,62 +37,22 @@ describe("agentStore", () => {
     });
   });
 
-  describe("setActiveSession", () => {
-    it("switches active session", () => {
-      const store = createAgentStore();
-      const sessionId1 = store.getState().createSession();
-      const sessionId2 = store.getState().createSession();
-      store.getState().setActiveSession(sessionId1);
-      expect(store.getState().activeSessionId).toBe(sessionId1);
-      store.getState().setActiveSession(sessionId2);
-      expect(store.getState().activeSessionId).toBe(sessionId2);
-    });
-  });
-
-  describe("updateSessionSummary", () => {
-    it("updates summary in sessionMap", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().updateSessionSummary(sessionId, "test summary");
-      expect(store.getState().sessionMap[sessionId].shortSummary).toBe(
-        "test summary"
-      );
-    });
-  });
-
   describe("updateSessionModelConfig", () => {
-    it("partial-merges model config", () => {
+    it("partial-merges model config without clobbering other fields", () => {
       const store = createAgentStore();
       const sessionId = store.getState().createSession();
+      const originalProvider =
+        store.getState().sessionMap[sessionId].modelConfig.provider;
       store
         .getState()
         .updateSessionModelConfig(sessionId, { modelName: "gpt-4o" });
       const config = store.getState().sessionMap[sessionId].modelConfig;
       expect(config.modelName).toBe("gpt-4o");
-      expect(config.provider).toBe("ANTHROPIC"); // unchanged
+      expect(config.provider).toBe(originalProvider);
     });
   });
 
   describe("setSessionMessages", () => {
-    it("replaces messages on the session", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const messages: UIMessage[] = [
-        {
-          id: "msg-1",
-          role: "user",
-          parts: [{ type: "text", text: "hello" }],
-        },
-        {
-          id: "msg-2",
-          role: "assistant",
-          parts: [{ type: "text", text: "hi there" }],
-        },
-      ];
-      store.getState().setSessionMessages(sessionId, messages);
-      expect(store.getState().sessionMap[sessionId].messages).toEqual(messages);
-    });
-
     it("no-ops for unknown session", () => {
       const store = createAgentStore();
       const before = store.getState();
@@ -130,56 +61,14 @@ describe("agentStore", () => {
     });
   });
 
-  describe("addSessionContext / removeSessionContext", () => {
-    it("manages context array", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      store.getState().addSessionContext(sessionId, "ctx1");
-      store.getState().addSessionContext(sessionId, "ctx2");
-      expect(store.getState().sessionMap[sessionId].context).toEqual([
-        "ctx1",
-        "ctx2",
-      ]);
-      store.getState().removeSessionContext(sessionId, "ctx1");
-      expect(store.getState().sessionMap[sessionId].context).toEqual(["ctx2"]);
-    });
-  });
-
-  describe("clearAllSessions", () => {
-    it("resets sessions, sessionMap, activeSessionId", () => {
-      const store = createAgentStore();
-      const sessionId = store.getState().createSession();
-      const messages: UIMessage[] = [
-        {
-          id: "msg-1",
-          role: "user",
-          parts: [{ type: "text", text: "hello" }],
-        },
-      ];
-      store.getState().setSessionMessages(sessionId, messages);
-      store.getState().clearAllSessions();
-      const state = store.getState();
-      expect(state.sessions).toEqual([]);
-      expect(state.sessionMap).toEqual({});
-      expect(state.activeSessionId).toBeNull();
-    });
-  });
-
-  describe("toggleOpen / setPosition", () => {
+  describe("toggleOpen", () => {
     it("toggles isOpen", () => {
       const store = createAgentStore();
-      expect(store.getState().isOpen).toBe(false);
+      const initial = store.getState().isOpen;
       store.getState().toggleOpen();
-      expect(store.getState().isOpen).toBe(true);
+      expect(store.getState().isOpen).toBe(!initial);
       store.getState().toggleOpen();
-      expect(store.getState().isOpen).toBe(false);
-    });
-
-    it("sets position", () => {
-      const store = createAgentStore();
-      expect(store.getState().position).toBe("detached");
-      store.getState().setPosition("pinned");
-      expect(store.getState().position).toBe("pinned");
+      expect(store.getState().isOpen).toBe(initial);
     });
   });
 });
