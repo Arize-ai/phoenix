@@ -509,9 +509,8 @@ import {
 
 // List all sessions for a project
 const sessions = await listSessions({
-  project: { projectName: "my-project" },
+  project: "my-project",
 });
-for (const session of sessions) {
   console.log(`Session: ${session.sessionId}, Traces: ${session.traces.length}`);
 }
 
