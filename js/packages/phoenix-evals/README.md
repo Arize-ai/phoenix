@@ -93,16 +93,16 @@ The library includes several pre-built evaluators for common evaluation tasks. T
 
 All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` module:
 
-| Evaluator | Function | Description |
-| --------- | -------- | ----------- |
-| Faithfulness | `createFaithfulnessEvaluator` | Detects hallucinations — checks if the output is grounded in the provided context |
-| Conciseness | `createConcisenessEvaluator` | Evaluates whether the response is appropriately concise |
-| Correctness | `createCorrectnessEvaluator` | Checks if the output is factually correct given the input |
-| Document Relevance | `createDocumentRelevanceEvaluator` | Measures how relevant a retrieved document is to the query |
-| Refusal | `createRefusalEvaluator` | Detects whether the model refused to answer |
-| Tool Invocation | `createToolInvocationEvaluator` | Evaluates whether the correct tool was invoked with the right arguments |
-| Tool Selection | `createToolSelectionEvaluator` | Checks whether the right tool was selected for the task |
-| Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+| Evaluator              | Function                              | Description                                                                       |
+| ---------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| Faithfulness           | `createFaithfulnessEvaluator`         | Detects hallucinations — checks if the output is grounded in the provided context |
+| Conciseness            | `createConcisenessEvaluator`          | Evaluates whether the response is appropriately concise                           |
+| Correctness            | `createCorrectnessEvaluator`          | Checks if the output is factually correct given the input                         |
+| Document Relevance     | `createDocumentRelevanceEvaluator`    | Measures how relevant a retrieved document is to the query                        |
+| Refusal                | `createRefusalEvaluator`              | Detects whether the model refused to answer                                       |
+| Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
+| Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
+| Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response                               |
 
 ```typescript
 import {
@@ -118,7 +118,7 @@ const model = openai("gpt-4o-mini");
 
 // Faithfulness: checks if the output is grounded in the context
 const faithfulnessEvaluator = createFaithfulnessEvaluator({ model });
-const faithfulnessResult = await faithfulnessEvaluator({
+const faithfulnessResult = await faithfulnessEvaluator.evaluate({
   input: "What is the capital of France?",
   context: "France is a country in Europe. Paris is its capital city.",
   output: "The capital of France is London.",
@@ -142,7 +142,6 @@ const relevanceResult = await relevanceEvaluator.evaluate({
   documentText: "Paris is the capital of France and a major European city.",
 });
 console.log(relevanceResult);
-// Output: { label: "relevant", score: 1, explanation: "..." }
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 

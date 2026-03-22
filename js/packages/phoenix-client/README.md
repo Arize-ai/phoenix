@@ -511,7 +511,11 @@ import {
 const sessions = await listSessions({
   project: "my-project",
 });
-  console.log(`Session: ${session.sessionId}, Traces: ${session.traces.length}`);
+
+for (const session of sessions) {
+  console.log(
+    `Session: ${session.sessionId}, Traces: ${session.traces.length}`
+  );
 }
 
 // Get a single session by its ID

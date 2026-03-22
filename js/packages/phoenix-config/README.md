@@ -31,16 +31,16 @@ npm install @arizeai/phoenix-config
 
 ## Environment Variables
 
-| Variable | Constant | Description |
-| -------- | -------- | ----------- |
-| `PHOENIX_HOST` | `ENV_PHOENIX_HOST` | Phoenix server host URL (e.g. `http://localhost:6006`) |
-| `PHOENIX_API_KEY` | `ENV_PHOENIX_API_KEY` | API key for Phoenix authentication |
-| `PHOENIX_CLIENT_HEADERS` | `ENV_PHOENIX_CLIENT_HEADERS` | JSON-encoded custom headers for client requests |
-| `PHOENIX_COLLECTOR_ENDPOINT` | `ENV_PHOENIX_COLLECTOR_ENDPOINT` | OTel collector endpoint URL |
-| `PHOENIX_PORT` | `ENV_PHOENIX_PORT` | Phoenix HTTP port (integer) |
-| `PHOENIX_GRPC_PORT` | `ENV_PHOENIX_GRPC_PORT` | Phoenix gRPC port for OpenTelemetry (integer) |
-| `PHOENIX_PROJECT` | `ENV_PHOENIX_PROJECT` | Default project name for project-scoped operations |
-| `PHOENIX_LOG_LEVEL` | `ENV_PHOENIX_LOG_LEVEL` | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent` |
+| Variable                     | Constant                         | Description                                                  |
+| ---------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| `PHOENIX_HOST`               | `ENV_PHOENIX_HOST`               | Phoenix server host URL (e.g. `http://localhost:6006`)       |
+| `PHOENIX_API_KEY`            | `ENV_PHOENIX_API_KEY`            | API key for Phoenix authentication                           |
+| `PHOENIX_CLIENT_HEADERS`     | `ENV_PHOENIX_CLIENT_HEADERS`     | JSON-encoded custom headers for client requests              |
+| `PHOENIX_COLLECTOR_ENDPOINT` | `ENV_PHOENIX_COLLECTOR_ENDPOINT` | OTel collector endpoint URL                                  |
+| `PHOENIX_PORT`               | `ENV_PHOENIX_PORT`               | Phoenix HTTP port (integer)                                  |
+| `PHOENIX_GRPC_PORT`          | `ENV_PHOENIX_GRPC_PORT`          | Phoenix gRPC port for OpenTelemetry (integer)                |
+| `PHOENIX_PROJECT`            | `ENV_PHOENIX_PROJECT`            | Default project name for project-scoped operations           |
+| `PHOENIX_LOG_LEVEL`          | `ENV_PHOENIX_LOG_LEVEL`          | Log verbosity: `debug`, `info`, `warn`, `error`, or `silent` |
 
 ## Usage
 
