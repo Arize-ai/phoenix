@@ -1,5 +1,24 @@
 # @arizeai/phoenix-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- 4444b46: Add `px self update` so the Phoenix CLI can check for a newer published version
+  and upgrade itself in place.
+
+  The command now:
+  - shows the current and latest published CLI versions
+  - supports `--check` for status-only checks
+  - updates global installs managed by `npm`, `pnpm`, and `bun`
+  - updates standard `deno install -g` wrapper installs by replaying the wrapper's install flags
+
+### Patch Changes
+
+- Updated dependencies [e4bdcf6]
+  - @arizeai/phoenix-config@0.1.2
+  - @arizeai/phoenix-client@6.5.3
+
 ## 0.11.1
 
 ### Patch Changes
