@@ -41,7 +41,7 @@ export const DEFAULT_BASH_TOOL_EXECUTION_LIMITS = {
   maxGlobOperations: 10000,
   maxStringLength: 1024 * 1024,
   maxArrayElements: 10000,
-  maxHeredocSize: 256 * 1024,
+  maxHeredocSize: 1024 * 1024,
   maxSubstitutionDepth: 20,
   maxBraceExpansionResults: 1000,
   maxOutputSize: 256 * 1024,

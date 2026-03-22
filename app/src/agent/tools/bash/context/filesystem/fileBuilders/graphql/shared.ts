@@ -13,7 +13,7 @@ This command is built into the bash environment; you can execute it directly.
 Querying tips:
 - Prefer \`node(id: ...)\` with inline fragments when page context already gives you an entity id.
 - Use page context and any route-specific recipe files to find likely ids and entrypoints.
-- Verify argument names and enum values in \`${PHOENIX_ROOT}/graphql/schema.graphql\` before guessing.
+- Verify argument names and enum values in \`${PHOENIX_ROOT}/graphql/schema.json\` before guessing.
 - Use \`--data-only\` when piping into \`jq\`.
 - Use \`--output\` for larger results you want to inspect in multiple steps.
 
@@ -30,7 +30,7 @@ Notes:
 - Only GraphQL queries are permitted.
 - Mutations and subscriptions are rejected.
 - Large responses may spill to a workspace file unless you pass \`--stdout\`.
-- The GraphQL schema is available at \`${PHOENIX_ROOT}/graphql/schema.graphql\`.
+- The GraphQL schema introspection is available at \`${PHOENIX_ROOT}/graphql/schema.json\`.
 `;
 
 export function formatJsonBlock(value: unknown) {

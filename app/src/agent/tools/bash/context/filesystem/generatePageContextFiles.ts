@@ -54,10 +54,12 @@ function createMetadata({
   };
 }
 
-function buildPageContextFiles(pageContext: AgentPageContext): InitialFiles {
+async function buildPageContextFiles(
+  pageContext: AgentPageContext
+): Promise<InitialFiles> {
   return {
     [`${PHOENIX_ROOT}/page-context.json`]: createJsonFile(pageContext),
-    ...buildGraphqlContextFiles(pageContext),
+    ...(await buildGraphqlContextFiles(pageContext)),
   };
 }
 
@@ -71,7 +73,7 @@ export async function generatePageContextFiles({
   pageContext: AgentPageContext;
   refreshReason: AgentContextRefreshReason;
 }): Promise<AdapterResult> {
-  const fileContents = buildPageContextFiles(pageContext);
+  const fileContents = await buildPageContextFiles(pageContext);
   const metadata = createMetadata({
     pageContext,
     refreshReason,

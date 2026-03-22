@@ -9,6 +9,14 @@ import { authFetch } from "@phoenix/authFetch";
 
 const mockedAuthFetch = vi.mocked(authFetch);
 
+const STUB_INTROSPECTION = {
+  __schema: {
+    queryType: { name: "Query" },
+    mutationType: { name: "Mutation" },
+    types: [],
+  },
+};
+
 function createGraphQLResponse(data: unknown) {
   return new Response(JSON.stringify({ data }), {
     status: 200,
@@ -18,9 +26,27 @@ function createGraphQLResponse(data: unknown) {
   });
 }
 
+/**
+ * Default mock that responds to the introspection query used by
+ * `fetchSchemaIntrospection` so the `/phoenix/graphql/schema.json` file is
+ * always populated. Individual tests can layer additional behaviour on top
+ * via `mockImplementation`.
+ */
+function stubIntrospection() {
+  mockedAuthFetch.mockImplementation(async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as { query?: string };
+    if (body.query?.includes("__schema")) {
+      return createGraphQLResponse(STUB_INTROSPECTION);
+    }
+    // Fall through — tests that need specific behaviour will override
+    return new Response("{}", { status: 200 });
+  });
+}
+
 describe("refreshAgentSessionContext", () => {
   beforeEach(() => {
     mockedAuthFetch.mockReset();
+    stubIntrospection();
   });
 
   it("injects page metadata, preserves workspace writes, and blocks phoenix mutations", async () => {
@@ -55,7 +81,7 @@ describe("refreshAgentSessionContext", () => {
       "cat /phoenix/page-context.json"
     );
     const schema = await runtime.executeCommand(
-      "test -s /phoenix/graphql/schema.graphql && printf ok"
+      "test -s /phoenix/graphql/schema.json && printf ok"
     );
     const workspaceWrite = await runtime.executeCommand(
       "printf 'ok' > /home/user/workspace/note.txt && cat /home/user/workspace/note.txt"
