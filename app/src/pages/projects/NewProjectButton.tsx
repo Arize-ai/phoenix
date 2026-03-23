@@ -24,16 +24,24 @@ import {
   Icons,
   Input,
   Label,
+  ListBox,
   Modal,
   ModalOverlay,
+  Popover,
+  Select,
+  SelectItem,
+  SelectValue,
   Tab,
   TabList,
   TabPanel,
   Tabs,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -43,7 +51,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
-import { URI_SAFE_PATTERN } from "./ProjectForm";
+import { GRADIENT_PRESETS, URI_SAFE_PATTERN } from "./ProjectForm";
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
@@ -131,15 +139,27 @@ function NewProjectDialog() {
       }
     `);
 
-  const { control, handleSubmit } = useForm<{ name: string }>({
-    defaultValues: { name: "" },
+  type FormValues = {
+    name: string;
+    description: string;
+    gradientPreset: string;
+  };
+
+  const { control, handleSubmit } = useForm<FormValues>({
+    defaultValues: { name: "", description: "", gradientPreset: "blue-purple" },
   });
 
   const onSubmit = useCallback(
-    (data: { name: string }, close: () => void) => {
+    (data: FormValues, close: () => void) => {
+      const preset = GRADIENT_PRESETS.find((p) => p.id === data.gradientPreset);
       commit({
         variables: {
-          input: { name: data.name },
+          input: {
+            name: data.name,
+            description: data.description || undefined,
+            gradientStartColor: preset?.startColor,
+            gradientEndColor: preset?.endColor,
+          },
         },
         onCompleted: (response) => {
           const createdProject = response.createProject.project;
@@ -176,22 +196,98 @@ function NewProjectDialog() {
                   {error}
                 </Alert>
               )}
+              <Flex direction="row" gap="size-200">
+                <View flex="1 1 0">
+                  <Controller
+                    name="name"
+                    control={control}
+                    rules={{
+                      required: "Project name is required",
+                      pattern: {
+                        value: URI_SAFE_PATTERN,
+                        message:
+                          "Use only letters, numbers, hyphens, underscores, and dots.",
+                      },
+                      maxLength: {
+                        value: 100,
+                        message:
+                          "Project name must be less than 100 characters long",
+                      },
+                    }}
+                    render={({
+                      field: { onChange, onBlur, value },
+                      fieldState: { invalid, error: fieldError },
+                    }) => (
+                      <TextField
+                        isInvalid={invalid}
+                        onChange={onChange}
+                        onBlur={onBlur}
+                        value={value}
+                        autoFocus
+                      >
+                        <Label>Name</Label>
+                        <Input placeholder="e.g. Customer feedback" />
+                        {fieldError?.message ? (
+                          <FieldError>{fieldError.message}</FieldError>
+                        ) : (
+                          <Text slot="description">URI characters only</Text>
+                        )}
+                      </TextField>
+                    )}
+                  />
+                </View>
+                <View flex="1 1 0">
+                  <Controller
+                    name="gradientPreset"
+                    control={control}
+                    render={({ field: { onChange, value } }) => {
+                      return (
+                        <Select
+                          value={value}
+                          onChange={onChange}
+                          aria-label="Project color"
+                        >
+                          <Label>Project color</Label>
+                          <Button>
+                            <SelectValue />
+                            <SelectChevronUpDownIcon />
+                          </Button>
+                          <Text slot="description">
+                            Helps identify your project.
+                          </Text>
+                          <Popover>
+                            <ListBox>
+                              {GRADIENT_PRESETS.map((p) => (
+                                <SelectItem
+                                  key={p.id}
+                                  id={p.id}
+                                  textValue={p.label}
+                                >
+                                  <Flex
+                                    direction="row"
+                                    gap="size-100"
+                                    alignItems="center"
+                                  >
+                                    <GradientCircle
+                                      gradientStartColor={p.startColor}
+                                      gradientEndColor={p.endColor}
+                                      size={16}
+                                    />
+                                    {p.label}
+                                  </Flex>
+                                </SelectItem>
+                              ))}
+                            </ListBox>
+                          </Popover>
+                        </Select>
+                      );
+                    }}
+                  />
+                </View>
+              </Flex>
               <Controller
-                name="name"
+                name="description"
                 control={control}
-                rules={{
-                  required: "Project name is required",
-                  pattern: {
-                    value: URI_SAFE_PATTERN,
-                    message:
-                      "Use only letters, numbers, hyphens, underscores, and dots.",
-                  },
-                  maxLength: {
-                    value: 100,
-                    message:
-                      "Project name must be less than 100 characters long",
-                  },
-                }}
                 render={({
                   field: { onChange, onBlur, value },
                   fieldState: { invalid, error: fieldError },
@@ -201,14 +297,14 @@ function NewProjectDialog() {
                     onChange={onChange}
                     onBlur={onBlur}
                     value={value}
-                    autoFocus
                   >
-                    <Label>Name</Label>
-                    <Input placeholder="e.g. Customer feedback" />
-                    {fieldError?.message ? (
+                    <Label>Description</Label>
+                    <TextArea
+                      placeholder="e.g. Data for sentiment analysis"
+                      rows={2}
+                    />
+                    {fieldError?.message && (
                       <FieldError>{fieldError.message}</FieldError>
-                    ) : (
-                      <Text slot="description">URI characters only</Text>
                     )}
                   </TextField>
                 )}
