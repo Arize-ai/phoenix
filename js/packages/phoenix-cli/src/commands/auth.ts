@@ -1,9 +1,12 @@
+import type { componentsV1 } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
-import { resolveConfig } from "../config";
+import { createPhoenixClient } from "../client";
+import { type PhoenixConfig, resolveConfig } from "../config";
 import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
-import { formatTable } from "./formatTable";
+
+type ViewerUser = componentsV1["schemas"]["GetViewerResponseBody"]["data"];
 
 interface AuthStatusOptions {
   endpoint?: string;
@@ -21,11 +24,118 @@ export function obscureApiKey(apiKey: string): string {
   return "************************************";
 }
 
+// -- Fetch viewer types & function --
+
+interface FetchViewerSuccess {
+  status: "success";
+  user: ViewerUser;
+}
+
+interface FetchViewerError {
+  status: "network_error" | "auth_error" | "not_found" | "unknown_error";
+  message: string;
+}
+
+export type FetchViewerResult = FetchViewerSuccess | FetchViewerError;
+
+/**
+ * Extract an HTTP status code from the phoenix-client middleware error message.
+ * The middleware throws errors like: "https://example.org/api/v1/user: 401 Unauthorized"
+ */
+function parseStatusCode(error: Error): number | null {
+  const match = error.message.match(/:\s*(\d{3})\s/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Fetch the authenticated viewer from the Phoenix server.
+ * Gracefully handles network errors, auth failures, and missing endpoints.
+ */
+async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
+  try {
+    const client = createPhoenixClient({ config });
+    const response = await client.GET("/v1/user");
+    return { status: "success", user: response.data!.data };
+  } catch (error: unknown) {
+    // TypeError is thrown by the Fetch API for network-level failures
+    if (error instanceof TypeError) {
+      return { status: "network_error", message: error.message };
+    }
+    if (error instanceof Error) {
+      const statusCode = parseStatusCode(error);
+      if (statusCode === 401 || statusCode === 403) {
+        return { status: "auth_error", message: error.message };
+      }
+      if (statusCode === 404) {
+        return { status: "not_found", message: error.message };
+      }
+      return { status: "unknown_error", message: error.message };
+    }
+    return { status: "unknown_error", message: String(error) };
+  }
+}
+
+/**
+ * Format auth status output in gh-style format.
+ */
+export function formatAuthStatus(
+  endpoint: string,
+  result: FetchViewerResult,
+  apiKey?: string
+): string {
+  const lines: string[] = [endpoint];
+
+  if (result.status === "success") {
+    const user = result.user;
+    if (user.auth_method === "ANONYMOUS") {
+      lines.push("  \u2713 Authentication not required (anonymous)");
+    } else {
+      lines.push(`  \u2713 Logged in as ${user.username} (api key)`);
+      lines.push(`  - Auth method: ${user.auth_method}`);
+      lines.push(`  - Role: ${user.role}`);
+    }
+  } else if (result.status === "auth_error") {
+    lines.push("  \u2717 Authentication failed (invalid or expired token)");
+  } else if (result.status === "not_found") {
+    lines.push(
+      "  - Could not verify token (server does not support user endpoint)"
+    );
+  } else {
+    // network_error or unknown_error
+    if (apiKey) {
+      lines.push(
+        "  \u2717 Token configured but could not verify (server unreachable)"
+      );
+    } else {
+      lines.push("  \u2717 Could not connect to server");
+    }
+  }
+
+  if (apiKey) {
+    lines.push(`  - Token: ${obscureApiKey(apiKey)}`);
+  }
+
+  return lines.join("\n");
+}
+
+function exitCodeForResult(result: FetchViewerResult): ExitCode {
+  switch (result.status) {
+    case "success":
+    case "not_found":
+      return ExitCode.SUCCESS;
+    case "auth_error":
+      return ExitCode.AUTH_REQUIRED;
+    case "network_error":
+      return ExitCode.NETWORK_ERROR;
+    case "unknown_error":
+      return ExitCode.FAILURE;
+  }
+}
+
 /**
  * Auth status command handler
  */
 async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
-  // Resolve configuration
   const config = resolveConfig({
     cliOptions: {
       endpoint: options.endpoint,
@@ -33,7 +143,6 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     },
   });
 
-  // Check if endpoint is configured
   if (!config.endpoint) {
     writeError({
       message: "Configuration Error:\n  - Phoenix endpoint not configured",
@@ -41,13 +150,14 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  const row: Record<string, string> = {
-    endpoint: config.endpoint,
-    status: config.apiKey ? "authenticated" : "anonymous",
-    "api key": config.apiKey ? obscureApiKey(config.apiKey) : "not set",
-  };
+  const result = await fetchViewer(config);
+  const output = formatAuthStatus(config.endpoint, result, config.apiKey);
+  writeOutput({ message: output });
 
-  writeOutput({ message: formatTable([row]) });
+  const code = exitCodeForResult(result);
+  if (code !== ExitCode.SUCCESS) {
+    process.exit(code);
+  }
 }
 
 /**

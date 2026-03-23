@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { obscureApiKey } from "../src/commands/auth";
+import {
+  type FetchViewerResult,
+  formatAuthStatus,
+  obscureApiKey,
+} from "../src/commands/auth";
 
 describe("Auth Commands", () => {
   describe("obscureApiKey", () => {
@@ -34,86 +38,251 @@ describe("Auth Commands", () => {
       expect(obscureApiKey(key1)).toBe("************************************");
     });
   });
-});
 
-describe("Auth Status", () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  describe("Auth Status", () => {
+    let originalEnv: NodeJS.ProcessEnv;
 
-  beforeEach(() => {
-    // Save original environment
-    originalEnv = { ...process.env };
+    beforeEach(() => {
+      // Save original environment
+      originalEnv = { ...process.env };
 
-    // Clear environment variables
-    delete process.env.PHOENIX_HOST;
-    delete process.env.PHOENIX_API_KEY;
-  });
-
-  afterEach(() => {
-    // Restore original environment
-    process.env = originalEnv;
-  });
-
-  it("should detect when endpoint is configured from environment", async () => {
-    process.env.PHOENIX_HOST = "http://localhost:6006";
-
-    // Import after setting env vars
-    const { resolveConfig } = await import("../src/config");
-
-    const config = resolveConfig({ cliOptions: {} });
-
-    expect(config.endpoint).toBe("http://localhost:6006");
-  });
-
-  it("should detect when API key is configured from environment", async () => {
-    process.env.PHOENIX_HOST = "http://localhost:6006";
-    process.env.PHOENIX_API_KEY = "test-api-key";
-
-    // Import after setting env vars
-    const { resolveConfig } = await import("../src/config");
-
-    const config = resolveConfig({ cliOptions: {} });
-
-    expect(config.endpoint).toBe("http://localhost:6006");
-    expect(config.apiKey).toBe("test-api-key");
-  });
-
-  it("should prioritize CLI options over environment", async () => {
-    process.env.PHOENIX_HOST = "http://env-host:6006";
-    process.env.PHOENIX_API_KEY = "env-api-key";
-
-    // Import after setting env vars
-    const { resolveConfig } = await import("../src/config");
-
-    const config = resolveConfig({
-      cliOptions: {
-        endpoint: "http://cli-host:6006",
-        apiKey: "cli-api-key",
-      },
+      // Clear environment variables
+      delete process.env.PHOENIX_HOST;
+      delete process.env.PHOENIX_API_KEY;
     });
 
-    expect(config.endpoint).toBe("http://cli-host:6006");
-    expect(config.apiKey).toBe("cli-api-key");
+    afterEach(() => {
+      // Restore original environment
+      process.env = originalEnv;
+    });
+
+    it("should detect when endpoint is configured from environment", async () => {
+      process.env.PHOENIX_HOST = "http://localhost:6006";
+
+      // Import after setting env vars
+      const { resolveConfig } = await import("../src/config");
+
+      const config = resolveConfig({ cliOptions: {} });
+
+      expect(config.endpoint).toBe("http://localhost:6006");
+    });
+
+    it("should detect when API key is configured from environment", async () => {
+      process.env.PHOENIX_HOST = "http://localhost:6006";
+      process.env.PHOENIX_API_KEY = "test-api-key";
+
+      // Import after setting env vars
+      const { resolveConfig } = await import("../src/config");
+
+      const config = resolveConfig({ cliOptions: {} });
+
+      expect(config.endpoint).toBe("http://localhost:6006");
+      expect(config.apiKey).toBe("test-api-key");
+    });
+
+    it("should prioritize CLI options over environment", async () => {
+      process.env.PHOENIX_HOST = "http://env-host:6006";
+      process.env.PHOENIX_API_KEY = "env-api-key";
+
+      // Import after setting env vars
+      const { resolveConfig } = await import("../src/config");
+
+      const config = resolveConfig({
+        cliOptions: {
+          endpoint: "http://cli-host:6006",
+          apiKey: "cli-api-key",
+        },
+      });
+
+      expect(config.endpoint).toBe("http://cli-host:6006");
+      expect(config.apiKey).toBe("cli-api-key");
+    });
+
+    it("should handle missing endpoint", async () => {
+      // No PHOENIX_HOST set
+
+      const { resolveConfig } = await import("../src/config");
+
+      const config = resolveConfig({ cliOptions: {} });
+
+      expect(config.endpoint).toBe("http://localhost:6006");
+    });
+
+    it("should handle missing API key (anonymous access)", async () => {
+      process.env.PHOENIX_HOST = "http://localhost:6006";
+      // No PHOENIX_API_KEY set
+
+      const { resolveConfig } = await import("../src/config");
+
+      const config = resolveConfig({ cliOptions: {} });
+
+      expect(config.endpoint).toBe("http://localhost:6006");
+      expect(config.apiKey).toBeUndefined();
+    });
   });
 
-  it("should handle missing endpoint", async () => {
-    // No PHOENIX_HOST set
+  describe("formatAuthStatus", () => {
+    const endpoint = "http://localhost:6006";
+    const apiKey = "test-api-key";
 
-    const { resolveConfig } = await import("../src/config");
+    it("should format authenticated LOCAL user", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: {
+          auth_method: "LOCAL",
+          username: "mikeldking",
+          email: "mike@example.com",
+          role: "ADMIN",
+          id: "VXNlcjox",
+          created_at: "2025-01-01T00:00:00Z",
+          updated_at: "2025-01-01T00:00:00Z",
+          password_needs_reset: false,
+        },
+      };
 
-    const config = resolveConfig({ cliOptions: {} });
+      const output = formatAuthStatus(endpoint, result, apiKey);
 
-    expect(config.endpoint).toBe("http://localhost:6006");
-  });
+      expect(output).toContain(endpoint);
+      expect(output).toContain("✓ Logged in as mikeldking (api key)");
+      expect(output).toContain("Auth method: LOCAL");
+      expect(output).toContain("Role: ADMIN");
+      expect(output).toContain("Token: ****");
+    });
 
-  it("should handle missing API key (anonymous access)", async () => {
-    process.env.PHOENIX_HOST = "http://localhost:6006";
-    // No PHOENIX_API_KEY set
+    it("should format authenticated OAUTH2 user", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: {
+          auth_method: "OAUTH2",
+          username: "oauthuser",
+          email: "oauth@example.com",
+          role: "MEMBER",
+          id: "VXNlcjoy",
+          created_at: "2025-01-01T00:00:00Z",
+          updated_at: "2025-01-01T00:00:00Z",
+        },
+      };
 
-    const { resolveConfig } = await import("../src/config");
+      const output = formatAuthStatus(endpoint, result, apiKey);
 
-    const config = resolveConfig({ cliOptions: {} });
+      expect(output).toContain("✓ Logged in as oauthuser (api key)");
+      expect(output).toContain("Auth method: OAUTH2");
+      expect(output).toContain("Role: MEMBER");
+    });
 
-    expect(config.endpoint).toBe("http://localhost:6006");
-    expect(config.apiKey).toBeUndefined();
+    it("should format authenticated LDAP user", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: {
+          auth_method: "LDAP",
+          username: "ldapuser",
+          email: "ldap@example.com",
+          role: "VIEWER",
+          id: "VXNlcjoz",
+          created_at: "2025-01-01T00:00:00Z",
+          updated_at: "2025-01-01T00:00:00Z",
+        },
+      };
+
+      const output = formatAuthStatus(endpoint, result, apiKey);
+
+      expect(output).toContain("✓ Logged in as ldapuser (api key)");
+      expect(output).toContain("Auth method: LDAP");
+      expect(output).toContain("Role: VIEWER");
+    });
+
+    it("should format anonymous user without token", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: {
+          auth_method: "ANONYMOUS",
+        },
+      };
+
+      const output = formatAuthStatus(endpoint, result);
+
+      expect(output).toContain("✓ Authentication not required (anonymous)");
+      expect(output).not.toContain("Token:");
+    });
+
+    it("should format anonymous user with token configured", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: {
+          auth_method: "ANONYMOUS",
+        },
+      };
+
+      const output = formatAuthStatus(endpoint, result, apiKey);
+
+      expect(output).toContain("✓ Authentication not required (anonymous)");
+      expect(output).toContain("Token: ****");
+    });
+
+    it("should format auth error with token", () => {
+      const result: FetchViewerResult = {
+        status: "auth_error",
+        message: "401 Unauthorized",
+      };
+
+      const output = formatAuthStatus(endpoint, result, apiKey);
+
+      expect(output).toContain(
+        "✗ Authentication failed (invalid or expired token)"
+      );
+      expect(output).toContain("Token: ****");
+    });
+
+    it("should format network error with token", () => {
+      const result: FetchViewerResult = {
+        status: "network_error",
+        message: "fetch failed",
+      };
+
+      const output = formatAuthStatus(endpoint, result, apiKey);
+
+      expect(output).toContain(
+        "✗ Token configured but could not verify (server unreachable)"
+      );
+      expect(output).toContain("Token: ****");
+    });
+
+    it("should format network error without token", () => {
+      const result: FetchViewerResult = {
+        status: "network_error",
+        message: "fetch failed",
+      };
+
+      const output = formatAuthStatus(endpoint, result);
+
+      expect(output).toContain("✗ Could not connect to server");
+      expect(output).not.toContain("Token:");
+    });
+
+    it("should format not_found (older server)", () => {
+      const result: FetchViewerResult = {
+        status: "not_found",
+        message: "404 Not Found",
+      };
+
+      const output = formatAuthStatus(endpoint, result, apiKey);
+
+      expect(output).toContain(
+        "Could not verify token (server does not support user endpoint)"
+      );
+      expect(output).toContain("Token: ****");
+    });
+
+    it("should show endpoint as first line", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: { auth_method: "ANONYMOUS" },
+      };
+
+      const output = formatAuthStatus(endpoint, result);
+      const lines = output.split("\n");
+
+      expect(lines[0]).toBe(endpoint);
+    });
   });
 });
