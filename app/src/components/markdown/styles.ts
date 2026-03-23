@@ -84,7 +84,7 @@ export const markdownCSS = css`
     position: absolute;
     top: var(--global-dimension-size-50);
     right: var(--global-dimension-size-50);
-    height: var(--global-dimension-size-400);
+    height: var(--global-code-block-actions-wrapper-height);
     display: flex;
     align-items: center;
     margin: 0;
@@ -107,8 +107,8 @@ export const markdownCSS = css`
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--global-dimension-size-300);
-    height: var(--global-dimension-size-300);
+    width: var(--global-code-block-actions-button-size);
+    height: var(--global-code-block-actions-button-size);
     padding: 0;
     border: 0;
     border-radius: var(--global-rounding-small);
@@ -122,6 +122,13 @@ export const markdownCSS = css`
     &:hover {
       background: var(--hover-background);
       color: var(--global-text-color-900);
+    }
+
+    /* Override the inline size streamdown passes to icons so they
+       match the table toolbar icon proportions (IconButton size="S"). */
+    & svg {
+      width: var(--global-code-block-actions-icon-size);
+      height: var(--global-code-block-actions-icon-size);
     }
   }
 

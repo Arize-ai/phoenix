@@ -1096,6 +1096,17 @@ const resizeHandleCSS = (theme: Theme) => css`
   }
 `;
 
+const codeBlockCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-code-block-actions-wrapper-height: var(
+      --global-dimension-size-400
+    );
+    --global-code-block-actions-button-size: var(--global-button-height-s);
+    --global-code-block-actions-icon-size: var(--global-font-size-l);
+  }
+`;
+
 const borderAndGridCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1137,6 +1148,7 @@ export const derivedCSS = (theme: Theme) =>
     popoverCSS(theme),
     roundingCSS(theme),
     tableCSS(theme),
+    codeBlockCSS(theme),
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
     badgeSizingCSS(theme)
