@@ -2,7 +2,7 @@
 
 ## Layout stability
 
-Loading states MUST use skeleton loaders so the page doesn't shift between loading and loaded states.
+Loading states MUST use skeleton loaders so the page does not shift between loading and loaded states.
 
 ## Scroll behavior
 

@@ -2,9 +2,9 @@
 
 ## Never use toasts for errors
 
-Error toasts (`useNotifyError`) are an accessibility anti-pattern — they are ephemeral and may disappear before assistive technology users can read them. **Do not use toasts to display errors.**
+Error toasts (`useNotifyError`) are an accessibility anti-pattern — they are ephemeral and may disappear before assistive technology users can read them. Toasts MUST NOT be used to display errors.
 
-Use inline `<Alert variant="danger">` banners instead. Store the error message in local component state with `useState<string | null>(null)`.
+Use inline `<Alert variant="danger">` banners instead. Error messages SHOULD be stored in local component state with `useState<string | null>(null)`.
 
 ## Error scoping
 
@@ -31,7 +31,7 @@ onError: (error) => {
 
 ### Dialog placement
 
-In dialogs/modals, place the error Alert **after the DialogHeader and before the body content**. Use the `banner` prop for full-width styling:
+In dialogs/modals, the error Alert MUST be placed **after the DialogHeader and before the body content**. Use the `banner` prop for full-width styling:
 
 ```tsx
 <DialogHeader>...</DialogHeader>
@@ -47,14 +47,14 @@ In dialogs/modals, place the error Alert **after the DialogHeader and before the
 
 ### Error state lifecycle
 
-- **Clear on reopen**: Reset error state when a dialog reopens so stale errors don't persist.
-- **Clear on resubmit**: Reset error state at the start of a new submission attempt.
-- **Keep errors local**: Error state belongs in the component that owns the mutation — do not propagate errors up to parent components via callback props.
+- **Clear on reopen**: Error state MUST be reset when a dialog reopens so stale errors don't persist.
+- **Clear on resubmit**: Error state MUST be reset at the start of a new submission attempt.
+- **Keep errors local**: Error state MUST belong to the component that owns the mutation — errors MUST NOT be propagated up to parent components via callback props.
 
 ### When toasts ARE appropriate
 
-Toasts are appropriate for **success** notifications (`useNotifySuccess`) since those are informational and non-critical if missed. Only errors require persistent, inline display.
+Toasts MAY be used for **success** notifications (`useNotifySuccess`) since those are informational and non-critical if missed. Only errors require persistent, inline display.
 
 ## Input validation
 
-Restrictions MUST be communicated via description slots before submission — don't wait for a submit attempt to tell the user what's required.
+Input restrictions MUST be communicated via description slots before submission — do not wait for a submit attempt to tell the user what's required.

@@ -13,8 +13,8 @@ block--modifier   → theme--dark, dropdown--picker
 - **Block**: A standalone component — `disclosure`, `search-field`, `toggle-button`
 - **Element**: A part that cannot exist independently — uses `__` separator — `slider__label`, `field__icon`
 - **Modifier**: A variant or state — uses `--` separator — `theme--dark`, `dropdown--picker`
-- Compound names within a segment use hyphens: `search-field`, `toggle-button`, `dialog__close-button`
-- **No prefix** — never add any prefix to class names
+- Compound names within a segment MUST use hyphens: `search-field`, `toggle-button`, `dialog__close-button`
+- Class names MUST NOT have any prefix
 
 ## Examples
 
