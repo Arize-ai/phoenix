@@ -124,11 +124,12 @@ export const markdownCSS = css`
       color: var(--global-text-color-900);
     }
 
-    /* Override the inline size streamdown passes to icons so they
-       match the table toolbar icon proportions (IconButton size="S"). */
+    /* Size icons to match IconButton size="S" and apply fill so
+       Phoenix Icons (which rely on the Icon wrapper) inherit color. */
     & svg {
       width: var(--global-code-block-actions-icon-size);
       height: var(--global-code-block-actions-icon-size);
+      fill: currentColor;
     }
   }
 
