@@ -1,5 +1,5 @@
 ---
-name: phoenix-cli
+name: phoenix-cli-development
 description: >
   Design and implementation guide for the Phoenix CLI (`px`). Covers the noun-verb command structure,
   dual-audience design (humans and coding agents), Commander.js patterns, configuration resolution,
