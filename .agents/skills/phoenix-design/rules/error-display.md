@@ -6,6 +6,15 @@ Error toasts (`useNotifyError`) are an accessibility anti-pattern — they are e
 
 Use inline `<Alert variant="danger">` banners instead. Store the error message in local component state with `useState<string | null>(null)`.
 
+## Error scoping
+
+Errors MUST be scoped to the appropriate level. Inline errors using error slots and existing field patterns SHOULD be preferred. Alert banners SHOULD be used for broader errors.
+
+| Scope                   | Display             |
+| ----------------------- | ------------------- |
+| Element (field invalid) | error slot          |
+| Section (group invalid) | Section-level alert |
+
 ### Pattern
 
 ```tsx
@@ -45,3 +54,7 @@ In dialogs/modals, place the error Alert **after the DialogHeader and before the
 ### When toasts ARE appropriate
 
 Toasts are appropriate for **success** notifications (`useNotifySuccess`) since those are informational and non-critical if missed. Only errors require persistent, inline display.
+
+## Input validation
+
+Restrictions MUST be communicated via description slots before submission — don't wait for a submit attempt to tell the user what's required.

@@ -15,7 +15,6 @@ Read the relevant file(s) based on the task:
 | Rule file | When to read |
 |-----------|-------------|
 | `rules/components.md` | Creating, composing, or refactoring components |
-| `rules/design.md` | Layout, visual polish, error handling, loading states |
 | `rules/relay.md` | Using Relay |
 | `rules/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
 
