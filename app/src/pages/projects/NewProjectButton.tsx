@@ -237,8 +237,9 @@ function NewProjectDialog({
                         {fieldError?.message ? (
                           <FieldError>{fieldError.message}</FieldError>
                         ) : (
-                          <Text slot="description">URI characters only, max 100 characters</Text>
-                        )}
+                          <Text slot="description">
+                            URI characters only, max 100 characters
+                          </Text>
                         )}
                       </TextField>
                     )}
