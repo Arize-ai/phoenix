@@ -99,7 +99,6 @@ import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
-import { CopySpanIDButton } from "./CopySpanIDButton";
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -340,7 +339,7 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
-                <CopySpanIDButton spanId={span.spanId} />
+                <CopyToClipboardButton size="S" text={span.spanId} tooltipText="Copy Span ID" />
               </Flex>
             </Flex>
           </View>
