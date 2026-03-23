@@ -9,14 +9,14 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { Fragment, Suspense, useMemo, useRef } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
-  Group as PanelGroup,
+  Group,
   Panel,
   type PanelImperativeHandle,
-  Separator as PanelResizeHandle,
+  Separator,
 } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 
@@ -99,6 +99,7 @@ import { SpanEventsList } from "./SpanEventsList";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
+import { CopySpanIDButton } from "./CopySpanIDButton";
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -136,8 +137,11 @@ const defaultCardProps: Partial<CardProps> = {
   collapsible: true,
 };
 
-const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
-const ASIDE_PANEL_DEFAULT_SIZE = 33;
+const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 950;
+// The side panel sizes in pixels
+const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 400;
+const ASIDE_PANEL_MIN_SIZE_PIXELS = 300;
+const ASIDE_PANEL_MAX_SIZE_PIXELS = 500;
 const EDIT_ANNOTATION_HOTKEY = "e";
 
 export function SpanDetails({
@@ -156,6 +160,18 @@ export function SpanDetails({
   );
 
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
+  // Sync the aside panel collapsed state with the isAnnotatingSpans preference.
+  // This handles initial mount (panel starts expanded by default, collapse if not annotating)
+  // and external changes to isAnnotatingSpans (e.g. from the hotkey).
+  useEffect(() => {
+    const panel = asidePanelRef.current;
+    if (!panel) return;
+    if (isAnnotatingSpans && panel.isCollapsed()) {
+      panel.expand();
+    } else if (!isAnnotatingSpans && !panel.isCollapsed()) {
+      panel.collapse();
+    }
+  }, [isAnnotatingSpans]);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView = spanDetailsContainerDimensions?.width
@@ -247,6 +263,7 @@ export function SpanDetails({
     () => {
       if (!isAnnotatingSpans) {
         setIsAnnotatingSpans(true);
+        asidePanelRef.current?.expand();
       }
     },
     { preventDefault: true }
@@ -257,7 +274,7 @@ export function SpanDetails({
   }, [span]);
 
   return (
-    <PanelGroup orientation="horizontal" id="span-details-layout">
+    <Group orientation="horizontal" id="span-details-layout">
       <Panel>
         <Flex
           direction="column"
@@ -302,13 +319,14 @@ export function SpanDetails({
                   size="S"
                   isSelected={isAnnotatingSpans}
                   onPress={() => {
-                    setIsAnnotatingSpans(!isAnnotatingSpans);
+                    const next = !isAnnotatingSpans;
+                    setIsAnnotatingSpans(next);
                     const asidePanel = asidePanelRef.current;
-                    // expand the panel if it is not the minimum size already
                     if (asidePanel) {
-                      const { asPercentage: size } = asidePanel.getSize();
-                      if (size < ASIDE_PANEL_DEFAULT_SIZE) {
-                        asidePanel.resize(`${ASIDE_PANEL_DEFAULT_SIZE}%`);
+                      if (next) {
+                        asidePanel.expand();
+                      } else {
+                        asidePanel.collapse();
                       }
                     }
                   }}
@@ -322,6 +340,7 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
+                <CopySpanIDButton spanId={span.spanId} />
               </Flex>
             </Flex>
           </View>
@@ -378,24 +397,27 @@ export function SpanDetails({
           </Tabs>
         </Flex>
       </Panel>
-      {isAnnotatingSpans && <PanelResizeHandle css={compactResizeHandleCSS} />}
-      {isAnnotatingSpans && (
-        <Panel
-          panelRef={asidePanelRef}
-          defaultSize={`${ASIDE_PANEL_DEFAULT_SIZE}%`}
-          minSize="20%"
-          maxSize="50%"
-          collapsible
-          onResize={(panelSize) => {
-            if (panelSize.asPercentage === 0) {
-              setIsAnnotatingSpans(false);
-            }
-          }}
-        >
-          <SpanAside span={span} />
-        </Panel>
-      )}
-    </PanelGroup>
+      <Separator
+        css={compactResizeHandleCSS}
+        disabled={!isAnnotatingSpans}
+        style={isAnnotatingSpans ? undefined : { display: "none" }}
+      />
+      <Panel
+        panelRef={asidePanelRef}
+        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+        collapsedSize={0}
+        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
+        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+        collapsible
+        onResize={(panelSize) => {
+          if (panelSize.asPercentage === 0) {
+            setIsAnnotatingSpans(false);
+          }
+        }}
+      >
+        <SpanAside span={span} />
+      </Panel>
+    </Group>
   );
 }
 

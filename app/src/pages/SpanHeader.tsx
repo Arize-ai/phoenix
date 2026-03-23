@@ -11,7 +11,6 @@ import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
-import { CopySpanIDButton } from "./trace/CopySpanIDButton";
 
 type SpanHeaderProps = {
   span: SpanHeader_span$key;
@@ -55,17 +54,17 @@ export function SpanHeader(props: SpanHeaderProps) {
         <Flex direction="row" gap="size-100" alignItems="center">
           <SpanKindToken spanKind={span.spanKind} />
           <Text size="L">{span.name}</Text>
-          <SpanStatusCodeIcon
+   <SpanStatusCodeIcon
             statusCode={span.code}
             css={css`
               font-size: var(--global-font-size-m);
             `}
           />
-          <IDBadge id={span.spanId} />
-          <CopySpanIDButton spanId={span.spanId} />
+
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
-          {typeof span.latencyMs === "number" ? (
+          <IDBadge id={span.spanId} />
+         {typeof span.latencyMs === "number" ? (
             <LatencyText latencyMs={span.latencyMs} size="S" />
           ) : null}
           <Text color="text-500" size="S">
