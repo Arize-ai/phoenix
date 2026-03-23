@@ -18,6 +18,7 @@ import {
   GradientCircleRadio,
   GradientCircleRadioGroup,
 } from "@phoenix/components/project";
+import { URI_SAFE_PATTERN } from "@phoenix/constants";
 
 export type ProjectFormParams = {
   name: string;
@@ -26,9 +27,6 @@ export type ProjectFormParams = {
   gradientStartColor: string;
   gradientEndColor: string;
 };
-
-// URI-safe pattern: allows letters, numbers, hyphens, underscores, and dots
-export const URI_SAFE_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
 // Predefined gradient options
 export const GRADIENT_PRESETS = [

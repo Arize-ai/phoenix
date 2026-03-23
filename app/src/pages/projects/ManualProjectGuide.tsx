@@ -10,9 +10,9 @@ import type { ProjectFormParams } from "./ProjectForm";
 import { ProjectForm } from "./ProjectForm";
 
 export function ManualProjectGuide({
-  refetchProjects,
+  onProjectCreated,
 }: {
-  refetchProjects: () => void;
+  onProjectCreated: () => void;
 }) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export function ManualProjectGuide({
             title: "Project created",
             message: `Project "${createdProject.name}" has been successfully created.`,
           });
-          refetchProjects();
+          onProjectCreated();
           // Navigate to the project page
           navigate(`/projects/${createdProject.id}`);
         },
@@ -71,7 +71,7 @@ export function ManualProjectGuide({
         },
       });
     },
-    [commit, notifySuccess, navigate, refetchProjects]
+    [commit, notifySuccess, navigate, onProjectCreated]
   );
 
   return (

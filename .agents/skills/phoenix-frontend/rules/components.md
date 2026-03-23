@@ -28,3 +28,19 @@ React Compiler is enabled — do NOT use `useMemo`, `useCallback`, or `React.mem
 ## Refs
 
 React 19 treats `ref` as a regular prop — do NOT use `forwardRef`. Instead, accept `ref` directly in the props type and destructure it like any other prop. Add `ref?: Ref<ElementType>` to the props interface.
+
+## Callback props
+
+Name callback props after the **event** (`onProjectCreated`, `onDismiss`), not the parent's implementation (`refetchProjects`). The callsite should read as plain English.
+
+```tsx
+// Good
+<NewProjectButton onProjectCreated={() => refetchProjects()} />
+
+// Avoid
+<NewProjectButton refetchProjects={() => refetchProjects()} />
+```
+
+## Shared constants
+
+Shared literals (validation regexes, fixed string sets, etc.) belong in `app/src/constants/` as focused modules re-exported from `index.ts`. Import via `@phoenix/constants`. Do not export them from component or form files.

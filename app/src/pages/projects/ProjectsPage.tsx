@@ -357,7 +357,7 @@ export function ProjectsPageContent({
             <CanModify>
               <NewProjectButton
                 variant="primary"
-                refetchProjects={() => refetch({})}
+                onProjectCreated={() => refetch({})}
               />
             </CanModify>
           </Flex>

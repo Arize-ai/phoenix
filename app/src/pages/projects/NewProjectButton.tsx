@@ -43,6 +43,7 @@ import {
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
+import { URI_SAFE_PATTERN } from "@phoenix/constants";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
@@ -51,11 +52,11 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
-import { GRADIENT_PRESETS, URI_SAFE_PATTERN } from "./ProjectForm";
+import { GRADIENT_PRESETS } from "./ProjectForm";
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
-  refetchProjects: () => void;
+  onProjectCreated: () => void;
 };
 const PHOENIX_OTEL_DOC_LINK =
   "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
@@ -72,7 +73,7 @@ function TraceBasedProjectGuideIntro() {
 }
 export function NewProjectButton({
   variant,
-  refetchProjects,
+  onProjectCreated,
 }: NewProjectButtonProps) {
   const isOnboardingEnabled = useFeatureFlag("tracing-onboarding");
 
@@ -89,7 +90,7 @@ export function NewProjectButton({
         {isOnboardingEnabled ? (
           <ModalOverlay>
             <Modal>
-              <NewProjectDialog refetchProjects={refetchProjects} />
+              <NewProjectDialog onProjectCreated={onProjectCreated} />
             </Modal>
           </ModalOverlay>
         ) : (
@@ -102,7 +103,7 @@ export function NewProjectButton({
               `}
             >
               <NewProjectDialogWithOnboarding
-                refetchProjects={refetchProjects}
+                onProjectCreated={onProjectCreated}
               />
             </Modal>
           </ModalOverlay>
@@ -113,9 +114,9 @@ export function NewProjectButton({
 }
 
 function NewProjectDialog({
-  refetchProjects,
+  onProjectCreated,
 }: {
-  refetchProjects: () => void;
+  onProjectCreated: () => void;
 }) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
@@ -173,7 +174,7 @@ function NewProjectDialog({
             title: "Project created",
             message: `Project "${createdProject.name}" has been successfully created.`,
           });
-          refetchProjects();
+          onProjectCreated();
           close();
           navigate(`/projects/${createdProject.id}`);
         },
@@ -183,7 +184,7 @@ function NewProjectDialog({
         },
       });
     },
-    [commit, notifySuccess, navigate, refetchProjects]
+    [commit, notifySuccess, navigate, onProjectCreated]
   );
 
   return (
@@ -233,7 +234,7 @@ function NewProjectDialog({
                         autoFocus
                       >
                         <Label>Name</Label>
-                        <Input placeholder="e.g. Customer feedback" />
+                        <Input placeholder="e.g. customer-feedback" />
                         {fieldError?.message ? (
                           <FieldError>{fieldError.message}</FieldError>
                         ) : (
@@ -347,9 +348,9 @@ function NewProjectDialog({
 }
 
 function NewProjectDialogWithOnboarding({
-  refetchProjects,
+  onProjectCreated,
 }: {
-  refetchProjects: () => void;
+  onProjectCreated: () => void;
 }) {
   const programmingLanguage = usePreferencesContext(
     (state) => state.programmingLanguage
@@ -385,7 +386,7 @@ function NewProjectDialogWithOnboarding({
           </TabPanel>
           <TabPanel id="manual">
             <View padding="size-200" overflow="auto">
-              <ManualProjectGuide refetchProjects={refetchProjects} />
+              <ManualProjectGuide onProjectCreated={onProjectCreated} />
             </View>
           </TabPanel>
         </Tabs>
