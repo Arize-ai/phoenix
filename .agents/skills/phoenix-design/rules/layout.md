@@ -10,4 +10,4 @@ Pages SHOULD have only one scrollable region. Scroll traps where the user's scro
 
 ## Interaction patterns
 
-Each action MUST have one method of invocation. Confirm/cancel SHOULD be placed at the bottom of a dialog — controls MUST NOT be duplicated across header, footer, and shortcuts.
+Each action MUST have one method of invocation. Confirm/cancel SHOULD be placed at the bottom of a dialog — controls MUST NOT be duplicated across header, footer, and shortcuts. Exception: dialog close buttons MAY appear in both the top-right corner and the footer.
