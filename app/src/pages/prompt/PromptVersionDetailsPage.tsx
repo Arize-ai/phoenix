@@ -49,6 +49,7 @@ function PromptVersionDetailsPageContent({
   invariant(promptId, "promptId is required");
   const [showDiff, setShowDiff] = useState(false);
   const previousVersion = promptVersion.previousVersion;
+  const hasPreviousVersion = previousVersion != null;
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">
@@ -97,7 +98,7 @@ function PromptVersionDetailsPageContent({
               <Switch
                 labelPlacement="start"
                 isSelected={showDiff}
-                isDisabled={previousVersion == null}
+                isDisabled={!hasPreviousVersion}
                 onChange={setShowDiff}
               >
                 Diff
