@@ -144,7 +144,7 @@ describe("Auth Commands", () => {
 
       expect(output).toContain(endpoint);
       expect(output).toContain("✓ Logged in as mikeldking (api key)");
-      expect(output).toContain("Auth method: LOCAL");
+      expect(output).not.toContain("Auth method");
       expect(output).toContain("Role: ADMIN");
       expect(output).toContain("Token: ****");
     });
@@ -166,7 +166,6 @@ describe("Auth Commands", () => {
       const output = formatAuthStatus(endpoint, result, apiKey);
 
       expect(output).toContain("✓ Logged in as oauthuser (api key)");
-      expect(output).toContain("Auth method: OAUTH2");
       expect(output).toContain("Role: MEMBER");
     });
 
@@ -187,7 +186,6 @@ describe("Auth Commands", () => {
       const output = formatAuthStatus(endpoint, result, apiKey);
 
       expect(output).toContain("✓ Logged in as ldapuser (api key)");
-      expect(output).toContain("Auth method: LDAP");
       expect(output).toContain("Role: VIEWER");
     });
 

@@ -91,7 +91,6 @@ export function formatAuthStatus(
       lines.push("  \u2713 Authentication not required (anonymous)");
     } else {
       lines.push(`  \u2713 Logged in as ${user.username} (api key)`);
-      lines.push(`  - Auth method: ${user.auth_method}`);
       lines.push(`  - Role: ${user.role}`);
     }
   } else if (result.status === "auth_error") {
