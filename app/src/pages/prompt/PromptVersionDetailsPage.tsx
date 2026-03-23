@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
+  Card,
   Flex,
   Icon,
   Icons,
   LinkButton,
+  Switch,
   TitleWithID,
   Tooltip,
   TooltipArrow,
@@ -14,7 +17,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { PromptVersionLoaderData } from "@phoenix/pages/prompt/promptVersionLoader";
 import { promptVersionLoaderQuery } from "@phoenix/pages/prompt/promptVersionLoader";
@@ -25,6 +28,7 @@ import type {
   promptVersionLoaderQuery$data,
 } from "./__generated__/promptVersionLoaderQuery.graphql";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
+import { PromptVersionDiffView } from "./PromptVersionDiffView";
 import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionDetailsPage() {
@@ -43,6 +47,9 @@ function PromptVersionDetailsPageContent({
 }) {
   const { promptId } = useParams();
   invariant(promptId, "promptId is required");
+  const [showDiff, setShowDiff] = useState(false);
+  const previousVersion = promptVersion.previousVersion;
+  const hasPreviousVersion = previousVersion != null;
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">
@@ -83,7 +90,32 @@ function PromptVersionDetailsPageContent({
               </TooltipTrigger>
             </Flex>
           </Flex>
-          <PromptChatMessagesCard promptVersion={promptVersion} />
+          <Card
+            title="Prompt"
+            collapsible
+            data-testid="prompt-chat-messages-card"
+            extra={
+              <Switch
+                labelPlacement="start"
+                isSelected={showDiff}
+                isDisabled={!hasPreviousVersion}
+                onChange={setShowDiff}
+              >
+                Diff
+              </Switch>
+            }
+          >
+            {showDiff && previousVersion ? (
+              <PromptVersionDiffView
+                current={promptVersion}
+                previous={previousVersion}
+              />
+            ) : (
+              <View padding="size-200">
+                <PromptChatMessages promptVersion={promptVersion} />
+              </View>
+            )}
+          </Card>
           <PromptModelConfigurationCard promptVersion={promptVersion} />
           <PromptCodeExportCard promptVersion={promptVersion} />
         </Flex>
