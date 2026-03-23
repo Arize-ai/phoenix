@@ -24,8 +24,6 @@ export function obscureApiKey(apiKey: string): string {
   return "************************************";
 }
 
-// -- Fetch viewer types & function --
-
 interface FetchViewerSuccess {
   status: "success";
   user: ViewerUser;
@@ -120,6 +118,8 @@ export function formatAuthStatus(
 function exitCodeForResult(result: FetchViewerResult): ExitCode {
   switch (result.status) {
     case "success":
+    // 404 means the server is an older version without /v1/user — the token
+    // may still be valid, we just can't verify it. Not a failure.
     case "not_found":
       return ExitCode.SUCCESS;
     case "auth_error":
