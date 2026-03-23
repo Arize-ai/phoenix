@@ -26,8 +26,8 @@ function promptTemplateToText(template: Template): string {
               return part.text.text;
             }
             if (part.__typename === "ToolCallContentPart") {
-              const tc = part.toolCall.toolCall;
-              return `[tool_call] ${tc.name}(${tc.arguments})`;
+              const toolCallFunction = part.toolCall.toolCall;
+              return `[tool_call] ${toolCallFunction.name}(${toolCallFunction.arguments})`;
             }
             if (part.__typename === "ToolResultContentPart") {
               const result =
