@@ -11,16 +11,23 @@ on:
     branches:
       - main
       - version-13
+  schedule:
+    - cron: "0 16 * * 1-5"
+  workflow_dispatch:
+
+env:
+  ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 jobs:
   changes:
     name: Filter Changes
+    if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -34,7 +41,7 @@ jobs:
     timeout-minutes: 60
     runs-on: ${{ matrix.os }}
     needs: changes
-    if: ${{ needs.changes.outputs.e2e == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.e2e == 'true') }}
     defaults:
       run:
         working-directory: ./app
@@ -49,13 +56,13 @@ jobs:
         # large runners have more disk space, which we need for our in-runner phoenix db
         os: [oss-4-core-runner] # re-add macos-latest-large once billing is set
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           package_json_file: app/package.json
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           cache-dependency-path: ./app/pnpm-lock.yaml
           node-version: lts/*
@@ -66,7 +73,7 @@ jobs:
         id: playwright-version
         run: echo "PLAYWRIGHT_VERSION=$(pnpm list --json | jq -r '.[0].devDependencies["@playwright/test"].version')" >> $GITHUB_ENV
       - name: Cache Playwright binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -78,17 +85,21 @@ jobs:
         # WebKit dependencies can't be cached and must always be installed.
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.10.9"
       - name: Install dependencies
+        if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
         run: uv sync --extra container
+      - name: Install dependencies (with upgrade)
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: uv sync --upgrade --extra container
       - name: Run Playwright tests
         run: pnpm test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
@@ -100,7 +111,7 @@ jobs:
     needs:
       - changes
       - e2e-test
-    if: always()
+    if: ${{ always() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check all required jobs passed or were skipped
@@ -114,3 +125,30 @@ jobs:
             exit 1
           fi
           echo "All CI jobs passed or were skipped"
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [e2e-test]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    steps:
+      - name: Notify success
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "Daily Playwright tests passed\n${{ env.ACTIONS_RUN_URL }}"
+            }
+      - name: Notify failure
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        with:
+          payload: |
+            {
+              "text": "🚨🚨🚨 DAILY PLAYWRIGHT TESTS FAILED 🚨🚨🚨\n${{ env.ACTIONS_RUN_URL }}"
+            }
