@@ -1,5 +1,19 @@
 # Changelog
 
+## [13.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.16.0...arize-phoenix-v13.17.0) (2026-03-23)
+
+
+### Features
+
+* **agent:** implement experimental px-gql simulated bash tool ([#12251](https://github.com/Arize-ai/phoenix/issues/12251)) ([843fa8f](https://github.com/Arize-ai/phoenix/commit/843fa8f54583b5b4be0b4cf47f15bb85a391e996))
+* copy spanID to clipboard ([#12321](https://github.com/Arize-ai/phoenix/issues/12321)) ([a7ded9a](https://github.com/Arize-ai/phoenix/commit/a7ded9ab308f8261e412149a589c3330ad28e713))
+
+
+### Bug Fixes
+
+* **security:** resolve high and moderate dependency vulnerabilities ([#12317](https://github.com/Arize-ai/phoenix/issues/12317)) ([69ffc21](https://github.com/Arize-ai/phoenix/commit/69ffc2110f1b1545da10e20a5b422fb530a78fa3))
+* Starlette 1.0+ TemplateResponse compatibility ([#12332](https://github.com/Arize-ai/phoenix/issues/12332)) ([43b18b7](https://github.com/Arize-ai/phoenix/commit/43b18b7dc7671487c86a27008a5a48ba91444a20))
+
 ## [13.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.15.0...arize-phoenix-v13.16.0) (2026-03-22)
 
 
