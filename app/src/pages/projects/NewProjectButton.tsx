@@ -1,18 +1,29 @@
 import { css } from "@emotion/react";
+import { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { graphql, useMutation } from "react-relay";
+import { useNavigate } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components";
 import {
+  Alert,
   Button,
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
   ExternalLink,
+  FieldError,
+  Flex,
+  Form,
   Icon,
   Icons,
+  Input,
+  Label,
   Modal,
   ModalOverlay,
   Tab,
@@ -20,13 +31,19 @@ import {
   TabPanel,
   Tabs,
   Text,
+  TextField,
   View,
 } from "@phoenix/components";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { ManualProjectGuide } from "@phoenix/pages/projects/ManualProjectGuide";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
+import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
+import { URI_SAFE_PATTERN } from "./ProjectForm";
 
 type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
@@ -49,6 +66,8 @@ export function NewProjectButton({
   variant,
   refetchProjects,
 }: NewProjectButtonProps) {
+  const isOnboardingEnabled = useFeatureFlag("tracing-onboarding");
+
   return (
     <div>
       <DialogTrigger>
@@ -59,23 +78,170 @@ export function NewProjectButton({
         >
           New Project
         </Button>
-        <ModalOverlay>
-          <Modal
-            variant="slideover"
-            size="L"
-            css={css`
-              width: 70vw !important;
-            `}
-          >
-            <NewProjectDialog refetchProjects={refetchProjects} />
-          </Modal>
-        </ModalOverlay>
+        {isOnboardingEnabled ? (
+          <ModalOverlay>
+            <Modal>
+              <NewProjectDialog />
+            </Modal>
+          </ModalOverlay>
+        ) : (
+          <ModalOverlay>
+            <Modal
+              variant="slideover"
+              size="L"
+              css={css`
+                width: 70vw !important;
+              `}
+            >
+              <NewProjectDialogWithOnboarding
+                refetchProjects={refetchProjects}
+              />
+            </Modal>
+          </ModalOverlay>
+        )}
       </DialogTrigger>
     </div>
   );
 }
 
-function NewProjectDialog({
+function NewProjectDialog() {
+  const navigate = useNavigate();
+  const notifySuccess = useNotifySuccess();
+  const [error, setError] = useState<string | null>(null);
+
+  const [commit, isCommitting] =
+    useMutation<NewProjectButtonCreateProjectMutation>(graphql`
+      mutation NewProjectButtonCreateProjectMutation($input: CreateProjectInput!) {
+        createProject(input: $input) {
+          project {
+            id
+            name
+          }
+          query {
+            projects(first: 50) {
+              edges {
+                node {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+
+  const { control, handleSubmit } = useForm<{ name: string }>({
+    defaultValues: { name: "" },
+  });
+
+  const onSubmit = useCallback(
+    (data: { name: string }, close: () => void) => {
+      commit({
+        variables: {
+          input: { name: data.name },
+        },
+        onCompleted: (response) => {
+          const createdProject = response.createProject.project;
+          notifySuccess({
+            title: "Project created",
+            message: `Project "${createdProject.name}" has been successfully created.`,
+          });
+          close();
+          navigate(`/projects/${createdProject.id}`);
+        },
+        onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setError(formattedError?.[0] ?? error.message);
+        },
+      });
+    },
+    [commit, notifySuccess, navigate]
+  );
+
+  return (
+    <Dialog>
+      {({ close }) => (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New project</DialogTitle>
+            <DialogTitleExtra>
+              <DialogCloseButton close={close} />
+            </DialogTitleExtra>
+          </DialogHeader>
+          <Form onSubmit={handleSubmit((data) => onSubmit(data, close))}>
+            <View padding="size-200">
+              {error && (
+                <Alert variant="danger" banner>
+                  {error}
+                </Alert>
+              )}
+              <Controller
+                name="name"
+                control={control}
+                rules={{
+                  required: "Project name is required",
+                  pattern: {
+                    value: URI_SAFE_PATTERN,
+                    message:
+                      "Use only letters, numbers, hyphens, underscores, and dots.",
+                  },
+                  maxLength: {
+                    value: 100,
+                    message:
+                      "Project name must be less than 100 characters long",
+                  },
+                }}
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { invalid, error: fieldError },
+                }) => (
+                  <TextField
+                    isInvalid={invalid}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    value={value}
+                    autoFocus
+                  >
+                    <Label>Name</Label>
+                    <Input placeholder="e.g. Customer feedback" />
+                    {fieldError?.message ? (
+                      <FieldError>{fieldError.message}</FieldError>
+                    ) : (
+                      <Text slot="description">URI characters only</Text>
+                    )}
+                  </TextField>
+                )}
+              />
+            </View>
+            <DialogFooter>
+              <Flex direction="row" gap="size-100">
+                <Button
+                  variant="default"
+                  size="M"
+                  onPress={close}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="M"
+                  type="submit"
+                  isDisabled={isCommitting}
+                >
+                  {isCommitting ? "Creating..." : "Create"}
+                </Button>
+              </Flex>
+            </DialogFooter>
+          </Form>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
+function NewProjectDialogWithOnboarding({
   refetchProjects,
 }: {
   refetchProjects: () => void;

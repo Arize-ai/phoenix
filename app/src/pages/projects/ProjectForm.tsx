@@ -28,7 +28,7 @@ export type ProjectFormParams = {
 };
 
 // URI-safe pattern: allows letters, numbers, hyphens, underscores, and dots
-const URI_SAFE_PATTERN = /^[a-zA-Z0-9._-]+$/;
+export const URI_SAFE_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
 // Predefined gradient options
 export const GRADIENT_PRESETS = [
