@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c60157bd5fbdb5f4708eac53781cca31>>
+ * @generated SignedSource<<db33516f1cd9fd3d700aebc46d13c84f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,8 @@ export type NewProjectButtonCreateProjectMutation$variables = {
 export type NewProjectButtonCreateProjectMutation$data = {
   readonly createProject: {
     readonly project: {
+      readonly gradientEndColor: string;
+      readonly gradientStartColor: string;
       readonly id: string;
       readonly name: string;
     };
@@ -49,23 +51,21 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  }
-],
-v2 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = [
   {
     "alias": null,
     "args": [
@@ -87,7 +87,24 @@ v2 = [
         "kind": "LinkedField",
         "name": "project",
         "plural": false,
-        "selections": (v1/*: any*/),
+        "selections": [
+          (v1/*: any*/),
+          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "gradientStartColor",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "gradientEndColor",
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       },
       {
@@ -127,7 +144,10 @@ v2 = [
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
-                    "selections": (v1/*: any*/),
+                    "selections": [
+                      (v1/*: any*/),
+                      (v2/*: any*/)
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -149,7 +169,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "NewProjectButtonCreateProjectMutation",
-    "selections": (v2/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -158,19 +178,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "NewProjectButtonCreateProjectMutation",
-    "selections": (v2/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "24b791d8557b8bb8334950d9038268cf",
+    "cacheID": "c05cdc005a38ad4285300f8f895ed799",
     "id": null,
     "metadata": {},
     "name": "NewProjectButtonCreateProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation NewProjectButtonCreateProjectMutation(\n  $input: CreateProjectInput!\n) {\n  createProject(input: $input) {\n    project {\n      id\n      name\n    }\n    query {\n      projects(first: 50) {\n        edges {\n          node {\n            id\n            name\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation NewProjectButtonCreateProjectMutation(\n  $input: CreateProjectInput!\n) {\n  createProject(input: $input) {\n    project {\n      id\n      name\n      gradientStartColor\n      gradientEndColor\n    }\n    query {\n      projects(first: 50) {\n        edges {\n          node {\n            id\n            name\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cfbd61bd0cd98bec0b4409d19625f0fe";
+(node as any).hash = "e39b2dd1009edc14856a735fd1b9d01b";
 
 export default node;

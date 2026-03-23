@@ -89,7 +89,7 @@ export function NewProjectButton({
         {isOnboardingEnabled ? (
           <ModalOverlay>
             <Modal>
-              <NewProjectDialog />
+              <NewProjectDialog refetchProjects={refetchProjects} />
             </Modal>
           </ModalOverlay>
         ) : (
@@ -112,7 +112,11 @@ export function NewProjectButton({
   );
 }
 
-function NewProjectDialog() {
+function NewProjectDialog({
+  refetchProjects,
+}: {
+  refetchProjects: () => void;
+}) {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +128,8 @@ function NewProjectDialog() {
           project {
             id
             name
+            gradientStartColor
+            gradientEndColor
           }
           query {
             projects(first: 50) {
@@ -167,6 +173,7 @@ function NewProjectDialog() {
             title: "Project created",
             message: `Project "${createdProject.name}" has been successfully created.`,
           });
+          refetchProjects();
           close();
           navigate(`/projects/${createdProject.id}`);
         },
@@ -176,7 +183,7 @@ function NewProjectDialog() {
         },
       });
     },
-    [commit, notifySuccess, navigate]
+    [commit, notifySuccess, navigate, refetchProjects]
   );
 
   return (
