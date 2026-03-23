@@ -339,7 +339,11 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
-                <CopyToClipboardButton size="S" text={span.spanId} tooltipText="Copy Span ID" />
+                <CopyToClipboardButton
+                  size="S"
+                  text={span.spanId}
+                  tooltipText="Copy Span ID"
+                />
               </Flex>
             </Flex>
           </View>

@@ -54,17 +54,16 @@ export function SpanHeader(props: SpanHeaderProps) {
         <Flex direction="row" gap="size-100" alignItems="center">
           <SpanKindToken spanKind={span.spanKind} />
           <Text size="L">{span.name}</Text>
-   <SpanStatusCodeIcon
+          <SpanStatusCodeIcon
             statusCode={span.code}
             css={css`
               font-size: var(--global-font-size-m);
             `}
           />
-
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           <IDBadge id={span.spanId} />
-         {typeof span.latencyMs === "number" ? (
+          {typeof span.latencyMs === "number" ? (
             <LatencyText latencyMs={span.latencyMs} size="S" />
           ) : null}
           <Text color="text-500" size="S">
