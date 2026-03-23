@@ -611,7 +611,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.4,<3" },
     { name = "sqlean-py", marker = "sys_platform != 'win32'", specifier = ">=3.45.1" },
     { name = "sqlean-py", marker = "sys_platform == 'win32'", specifier = ">=3.45.1,<3.50" },
-    { name = "starlette" },
+    { name = "starlette", specifier = ">=0.37.0" },
     { name = "strawberry-graphql", specifier = "==0.287.3" },
     { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.287.3" },
     { name = "tqdm" },

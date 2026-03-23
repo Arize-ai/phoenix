@@ -329,11 +329,11 @@ class Static(StaticFiles):
             # Fallback to the index.html
             request = Request(scope)
             response = templates.TemplateResponse(
-                "index.html",
+                request=request,
+                name="index.html",
                 context={
                     "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
-                    "request": request,
                     "is_development": self._app_config.is_development,
                     "vite_port": self._app_config.dev_vite_port,
                     "manifest": self._web_manifest,
