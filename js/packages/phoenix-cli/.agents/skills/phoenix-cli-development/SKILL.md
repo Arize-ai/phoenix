@@ -3,10 +3,10 @@ name: phoenix-cli-development
 description: >
   Design and implementation guide for the Phoenix CLI (`px`). Covers the noun-verb command structure,
   dual-audience design (humans and coding agents), Commander.js patterns, configuration resolution,
-  output formats, exit codes, and conventions for adding or modifying commands. Use this skill whenever
+  output formats, exit codes, and conventions for adding or modifying commands. Triggers when
   working on phoenix-cli commands — adding new commands, modifying existing ones, refactoring command
-  structure, or reviewing CLI code. Also trigger when the user mentions `px` commands, CLI design,
-  or asks how to add a new resource to the CLI.
+  structure, or reviewing CLI code. Also triggers on mentions of `px` commands, CLI design,
+  or adding a new resource to the CLI.
 ---
 
 # Phoenix CLI Design Specification
@@ -61,39 +61,26 @@ The CLI is evolving from a flat structure (`px projects`, `px traces`) toward fu
 2. The old form SHOULD be kept as a hidden alias (Commander's `.alias()` or a hidden command) so existing scripts don't break
 3. Only the noun-verb form SHALL be documented going forward
 
-## Dual-Audience Design: Humans and Agents
+## Dual-Audience Design
 
-The CLI MUST be equally usable by a person at a terminal and by a coding agent executing commands in a subprocess. These audiences have different needs:
+The CLI MUST be equally usable by a person at a terminal and by a coding agent. Every command that outputs data MUST support `--format`:
 
-| Concern           | Human                            | Agent                                 |
-|-------------------|----------------------------------|---------------------------------------|
-| Output format     | Pretty tables, color, spinners   | Structured JSON, no decoration        |
-| Error messages    | Friendly, actionable suggestions | Parseable, semantic exit codes        |
-| Discoverability   | Help text, tab completion        | Predictable structure, `--help` flags |
-| Progress feedback | Spinners, progress bars          | Suppress with `--no-progress`         |
-
-### The `--format` flag
-
-Every command that outputs data MUST support `--format`:
-
-- **`pretty`** (default) — Human-readable tables and formatting. This is what you see when you type a command interactively.
-- **`json`** — Indented JSON. Good for human inspection of structured data.
-- **`raw`** — Compact single-line JSON. Designed for piping into `jq` or for agent consumption. No extra whitespace, no decoration.
+- **`pretty`** (default) — Human-readable tables and formatting
+- **`json`** — Indented JSON for human inspection of structured data
+- **`raw`** — Compact single-line JSON for piping into `jq` or agent consumption
 
 Commands MAY support additional formats (e.g., `--format text` for prompts). The default MUST always be `pretty`.
 
-### The `--no-progress` flag
+Progress indicators MUST write to stderr. Agents SHOULD pass `--no-progress` to suppress them.
 
-Progress indicators (spinners, status messages) MUST write to stderr, so they don't contaminate stdout when piping. Agents SHOULD pass `--no-progress` to suppress them entirely — they add noise to agent logs with no benefit.
-
-**Agent-friendly invocation pattern:**
 ```bash
+# Agent-friendly invocation
 px trace list --format raw --no-progress | jq '...'
 ```
 
 ### Semantic exit codes
 
-Exit codes allow agents to branch on failure mode without parsing stderr:
+Defined in `src/exitCodes.ts`. Implementations MUST use the named constants and MUST NOT use bare numeric literals.
 
 | Code | Constant          | Meaning                                             |
 |------|-------------------|-----------------------------------------------------|
@@ -103,8 +90,6 @@ Exit codes allow agents to branch on failure mode without parsing stderr:
 | 3    | `INVALID_ARGUMENT`| Bad CLI flags, missing required args, invalid input |
 | 4    | `AUTH_REQUIRED`   | Not authenticated or insufficient permissions       |
 | 5    | `NETWORK_ERROR`   | Failed to connect to server or network request      |
-
-Exit codes are defined in `src/exitCodes.ts`. Implementations MUST use the named constants and MUST NOT use bare numeric literals for exit codes.
 
 ## Adding a New Command
 
@@ -124,24 +109,22 @@ interface CommonOptions {
 
 ### Configuration resolution
 
-The CLI MUST resolve configuration from multiple sources with this priority:
+The CLI MUST resolve configuration from multiple sources. Use `resolveConfig()` from `src/config.ts` for this merge logic. Priority:
 
 1. **CLI flags** (highest priority) — `--endpoint`, `--api-key`, `--project`
 2. **Environment variables** — `PHOENIX_HOST`, `PHOENIX_API_KEY`, `PHOENIX_PROJECT`
 3. **Defaults** — `http://localhost:6006` for endpoint
 
-Implementations MUST use `resolveConfig()` from `src/config.ts` for this merge logic. Command handlers MUST NOT read environment variables directly.
+Command handlers MUST NOT read environment variables directly.
 
 ### Output formatting
 
-Each resource type SHOULD have formatting modules in `src/commands/format*.ts`:
+Each resource type SHOULD have formatting modules in `src/commands/format*.ts`. When creating a new resource command, a corresponding formatter MUST be created following the existing pattern.
 
 - `formatTable.ts` — Shared table rendering with terminal-width-aware column truncation
 - `formatProjectsOutput()`, `formatTracesOutput()`, etc. — Resource-specific formatters
 
-Formatters MUST accept a `format` option and return a string. The `pretty` format uses ASCII tables; `json` returns indented JSON; `raw` returns compact JSON.
-
-When creating a new resource command, a corresponding formatter MUST be created following the existing pattern — accept an object with the data and format, return a string.
+Formatters MUST accept a `format` option and return a string.
 
 ### I/O functions
 
@@ -212,4 +195,6 @@ px project --endpoint http://my-server:6006 list
 7. Export from `src/commands/index.ts`
 8. Register in `src/cli.ts` via `program.addCommand()`
 9. Add tests in `test/`
-10. Update `README.md` with usage examples showing both human and agent-friendly invocations
+10. Run `pnpm test` — fix any failures before proceeding
+11. Run `pnpm build` — fix any type errors before proceeding
+12. Update `README.md` with usage examples showing both human and agent-friendly invocations
