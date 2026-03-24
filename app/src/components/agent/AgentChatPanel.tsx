@@ -29,7 +29,7 @@ const panelContentCSS = css`
   box-sizing: border-box;
   height: 100%;
   overflow: hidden;
-  border-top: 1px solid var(--global-border-color-subtle);
+  border-top: 1px solid var(--global-border-color-default);
 `;
 
 /**

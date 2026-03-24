@@ -11,8 +11,16 @@ import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatReq
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { authFetch } from "@phoenix/authFetch";
 import { Icon, Icons, View } from "@phoenix/components";
+import {
+  PromptInput,
+  PromptInputActions,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
-import { MessageBar } from "@phoenix/components/chat";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -52,20 +60,6 @@ const chatCSS = css`
     padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-200);
     background-color: var(--global-color-gray-75);
-  }
-
-  .chat__input-container {
-    border: 1px solid var(--global-color-gray-300);
-    border-radius: var(--global-rounding-medium);
-    background-color: var(--global-color-gray-100);
-    overflow: hidden;
-  }
-
-  .chat__input-toolbar {
-    display: flex;
-    align-items: center;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-100);
-    border-top: 1px solid var(--global-color-gray-200);
   }
 
   .chat__empty {
@@ -201,23 +195,29 @@ export function Chat({
         </div>
       </div>
       <div className="chat__input">
-        <View paddingX="size-100">
-          <div className="chat__input-container">
-            <MessageBar
-              onSendMessage={(text) => sendMessage({ text })}
-              isSending={status === "submitted" || status === "streaming"}
-              placeholder="Send a message…"
-              icon={<Icon svg={<Icons.ArrowUpwardOutline />} />}
-            />
-            <div className="chat__input-toolbar">
-              <ModelMenu
-                value={modelMenuValue}
-                onChange={onModelChange}
-                placement="top start"
-                shouldFlip
-              />
-            </div>
-          </div>
+        <View paddingX="size-200">
+          <PromptInput
+            onSubmit={(text) => sendMessage({ text })}
+            status={status}
+          >
+            <PromptInputBody>
+              <PromptInputTextarea placeholder="Send a message…" />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <ModelMenu
+                  value={modelMenuValue}
+                  onChange={onModelChange}
+                  placement="top start"
+                  shouldFlip
+                  variant="quiet"
+                />
+              </PromptInputTools>
+              <PromptInputActions>
+                <PromptInputSubmit />
+              </PromptInputActions>
+            </PromptInputFooter>
+          </PromptInput>
         </View>
       </div>
     </div>

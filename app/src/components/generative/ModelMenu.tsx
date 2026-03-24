@@ -167,6 +167,13 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
 export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
+  /**
+   * Visual variant of the trigger button.
+   * - `"default"` — standard bordered button with chevron icon.
+   * - `"quiet"` — borderless, no chevron icon.
+   * @default "default"
+   */
+  variant?: "default" | "quiet";
 };
 
 export function ModelMenu({
@@ -174,6 +181,7 @@ export function ModelMenu({
   onChange,
   placement,
   shouldFlip,
+  variant = "default",
 }: ModelMenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
@@ -305,7 +313,7 @@ export function ModelMenu({
 
   return (
     <MenuTrigger>
-      <Button size="S">
+      <Button size="S" variant={variant}>
         {value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
             {isValidSelectedProvider && (
@@ -316,7 +324,7 @@ export function ModelMenu({
         ) : (
           <Text color="text-700">Select a model</Text>
         )}
-        <SelectChevronUpDownIcon />
+        {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
         <MenuHeader>
