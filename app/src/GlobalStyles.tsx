@@ -1159,6 +1159,31 @@ const borderAndGridCSS = (theme: Theme) => css`
   }
 `;
 
+const promptInputCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --prompt-input-background-color: var(--global-color-gray-100);
+    --prompt-input-border-color: var(--global-color-gray-300);
+    --prompt-input-border-color-focus: var(--global-color-gray-500);
+    --prompt-input-border-radius: var(--global-rounding-medium);
+    --prompt-input-textarea-color: var(--global-text-color-900);
+    --prompt-input-textarea-placeholder-color: var(--global-color-gray-400);
+    --prompt-input-footer-border-color: var(--global-color-gray-200);
+    --prompt-input-submit-background-color: var(--global-text-color-900);
+    --prompt-input-submit-background-color-hover: var(--global-text-color-700);
+    --prompt-input-submit-foreground-color: var(
+      --global-background-color-default
+    );
+    --prompt-input-submit-background-color-disabled: var(
+      --global-color-gray-300
+    );
+    --prompt-input-submit-foreground-color-disabled: var(
+      --global-color-gray-500
+    );
+    --prompt-input-tool-button-background-color-hover: var(--hover-background);
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1175,7 +1200,8 @@ export const derivedCSS = (theme: Theme) =>
     markdownCSS(theme),
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
-    badgeSizingCSS(theme)
+    badgeSizingCSS(theme),
+    promptInputCSS(theme)
   );
 
 const appGlobalStylesCSS = css`
