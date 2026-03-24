@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import {
   Button,
+  Flex,
   Icon,
   Icons,
   Menu,
@@ -15,8 +16,8 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type { AgentSession } from "@phoenix/store/agentStore";
-import { formatRelativeDate } from "@phoenix/utils/timeFormatUtils";
 
 import { DeleteSessionDialog } from "./DeleteSessionDialog";
 import {
@@ -48,19 +49,6 @@ const sessionTriggerLabelCSS = css`
   @container (min-width: ${SHOW_SUMMARY_BREAKPOINT}) {
     display: block;
   }
-`;
-
-const sessionItemCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-`;
-
-const sessionDateCSS = css`
-  font-size: var(--global-font-size-xs);
-  color: var(--global-text-color-700);
 `;
 
 const deleteButtonCSS = css`
@@ -95,6 +83,7 @@ export function SessionListMenu({
   onSelectSession,
   onDeleteSession,
 }: SessionListMenuProps) {
+  const { fullTimeFormatter } = useTimeFormatters();
   const [pendingDeleteSession, setPendingDeleteSession] =
     useState<AgentSession | null>(null);
 
@@ -120,6 +109,9 @@ export function SessionListMenu({
 
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
+  const hasSessionSummary =
+    activeSessionSummary && activeSessionSummary !== EMPTY_SESSION_DISPLAY_NAME;
+
   return (
     <>
       <MenuTrigger>
@@ -128,12 +120,13 @@ export function SessionListMenu({
           variant="quiet"
           aria-label="Sessions"
           css={sessionTriggerCSS}
+          trailingVisual={<Icon svg={<Icons.ClockOutline />} />}
         >
-          {activeSessionSummary &&
-            activeSessionSummary !== EMPTY_SESSION_DISPLAY_NAME && (
-              <span css={sessionTriggerLabelCSS}>{activeSessionSummary}</span>
-            )}
-          <Icon svg={<Icons.ClockOutline />} />
+          {hasSessionSummary ? (
+            <span css={sessionTriggerLabelCSS}>{activeSessionSummary}</span>
+          ) : (
+            <>{""}</>
+          )}
         </Button>
         <MenuContainer placement="bottom start" maxHeight={400}>
           <MenuHeaderTitle>Sessions</MenuHeaderTitle>
@@ -147,6 +140,7 @@ export function SessionListMenu({
                 key={session.id}
                 session={session}
                 onRequestDelete={setPendingDeleteSession}
+                formatDate={fullTimeFormatter}
               />
             ))}
           </Menu>
@@ -178,17 +172,20 @@ export function SessionListMenu({
 function SessionMenuItem({
   session,
   onRequestDelete,
+  formatDate,
 }: {
   session: AgentSession;
   onRequestDelete: (session: AgentSession) => void;
+  formatDate: (date: Date) => string;
 }) {
   const displayName = getSessionDisplayName(session);
-  const dateLabel = formatRelativeDate(session.createdAt);
+  const dateLabel =
+    session.createdAt > 0 ? formatDate(new Date(session.createdAt)) : "";
 
   return (
     <MenuItem
       id={session.id}
-      textValue={displayName}
+      textValue={`${displayName}\n${dateLabel}`}
       trailingContent={
         <div
           css={deleteButtonCSS}
@@ -215,10 +212,14 @@ function SessionMenuItem({
         </div>
       }
     >
-      <div css={sessionItemCSS}>
+      <Flex direction="column" gap="size-50">
         <Text>{displayName}</Text>
-        {dateLabel && <span css={sessionDateCSS}>{dateLabel}</span>}
-      </div>
+        {dateLabel && (
+          <Text size="XS" color="text-300">
+            {dateLabel}
+          </Text>
+        )}
+      </Flex>
     </MenuItem>
   );
 }
