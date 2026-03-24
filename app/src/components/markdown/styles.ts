@@ -83,7 +83,7 @@ export const markdownCSS = css`
     > div:has([data-streamdown="code-block-actions"]) {
     position: absolute;
     top: var(--global-dimension-size-50);
-    right: var(--global-dimension-size-50);
+    right: var(--global-dimension-size-100);
     height: var(--global-code-block-actions-wrapper-height);
     display: flex;
     align-items: center;
