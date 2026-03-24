@@ -26,6 +26,7 @@ import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
+import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 
 const chatCSS = css`
   display: flex;
@@ -109,6 +110,7 @@ export function Chat({
   onModelChange: (model: ModelMenuValue) => void;
 }) {
   const store = useAgentStore();
+  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
 
   // read stored messages for this session
   const initialMessages = sessionId
@@ -153,6 +155,10 @@ export function Chat({
       if (sessionId && finalMessages) {
         // persist after each assistant response completes
         store.getState().setSessionMessages(sessionId, finalMessages);
+        // Asynchronously generate a short summary for the session list after
+        // the first full exchange. This is fire-and-forget; the hook
+        // deduplicates and is a no-op when a summary already exists.
+        generateSummary({ sessionId });
       }
     },
   });

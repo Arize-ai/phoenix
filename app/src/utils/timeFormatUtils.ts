@@ -139,6 +139,35 @@ export function getTimeZoneShortName(
     .find((i) => i.type === "timeZoneName")?.value;
 }
 
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/**
+ * Formats a Unix timestamp relative to now for compact display in lists.
+ *
+ * Returns "Today", "Yesterday", "N days ago" (up to 6), or a locale-
+ * formatted short date for anything older.
+ *
+ * @param timestamp - Unix timestamp in milliseconds. Returns empty string if 0.
+ * @param now - optional "now" timestamp for testability (defaults to Date.now())
+ */
+export function formatRelativeDate(
+  timestamp: number,
+  now: number = Date.now()
+): string {
+  if (timestamp === 0) return "";
+
+  const diffDays = Math.floor((now - timestamp) / MILLISECONDS_PER_DAY);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function getLocaleDateFormatPattern(locale: string) {
   const formatParts = new Intl.DateTimeFormat(locale, {
     day: "2-digit",

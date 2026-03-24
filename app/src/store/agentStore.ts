@@ -34,6 +34,8 @@ export type AgentSession = {
   context: string[];
   /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
+  /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
+  createdAt: number;
 };
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -129,6 +131,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             messages: [],
             context: [],
             modelConfig: { ...state.defaultModelConfig },
+            createdAt: Date.now(),
           };
           return {
             sessions: [...state.sessions, sessionId],
@@ -277,6 +280,25 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
+      version: 1,
+      migrate: (persisted, version) => {
+        if (version === 0) {
+          // Legacy sessions may not have `createdAt`. Backfill with 0 so the
+          // UI can distinguish them from sessions created after this migration.
+          const state = persisted as AgentProps;
+          const migratedSessionMap: Record<string, AgentSession> = {};
+          for (const [sessionId, session] of Object.entries(
+            state.sessionMap ?? {}
+          )) {
+            migratedSessionMap[sessionId] = {
+              ...session,
+              createdAt: (session as AgentSession).createdAt ?? 0,
+            };
+          }
+          return { ...state, sessionMap: migratedSessionMap };
+        }
+        return persisted as AgentState;
+      },
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
