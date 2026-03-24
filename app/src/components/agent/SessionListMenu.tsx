@@ -16,6 +16,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
@@ -195,43 +196,20 @@ function SessionMenuItem({
       id={session.id}
       textValue={`${displayName}\n${dateLabel}`}
       trailingContent={
-        <div
-          css={deleteButtonCSS}
-          role="presentation"
-          onPointerDown={(event) => {
-            // Stop the pointer event from reaching the MenuItem so React
-            // Aria does not treat this as a selection press.
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          onPointerUp={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-            event.preventDefault();
-          }}
-          onKeyDown={(event) => {
-            // Prevent Enter/Space on the delete button from triggering
-            // the menu item's action.
-            if (event.key === "Enter" || event.key === " ") {
-              event.stopPropagation();
-            }
-          }}
-        >
+        <StopPropagation>
           <TooltipTrigger delay={300}>
             <Button
               size="S"
               variant="quiet"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session)}
+              css={deleteButtonCSS}
             >
-              <Icon svg={<Icons.CloseOutline />} />
+              <Icon svg={<Icons.TrashOutline />} />
             </Button>
             <Tooltip>Delete</Tooltip>
           </TooltipTrigger>
-        </div>
+        </StopPropagation>
       }
     >
       <Flex direction="column" gap="size-50">
