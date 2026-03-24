@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.0...arize-phoenix-v13.18.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* Pin LiteLLM &lt;1.82.7 to mitigate supply chain attack ([#12342](https://github.com/Arize-ai/phoenix/issues/12342)) ([48970b6](https://github.com/Arize-ai/phoenix/commit/48970b62815a8230b38f67f4246c69cab3d473c0))
+
 ## [13.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.17.0...arize-phoenix-v13.18.0) (2026-03-24)
 
 
