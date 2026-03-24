@@ -1,5 +1,19 @@
 # @arizeai/phoenix-client
 
+## 6.5.4
+
+### Patch Changes
+
+- b4ded15: Update package READMEs with latest capabilities
+  - phoenix-client: Add Sessions section documenting `listSessions`, `getSession`, and `addSessionAnnotation`
+  - phoenix-evals: Add full pre-built evaluators table (conciseness, correctness, document relevance, refusal, tool evaluators), fix import paths for `bindEvaluator`
+  - phoenix-mcp: Expand Tool Coverage section with complete, accurate tool list
+  - phoenix-config: Full documentation replacing the one-line placeholder (installation, environment variables, usage examples)
+  - phoenix-cli: Add `px annotation-config` command documentation
+
+- Updated dependencies [b4ded15]
+  - @arizeai/phoenix-config@0.1.3
+
 ## 6.5.3
 
 ### Patch Changes
