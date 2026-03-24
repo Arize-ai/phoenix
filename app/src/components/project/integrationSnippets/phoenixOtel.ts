@@ -3,11 +3,21 @@ export function getOtelInitCodePython({
 }: {
   projectName: string;
 }): string {
-  return `from phoenix.otel import register\n
+  return `from phoenix.otel import register
+
 tracer_provider = register(
   project_name="${projectName}",
   auto_instrument=True
-)`;
+)
+
+tracer = tracer_provider.get_tracer(__name__)
+
+@tracer.chain
+def my_function(input: str) -> str:
+    # Your logic here
+    return f"Processed: {input}"
+
+my_function("hello world")`;
 }
 
 export function getOtelInitCodeTypescript({
@@ -16,8 +26,19 @@ export function getOtelInitCodeTypescript({
   projectName: string;
 }): string {
   return `import { register } from '@arizeai/phoenix-otel';
+import { traceChain } from '@arizeai/openinference-core';
 
 register({
   projectName: '${projectName}',
-});`;
+});
+
+const myFunction = traceChain(
+  (input: string): string => {
+    // Your logic here
+    return \`Processed: \${input}\`;
+  },
+  { name: 'my-function' }
+);
+
+myFunction('hello world');`;
 }

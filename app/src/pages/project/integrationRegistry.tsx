@@ -57,7 +57,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         getImplementationCode: getOtelInitCodePython,
       },
       TypeScript: {
-        packages: ["@arizeai/phoenix-otel"],
+        packages: ["@arizeai/phoenix-otel", "@arizeai/openinference-core"],
         getImplementationCode: getOtelInitCodeTypescript,
       },
     },
