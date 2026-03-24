@@ -54,7 +54,6 @@ export function MarkdownBlock({
         components={streamdownComponents}
         controls={{ code: { copy: true, download: true }, table: false }}
         icons={streamdownIcons}
-        linkSafety={{ enabled: false }}
         mode="static"
         plugins={plugins}
       >
