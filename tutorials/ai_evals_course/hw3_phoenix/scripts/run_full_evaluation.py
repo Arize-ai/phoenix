@@ -6,7 +6,6 @@ the corrected success rate with confidence intervals.
 """
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -15,10 +14,12 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from judgy import estimate_success_rate
+from rich.console import Console
+
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
-from phoenix.evals import OpenAIModel, llm_generate
-from rich.console import Console
+from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
 
 load_dotenv()
 
@@ -82,16 +83,23 @@ def run_judge_on_traces(
 
     console.print(f"[yellow]Running judge on {len(traces_df)} traces with Phoenix evals...")
 
-    # Run the evaluation using Phoenix
-    predictions = llm_generate(
-        dataframe=traces_df,
-        template=judge_prompt,
-        model=OpenAIModel(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
-        verbose=True,
-        output_parser=output_parser,
-        include_prompt=True,
-        include_response=True,
+    # Run the evaluation using LLM + AsyncExecutor
+    import asyncio
+
+    model = LLM(provider="openai", model="gpt-4o")
+
+    async def generate_prediction(row):
+        filled_prompt = judge_prompt.format(**row)
+        return await model.async_generate_text(filled_prompt)
+
+    executor = AsyncExecutor(generation_fn=generate_prediction, concurrency=10)
+    raw_outputs, _ = asyncio.get_event_loop().run_until_complete(
+        executor.execute([row.to_dict() for _, row in traces_df.iterrows()])
     )
+
+    # Parse outputs
+    parsed = [output_parser(str(o) if o else "", i) for i, o in enumerate(raw_outputs)]
+    predictions = pd.DataFrame(parsed)
 
     predictions = pd.merge(predictions, traces_df, left_index=True, right_index=True)
 
