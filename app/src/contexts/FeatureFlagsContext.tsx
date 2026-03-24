@@ -20,6 +20,7 @@ export type FeatureFlagsContextType = {
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
+  // TODO: when this flag is removed, update agentStore.ts by resetting / removing the persistence migration
   agents: false,
 };
 
