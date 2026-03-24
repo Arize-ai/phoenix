@@ -149,7 +149,7 @@ export function SessionListMenu({
           variant="quiet"
           aria-label="Sessions"
           css={sessionTriggerCSS}
-          trailingVisual={<Icon svg={<Icons.ClockOutline />} />}
+          trailingVisual={<Icon svg={<Icons.HistoryOutline />} />}
         >
           {hasSessionSummary ? (
             <span css={sessionTriggerLabelCSS}>{activeSessionSummary}</span>
