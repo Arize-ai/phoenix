@@ -16,8 +16,8 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import type { AgentSession } from "@phoenix/store/agentStore";
+import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
 import { DeleteSessionDialog } from "./DeleteSessionDialog";
 import {
@@ -83,7 +83,6 @@ export function SessionListMenu({
   onSelectSession,
   onDeleteSession,
 }: SessionListMenuProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
   const [pendingDeleteSession, setPendingDeleteSession] =
     useState<AgentSession | null>(null);
 
@@ -140,7 +139,6 @@ export function SessionListMenu({
                 key={session.id}
                 session={session}
                 onRequestDelete={setPendingDeleteSession}
-                formatDate={fullTimeFormatter}
               />
             ))}
           </Menu>
@@ -172,15 +170,12 @@ export function SessionListMenu({
 function SessionMenuItem({
   session,
   onRequestDelete,
-  formatDate,
 }: {
   session: AgentSession;
   onRequestDelete: (session: AgentSession) => void;
-  formatDate: (date: Date) => string;
 }) {
   const displayName = getSessionDisplayName(session);
-  const dateLabel =
-    session.createdAt > 0 ? formatDate(new Date(session.createdAt)) : "";
+  const dateLabel = formatRelativeShort(session.createdAt);
 
   return (
     <MenuItem

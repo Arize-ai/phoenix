@@ -139,33 +139,40 @@ export function getTimeZoneShortName(
     .find((i) => i.type === "timeZoneName")?.value;
 }
 
-const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+const MS_PER_HOUR = 1000 * 60 * 60;
+const MS_PER_DAY = MS_PER_HOUR * 24;
 
 /**
- * Formats a Unix timestamp relative to now for compact display in lists.
+ * Formats a Unix timestamp as a compact, human-readable age string.
  *
- * Returns "Today", "Yesterday", "N days ago" (up to 6), or a locale-
- * formatted short date for anything older.
+ * Rules:
+ * - Within 6 hours: locale-formatted time, e.g. "1:23 PM"
+ * - Between 6 and 24 hours: whole hours, e.g. "8h"
+ * - Beyond 24 hours: whole days, e.g. "1d", "45d"
  *
  * @param timestamp - Unix timestamp in milliseconds. Returns empty string if 0.
  * @param now - optional "now" timestamp for testability (defaults to Date.now())
  */
-export function formatRelativeDate(
+export function formatRelativeShort(
   timestamp: number,
   now: number = Date.now()
 ): string {
   if (timestamp === 0) return "";
 
-  const diffDays = Math.floor((now - timestamp) / MILLISECONDS_PER_DAY);
+  const diffMs = now - timestamp;
 
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffMs < 6 * MS_PER_HOUR) {
+    return new Date(timestamp).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
 
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  if (diffMs < MS_PER_DAY) {
+    return `${Math.floor(diffMs / MS_PER_HOUR)}h`;
+  }
+
+  return `${Math.floor(diffMs / MS_PER_DAY)}d`;
 }
 
 export function getLocaleDateFormatPattern(locale: string) {
