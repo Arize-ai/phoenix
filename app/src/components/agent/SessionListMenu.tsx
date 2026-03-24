@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import {
   Button,
@@ -89,6 +89,9 @@ export function SessionListMenu({
   const [pendingDeleteSession, _setPendingDeleteSession] =
     useState<AgentSession | null>(null);
 
+  // Track which session is currently focused in the menu for keyboard shortcuts
+  const focusedSessionRef = useRef<AgentSession | null>(null);
+
   const activeSessionSummary = useMemo(() => {
     if (!activeSessionId) return "";
     const active = sessions.find((s) => s.id === activeSessionId);
@@ -119,6 +122,20 @@ export function SessionListMenu({
     }
   }, [pendingDeleteSession, onDeleteSession, setPendingDeleteSession]);
 
+  const handleMenuKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        focusedSessionRef.current
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        setPendingDeleteSession(focusedSessionRef.current);
+      }
+    },
+    [setPendingDeleteSession]
+  );
+
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
   const hasSessionSummary =
@@ -147,11 +164,13 @@ export function SessionListMenu({
             selectionMode="single"
             selectedKeys={selectedKeys}
             onAction={handleAction}
+            onKeyDown={handleMenuKeyDown}
           >
             {sessions.map((session) => (
               <SessionMenuItem
                 key={session.id}
                 session={session}
+                focusedSessionRef={focusedSessionRef}
                 onRequestDelete={setPendingDeleteSession}
               />
             ))}
@@ -183,18 +202,33 @@ export function SessionListMenu({
 
 function SessionMenuItem({
   session,
+  focusedSessionRef,
   onRequestDelete,
 }: {
   session: AgentSession;
+  focusedSessionRef: React.RefObject<AgentSession | null>;
   onRequestDelete: (session: AgentSession) => void;
 }) {
   const displayName = getSessionDisplayName(session);
   const dateLabel = formatRelativeShort(session.createdAt);
 
+  const handleFocusChange = useCallback(
+    (isFocused: boolean) => {
+      if (isFocused) {
+        focusedSessionRef.current = session;
+      } else if (focusedSessionRef.current?.id === session.id) {
+        focusedSessionRef.current = null;
+      }
+    },
+    [session, focusedSessionRef]
+  );
+
   return (
     <MenuItem
       id={session.id}
       textValue={`${displayName}\n${dateLabel}`}
+      onFocusChange={handleFocusChange}
+      aria-keyshortcuts="Delete"
       trailingContent={
         <StopPropagation>
           <TooltipTrigger delay={300}>
@@ -207,7 +241,7 @@ function SessionMenuItem({
             >
               <Icon svg={<Icons.TrashOutline />} />
             </Button>
-            <Tooltip>Delete</Tooltip>
+            <Tooltip>Delete (Del)</Tooltip>
           </TooltipTrigger>
         </StopPropagation>
       }

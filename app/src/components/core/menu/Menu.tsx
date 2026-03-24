@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { KeyboardEvent, PropsWithChildren, ReactNode } from "react";
 import type { PopoverProps } from "react-aria-components";
 import {
   Header,
@@ -70,15 +70,28 @@ export const MenuTrigger = AriaMenuTrigger;
  *   </MenuContainer>
  * </MenuTrigger>
  */
+/**
+ * React Aria's MenuProps intentionally omits keyboard events from its type
+ * surface, but the underlying DOM element supports them. This extended type
+ * allows consumers to respond to key presses (e.g. Delete to remove an item)
+ * without wrapping the menu in extra DOM elements.
+ */
+type MenuKeyboardProps = {
+  onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
+};
+
 export const Menu = <T extends object>({
   className,
+  onKeyDown,
   ...props
-}: AriaMenuProps<T>) => {
+}: AriaMenuProps<T> & MenuKeyboardProps) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
       css={menuCSS}
       {...props}
+      // @ts-expect-error onKeyDown is not in AriaMenuProps but is valid on the rendered div
+      onKeyDown={onKeyDown}
     />
   );
 };
