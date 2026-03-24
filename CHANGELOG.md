@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.1...arize-phoenix-v13.18.2) (2026-03-24)
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-evals to 2.12.0 ([#12346](https://github.com/Arize-ai/phoenix/issues/12346)) ([c42aed2](https://github.com/Arize-ai/phoenix/commit/c42aed261e0c6473a0357c8120d4e45272828843))
+
 ## [13.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.0...arize-phoenix-v13.18.1) (2026-03-24)
 
 
