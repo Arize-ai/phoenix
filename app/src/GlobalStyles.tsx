@@ -75,6 +75,9 @@ const staticCSS = css`
     --global-static-color-black-700: rgba(0, 0, 0, 0.7);
     --global-static-color-black-300: rgba(0, 0, 0, 0.3);
 
+    // font weights
+    --global-font-weight-semibold: 600;
+
     // component sizing
     --global-input-height-s: 30px;
     --global-input-height-m: 38px;
@@ -1096,14 +1099,35 @@ const resizeHandleCSS = (theme: Theme) => css`
   }
 `;
 
-const codeBlockCSS = (theme: Theme) => css`
+const markdownCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
+    // Code block
+    --global-code-block-background-color: var(--global-color-gray-75);
+    --global-code-block-border-color: var(--global-border-color-default);
+    --global-code-block-header-background-color: var(--global-color-gray-100);
+    --global-code-block-header-text-color: var(--global-text-color-500);
     --global-code-block-actions-wrapper-height: var(
       --global-dimension-size-400
     );
     --global-code-block-actions-button-size: var(--global-button-height-s);
     --global-code-block-actions-icon-size: var(--global-font-size-l);
+
+    // Inline code
+    --global-inline-code-background-color: var(--global-color-gray-100);
+    --global-inline-code-border-color: var(--global-border-color-default);
+    --global-inline-code-text-color: var(--global-text-color-900);
+
+    // Blockquote
+    --global-blockquote-border-color: var(--global-color-gray-400);
+    --global-blockquote-background-color: var(--global-color-gray-75);
+    --global-blockquote-text-color: var(--global-text-color-700);
+
+    // Markdown table
+    --global-markdown-table-background-color: var(--global-color-gray-75);
+    --global-markdown-table-toolbar-background-color: var(
+      --global-color-gray-100
+    );
   }
 `;
 
@@ -1148,7 +1172,7 @@ export const derivedCSS = (theme: Theme) =>
     popoverCSS(theme),
     roundingCSS(theme),
     tableCSS(theme),
-    codeBlockCSS(theme),
+    markdownCSS(theme),
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
     badgeSizingCSS(theme)

@@ -145,11 +145,11 @@ const listItemCSS = css`
 const blockquoteCSS = css`
   margin: var(--global-dimension-size-100) 0;
   border-inline-start: var(--global-border-size-thick) solid
-    var(--global-color-gray-400);
+    var(--global-blockquote-border-color);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  background: var(--global-color-gray-75);
+  background: var(--global-blockquote-background-color);
   border-radius: 0 var(--global-rounding-medium) var(--global-rounding-medium) 0;
-  color: var(--global-text-color-700);
+  color: var(--global-blockquote-text-color);
 `;
 
 // ---------------------------------------------------------------------------
@@ -158,10 +158,10 @@ const blockquoteCSS = css`
 
 const inlineCodeCSS = css`
   padding: 0.1em 0.35em;
-  border: 1px solid var(--global-border-color-default);
+  border: 1px solid var(--global-inline-code-border-color);
   border-radius: var(--global-rounding-small);
-  background: var(--global-color-gray-100);
-  color: var(--global-text-color-900);
+  background: var(--global-inline-code-background-color);
+  color: var(--global-inline-code-text-color);
   font-family: var(--ac-global-font-family-code);
   font-size: 0.9em;
   line-height: 1.4;
@@ -197,7 +197,7 @@ const actionButtonCSS = css`
 const tableWrapperCSS = css`
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
-  background: var(--global-color-gray-75);
+  background: var(--global-markdown-table-background-color);
   overflow: hidden;
 `;
 
@@ -209,7 +209,7 @@ const tableToolbarCSS = css`
   min-height: var(--global-dimension-size-500);
   padding: 0 var(--global-dimension-size-100);
   border-bottom: 1px solid var(--global-border-color-default);
-  background: var(--global-color-gray-100);
+  background: var(--global-markdown-table-toolbar-background-color);
 `;
 
 const tableScrollerCSS = css`

@@ -51,9 +51,9 @@ export const markdownCSS = css`
     margin-top: var(--global-dimension-size-100);
     padding: 0;
     gap: 0;
-    border: 1px solid var(--global-border-color-default);
+    border: 1px solid var(--global-code-block-border-color);
     border-radius: var(--global-rounding-medium);
-    background: var(--global-color-gray-75);
+    background: var(--global-code-block-background-color);
     position: relative;
     overflow: hidden;
   }
@@ -61,9 +61,9 @@ export const markdownCSS = css`
   [data-streamdown="code-block-header"] {
     min-height: var(--global-dimension-size-500);
     padding: 0 var(--global-dimension-size-150);
-    border-bottom: 1px solid var(--global-border-color-default);
-    background: var(--global-color-gray-100);
-    color: var(--global-text-color-500);
+    border-bottom: 1px solid var(--global-code-block-border-color);
+    background: var(--global-code-block-header-background-color);
+    color: var(--global-code-block-header-text-color);
     font-family: var(--ac-global-font-family-code);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
