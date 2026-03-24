@@ -37,7 +37,7 @@ dependencies = [
 dev = [
   "anthropic>0.18.0",
   "boto3",
-  "litellm>=1.28.9",
+  "litellm>=1.28.9,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
   "openai>=1.0.0",
   "vertexai",
   "mistralai>=1.0.0",
@@ -49,7 +49,7 @@ test = [
   "typing-extensions>=4.5, <5",
   "anthropic>=0.18.0",
   "boto3",
-  "litellm>=1.28.9",
+  "litellm>=1.28.9,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
   "openai>=1.0.0",
   "mistralai>=1.0.0,<2",
   "vertexai",

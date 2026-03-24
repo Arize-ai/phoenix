@@ -101,7 +101,7 @@ dev = [
   "httpx-ws",
   "jsonpath-ng",
   "ldap3",
-  "litellm>1.61.15",
+  "litellm>1.61.15,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
   "mypy==1.19.1",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
