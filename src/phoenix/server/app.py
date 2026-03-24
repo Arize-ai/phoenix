@@ -608,6 +608,7 @@ def _lifespan(
     grpc_port: Optional[int] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
+    welcome_message: str | None = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -655,6 +656,8 @@ def _lifespan(
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
+            if welcome_message:
+                print(welcome_message, flush=True)
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
@@ -1004,6 +1007,7 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
+    welcome_message: str | None = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -1135,6 +1139,7 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
+            welcome_message=welcome_message,
         ),
         middleware=middlewares,
         exception_handlers={
