@@ -191,11 +191,25 @@ function SessionMenuItem({
           css={deleteButtonCSS}
           role="presentation"
           onPointerDown={(event) => {
-            // Prevent the menu from selecting this item when clicking delete
+            // Stop the pointer event from reaching the MenuItem so React
+            // Aria does not treat this as a selection press.
             event.stopPropagation();
+            event.preventDefault();
+          }}
+          onPointerUp={(event) => {
+            event.stopPropagation();
+            event.preventDefault();
           }}
           onClick={(event) => {
             event.stopPropagation();
+            event.preventDefault();
+          }}
+          onKeyDown={(event) => {
+            // Prevent Enter/Space on the delete button from triggering
+            // the menu item's action.
+            if (event.key === "Enter" || event.key === " ") {
+              event.stopPropagation();
+            }
           }}
         >
           <TooltipTrigger delay={300}>
