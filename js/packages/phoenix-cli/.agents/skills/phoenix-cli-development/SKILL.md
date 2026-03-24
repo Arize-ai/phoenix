@@ -37,17 +37,18 @@ px auth status
 
 Implementations SHOULD use these verbs consistently across all resources:
 
-| Verb     | Purpose                        | Takes argument? | Example                          |
-|----------|--------------------------------|-----------------|----------------------------------|
-| `list`   | List/query multiple resources  | No (uses flags) | `px project list --limit 10`     |
-| `get`    | Fetch a single resource by ID  | Yes (required)  | `px trace get <trace-id>`        |
-| `create` | Create a new resource          | Varies          | `px project create --name foo`   |
-| `update` | Modify an existing resource    | Yes (required)  | `px project update <id> --name bar` |
-| `delete` | Remove a resource              | Yes (required)  | `px project delete <id>`         |
+| Verb     | Purpose                       | Takes argument? | Example                             |
+| -------- | ----------------------------- | --------------- | ----------------------------------- |
+| `list`   | List/query multiple resources | No (uses flags) | `px project list --limit 10`        |
+| `get`    | Fetch a single resource by ID | Yes (required)  | `px trace get <trace-id>`           |
+| `create` | Create a new resource         | Varies          | `px project create --name foo`      |
+| `update` | Modify an existing resource   | Yes (required)  | `px project update <id> --name bar` |
+| `delete` | Remove a resource             | Yes (required)  | `px project delete <id>`            |
 
 Not every resource supports every verb — datasets MAY omit `create` via CLI if the primary flow is through the SDK. Implementations SHALL only add verbs that make sense for the resource.
 
 Additional verbs for specialized actions are RECOMMENDED when the standard set doesn't cover it:
+
 - `px auth login`, `px auth status`
 - `px self update`
 - `px docs fetch`
@@ -82,14 +83,14 @@ px trace list --format raw --no-progress | jq '...'
 
 Defined in `src/exitCodes.ts`. Implementations MUST use the named constants and MUST NOT use bare numeric literals.
 
-| Code | Constant          | Meaning                                             |
-|------|-------------------|-----------------------------------------------------|
-| 0    | `SUCCESS`         | Command completed successfully                      |
-| 1    | `FAILURE`         | Unspecified or unexpected error                     |
-| 2    | `CANCELLED`       | User cancelled (e.g., declined a confirmation)      |
-| 3    | `INVALID_ARGUMENT`| Bad CLI flags, missing required args, invalid input |
-| 4    | `AUTH_REQUIRED`   | Not authenticated or insufficient permissions       |
-| 5    | `NETWORK_ERROR`   | Failed to connect to server or network request      |
+| Code | Constant           | Meaning                                             |
+| ---- | ------------------ | --------------------------------------------------- |
+| 0    | `SUCCESS`          | Command completed successfully                      |
+| 1    | `FAILURE`          | Unspecified or unexpected error                     |
+| 2    | `CANCELLED`        | User cancelled (e.g., declined a confirmation)      |
+| 3    | `INVALID_ARGUMENT` | Bad CLI flags, missing required args, invalid input |
+| 4    | `AUTH_REQUIRED`    | Not authenticated or insufficient permissions       |
+| 5    | `NETWORK_ERROR`    | Failed to connect to server or network request      |
 
 ## Adding a New Command
 
@@ -99,11 +100,11 @@ Every handler MUST define a TypeScript interface for its options. Field names MU
 
 ```typescript
 interface CommonOptions {
-  endpoint?: string;    // --endpoint: Phoenix API endpoint override
-  apiKey?: string;      // --api-key: API key override
-  project?: string;     // --project: Project name or ID override
+  endpoint?: string; // --endpoint: Phoenix API endpoint override
+  apiKey?: string; // --api-key: API key override
+  project?: string; // --project: Project name or ID override
   format?: OutputFormat; // --format: Output format (pretty/json/raw)
-  progress?: boolean;   // --no-progress: Suppress progress indicators
+  progress?: boolean; // --no-progress: Suppress progress indicators
 }
 ```
 
@@ -131,9 +132,9 @@ Formatters MUST accept a `format` option and return a string.
 Implementations MUST use the helpers from `src/io.ts`:
 
 ```typescript
-writeOutput({ message })   // → stdout (data the user/agent wants)
-writeError({ message })    // → stderr (errors)
-writeProgress({ message, noProgress })  // → stderr (suppressible status updates)
+writeOutput({ message }); // → stdout (data the user/agent wants)
+writeError({ message }); // → stderr (errors)
+writeProgress({ message, noProgress }); // → stderr (suppressible status updates)
 ```
 
 `console.log` MUST NOT be used directly. The `writeOutput`/`writeError` split ensures stdout contains only data output, which is REQUIRED for piping correctness.
@@ -158,6 +159,7 @@ pnpm test:watch    # watch mode
 ```
 
 When adding a command, tests MUST cover:
+
 - The handler logic (mocking the Phoenix client)
 - Formatter output for each format mode
 - Edge cases: missing config, network errors, empty results
