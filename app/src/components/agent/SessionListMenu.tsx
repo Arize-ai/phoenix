@@ -83,7 +83,9 @@ export function SessionListMenu({
   onSelectSession,
   onDeleteSession,
 }: SessionListMenuProps) {
-  const [pendingDeleteSession, setPendingDeleteSession] =
+  // useful to close the menu programmatically when deleting a session
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingDeleteSession, _setPendingDeleteSession] =
     useState<AgentSession | null>(null);
 
   const activeSessionSummary = useMemo(() => {
@@ -99,12 +101,22 @@ export function SessionListMenu({
     [onSelectSession]
   );
 
+  const setPendingDeleteSession = useCallback(
+    (session: AgentSession | null) => {
+      _setPendingDeleteSession(session);
+      if (session) {
+        setMenuOpen(false);
+      }
+    },
+    [setMenuOpen]
+  );
+
   const handleConfirmDelete = useCallback(() => {
     if (pendingDeleteSession) {
       onDeleteSession(pendingDeleteSession.id);
       setPendingDeleteSession(null);
     }
-  }, [pendingDeleteSession, onDeleteSession]);
+  }, [pendingDeleteSession, onDeleteSession, setPendingDeleteSession]);
 
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
@@ -113,7 +125,7 @@ export function SessionListMenu({
 
   return (
     <>
-      <MenuTrigger>
+      <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
         <Button
           size="S"
           variant="quiet"
@@ -124,6 +136,7 @@ export function SessionListMenu({
           {hasSessionSummary ? (
             <span css={sessionTriggerLabelCSS}>{activeSessionSummary}</span>
           ) : (
+            // hack to prevent button from layout-shifting when children are added/removed
             <>{""}</>
           )}
         </Button>
