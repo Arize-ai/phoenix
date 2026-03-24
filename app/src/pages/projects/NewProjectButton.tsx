@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
@@ -16,7 +15,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  ExternalLink,
   FieldError,
   Flex,
   Form,
@@ -31,10 +29,6 @@ import {
   Select,
   SelectItem,
   SelectValue,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
   Text,
   TextArea,
   TextField,
@@ -42,15 +36,10 @@ import {
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
-import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { URI_SAFE_PATTERN } from "@phoenix/constants";
-import { usePreferencesContext } from "@phoenix/contexts";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
-import { ManualProjectGuide } from "@phoenix/pages/projects/ManualProjectGuide";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import { PythonProjectGuide } from "../../components/project/PythonProjectGuide";
 import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
 import { GRADIENT_PRESETS } from "./ProjectForm";
 
@@ -58,25 +47,11 @@ type NewProjectButtonProps = {
   variant?: ButtonProps["variant"];
   onProjectCreated: () => void;
 };
-const PHOENIX_OTEL_DOC_LINK =
-  "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing";
 
-function TraceBasedProjectGuideIntro() {
-  return (
-    <Text>
-      Projects are created when you log your first trace via OpenTelemetry. See
-      the{" "}
-      <ExternalLink href={PHOENIX_OTEL_DOC_LINK}>documentation</ExternalLink>{" "}
-      for a complete guide.
-    </Text>
-  );
-}
 export function NewProjectButton({
   variant,
   onProjectCreated,
 }: NewProjectButtonProps) {
-  const isOnboardingEnabled = useFeatureFlag("tracing-onboarding");
-
   return (
     <div>
       <DialogTrigger>
@@ -87,27 +62,11 @@ export function NewProjectButton({
         >
           New Project
         </Button>
-        {isOnboardingEnabled ? (
-          <ModalOverlay>
-            <Modal>
-              <NewProjectDialog onProjectCreated={onProjectCreated} />
-            </Modal>
-          </ModalOverlay>
-        ) : (
-          <ModalOverlay>
-            <Modal
-              variant="slideover"
-              size="L"
-              css={css`
-                width: 70vw !important;
-              `}
-            >
-              <NewProjectDialogWithOnboarding
-                onProjectCreated={onProjectCreated}
-              />
-            </Modal>
-          </ModalOverlay>
-        )}
+        <ModalOverlay>
+          <Modal>
+            <NewProjectDialog onProjectCreated={onProjectCreated} />
+          </Modal>
+        </ModalOverlay>
       </DialogTrigger>
     </div>
   );
@@ -343,54 +302,6 @@ function NewProjectDialog({
           </Form>
         </DialogContent>
       )}
-    </Dialog>
-  );
-}
-
-function NewProjectDialogWithOnboarding({
-  onProjectCreated,
-}: {
-  onProjectCreated: () => void;
-}) {
-  const programmingLanguage = usePreferencesContext(
-    (state) => state.programmingLanguage
-  );
-  const defaultTab = programmingLanguage;
-
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create a New Project</DialogTitle>
-          <DialogTitleExtra>
-            <DialogCloseButton slot="close" />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Tabs defaultSelectedKey={defaultTab}>
-          <TabList>
-            <Tab id="Python">Python</Tab>
-            <Tab id="TypeScript">TypeScript</Tab>
-            <Tab id="manual">Manual</Tab>
-          </TabList>
-          <TabPanel id="Python">
-            <View padding="size-200" overflow="auto">
-              <TraceBasedProjectGuideIntro />
-              <PythonProjectGuide />
-            </View>
-          </TabPanel>
-          <TabPanel id="TypeScript">
-            <View padding="size-200" overflow="auto">
-              <TraceBasedProjectGuideIntro />
-              <TypeScriptProjectGuide />
-            </View>
-          </TabPanel>
-          <TabPanel id="manual">
-            <View padding="size-200" overflow="auto">
-              <ManualProjectGuide onProjectCreated={onProjectCreated} />
-            </View>
-          </TabPanel>
-        </Tabs>
-      </DialogContent>
     </Dialog>
   );
 }
