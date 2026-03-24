@@ -10,12 +10,11 @@ async function createProject(
   await page.waitForURL("**/projects");
   await page.getByRole("button", { name: "New Project" }).click();
   await expect(
-    page.getByRole("heading", { name: "Create a New Project" })
+    page.getByRole("heading", { name: "New project" })
   ).toBeVisible();
-  await page.getByRole("tab", { name: /Manual|From scratch/i }).click();
-  await page.getByLabel("Project Name").fill(projectName);
-  await page.getByLabel("Description").fill(description);
-  await page.getByRole("button", { name: "Create Project" }).click();
+  await page.getByRole("textbox", { name: "Name" }).fill(projectName);
+  await page.getByRole("textbox", { name: "Description" }).fill(description);
+  await page.getByRole("button", { name: "Create" }).click();
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
@@ -29,22 +28,21 @@ async function clickSortableHeaderAndExpect(
 
 test.describe.serial("Projects", () => {
   const projectName = `test-project-${randomUUID()}`;
-  test("can create a project from scratch", async ({ page }) => {
+  test("can create a project", async ({ page }) => {
     await page.goto("/projects");
     await page.waitForURL("**/projects");
 
     await page.getByRole("button", { name: "New Project" }).click();
     await expect(
-      page.getByRole("heading", { name: "Create a New Project" })
+      page.getByRole("heading", { name: "New project" })
     ).toBeVisible();
 
-    await page.getByRole("tab", { name: /Manual|From scratch/i }).click();
-    await page.getByLabel("Project Name").fill(projectName);
+    await page.getByRole("textbox", { name: "Name" }).fill(projectName);
     await page
-      .getByLabel("Description")
-      .fill("A project created manually from scratch in Playwright");
+      .getByRole("textbox", { name: "Description" })
+      .fill("A project created in Playwright");
 
-    await page.getByRole("button", { name: "Create Project" }).click();
+    await page.getByRole("button", { name: "Create" }).click();
     // toHaveURL because React Router client-side nav doesn't trigger a full "load" event
     await expect(page).toHaveURL(/\/projects\/.+/);
 
