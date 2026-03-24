@@ -11,7 +11,6 @@ import {
   MenuContainer,
   MenuItem,
   MenuTrigger,
-  SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
 import {
@@ -176,12 +175,16 @@ export const WithModelSelector: Story = {
                           direction="row"
                           gap="size-100"
                           alignItems="center"
+                          width="100%"
                         >
                           <GenerativeProviderIcon
                             provider={model.provider}
                             height={16}
                           />
-                          <Text>{model.name}</Text>
+                          <Text flex="1 1 auto">{model.name}</Text>
+                          {model.name === selectedModel.name && (
+                            <Icon svg={<Icons.CheckmarkOutline />} />
+                          )}
                         </Flex>
                       </MenuItem>
                     ))}

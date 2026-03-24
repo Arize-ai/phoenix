@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { forwardRef, useCallback, useMemo, useState } from "react";
+import { forwardRef, useCallback, useMemo, useRef, useState } from "react";
 
 import { PromptInputContext } from "./PromptInputContext";
 import {
@@ -28,14 +28,16 @@ function PromptInputRoot(
   ref: Ref<HTMLDivElement>
 ) {
   const [value, setValue] = useState("");
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   const handleSubmit = useCallback(() => {
-    const trimmed = value.trim();
+    const trimmed = valueRef.current.trim();
     if (trimmed) {
       onSubmit?.(trimmed);
       setValue("");
     }
-  }, [value, onSubmit]);
+  }, [onSubmit]);
 
   const contextValue = useMemo(
     () => ({

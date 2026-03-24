@@ -29,9 +29,8 @@ function PromptInputTextareaRoot(
       internalRef.current = node;
       if (typeof ref === "function") {
         ref(node);
-      } else if (ref) {
-        (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current =
-          node;
+      } else if (ref && "current" in ref) {
+        (ref as React.RefObject<HTMLTextAreaElement | null>).current = node;
       }
     },
     [ref]
@@ -56,14 +55,15 @@ function PromptInputTextareaRoot(
     textarea.style.height = `${newHeight}px`;
   }, [textareaValue, maxRows]);
 
+  const { onSubmit } = context;
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
-        context.onSubmit();
+        onSubmit();
       }
     },
-    [context]
+    [onSubmit]
   );
 
   const handleInputChange = useCallback(

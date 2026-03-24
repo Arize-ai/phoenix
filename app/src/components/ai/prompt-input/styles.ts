@@ -15,13 +15,14 @@ export const promptInputContainerCSS = css`
 
 export const promptInputBodyCSS = css`
   flex: 1 1 auto;
-  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-  padding-bottom: 0;
+  padding: var(--global-dimension-size-200);
+  padding-bottom: var(--global-dimension-size-100);
 `;
 
 export const promptInputTextareaCSS = css`
   display: block;
   width: 100%;
+  min-height: calc(var(--global-line-height-s) * 3);
   border: none;
   outline: none;
   background: transparent;
