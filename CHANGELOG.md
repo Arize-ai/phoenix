@@ -1,5 +1,13 @@
 # Changelog
 
+## [13.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.17.0...arize-phoenix-v13.18.0) (2026-03-24)
+
+
+### Features
+
+* **app:** add prompt version diff view ([#12326](https://github.com/Arize-ai/phoenix/issues/12326)) ([0e9e76b](https://github.com/Arize-ai/phoenix/commit/0e9e76bba81d2b163d5e89b6e82529842fdc6c1a))
+* Replace all markdown rendering with streamdown ([#12320](https://github.com/Arize-ai/phoenix/issues/12320)) ([d6a64d5](https://github.com/Arize-ai/phoenix/commit/d6a64d5770f69477ae48588b1c8064cae1ce00a5))
+
 ## [13.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.16.0...arize-phoenix-v13.17.0) (2026-03-23)
 
 
