@@ -24,8 +24,6 @@ import wasmtime  # type: ignore[import-not-found]
 
 from .types import (
     BaseNoSessionBackend,
-    ConfigFieldSpec,
-    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -126,6 +124,7 @@ class WASMBackend(BaseNoSessionBackend):
         code: str,
         session_key: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         binary_path = self._resolve_binary()
         loop = asyncio.get_event_loop()
@@ -134,7 +133,7 @@ class WASMBackend(BaseNoSessionBackend):
             _run_wasm,
             binary_path,
             code,
-            self._timeout,
+            timeout if timeout is not None else self._timeout,
         )
 
     async def close(self) -> None:
@@ -145,15 +144,6 @@ class WASMAdapter(SandboxAdapter):
     key = "WASM"
     display_name = "WebAssembly (local)"
     supported_languages = ["PYTHON"]
-    env_var_specs: list[EnvVarSpec] = []
-    config_field_specs = [
-        ConfigFieldSpec(
-            name="timeout",
-            description="Execution timeout in seconds",
-            required=False,
-            default=_DEFAULT_TIMEOUT_SECONDS,
-        ),
-    ]
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT_SECONDS))

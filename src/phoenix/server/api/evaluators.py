@@ -841,6 +841,7 @@ async def get_evaluators(
 
     # Single batch query for all CODE evaluators (if any)
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
+    code_evaluator_languages_by_id: dict[int, str] = {}
     if code_evaluator_db_ids:
         from phoenix.server.sandbox import get_or_create_backend
 
@@ -848,28 +849,42 @@ async def get_evaluators(
             select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
         )
         for code_row in code_rows_result:
+            # Resolve evaluator language name for error reporting
+            evaluator_language = ""
+            if code_row.language_id is not None:
+                eval_lang_row = await session.get(models.Language, code_row.language_id)
+                if eval_lang_row is not None:
+                    evaluator_language = eval_lang_row.name
+            code_evaluator_languages_by_id[code_row.id] = evaluator_language
+
             # Resolve sandbox backend via SandboxConfig → SandboxProvider
             backend = None
             language = ""
+            sandbox_timeout: Optional[int] = None
             if code_row.sandbox_config_id is not None:
                 sandbox_config = await session.get(models.SandboxConfig, code_row.sandbox_config_id)
-                if sandbox_config is not None:
+                if sandbox_config is not None and sandbox_config.enabled:
+                    sandbox_timeout = sandbox_config.timeout
                     sandbox_provider = await session.get(
                         models.SandboxProvider, sandbox_config.sandbox_provider_id
                     )
-                    if sandbox_provider is not None:
-                        backend = get_or_create_backend(sandbox_provider.backend_type)
+                    if sandbox_provider is not None and sandbox_provider.enabled:
+                        if (
+                            code_row.language_id is not None
+                            and sandbox_provider.language_id != code_row.language_id
+                        ):
+                            raise BadRequest(
+                                f"Language mismatch: evaluator language '{evaluator_language}' "
+                                f"does not match the sandbox provider's configured language."
+                            )
+                        merged_config = {**sandbox_provider.config, **sandbox_config.config}
+                        backend = get_or_create_backend(
+                            sandbox_provider.backend_type, config=merged_config
+                        )
                         # Resolve language name from the provider's language_id
                         lang_row = await session.get(models.Language, sandbox_provider.language_id)
                         if lang_row is not None:
                             language = lang_row.name
-
-            if backend is None:
-                # Fall back to language from CodeEvaluator.language_id if no sandbox
-                if code_row.language_id is not None:
-                    lang_row = await session.get(models.Language, code_row.language_id)
-                    if lang_row is not None:
-                        language = lang_row.name
 
             # Resolve evaluator base row for name/description/metadata
             evaluator_base = await session.get(models.Evaluator, code_row.id)
@@ -888,10 +903,10 @@ async def get_evaluators(
                     name=str(eval_name),
                     description=eval_description,
                     source_code=code_row.source_code,
-                    stored_input_schema={},
                     stored_output_configs=output_cfgs,
                     sandbox_backend=backend,
                     language=language,
+                    timeout=sandbox_timeout,
                 )
                 code_evaluators_by_id[code_row.id] = runner
 
@@ -922,9 +937,11 @@ async def get_evaluators(
         elif evaluator_kind == "CODE":
             code_runner = code_evaluators_by_id.get(evaluator_id)
             if code_runner is None:
+                evaluator_lang = code_evaluator_languages_by_id.get(evaluator_id, "")
+                lang_hint = f" for language '{evaluator_lang}'" if evaluator_lang else ""
                 raise NotFound(
-                    f"CODE evaluator with ID '{evaluator_id}' could not be resolved "
-                    "(sandbox backend may be unavailable)"
+                    f"CODE evaluator with ID '{evaluator_id}' could not be resolved{lang_hint}. "
+                    "Please configure a sandbox provider for this evaluator."
                 )
             evaluators.append(code_runner)
         else:
@@ -2394,18 +2411,18 @@ class CodeEvaluatorRunner(BaseEvaluator):
         name: str,
         description: Optional[str],
         source_code: str,
-        stored_input_schema: dict[str, Any],
         stored_output_configs: Sequence[OutputConfigType],
         sandbox_backend: "SandboxBackend",
         language: str,
+        timeout: Optional[int] = None,
     ) -> None:
         self._name = name
         self._description = description
         self._source_code = source_code
-        self._stored_input_schema = stored_input_schema
         self._stored_output_configs = list(stored_output_configs)
         self._sandbox_backend: SandboxBackend = sandbox_backend
         self._language = language.upper()
+        self._timeout = timeout
 
     @property
     def name(self) -> str:
@@ -2416,12 +2433,12 @@ class CodeEvaluatorRunner(BaseEvaluator):
         return self._description
 
     @property
-    def input_schema(self) -> dict[str, Any]:
-        return self._stored_input_schema
-
-    @property
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._stored_output_configs
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        return {}
 
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
         """Wrap source_code in a Python script that calls evaluate(**inputs)."""
@@ -2479,7 +2496,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
         try:
             mapped_inputs = apply_input_mapping(
-                input_schema=self._stored_input_schema,
+                input_schema={},
                 input_mapping=input_mapping,
                 context=context,
             )
@@ -2500,6 +2517,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
             execution = await self._sandbox_backend.execute(
                 code,
                 session_key=session_key or self._name,
+                timeout=self._timeout,
             )
         except Exception as exc:
             err = f"Sandbox execution failed: {exc}"

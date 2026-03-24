@@ -9,7 +9,7 @@ Three modes:
 2. CategoricalOutputConfig — label validation + score lookup from values list.
 3. ContinuousOutputConfig — numeric extraction + bounds validation.
 
-Bool exclusion (D6): bool is NOT treated as numeric in any mode.
+Bool exclusion: bool is NOT treated as numeric in any mode.
 """
 
 from __future__ import annotations

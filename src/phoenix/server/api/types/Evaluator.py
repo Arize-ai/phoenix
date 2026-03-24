@@ -29,6 +29,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
+from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.api.types.SandboxConfig import SandboxConfig as GQLSandboxConfig
 
 from .Identifier import Identifier
@@ -226,11 +227,11 @@ class CodeEvaluator(Evaluator, Node):
     async def language(
         self,
         info: Info[Context, None],
-    ) -> Optional[str]:
+    ) -> Optional[Language]:
         """The execution language for this code evaluator (e.g. 'PYTHON')."""
         if self.db_record:
             lang = self.db_record.language
-            return lang.name if lang is not None else None
+            return Language(lang.name) if lang is not None else None
         language_id = await info.context.data_loaders.code_evaluator_fields.load(
             (self.id, models.CodeEvaluator.language_id),
         )
@@ -242,7 +243,7 @@ class CodeEvaluator(Evaluator, Node):
             row = await session.scalar(
                 select(models.Language).where(models.Language.id == language_id)
             )
-        return row.name if row is not None else None
+        return Language(row.name) if row is not None else None
 
     @strawberry.field
     async def sandbox_config(

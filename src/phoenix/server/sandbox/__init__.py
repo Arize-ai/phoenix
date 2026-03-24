@@ -13,13 +13,19 @@ Importing WASMBackend requires wasmtime — guarded by try/except ImportError.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Literal, Optional, TypeAlias
 
 from phoenix.server.sandbox.types import SandboxAdapter, SandboxBackend
 
 logger = logging.getLogger(__name__)
+
+
+BackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO"]
+LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 
 
 @dataclass
@@ -27,7 +33,7 @@ class AdapterMetadata:
     """Static metadata for a sandbox adapter (no runtime deps)."""
 
     display_name: str
-    supported_languages: list[str] = field(default_factory=list)
+    supported_languages: list[LanguageName] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +41,7 @@ class AdapterMetadata:
 # One entry per backend type. supported_languages must match Language.name
 # values seeded to the DB by sync_languages().
 # ---------------------------------------------------------------------------
-SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
+SANDBOX_ADAPTER_METADATA: dict[BackendType, AdapterMetadata] = {
     "WASM": AdapterMetadata(
         display_name="WebAssembly (local)",
         supported_languages=["PYTHON"],
@@ -65,9 +71,15 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
 _SANDBOX_ADAPTERS: dict[str, SandboxAdapter] = {}
 
 # ---------------------------------------------------------------------------
-# Session cache — backend_type → SandboxBackend instance.
+# Session cache — (backend_type, config_hash) → SandboxBackend instance.
 # ---------------------------------------------------------------------------
-_BACKEND_CACHE: dict[str, SandboxBackend] = {}
+_BACKEND_CACHE: dict[tuple[str, str], SandboxBackend] = {}
+
+
+def _config_hash(config: dict[str, Any] | None) -> str:
+    """Return a stable hex digest for a config dict (or empty dict)."""
+    canonical = json.dumps(config or {}, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
@@ -77,16 +89,23 @@ def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
     return adapter
 
 
-def get_or_create_backend(backend_type: str) -> Optional[SandboxBackend]:
+def get_or_create_backend(
+    backend_type: str,
+    config: dict[str, Any] | None = None,
+) -> Optional[SandboxBackend]:
     """
     Return a cached SandboxBackend for backend_type, creating it if needed.
+
+    config is merged into the backend constructor; different configs produce
+    distinct cache entries via (backend_type, config_hash).
 
     Returns None if:
     - No adapter is registered for backend_type (optional dep not installed)
     - Backend construction fails
     """
-    if backend_type in _BACKEND_CACHE:
-        return _BACKEND_CACHE[backend_type]
+    cache_key = (backend_type, _config_hash(config))
+    if cache_key in _BACKEND_CACHE:
+        return _BACKEND_CACHE[cache_key]
 
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
@@ -97,8 +116,8 @@ def get_or_create_backend(backend_type: str) -> Optional[SandboxBackend]:
         return None
 
     try:
-        backend = adapter.build_backend({})
-        _BACKEND_CACHE[backend_type] = backend
+        backend = adapter.build_backend(config or {})
+        _BACKEND_CACHE[cache_key] = backend
         return backend
     except Exception as exc:
         logger.warning(

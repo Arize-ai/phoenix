@@ -23,6 +23,14 @@ from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_or_create_backe
 
 
 @strawberry.enum
+class Language(Enum):
+    """Execution language for a code evaluator or sandbox provider."""
+
+    PYTHON = "PYTHON"
+    TYPESCRIPT = "TYPESCRIPT"
+
+
+@strawberry.enum
 class SandboxBackendStatus(Enum):
     """Runtime availability of a sandbox backend."""
 
@@ -45,7 +53,7 @@ class SandboxBackendInfo:
 
     backend_type: str
     display_name: str
-    supported_languages: list[str]
+    supported_languages: list[Language]
     status: SandboxBackendStatus
 
 
@@ -71,13 +79,13 @@ class SandboxProvider(Node):
         return record.backend_type
 
     @strawberry.field
-    async def language(self, info: Info[Context, None]) -> str:
+    async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
         async with info.context.db() as session:
             lang = await session.get(models.Language, record.language_id)
         if lang is None:
-            return "UNKNOWN"
-        return lang.name
+            return Language.PYTHON
+        return Language(lang.name)
 
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
@@ -247,7 +255,7 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
             SandboxBackendInfo(
                 backend_type=backend_type,
                 display_name=meta.display_name,
-                supported_languages=list(meta.supported_languages),
+                supported_languages=[Language(lang) for lang in meta.supported_languages],
                 status=status,
             )
         )

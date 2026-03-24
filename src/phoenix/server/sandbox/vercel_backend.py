@@ -9,12 +9,13 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
+
+from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     BaseNoSessionBackend,
-    ConfigFieldSpec,
-    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -39,10 +40,14 @@ class VercelSandboxBackend(BaseNoSessionBackend):
         code: str,
         session_key: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         try:
             client = self._get_client()
-            result = await client.run(code, env=env or {})
+            run_kwargs: dict[str, Any] = {"env": env or {}}
+            if timeout is not None:
+                run_kwargs["timeout"] = timeout
+            result = await client.run(code, **run_kwargs)
             return ExecutionResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
@@ -59,16 +64,12 @@ class VercelAdapter(SandboxAdapter):
     key = "VERCEL"
     display_name = "Vercel Sandbox"
     supported_languages = ["TYPESCRIPT"]
-    env_var_specs = [
-        EnvVarSpec(
-            name="PHOENIX_SANDBOX_VERCEL_API_KEY",
-            description="Vercel API key for sandbox access",
-            required=True,
-            secret=True,
-        ),
-    ]
-    config_field_specs: list[ConfigFieldSpec] = []
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        api_key: str = config.get("PHOENIX_SANDBOX_VERCEL_API_KEY", "")
+        api_key: str = (
+            config.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
+            or os.environ.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
+            or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
+            or ""
+        )
         return VercelSandboxBackend(api_key=api_key)

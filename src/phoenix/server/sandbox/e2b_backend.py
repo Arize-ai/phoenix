@@ -8,11 +8,12 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
+from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
+
 from .types import (
-    ConfigFieldSpec,
-    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -63,28 +64,30 @@ class E2BSandboxBackend(SandboxBackend):
         code: str,
         session_key: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         AsyncSandbox = self._get_sandbox_cls()
         try:
             sandbox = self._sessions.get(session_key)
+            run_kwargs: dict[str, Any] = {"envs": env or {}}
+            if timeout is not None:
+                run_kwargs["timeout"] = timeout
             if sandbox is not None:
-                execution = await sandbox.run_code(code, envs=env or {})
+                execution = await sandbox.run_code(code, **run_kwargs)
             else:
                 # Ephemeral: spin up a fresh sandbox, run, then close.
                 async with await AsyncSandbox.create(
                     api_key=self._api_key, template=self._template
                 ) as sb:
-                    execution = await sb.run_code(code, envs=env or {})
+                    execution = await sb.run_code(code, **run_kwargs)
 
             stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""
             stderr = "\n".join(execution.logs.stderr) if execution.logs.stderr else ""
             error_str: Optional[str] = str(execution.error) if execution.error else None
-            return_value = execution.results[0].text if execution.results else None
 
             return ExecutionResult(
                 stdout=stdout,
                 stderr=stderr,
-                return_value=return_value,
                 error=error_str,
             )
         except Exception as exc:
@@ -103,24 +106,13 @@ class E2BAdapter(SandboxAdapter):
     key = "E2B"
     display_name = "E2B"
     supported_languages = ["PYTHON"]
-    env_var_specs = [
-        EnvVarSpec(
-            name="PHOENIX_SANDBOX_E2B_API_KEY",
-            description="E2B API key for cloud sandbox access",
-            required=True,
-            secret=True,
-        )
-    ]
-    config_field_specs = [
-        ConfigFieldSpec(
-            name="template",
-            description="E2B sandbox template name",
-            required=False,
-            default="base",
-        )
-    ]
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        api_key: str = config.get("PHOENIX_SANDBOX_E2B_API_KEY", "")
+        api_key: str = (
+            config.get("PHOENIX_SANDBOX_E2B_API_KEY")
+            or os.environ.get("PHOENIX_SANDBOX_E2B_API_KEY")
+            or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
+            or ""
+        )
         template: str = config.get("template", "base")
         return E2BSandboxBackend(api_key=api_key, template=template)

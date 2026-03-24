@@ -697,16 +697,28 @@ class ChatCompletionMutationMixin:
                     # Resolve sandbox backend via config → provider chain
                     sandbox_backend = None
                     backend_type: str | None = None
+                    merged_config: dict[str, Any] | None = None
+                    sandbox_timeout: int | None = None
                     if code_evaluator_record.sandbox_config_id is not None:
                         sandbox_cfg = await session.get(
                             models.SandboxConfig, code_evaluator_record.sandbox_config_id
                         )
-                        if sandbox_cfg is not None:
+                        if sandbox_cfg is not None and sandbox_cfg.enabled:
+                            sandbox_timeout = sandbox_cfg.timeout
                             provider = await session.get(
                                 models.SandboxProvider, sandbox_cfg.sandbox_provider_id
                             )
-                            if provider is not None:
+                            if provider is not None and provider.enabled:
                                 backend_type = provider.backend_type
+                                if (
+                                    code_evaluator_record.language_id is not None
+                                    and provider.language_id != code_evaluator_record.language_id
+                                ):
+                                    raise BadRequest(
+                                        "Sandbox provider language does not match "
+                                        "code evaluator language"
+                                    )
+                                merged_config = {**provider.config, **sandbox_cfg.config}
 
                     # Eagerly capture scalar fields before session closes
                     evaluator_name = str(code_evaluator_record.name)
@@ -719,20 +731,21 @@ class ChatCompletionMutationMixin:
                     ]
 
                 if backend_type is not None:
-                    sandbox_backend = get_or_create_backend(backend_type)
+                    sandbox_backend = get_or_create_backend(backend_type, config=merged_config)
                 if sandbox_backend is None:
-                    sandbox_backend = get_or_create_backend("WASM")
-                if sandbox_backend is None:
-                    raise BadRequest("No sandbox backend available for code evaluator preview")
+                    raise BadRequest(
+                        f"No sandbox backend configured for language '{language}'. "
+                        "Please configure a sandbox provider for this evaluator."
+                    )
 
                 runner = CodeEvaluatorRunner(
                     name=evaluator_name,
                     description=evaluator_description,
                     source_code=evaluator_source_code,
-                    stored_input_schema={},
                     stored_output_configs=output_configs,
                     sandbox_backend=sandbox_backend,
                     language=language,
+                    timeout=sandbox_timeout,
                 )
                 eval_results = await runner.evaluate(
                     context=context,

@@ -511,7 +511,7 @@ type CodeEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sourceCode: String!
-  language: String
+  language: Language
   sandboxConfig: SandboxConfig
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   user: User
@@ -589,7 +589,7 @@ input CreateChatPromptVersionInput {
 input CreateCodeEvaluatorInput {
   name: String!
   sourceCode: String!
-  language: String!
+  language: Language!
   description: String = null
   sandboxConfigId: Int = null
   outputConfigs: [AnnotationConfigInput!] = null
@@ -1988,6 +1988,11 @@ type LabelFraction {
   fraction: Float!
 }
 
+enum Language {
+  PYTHON
+  TYPESCRIPT
+}
+
 enum MimeType {
   text
   json
@@ -2887,7 +2892,7 @@ enum RevisionKind {
 type SandboxBackendInfo {
   backendType: String!
   displayName: String!
-  supportedLanguages: [String!]!
+  supportedLanguages: [Language!]!
   status: SandboxBackendStatus!
 }
 
@@ -2914,7 +2919,7 @@ type SandboxProvider implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   backendType: String!
-  language: String!
+  language: Language!
   config: JSON!
   enabled: Boolean!
   createdAt: DateTime!
@@ -3665,7 +3670,7 @@ input UpdateCodeEvaluatorInput {
   id: ID!
   name: String
   sourceCode: String
-  language: String
+  language: Language
   description: String
   sandboxConfigId: Int
   outputConfigs: [AnnotationConfigInput!]

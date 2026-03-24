@@ -114,8 +114,8 @@ class SandboxConfigMutationMixin:
                 row.description = input.description
             if input.config is not strawberry.UNSET and input.config is not None:
                 row.config = dict(input.config)
-            if input.timeout is not strawberry.UNSET and input.timeout is not None:
-                row.timeout = input.timeout
+            if input.timeout is not strawberry.UNSET:
+                row.timeout = input.timeout if input.timeout is not None else 30
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 

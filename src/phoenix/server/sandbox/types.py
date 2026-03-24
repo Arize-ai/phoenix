@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 
 @dataclass
@@ -18,32 +18,11 @@ class ExecutionResult:
 
     stdout: str
     stderr: str
-    return_value: Any = None
     error: Optional[str] = None
 
     @property
     def success(self) -> bool:
         return self.error is None
-
-
-@dataclass
-class EnvVarSpec:
-    """Specification for an environment variable required by a sandbox adapter."""
-
-    name: str
-    description: str
-    required: bool = True
-    secret: bool = False
-
-
-@dataclass
-class ConfigFieldSpec:
-    """Specification for a configuration field on a sandbox adapter."""
-
-    name: str
-    description: str
-    required: bool = False
-    default: Any = None
 
 
 class SandboxBackend(ABC):
@@ -71,6 +50,7 @@ class SandboxBackend(ABC):
         code: str,
         session_key: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         """Execute code in the sandbox session identified by session_key."""
         ...
@@ -111,13 +91,7 @@ class SandboxAdapter(ABC):
     display_name: str
 
     #: Languages this adapter supports (must match Language.name values in DB).
-    supported_languages: list[str]
-
-    #: Environment variable specs required by this adapter.
-    env_var_specs: list[EnvVarSpec]
-
-    #: Config field specs accepted by this adapter.
-    config_field_specs: list[ConfigFieldSpec]
+    supported_languages: list[Literal["PYTHON", "TYPESCRIPT"]]
 
     @abstractmethod
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:

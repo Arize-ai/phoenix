@@ -54,6 +54,7 @@ def _make_runner(
     backend_stdout: str = '"pass"',
     backend_error: str | None = None,
     backend_raises: Exception | None = None,
+    timeout: int | None = None,
 ) -> tuple[CodeEvaluatorRunner, AsyncMock]:
     backend = AsyncMock()
     if backend_raises is not None:
@@ -70,10 +71,10 @@ def _make_runner(
         name="test-runner",
         description=None,
         source_code=source_code,
-        stored_input_schema={},
         stored_output_configs=[_categorical_config()],
         sandbox_backend=backend,
         language=language,
+        timeout=timeout,
     )
     return runner, backend
 
@@ -168,6 +169,28 @@ class TestEvaluateSuccessPath:
         # When session_key is falsy, falls back to self._name
         assert call_kwargs.kwargs.get("session_key") == runner._name
 
+    async def test_timeout_forwarded_to_backend_execute(self) -> None:
+        runner, backend = _make_runner(backend_stdout='"pass"', timeout=45)
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        call_kwargs = backend.execute.call_args
+        assert call_kwargs.kwargs.get("timeout") == 45
+
+    async def test_none_timeout_forwarded_to_backend_execute(self) -> None:
+        runner, backend = _make_runner(backend_stdout='"pass"', timeout=None)
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        call_kwargs = backend.execute.call_args
+        assert call_kwargs.kwargs.get("timeout") is None
+
 
 class TestEvaluateErrorPaths:
     async def test_input_mapping_failure_returns_error_result(self) -> None:
@@ -207,6 +230,65 @@ class TestEvaluateErrorPaths:
             output_configs=[_categorical_config()],
         )
         assert results[0]["error"] == "SyntaxError: invalid syntax"
+
+
+class TestBackendConfiguration:
+    async def test_no_backend_execute_returns_error_result(self) -> None:
+        """When no functional backend is available (execute raises), evaluate() returns an error."""
+        runner, _ = _make_runner(backend_raises=RuntimeError("no backend configured"))
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        assert len(results) == 1
+        assert results[0]["error"] is not None
+        assert "Sandbox execution failed" in results[0]["error"]
+        assert "no backend configured" in results[0]["error"]
+
+    async def test_language_stored_normalized_to_uppercase(self) -> None:
+        """Runner normalizes language to uppercase on construction."""
+        runner, _ = _make_runner(language="python")
+        assert runner._language == "PYTHON"
+
+    async def test_typescript_language_uses_typescript_harness(self) -> None:
+        """Runner selects TypeScript harness when language is TYPESCRIPT."""
+        runner, backend = _make_runner(
+            source_code="function evaluate(x) { return 1; }",
+            language="TYPESCRIPT",
+            backend_stdout="1",
+        )
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        # TypeScript harness uses console.log and JSON.stringify
+        assert "JSON.stringify" in code_arg
+        assert "console.log" in code_arg
+
+    async def test_python_language_uses_python_harness(self) -> None:
+        """Runner selects Python harness when language is PYTHON."""
+        runner, backend = _make_runner(
+            source_code='def evaluate(**kw): return "pass"',
+            language="PYTHON",
+            backend_stdout='"pass"',
+        )
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        # Python harness uses json.loads and print
+        assert "json.loads" in code_arg or "_json.loads" in code_arg
+        assert "print(" in code_arg
 
 
 class TestMultiOutputEvaluate:

@@ -47,7 +47,24 @@ from phoenix.server.api.types.Evaluator import (
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
+from phoenix.server.api.types.SandboxConfig import Language
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+async def _validate_language_matches_sandbox(
+    language_id: int,
+    sandbox_config_id: int,
+    session: "AsyncSession",
+) -> None:
+    """Raise BadRequest if the evaluator language doesn't match the sandbox provider's language."""
+    cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+    if cfg is None:
+        raise BadRequest(f"SandboxConfig not found: {sandbox_config_id}")
+    provider = await session.get(models.SandboxProvider, cfg.sandbox_provider_id)
+    if provider is None:
+        raise BadRequest(f"SandboxProvider not found: {cfg.sandbox_provider_id}")
+    if provider.language_id != language_id:
+        raise BadRequest("Evaluator language does not match sandbox provider language")
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -277,7 +294,7 @@ class DeleteDatasetEvaluatorsPayload:
 class CreateCodeEvaluatorInput:
     name: str
     source_code: str
-    language: str
+    language: Language
     description: Optional[str] = None
     sandbox_config_id: Optional[int] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
@@ -289,7 +306,7 @@ class UpdateCodeEvaluatorInput:
     id: GlobalID
     name: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
-    language: Optional[str] = UNSET
+    language: Optional[Language] = UNSET
     description: Optional[str] = UNSET
     sandbox_config_id: Optional[int] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
@@ -977,9 +994,14 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                language_id = await _resolve_language_id(input.language, session)
+                language_id = await _resolve_language_id(input.language.value, session)
                 if language_id is None:
                     raise BadRequest(f"Unknown language: {input.language!r}")
+
+                if input.sandbox_config_id is not None:
+                    await _validate_language_matches_sandbox(
+                        language_id, input.sandbox_config_id, session
+                    )
 
                 row = models.CodeEvaluator(
                     name=validated_name,
@@ -1031,7 +1053,7 @@ class EvaluatorMutationMixin:
                     row.source_code = input.source_code
 
                 if input.language is not UNSET and input.language is not None:
-                    language_id = await _resolve_language_id(input.language, session)
+                    language_id = await _resolve_language_id(input.language.value, session)
                     if language_id is None:
                         raise BadRequest(f"Unknown language: {input.language!r}")
                     row.language_id = language_id
@@ -1049,6 +1071,11 @@ class EvaluatorMutationMixin:
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
                     row.input_mapping = input.input_mapping.to_orm()
+
+                if row.sandbox_config_id is not None and row.language_id is not None:
+                    await _validate_language_matches_sandbox(
+                        row.language_id, row.sandbox_config_id, session
+                    )
 
                 await session.flush()
                 await session.refresh(row)

@@ -11,6 +11,7 @@ from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -245,5 +246,107 @@ class TestSetSandboxProviderEnabled:
         result = await gql_client.execute(
             _SET_PROVIDER_ENABLED,
             variables={"providerId": 99999, "enabled": True},
+        )
+        assert result.errors
+
+
+_EVALUATOR_PREVIEWS = """
+mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
+    evaluatorPreviews(input: $input) {
+        results {
+            evaluatorName
+            error
+        }
+    }
+}
+"""
+
+
+class TestDisabledProviderAndConfigGuards:
+    async def _create_code_evaluator_with_config(
+        self,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> int:
+        """Insert a CodeEvaluator row (joined-table inheritance) linked to the given sandbox config."""
+        async with db() as session:
+            code_eval = models.CodeEvaluator(
+                name=Identifier(root="test-disabled-guard-eval"),
+                description=None,
+                metadata_={},
+                source_code="def evaluate(input): return {'score': 1.0}",
+                sandbox_config_id=sandbox_config.id,
+            )
+            session.add(code_eval)
+            await session.flush()
+            return code_eval.id
+
+    async def test_disabled_provider_blocks_execution(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_db_id = await self._create_code_evaluator_with_config(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+
+        # Disable the provider via the mutation
+        async with db() as session:
+            provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+        assert provider is not None
+        result = await gql_client.execute(
+            _SET_PROVIDER_ENABLED,
+            variables={"providerId": provider.id, "enabled": False},
+        )
+        assert result.data and not result.errors
+
+        # Preview should fail — no backend resolved when provider is disabled
+        result = await gql_client.execute(
+            _EVALUATOR_PREVIEWS,
+            variables={
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": evaluator_gid},
+                            "context": {"output": "test"},
+                            "inputMapping": {},
+                        }
+                    ]
+                }
+            },
+        )
+        assert result.errors
+
+    async def test_disabled_config_blocks_execution(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_db_id = await self._create_code_evaluator_with_config(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+
+        # Disable the sandbox config via the mutation
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={"input": {"id": sandbox_config.id, "enabled": False}},
+        )
+        assert result.data and not result.errors
+        assert result.data["updateSandboxConfig"]["sandboxConfig"]["enabled"] is False
+
+        # Preview should fail — no backend resolved when config is disabled
+        result = await gql_client.execute(
+            _EVALUATOR_PREVIEWS,
+            variables={
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": evaluator_gid},
+                            "context": {"output": "test"},
+                            "inputMapping": {},
+                        }
+                    ]
+                }
+            },
         )
         assert result.errors

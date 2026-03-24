@@ -8,11 +8,12 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
+from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
+
 from .types import (
-    ConfigFieldSpec,
-    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -55,7 +56,13 @@ class DaytonaSandboxBackend(SandboxBackend):
         code: str,
         session_key: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        if timeout is not None:
+            logger.warning(
+                "DaytonaSandboxBackend does not support per-call timeout; ignoring timeout=%d",
+                timeout,
+            )
         try:
             workspace = self._sessions.get(session_key)
             if workspace is None:
@@ -79,24 +86,13 @@ class DaytonaAdapter(SandboxAdapter):
     key = "DAYTONA"
     display_name = "Daytona"
     supported_languages = ["PYTHON", "TYPESCRIPT"]
-    env_var_specs = [
-        EnvVarSpec(
-            name="PHOENIX_SANDBOX_DAYTONA_API_KEY",
-            description="Daytona API key",
-            required=True,
-            secret=True,
-        ),
-    ]
-    config_field_specs = [
-        ConfigFieldSpec(
-            name="server_url",
-            description="Daytona server URL (defaults to cloud)",
-            required=False,
-            default="",
-        ),
-    ]
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        api_key: str = config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY", "")
+        api_key: str = (
+            config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
+            or os.environ.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
+            or os.environ.get(ENV_PHOENIX_SANDBOX_TOKEN)
+            or ""
+        )
         server_url: str = config.get("server_url", "")
         return DaytonaSandboxBackend(api_key=api_key, server_url=server_url)
