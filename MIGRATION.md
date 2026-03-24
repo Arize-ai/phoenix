@@ -2,6 +2,35 @@
 
 ## v13.x to v14.0.0
 
+### Phoenix server CLI (`phoenix` / `python -m phoenix.server.main`)
+
+The CLI is now **subcommand-first**: you choose `serve` or `db`, then pass options for that command. In v13.x, many flags could appear **before** the subcommand (for example `--dev` and `--dev-vite-port` before `serve`); those must now come **after** the subcommand.
+
+**Before:**
+
+```shell
+python -m phoenix.server.main --dev --dev-vite-port 5173 serve
+phoenix --host 0.0.0.0 --port 6006 serve
+```
+
+**After:**
+
+```shell
+python -m phoenix.server.main serve --dev --dev-vite-port 5173
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+Pass `--database-url` on the subcommand that needs a database (or rely on `PHOENIX_SQL_DATABASE_URL` / the default). 
+
+```shell
+python -m phoenix.server.main serve --database-url "postgresql://..."
+python -m phoenix.server.main db migrate --database-url "postgresql://..."
+```
+
+`db migrate` is unchanged as a two-word subcommand: `python -m phoenix.server.main db migrate` (or `phoenix db migrate`).
+
+Top-level `--help` only shows global usage; use `phoenix serve --help`, or `phoenix db migrate --help` for subcommand options.
+
 ### Legacy Client Removed
 
 The legacy `phoenix.session.client.Client` (accessed via `px.Client()`) has been removed. All client interactions now go through the `arize-phoenix-client` package.

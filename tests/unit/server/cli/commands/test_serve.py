@@ -2,7 +2,7 @@ from argparse import Namespace
 
 import pytest
 
-from phoenix.server.main import _resolve_grpc_port
+from phoenix.server.cli.commands.serve import _resolve_grpc_port
 
 
 def test_resolve_grpc_port_uses_cli_flag(monkeypatch: pytest.MonkeyPatch) -> None:
