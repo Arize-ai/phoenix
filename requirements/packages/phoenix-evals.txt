@@ -1,7 +1,7 @@
 -r ../ci.txt
 anthropic
 google-genai
-litellm
+litellm<1.82.7
 mistralai
 mypy-boto3-bedrock-runtime
 openai
