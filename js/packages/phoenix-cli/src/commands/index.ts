@@ -4,7 +4,6 @@ export * from "./project";
 export * from "./trace";
 export * from "./span";
 export * from "./dataset";
-export * from "./experiments";
 export * from "./experiment";
 export * from "./session";
 export * from "./prompts";

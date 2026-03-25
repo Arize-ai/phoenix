@@ -18,11 +18,13 @@ describe("Phoenix CLI", () => {
       "prompt [options] <prompt-identifier>"
     );
     expect(program.helpInformation()).toContain("dataset");
+    expect(program.helpInformation()).toContain("experiment");
     expect(program.helpInformation()).toContain("project");
     expect(program.helpInformation()).toContain("session");
     expect(program.helpInformation()).toContain("span");
     expect(program.helpInformation()).toContain("trace");
     expect(program.helpInformation()).not.toContain("datasets [options]");
+    expect(program.helpInformation()).not.toContain("experiments [options]");
     expect(program.helpInformation()).not.toContain("projects [options]");
     expect(program.helpInformation()).not.toContain("sessions [options]");
     expect(program.helpInformation()).not.toContain("spans [options]");
@@ -101,6 +103,21 @@ describe("Phoenix CLI", () => {
     );
     expect(
       program.commands.find((command) => command.name() === "sessions")
+    ).toBeUndefined();
+  });
+
+  it("should register experiment list and experiment get as the primary experiment commands", () => {
+    const program = createProgram();
+    const experimentCommand = program.commands.find(
+      (command) => command.name() === "experiment"
+    );
+
+    expect(experimentCommand).toBeDefined();
+    expect(
+      experimentCommand?.commands.map((command) => command.name())
+    ).toEqual(expect.arrayContaining(["list", "get"]));
+    expect(
+      program.commands.find((command) => command.name() === "experiments")
     ).toBeUndefined();
   });
 });
