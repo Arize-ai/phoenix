@@ -1,0 +1,14 @@
+{
+  "task_id": "parallel_education_hard:0",
+  "implementation": "traject-langgraph",
+  "outcome": "partial_success",
+  "failure_modes": [
+    "wrong_params",
+    "tool_error_mishandled"
+  ],
+  "root_cause": "The agent failed to include required optional parameters for filtering recent videos and did not properly handle the API errors that resulted from incorrect date formatting.",
+  "severity": "medium",
+  "detectable_from_trace": true,
+  "explanation": "While the agent called all three expected tools in the correct order, it failed to provide the necessary optional parameters for the first tool call (missing 'since' parameter for filtering videos from March last year) and didn't include the 'json' parameter for the second call. The agent also terminated early after encountering API errors rather than attempting to resolve the date format issues or provide alternative solutions to help the user with their astronomy project.",
+  "raw_response": "{\n  \"outcome\": \"partial_success\",\n  \"failure_modes\": [\"wrong_params\", \"tool_error_mishandled\"],\n  \"root_cause\": \"The agent failed to include required optional parameters for filtering recent videos and did not properly handle the API errors that resulted from incorrect date formatting.\",\n  \"severity\": \"medium\",\n  \"detectable_from_trace\": true,\n  \"explanation\": \"While the agent called all three expected tools in the correct order, it failed to provide the necessary optional parameters for the first tool call (missing 'since' parameter for filtering videos from March last year) and didn't include the 'json' parameter for the second call. The agent also terminated early after encountering API errors rather than attempting to resolve the date format issues or provide alternative solutions to help the user with their astronomy project.\"\n}\n"
+}

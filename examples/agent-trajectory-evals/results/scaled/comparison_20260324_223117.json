@@ -1,0 +1,4171 @@
+[
+  {
+    "implementation": "tau-openai",
+    "total_tasks": 20,
+    "tasks_with_results": 20,
+    "exact_match_count": 0,
+    "exact_match_rate": 0.0,
+    "mean_precision": 0.1469047619047619,
+    "mean_recall": 0.575,
+    "mean_f1": 0.22150793650793651,
+    "mean_param_accuracy": 0.4303571428571429,
+    "over_calling_count": 17,
+    "under_calling_count": 2,
+    "order_correct_count": 10,
+    "order_total": 11,
+    "per_task": [
+      {
+        "task_id": "dev:0",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 5,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W5442520",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:1",
+        "expected_tools": [
+          "exchange_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "think",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [
+          "exchange_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.14285714285714285,
+        "recall": 1.0,
+        "f1": 0.25,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 10,
+        "count_diff": 9,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W7273336",
+              "payment_method_id": "paypal_1530316"
+            },
+            "mismatched": {
+              "item_ids": {
+                "expected": "['8214883393', '8018699955']",
+                "actual": "['8214883393']"
+              },
+              "new_item_ids": {
+                "expected": "['2880340443', '4894369688']",
+                "actual": "['2880340443']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "exchange_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 0.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:6",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "find_user_id_by_email",
+          "find_user_id_by_email",
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.16666666666666666,
+        "recall": 1.0,
+        "f1": 0.2857142857142857,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 10,
+        "count_diff": 9,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9933266",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:9",
+        "expected_tools": [
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "modify_pending_order_items"
+        ],
+        "matched_tools": [
+          "modify_pending_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "exchange_delivered_order_items",
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.14285714285714285,
+        "recall": 1.0,
+        "f1": 0.25,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 9,
+        "count_diff": 8,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9673784",
+              "item_ids": "['9884666842']",
+              "new_item_ids": "['7806008610']",
+              "payment_method_id": "paypal_2192303"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:12",
+        "expected_tools": [
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "modify_pending_order_items",
+          "modify_pending_order_payment"
+        ],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 6,
+        "actual_count": 8,
+        "count_diff": 2,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:14",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "think",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "think",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 9,
+        "count_diff": 7,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:15",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 5,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W2307204"
+            },
+            "mismatched": {
+              "reason": {
+                "expected": "no longer needed",
+                "actual": "Overwhelmed by marketing emails"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 0.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:17",
+        "expected_tools": [],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.0,
+        "recall": 1.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 0,
+        "actual_count": 4,
+        "count_diff": 4,
+        "param_matches": [],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:35",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "exchange_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 4,
+        "actual_count": 3,
+        "count_diff": -1,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:351",
+        "expected_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order",
+          "get_order_details",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "get_order_details",
+          "modify_pending_order_payment",
+          "get_product_details",
+          "get_product_details",
+          "modify_pending_order_items",
+          "get_order_details",
+          "return_delivered_order_items",
+          "get_order_details",
+          "modify_pending_order_address",
+          "get_product_details",
+          "get_product_details",
+          "modify_pending_order_items",
+          "think",
+          "calculate",
+          "modify_pending_order_items"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "calculate",
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
+        "exact_match": false,
+        "expected_count": 7,
+        "actual_count": 22,
+        "count_diff": 15,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W2918688",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          },
+          {
+            "matched": {
+              "order_id": "#W3113816",
+              "item_ids": "['4274709903']",
+              "new_item_ids": "['1071497737']",
+              "payment_method_id": "gift_card_6023546"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "exchange_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W1620235",
+              "payment_method_id": "gift_card_6023546"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_payment"
+          },
+          {
+            "matched": {
+              "order_id": "#W1620235",
+              "item_ids": "['6690069155', '9132333852']",
+              "new_item_ids": "['9956648681', '2323972008']",
+              "payment_method_id": "gift_card_6023546"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W1539823",
+              "item_ids": "['2860956907', '7597543861']",
+              "payment_method_id": "gift_card_6023546"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W9655299",
+              "address1": "399 Maple Drive",
+              "address2": "Suite 470",
+              "city": "Phoenix",
+              "country": "USA",
+              "state": "AZ",
+              "zip": "85039"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "payment_method_id": "gift_card_6023546"
+            },
+            "mismatched": {
+              "order_id": {
+                "expected": "#W9655299",
+                "actual": "#W1620235"
+              },
+              "item_ids": {
+                "expected": "['9672174103', '3019027053']",
+                "actual": "['6690069155', '9132333852']"
+              },
+              "new_item_ids": {
+                "expected": "['4329558751', '4806644905']",
+                "actual": "['9956648681', '2323972008']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.25,
+            "tool_name": "modify_pending_order_items"
+          }
+        ],
+        "param_accuracy": 0.8571428571428571,
+        "order_correct": false,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:2",
+        "expected_tools": [
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W4435622",
+              "item_ids": "['6777246137']",
+              "payment_method_id": "gift_card_1725971"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:4",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order"
+        ],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:3",
+        "expected_tools": [
+          "exchange_delivered_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "think",
+          "get_user_details",
+          "get_order_details",
+          "exchange_delivered_order_items",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.2857142857142857,
+        "recall": 1.0,
+        "f1": 0.4444444444444445,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 10,
+        "count_diff": 8,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W7736983",
+              "item_ids": "['5952720925']",
+              "payment_method_id": "paypal_6840891"
+            },
+            "mismatched": {
+              "new_item_ids": {
+                "expected": "['1323134954']",
+                "actual": "['new_item_id_for_stainless_steel_drip_model']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.75,
+            "tool_name": "exchange_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W5765741",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 0.5,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:8",
+        "expected_tools": [
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [
+          "modify_pending_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 0.5,
+        "f1": 0.3333333333333333,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 6,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W1523776",
+              "item_ids": "['8593894906']",
+              "payment_method_id": "gift_card_2748512"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 0.5,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:13",
+        "expected_tools": [
+          "cancel_pending_order",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 3,
+        "count_diff": 1,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:43",
+        "expected_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 3,
+        "actual_count": 6,
+        "count_diff": 3,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:130",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "modify_pending_order_address",
+          "think",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
+        "exact_match": false,
+        "expected_count": 4,
+        "actual_count": 9,
+        "count_diff": 5,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W3746173",
+              "address1": "137 Willow Lane",
+              "address2": "Suite 127",
+              "city": "Charlotte",
+              "country": "USA",
+              "state": "NC",
+              "zip": "28249"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "order_id": "#W3746173",
+              "payment_method_id": "credit_card_7898168"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_payment"
+          },
+          {
+            "matched": {
+              "order_id": "#W3746173",
+              "item_ids": "['2882812427']",
+              "payment_method_id": "credit_card_7898168"
+            },
+            "mismatched": {
+              "new_item_ids": {
+                "expected": "['2882812427']",
+                "actual": "[]"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.75,
+            "tool_name": "modify_pending_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W1416704",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 0.75,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:139",
+        "expected_tools": [
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 5,
+        "actual_count": 5,
+        "count_diff": 0,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:431",
+        "expected_tools": [
+          "cancel_pending_order",
+          "return_delivered_order_items",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_payment",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 6,
+        "actual_count": 4,
+        "count_diff": -2,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:13",
+        "expected_tools": [
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9552705",
+              "item_ids": "['1178356107', '2244749153', '6697922351']",
+              "payment_method_id": "gift_card_8922351"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      }
+    ]
+  },
+  {
+    "implementation": "tau-langgraph",
+    "total_tasks": 20,
+    "tasks_with_results": 20,
+    "exact_match_count": 0,
+    "exact_match_rate": 0.0,
+    "mean_precision": 0.1902579365079365,
+    "mean_recall": 0.7,
+    "mean_f1": 0.2895498945498946,
+    "mean_param_accuracy": 0.6425,
+    "over_calling_count": 17,
+    "under_calling_count": 1,
+    "order_correct_count": 10,
+    "order_total": 11,
+    "per_task": [
+      {
+        "task_id": "dev:0",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.2,
+        "recall": 1.0,
+        "f1": 0.33333333333333337,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 5,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W5442520",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:1",
+        "expected_tools": [
+          "exchange_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_product_details",
+          "get_product_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "exchange_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 5,
+        "count_diff": 4,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:6",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_email",
+          "find_user_id_by_email",
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 8,
+        "count_diff": 7,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9933266",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:9",
+        "expected_tools": [
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "get_product_details",
+          "modify_pending_order_items"
+        ],
+        "matched_tools": [
+          "modify_pending_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.16666666666666666,
+        "recall": 1.0,
+        "f1": 0.2857142857142857,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 6,
+        "count_diff": 5,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9673784",
+              "item_ids": "['9884666842']",
+              "new_item_ids": "['7806008610']",
+              "payment_method_id": "paypal_2192303"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:12",
+        "expected_tools": [
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "modify_pending_order_items",
+          "modify_pending_order_payment"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 6,
+        "actual_count": 8,
+        "count_diff": 2,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:14",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "modify_pending_order_address",
+          "get_product_details",
+          "modify_pending_order_items"
+        ],
+        "matched_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.3333333333333333,
+        "recall": 1.0,
+        "f1": 0.5,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 6,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W3289292",
+              "address1": "320 Cedar Avenue",
+              "address2": "Suite 116",
+              "city": "San Antonio",
+              "country": "USA",
+              "state": "TX",
+              "zip": "78219"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "order_id": "#W3289292",
+              "item_ids": "['9025753381']",
+              "new_item_ids": "['1151293680']",
+              "payment_method_id": "paypal_8963303"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:15",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W2307204",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:17",
+        "expected_tools": [],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.0,
+        "recall": 1.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 0,
+        "actual_count": 3,
+        "count_diff": 3,
+        "param_matches": [],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:35",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "exchange_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "modify_pending_order_address",
+          "get_product_details",
+          "think",
+          "modify_pending_order_items",
+          "modify_pending_order_items",
+          "get_order_details",
+          "return_delivered_order_items",
+          "get_order_details",
+          "get_product_details",
+          "exchange_delivered_order_items"
+        ],
+        "matched_tools": [
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details",
+          "think"
+        ],
+        "precision": 0.4444444444444444,
+        "recall": 1.0,
+        "f1": 0.6153846153846153,
+        "exact_match": false,
+        "expected_count": 4,
+        "actual_count": 13,
+        "count_diff": 9,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W2575533",
+              "address1": "812 Cedar Avenue",
+              "address2": "Suite 500",
+              "city": "Houston",
+              "country": "USA",
+              "state": "TX",
+              "zip": "77129"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "order_id": "#W2575533",
+              "payment_method_id": "paypal_3024827"
+            },
+            "mismatched": {
+              "item_ids": {
+                "expected": "['9494281769', '8349903180', '5206946487']",
+                "actual": "['9494281769', '8349903180']"
+              },
+              "new_item_ids": {
+                "expected": "['4273929280', '8349903180', '3369928769']",
+                "actual": "['4273929280']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "modify_pending_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W5565470",
+              "item_ids": "['7602931732', '9570044148', '6857426243']",
+              "payment_method_id": "paypal_3024827"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W3792453",
+              "item_ids": "['4293355847']",
+              "new_item_ids": "['3877188862']",
+              "payment_method_id": "paypal_3024827"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "exchange_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 0.75,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:351",
+        "expected_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "get_user_details",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 7,
+        "actual_count": 6,
+        "count_diff": -1,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:2",
+        "expected_tools": [
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 6,
+        "count_diff": 5,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W4435622",
+              "item_ids": "['6777246137']",
+              "payment_method_id": "gift_card_1725971"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:4",
+        "expected_tools": [
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W7602708",
+              "reason": "no longer needed"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:3",
+        "expected_tools": [
+          "exchange_delivered_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_user_details",
+          "get_order_details",
+          "get_product_details",
+          "exchange_delivered_order_items",
+          "get_order_details",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "find_user_id_by_name_zip",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.2857142857142857,
+        "recall": 1.0,
+        "f1": 0.4444444444444445,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 8,
+        "count_diff": 6,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W7736983",
+              "item_ids": "['5952720925']",
+              "new_item_ids": "['1323134954']",
+              "payment_method_id": "paypal_6840891"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "exchange_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W5765741",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:8",
+        "expected_tools": [
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "get_order_details",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 8,
+        "count_diff": 6,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:13",
+        "expected_tools": [
+          "cancel_pending_order",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "cancel_pending_order",
+          "cancel_pending_order"
+        ],
+        "matched_tools": [
+          "cancel_pending_order"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 2,
+        "actual_count": 6,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W7109609",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          },
+          {
+            "matched": {
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {
+              "order_id": {
+                "expected": "#W6554908",
+                "actual": "#W7109609"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 0.5,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:43",
+        "expected_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details",
+          "get_order_details",
+          "cancel_pending_order",
+          "get_order_details",
+          "modify_pending_order_address",
+          "get_product_details",
+          "get_product_details",
+          "calculate",
+          "modify_pending_order_items"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "calculate",
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.375,
+        "recall": 1.0,
+        "f1": 0.5454545454545454,
+        "exact_match": false,
+        "expected_count": 3,
+        "actual_count": 11,
+        "count_diff": 8,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9132840",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          },
+          {
+            "matched": {
+              "order_id": "#W6724985",
+              "address1": "558 Cedar Street",
+              "address2": "Suite 298",
+              "city": "Houston",
+              "country": "USA",
+              "state": "TX",
+              "zip": "77158"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "order_id": "#W6724985",
+              "item_ids": "['7533802601', '8895454203']",
+              "new_item_ids": "['2439754078', '1768466237']",
+              "payment_method_id": "credit_card_3593714"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:130",
+        "expected_tools": [
+          "modify_pending_order_address",
+          "modify_pending_order_payment",
+          "modify_pending_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "think",
+          "transfer_to_human_agents"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 4,
+        "actual_count": 4,
+        "count_diff": 0,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "transfer_to_human",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:139",
+        "expected_tools": [
+          "modify_pending_order_items",
+          "return_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "cancel_pending_order"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_product_details",
+          "modify_pending_order_items",
+          "get_order_details",
+          "cancel_pending_order",
+          "get_order_details",
+          "modify_pending_order_address",
+          "get_product_details",
+          "modify_pending_order_items",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "cancel_pending_order",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_product_details",
+          "get_user_details"
+        ],
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
+        "exact_match": false,
+        "expected_count": 5,
+        "actual_count": 13,
+        "count_diff": 8,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9651773",
+              "item_ids": "['9644439410']",
+              "new_item_ids": "['8363011723']",
+              "payment_method_id": "paypal_7732922"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W2768683",
+              "payment_method_id": "paypal_7732922"
+            },
+            "mismatched": {
+              "item_ids": {
+                "expected": "['6242772310', '8649999816', '7583936705']",
+                "actual": "['8649999816', '6242772310', '7583936705']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.6666666666666666,
+            "tool_name": "return_delivered_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W6689278",
+              "address1": "505 Cedar Avenue",
+              "address2": "Suite 539",
+              "city": "Jacksonville",
+              "country": "USA",
+              "state": "FL",
+              "zip": "32117"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "modify_pending_order_address"
+          },
+          {
+            "matched": {
+              "payment_method_id": "paypal_7732922"
+            },
+            "mismatched": {
+              "order_id": {
+                "expected": "#W6689278",
+                "actual": "#W9651773"
+              },
+              "item_ids": {
+                "expected": "['2243454707']",
+                "actual": "['9644439410']"
+              },
+              "new_item_ids": {
+                "expected": "['9472539378']",
+                "actual": "['8363011723']"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.25,
+            "tool_name": "modify_pending_order_items"
+          },
+          {
+            "matched": {
+              "order_id": "#W5694685",
+              "reason": "ordered by mistake"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "cancel_pending_order"
+          }
+        ],
+        "param_accuracy": 0.6,
+        "order_correct": false,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "train:431",
+        "expected_tools": [
+          "cancel_pending_order",
+          "return_delivered_order_items",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_payment",
+          "modify_pending_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details",
+          "get_order_details"
+        ],
+        "matched_tools": [],
+        "missing_tools": [
+          "cancel_pending_order",
+          "exchange_delivered_order_items",
+          "modify_pending_order_address",
+          "modify_pending_order_items",
+          "modify_pending_order_payment",
+          "return_delivered_order_items"
+        ],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "exact_match": false,
+        "expected_count": 6,
+        "actual_count": 6,
+        "count_diff": 0,
+        "param_matches": [],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "dev:13",
+        "expected_tools": [
+          "return_delivered_order_items"
+        ],
+        "actual_tools": [
+          "find_user_id_by_email",
+          "get_user_details",
+          "get_order_details",
+          "return_delivered_order_items"
+        ],
+        "matched_tools": [
+          "return_delivered_order_items"
+        ],
+        "missing_tools": [],
+        "extra_tools": [
+          "find_user_id_by_email",
+          "get_order_details",
+          "get_user_details"
+        ],
+        "precision": 0.25,
+        "recall": 1.0,
+        "f1": 0.4,
+        "exact_match": false,
+        "expected_count": 1,
+        "actual_count": 4,
+        "count_diff": 3,
+        "param_matches": [
+          {
+            "matched": {
+              "order_id": "#W9552705",
+              "item_ids": "['1178356107', '2244749153', '6697922351']",
+              "payment_method_id": "gift_card_8922351"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "return_delivered_order_items"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "user_stop",
+        "status": "ok",
+        "error": null
+      }
+    ]
+  },
+  {
+    "implementation": "traject-langgraph",
+    "total_tasks": 20,
+    "tasks_with_results": 20,
+    "exact_match_count": 16,
+    "exact_match_rate": 0.8,
+    "mean_precision": 1.0,
+    "mean_recall": 0.9527777777777777,
+    "mean_f1": 0.9719272445820433,
+    "mean_param_accuracy": 0.8216666666666667,
+    "over_calling_count": 3,
+    "under_calling_count": 3,
+    "order_correct_count": 8,
+    "order_total": 10,
+    "per_task": [
+      {
+        "task_id": "parallel_ecommerce_simple:0",
+        "expected_tools": [
+          "wayfair_reviews_list",
+          "wayfair_products_get_common_info",
+          "aliexpress_datahub_aliexpress_user_basic_parameters"
+        ],
+        "actual_tools": [
+          "wayfair_reviews_list",
+          "wayfair_products_get_common_info",
+          "aliexpress_datahub_aliexpress_user_basic_parameters"
+        ],
+        "matched_tools": [
+          "aliexpress_datahub_aliexpress_user_basic_parameters",
+          "wayfair_products_get_common_info",
+          "wayfair_reviews_list"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "page": "1",
+              "sort_order": "HELPFUL"
+            },
+            "accuracy": 1.0,
+            "tool_name": "wayfair_reviews_list"
+          },
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_common_info"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "aliexpress_datahub_aliexpress_user_basic_parameters"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_ecommerce_simple:1",
+        "expected_tools": [
+          "wayfair_products_get_images",
+          "aliexpress_datahub_aliexpress_store_item_search_2",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "actual_tools": [
+          "wayfair_products_get_images",
+          "aliexpress_datahub_aliexpress_store_item_search_2",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "matched_tools": [
+          "aliexpress_datahub_aliexpress_store_item_search_2",
+          "wayfair_products_get_images",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {
+              "sku": "W003078383"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_images"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "storeId": "1102051418",
+              "sellerId": "231651707"
+            },
+            "accuracy": 1.0,
+            "tool_name": "aliexpress_datahub_aliexpress_store_item_search_2"
+          },
+          {
+            "matched": {
+              "zipcode": "77494",
+              "product_id": "85180"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_ecommerce_simple:2",
+        "expected_tools": [
+          "asos_countries_list",
+          "wayfair_auto_complete",
+          "amazon_pricing_and_product_info_main_endpoint"
+        ],
+        "actual_tools": [
+          "asos_countries_list",
+          "wayfair_auto_complete",
+          "amazon_pricing_and_product_info_main_endpoint"
+        ],
+        "matched_tools": [
+          "amazon_pricing_and_product_info_main_endpoint",
+          "asos_countries_list",
+          "wayfair_auto_complete"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "asos_countries_list"
+          },
+          {
+            "matched": {
+              "query": "ergonomic gaming chair"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_auto_complete"
+          },
+          {
+            "matched": {
+              "asin": "B01N2RJ0HI",
+              "domain": "com"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "amazon_pricing_and_product_info_main_endpoint"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_ecommerce_hard:10",
+        "expected_tools": [
+          "asos_v2_auto_complete",
+          "wayfair_auto_complete",
+          "wayfair_reviews_list",
+          "wayfair_products_get_warranty_services",
+          "wayfair_products_get_similar_items"
+        ],
+        "actual_tools": [
+          "wayfair_products_get_warranty_services",
+          "wayfair_products_get_similar_items",
+          "wayfair_reviews_list"
+        ],
+        "matched_tools": [
+          "wayfair_products_get_similar_items",
+          "wayfair_products_get_warranty_services",
+          "wayfair_reviews_list"
+        ],
+        "missing_tools": [
+          "asos_v2_auto_complete",
+          "wayfair_auto_complete"
+        ],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 0.6,
+        "f1": 0.7499999999999999,
+        "exact_match": false,
+        "expected_count": 5,
+        "actual_count": 3,
+        "count_diff": -2,
+        "param_matches": [
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_reviews_list"
+          },
+          {
+            "matched": {
+              "sku": "W003078383"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_warranty_services"
+          },
+          {
+            "matched": {
+              "sku": "W003078383"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_similar_items"
+          }
+        ],
+        "param_accuracy": 0.6,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_ecommerce_hard:11",
+        "expected_tools": [
+          "zappos_realtime_data_category_list",
+          "asos_categories_list",
+          "wayfair_products_get_common_info",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product",
+          "aliexpress_datahub_aliexpress_item_search_2"
+        ],
+        "actual_tools": [
+          "wayfair_products_get_common_info",
+          "zappos_realtime_data_category_list",
+          "asos_categories_list",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product",
+          "aliexpress_datahub_aliexpress_item_search_2"
+        ],
+        "matched_tools": [
+          "aliexpress_datahub_aliexpress_item_search_2",
+          "asos_categories_list",
+          "wayfair_products_get_common_info",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product",
+          "zappos_realtime_data_category_list"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 5,
+        "actual_count": 5,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "zappos_realtime_data_category_list"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "asos_categories_list"
+          },
+          {
+            "matched": {
+              "sku": "W003078383"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_common_info"
+          },
+          {
+            "matched": {
+              "zipcode": "77494",
+              "product_id": "85180"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "q": "ergonomic office chair",
+              "endPrice": "150",
+              "region": "US"
+            },
+            "accuracy": 1.0,
+            "tool_name": "aliexpress_datahub_aliexpress_item_search_2"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_ecommerce_hard:12",
+        "expected_tools": [
+          "wayfair_products_get_pricing",
+          "wayfair_products_get_financing_offers",
+          "wayfair_reviews_list",
+          "ikea_api_countries",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "actual_tools": [
+          "wayfair_products_get_pricing",
+          "wayfair_products_get_financing_offers",
+          "wayfair_reviews_list",
+          "ikea_api_countries",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "matched_tools": [
+          "ikea_api_countries",
+          "wayfair_products_get_financing_offers",
+          "wayfair_products_get_pricing",
+          "wayfair_reviews_list",
+          "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 5,
+        "actual_count": 5,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_pricing"
+          },
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_products_get_financing_offers"
+          },
+          {
+            "matched": {
+              "sku": "W004939121"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "wayfair_reviews_list"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "ikea_api_countries"
+          },
+          {
+            "matched": {
+              "zipcode": "94105",
+              "product_id": "85180"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "weee_grocery_api_sayweee_com_browsing_searching_details_product"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_travel:0",
+        "expected_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "actual_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "matched_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_hotel_details",
+          "priceline_com_provider_search_hotels_locations"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_download_cities"
+          },
+          {
+            "matched": {
+              "name": "Cooper Landing",
+              "search_type": "ALL"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_search_hotels_locations"
+          },
+          {
+            "matched": {
+              "hotel_id": "700008849"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "photos": "1",
+              "reviews": "1",
+              "promo": "True",
+              "guest_score_breakdown": "True",
+              "important_info": "True"
+            },
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_hotel_details"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_travel:1",
+        "expected_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "actual_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "matched_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_hotel_details",
+          "priceline_com_provider_search_hotels_locations"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_download_cities"
+          },
+          {
+            "matched": {
+              "name": "Dillingham",
+              "search_type": "ALL"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_search_hotels_locations"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_hotel_details"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_travel:2",
+        "expected_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "actual_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_search_hotels_locations",
+          "priceline_com_provider_hotel_details"
+        ],
+        "matched_tools": [
+          "priceline_com_provider_download_cities",
+          "priceline_com_provider_hotel_details",
+          "priceline_com_provider_search_hotels_locations"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_download_cities"
+          },
+          {
+            "matched": {
+              "name": "Palmer",
+              "search_type": "ALL"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_search_hotels_locations"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_hotel_details"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_finance_simple:0",
+        "expected_tools": [
+          "mboum_finance_market_small_cap_gainers",
+          "mboum_finance_market_growth_technology_stocks",
+          "bybit_query_historical_volatility"
+        ],
+        "actual_tools": [
+          "mboum_finance_market_small_cap_gainers",
+          "mboum_finance_market_growth_technology_stocks",
+          "bybit_query_historical_volatility"
+        ],
+        "matched_tools": [
+          "bybit_query_historical_volatility",
+          "mboum_finance_market_growth_technology_stocks",
+          "mboum_finance_market_small_cap_gainers"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "mboum_finance_market_small_cap_gainers"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "mboum_finance_market_growth_technology_stocks"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "baseCoin": "BTC",
+              "startTime": "1659312000000",
+              "endTime": "1660521600000"
+            },
+            "accuracy": 1.0,
+            "tool_name": "bybit_query_historical_volatility"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_travel_simple:0",
+        "expected_tools": [
+          "gas_price_allusaprice",
+          "flightera_flight_data_airlineinfo",
+          "priceline_com_provider_download_locations"
+        ],
+        "actual_tools": [
+          "gas_price_allusaprice",
+          "flightera_flight_data_airlineinfo",
+          "priceline_com_provider_download_locations"
+        ],
+        "matched_tools": [
+          "flightera_flight_data_airlineinfo",
+          "gas_price_allusaprice",
+          "priceline_com_provider_download_locations"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "gas_price_allusaprice"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "name": "United Airlines"
+            },
+            "accuracy": 1.0,
+            "tool_name": "flightera_flight_data_airlineinfo"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "limit": "100"
+            },
+            "accuracy": 1.0,
+            "tool_name": "priceline_com_provider_download_locations"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_education_hard:0",
+        "expected_tools": [
+          "helioviewer_v1_getuservideos",
+          "helioviewer_v1_getjp2image",
+          "thefluentme_get_all_posts"
+        ],
+        "actual_tools": [
+          "helioviewer_v1_getuservideos",
+          "helioviewer_v1_getjp2image",
+          "thefluentme_get_all_posts"
+        ],
+        "matched_tools": [
+          "helioviewer_v1_getjp2image",
+          "helioviewer_v1_getuservideos",
+          "thefluentme_get_all_posts"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "helioviewer_v1_getuservideos"
+          },
+          {
+            "matched": {
+              "date": "2023-01-15T12:00:00Z"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "observatory": "SDO",
+              "instrument": "AIA",
+              "detector": "AIA",
+              "measurement": "171"
+            },
+            "accuracy": 1.0,
+            "tool_name": "helioviewer_v1_getjp2image"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "thefluentme_get_all_posts"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "parallel_music_hard:0",
+        "expected_tools": [
+          "youtube_music_api_detailed_get_artist",
+          "musicdata_api_spotify_topsongs_year",
+          "billboard_api_v2_independent_albums"
+        ],
+        "actual_tools": [
+          "youtube_music_api_detailed_get_artist",
+          "musicdata_api_spotify_topsongs_year",
+          "billboard_api_v2_independent_albums"
+        ],
+        "matched_tools": [
+          "billboard_api_v2_independent_albums",
+          "musicdata_api_spotify_topsongs_year",
+          "youtube_music_api_detailed_get_artist"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "youtube_music_api_detailed_get_artist"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "_raw": "2020"
+            },
+            "accuracy": 1.0,
+            "tool_name": "musicdata_api_spotify_topsongs_year"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "_raw": "2022-12-31"
+            },
+            "accuracy": 1.0,
+            "tool_name": "billboard_api_v2_independent_albums"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": null,
+        "parallel_expected": true,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_ecommerce:0",
+        "expected_tools": [
+          "zappos_realtime_data_zappos_search_product",
+          "bestbuy_product_data_bestbuyproductdata",
+          "wayfair_auto_complete"
+        ],
+        "actual_tools": [
+          "zappos_realtime_data_zappos_search_product",
+          "bestbuy_product_data_bestbuyproductdata",
+          "bestbuy_product_data_bestbuyproductdata",
+          "wayfair_auto_complete"
+        ],
+        "matched_tools": [
+          "bestbuy_product_data_bestbuyproductdata",
+          "wayfair_auto_complete",
+          "zappos_realtime_data_zappos_search_product"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 4,
+        "count_diff": 1,
+        "param_matches": [
+          {
+            "matched": {
+              "keyword": "running shoes"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "sort": "best_seller"
+            },
+            "accuracy": 1.0,
+            "tool_name": "zappos_realtime_data_zappos_search_product"
+          },
+          {
+            "matched": {
+              "page": "1"
+            },
+            "mismatched": {
+              "keyword": {
+                "expected": "Shoes",
+                "actual": "running shoes"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "bestbuy_product_data_bestbuyproductdata"
+          },
+          {
+            "matched": {},
+            "mismatched": {
+              "query": {
+                "expected": "Shoes",
+                "actual": "running shoes"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "wayfair_auto_complete"
+          }
+        ],
+        "param_accuracy": 0.3333333333333333,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_gaming:0",
+        "expected_tools": [
+          "epic_games_store_free_games",
+          "cheapshark_game_deals_list_of_games",
+          "opencritic_api_game_search",
+          "opencritic_api_general_search",
+          "opencritic_api_game_search",
+          "opencritic_api_general_search",
+          "free_to_play_games_database_filter_games_by_multiple_tags",
+          "rocket_league_tournaments",
+          "rocket_league_tournaments",
+          "cheapshark_game_deals_list_of_games"
+        ],
+        "actual_tools": [
+          "epic_games_store_free_games",
+          "cheapshark_game_deals_list_of_games",
+          "opencritic_api_game_search",
+          "opencritic_api_game_search",
+          "opencritic_api_general_search",
+          "opencritic_api_game_search",
+          "opencritic_api_general_search",
+          "free_to_play_games_database_filter_games_by_multiple_tags",
+          "rocket_league_tournaments",
+          "rocket_league_tournaments",
+          "cheapshark_game_deals_list_of_games"
+        ],
+        "matched_tools": [
+          "cheapshark_game_deals_list_of_games",
+          "epic_games_store_free_games",
+          "free_to_play_games_database_filter_games_by_multiple_tags",
+          "opencritic_api_game_search",
+          "opencritic_api_general_search",
+          "rocket_league_tournaments"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 10,
+        "actual_count": 11,
+        "count_diff": 1,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "epic_games_store_free_games"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "title": "Elden Ring"
+            },
+            "accuracy": 1.0,
+            "tool_name": "cheapshark_game_deals_list_of_games"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "criteria": "ELDEN RING"
+            },
+            "extra": {
+              "_raw": "ELDEN RING"
+            },
+            "accuracy": 0.0,
+            "tool_name": "opencritic_api_game_search"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "criteria": "V Rising"
+            },
+            "extra": {
+              "_raw": "V Rising"
+            },
+            "accuracy": 0.0,
+            "tool_name": "opencritic_api_general_search"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "criteria": "Rising"
+            },
+            "extra": {
+              "_raw": "ELDEN RING"
+            },
+            "accuracy": 0.0,
+            "tool_name": "opencritic_api_game_search"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "criteria": "2840"
+            },
+            "extra": {
+              "_raw": "V Rising"
+            },
+            "accuracy": 0.0,
+            "tool_name": "opencritic_api_general_search"
+          },
+          {
+            "matched": {
+              "tag": "racing"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "platform": "pc"
+            },
+            "accuracy": 1.0,
+            "tool_name": "free_to_play_games_database_filter_games_by_multiple_tags"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "region": "us-east"
+            },
+            "extra": {
+              "_raw": "us-east"
+            },
+            "accuracy": 0.0,
+            "tool_name": "rocket_league_tournaments"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "region": "10"
+            },
+            "extra": {
+              "_raw": "us-east"
+            },
+            "accuracy": 0.0,
+            "tool_name": "rocket_league_tournaments"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "title": "Elden Ring"
+            },
+            "accuracy": 1.0,
+            "tool_name": "cheapshark_game_deals_list_of_games"
+          }
+        ],
+        "param_accuracy": 0.4,
+        "order_correct": false,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_finance:0",
+        "expected_tools": [
+          "alpha_vantage_search_endpoint",
+          "alpha_vantage_time_series_daily",
+          "alpha_vantage_technical_indicators"
+        ],
+        "actual_tools": [
+          "alpha_vantage_search_endpoint",
+          "alpha_vantage_time_series_daily",
+          "alpha_vantage_technical_indicators"
+        ],
+        "matched_tools": [
+          "alpha_vantage_search_endpoint",
+          "alpha_vantage_technical_indicators",
+          "alpha_vantage_time_series_daily"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 3,
+        "actual_count": 3,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {
+              "keywords": "apple",
+              "function": "SYMBOL_SEARCH"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "alpha_vantage_search_endpoint"
+          },
+          {
+            "matched": {
+              "function": "TIME_SERIES_DAILY",
+              "symbol": "AAPL"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "alpha_vantage_time_series_daily"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "function": "SMA",
+              "symbol": "AAPL",
+              "interval": "daily"
+            },
+            "accuracy": 1.0,
+            "tool_name": "alpha_vantage_technical_indicators"
+          }
+        ],
+        "param_accuracy": 1.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_news_media:0",
+        "expected_tools": [
+          "biztoc_news_latest_page",
+          "biztoc_tags_trending",
+          "biztoc_search",
+          "news_network_search_news",
+          "biztoc_sources",
+          "biztoc_news_latest_page",
+          "coronavirus_smartable_getnews",
+          "coronavirus_smartable_getstats",
+          "medium_stories_topic",
+          "india_today_unofficial_tag_search"
+        ],
+        "actual_tools": [
+          "biztoc_news_latest_page",
+          "biztoc_news_latest_page",
+          "biztoc_news_latest_page",
+          "biztoc_news_latest_page",
+          "biztoc_news_latest_page",
+          "biztoc_tags_trending",
+          "news_network_search_news",
+          "biztoc_sources",
+          "biztoc_news_latest_page",
+          "coronavirus_smartable_getnews",
+          "coronavirus_smartable_getstats",
+          "medium_stories_topic",
+          "medium_stories_topic",
+          "india_today_unofficial_tag_search"
+        ],
+        "matched_tools": [
+          "biztoc_news_latest_page",
+          "biztoc_sources",
+          "biztoc_tags_trending",
+          "coronavirus_smartable_getnews",
+          "coronavirus_smartable_getstats",
+          "india_today_unofficial_tag_search",
+          "medium_stories_topic",
+          "news_network_search_news"
+        ],
+        "missing_tools": [
+          "biztoc_search"
+        ],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 0.8888888888888888,
+        "f1": 0.9411764705882353,
+        "exact_match": false,
+        "expected_count": 10,
+        "actual_count": 14,
+        "count_diff": 4,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "page_id": "media"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "biztoc_news_latest_page"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "page_id": "6d8332fa1ab9dd1a"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "biztoc_tags_trending"
+          },
+          {
+            "matched": {
+              "keyword": "Joe Biden",
+              "language": "en"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "news_network_search_news"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "biztoc_sources"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "page_id": "bizjournals"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "biztoc_news_latest_page"
+          },
+          {
+            "matched": {
+              "location": "US"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "coronavirus_smartable_getnews"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "location": "US"
+            },
+            "accuracy": 1.0,
+            "tool_name": "coronavirus_smartable_getstats"
+          },
+          {
+            "matched": {
+              "topic": "technology"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "limit": "10"
+            },
+            "accuracy": 1.0,
+            "tool_name": "medium_stories_topic"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "india_today_unofficial_tag_search"
+          }
+        ],
+        "param_accuracy": 0.6,
+        "order_correct": false,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_weather:0",
+        "expected_tools": [
+          "weather_forecast_14_days_list_of_all_countries",
+          "weather_forecast_14_days_list_of_cities_in_one_country",
+          "rapidweather_by_city_name",
+          "ai_weather_by_meteosource_nearest_place",
+          "ai_weather_by_meteosource_current",
+          "ai_weather_by_meteosource_astro",
+          "ai_weather_by_meteosource_historical_weather",
+          "air_quality_air_quality_history",
+          "rapidweather_historical_air_pollution_data",
+          "koppen_climate_classification_classification"
+        ],
+        "actual_tools": [
+          "weather_forecast_14_days_list_of_all_countries",
+          "weather_forecast_14_days_list_of_cities_in_one_country",
+          "rapidweather_by_city_name",
+          "ai_weather_by_meteosource_nearest_place",
+          "ai_weather_by_meteosource_current",
+          "ai_weather_by_meteosource_astro",
+          "ai_weather_by_meteosource_historical_weather",
+          "air_quality_air_quality_history",
+          "rapidweather_historical_air_pollution_data",
+          "koppen_climate_classification_classification"
+        ],
+        "matched_tools": [
+          "ai_weather_by_meteosource_astro",
+          "ai_weather_by_meteosource_current",
+          "ai_weather_by_meteosource_historical_weather",
+          "ai_weather_by_meteosource_nearest_place",
+          "air_quality_air_quality_history",
+          "koppen_climate_classification_classification",
+          "rapidweather_by_city_name",
+          "rapidweather_historical_air_pollution_data",
+          "weather_forecast_14_days_list_of_all_countries",
+          "weather_forecast_14_days_list_of_cities_in_one_country"
+        ],
+        "missing_tools": [],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "exact_match": true,
+        "expected_count": 10,
+        "actual_count": 10,
+        "count_diff": 0,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "weather_forecast_14_days_list_of_all_countries"
+          },
+          {
+            "matched": {
+              "country": "US"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "weather_forecast_14_days_list_of_cities_in_one_country"
+          },
+          {
+            "matched": {
+              "q": "Ukraine"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "rapidweather_by_city_name"
+          },
+          {
+            "matched": {
+              "lon": "-122.42282",
+              "lat": "49"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "language": "en"
+            },
+            "accuracy": 1.0,
+            "tool_name": "ai_weather_by_meteosource_nearest_place"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "place_id": "northwood-5805341",
+              "units": "metric",
+              "timezone": "auto"
+            },
+            "accuracy": 1.0,
+            "tool_name": "ai_weather_by_meteosource_current"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "place_id": "northwood-5805341",
+              "timezone": "auto"
+            },
+            "accuracy": 1.0,
+            "tool_name": "ai_weather_by_meteosource_astro"
+          },
+          {
+            "matched": {
+              "date": "2021-08-24"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "place_id": "northwood-5805341"
+            },
+            "accuracy": 1.0,
+            "tool_name": "ai_weather_by_meteosource_historical_weather"
+          },
+          {
+            "matched": {
+              "lat": "35.779",
+              "lon": "-78.638"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "air_quality_air_quality_history"
+          },
+          {
+            "matched": {
+              "start": "1736668800",
+              "end": "1736755200"
+            },
+            "mismatched": {
+              "lat": {
+                "expected": "35.7796",
+                "actual": "35.779"
+              },
+              "lon": {
+                "expected": "-78.6382",
+                "actual": "-78.638"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.5,
+            "tool_name": "rapidweather_historical_air_pollution_data"
+          },
+          {
+            "matched": {},
+            "mismatched": {
+              "lon": {
+                "expected": "Cfa",
+                "actual": "-78.638"
+              },
+              "lat": {
+                "expected": "35.7796",
+                "actual": "35.779"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "koppen_climate_classification_classification"
+          }
+        ],
+        "param_accuracy": 0.8,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_finance:5",
+        "expected_tools": [
+          "alpha_vantage_digital_currency_weekly",
+          "alpha_vantage_currency_exchange_rate_crypto",
+          "alpha_vantage_fx_intraday"
+        ],
+        "actual_tools": [
+          "alpha_vantage_digital_currency_weekly",
+          "alpha_vantage_currency_exchange_rate_crypto"
+        ],
+        "matched_tools": [
+          "alpha_vantage_currency_exchange_rate_crypto",
+          "alpha_vantage_digital_currency_weekly"
+        ],
+        "missing_tools": [
+          "alpha_vantage_fx_intraday"
+        ],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 0.6666666666666666,
+        "f1": 0.8,
+        "exact_match": false,
+        "expected_count": 3,
+        "actual_count": 2,
+        "count_diff": -1,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "market": "USD",
+              "function": "DIGITAL_CURRENCY_WEEKLY",
+              "symbol": "BTC"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "alpha_vantage_digital_currency_weekly"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "from_currency": "BTC,USD",
+              "function": "CURRENCY_EXCHANGE_RATE",
+              "to_currency": "USD"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "alpha_vantage_currency_exchange_rate_crypto"
+          }
+        ],
+        "param_accuracy": 0.0,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      },
+      {
+        "task_id": "sequential_music:0",
+        "expected_tools": [
+          "billboard_artist_100",
+          "spotify_search",
+          "spotify_v2_artist_details_single",
+          "spotify_v2_related_artists",
+          "spotify_v2_artist_albums",
+          "musiclinkssapi_search_by_url",
+          "apple_music_album",
+          "genius_song_lyrics_search",
+          "shazam_search",
+          "shazam_songs_get_count"
+        ],
+        "actual_tools": [
+          "billboard_artist_100",
+          "spotify_search",
+          "spotify_v2_artist_details_single",
+          "spotify_v2_related_artists",
+          "spotify_v2_artist_albums",
+          "musiclinkssapi_search_by_url",
+          "genius_song_lyrics_search",
+          "shazam_search",
+          "shazam_songs_get_count"
+        ],
+        "matched_tools": [
+          "billboard_artist_100",
+          "genius_song_lyrics_search",
+          "musiclinkssapi_search_by_url",
+          "shazam_search",
+          "shazam_songs_get_count",
+          "spotify_search",
+          "spotify_v2_artist_albums",
+          "spotify_v2_artist_details_single",
+          "spotify_v2_related_artists"
+        ],
+        "missing_tools": [
+          "apple_music_album"
+        ],
+        "extra_tools": [],
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9473684210526316,
+        "exact_match": false,
+        "expected_count": 10,
+        "actual_count": 9,
+        "count_diff": -1,
+        "param_matches": [
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {
+              "date": "2023-11-10"
+            },
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "billboard_artist_100"
+          },
+          {
+            "matched": {
+              "q": "SEVENTEEN",
+              "type": "artists"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "spotify_search"
+          },
+          {
+            "matched": {
+              "artist_id": "7nqOGRxlXj7N2JYbgNEjYH"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "spotify_v2_artist_details_single"
+          },
+          {
+            "matched": {},
+            "mismatched": {
+              "artist_id": {
+                "expected": "0EmeFodog0BfCgMzAIvKQp",
+                "actual": "7nqOGRxlXj7N2JYbgNEjYH"
+              }
+            },
+            "missing": {},
+            "extra": {},
+            "accuracy": 0.0,
+            "tool_name": "spotify_v2_related_artists"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "artist_id": "1d6dwipPrsFSJVmFTTdFSS"
+            },
+            "accuracy": 1.0,
+            "tool_name": "spotify_v2_artist_albums"
+          },
+          {
+            "matched": {
+              "spotify_url": "https://open.spotify.com/artist/1d6dwipPrsFSJVmFTTdFSS"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "musiclinkssapi_search_by_url"
+          },
+          {
+            "matched": {},
+            "mismatched": {},
+            "missing": {},
+            "extra": {
+              "q": "Taylor Swift Cruel Summer"
+            },
+            "accuracy": 1.0,
+            "tool_name": "genius_song_lyrics_search"
+          },
+          {
+            "matched": {
+              "term": "Taylor Swift Cruel Summer"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "shazam_search"
+          },
+          {
+            "matched": {
+              "key": "488840226"
+            },
+            "mismatched": {},
+            "missing": {},
+            "extra": {},
+            "accuracy": 1.0,
+            "tool_name": "shazam_songs_get_count"
+          }
+        ],
+        "param_accuracy": 0.7,
+        "order_correct": true,
+        "parallel_expected": false,
+        "parallel_detected": false,
+        "terminated_by": "",
+        "status": "ok",
+        "error": null
+      }
+    ]
+  }
+]

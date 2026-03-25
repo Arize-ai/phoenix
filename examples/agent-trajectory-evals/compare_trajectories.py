@@ -104,14 +104,27 @@ def normalize_tool_name(name: str) -> str:
     return normalized.strip("_")
 
 
-def compare_params(expected_kwargs: dict, actual_args: dict) -> dict:
+def _parse_args(args: dict | str | None) -> dict:
+    """Parse tool call arguments, handling JSON strings."""
+    if args is None:
+        return {}
+    if isinstance(args, str):
+        try:
+            parsed = json.loads(args)
+            return parsed if isinstance(parsed, dict) else {"_raw": args}
+        except (json.JSONDecodeError, TypeError):
+            return {"_raw": args}
+    return args
+
+
+def compare_params(expected_kwargs: dict, actual_args: dict | str | None) -> dict:
     """Compare expected vs actual parameters for a single tool call.
 
     Returns a dict with match details.
     """
     # Flatten expected kwargs (tau-bench uses flat dict)
     expected = {str(k): str(v) for k, v in expected_kwargs.items()}
-    actual = {str(k): str(v) for k, v in actual_args.items()}
+    actual = {str(k): str(v) for k, v in _parse_args(actual_args).items()}
 
     matched = {}
     mismatched = {}
@@ -169,10 +182,11 @@ def compare_task_taubench(entry: dict) -> ToolMatchResult:
         )
 
     expected_actions = entry.get("expected_actions", [])
-    tool_calls_made = entry.get("tool_calls_made", [])
+    # Filter to actual tool calls (exclude ToolCallOutputItem, etc.)
+    tool_calls_made = [tc for tc in entry.get("tool_calls_made", []) if tc.get("name")]
 
     expected_names = [a["name"] for a in expected_actions]
-    actual_names = [tc.get("name", "") for tc in tool_calls_made]
+    actual_names = [tc["name"] for tc in tool_calls_made]
 
     expected_set = set(expected_names)
     actual_set = set(actual_names)
