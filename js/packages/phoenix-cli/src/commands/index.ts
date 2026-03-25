@@ -3,7 +3,6 @@ export * from "./auth";
 export * from "./project";
 export * from "./trace";
 export * from "./span";
-export * from "./datasets";
 export * from "./dataset";
 export * from "./experiments";
 export * from "./experiment";

@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import type { PhoenixClient } from "@arizeai/phoenix-client";
+import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
@@ -11,8 +11,11 @@ import {
   formatDatasetExamplesOutput,
   type OutputFormat,
 } from "./formatDataset";
+import { formatDatasetsOutput } from "./formatDatasets";
 
-interface DatasetOptions {
+type Dataset = componentsV1["schemas"]["Dataset"];
+
+interface DatasetGetOptions {
   endpoint?: string;
   apiKey?: string;
   format?: OutputFormat;
@@ -20,6 +23,50 @@ interface DatasetOptions {
   file?: string;
   split?: string[];
   version?: string;
+}
+
+interface DatasetListOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: OutputFormat;
+  progress?: boolean;
+  limit?: number;
+}
+
+/**
+ * Fetch all datasets from Phoenix
+ */
+async function fetchDatasets(
+  client: PhoenixClient,
+  options: { limit?: number } = {}
+): Promise<Dataset[]> {
+  const allDatasets: Dataset[] = [];
+  let cursor: string | undefined;
+  const pageLimit = options.limit || 100;
+
+  do {
+    const response = await client.GET("/v1/datasets", {
+      params: {
+        query: {
+          cursor,
+          limit: pageLimit,
+        },
+      },
+    });
+
+    if (response.error || !response.data) {
+      throw new Error(`Failed to fetch datasets: ${response.error}`);
+    }
+
+    allDatasets.push(...response.data.data);
+    cursor = response.data.next_cursor || undefined;
+
+    if (options.limit && allDatasets.length >= options.limit) {
+      break;
+    }
+  } while (cursor);
+
+  return allDatasets;
 }
 
 /**
@@ -83,7 +130,7 @@ async function fetchDatasetName(
  */
 async function datasetHandler(
   datasetIdentifier: string,
-  options: DatasetOptions
+  options: DatasetGetOptions
 ): Promise<void> {
   try {
     const userSpecifiedFormat =
@@ -176,6 +223,55 @@ async function datasetHandler(
 }
 
 /**
+ * Handler for `dataset list`
+ */
+async function datasetListHandler(options: DatasetListOptions): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    if (!config.endpoint) {
+      const errors = [
+        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
+      ];
+      writeError({ message: getConfigErrorMessage({ errors }) });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: "Fetching datasets...",
+      noProgress: !options.progress,
+    });
+
+    const datasets = await fetchDatasets(client, {
+      limit: options.limit,
+    });
+
+    writeProgress({
+      message: `Found ${datasets.length} dataset(s)`,
+      noProgress: !options.progress,
+    });
+
+    const output = formatDatasetsOutput({
+      datasets,
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error fetching datasets: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
  * Collect multiple --split options into an array
  */
 function collectSplits(value: string, previous: string[]): string[] {
@@ -183,12 +279,10 @@ function collectSplits(value: string, previous: string[]): string[] {
 }
 
 /**
- * Create the dataset command
+ * Create the `dataset get` command
  */
-export function createDatasetCommand(): Command {
-  const command = new Command("dataset");
-
-  command
+export function createDatasetGetCommand(): Command {
+  return new Command("get")
     .description("Fetch examples from a dataset")
     .argument("<dataset-identifier>", "Dataset name or ID")
     .option("--endpoint <url>", "Phoenix API endpoint")
@@ -208,6 +302,30 @@ export function createDatasetCommand(): Command {
     )
     .option("--version <id>", "Fetch from a specific dataset version")
     .action(datasetHandler);
+}
 
+export function createDatasetListCommand(): Command {
+  return new Command("list")
+    .description("List all available Phoenix datasets")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .option("--limit <number>", "Maximum number of datasets to fetch", parseInt)
+    .action(datasetListHandler);
+}
+
+/**
+ * Create the `dataset` command with subcommands
+ */
+export function createDatasetCommand(): Command {
+  const command = new Command("dataset");
+  command.description("Manage Phoenix datasets");
+  command.addCommand(createDatasetListCommand());
+  command.addCommand(createDatasetGetCommand());
   return command;
 }

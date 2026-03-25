@@ -17,9 +17,11 @@ describe("Phoenix CLI", () => {
     expect(program.helpInformation()).toContain(
       "prompt [options] <prompt-identifier>"
     );
+    expect(program.helpInformation()).toContain("dataset");
     expect(program.helpInformation()).toContain("project");
     expect(program.helpInformation()).toContain("span");
     expect(program.helpInformation()).toContain("trace");
+    expect(program.helpInformation()).not.toContain("datasets [options]");
     expect(program.helpInformation()).not.toContain("projects [options]");
     expect(program.helpInformation()).not.toContain("spans [options]");
     expect(program.helpInformation()).not.toContain("traces [options]");
@@ -67,6 +69,21 @@ describe("Phoenix CLI", () => {
     );
     expect(
       program.commands.find((command) => command.name() === "spans")
+    ).toBeUndefined();
+  });
+
+  it("should register dataset list and dataset get as the primary dataset commands", () => {
+    const program = createProgram();
+    const datasetCommand = program.commands.find(
+      (command) => command.name() === "dataset"
+    );
+
+    expect(datasetCommand).toBeDefined();
+    expect(datasetCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get"])
+    );
+    expect(
+      program.commands.find((command) => command.name() === "datasets")
     ).toBeUndefined();
   });
 });
