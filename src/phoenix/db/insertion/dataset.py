@@ -543,14 +543,15 @@ async def add_dataset_examples(
         )
 
     # Batch resolve span IDs to row IDs
-    span_ids_to_resolve = [ex.content.span_id for ex in examples]
+    span_ids_to_resolve = [example.content.span_id for example in examples]
     span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
 
     # Prepare span_rowids and external_ids lists for bulk insert (preserving order)
     span_rowids: list[Optional[SpanRowId]] = [
-        span_id_to_rowid.get(ex.content.span_id) if ex.content.span_id else None for ex in examples
+        span_id_to_rowid.get(example.content.span_id) if example.content.span_id else None
+        for example in examples
     ]
-    external_ids: list[Optional[str]] = [ex.content.external_id for ex in examples]
+    external_ids: list[Optional[str]] = [example.content.external_id for example in examples]
 
     # Bulk insert all examples at once
     try:
@@ -582,8 +583,8 @@ async def add_dataset_examples(
 
     # Collect split assignments by name for bulk insert
     split_assignments: list[tuple[DatasetExampleId, SplitName]] = []
-    for example_id, ex in zip(example_ids, examples):
-        for split_name in ex.content.splits:
+    for example_id, example in zip(example_ids, examples):
+        for split_name in example.content.splits:
             split_assignments.append((example_id, split_name))
 
     # Bulk create splits and assign examples after iteration
