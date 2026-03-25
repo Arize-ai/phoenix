@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import { useCallback, useRef, useState } from "react";
 
 import {
@@ -6,6 +5,7 @@ import {
   Icon,
   IconButton,
   Icons,
+  Keyboard,
   Menu,
   MenuContainer,
   MenuEmpty,
@@ -20,17 +20,6 @@ import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
 import { getSessionDisplayName } from "./sessionSummaryUtils";
-
-const deleteButtonCSS = css`
-  opacity: 0;
-  transition: opacity 0.15s;
-  flex-shrink: 0;
-
-  .react-aria-MenuItem[data-hovered] &,
-  .react-aria-MenuItem[data-focused] & {
-    opacity: 1;
-  }
-`;
 
 /**
  * Props for the session list menu.
@@ -151,14 +140,18 @@ function SessionMenuItem({
       aria-keyshortcuts="Delete"
       trailingContent={
         <StopPropagation>
+          <TooltipTrigger delay={300}>
             <IconButton
               size="S"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session.id)}
-              css={deleteButtonCSS}
             >
               <Icon svg={<Icons.TrashOutline />} />
             </IconButton>
+            <Tooltip>
+              Delete <Keyboard>⌫</Keyboard>
+            </Tooltip>
+          </TooltipTrigger>
         </StopPropagation>
       }
     >
