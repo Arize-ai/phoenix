@@ -1,3 +1,5 @@
+import { ONE_DAY_MS, ONE_HOUR_MS } from "@phoenix/constants/timeConstants";
+
 /**
  * Creates a time formatter from a pattern
  * NB: this is intentionally made strict to Date for safety
@@ -139,9 +141,6 @@ export function getTimeZoneShortName(
     .find((i) => i.type === "timeZoneName")?.value;
 }
 
-const MS_PER_HOUR = 1000 * 60 * 60;
-const MS_PER_DAY = MS_PER_HOUR * 24;
-
 /**
  * Formats a Unix timestamp as a compact, human-readable age string.
  *
@@ -161,18 +160,18 @@ export function formatRelativeShort(
 
   const diffMs = now - timestamp;
 
-  if (diffMs < 6 * MS_PER_HOUR) {
+  if (diffMs < 6 * ONE_HOUR_MS) {
     return new Date(timestamp).toLocaleTimeString(undefined, {
       hour: "numeric",
       minute: "2-digit",
     });
   }
 
-  if (diffMs < MS_PER_DAY) {
-    return `${Math.floor(diffMs / MS_PER_HOUR)}h`;
+  if (diffMs < ONE_DAY_MS) {
+    return `${Math.floor(diffMs / ONE_HOUR_MS)}h`;
   }
 
-  return `${Math.floor(diffMs / MS_PER_DAY)}d`;
+  return `${Math.floor(diffMs / ONE_DAY_MS)}d`;
 }
 
 export function getLocaleDateFormatPattern(locale: string) {

@@ -1,6 +1,11 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
 import { Flex, Text, View } from "@phoenix/components";
+import {
+  ONE_DAY_MS,
+  ONE_HOUR_MS,
+  ONE_MINUTE_MS,
+} from "@phoenix/constants/timeConstants";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
 const meta: Meta = {
@@ -12,10 +17,6 @@ const meta: Meta = {
 
 export default meta;
 
-const MS_PER_MINUTE = 1000 * 60;
-const MS_PER_HOUR = MS_PER_MINUTE * 60;
-const MS_PER_DAY = MS_PER_HOUR * 24;
-
 const NOW = new Date("2026-03-24T14:30:00").getTime();
 
 /**
@@ -25,38 +26,26 @@ const NOW = new Date("2026-03-24T14:30:00").getTime();
 const SAMPLES: { label: string; offsetMs: number }[] = [
   { label: "Just now", offsetMs: 0 },
   { label: "30 seconds ago", offsetMs: 30 * 1000 },
-  { label: "5 minutes ago", offsetMs: 5 * MS_PER_MINUTE },
-  { label: "30 minutes ago", offsetMs: 30 * MS_PER_MINUTE },
-  { label: "1 hour ago", offsetMs: 1 * MS_PER_HOUR },
-  { label: "3 hours ago", offsetMs: 3 * MS_PER_HOUR },
-  { label: "5 hours 59 min ago", offsetMs: 6 * MS_PER_HOUR - MS_PER_MINUTE },
+  { label: "5 minutes ago", offsetMs: 5 * ONE_MINUTE_MS },
+  { label: "30 minutes ago", offsetMs: 30 * ONE_MINUTE_MS },
+  { label: "1 hour ago", offsetMs: 1 * ONE_HOUR_MS },
+  { label: "3 hours ago", offsetMs: 3 * ONE_HOUR_MS },
+  { label: "5 hours 59 min ago", offsetMs: 6 * ONE_HOUR_MS - ONE_MINUTE_MS },
   // ── boundary: 6h ──
-  { label: "6 hours ago", offsetMs: 6 * MS_PER_HOUR },
-  { label: "8 hours ago", offsetMs: 8 * MS_PER_HOUR },
-  { label: "12 hours ago", offsetMs: 12 * MS_PER_HOUR },
-  { label: "23 hours ago", offsetMs: 23 * MS_PER_HOUR },
+  { label: "6 hours ago", offsetMs: 6 * ONE_HOUR_MS },
+  { label: "8 hours ago", offsetMs: 8 * ONE_HOUR_MS },
+  { label: "12 hours ago", offsetMs: 12 * ONE_HOUR_MS },
+  { label: "23 hours ago", offsetMs: 23 * ONE_HOUR_MS },
   // ── boundary: 24h ──
-  { label: "1 day ago", offsetMs: 1 * MS_PER_DAY },
-  { label: "2 days ago", offsetMs: 2 * MS_PER_DAY },
-  { label: "7 days ago", offsetMs: 7 * MS_PER_DAY },
-  { label: "30 days ago", offsetMs: 30 * MS_PER_DAY },
-  { label: "45 days ago", offsetMs: 45 * MS_PER_DAY },
-  { label: "365 days ago", offsetMs: 365 * MS_PER_DAY },
+  { label: "1 day ago", offsetMs: 1 * ONE_DAY_MS },
+  { label: "2 days ago", offsetMs: 2 * ONE_DAY_MS },
+  { label: "7 days ago", offsetMs: 7 * ONE_DAY_MS },
+  { label: "30 days ago", offsetMs: 30 * ONE_DAY_MS },
+  { label: "45 days ago", offsetMs: 45 * ONE_DAY_MS },
+  { label: "365 days ago", offsetMs: 365 * ONE_DAY_MS },
   // ── edge: legacy session ──
   { label: "Legacy (timestamp 0)", offsetMs: -1 },
 ];
-
-const cellStyle: React.CSSProperties = {
-  padding: "6px 16px",
-  borderBottom: "1px solid var(--global-border-color-default)",
-  whiteSpace: "nowrap",
-};
-
-const headerCellStyle: React.CSSProperties = {
-  ...cellStyle,
-  borderBottom: "2px solid var(--global-border-color-default)",
-  fontWeight: 600,
-};
 
 /**
  * Demonstrates the three formatting tiers of `formatCompactTimestamp`:
@@ -76,12 +65,12 @@ export const FormattingRules: StoryFn = () => (
       <Text color="text-700" size="S">
         Reference time: {new Date(NOW).toLocaleString()}
       </Text>
-      <table style={{ borderCollapse: "collapse" }}>
+      <table>
         <thead>
           <tr>
-            <td style={headerCellStyle}>Age</td>
-            <td style={headerCellStyle}>Output</td>
-            <td style={headerCellStyle}>Rule</td>
+            <th>Age</th>
+            <th>Output</th>
+            <th>Rule</th>
           </tr>
         </thead>
         <tbody>
@@ -91,15 +80,15 @@ export const FormattingRules: StoryFn = () => (
             const rule = getRuleName(offsetMs);
             return (
               <tr key={label}>
-                <td style={cellStyle}>
+                <td>
                   <Text size="S">{label}</Text>
                 </td>
-                <td style={cellStyle}>
+                <td>
                   <Text size="S" weight="heavy">
                     {output || <em>empty string</em>}
                   </Text>
                 </td>
-                <td style={cellStyle}>
+                <td>
                   <Text size="XS" color="text-300">
                     {rule}
                   </Text>
@@ -115,7 +104,7 @@ export const FormattingRules: StoryFn = () => (
 
 function getRuleName(offsetMs: number): string {
   if (offsetMs === -1) return "timestamp 0 → empty";
-  if (offsetMs < 6 * MS_PER_HOUR) return "< 6h → locale time";
-  if (offsetMs < MS_PER_DAY) return "6–24h → hours";
+  if (offsetMs < 6 * ONE_HOUR_MS) return "< 6h → locale time";
+  if (offsetMs < ONE_DAY_MS) return "6–24h → hours";
   return "> 24h → days";
 }
