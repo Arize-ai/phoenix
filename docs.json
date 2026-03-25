@@ -1099,6 +1099,8 @@
               {
                 "group": "03.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
+                  "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
                   "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",
                   "docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api",
                   "docs/phoenix/release-notes/03-2026/03-08-2026-new-playground-providers-and-project-settings",

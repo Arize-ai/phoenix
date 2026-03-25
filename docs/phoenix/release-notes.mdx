@@ -10,6 +10,50 @@ GitHub
 
 
 
+<Update label="03.24.2026">
+## [03.24.2026: Prompt Version Diff View](/docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates)
+**Available in arize-phoenix 13.18.0+**
+
+The Prompts UI now shows a line-by-line diff between any two prompt versions. See exactly what changed — message content, tool call arguments, and tool results — without leaving Phoenix.
+
+- **Side-by-side diff** across the full chat template, including all content part types
+</Update>
+
+<Update label="03.24.2026">
+## [03.24.2026: Evals Accept Structured Data Inputs](/docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates)
+**Available in arize-phoenix-evals 2.12.0+**
+
+Evaluators now accept dicts and lists as template variable values, JSON-serializing them automatically. Built-in evaluators also accept `**kwargs` forwarded to the LLM on every call (e.g., `temperature=0.0`).
+
+- **Structured inputs** (dicts, lists) are JSON-serialized before prompt rendering — no manual `json.dumps()` needed
+- **LLM invocation kwargs** accepted by all built-in evaluators (`FaithfulnessEvaluator`, `CorrectnessEvaluator`, etc.)
+</Update>
+
+<Update label="03.23.2026">
+## [03.23.2026: `px auth status` Shows Username and Role](/docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api)
+**Available in arize-phoenix 13.17.0+ and @arizeai/phoenix-cli 0.12.0+**
+
+`px auth status` now verifies credentials against the server and displays the authenticated username and role alongside the endpoint and token info.
+</Update>
+
+<Update label="03.22.2026">
+## [03.22.2026: `px spans` — Fetch and Filter Spans from the CLI](/docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api)
+**Available in arize-phoenix 13.16.0+ and @arizeai/phoenix-cli 0.12.0+**
+
+`px spans` fetches spans for a project with filtering by kind, status code, name, trace ID, and time window. Output to the terminal or save to JSON for offline use.
+
+- **`--span-kind`**, **`--status-code`**, **`--name`**, **`--trace-id`** filters
+- **`--last-n-minutes`** / **`--since`** time range controls
+- **`--include-annotations`** to attach span annotations to the output
+</Update>
+
+<Update label="03.22.2026">
+## [03.22.2026: `px self update` and `GET /v1/user`](/docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api)
+**Available in arize-phoenix 13.16.0+ and @arizeai/phoenix-cli 0.12.0+**
+
+`px self update` upgrades the installed CLI to the latest version, detecting npm, pnpm, bun, or Deno automatically. `GET /v1/user` returns the authenticated user's profile (username, email, role) or an anonymous representation when auth is disabled.
+</Update>
+
 <Update label="03.18.2026">
 ## [03.18.2026: Span Filters — Name, Kind, and Status Code](/docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements)
 **Available in arize-phoenix 13.15.0+ (server), arize-phoenix-client 2.1.0+ (Python), @arizeai/phoenix-client 6.5.1+ (TypeScript)**
