@@ -165,7 +165,7 @@ export function getConfigErrorMessage({
     "     export PHOENIX_PROJECT=my-project",
     "",
     "Or use CLI flags:",
-    "  px traces --endpoint http://localhost:6006 --project my-project",
+    "  px trace list --endpoint http://localhost:6006 --project my-project",
   ];
   return lines.join("\n");
 }

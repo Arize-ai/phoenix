@@ -67,16 +67,16 @@ px self update --check  # show current/latest without installing
 Automatic updates are supported for global `npm`, `pnpm`, `bun`, and standard
 `deno install -g` wrapper installs.
 
-### `px traces [directory]`
+### `px trace list [directory]`
 
 Fetch recent traces from the configured project. All output is JSON.
 
 ```bash
-px traces --limit 10                          # stdout (pretty)
-px traces --format raw --no-progress | jq    # pipe-friendly compact JSON
-px traces ./my-traces --limit 50             # save as JSON files to directory
-px traces --last-n-minutes 60 --limit 20     # filter by time window
-px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
+px trace list --limit 10                          # stdout (pretty)
+px trace list --format raw --no-progress | jq    # pipe-friendly compact JSON
+px trace list ./my-traces --limit 50             # save as JSON files to directory
+px trace list --last-n-minutes 60 --limit 20     # filter by time window
+px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 ```
 
 | Option                      | Description                            | Default  |
@@ -91,42 +91,42 @@ px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
 
 ```bash
 # Find ERROR traces
-px traces --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+px trace list --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 
 # Sort by duration, take top 5 slowest
-px traces --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
+px trace list --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 
 # Extract LLM model names used
-px traces --limit 50 --format raw --no-progress | \
+px trace list --limit 50 --format raw --no-progress | \
   jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
 ```
 
 ---
 
-### `px trace <trace-id>`
+### `px trace get <trace-id>`
 
 Fetch a single trace by ID.
 
 ```bash
-px trace abc123def456
-px trace abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
-px trace abc123def456 --file trace.json
+px trace get abc123def456
+px trace get abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace get abc123def456 --file trace.json
 ```
 
 ---
 
-### `px spans [file]`
+### `px span list [file]`
 
 Fetch spans for the configured project with filtering options. Output is JSON.
 
 ```bash
-px spans --limit 50                                    # stdout (pretty)
-px spans --span-kind LLM --limit 20                    # only LLM spans
-px spans --status-code ERROR --format raw --no-progress # pipe-friendly error spans
-px spans --name chat_completion --trace-id abc123       # filter by name and trace
-px spans --parent-id null                               # root spans only
-px spans spans.json --limit 100 --include-annotations   # save to file with annotations
-px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+px span list --limit 50                                    # stdout (pretty)
+px span list --span-kind LLM --limit 20                    # only LLM spans
+px span list --status-code ERROR --format raw --no-progress # pipe-friendly error spans
+px span list --name chat_completion --trace-id abc123       # filter by name and trace
+px span list --parent-id null                               # root spans only
+px span list spans.json --limit 100 --include-annotations   # save to file with annotations
+px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
 ```
 
 | Option                      | Description                                                                                                                      | Default  |
@@ -146,85 +146,85 @@ px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
 
 ```bash
 # Find all ERROR spans
-px spans --status-code ERROR --format raw --no-progress | jq '.[] | {name, status_code}'
+px span list --status-code ERROR --format raw --no-progress | jq '.[] | {name, status_code}'
 
 # Get LLM spans with token counts
-px spans --span-kind LLM --format raw --no-progress | \
+px span list --span-kind LLM --format raw --no-progress | \
   jq '.[] | {name, model: .attributes["llm.model_name"], tokens: (.attributes["llm.token_count.prompt"] + .attributes["llm.token_count.completion"])}'
 
 # Root spans only, sorted by name
-px spans --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
+px span list --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
 ```
 
 ---
 
-### `px datasets`
+### `px dataset list`
 
 List all datasets.
 
 ```bash
-px datasets --format raw --no-progress | jq '.[].name'
+px dataset list --format raw --no-progress | jq '.[].name'
 ```
 
 ---
 
-### `px dataset <dataset-identifier>`
+### `px dataset get <dataset-identifier>`
 
 Fetch examples from a dataset.
 
 ```bash
-px dataset my-dataset --format raw | jq '.examples[].input'
-px dataset my-dataset --split train --split test
-px dataset my-dataset --version <version-id>
-px dataset my-dataset --file dataset.json
+px dataset get my-dataset --format raw | jq '.examples[].input'
+px dataset get my-dataset --split train --split test
+px dataset get my-dataset --version <version-id>
+px dataset get my-dataset --file dataset.json
 ```
 
 ---
 
-### `px experiments --dataset <name-or-id>`
+### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
 
 ```bash
-px experiments --dataset my-dataset --format raw --no-progress | \
+px experiment list --dataset my-dataset --format raw --no-progress | \
   jq '.[] | {id, successful_run_count, failed_run_count}'
 ```
 
 ---
 
-### `px experiment <experiment-id>`
+### `px experiment get <experiment-id>`
 
 Fetch a single experiment with all run data (inputs, outputs, evaluations, trace IDs).
 
 ```bash
 # Find failed runs
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '.[] | select(.error != null) | {input, error}'
 
 # Average latency
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '[.[].latency_ms] | add / length'
 ```
 
 ---
 
-### `px prompts`
+### `px prompt list`
 
 List all prompts.
 
 ```bash
-px prompts --format raw --no-progress | jq '.[].name'
+px prompt list --format raw --no-progress | jq '.[].name'
 ```
 
 ---
 
-### `px prompt <prompt-identifier>`
+### `px prompt get <prompt-identifier>`
 
 Fetch a prompt. The `text` format is ideal for piping to AI assistants.
 
 ```bash
-px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt"
-px prompt my-evaluator --tag production --format json | jq '.template'
+px prompt get my-evaluator --format text --no-progress | claude -p "Review this prompt"
+px prompt get my-evaluator --tag production --format json | jq '.template'
 ```
 
 | Option              | Description                        | Default  |
@@ -235,14 +235,14 @@ px prompt my-evaluator --tag production --format json | jq '.template'
 
 ---
 
-### `px projects`
+### `px project list`
 
 List all available Phoenix projects.
 
 ```bash
-px projects                                           # pretty output
-px projects --format raw --no-progress | jq '.[].name'
-px projects --limit 5
+px project list                                           # pretty output
+px project list --format raw --no-progress | jq '.[].name'
+px project list --limit 5
 ```
 
 | Option              | Description                         | Default  |
@@ -253,14 +253,14 @@ px projects --limit 5
 
 ---
 
-### `px sessions`
+### `px session list`
 
 List sessions for a project.
 
 ```bash
-px sessions                                            # latest 10 sessions
-px sessions --limit 20 --order asc                     # oldest first
-px sessions --format raw --no-progress | jq '.[].session_id'
+px session list                                            # latest 10 sessions
+px session list --limit 20 --order asc                     # oldest first
+px session list --format raw --no-progress | jq '.[].session_id'
 ```
 
 | Option                 | Description                 | Default  |
@@ -272,14 +272,14 @@ px sessions --format raw --no-progress | jq '.[].session_id'
 
 ---
 
-### `px session <session-id>`
+### `px session get <session-id>`
 
 View a session's conversation flow.
 
 ```bash
-px session my-session-id
-px session my-session-id --file session.json
-px session my-session-id --include-annotations --format raw | jq '.traces'
+px session get my-session-id
+px session get my-session-id --file session.json
+px session get my-session-id --include-annotations --format raw | jq '.traces'
 ```
 
 | Option                  | Description                            | Default  |
@@ -291,12 +291,12 @@ px session my-session-id --include-annotations --format raw | jq '.traces'
 
 ---
 
-### `px annotation-config`
+### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.
 
 ```bash
-px annotation-config --format raw --no-progress | jq '.[].name'
+px annotation-config list --format raw --no-progress | jq '.[].name'
 ```
 
 | Option              | Description                | Default  |
@@ -446,8 +446,8 @@ px docs fetch --refresh                      # clear output dir and re-download
 All commands output JSON. Use `--format raw` for compact JSON and `--no-progress` to suppress stderr when piping:
 
 ```bash
-px traces --format raw --no-progress | jq ...
-px datasets --format raw --no-progress | jq ...
+px trace list --format raw --no-progress | jq ...
+px dataset list --format raw --no-progress | jq ...
 ```
 
 Trace JSON structure:
