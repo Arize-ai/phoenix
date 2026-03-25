@@ -226,8 +226,10 @@ export type PromptInputButtonTooltip =
  * </PromptInputButton>
  * ```
  */
-export interface PromptInputButtonProps
-  extends Omit<ButtonProps, "children" | "className"> {
+export interface PromptInputButtonProps extends Omit<
+  ButtonProps,
+  "children" | "className"
+> {
   /** Icon (or icon + text) to render inside the button. */
   children: ReactNode;
   /**

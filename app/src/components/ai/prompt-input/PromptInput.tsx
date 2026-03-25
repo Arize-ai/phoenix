@@ -2,7 +2,6 @@ import type { Ref } from "react";
 import { forwardRef, useRef, useState } from "react";
 
 import { PromptInputContext } from "./PromptInputContext";
-
 import {
   promptInputActionsCSS,
   promptInputBodyCSS,

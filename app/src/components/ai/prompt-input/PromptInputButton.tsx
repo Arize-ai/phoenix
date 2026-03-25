@@ -3,7 +3,6 @@ import { forwardRef } from "react";
 import { Button, Keyboard, TooltipTrigger } from "react-aria-components";
 
 import { Tooltip, TooltipArrow } from "../../core/tooltip";
-
 import { promptInputButtonCSS } from "./styles";
 import type { PromptInputButtonProps, PromptInputButtonTooltip } from "./types";
 
