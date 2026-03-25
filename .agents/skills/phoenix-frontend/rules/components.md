@@ -20,3 +20,7 @@ New core components MUST include minimal Storybook stories showing primary varia
 ## File convention
 
 Explore a few existing components to match the established file structure (component, styles, types, barrel export).
+
+## Refs
+
+React 19 treats `ref` as a regular prop — do NOT use `forwardRef`. Instead, accept `ref` directly in the props type and destructure it like any other prop. Add `ref?: Ref<ElementType>` to the props interface.
