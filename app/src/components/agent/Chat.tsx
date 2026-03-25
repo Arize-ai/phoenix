@@ -5,7 +5,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
@@ -178,10 +178,25 @@ export function Chat({
   }, [sessionId, store]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRAF = useRef<number>(0);
+
+  // Coalesce auto-scroll requests into a single rAF so rapid streaming
+  // updates don't queue overlapping smooth-scroll animations.
+  const scrollToBottom = useCallback(() => {
+    cancelAnimationFrame(scrollRAF.current);
+    scrollRAF.current = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
+    scrollToBottom();
+  }, [messages, status, scrollToBottom]);
+
+  // Cancel any pending rAF on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(scrollRAF.current);
+  }, []);
 
   return (
     <div css={chatCSS}>
