@@ -1349,24 +1349,24 @@ def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
         {
             "example_id": GlobalID(
                 type_name=DatasetExampleNodeType.__name__,
-                node_id=str(ex.dataset_example_id),
+                node_id=str(example.dataset_example_id),
             ),
-            **{f"input_{k}": v for k, v in ex.input.items()},
-            **{f"output_{k}": v for k, v in ex.output.items()},
-            **{f"metadata_{k}": v for k, v in ex.metadata_.items()},
+            **{f"input_{k}": v for k, v in example.input.items()},
+            **{f"output_{k}": v for k, v in example.output.items()},
+            **{f"metadata_{k}": v for k, v in example.metadata_.items()},
         }
-        for ex in examples
+        for example in examples
     ]
     return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
 def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
-    for ex in examples:
-        input_messages = ex.input.get("messages", [])
+    for example in examples:
+        input_messages = example.input.get("messages", [])
         if not isinstance(input_messages, list):
             input_messages = []
-        output_messages = ex.output.get("messages", [])
+        output_messages = example.output.get("messages", [])
         if not isinstance(output_messages, list):
             output_messages = []
 
@@ -1374,7 +1374,7 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
             "messages": input_messages + output_messages,
         }
 
-        tools = ex.input.get("tools", [])
+        tools = example.input.get("tools", [])
         if tools:
             record_dict["tools"] = tools
 
@@ -1386,18 +1386,18 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
 
 def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
-    for ex in examples:
+    for example in examples:
         records.write(
             (
                 json.dumps(
                     {
                         "messages": ims
-                        if isinstance(ims := ex.input.get("messages"), list)
+                        if isinstance(ims := example.input.get("messages"), list)
                         else [],
                         "ideal": (
                             ideal if isinstance(ideal := last_message.get("content"), str) else ""
                         )
-                        if isinstance(oms := ex.output.get("messages"), list)
+                        if isinstance(oms := example.output.get("messages"), list)
                         and oms
                         and hasattr(last_message := oms[-1], "get")
                         else "",
