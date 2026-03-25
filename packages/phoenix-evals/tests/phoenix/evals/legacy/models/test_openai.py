@@ -109,6 +109,74 @@ def test_model_name_deprecation(monkeypatch):
     assert model.model_name is None
 
 
+class TestSystemRole:
+    """Tests for _system_role() covering OpenAI and custom-endpoint models."""
+
+    def test_gpt_model_uses_system_role(self, monkeypatch):
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="gpt-4o")
+        assert model._system_role() == "system"
+
+    def test_o1_mini_uses_user_role(self, monkeypatch):
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="o1-mini")
+        assert model._system_role() == "user"
+
+    def test_o1_preview_uses_user_role(self, monkeypatch):
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="o1-preview")
+        assert model._system_role() == "user"
+
+    def test_o1_uses_developer_role(self, monkeypatch):
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="o1")
+        assert model._system_role() == "developer"
+
+    def test_o3_uses_developer_role(self, monkeypatch):
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="o3-mini")
+        assert model._system_role() == "developer"
+
+    def test_custom_base_url_unknown_model_uses_user_role(self, monkeypatch):
+        """Non-OpenAI endpoints (VertexAI, Gemini, self-hosted) must use 'user'
+        role so that requests always contain at least one user message.
+        Providers such as VertexAI and Gemini reject requests whose only
+        messages have the 'system' role.  Regression test for #8696.
+        """
+        model = OpenAIModel(
+            model="google/gemini-2.0-flash-exp",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key="bogus",
+        )
+        assert model._system_role() == "user"
+
+    def test_custom_base_url_builds_user_messages(self, monkeypatch):
+        """Verify _build_messages produces 'user' role messages for custom
+        endpoints so that providers like VertexAI and Gemini accept the request.
+        """
+        from phoenix.evals.legacy.templates import MultimodalPrompt
+
+        model = OpenAIModel(
+            model="google/gemini-2.0-flash-exp",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            api_key="bogus",
+        )
+        prompt = MultimodalPrompt.from_string("Is this response grounded?")
+        messages = model._build_messages(prompt)
+
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "Is this response grounded?"
+
+    def test_no_base_url_unknown_model_falls_back_to_system(self, monkeypatch):
+        """An unrecognised model without a custom base_url keeps 'system' for
+        backward compatibility with OpenAI-native deployments.
+        """
+        monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-fake")
+        model = OpenAIModel(model="some-future-openai-model")
+        assert model._system_role() == "system"
+
+
 @mock.patch("openai.resources.chat.completions.Completions.create")
 def test_selfhosted(completions_create):
     mock_completion = ChatCompletion(
