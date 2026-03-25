@@ -82,7 +82,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             ) : null}
             <Text>
               {isStreaming
-                ? "Awaiting traces..."
+                ? "Waiting for traces to arrive..."
                 : "Follow the steps below to start sending traces"}
             </Text>
           </div>

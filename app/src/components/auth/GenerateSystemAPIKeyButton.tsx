@@ -16,6 +16,7 @@ type GenerateSystemAPIKeyButtonProps = {
    */
   keyName?: string;
   onError?: (message: string) => void;
+  isDisabled?: boolean;
 };
 
 /**
@@ -26,6 +27,7 @@ export function GenerateSystemAPIKeyButton({
   onApiKeyGenerated,
   keyName = "System Key",
   onError,
+  isDisabled,
 }: GenerateSystemAPIKeyButtonProps) {
   const [commit, isCommitting] =
     useMutation<GenerateSystemAPIKeyButtonMutation>(graphql`
@@ -54,7 +56,11 @@ export function GenerateSystemAPIKeyButton({
   };
 
   return (
-    <Button size="S" onPress={handlePress} isDisabled={isCommitting}>
+    <Button
+      size="S"
+      onPress={handlePress}
+      isDisabled={isCommitting || isDisabled}
+    >
       {isCommitting ? "Generating..." : "Generate API Key"}
     </Button>
   );

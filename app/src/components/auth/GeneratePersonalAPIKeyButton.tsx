@@ -16,6 +16,7 @@ type GeneratePersonalAPIKeyButtonProps = {
    */
   keyName?: string;
   onError?: (message: string) => void;
+  isDisabled?: boolean;
 };
 
 /**
@@ -26,6 +27,7 @@ export function GeneratePersonalAPIKeyButton({
   onApiKeyGenerated,
   keyName = "Personal Key",
   onError,
+  isDisabled,
 }: GeneratePersonalAPIKeyButtonProps) {
   const [commit, isCommitting] =
     useMutation<GeneratePersonalAPIKeyButtonMutation>(graphql`
@@ -56,7 +58,11 @@ export function GeneratePersonalAPIKeyButton({
   };
 
   return (
-    <Button size="S" onPress={handlePress} isDisabled={isCommitting}>
+    <Button
+      size="S"
+      onPress={handlePress}
+      isDisabled={isCommitting || isDisabled}
+    >
       {isCommitting ? "Generating..." : "Generate API Key"}
     </Button>
   );

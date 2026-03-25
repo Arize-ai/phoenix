@@ -14,7 +14,7 @@ import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { ImplementationCodeBlock } from "./ImplementationCodeBlock";
 
 const docsOnlyContainerCSS = css`
-  border: 1px solid var(--global-color-gray-400);
+  border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-small);
   padding: var(--global-dimension-size-200) var(--global-dimension-size-250);
   display: flex;
@@ -55,6 +55,7 @@ export function DocsOnlyOnboardingView({
               <GenerateAPIKeyButton
                 onApiKeyGenerated={onApiKeyGenerated}
                 keyName="project-setup-generated"
+                isDisabled={!!generatedApiKey}
               />
             </IsAuthenticated>
           </View>
@@ -133,6 +134,7 @@ export function OnboardingSteps({
               <GenerateAPIKeyButton
                 onApiKeyGenerated={onApiKeyGenerated}
                 keyName="project-setup-generated"
+                isDisabled={!!generatedApiKey}
               />
             </IsAuthenticated>
           </View>

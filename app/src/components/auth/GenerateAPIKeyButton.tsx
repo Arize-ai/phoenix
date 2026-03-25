@@ -18,6 +18,7 @@ type GenerateAPIKeyButtonProps = {
    */
   keyName?: string;
   onError?: (message: string) => void;
+  isDisabled?: boolean;
 };
 
 /**
@@ -30,6 +31,7 @@ export function GenerateAPIKeyButton({
   onApiKeyGenerated,
   keyName,
   onError,
+  isDisabled,
 }: GenerateAPIKeyButtonProps) {
   const { viewer } = useViewer();
 
@@ -51,6 +53,7 @@ export function GenerateAPIKeyButton({
         onApiKeyGenerated={onApiKeyGenerated}
         keyName={keyName}
         onError={onError}
+        isDisabled={isDisabled}
       />
     );
   }
@@ -60,6 +63,7 @@ export function GenerateAPIKeyButton({
       onApiKeyGenerated={onApiKeyGenerated}
       keyName={keyName}
       onError={onError}
+      isDisabled={isDisabled}
     />
   );
 }
