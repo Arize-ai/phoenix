@@ -360,8 +360,8 @@ class ChatCompletionMutationMixin:
                     output=models.ExperimentRunOutput(
                         task_output=get_experiment_example_output(db_span),
                     ),
-                    prompt_token_count=db_span.cumulative_llm_token_count_prompt,
-                    completion_token_count=db_span.cumulative_llm_token_count_completion,
+                    prompt_token_count=db_span.llm_token_count_prompt,
+                    completion_token_count=db_span.llm_token_count_completion,
                     repetition_number=repetition_number,
                     start_time=db_span.start_time,
                     end_time=db_span.end_time,

@@ -61,7 +61,9 @@ from phoenix.config import (
     OAuth2ClientConfig,
     get_env_allow_external_resources,
     get_env_allowed_providers,
+    get_env_cluster_mode,
     get_env_csrf_trusted_origins,
+    get_env_cumulative_repair_interval_sec,
     get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
@@ -165,6 +167,7 @@ from phoenix.server.api.routers import (
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.daemons.cumulative_repair import CumulativeRepairTask
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -596,6 +599,7 @@ def _lifespan(
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    cumulative_repair_task: Optional[CumulativeRepairTask] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -641,6 +645,8 @@ def _lifespan(
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
+            if cumulative_repair_task:
+                await stack.enter_async_context(cumulative_repair_task)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -1064,6 +1070,19 @@ def create_app(
         initial_batch_of_evaluations=initial_batch_of_evaluations,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
+    repair_interval = get_env_cumulative_repair_interval_sec()
+    if db.dialect is SupportedSQLDialect.POSTGRESQL and repair_interval > 0:
+        cumulative_repair_task: Optional[CumulativeRepairTask] = CumulativeRepairTask(
+            db=db, sleep_seconds=float(repair_interval)
+        )
+    else:
+        cumulative_repair_task = None
+    if db.dialect is SupportedSQLDialect.SQLITE and get_env_cluster_mode():
+        logger.warning(
+            "Multi-node cluster mode detected but SQLite is selected as the database backend. "
+            "SQLite does not support the row-level locking required for safe multi-node "
+            "operation. Switch to PostgreSQL for production cluster deployments."
+        )
     tracer_provider = None
     graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
     graphql_schema_extensions.extend(user_gql_extensions())
@@ -1121,6 +1140,7 @@ def create_app(
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            cumulative_repair_task=cumulative_repair_task,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
