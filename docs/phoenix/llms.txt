@@ -8,6 +8,7 @@
 - [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
 - [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
 - [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
+- [Agent-Assisted Tracing](https://arize.com/docs/phoenix/agent-assisted-setup): Use a coding agent to automatically add Phoenix tracing to your app
 
 ## Quick Start
 
@@ -71,7 +72,7 @@
 ### Advanced Tracing
 
 - [Cost Tracking](https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking): Monitor LLM token usage and cost trends
-- [Advanced Configuration](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Configure batching, gRPC transport, custom instrumentation, and performance tuning
+- [Advanced Configuration](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Configure batching, gRPC transport, custom instrumentation, and performance options
 - [Masking Span Attributes](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide sensitive data in traces via environment variables
 - [Modifying Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans): Use SpanProcessors to filter or enrich spans
 - [Multimodal Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Capture image, audio, and multimodal data in traces
@@ -107,7 +108,8 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling, and more
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built evaluators — faithfulness, toxicity, RAG relevance, tool calling, and more
+- [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate whether agents correctly process tool results and handle errors
 
 ### Server-Side Evaluations
 
@@ -115,7 +117,7 @@
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
 - [Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Pre-built server-side evaluators
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
-- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool selection/invocation
+- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): Server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool selection/invocation
 
 ## Datasets & Experiments
 
@@ -130,7 +132,7 @@
 
 ### Datasets
 
-- [Datasets Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Understand datasets as versioned collections of examples with inputs and expected outputs
+- [Datasets Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Versioned collections of examples with inputs and expected outputs
 - [Creating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets): Build from traces, code, CSV, or curated examples
 - [Exporting Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets): Export datasets in JSONL and CSV formats
 
@@ -253,6 +255,17 @@
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
 
+### Evaluation Integrations
+
+- [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Integrate Cleanlab TLM to detect hallucinations and flag low-quality LLM responses
+- [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
+- [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Integrate Ragas metrics for agent and RAG evaluation within Phoenix experiments
+- [UQLM](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Quantify LLM uncertainty and hallucination risk with UQLM confidence scoring
+
+### Model Context Protocol
+
+- [MCP Integration Overview](https://arize.com/docs/phoenix/integrations/model-context-protocol): Connect AI assistants to Phoenix data via the Model Context Protocol
+
 ## Settings
 
 - [Access Control RBAC](https://arize.com/docs/phoenix/settings/access-control-rbac): Role-based permissions and project access
@@ -277,7 +290,7 @@
 
 ### Datasets
 
-- [Datasets Concepts](https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets): Understand how datasets organize examples with inputs and expected outputs for testing
+- [Datasets Concepts](https://arize.com/docs/phoenix/datasets-and-experiments/concepts-datasets): How datasets organize examples with inputs and expected outputs for testing
 
 ### Evaluation
 
@@ -286,7 +299,7 @@
 - [Evaluation Types](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluation-types): Categorical vs score evaluations
 - [Building Your Own Evals](https://arize.com/docs/phoenix/evaluation/concepts-evals/building-your-own-evals): Design custom evaluator templates
 - [Evaluating Multi-Agent Systems](https://arize.com/docs/phoenix/evaluation/concepts-evals/evaluating-multi-agent-systems): Multi-agent evaluation strategies
-- [Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): Understand how evaluators transform complex data structures into input variables
+- [Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/concepts-evals/input-mapping): How evaluators map complex data structures to evaluator input variables
 
 ## Resources
 
