@@ -60,8 +60,7 @@ export interface PromptInputContextValue {
  * ```
  */
 export interface PromptInputProps
-  extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit">,
-    DOMProps {
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit">, DOMProps {
   /** Compound component children (Body, Footer, etc.). */
   children: ReactNode;
   /**
@@ -106,16 +105,14 @@ export interface PromptInputFooterProps extends HTMLAttributes<HTMLDivElement> {
  * Can be empty (no children) when no tools are needed—it still reserves layout space
  * so the actions stay right-aligned.
  */
-export interface PromptInputToolsProps
-  extends HTMLAttributes<HTMLDivElement> {}
+export interface PromptInputToolsProps extends HTMLAttributes<HTMLDivElement> {}
 
 /**
  * Right-aligned container in the footer for primary actions (e.g. submit button).
  *
  * Can be empty (no children) when no actions are needed.
  */
-export interface PromptInputActionsProps
-  extends HTMLAttributes<HTMLDivElement> {}
+export interface PromptInputActionsProps extends HTMLAttributes<HTMLDivElement> {}
 
 /**
  * Auto-resizing textarea that grows with its content.
@@ -194,14 +191,9 @@ export interface PromptInputSubmitProps {
  *
  * @example
  * ```tsx
- * // Simple
- * tooltip="Search the web"
- *
- * // With keyboard shortcut
- * tooltip={{ content: "Search", shortcut: "⌘K" }}
- *
- * // With custom placement
- * tooltip={{ content: "Search", side: "bottom" }}
+ * tooltip="Attach files"
+ * tooltip={{ content: "Search the web", shortcut: "⌘K" }}
+ * tooltip={{ content: "Voice input", shortcut: "⌘M", side: "bottom" }}
  * ```
  */
 export type PromptInputButtonTooltip =
@@ -225,8 +217,12 @@ export type PromptInputButtonTooltip =
  *
  * @example
  * ```tsx
- * <PromptInputButton tooltip="Attach file" aria-label="Attach file">
+ * <PromptInputButton tooltip="Attach files" aria-label="Attach files">
  *   <Icon svg={<Icons.PlusOutline />} />
+ * </PromptInputButton>
+ *
+ * <PromptInputButton tooltip={{ content: "Search", shortcut: "⌘K" }}>
+ *   <Icon svg={<Icons.SearchOutline />} />
  * </PromptInputButton>
  * ```
  */
@@ -236,7 +232,7 @@ export interface PromptInputButtonProps
   children: ReactNode;
   /**
    * Optional tooltip shown on hover. Pass a string for simple text or an
-   * object for advanced configuration (shortcut hint, custom placement).
+   * object for keyboard shortcut hints and custom placement.
    */
   tooltip?: PromptInputButtonTooltip;
   /** Additional CSS class name. */

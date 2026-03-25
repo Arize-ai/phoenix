@@ -18,6 +18,30 @@ import type {
   PromptInputToolsProps,
 } from "./types";
 
+/**
+ * Root container for the prompt input compound component.
+ *
+ * Manages internal text state and provides context to all descendants.
+ * Compose with `PromptInputBody`, `PromptInputFooter`, and other
+ * sub-components to build a complete chat input.
+ *
+ * @example
+ * ```tsx
+ * <PromptInput onSubmit={(text) => sendMessage({ text })} status={status}>
+ *   <PromptInputBody>
+ *     <PromptInputTextarea placeholder="Send a message..." />
+ *   </PromptInputBody>
+ *   <PromptInputFooter>
+ *     <PromptInputTools>
+ *       <ModelMenu value={model} onChange={setModel} variant="quiet" />
+ *     </PromptInputTools>
+ *     <PromptInputActions>
+ *       <PromptInputSubmit />
+ *     </PromptInputActions>
+ *   </PromptInputFooter>
+ * </PromptInput>
+ * ```
+ */
 function PromptInput(
   {
     children,
@@ -66,6 +90,10 @@ const _PromptInput = forwardRef(PromptInput);
 _PromptInput.displayName = "PromptInput";
 export { _PromptInput as PromptInput };
 
+/**
+ * Scrollable body region that wraps the textarea.
+ * Provides padding around the text input area.
+ */
 function PromptInputBody(
   { children, ...restProps }: PromptInputBodyProps,
   ref: Ref<HTMLDivElement>
@@ -81,6 +109,10 @@ const _PromptInputBody = forwardRef(PromptInputBody);
 _PromptInputBody.displayName = "PromptInputBody";
 export { _PromptInputBody as PromptInputBody };
 
+/**
+ * Footer toolbar displayed below the textarea. Lays out `PromptInputTools`
+ * on the left and `PromptInputActions` on the right.
+ */
 function PromptInputFooter(
   { children, ...restProps }: PromptInputFooterProps,
   ref: Ref<HTMLDivElement>
@@ -96,6 +128,11 @@ const _PromptInputFooter = forwardRef(PromptInputFooter);
 _PromptInputFooter.displayName = "PromptInputFooter";
 export { _PromptInputFooter as PromptInputFooter };
 
+/**
+ * Left-aligned container in the footer for tool buttons, menus, and controls.
+ * Renders with `role="toolbar"` for accessibility. Can be empty to reserve
+ * layout space so actions stay right-aligned.
+ */
 function PromptInputTools(
   { children, ...restProps }: PromptInputToolsProps,
   ref: Ref<HTMLDivElement>
@@ -111,6 +148,10 @@ const _PromptInputTools = forwardRef(PromptInputTools);
 _PromptInputTools.displayName = "PromptInputTools";
 export { _PromptInputTools as PromptInputTools };
 
+/**
+ * Right-aligned container in the footer for primary actions like the
+ * submit button.
+ */
 function PromptInputActions(
   { children, ...restProps }: PromptInputActionsProps,
   ref: Ref<HTMLDivElement>

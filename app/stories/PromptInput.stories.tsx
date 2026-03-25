@@ -69,7 +69,7 @@ export const Default: Story = {
 };
 
 /**
- * Prompt input with icon tool buttons and tooltips in the footer.
+ * Prompt input with icon tool buttons in the footer.
  */
 export const WithToolbar: Story = {
   render: () => {
@@ -86,20 +86,63 @@ export const WithToolbar: Story = {
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
+              <PromptInputButton aria-label="Add attachment">
+                <Icon svg={<Icons.PlusOutline />} />
+              </PromptInputButton>
+              <PromptInputButton aria-label="Search the web">
+                <Icon svg={<Icons.SearchOutline />} />
+              </PromptInputButton>
+              <PromptInputButton aria-label="Take screenshot">
+                <Icon svg={<Icons.ImageOutline />} />
+              </PromptInputButton>
+            </PromptInputTools>
+            <PromptInputActions>
+              <PromptInputSubmit />
+            </PromptInputActions>
+          </PromptInputFooter>
+        </PromptInput>
+      </div>
+    );
+  },
+};
+
+/**
+ * Demonstrates the declarative tooltip API on tool buttons, including
+ * simple string tooltips, keyboard shortcut hints, and custom placement.
+ */
+export const WithTooltips: Story = {
+  render: () => {
+    const handleSubmit = (value: string) => {
+      // eslint-disable-next-line no-console
+      console.log("Submitted:", value);
+    };
+
+    return (
+      <div css={containerCSS}>
+        <PromptInput onSubmit={handleSubmit}>
+          <PromptInputBody>
+            <PromptInputTextarea placeholder="Hover the tool buttons to see tooltips..." />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools>
               <PromptInputButton
-                tooltip="Add attachment"
-                aria-label="Add attachment"
+                tooltip="Attach files"
+                aria-label="Attach files"
               >
                 <Icon svg={<Icons.PlusOutline />} />
               </PromptInputButton>
               <PromptInputButton
-                tooltip={{ content: "Search", shortcut: "\u2318K" }}
+                tooltip={{ content: "Search the web", shortcut: "\u2318K" }}
                 aria-label="Search the web"
               >
                 <Icon svg={<Icons.SearchOutline />} />
               </PromptInputButton>
               <PromptInputButton
-                tooltip={{ content: "Screenshot", side: "bottom" }}
+                tooltip={{
+                  content: "Take screenshot",
+                  shortcut: "\u2318M",
+                  side: "bottom",
+                }}
                 aria-label="Take screenshot"
               >
                 <Icon svg={<Icons.ImageOutline />} />
@@ -146,10 +189,7 @@ export const WithModelSelector: Story = {
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
-              <PromptInputButton
-                tooltip="Add attachment"
-                aria-label="Add attachment"
-              >
+              <PromptInputButton aria-label="Add attachment">
                 <Icon svg={<Icons.PlusOutline />} />
               </PromptInputButton>
               <MenuTrigger>
@@ -193,10 +233,7 @@ export const WithModelSelector: Story = {
               </MenuTrigger>
             </PromptInputTools>
             <PromptInputActions>
-              <PromptInputButton
-                tooltip="Take screenshot"
-                aria-label="Take screenshot"
-              >
+              <PromptInputButton aria-label="Take screenshot">
                 <Icon svg={<Icons.ImageOutline />} />
               </PromptInputButton>
               <PromptInputSubmit />
@@ -241,10 +278,7 @@ export const Streaming: Story = {
           </PromptInputBody>
           <PromptInputFooter>
             <PromptInputTools>
-              <PromptInputButton
-                tooltip="Add attachment"
-                aria-label="Add attachment"
-              >
+              <PromptInputButton aria-label="Add attachment">
                 <Icon svg={<Icons.PlusOutline />} />
               </PromptInputButton>
             </PromptInputTools>
@@ -321,20 +355,14 @@ export const Gallery: Story = {
         <div css={containerCSS}>
           <PromptInput onSubmit={handleSubmit}>
             <PromptInputBody>
-              <PromptInputTextarea placeholder="With toolbar — icon buttons with tooltips" />
+              <PromptInputTextarea placeholder="With toolbar — icon buttons" />
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools>
-                <PromptInputButton
-                  tooltip="Add attachment"
-                  aria-label="Add attachment"
-                >
+                <PromptInputButton aria-label="Add attachment">
                   <Icon svg={<Icons.PlusOutline />} />
                 </PromptInputButton>
-                <PromptInputButton
-                  tooltip={{ content: "Search", shortcut: "\u2318K" }}
-                  aria-label="Search"
-                >
+                <PromptInputButton aria-label="Search">
                   <Icon svg={<Icons.SearchOutline />} />
                 </PromptInputButton>
               </PromptInputTools>
@@ -353,10 +381,7 @@ export const Gallery: Story = {
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools>
-                <PromptInputButton
-                  tooltip="Add attachment"
-                  aria-label="Add attachment"
-                >
+                <PromptInputButton aria-label="Add attachment">
                   <Icon svg={<Icons.PlusOutline />} />
                 </PromptInputButton>
               </PromptInputTools>

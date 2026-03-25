@@ -6,6 +6,21 @@ import { usePromptInputContext } from "./PromptInputContext";
 import { promptInputSubmitCSS } from "./styles";
 import type { PromptInputSubmitProps } from "./types";
 
+/**
+ * Submit / stop button that adapts its icon and behavior to the current status.
+ *
+ * - **ready / error** — shows an arrow-up icon; pressing calls `context.onSubmit()`.
+ * - **submitted / streaming** — shows a stop icon; pressing calls the `onPress` prop.
+ *
+ * Automatically disables when `status` is `"ready"` and the textarea is empty.
+ *
+ * @example
+ * ```tsx
+ * <PromptInputActions>
+ *   <PromptInputSubmit onPress={handleStop} />
+ * </PromptInputActions>
+ * ```
+ */
 function PromptInputSubmitRoot(
   {
     onPress,

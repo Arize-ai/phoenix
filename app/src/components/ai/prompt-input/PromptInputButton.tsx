@@ -1,9 +1,17 @@
+import { css } from "@emotion/react";
 import { forwardRef } from "react";
 import { Button, Keyboard, TooltipTrigger } from "react-aria-components";
 
-import { Tooltip } from "../../core/tooltip";
-import { promptInputButtonCSS, promptInputButtonShortcutCSS } from "./styles";
+import { Tooltip, TooltipArrow } from "../../core/tooltip";
+
+import { promptInputButtonCSS } from "./styles";
 import type { PromptInputButtonProps, PromptInputButtonTooltip } from "./types";
+
+const shortcutCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+`;
 
 function resolveTooltip(tooltip: PromptInputButtonTooltip) {
   if (typeof tooltip === "string") {
@@ -12,7 +20,23 @@ function resolveTooltip(tooltip: PromptInputButtonTooltip) {
   return { side: "top" as const, ...tooltip };
 }
 
-function PromptInputButtonRoot(
+/**
+ * Icon button for the toolbar area, styled like `IconButton` (square,
+ * transparent background, hover opacity). Optionally wraps itself in a
+ * `TooltipTrigger` when the `tooltip` prop is provided.
+ *
+ * @example
+ * ```tsx
+ * <PromptInputButton tooltip="Attach files" aria-label="Attach files">
+ *   <Icon svg={<Icons.PlusOutline />} />
+ * </PromptInputButton>
+ *
+ * <PromptInputButton tooltip={{ content: "Search", shortcut: "⌘K" }}>
+ *   <Icon svg={<Icons.SearchOutline />} />
+ * </PromptInputButton>
+ * ```
+ */
+function PromptInputButton(
   { children, tooltip, className, ...restProps }: PromptInputButtonProps,
   ref: React.Ref<HTMLButtonElement>
 ) {
@@ -37,8 +61,9 @@ function PromptInputButtonRoot(
     <TooltipTrigger delay={500} closeDelay={0}>
       {button}
       <Tooltip placement={side}>
+        <TooltipArrow />
         {shortcut ? (
-          <span css={promptInputButtonShortcutCSS}>
+          <span css={shortcutCSS}>
             {content}
             <Keyboard>{shortcut}</Keyboard>
           </span>
@@ -50,6 +75,6 @@ function PromptInputButtonRoot(
   );
 }
 
-const _PromptInputButton = forwardRef(PromptInputButtonRoot);
+const _PromptInputButton = forwardRef(PromptInputButton);
 _PromptInputButton.displayName = "PromptInputButton";
 export { _PromptInputButton as PromptInputButton };

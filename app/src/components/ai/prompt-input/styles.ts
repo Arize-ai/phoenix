@@ -149,9 +149,3 @@ export const promptInputButtonCSS = css`
     cursor: not-allowed;
   }
 `;
-
-export const promptInputButtonShortcutCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-50);
-`;
