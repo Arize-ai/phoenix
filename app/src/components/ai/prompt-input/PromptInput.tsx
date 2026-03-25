@@ -1,5 +1,4 @@
-import type { Ref } from "react";
-import { forwardRef, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { PromptInputContext } from "./PromptInputContext";
 import { promptInputContainerCSS } from "./styles";
@@ -29,16 +28,14 @@ import type { PromptInputProps } from "./types";
  * </PromptInput>
  * ```
  */
-function PromptInput(
-  {
-    children,
-    onSubmit,
-    status = "ready",
-    isDisabled = false,
-    ...restProps
-  }: PromptInputProps,
-  ref: Ref<HTMLDivElement>
-) {
+export function PromptInput({
+  children,
+  ref,
+  onSubmit,
+  status = "ready",
+  isDisabled = false,
+  ...restProps
+}: PromptInputProps) {
   const [value, setValue] = useState("");
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -72,7 +69,3 @@ function PromptInput(
     </PromptInputContext.Provider>
   );
 }
-
-const _PromptInput = forwardRef(PromptInput);
-_PromptInput.displayName = "PromptInput";
-export { _PromptInput as PromptInput };

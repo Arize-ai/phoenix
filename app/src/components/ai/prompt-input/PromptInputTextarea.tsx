@@ -1,5 +1,4 @@
-import type { Ref } from "react";
-import { forwardRef, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { usePromptInputContext } from "./PromptInputContext";
 import { promptInputTextareaCSS } from "./styles";
@@ -22,17 +21,15 @@ import type { PromptInputTextareaProps } from "./types";
  * </PromptInputBody>
  * ```
  */
-function PromptInputTextareaRoot(
-  {
-    placeholder = "Send a message...",
-    value: controlledValue,
-    onChange: controlledOnChange,
-    maxRows,
-    "aria-label": ariaLabel = "Message input",
-    className,
-  }: PromptInputTextareaProps,
-  ref: Ref<HTMLTextAreaElement>
-) {
+export function PromptInputTextarea({
+  ref,
+  placeholder = "Send a message...",
+  value: controlledValue,
+  onChange: controlledOnChange,
+  maxRows,
+  "aria-label": ariaLabel = "Message input",
+  className,
+}: PromptInputTextareaProps) {
   const context = usePromptInputContext();
   const internalRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -110,7 +107,3 @@ function PromptInputTextareaRoot(
     />
   );
 }
-
-const _PromptInputTextarea = forwardRef(PromptInputTextareaRoot);
-_PromptInputTextarea.displayName = "PromptInputTextarea";
-export { _PromptInputTextarea as PromptInputTextarea };

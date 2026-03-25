@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { forwardRef } from "react";
 import { Button, TooltipTrigger } from "react-aria-components";
 
 import { Keyboard } from "../../core/content/Keyboard";
@@ -11,21 +10,13 @@ const shortcutCSS = css`
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-75);
-
-  kbd {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: var(--global-rounding-small);
-    padding: 1px var(--global-dimension-size-50);
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-xs);
-  }
 `;
 
 function resolveTooltip(tooltip: PromptInputButtonTooltip) {
   if (typeof tooltip === "string") {
-    return { content: tooltip, shortcut: undefined, side: "top" as const };
+    return { content: tooltip, shortcut: undefined, position: "top" as const };
   }
-  return { side: "top" as const, ...tooltip };
+  return { position: "top" as const, ...tooltip };
 }
 
 /**
@@ -44,10 +35,13 @@ function resolveTooltip(tooltip: PromptInputButtonTooltip) {
  * </PromptInputButton>
  * ```
  */
-function PromptInputButton(
-  { children, tooltip, className, ...restProps }: PromptInputButtonProps,
-  ref: React.Ref<HTMLButtonElement>
-) {
+export function PromptInputButton({
+  children,
+  ref,
+  tooltip,
+  className,
+  ...restProps
+}: PromptInputButtonProps) {
   const button = (
     <Button
       ref={ref}
@@ -63,12 +57,12 @@ function PromptInputButton(
     return button;
   }
 
-  const { content, shortcut, side } = resolveTooltip(tooltip);
+  const { content, shortcut, position } = resolveTooltip(tooltip);
 
   return (
     <TooltipTrigger delay={500} closeDelay={0}>
       {button}
-      <Tooltip placement={side}>
+      <Tooltip placement={position}>
         <TooltipArrow />
         {shortcut ? (
           <span css={shortcutCSS}>
@@ -82,7 +76,3 @@ function PromptInputButton(
     </TooltipTrigger>
   );
 }
-
-const _PromptInputButton = forwardRef(PromptInputButton);
-_PromptInputButton.displayName = "PromptInputButton";
-export { _PromptInputButton as PromptInputButton };

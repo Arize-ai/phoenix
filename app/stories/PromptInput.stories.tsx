@@ -141,7 +141,7 @@ export const WithTooltips: Story = {
                 tooltip={{
                   content: "Take screenshot",
                   shortcut: "\u2318M",
-                  side: "bottom",
+                  position: "bottom",
                 }}
                 aria-label="Take screenshot"
               >

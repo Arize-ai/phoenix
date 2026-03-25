@@ -1,5 +1,5 @@
 import type { ChatStatus } from "ai";
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 import type { ButtonProps } from "react-aria-components";
 
 import type { DOMProps } from "../../core/types/dom";
@@ -61,6 +61,7 @@ export interface PromptInputContextValue {
  */
 export interface PromptInputProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit">, DOMProps {
+  ref?: Ref<HTMLDivElement>;
   /** Compound component children (Body, Footer, etc.). */
   children: ReactNode;
   /**
@@ -86,6 +87,7 @@ export interface PromptInputProps
  * Provides padding around the text input area.
  */
 export interface PromptInputBodyProps extends HTMLAttributes<HTMLDivElement> {
+  ref?: Ref<HTMLDivElement>;
   children: ReactNode;
 }
 
@@ -95,6 +97,7 @@ export interface PromptInputBodyProps extends HTMLAttributes<HTMLDivElement> {
  * and `PromptInputActions` on the right.
  */
 export interface PromptInputFooterProps extends HTMLAttributes<HTMLDivElement> {
+  ref?: Ref<HTMLDivElement>;
   children: ReactNode;
 }
 
@@ -105,14 +108,18 @@ export interface PromptInputFooterProps extends HTMLAttributes<HTMLDivElement> {
  * Can be empty (no children) when no tools are needed—it still reserves layout space
  * so the actions stay right-aligned.
  */
-export interface PromptInputToolsProps extends HTMLAttributes<HTMLDivElement> {}
+export interface PromptInputToolsProps extends HTMLAttributes<HTMLDivElement> {
+  ref?: Ref<HTMLDivElement>;
+}
 
 /**
  * Right-aligned container in the footer for primary actions (e.g. submit button).
  *
  * Can be empty (no children) when no actions are needed.
  */
-export interface PromptInputActionsProps extends HTMLAttributes<HTMLDivElement> {}
+export interface PromptInputActionsProps extends HTMLAttributes<HTMLDivElement> {
+  ref?: Ref<HTMLDivElement>;
+}
 
 /**
  * Auto-resizing textarea that grows with its content.
@@ -124,6 +131,7 @@ export interface PromptInputActionsProps extends HTMLAttributes<HTMLDivElement> 
  *   Pass `value` and `onChange` props to override with controlled state.
  */
 export interface PromptInputTextareaProps {
+  ref?: Ref<HTMLTextAreaElement>;
   /**
    * Placeholder text shown when the textarea is empty.
    * @default "Send a message..."
@@ -164,6 +172,7 @@ export interface PromptInputTextareaProps {
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
  */
 export interface PromptInputSubmitProps {
+  ref?: Ref<HTMLButtonElement>;
   /**
    * Called when the button is pressed during `"submitted"` or `"streaming"` status.
    * Use this to cancel or stop the in-flight request.
@@ -193,7 +202,7 @@ export interface PromptInputSubmitProps {
  * ```tsx
  * tooltip="Attach files"
  * tooltip={{ content: "Search the web", shortcut: "⌘K" }}
- * tooltip={{ content: "Voice input", shortcut: "⌘M", side: "bottom" }}
+ * tooltip={{ content: "Voice input", shortcut: "⌘M", position: "bottom" }}
  * ```
  */
 export type PromptInputButtonTooltip =
@@ -204,10 +213,10 @@ export type PromptInputButtonTooltip =
       /** Optional keyboard shortcut displayed alongside the content. */
       shortcut?: string;
       /**
-       * Tooltip placement relative to the button.
+       * Tooltip position relative to the button.
        * @default "top"
        */
-      side?: "top" | "bottom" | "left" | "right";
+      position?: "top" | "bottom" | "left" | "right";
     };
 
 /**
@@ -230,6 +239,7 @@ export interface PromptInputButtonProps extends Omit<
   ButtonProps,
   "children" | "className"
 > {
+  ref?: Ref<HTMLButtonElement>;
   /** Icon (or icon + text) to render inside the button. */
   children: ReactNode;
   /**

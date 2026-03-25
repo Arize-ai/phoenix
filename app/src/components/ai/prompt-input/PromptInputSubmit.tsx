@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 import { Button } from "react-aria-components";
 
 import { Icon, Icons } from "../../core/icon";
@@ -21,15 +20,13 @@ import type { PromptInputSubmitProps } from "./types";
  * </PromptInputActions>
  * ```
  */
-function PromptInputSubmitRoot(
-  {
-    onPress,
-    isDisabled: isDisabledProp,
-    "aria-label": ariaLabel,
-    className,
-  }: PromptInputSubmitProps,
-  ref: React.Ref<HTMLButtonElement>
-) {
+export function PromptInputSubmit({
+  ref,
+  onPress,
+  isDisabled: isDisabledProp,
+  "aria-label": ariaLabel,
+  className,
+}: PromptInputSubmitProps) {
   const context = usePromptInputContext();
   const isStreaming =
     context.status === "submitted" || context.status === "streaming";
@@ -70,7 +67,3 @@ function PromptInputSubmitRoot(
     </Button>
   );
 }
-
-const _PromptInputSubmit = forwardRef(PromptInputSubmitRoot);
-_PromptInputSubmit.displayName = "PromptInputSubmit";
-export { _PromptInputSubmit as PromptInputSubmit };
