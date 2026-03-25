@@ -20,7 +20,6 @@ import {
   createSelfCommand,
   createSpansCommand,
   createTraceCommand,
-  createTracesCommand,
 } from "./commands";
 import { CLI_VERSION } from "./version";
 
@@ -35,7 +34,6 @@ export function createProgram(): Command {
   program.addCommand(createAnnotationConfigCommand());
   program.addCommand(createAuthCommand());
   program.addCommand(createProjectCommand());
-  program.addCommand(createTracesCommand());
   program.addCommand(createTraceCommand());
   program.addCommand(createSpansCommand());
   program.addCommand(createDatasetsCommand());
