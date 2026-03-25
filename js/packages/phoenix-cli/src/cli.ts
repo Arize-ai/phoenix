@@ -12,7 +12,7 @@ import {
   createDocsCommand,
   createExperimentCommand,
   createExperimentsCommand,
-  createProjectsCommand,
+  createProjectCommand,
   createPromptCommand,
   createPromptsCommand,
   createSessionCommand,
@@ -34,7 +34,7 @@ export function createProgram(): Command {
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
   program.addCommand(createAuthCommand());
-  program.addCommand(createProjectsCommand());
+  program.addCommand(createProjectCommand());
   program.addCommand(createTracesCommand());
   program.addCommand(createTraceCommand());
   program.addCommand(createSpansCommand());

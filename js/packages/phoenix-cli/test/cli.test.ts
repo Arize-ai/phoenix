@@ -17,5 +17,22 @@ describe("Phoenix CLI", () => {
     expect(program.helpInformation()).toContain(
       "prompt [options] <prompt-identifier>"
     );
+    expect(program.helpInformation()).toContain("project");
+    expect(program.helpInformation()).not.toContain("projects [options]");
+  });
+
+  it("should register project list as the primary project listing command", () => {
+    const program = createProgram();
+    const projectCommand = program.commands.find(
+      (command) => command.name() === "project"
+    );
+
+    expect(projectCommand).toBeDefined();
+    expect(projectCommand?.commands.map((command) => command.name())).toContain(
+      "list"
+    );
+    expect(
+      program.commands.find((command) => command.name() === "projects")
+    ).toBeUndefined();
   });
 });

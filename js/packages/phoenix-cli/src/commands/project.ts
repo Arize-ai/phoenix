@@ -7,7 +7,7 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
 
-interface ProjectsOptions {
+interface ProjectListOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
@@ -16,14 +16,20 @@ interface ProjectsOptions {
   limit?: number;
 }
 
+type ProjectSummary = {
+  id: string;
+  name: string;
+  description?: string | null;
+};
+
 /**
  * Fetch all projects from Phoenix
  */
 async function fetchProjects(
   client: PhoenixClient,
   options: { limit?: number } = {}
-): Promise<unknown[]> {
-  const allProjects: unknown[] = [];
+): Promise<ProjectSummary[]> {
+  const allProjects: ProjectSummary[] = [];
   let cursor: string | undefined;
   const limit = options.limit || 100;
 
@@ -50,11 +56,10 @@ async function fetchProjects(
 }
 
 /**
- * Projects command handler
+ * Handler for `project list`
  */
-async function projectsHandler(options: ProjectsOptions): Promise<void> {
+async function projectListHandler(options: ProjectListOptions): Promise<void> {
   try {
-    // Resolve configuration
     const config = resolveConfig({
       cliOptions: {
         endpoint: options.endpoint,
@@ -63,7 +68,6 @@ async function projectsHandler(options: ProjectsOptions): Promise<void> {
       },
     });
 
-    // Validate that we have endpoint (project not required for listing projects)
     if (!config.endpoint) {
       const errors = [
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
@@ -72,21 +76,13 @@ async function projectsHandler(options: ProjectsOptions): Promise<void> {
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
-    // Create client
     const client = createPhoenixClient({ config });
-
-    // Fetch projects
     const projects = await fetchProjects(client, {
       limit: options.limit,
     });
 
-    // Output projects
     const output = formatProjectsOutput({
-      projects: projects as Array<{
-        id: string;
-        name: string;
-        description?: string | null;
-      }>,
+      projects,
       format: options.format,
     });
     writeOutput({ message: output });
@@ -98,13 +94,8 @@ async function projectsHandler(options: ProjectsOptions): Promise<void> {
   }
 }
 
-/**
- * Create the projects command
- */
-export function createProjectsCommand(): Command {
-  const command = new Command("projects");
-
-  command
+export function configureProjectListCommand(command: Command): Command {
+  return command
     .description("List all available Phoenix projects")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
@@ -119,7 +110,15 @@ export function createProjectsCommand(): Command {
       "Maximum number of projects to fetch per page",
       parseInt
     )
-    .action(projectsHandler);
+    .action(projectListHandler);
+}
 
+/**
+ * Create the `project` command with subcommands
+ */
+export function createProjectCommand(): Command {
+  const command = new Command("project");
+  command.description("Manage Phoenix projects");
+  command.addCommand(configureProjectListCommand(new Command("list")));
   return command;
 }

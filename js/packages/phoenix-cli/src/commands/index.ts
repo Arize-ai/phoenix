@@ -1,6 +1,6 @@
 export * from "./annotationConfig";
 export * from "./auth";
-export * from "./projects";
+export * from "./project";
 export * from "./traces";
 export * from "./trace";
 export * from "./spans";
