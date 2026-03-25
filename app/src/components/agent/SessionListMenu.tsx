@@ -79,8 +79,7 @@ export function SessionListMenu({
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
   return (
-    <>
-      <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
+    <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
         <IconButton size="S" aria-label="Sessions">
           <Icon svg={<Icons.HistoryOutline />} />
         </IconButton>
@@ -104,8 +103,7 @@ export function SessionListMenu({
             <MenuEmpty>No sessions yet</MenuEmpty>
           )}
         </MenuContainer>
-      </MenuTrigger>
-    </>
+    </MenuTrigger>
   );
 }
 
