@@ -15,7 +15,6 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.utilities.content_hashing import compute_example_content_hash
 
 # Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
 DEFAULT_BATCH_SIZE = 1000
@@ -238,7 +237,7 @@ async def bulk_insert_dataset_example_revisions(
     session: AsyncSession,
     dataset_version_id: DatasetVersionId,
     example_ids: Sequence[DatasetExampleId],
-    examples: Sequence[ExampleContent],
+    examples: Sequence[ExampleWithHash],
     revision_kind: RevisionKind = RevisionKind.CREATE,
     created_at: Optional[datetime] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
@@ -250,7 +249,7 @@ async def bulk_insert_dataset_example_revisions(
         session: Database session
         dataset_version_id: The version to add revisions to
         example_ids: List of example IDs (must match order of examples)
-        examples: List of example content
+        examples: List of examples with pre-computed content hashes
         revision_kind: The kind of revision (CREATE, PATCH, DELETE)
         created_at: Timestamp for all revisions
         batch_size: Number of records per batch insert
@@ -277,12 +276,10 @@ async def bulk_insert_dataset_example_revisions(
             {
                 "dataset_version_id": dataset_version_id,
                 "dataset_example_id": example_id,
-                "input": example.input,
-                "output": example.output,
-                "metadata_": example.metadata,
-                "content_hash": compute_example_content_hash(
-                    input=example.input, output=example.output, metadata=example.metadata
-                ),
+                "input": example.content.input,
+                "output": example.content.output,
+                "metadata_": example.content.metadata,
+                "content_hash": example.content_hash,
                 "revision_kind": revision_kind.value,
                 "created_at": created_at,
             }
@@ -493,7 +490,7 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
 async def add_dataset_examples(
     session: AsyncSession,
     name: str,
-    examples: Examples,
+    examples: Sequence[ExampleWithHash],
     description: Optional[str] = None,
     metadata: Optional[Mapping[str, Any]] = None,
     action: DatasetAction = DatasetAction.CREATE,
@@ -540,23 +537,20 @@ async def add_dataset_examples(
         logger.exception(f"Failed to insert dataset version for {dataset_id=}")
         raise
 
-    # Collect all examples first to batch resolve span IDs
-    examples_list = list(examples)
-
-    if not examples_list:
+    if not examples:
         return DatasetExampleAdditionEvent(
             dataset_id=dataset_id, dataset_version_id=dataset_version_id
         )
 
     # Batch resolve span IDs to row IDs
-    span_ids_to_resolve = [ex.span_id for ex in examples_list]
+    span_ids_to_resolve = [ex.content.span_id for ex in examples]
     span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
 
     # Prepare span_rowids and external_ids lists for bulk insert (preserving order)
     span_rowids: list[Optional[SpanRowId]] = [
-        span_id_to_rowid.get(ex.span_id) if ex.span_id else None for ex in examples_list
+        span_id_to_rowid.get(ex.content.span_id) if ex.content.span_id else None for ex in examples
     ]
-    external_ids: list[Optional[str]] = [example.external_id for example in examples_list]
+    external_ids: list[Optional[str]] = [ex.content.external_id for ex in examples]
 
     # Bulk insert all examples at once
     try:
@@ -577,7 +571,7 @@ async def add_dataset_examples(
             session=session,
             dataset_version_id=dataset_version_id,
             example_ids=example_ids,
-            examples=examples_list,
+            examples=examples,
             created_at=created_at,
         )
     except Exception:
@@ -588,8 +582,8 @@ async def add_dataset_examples(
 
     # Collect split assignments by name for bulk insert
     split_assignments: list[tuple[DatasetExampleId, SplitName]] = []
-    for example_id, example in zip(example_ids, examples_list):
-        for split_name in example.splits:
+    for example_id, ex in zip(example_ids, examples):
+        for split_name in ex.content.splits:
             split_assignments.append((example_id, split_name))
 
     # Bulk create splits and assign examples after iteration
@@ -816,30 +810,19 @@ async def _rebuild_dataset_splits(
 async def _upsert_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
-    examples: Examples,
+    examples: Sequence[ExampleWithHash],
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
     splits_provided: bool = True,
 ) -> DatasetExampleAdditionEvent:
-    examples_ = list(examples)
+    incoming_examples = list(examples)
     if created_at is None:
         created_at = datetime.now(timezone.utc)
 
-    # Load previous state and hash incoming examples
+    # Load previous state
     previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
         session, dataset_id
     )
-    incoming_examples = [
-        ExampleWithHash(
-            content=example,
-            content_hash=compute_example_content_hash(
-                input=example.input,
-                output=example.output,
-                metadata=example.metadata,
-            ),
-        )
-        for example in examples_
-    ]
 
     # Diff incoming vs previous → creates, patches, deletes
     diff = _diff_examples(incoming_examples, previous)

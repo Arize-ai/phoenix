@@ -6,12 +6,26 @@ from sqlalchemy import insert, select
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
     ExampleContent,
+    ExampleWithHash,
     add_dataset_examples,
     bulk_assign_examples_to_splits,
     bulk_create_dataset_splits,
     resolve_span_ids_to_rowids,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
+
+
+def _hash_examples(examples: list[ExampleContent]) -> list[ExampleWithHash]:
+    return [
+        ExampleWithHash(
+            content=ex,
+            content_hash=compute_example_content_hash(
+                input=ex.input, output=ex.output, metadata=ex.metadata
+            ),
+        )
+        for ex in examples
+    ]
 
 
 async def test_create_dataset(
@@ -20,10 +34,12 @@ async def test_create_dataset(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
-                ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
+                    ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
+                ]
+            ),
             name="abc",
             description="xyz",
             metadata={"m": 0},
@@ -118,28 +134,30 @@ async def test_create_dataset_with_span_links(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(
-                    input={"x": 1},
-                    output={"z": 3},
-                    span_id="span-abc-123",
-                ),
-                ExampleContent(
-                    input={"x": 2},
-                    output={"z": 6},
-                    span_id="span-def-456",
-                ),
-                ExampleContent(
-                    input={"x": 3},
-                    output={"z": 9},
-                    span_id="nonexistent-span",  # This span doesn't exist
-                ),
-                ExampleContent(
-                    input={"x": 4},
-                    output={"z": 12},
-                    span_id=None,  # No span link
-                ),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"z": 3},
+                        span_id="span-abc-123",
+                    ),
+                    ExampleContent(
+                        input={"x": 2},
+                        output={"z": 6},
+                        span_id="span-def-456",
+                    ),
+                    ExampleContent(
+                        input={"x": 3},
+                        output={"z": 9},
+                        span_id="nonexistent-span",  # This span doesn't exist
+                    ),
+                    ExampleContent(
+                        input={"x": 4},
+                        output={"z": 12},
+                        span_id=None,  # No span link
+                    ),
+                ]
+            ),
             name="dataset-with-spans",
         )
 
@@ -300,7 +318,9 @@ async def test_bulk_assign_examples_to_splits_batches_large_inputs(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[ExampleContent(input={"x": i}, output={"z": i * 2}) for i in range(10)],
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i * 2}) for i in range(10)]
+            ),
             name="batch-split-test",
         )
 
@@ -347,9 +367,11 @@ async def test_bulk_assign_examples_to_splits_handles_duplicates(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(input={"x": 1}, output={"z": 2}),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"z": 2}),
+                ]
+            ),
             name="duplicate-split-test",
         )
 
@@ -390,19 +412,21 @@ async def test_add_dataset_examples_with_many_splits(
     This tests the full flow through add_dataset_examples -> bulk_assign_examples_to_splits.
     """
     # Create 15 examples each belonging to 3 different splits
-    examples = [
-        ExampleContent(
-            input={"x": i},
-            output={"z": i * 2},
-            splits=frozenset(["train", "eval", "test"]),
-        )
-        for i in range(15)
-    ]
+    hashed_examples = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": i},
+                output={"z": i * 2},
+                splits=frozenset(["train", "eval", "test"]),
+            )
+            for i in range(15)
+        ]
+    )
 
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=examples,
+            examples=hashed_examples,
             name="many-splits-dataset",
         )
 
@@ -488,7 +512,9 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[ExampleContent(input={"x": i}, output={"z": i}) for i in range(5)],
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i}) for i in range(5)]
+            ),
             name=f"batch-size-{batch_size}-split-test",
         )
 
