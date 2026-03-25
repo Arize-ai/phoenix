@@ -80,29 +80,27 @@ export function SessionListMenu({
 
   return (
     <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
-        <IconButton size="S" aria-label="Sessions">
-          <Icon svg={<Icons.HistoryOutline />} />
-        </IconButton>
-        <MenuContainer placement="bottom end" maxHeight={400}>
-          <Menu
-            selectionMode="single"
-            selectedKeys={selectedKeys}
-            onAction={handleAction}
-            onKeyDown={handleMenuKeyDown}
-          >
-            {sessions.map((session) => (
-              <SessionMenuItem
-                key={session.id}
-                session={session}
-                focusedSessionRef={focusedSessionRef}
-                onRequestDelete={handleDeleteSession}
-              />
-            ))}
-          </Menu>
-          {sessions.length === 0 && (
-            <MenuEmpty>No sessions yet</MenuEmpty>
-          )}
-        </MenuContainer>
+      <IconButton size="S" aria-label="Sessions">
+        <Icon svg={<Icons.HistoryOutline />} />
+      </IconButton>
+      <MenuContainer placement="bottom end" maxHeight={400}>
+        <Menu
+          selectionMode="single"
+          selectedKeys={selectedKeys}
+          onAction={handleAction}
+          onKeyDown={handleMenuKeyDown}
+        >
+          {sessions.map((session) => (
+            <SessionMenuItem
+              key={session.id}
+              session={session}
+              focusedSessionRef={focusedSessionRef}
+              onRequestDelete={handleDeleteSession}
+            />
+          ))}
+        </Menu>
+        {sessions.length === 0 && <MenuEmpty>No sessions yet</MenuEmpty>}
+      </MenuContainer>
     </MenuTrigger>
   );
 }
