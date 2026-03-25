@@ -1,7 +1,10 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ToolPart, type ToolPartType } from "@phoenix/components/agent/ToolPart";
+import {
+  ToolPart,
+  type ToolPartType,
+} from "@phoenix/components/agent/ToolPart";
 
 const containerCSS = css`
   max-width: 780px;
@@ -92,7 +95,11 @@ const deniedPart = makePart({
   toolName: "bash",
   state: "output-denied",
   input: { command: "rm -rf /workspace/node_modules" },
-  approval: { id: "approval-1", approved: false, reason: "Destructive operation" },
+  approval: {
+    id: "approval-1",
+    approved: false,
+    reason: "Destructive operation",
+  },
 });
 
 const approvalRequestedPart = makePart({

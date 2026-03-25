@@ -1,8 +1,8 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { ToolPartGroup } from "@phoenix/components/agent/ToolPartGroup";
 import type { ToolPartType } from "@phoenix/components/agent/ToolPart";
+import { ToolPartGroup } from "@phoenix/components/agent/ToolPartGroup";
 
 const containerCSS = css`
   max-width: 780px;
@@ -109,9 +109,7 @@ const inProgressParts: ToolPartType[] = [
   readCompleted("/workspace/tsconfig.json"),
 ];
 
-const singlePart: ToolPartType[] = [
-  bashCompleted("echo hello", "hello"),
-];
+const singlePart: ToolPartType[] = [bashCompleted("echo hello", "hello")];
 
 const manyToolsParts: ToolPartType[] = [
   bashCompleted("ls src/", "App.tsx\nindex.ts\nutils/"),
