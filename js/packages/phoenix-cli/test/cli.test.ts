@@ -18,8 +18,10 @@ describe("Phoenix CLI", () => {
       "prompt [options] <prompt-identifier>"
     );
     expect(program.helpInformation()).toContain("project");
+    expect(program.helpInformation()).toContain("span");
     expect(program.helpInformation()).toContain("trace");
     expect(program.helpInformation()).not.toContain("projects [options]");
+    expect(program.helpInformation()).not.toContain("spans [options]");
     expect(program.helpInformation()).not.toContain("traces [options]");
   });
 
@@ -50,6 +52,21 @@ describe("Phoenix CLI", () => {
     );
     expect(
       program.commands.find((command) => command.name() === "traces")
+    ).toBeUndefined();
+  });
+
+  it("should register span list as the primary span command", () => {
+    const program = createProgram();
+    const spanCommand = program.commands.find(
+      (command) => command.name() === "span"
+    );
+
+    expect(spanCommand).toBeDefined();
+    expect(spanCommand?.commands.map((command) => command.name())).toContain(
+      "list"
+    );
+    expect(
+      program.commands.find((command) => command.name() === "spans")
     ).toBeUndefined();
   });
 });

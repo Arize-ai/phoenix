@@ -18,7 +18,7 @@ import {
   createSessionCommand,
   createSessionsCommand,
   createSelfCommand,
-  createSpansCommand,
+  createSpanCommand,
   createTraceCommand,
 } from "./commands";
 import { CLI_VERSION } from "./version";
@@ -35,7 +35,7 @@ export function createProgram(): Command {
   program.addCommand(createAuthCommand());
   program.addCommand(createProjectCommand());
   program.addCommand(createTraceCommand());
-  program.addCommand(createSpansCommand());
+  program.addCommand(createSpanCommand());
   program.addCommand(createDatasetsCommand());
   program.addCommand(createDatasetCommand());
   program.addCommand(createSessionsCommand());

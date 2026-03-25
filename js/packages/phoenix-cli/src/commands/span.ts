@@ -16,7 +16,7 @@ import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
 
-interface SpansOptions {
+interface SpanListOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
@@ -93,11 +93,11 @@ async function fetchSpansForProject(
 }
 
 /**
- * Spans command handler
+ * Handler for `span list`
  */
-async function spansHandler(
+async function spanListHandler(
   file: string | undefined,
-  options: SpansOptions
+  options: SpanListOptions
 ): Promise<void> {
   try {
     const userSpecifiedFormat =
@@ -251,12 +251,10 @@ async function spansHandler(
 }
 
 /**
- * Create the spans command
+ * Create the `span list` command
  */
-export function createSpansCommand(): Command {
-  const command = new Command("spans");
-
-  command
+export function createSpanListCommand(): Command {
+  return new Command("list")
     .description("Fetch spans for the configured project with filtering")
     .argument("[file]", "File path to write span data as JSON (optional)")
     .option("--endpoint <url>", "Phoenix API endpoint")
@@ -295,7 +293,15 @@ export function createSpansCommand(): Command {
       'Filter by parent span ID (use "null" for root spans only)'
     )
     .option("--include-annotations", "Include span annotations in the output")
-    .action(spansHandler);
+    .action(spanListHandler);
+}
 
+/**
+ * Create the `span` command with subcommands
+ */
+export function createSpanCommand(): Command {
+  const command = new Command("span");
+  command.description("Manage Phoenix spans");
+  command.addCommand(createSpanListCommand());
   return command;
 }
