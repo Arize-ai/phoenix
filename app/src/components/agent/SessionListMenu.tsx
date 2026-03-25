@@ -2,13 +2,13 @@ import { css } from "@emotion/react";
 import { useCallback, useRef, useState } from "react";
 
 import {
-  Button,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Menu,
   MenuContainer,
-  MenuFooter,
+  MenuEmpty,
   MenuItem,
   MenuTrigger,
   Text,
@@ -92,9 +92,9 @@ export function SessionListMenu({
   return (
     <>
       <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
-        <Button size="S" variant="quiet" aria-label="Sessions">
+        <IconButton size="S" aria-label="Sessions">
           <Icon svg={<Icons.HistoryOutline />} />
-        </Button>
+        </IconButton>
         <MenuContainer placement="bottom end" maxHeight={400}>
           <Menu
             selectionMode="single"
@@ -112,11 +112,7 @@ export function SessionListMenu({
             ))}
           </Menu>
           {sessions.length === 0 && (
-            <MenuFooter>
-              <Text color="text-700" size="S">
-                No sessions yet
-              </Text>
-            </MenuFooter>
+            <MenuEmpty>No sessions yet</MenuEmpty>
           )}
         </MenuContainer>
       </MenuTrigger>
@@ -155,18 +151,14 @@ function SessionMenuItem({
       aria-keyshortcuts="Delete"
       trailingContent={
         <StopPropagation>
-          <TooltipTrigger delay={300}>
-            <Button
+            <IconButton
               size="S"
-              variant="quiet"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session.id)}
               css={deleteButtonCSS}
             >
               <Icon svg={<Icons.TrashOutline />} />
-            </Button>
-            <Tooltip>Delete (Del)</Tooltip>
-          </TooltipTrigger>
+            </IconButton>
         </StopPropagation>
       }
     >
