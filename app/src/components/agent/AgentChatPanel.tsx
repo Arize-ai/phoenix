@@ -1,12 +1,16 @@
 import { css } from "@emotion/react";
 import { Panel, Separator } from "react-resizable-panels";
 
-import { Flex, Heading, Icon, IconButton, Icons } from "@phoenix/components";
+import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { Chat } from "./Chat";
 import { SessionListMenu } from "./SessionListMenu";
+import {
+  EMPTY_SESSION_DISPLAY_NAME,
+  getSessionDisplayName,
+} from "./sessionSummaryUtils";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 
 const panelHeaderCSS = css`
@@ -21,6 +25,13 @@ const panelHeaderCSS = css`
 const panelHeaderActionsCSS = css`
   /* Allow the session summary label to truncate instead of overflowing */
   min-width: 0;
+`;
+
+const sessionHeadingCSS = css`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const panelContentCSS = css`
@@ -54,6 +65,13 @@ export function AgentChatPanel() {
     handleModelChange,
   } = useAgentChatPanelState();
 
+  const activeSession = orderedSessions.find(
+    (session) => session.id === activeSessionId
+  );
+  const sessionDisplayName = activeSession
+    ? getSessionDisplayName(activeSession)
+    : EMPTY_SESSION_DISPLAY_NAME;
+
   if (!isAgentsEnabled || !isOpen) {
     return null;
   }
@@ -64,9 +82,15 @@ export function AgentChatPanel() {
       <Panel minSize="20%" maxSize="50%" defaultSize="30%">
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>
-            <Flex direction="row" alignItems="center" gap="size-50">
-              <Icon svg={<Icons.Robot />} />
-              <Heading weight="heavy">PXI</Heading>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-50"
+              minWidth={0}
+            >
+              <Text weight="heavy" css={sessionHeadingCSS}>
+                {sessionDisplayName}
+              </Text>
             </Flex>
             <Flex
               direction="row"

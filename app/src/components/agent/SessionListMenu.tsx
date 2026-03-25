@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   Button,
@@ -9,7 +9,6 @@ import {
   Menu,
   MenuContainer,
   MenuFooter,
-  MenuHeaderTitle,
   MenuItem,
   MenuTrigger,
   Text,
@@ -20,37 +19,7 @@ import { StopPropagation } from "@phoenix/components/StopPropagation";
 import type { AgentSession } from "@phoenix/store/agentStore";
 import { formatRelativeShort } from "@phoenix/utils/timeFormatUtils";
 
-import { DeleteSessionDialog } from "./DeleteSessionDialog";
-import {
-  EMPTY_SESSION_DISPLAY_NAME,
-  getSessionDisplayName,
-} from "./sessionSummaryUtils";
-
-/**
- * Minimum container width (in px) at which the active session summary is
- * displayed inline next to the sessions icon button. Below this threshold
- * only the icon is visible.
- */
-const SHOW_SUMMARY_BREAKPOINT = "500px";
-
-const sessionTriggerCSS = css`
-  /* Allow the button to shrink so the label can truncate */
-  min-width: 0;
-`;
-
-const sessionTriggerLabelCSS = css`
-  display: none;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--global-font-size-s);
-  color: var(--global-text-color-700);
-
-  @container (min-width: ${SHOW_SUMMARY_BREAKPOINT}) {
-    display: block;
-  }
-`;
+import { getSessionDisplayName } from "./sessionSummaryUtils";
 
 const deleteButtonCSS = css`
   opacity: 0;
@@ -84,19 +53,10 @@ export function SessionListMenu({
   onSelectSession,
   onDeleteSession,
 }: SessionListMenuProps) {
-  // useful to close the menu programmatically when deleting a session
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pendingDeleteSession, _setPendingDeleteSession] =
-    useState<AgentSession | null>(null);
 
   // Track which session is currently focused in the menu for keyboard shortcuts
   const focusedSessionRef = useRef<AgentSession | null>(null);
-
-  const activeSessionSummary = useMemo(() => {
-    if (!activeSessionId) return "";
-    const active = sessions.find((s) => s.id === activeSessionId);
-    return active ? getSessionDisplayName(active) : "";
-  }, [activeSessionId, sessions]);
 
   const handleAction = useCallback(
     (key: React.Key) => {
@@ -105,22 +65,13 @@ export function SessionListMenu({
     [onSelectSession]
   );
 
-  const setPendingDeleteSession = useCallback(
-    (session: AgentSession | null) => {
-      _setPendingDeleteSession(session);
-      if (session) {
-        setMenuOpen(false);
-      }
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      onDeleteSession(sessionId);
+      setMenuOpen(false);
     },
-    [setMenuOpen]
+    [onDeleteSession]
   );
-
-  const handleConfirmDelete = useCallback(() => {
-    if (pendingDeleteSession) {
-      onDeleteSession(pendingDeleteSession.id);
-      setPendingDeleteSession(null);
-    }
-  }, [pendingDeleteSession, onDeleteSession, setPendingDeleteSession]);
 
   const handleMenuKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -130,36 +81,21 @@ export function SessionListMenu({
       ) {
         e.preventDefault();
         e.stopPropagation();
-        setPendingDeleteSession(focusedSessionRef.current);
+        handleDeleteSession(focusedSessionRef.current.id);
       }
     },
-    [setPendingDeleteSession]
+    [handleDeleteSession]
   );
 
   const selectedKeys = activeSessionId ? [activeSessionId] : [];
 
-  const hasSessionSummary =
-    activeSessionSummary && activeSessionSummary !== EMPTY_SESSION_DISPLAY_NAME;
-
   return (
     <>
       <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
-        <Button
-          size="S"
-          variant="quiet"
-          aria-label="Sessions"
-          css={sessionTriggerCSS}
-          trailingVisual={<Icon svg={<Icons.HistoryOutline />} />}
-        >
-          {hasSessionSummary ? (
-            <span css={sessionTriggerLabelCSS}>{activeSessionSummary}</span>
-          ) : (
-            // hack to prevent button from layout-shifting when children are added/removed
-            <>{""}</>
-          )}
+        <Button size="S" variant="quiet" aria-label="Sessions">
+          <Icon svg={<Icons.HistoryOutline />} />
         </Button>
-        <MenuContainer placement="bottom start" maxHeight={400}>
-          <MenuHeaderTitle>Sessions</MenuHeaderTitle>
+        <MenuContainer placement="bottom end" maxHeight={400}>
           <Menu
             selectionMode="single"
             selectedKeys={selectedKeys}
@@ -171,7 +107,7 @@ export function SessionListMenu({
                 key={session.id}
                 session={session}
                 focusedSessionRef={focusedSessionRef}
-                onRequestDelete={setPendingDeleteSession}
+                onRequestDelete={handleDeleteSession}
               />
             ))}
           </Menu>
@@ -184,18 +120,6 @@ export function SessionListMenu({
           )}
         </MenuContainer>
       </MenuTrigger>
-      <DeleteSessionDialog
-        isOpen={pendingDeleteSession !== null}
-        onOpenChange={(isOpen: boolean) => {
-          if (!isOpen) setPendingDeleteSession(null);
-        }}
-        onConfirmDelete={handleConfirmDelete}
-        sessionSummary={
-          pendingDeleteSession
-            ? getSessionDisplayName(pendingDeleteSession)
-            : ""
-        }
-      />
     </>
   );
 }
@@ -207,7 +131,7 @@ function SessionMenuItem({
 }: {
   session: AgentSession;
   focusedSessionRef: React.RefObject<AgentSession | null>;
-  onRequestDelete: (session: AgentSession) => void;
+  onRequestDelete: (sessionId: string) => void;
 }) {
   const displayName = getSessionDisplayName(session);
   const dateLabel = formatRelativeShort(session.createdAt);
@@ -236,7 +160,7 @@ function SessionMenuItem({
               size="S"
               variant="quiet"
               aria-label={`Delete session: ${displayName}`}
-              onPress={() => onRequestDelete(session)}
+              onPress={() => onRequestDelete(session.id)}
               css={deleteButtonCSS}
             >
               <Icon svg={<Icons.TrashOutline />} />
