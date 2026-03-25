@@ -47,7 +47,7 @@ function PromptInputTextareaRoot(
 
   // Merge the forwarded ref with our internal ref so we can measure the
   // element for auto-resize while still exposing the ref to the consumer.
-  const setRefs = (node: HTMLTextAreaElement | null) => {
+  const mergeRefs = (node: HTMLTextAreaElement | null) => {
     internalRef.current = node;
     if (typeof ref === "function") {
       ref(node);
@@ -97,7 +97,7 @@ function PromptInputTextareaRoot(
 
   return (
     <textarea
-      ref={setRefs}
+      ref={mergeRefs}
       css={promptInputTextareaCSS}
       className={className}
       value={textareaValue}
