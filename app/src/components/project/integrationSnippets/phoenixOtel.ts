@@ -7,7 +7,6 @@ export function getOtelInitCodePython({
 
 tracer_provider = register(
   project_name="${projectName}",
-  auto_instrument=True
 )
 
 tracer = tracer_provider.get_tracer(__name__)
@@ -25,11 +24,11 @@ export function getOtelInitCodeTypescript({
 }: {
   projectName: string;
 }): string {
-  return `import { register } from '@arizeai/phoenix-otel';
-import { traceChain } from '@arizeai/openinference-core';
+  return `import { register } from "@arizeai/phoenix-otel";
+import { traceChain } from "@arizeai/openinference-core";
 
 const provider = register({
-  projectName: '${projectName}',
+  projectName: "${projectName}",
 });
 
 const myFunction = traceChain(
@@ -37,10 +36,10 @@ const myFunction = traceChain(
     // Your logic here
     return \`Processed: \${input}\`;
   },
-  { name: 'my-function' }
+  { name: "my-function" }
 );
 
-myFunction('hello world');
+myFunction("hello world");
 
 // Flush pending traces before the process exits
 await provider.forceFlush();`;
