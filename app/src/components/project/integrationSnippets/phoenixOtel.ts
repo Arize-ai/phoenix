@@ -28,7 +28,7 @@ export function getOtelInitCodeTypescript({
   return `import { register } from '@arizeai/phoenix-otel';
 import { traceChain } from '@arizeai/openinference-core';
 
-register({
+const provider = register({
   projectName: '${projectName}',
 });
 
@@ -40,5 +40,8 @@ const myFunction = traceChain(
   { name: 'my-function' }
 );
 
-myFunction('hello world');`;
+myFunction('hello world');
+
+// Flush pending traces before the process exits
+await provider.forceFlush();`;
 }
