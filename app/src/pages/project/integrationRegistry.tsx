@@ -3,6 +3,7 @@ import {
   AgnoSVG,
   AnthropicSVG,
   BedrockSVG,
+  ClaudeSVG,
   BeeAISVG,
   CrewAISVG,
   DSPYSVG,
@@ -48,17 +49,25 @@ export const DEFAULT_INTEGRATION_ID = "phoenix-otel";
 export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "phoenix-otel",
-    name: "Trace directly from app",
+    name: "Trace your app",
     icon: <Icon svg={<Icons.Trace />} />,
     supportedLanguages: ["Python", "TypeScript"],
     languages: {
       Python: {
         packages: ["arize-phoenix-otel"],
         getImplementationCode: getOtelInitCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#python",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/f897cd19ef39a15fea9ee3a8f5a6e929d7a54bf1/python/openinference-instrumentation",
       },
       TypeScript: {
         packages: ["@arizeai/phoenix-otel", "@arizeai/openinference-core"],
         getImplementationCode: getOtelInitCodeTypescript,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#typescript",
+        githubHref:
+          "https://github.com/arize-ai/openinference/tree/main/js/packages/openinference-core",
       },
     },
   },
@@ -282,7 +291,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   },
   {
     id: "vercel-ai-sdk",
-    name: "Vercel AI SDK",
+    name: "AI SDK",
     icon: <VercelSVG />,
     supportedLanguages: ["TypeScript"],
     languages: {
@@ -325,6 +334,22 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-anthropic",
+      },
+    },
+  },
+  {
+    id: "claude-agent-sdk",
+    name: "Claude Agent SDK",
+    icon: <ClaudeSVG />,
+    supportedLanguages: ["Python", "TypeScript"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk",
+      },
+      TypeScript: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/claude-agent-sdk",
       },
     },
   },

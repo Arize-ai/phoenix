@@ -269,7 +269,7 @@ function NewProjectDialog({
                   >
                     <Label>Description</Label>
                     <TextArea
-                      placeholder="e.g. Data for sentiment analysis"
+                      placeholder="e.g. support agent in production"
                       rows={2}
                     />
                     {fieldError?.message && (
