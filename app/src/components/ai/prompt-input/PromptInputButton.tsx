@@ -4,7 +4,6 @@ import { Button, TooltipTrigger } from "react-aria-components";
 
 import { Keyboard } from "../../core/content/Keyboard";
 import { Tooltip, TooltipArrow } from "../../core/tooltip";
-
 import { promptInputButtonCSS } from "./styles";
 import type { PromptInputButtonProps, PromptInputButtonTooltip } from "./types";
 
