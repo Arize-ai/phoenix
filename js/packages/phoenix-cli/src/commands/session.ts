@@ -2,16 +2,24 @@ import * as fs from "fs";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
-import { createPhoenixClient } from "../client";
-import { getConfigErrorMessage, resolveConfig } from "../config";
+import { createPhoenixClient, resolveProjectId } from "../client";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import { formatSessionOutput, type OutputFormat } from "./formatSessions";
+import {
+  formatSessionOutput,
+  formatSessionsOutput,
+  type OutputFormat,
+} from "./formatSessions";
 
 type SessionData = componentsV1["schemas"]["SessionData"];
 type SessionAnnotation = componentsV1["schemas"]["SessionAnnotation"];
 
-interface SessionOptions {
+interface SessionGetOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
@@ -19,6 +27,16 @@ interface SessionOptions {
   progress?: boolean;
   file?: string;
   includeAnnotations?: boolean;
+}
+
+interface SessionListOptions {
+  endpoint?: string;
+  project?: string;
+  apiKey?: string;
+  format?: OutputFormat;
+  progress?: boolean;
+  limit?: number;
+  order?: "asc" | "desc";
 }
 
 /**
@@ -83,11 +101,55 @@ async function fetchSessionAnnotations(
 }
 
 /**
- * Session command handler
+ * Fetch sessions for a project from Phoenix
  */
-async function sessionHandler(
+async function fetchSessions(
+  client: PhoenixClient,
+  projectIdentifier: string,
+  options: { limit?: number; order?: "asc" | "desc" } = {}
+): Promise<SessionData[]> {
+  const allSessions: SessionData[] = [];
+  let cursor: string | undefined;
+  const targetLimit = options.limit || 10;
+
+  do {
+    const response = await client.GET(
+      "/v1/projects/{project_identifier}/sessions",
+      {
+        params: {
+          path: {
+            project_identifier: projectIdentifier,
+          },
+          query: {
+            cursor,
+            limit: Math.min(targetLimit - allSessions.length, 100),
+            order: options.order,
+          },
+        },
+      }
+    );
+
+    if (response.error || !response.data) {
+      throw new Error(`Failed to fetch sessions: ${response.error}`);
+    }
+
+    allSessions.push(...response.data.data);
+    cursor = response.data.next_cursor || undefined;
+
+    if (allSessions.length >= targetLimit) {
+      break;
+    }
+  } while (cursor);
+
+  return allSessions.slice(0, targetLimit);
+}
+
+/**
+ * Handler for `session get`
+ */
+async function sessionGetHandler(
   sessionId: string,
-  options: SessionOptions
+  options: SessionGetOptions
 ): Promise<void> {
   try {
     const userSpecifiedFormat =
@@ -184,12 +246,84 @@ async function sessionHandler(
 }
 
 /**
- * Create the session command
+ * Handler for `session list`
  */
-export function createSessionCommand(): Command {
-  const command = new Command("session");
+async function sessionListHandler(options: SessionListOptions): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        project: options.project,
+        apiKey: options.apiKey,
+      },
+    });
 
-  command
+    const validation = validateConfig({ config });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    const projectIdentifier = config.project;
+    if (!projectIdentifier) {
+      writeError({ message: "Project not configured" });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+
+    const projectId = await resolveProjectId({
+      client,
+      projectIdentifier,
+    });
+
+    const limit = options.limit || 10;
+
+    writeProgress({
+      message: `Fetching sessions for project ${projectId}...`,
+      noProgress: !options.progress,
+    });
+
+    const sessions = await fetchSessions(client, projectId, {
+      limit,
+      order: options.order,
+    });
+
+    if (sessions.length === 0) {
+      writeProgress({
+        message: "No sessions found",
+        noProgress: !options.progress,
+      });
+      return;
+    }
+
+    writeProgress({
+      message: `Found ${sessions.length} session(s)`,
+      noProgress: !options.progress,
+    });
+
+    const output = formatSessionsOutput({
+      sessions,
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error fetching sessions: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSessionGetCommand(): Command {
+  return new Command("get")
     .description("View a session's conversation flow")
     .argument(
       "<session-id>",
@@ -206,7 +340,38 @@ export function createSessionCommand(): Command {
     .option("--no-progress", "Disable progress indicators")
     .option("--file <path>", "Save session to file instead of stdout")
     .option("--include-annotations", "Include session annotations")
-    .action(sessionHandler);
+    .action(sessionGetHandler);
+}
 
+export function createSessionListCommand(): Command {
+  return new Command("list")
+    .description("List sessions for a project")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .option(
+      "-n, --limit <number>",
+      "Maximum number of sessions to return",
+      parseInt,
+      10
+    )
+    .option("--order <order>", "Sort order: asc or desc", "desc")
+    .action(sessionListHandler);
+}
+
+/**
+ * Create the `session` command with subcommands
+ */
+export function createSessionCommand(): Command {
+  const command = new Command("session");
+  command.description("Manage Phoenix sessions");
+  command.addCommand(createSessionListCommand());
+  command.addCommand(createSessionGetCommand());
   return command;
 }

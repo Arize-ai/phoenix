@@ -19,10 +19,12 @@ describe("Phoenix CLI", () => {
     );
     expect(program.helpInformation()).toContain("dataset");
     expect(program.helpInformation()).toContain("project");
+    expect(program.helpInformation()).toContain("session");
     expect(program.helpInformation()).toContain("span");
     expect(program.helpInformation()).toContain("trace");
     expect(program.helpInformation()).not.toContain("datasets [options]");
     expect(program.helpInformation()).not.toContain("projects [options]");
+    expect(program.helpInformation()).not.toContain("sessions [options]");
     expect(program.helpInformation()).not.toContain("spans [options]");
     expect(program.helpInformation()).not.toContain("traces [options]");
   });
@@ -84,6 +86,21 @@ describe("Phoenix CLI", () => {
     );
     expect(
       program.commands.find((command) => command.name() === "datasets")
+    ).toBeUndefined();
+  });
+
+  it("should register session list and session get as the primary session commands", () => {
+    const program = createProgram();
+    const sessionCommand = program.commands.find(
+      (command) => command.name() === "session"
+    );
+
+    expect(sessionCommand).toBeDefined();
+    expect(sessionCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get"])
+    );
+    expect(
+      program.commands.find((command) => command.name() === "sessions")
     ).toBeUndefined();
   });
 });
