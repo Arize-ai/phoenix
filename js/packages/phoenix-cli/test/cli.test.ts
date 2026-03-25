@@ -14,18 +14,18 @@ describe("Phoenix CLI", () => {
 
     expect(program.version()).toBe(CLI_VERSION);
     expect(program.helpInformation()).toContain("-V, --version");
-    expect(program.helpInformation()).toContain(
-      "prompt [options] <prompt-identifier>"
-    );
+    expect(program.helpInformation()).toContain("prompt");
     expect(program.helpInformation()).toContain("dataset");
     expect(program.helpInformation()).toContain("experiment");
     expect(program.helpInformation()).toContain("project");
+    expect(program.helpInformation()).toContain("prompt");
     expect(program.helpInformation()).toContain("session");
     expect(program.helpInformation()).toContain("span");
     expect(program.helpInformation()).toContain("trace");
     expect(program.helpInformation()).not.toContain("datasets [options]");
     expect(program.helpInformation()).not.toContain("experiments [options]");
     expect(program.helpInformation()).not.toContain("projects [options]");
+    expect(program.helpInformation()).not.toContain("prompts [options]");
     expect(program.helpInformation()).not.toContain("sessions [options]");
     expect(program.helpInformation()).not.toContain("spans [options]");
     expect(program.helpInformation()).not.toContain("traces [options]");
@@ -118,6 +118,21 @@ describe("Phoenix CLI", () => {
     ).toEqual(expect.arrayContaining(["list", "get"]));
     expect(
       program.commands.find((command) => command.name() === "experiments")
+    ).toBeUndefined();
+  });
+
+  it("should register prompt list and prompt get as the primary prompt commands", () => {
+    const program = createProgram();
+    const promptCommand = program.commands.find(
+      (command) => command.name() === "prompt"
+    );
+
+    expect(promptCommand).toBeDefined();
+    expect(promptCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get"])
+    );
+    expect(
+      program.commands.find((command) => command.name() === "prompts")
     ).toBeUndefined();
   });
 });

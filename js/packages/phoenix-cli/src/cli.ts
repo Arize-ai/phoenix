@@ -12,7 +12,6 @@ import {
   createExperimentCommand,
   createProjectCommand,
   createPromptCommand,
-  createPromptsCommand,
   createSessionCommand,
   createSelfCommand,
   createSpanCommand,
@@ -36,7 +35,6 @@ export function createProgram(): Command {
   program.addCommand(createDatasetCommand());
   program.addCommand(createSessionCommand());
   program.addCommand(createExperimentCommand());
-  program.addCommand(createPromptsCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
