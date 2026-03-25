@@ -68,6 +68,21 @@ import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
+function experimentStatusColor(status: string): string {
+  switch (status) {
+    case "RUNNING":
+      return "var(--global-color-blue-700)";
+    case "COMPLETED":
+      return "var(--global-color-green-700)";
+    case "ERROR":
+      return "var(--global-color-danger)";
+    case "STOPPED":
+      return "var(--global-color-warning)";
+    default:
+      return "var(--global-color-gray-500)";
+  }
+}
+
 const runCountFractionCellCSS = css`
   float: right;
 `;
@@ -212,6 +227,9 @@ export function ExperimentsTable({
                   username
                   profilePictureUrl
                 }
+                backgroundJob {
+                  status
+                }
               }
             }
           }
@@ -312,6 +330,21 @@ export function ExperimentsTable({
             />
             <Text>{user?.username ?? "system"}</Text>
           </Flex>
+        );
+      },
+    },
+    {
+      header: "status",
+      id: "status",
+      cell: ({ row }) => {
+        const status = row.original.backgroundJob?.status;
+        if (status == null) {
+          return <Token color="var(--global-color-gray-500)">N/A</Token>;
+        }
+        return (
+          <Token color={experimentStatusColor(status)}>
+            {status.toLowerCase()}
+          </Token>
         );
       },
     },
@@ -511,6 +544,7 @@ export function ExperimentsTable({
                 projectId={project?.id || null}
                 experimentId={row.original.id}
                 metadata={metadata}
+                backgroundJobStatus={row.original.backgroundJob?.status ?? null}
                 size="S"
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {

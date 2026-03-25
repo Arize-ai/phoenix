@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<538e5664123c54d17bc25bb4eeab5feb>>
+ * @generated SignedSource<<5305b9db4ad7b6045b42ef680a514ad7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableFragment$data = {
   readonly experimentAnnotationSummaries: ReadonlyArray<{
@@ -26,6 +27,9 @@ export type ExperimentsTableFragment$data = {
           readonly meanScore: number | null;
         }>;
         readonly averageRunLatencyMs: number | null;
+        readonly backgroundJob: {
+          readonly status: ExperimentJobStatus;
+        } | null;
         readonly costSummary: {
           readonly completion: {
             readonly cost: number | null;
@@ -432,6 +436,24 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "ExperimentJob",
+                  "kind": "LinkedField",
+                  "name": "backgroundJob",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "status",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -498,6 +520,6 @@ return {
 };
 })();
 
-(node as any).hash = "abc1e770a13dc312089a3c1276f1c99c";
+(node as any).hash = "9bd6d39e05394953bfe39cb0ead9f095";
 
 export default node;

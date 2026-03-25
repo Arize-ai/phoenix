@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d02fdfb3aa15cf08206397d86307311>>
+ * @generated SignedSource<<66a1a2b8b883515014226eb121160788>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,10 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
-export type PlaygroundRunButtonStopMutation$variables = {
+export type ExperimentActionMenuStopMutation$variables = {
   experimentId: string;
 };
-export type PlaygroundRunButtonStopMutation$data = {
+export type ExperimentActionMenuStopMutation$data = {
   readonly stopExperiment: {
     readonly job: {
       readonly id: string;
@@ -21,9 +21,9 @@ export type PlaygroundRunButtonStopMutation$data = {
     };
   };
 };
-export type PlaygroundRunButtonStopMutation = {
-  response: PlaygroundRunButtonStopMutation$data;
-  variables: PlaygroundRunButtonStopMutation$variables;
+export type ExperimentActionMenuStopMutation = {
+  response: ExperimentActionMenuStopMutation$data;
+  variables: ExperimentActionMenuStopMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -83,7 +83,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PlaygroundRunButtonStopMutation",
+    "name": "ExperimentActionMenuStopMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -92,20 +92,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PlaygroundRunButtonStopMutation",
+    "name": "ExperimentActionMenuStopMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "45c8f2b0c22f31521c9fc8080e08acaa",
+    "cacheID": "b6d7a33582a5f2bc9540a9262a23f366",
     "id": null,
     "metadata": {},
-    "name": "PlaygroundRunButtonStopMutation",
+    "name": "ExperimentActionMenuStopMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundRunButtonStopMutation(\n  $experimentId: ID!\n) {\n  stopExperiment(experimentId: $experimentId) {\n    job {\n      id\n      status\n    }\n  }\n}\n"
+    "text": "mutation ExperimentActionMenuStopMutation(\n  $experimentId: ID!\n) {\n  stopExperiment(experimentId: $experimentId) {\n    job {\n      id\n      status\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2a4c2157440318d998cd2de8825bdf42";
+(node as any).hash = "e87e7888315b1f593d592b772cd64990";
 
 export default node;

@@ -624,7 +624,7 @@ const supportedInvocationParametersQuery = graphql`
  * @param openaiApiType - The OpenAI API type (chat_completions or responses)
  * @returns The supported invocation parameters
  */
-const fetchSupportedInvocationParameters = async ({
+export const fetchSupportedInvocationParameters = async ({
   modelName,
   providerKey,
   openaiApiType,

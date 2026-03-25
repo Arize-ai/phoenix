@@ -30,6 +30,8 @@ import {
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -37,14 +39,20 @@ export enum ExperimentAction {
   GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
   COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
   VIEW_METADATA = "VIEW_METADATA",
+  OPEN_IN_PLAYGROUND = "OPEN_IN_PLAYGROUND",
+  STOP_EXPERIMENT = "STOP_EXPERIMENT",
+  RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
 }
+
+type ExperimentJobStatus = "RUNNING" | "COMPLETED" | "STOPPED" | "ERROR";
 
 type ExperimentActionMenuProps =
   | {
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
+      backgroundJobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: true;
       size?: ButtonProps["size"];
       onExperimentDeleted: () => void;
@@ -53,6 +61,7 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
+      backgroundJobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: false;
       size?: ButtonProps["size"];
       onExperimentDeleted?: undefined;
@@ -68,7 +77,31 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
-  const { projectId } = props;
+  const [commitStopExperiment] = useMutation(graphql`
+    mutation ExperimentActionMenuStopMutation($experimentId: ID!) {
+      stopExperiment(experimentId: $experimentId) {
+        job {
+          id
+          status
+        }
+      }
+    }
+  `);
+  const [commitResumeExperiment] = useMutation(graphql`
+    mutation ExperimentActionMenuResumeMutation(
+      $experimentId: ID!
+      $credentials: [GenerativeCredentialInput!]
+    ) {
+      resumeExperiment(experimentId: $experimentId, credentials: $credentials) {
+        job {
+          id
+          status
+        }
+      }
+    }
+  `);
+  const { projectId, backgroundJobStatus } = props;
+  const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
@@ -147,6 +180,59 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </Flex>
     </MenuItem>,
   ];
+  if (backgroundJobStatus != null) {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.OPEN_IN_PLAYGROUND}
+        id={ExperimentAction.OPEN_IN_PLAYGROUND}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.PlayCircleOutline />} />
+          <Text>Open in Playground</Text>
+        </Flex>
+      </MenuItem>
+    );
+  }
+  if (backgroundJobStatus === "RUNNING") {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.STOP_EXPERIMENT}
+        id={ExperimentAction.STOP_EXPERIMENT}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.StopCircleOutline />} />
+          <Text>Stop</Text>
+        </Flex>
+      </MenuItem>
+    );
+  } else if (backgroundJobStatus != null) {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.RESUME_EXPERIMENT}
+        id={ExperimentAction.RESUME_EXPERIMENT}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.PlayCircleOutline />} />
+          <Text>Resume</Text>
+        </Flex>
+      </MenuItem>
+    );
+  }
   if (props.canDeleteExperiment) {
     menuItems.push(
       <MenuItem
@@ -195,6 +281,53 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                     title: "Copied",
                     message:
                       "The experiment ID has been copied to your clipboard",
+                  });
+                  break;
+                }
+                case ExperimentAction.OPEN_IN_PLAYGROUND: {
+                  navigate(
+                    `/playground?experimentId=${encodeURIComponent(props.experimentId)}`
+                  );
+                  break;
+                }
+                case ExperimentAction.STOP_EXPERIMENT: {
+                  commitStopExperiment({
+                    variables: { experimentId: props.experimentId },
+                    onCompleted: () => {
+                      notifySuccess({
+                        title: "Experiment stopped",
+                        message: "The experiment has been stopped.",
+                      });
+                    },
+                    onError: (error) => {
+                      const msgs =
+                        getErrorMessagesFromRelayMutationError(error);
+                      setError(
+                        `Failed to stop experiment: ${msgs?.[0] ?? error.message}`
+                      );
+                    },
+                  });
+                  break;
+                }
+                case ExperimentAction.RESUME_EXPERIMENT: {
+                  commitResumeExperiment({
+                    variables: {
+                      experimentId: props.experimentId,
+                      credentials: toGqlCredentials(credentials),
+                    },
+                    onCompleted: () => {
+                      notifySuccess({
+                        title: "Experiment resumed",
+                        message: "The experiment has been resumed.",
+                      });
+                    },
+                    onError: (error) => {
+                      const msgs =
+                        getErrorMessagesFromRelayMutationError(error);
+                      setError(
+                        `Failed to resume experiment: ${msgs?.[0] ?? error.message}`
+                      );
+                    },
                   });
                   break;
                 }
