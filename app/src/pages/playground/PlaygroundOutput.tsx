@@ -92,7 +92,9 @@ function PlaygroundOutputMessage({
   return (
     <Card title={role} {...styles} extra={<ConnectedMarkdownModeSelect />}>
       {content != null && !Array.isArray(content) && (
-        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
+        <ConnectedMarkdownBlock renderMode="streaming">
+          {content}
+        </ConnectedMarkdownBlock>
       )}
 
       {toolCalls && toolCalls.length > 0

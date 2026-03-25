@@ -59,6 +59,7 @@ export function AssistantMessage({ parts }: { parts: UIMessage["parts"] }) {
               <MarkdownBlock
                 key={`text-${group.index}`}
                 mode="markdown"
+                renderMode="streaming"
                 margin="none"
               >
                 {group.part.type === "text" ? group.part.text : ""}

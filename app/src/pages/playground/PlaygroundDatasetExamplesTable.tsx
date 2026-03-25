@@ -463,7 +463,7 @@ function ExampleOutputContent({
               </PlaygroundErrorWrap>
             ) : null}
             {content != null ? (
-              <DynamicContent value={content} key="content" />
+              <DynamicContent value={content} mode="streaming" key="content" />
             ) : null}
             {toolCalls != null && Object.keys(toolCalls).length > 0
               ? Object.values(toolCalls)
