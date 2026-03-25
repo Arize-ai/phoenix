@@ -178,13 +178,13 @@ export function Chat({
   }, [sessionId, store]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const scrollRAF = useRef<number>(0);
+  const scrollRequestAnimationFrameRef = useRef<number>(0);
 
   // Coalesce auto-scroll requests into a single rAF so rapid streaming
   // updates don't queue overlapping smooth-scroll animations.
   const scrollToBottom = useCallback(() => {
-    cancelAnimationFrame(scrollRAF.current);
-    scrollRAF.current = requestAnimationFrame(() => {
+    cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
+    scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     });
   }, []);
@@ -195,7 +195,7 @@ export function Chat({
 
   // Cancel any pending rAF on unmount
   useEffect(() => {
-    return () => cancelAnimationFrame(scrollRAF.current);
+    return () => cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
   }, []);
 
   return (
