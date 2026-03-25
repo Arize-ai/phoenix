@@ -3,6 +3,7 @@ vendor/
 
 # Local run artifacts
 results/
+exploration/
 
 # Python
 __pycache__/
