@@ -7,7 +7,7 @@ import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -16,6 +16,7 @@ from typing import Any, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
+from anyio import to_thread
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import and_, case, delete, func, select
@@ -548,17 +549,23 @@ async def upload_dataset(
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
-    hashed_examples = [
-        ExampleWithHash(
-            content=example,
-            content_hash=compute_example_content_hash(
-                input=example.input,
-                output=example.output,
-                metadata=example.metadata,
-            ),
-        )
-        for example in examples
-    ]
+
+    def _compute_hashes(
+        examples: Iterable[ExampleContent],
+    ) -> list[ExampleWithHash]:
+        return [
+            ExampleWithHash(
+                content=example,
+                content_hash=compute_example_content_hash(
+                    input=example.input,
+                    output=example.output,
+                    metadata=example.metadata,
+                ),
+            )
+            for example in examples
+        ]
+
+    hashed_examples = await to_thread.run_sync(lambda: _compute_hashes(examples))
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
