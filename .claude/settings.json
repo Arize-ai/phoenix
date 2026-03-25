@@ -51,5 +51,10 @@
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)"
+    ]
   }
 }

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, NamedTuple
+from typing import Any, Awaitable, Callable, NamedTuple, Optional
 
 import pytest
 from sqlalchemy import insert, select
@@ -9,6 +9,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     OptimizationDirection,
+    OutputConfigType,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -926,7 +927,10 @@ async def assign_correctness_llm_evaluator_to_dataset(
             dataset_id=dataset_id,
             evaluator_id=correctness_llm_evaluator.id,
             name=correctness_llm_evaluator.name,
-            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            input_mapping=InputMapping(
+                literal_mapping={},
+                path_mapping={"input": "$.input", "output": "$.output"},
+            ),
             output_configs=None,
             project=models.Project(
                 name="correctness-evaluator-project",
@@ -944,9 +948,13 @@ async def assign_correctness_llm_evaluator_to_dataset(
 async def assign_exact_match_builtin_evaluator_to_dataset(
     db: DbSessionFactory,
     synced_builtin_evaluators: None,
-) -> Callable[[int], Awaitable[models.DatasetEvaluators]]:
+) -> Callable[..., Awaitable[models.DatasetEvaluators]]:
     async def _assign_exact_match_builtin_evaluator_to_dataset(
         dataset_id: int,
+        *,
+        name: Optional[Identifier] = None,
+        input_mapping: Optional[InputMapping] = None,
+        output_configs: Optional[list[OutputConfigType]] = None,
     ) -> models.DatasetEvaluators:
         async with db() as session:
             # Look up the builtin evaluator ID by key from the database
@@ -957,11 +965,35 @@ async def assign_exact_match_builtin_evaluator_to_dataset(
             )
             assert exact_match_id is not None, "ExactMatch builtin evaluator not found in database"
 
+            resolved_name = name if name is not None else Identifier(root="exact-match")
+            resolved_mapping = (
+                input_mapping
+                if input_mapping is not None
+                else InputMapping(
+                    literal_mapping={"expected": "France"},
+                    path_mapping={"actual": "$.output.messages[0].content"},
+                )
+            )
+            resolved_output_configs = output_configs
+            if resolved_output_configs is None:
+                resolved_output_configs = [
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="exact-match",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="true", score=1.0),
+                            CategoricalAnnotationValue(label="false", score=0.0),
+                        ],
+                    ),
+                ]
+
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_id,
                 evaluator_id=exact_match_id,
-                name=Identifier(root="exact-match"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                name=resolved_name,
+                input_mapping=resolved_mapping,
+                output_configs=resolved_output_configs,
                 project=models.Project(
                     name="exact-match-evaluator-project",
                     description="Project for builtin evaluator",

@@ -182,6 +182,10 @@ class LLMEvaluator(BaseEvaluator):
         return self._output_configs
 
     @property
+    def llm_client(self) -> "PlaygroundStreamingClient[Any]":
+        return self._llm_client
+
+    @property
     def input_schema(self) -> dict[str, Any]:
         formatter = get_template_formatter(self._template_format)
         section_vars: set[str] = set()
@@ -661,10 +665,10 @@ async def _get_llm_evaluators(
         llm_client = await get_playground_client(
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
-            custom_provider_id=prompt_version.custom_provider_id,
             session=session,
             decrypt=decrypt,
             credentials=credentials,
+            connection=prompt_version.custom_provider_id,
         )
 
         template = prompt_version.template

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
@@ -9,95 +11,97 @@ from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
 from phoenix.auth import compute_password_hash
-from phoenix.db import models
-from phoenix.server.api.dataloaders import (
-    AnnotationConfigsByProjectDataLoader,
-    AnnotationSummaryDataLoader,
-    AverageExperimentRepeatedRunGroupLatencyDataLoader,
-    AverageExperimentRunLatencyDataLoader,
-    CacheForDataLoaders,
-    DatasetDatasetSplitsDataLoader,
-    DatasetEvaluatorsByEvaluatorDataLoader,
-    DatasetEvaluatorsByIdDataLoader,
-    DatasetEvaluatorsDataLoader,
-    DatasetExampleRevisionsDataLoader,
-    DatasetExamplesAndVersionsByExperimentRunDataLoader,
-    DatasetExampleSpansDataLoader,
-    DatasetExampleSplitsDataLoader,
-    DatasetsByEvaluatorDataLoader,
-    DocumentEvaluationsDataLoader,
-    DocumentEvaluationSummaryDataLoader,
-    DocumentRetrievalMetricsDataLoader,
-    ExperimentAnnotationSummaryDataLoader,
-    ExperimentDatasetSplitsDataLoader,
-    ExperimentErrorRatesDataLoader,
-    ExperimentExpectedRunCountsDataLoader,
-    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
-    ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRunAnnotations,
-    ExperimentRunCountsDataLoader,
-    ExperimentRunsByExperimentAndExampleDataLoader,
-    ExperimentSequenceNumberDataLoader,
-    LastUsedTimesByGenerativeModelIdDataLoader,
-    LatencyMsQuantileDataLoader,
-    LatestPromptVersionIdDataLoader,
-    MinStartOrMaxEndTimeDataLoader,
-    NumChildSpansDataLoader,
-    NumSpansPerTraceDataLoader,
-    ProjectByNameDataLoader,
-    ProjectIdsByTraceRetentionPolicyIdDataLoader,
-    PromptVersionSequenceNumberDataLoader,
-    RecordCountDataLoader,
-    SecretsDataLoader,
-    SessionAnnotationsBySessionDataLoader,
-    SessionIODataLoader,
-    SessionNumTracesDataLoader,
-    SessionNumTracesWithErrorDataLoader,
-    SessionTokenUsagesDataLoader,
-    SessionTraceLatencyMsQuantileDataLoader,
-    SpanAnnotationsDataLoader,
-    SpanByIdDataLoader,
-    SpanCostBySpanDataLoader,
-    SpanCostDetailsBySpanCostDataLoader,
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
-    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
-    SpanCostDetailSummaryEntriesBySpanDataLoader,
-    SpanCostDetailSummaryEntriesByTraceDataLoader,
-    SpanCostSummaryByExperimentDataLoader,
-    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
-    SpanCostSummaryByExperimentRunDataLoader,
-    SpanCostSummaryByGenerativeModelDataLoader,
-    SpanCostSummaryByProjectDataLoader,
-    SpanCostSummaryByProjectSessionDataLoader,
-    SpanCostSummaryByTraceDataLoader,
-    SpanDatasetExamplesDataLoader,
-    SpanDescendantsDataLoader,
-    SpanProjectsDataLoader,
-    TableFieldsDataLoader,
-    TokenCountDataLoader,
-    TokenPricesByModelDataLoader,
-    TraceAnnotationsByTraceDataLoader,
-    TraceByTraceIdsDataLoader,
-    TraceRetentionPolicyIdByProjectIdDataLoader,
-    TraceRootSpansDataLoader,
-    UserRolesDataLoader,
-    UsersDataLoader,
-)
-from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.email.types import EmailSender
-from phoenix.server.types import (
-    CanGetLastUpdatedAt,
-    CanPutItem,
-    DbSessionFactory,
-    TokenStore,
-    UserId,
-)
+from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
-    pass
+    from phoenix.db import models
+    from phoenix.server.api.dataloaders import (
+        AnnotationConfigsByProjectDataLoader,
+        AnnotationSummaryDataLoader,
+        AverageExperimentRepeatedRunGroupLatencyDataLoader,
+        AverageExperimentRunLatencyDataLoader,
+        CacheForDataLoaders,
+        DatasetDatasetSplitsDataLoader,
+        DatasetEvaluatorsByEvaluatorDataLoader,
+        DatasetEvaluatorsByIdDataLoader,
+        DatasetEvaluatorsDataLoader,
+        DatasetExampleRevisionsDataLoader,
+        DatasetExamplesAndVersionsByExperimentRunDataLoader,
+        DatasetExampleSpansDataLoader,
+        DatasetExampleSplitsDataLoader,
+        DatasetsByEvaluatorDataLoader,
+        DocumentEvaluationsDataLoader,
+        DocumentEvaluationSummaryDataLoader,
+        DocumentRetrievalMetricsDataLoader,
+        ExperimentAnnotationSummaryDataLoader,
+        ExperimentDatasetSplitsDataLoader,
+        ExperimentErrorRatesDataLoader,
+        ExperimentExecutionConfigsDataLoader,
+        ExperimentExpectedRunCountsDataLoader,
+        ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
+        ExperimentRepeatedRunGroupsDataLoader,
+        ExperimentRunAnnotations,
+        ExperimentRunCountsDataLoader,
+        ExperimentRunsByExperimentAndExampleDataLoader,
+        ExperimentSequenceNumberDataLoader,
+        LastExperimentErrorsDataLoader,
+        LastUsedTimesByGenerativeModelIdDataLoader,
+        LatencyMsQuantileDataLoader,
+        LatestPromptVersionIdDataLoader,
+        MinStartOrMaxEndTimeDataLoader,
+        NumChildSpansDataLoader,
+        NumSpansPerTraceDataLoader,
+        ProjectByNameDataLoader,
+        ProjectIdsByTraceRetentionPolicyIdDataLoader,
+        PromptVersionSequenceNumberDataLoader,
+        RecordCountDataLoader,
+        SecretsDataLoader,
+        SessionAnnotationsBySessionDataLoader,
+        SessionIODataLoader,
+        SessionNumTracesDataLoader,
+        SessionNumTracesWithErrorDataLoader,
+        SessionTokenUsagesDataLoader,
+        SessionTraceLatencyMsQuantileDataLoader,
+        SpanAnnotationsDataLoader,
+        SpanByIdDataLoader,
+        SpanCostBySpanDataLoader,
+        SpanCostDetailsBySpanCostDataLoader,
+        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
+        SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
+        SpanCostDetailSummaryEntriesBySpanDataLoader,
+        SpanCostDetailSummaryEntriesByTraceDataLoader,
+        SpanCostSummaryByExperimentDataLoader,
+        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
+        SpanCostSummaryByExperimentRunDataLoader,
+        SpanCostSummaryByGenerativeModelDataLoader,
+        SpanCostSummaryByProjectDataLoader,
+        SpanCostSummaryByProjectSessionDataLoader,
+        SpanCostSummaryByTraceDataLoader,
+        SpanDatasetExamplesDataLoader,
+        SpanDescendantsDataLoader,
+        SpanProjectsDataLoader,
+        TableFieldsDataLoader,
+        TokenCountDataLoader,
+        TokenPricesByModelDataLoader,
+        TraceAnnotationsByTraceDataLoader,
+        TraceByTraceIdsDataLoader,
+        TraceRetentionPolicyIdByProjectIdDataLoader,
+        TraceRootSpansDataLoader,
+        UserRolesDataLoader,
+        UsersDataLoader,
+    )
+    from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+    from phoenix.server.daemons.experiment_runner import ExperimentRunner
+    from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+    from phoenix.server.dml_event import DmlEvent
+    from phoenix.server.email.types import EmailSender
+    from phoenix.server.types import (
+        CanGetLastUpdatedAt,
+        CanPutItem,
+        DbSessionFactory,
+        TokenStore,
+    )
 
 
 @dataclass
@@ -134,7 +138,10 @@ class DataLoaders:
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_execution_config_fields: TableFieldsDataLoader
+    experiment_execution_configs: ExperimentExecutionConfigsDataLoader
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
+    last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader
     experiment_repeated_run_group_annotation_summaries: (
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
@@ -228,6 +235,7 @@ class Context(BaseContext):
     data_loaders: DataLoaders
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     span_cost_calculator: SpanCostCalculator
+    experiment_runner: ExperimentRunner
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()

@@ -800,10 +800,89 @@ CREATE INDEX ix_experiments_dataset_id ON public.experiments
     USING btree (dataset_id);
 CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
-CREATE INDEX ix_experiments_ephemeral_created_at ON public.experiments
-    USING btree (created_at) WHERE (is_ephemeral IS TRUE);
+CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
+    USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
+
+
+-- Table: experiment_execution_configs
+-- -----------------------------------
+CREATE TABLE public.experiment_execution_configs (
+    id BIGINT NOT NULL,
+    task_type VARCHAR NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'STOPPED'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    max_concurrency INTEGER NOT NULL DEFAULT 10,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_experiment_execution_configs PRIMARY KEY (id),
+    CONSTRAINT uq_experiment_execution_configs_id_task_type
+        UNIQUE (id, task_type),
+    CHECK (((status)::text = ANY ((ARRAY[
+            'RUNNING'::character varying,
+            'COMPLETED'::character varying,
+            'STOPPED'::character varying,
+            'ERROR'::character varying
+        ])::text[]))),
+    CHECK (((task_type)::text = ANY ((ARRAY[
+            'PROMPT'::character varying,
+            'EVAL_ONLY'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_experiment_execution_configs_id_experiments FOREIGN KEY
+        (id)
+        REFERENCES public.experiments (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: experiment_dataset_evaluators
+-- ------------------------------------
+CREATE TABLE public.experiment_dataset_evaluators (
+    experiment_id BIGINT NOT NULL,
+    dataset_evaluator_id BIGINT NOT NULL,
+    CONSTRAINT pk_experiment_dataset_evaluators PRIMARY KEY (experiment_id, dataset_evaluator_id),
+    CONSTRAINT fk_experiment_dataset_evaluators_dataset_evaluator_id_d_138b
+        FOREIGN KEY
+        (dataset_evaluator_id)
+        REFERENCES public.dataset_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_experiment_dataset_evaluators_experiment_id_experime_031b
+        FOREIGN KEY
+        (experiment_id)
+        REFERENCES public.experiment_execution_configs (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON public.experiment_dataset_evaluators
+    USING btree (dataset_evaluator_id);
+
+
+-- Table: experiment_errors
+-- ------------------------
+CREATE TABLE public.experiment_errors (
+    id bigserial NOT NULL,
+    experiment_id BIGINT NOT NULL,
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    category VARCHAR NOT NULL,
+    message VARCHAR NOT NULL,
+    detail JSONB,
+    CONSTRAINT pk_experiment_errors PRIMARY KEY (id),
+    CHECK (((category)::text = ANY ((ARRAY[
+            'TASK'::character varying,
+            'EVAL'::character varying,
+            'SYSTEM'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_experiment_errors_experiment_id_experiment_execution_configs
+        FOREIGN KEY
+        (experiment_id)
+        REFERENCES public.experiment_execution_configs (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_experiment_errors_experiment_id_occurred_at ON public.experiment_errors
+    USING btree (experiment_id, occurred_at DESC);
 
 
 -- Table: experiment_runs
@@ -973,6 +1052,39 @@ CREATE TABLE public.generative_model_custom_providers (
         (user_id)
         REFERENCES public.users (id)
         ON DELETE SET NULL
+);
+
+
+-- Table: experiment_prompt_tasks
+-- ------------------------------
+CREATE TABLE public.experiment_prompt_tasks (
+    id BIGINT NOT NULL,
+    task_type VARCHAR NOT NULL DEFAULT 'PROMPT'::character varying,
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id BIGINT,
+    template_type VARCHAR NOT NULL,
+    template_format VARCHAR NOT NULL,
+    template JSONB NOT NULL,
+    tools JSONB,
+    response_format JSONB,
+    invocation_parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+    connection JSONB,
+    playground_config JSONB,
+    stream_model_output BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT pk_experiment_prompt_tasks PRIMARY KEY (id),
+    CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (connection IS NOT NULL)))),
+    CHECK (((task_type)::text = 'PROMPT'::text)),
+    CONSTRAINT fk_experiment_prompt_tasks_custom_provider_id_generativ_44e2
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_experiment_prompt_tasks_id_experiment_execution_configs
+        FOREIGN KEY
+        (id, task_type)
+        REFERENCES public.experiment_execution_configs (id, task_type)
+        ON DELETE CASCADE
 );
 
 

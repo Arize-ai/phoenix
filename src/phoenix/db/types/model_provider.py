@@ -6,8 +6,10 @@ from typing import (
     Any,
     AsyncIterator,
     Callable,
+    Hashable,
     Literal,
     Mapping,
+    Protocol,
     TypeVar,
     Union,
 )
@@ -30,9 +32,73 @@ if TYPE_CHECKING:
 
     from phoenix.db.models import GenerativeModelSDK
 
-# Generic type for client factory
+# Covariant type for Protocol (output position only)
+ClientT_co = TypeVar("ClientT_co", covariant=True)
+
+# Invariant type for concrete implementations that need input position usage
 ClientT = TypeVar("ClientT")
-ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
+
+
+class ClientFactory(Protocol[ClientT_co]):
+    def __call__(self) -> AbstractAsyncContextManager[ClientT_co]: ...
+    @property
+    def rate_limit_key(self) -> Hashable: ...
+
+
+class LLMClientFactory(ClientFactory[ClientT]):
+    """
+    Factory for creating LLM clients with rate limit key for bucketing.
+
+    Wraps a callable that creates the client and pairs it with a rate_limit_key
+    that identifies which rate limit bucket this client should use.
+    """
+
+    __slots__ = ("_create", "_rate_limit_key")
+
+    def __init__(
+        self,
+        create: Callable[[], AbstractAsyncContextManager[ClientT]],
+        rate_limit_key: Hashable,
+    ) -> None:
+        self._create = create
+        self._rate_limit_key = rate_limit_key
+
+    def __call__(self) -> AbstractAsyncContextManager[ClientT]:
+        return self._create()
+
+    @property
+    def rate_limit_key(self) -> Hashable:
+        return self._rate_limit_key
+
+
+# =============================================================================
+# Rate limit key helpers
+# =============================================================================
+
+
+def openai_rate_limit_key(api_key: str | None, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for OpenAI and OpenAI-compatible providers."""
+    return ("openai", hash(api_key), hash(base_url))
+
+
+def azure_rate_limit_key(endpoint: str, credential: str | None) -> tuple[str, int, int | str]:
+    """Rate limit key for Azure OpenAI. Credential can be api_key, client_id, or 'default'."""
+    return ("azure", hash(endpoint), hash(credential) if credential else "default")
+
+
+def anthropic_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for Anthropic."""
+    return ("anthropic", hash(api_key), hash(base_url))
+
+
+def bedrock_rate_limit_key(region: str, credential: str | None) -> tuple[str, str, int | str]:
+    """Rate limit key for AWS Bedrock. Credential can be access_key_id or 'default'."""
+    return ("bedrock", region, hash(credential) if credential else "default")
+
+
+def google_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for Google GenAI."""
+    return ("google", hash(api_key), hash(base_url))
 
 
 @asynccontextmanager
@@ -215,9 +281,10 @@ class OpenAICustomProviderConfig(BaseModel):
                     organization=organization,
                     project=project,
                     default_headers=merged_headers,
+                    max_retries=0,
                 )
 
-        return create_client
+        return LLMClientFactory(create_client, openai_rate_limit_key(api_key, base_url))
 
 
 class AuthenticationMethodAzureADTokenProvider(BaseModel):
@@ -330,9 +397,13 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         api_key=api_key,
                         base_url=base_url,
                         default_headers=merged_headers,
+                        max_retries=0,
                     )
 
-            return create_client_with_api_key
+            return LLMClientFactory(
+                create_client_with_api_key,
+                azure_rate_limit_key(azure_endpoint, api_key),
+            )
 
         elif method.type == "azure_ad_token_provider":
             try:
@@ -359,9 +430,13 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         api_key=token_provider,
                         base_url=base_url,
                         default_headers=merged_headers,
+                        max_retries=0,
                     )
 
-            return create_client_with_token
+            return LLMClientFactory(
+                create_client_with_token,
+                azure_rate_limit_key(azure_endpoint, client_id),
+            )
 
         elif method.type == "default_credentials":
             # Use DefaultAzureCredential for Managed Identity, Azure CLI, env vars, etc.
@@ -381,9 +456,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                     api_key=token_provider,
                     base_url=base_url,
                     default_headers=merged_headers,
+                    max_retries=0,
                 )
 
-            return create_client_with_default_cred
+            # Default credentials use managed identity, keyed by endpoint
+            return LLMClientFactory(
+                create_client_with_default_cred,
+                azure_rate_limit_key(azure_endpoint, None),
+            )
 
         else:
             assert_never(method.type)
@@ -456,9 +536,13 @@ class AnthropicCustomProviderConfig(BaseModel):
                     api_key=api_key,
                     base_url=base_url,
                     default_headers=merged_headers,
+                    max_retries=0,
                 )
 
-        return create_client
+        return LLMClientFactory(
+            create_client,
+            anthropic_rate_limit_key(api_key, base_url),
+        )
 
 
 class AWSBedrockAuthenticationMethodAccessKeys(BaseModel):
@@ -539,6 +623,7 @@ class AWSBedrockCustomProviderConfig(BaseModel):
         """
         try:
             import aioboto3  # type: ignore[import-untyped]
+            from botocore.config import Config  # type: ignore[import-untyped]
         except ImportError:
             raise ImportError("aioboto3 package not installed. Run: pip install aioboto3")
 
@@ -551,6 +636,9 @@ class AWSBedrockCustomProviderConfig(BaseModel):
 
         # Capture extra_headers in closure for use in factory
         headers = extra_headers
+
+        # Single HTTP attempt per logical call (botocore default retries several times).
+        _bedrock_config = Config(retries={"max_attempts": 1})
 
         if method.type == "access_keys":
             # Explicit credentials provided
@@ -573,10 +661,14 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                     client_context = session.client(
                         service_name="bedrock-runtime",
                         endpoint_url=endpoint_url,
+                        config=_bedrock_config,
                     )
                 return _bedrock_client_with_headers(client_context, headers)
 
-            return create_client_with_keys
+            return LLMClientFactory(
+                create_client_with_keys,
+                bedrock_rate_limit_key(region_name, aws_access_key_id),
+            )
 
         elif method.type == "default_credentials":
             # Use boto3 default credential chain (IAM role, env vars, ~/.aws/credentials)
@@ -586,10 +678,14 @@ class AWSBedrockCustomProviderConfig(BaseModel):
                 client_context = session.client(
                     service_name="bedrock-runtime",
                     endpoint_url=endpoint_url,
+                    config=_bedrock_config,
                 )
                 return _bedrock_client_with_headers(client_context, headers)
 
-            return create_client_with_env
+            return LLMClientFactory(
+                create_client_with_env,
+                bedrock_rate_limit_key(region_name, None),
+            )
 
         else:
             assert_never(method.type)
@@ -652,7 +748,7 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         """
         try:
             from google.genai.client import Client
-            from google.genai.types import HttpOptions
+            from google.genai.types import HttpOptions, HttpRetryOptions
         except ImportError:
             raise ImportError("Google genai package not installed. Run: pip install google-genai")
 
@@ -673,14 +769,16 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         headers = dict(default_headers) if default_headers else {}
         if extra_headers:
             headers.update(extra_headers)
-        http_options = (
-            HttpOptions(
+        # attempts=1: no HTTP retries (google-genai default is 5 attempts).
+        _no_http_retries = HttpRetryOptions(attempts=1)
+        if base_url or headers:
+            http_options = HttpOptions(
                 base_url=base_url,
                 headers=headers or None,
+                retry_options=_no_http_retries,
             )
-            if base_url or headers
-            else None
-        )
+        else:
+            http_options = HttpOptions(retry_options=_no_http_retries)
 
         # Wrapped with @asynccontextmanager because Google's AsyncClient has
         # a non-standard __aexit__ signature that doesn't conform to
@@ -695,7 +793,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
             async with client as client_:
                 yield client_
 
-        return create_client
+        return LLMClientFactory(
+            create_client,
+            google_rate_limit_key(api_key, base_url),
+        )
 
 
 GenerativeModelCustomerProviderConfigType = Annotated[

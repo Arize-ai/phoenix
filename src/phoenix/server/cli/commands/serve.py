@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import logging
 import os
 from argparse import SUPPRESS, ArgumentParser, Namespace
 from pathlib import Path
@@ -322,6 +323,15 @@ def run(args: Namespace) -> None:
             connection_method="STARTTLS",
             validate_certs=get_env_smtp_validate_certs(),
         )
+
+    if args.debug:
+        phoenix_logger = logging.getLogger("phoenix")
+        phoenix_logger.setLevel(logging.DEBUG)
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        phoenix_logger.addHandler(handler)
 
     app = create_app(
         db=factory,

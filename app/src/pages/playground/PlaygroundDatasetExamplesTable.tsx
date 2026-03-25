@@ -988,6 +988,8 @@ export function PlaygroundDatasetExamplesTable({
             break;
           case "ChatCompletionSubscriptionError":
             if (chatCompletion.datasetExampleId == null) {
+              // Experiment-level error (e.g., circuit breaker trip)
+              setApiError("Experiment Stopped");
               return;
             }
             updateExampleData({

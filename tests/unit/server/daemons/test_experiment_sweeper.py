@@ -48,8 +48,13 @@ class TestExperimentSweeper:
         created_at: datetime,
         project_name: Optional[str] = None,
         is_ephemeral: bool = False,
+        updated_at: datetime | None = None,
     ) -> int:
-        """Insert a dataset, dataset version, and experiment. Returns the experiment id."""
+        """Insert a dataset, dataset version, and experiment. Returns the experiment id.
+
+        The sweeper deletes ephemeral rows by ``updated_at`` (last activity), not ``created_at``.
+        Pass ``updated_at`` when the test needs a specific age for TTL (e.g. expired ephemerals).
+        """
         async with db() as session:
             dataset = models.Dataset(name=f"dataset_for_{name}", metadata_={})
             session.add(dataset)
@@ -59,7 +64,7 @@ class TestExperimentSweeper:
             session.add(version)
             await session.flush()
 
-            experiment = models.Experiment(
+            experiment_kwargs: dict[str, Any] = dict(
                 dataset_id=dataset.id,
                 dataset_version_id=version.id,
                 name=name,
@@ -69,6 +74,9 @@ class TestExperimentSweeper:
                 project_name=project_name,
                 created_at=created_at,
             )
+            if updated_at is not None:
+                experiment_kwargs["updated_at"] = updated_at
+            experiment = models.Experiment(**experiment_kwargs)
             session.add(experiment)
             await session.flush()
             return int(experiment.id)
@@ -125,6 +133,7 @@ class TestExperimentSweeper:
             created_at=old,
             project_name=expired_project_name,
             is_ephemeral=True,
+            updated_at=old,
         )
 
         # Case 2: recent ephemeral experiment → should NOT be deleted
@@ -152,6 +161,7 @@ class TestExperimentSweeper:
             created_at=old,
             project_name=shared_project_name,
             is_ephemeral=True,
+            updated_at=old,
         )
         await self._insert_experiment(
             db,

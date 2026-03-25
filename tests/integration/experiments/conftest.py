@@ -512,8 +512,11 @@ async def _dataset_evaluators(
     suffix = token_hex(8)
 
     async with httpx.AsyncClient(base_url=_app.base_url) as client:
+        # Output config names (and tool names) are stored on dataset_evaluators and
+        # drive experiment annotation names; use stable names. Suffix only the dataset
+        # evaluator row name for uniqueness within the dataset.
         # Create OpenAI evaluator
-        openai_output_name = f"openai_eval_{suffix}"
+        openai_output_name = "openai_eval"
         openai_data = await _gql(
             client,
             CREATE_DATASET_LLM_EVALUATOR,
@@ -537,7 +540,7 @@ async def _dataset_evaluators(
         openai_id = str(openai_data["createDatasetLlmEvaluator"]["evaluator"]["id"])
 
         # Create OpenAI Responses API evaluator
-        openai_responses_output_name = f"openai_responses_eval_{suffix}"
+        openai_responses_output_name = "openai_responses_eval"
         openai_responses_data = await _gql(
             client,
             CREATE_DATASET_LLM_EVALUATOR,
@@ -563,7 +566,7 @@ async def _dataset_evaluators(
         )
 
         # Create Anthropic evaluator
-        anthropic_output_name = f"anthropic_eval_{suffix}"
+        anthropic_output_name = "anthropic_eval"
         anthropic_data = await _gql(
             client,
             CREATE_DATASET_LLM_EVALUATOR,
@@ -587,7 +590,7 @@ async def _dataset_evaluators(
         anthropic_id = str(anthropic_data["createDatasetLlmEvaluator"]["evaluator"]["id"])
 
         # Create Google GenAI evaluator
-        google_output_name = f"google_eval_{suffix}"
+        google_output_name = "google_eval"
         google_data = await _gql(
             client,
             CREATE_DATASET_LLM_EVALUATOR,
@@ -611,7 +614,7 @@ async def _dataset_evaluators(
         google_id = str(google_data["createDatasetLlmEvaluator"]["evaluator"]["id"])
 
         # Create Bedrock evaluator
-        bedrock_output_name = f"bedrock_eval_{suffix}"
+        bedrock_output_name = "bedrock_eval"
         bedrock_data = await _gql(
             client,
             CREATE_DATASET_LLM_EVALUATOR,
