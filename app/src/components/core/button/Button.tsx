@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, Ref } from "react";
-import { forwardRef, useCallback } from "react";
+import { useCallback } from "react";
 import type { ButtonRenderProps } from "react-aria-components";
 import { Button as AriaButton } from "react-aria-components";
 
@@ -10,7 +10,10 @@ import { classNames } from "@phoenix/utils/classNames";
 import { buttonCSS } from "./styles";
 import type { ButtonProps } from "./types";
 
-function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
+function Button({
+  ref,
+  ...props
+}: ButtonProps & { ref?: Ref<HTMLButtonElement> }) {
   const {
     size: propSize,
     variant = "default",
@@ -52,5 +55,4 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   );
 }
 
-const _Button = forwardRef(Button);
-export { _Button as Button };
+export { Button };

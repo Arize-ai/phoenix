@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import {
   ColorSwatchPicker as AriaColorSwatchPicker,
   type ColorSwatchPickerProps as AriaColorSwatchPickerProps,
@@ -31,13 +31,13 @@ const colorSwatchPickerCSS = css`
   }
 `;
 
-export const ColorSwatchPicker = forwardRef<
-  HTMLDivElement,
-  ColorSwatchPickerProps
->((props: ColorSwatchPickerProps, ref) => {
+export function ColorSwatchPicker({
+  ref,
+  ...props
+}: ColorSwatchPickerProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaColorSwatchPicker css={colorSwatchPickerCSS} {...props} ref={ref} />
   );
-});
+}
 
 ColorSwatchPicker.displayName = "ColorSwatchPicker";

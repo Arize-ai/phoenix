@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { forwardRef } from "react";
+import type { Ref } from "react";
 
 import {
   Button,
@@ -26,10 +26,13 @@ type CategoricalAnnotationInputProps =
       "validate" | "value" | "onChange"
     >;
 
-export const CategoricalAnnotationInput = forwardRef<
-  HTMLButtonElement,
-  CategoricalAnnotationInputProps
->(({ annotationConfig, annotation, onSubmitExplanation, ...props }, ref) => {
+export function CategoricalAnnotationInput({
+  ref,
+  annotationConfig,
+  annotation,
+  onSubmitExplanation,
+  ...props
+}: CategoricalAnnotationInputProps & { ref?: Ref<HTMLButtonElement> }) {
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
       <AnnotationInputExplanation
@@ -64,6 +67,6 @@ export const CategoricalAnnotationInput = forwardRef<
       </Select>
     </Flex>
   );
-});
+}
 
 CategoricalAnnotationInput.displayName = "CategoricalAnnotationInput";

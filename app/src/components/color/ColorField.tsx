@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import {
   ColorField as AriaColorField,
   type ColorFieldProps as AriaColorFieldProps,
@@ -6,10 +6,11 @@ import {
 
 export interface ColorFieldProps extends AriaColorFieldProps {}
 
-export const ColorField = forwardRef<HTMLDivElement, ColorFieldProps>(
-  (props: ColorFieldProps, ref) => {
-    return <AriaColorField {...props} ref={ref} />;
-  }
-);
+export function ColorField({
+  ref,
+  ...props
+}: ColorFieldProps & { ref?: Ref<HTMLDivElement> }) {
+  return <AriaColorField {...props} ref={ref} />;
+}
 
 ColorField.displayName = "ColorField";

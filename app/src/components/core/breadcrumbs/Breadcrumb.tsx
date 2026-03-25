@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { BreadcrumbProps as AriaBreadcrumbProps } from "react-aria-components";
 import { Breadcrumb as AriaBreadcrumb } from "react-aria-components";
 
@@ -35,7 +34,10 @@ const breadcrumbCSS = css`
   }
 `;
 
-function Breadcrumb(props: BreadcrumbProps, ref: Ref<HTMLLIElement>) {
+function Breadcrumb({
+  ref,
+  ...props
+}: BreadcrumbProps & { ref?: Ref<HTMLLIElement> }) {
   const { children, ...rest } = props;
   return (
     <AriaBreadcrumb
@@ -54,5 +56,4 @@ function Breadcrumb(props: BreadcrumbProps, ref: Ref<HTMLLIElement>) {
   );
 }
 
-const _Breadcrumb = forwardRef(Breadcrumb);
-export { _Breadcrumb as Breadcrumb };
+export { Breadcrumb };

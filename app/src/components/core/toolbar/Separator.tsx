@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import type { SeparatorProps as AriaSeparatorProps } from "react-aria-components";
 import { Separator as AriaSeparator } from "react-aria-components";
 
@@ -22,7 +22,10 @@ const separatorCSS = css`
   }
 `;
 
-function Separator(props: SeparatorProps, ref: React.Ref<HTMLDivElement>) {
+function Separator({
+  ref,
+  ...props
+}: SeparatorProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaSeparator
       {...props}
@@ -33,8 +36,4 @@ function Separator(props: SeparatorProps, ref: React.Ref<HTMLDivElement>) {
   );
 }
 
-const _Separator = forwardRef(Separator);
-
-_Separator.displayName = "Separator";
-
-export { _Separator as Separator };
+export { Separator };

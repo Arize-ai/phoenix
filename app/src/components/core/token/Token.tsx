@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { HTMLProps, Ref } from "react";
-import React, { forwardRef } from "react";
+import React from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
@@ -162,22 +162,20 @@ function TokenLeadingVisual({
  * 3. Removable: Wrapped child content, sibling to a remove button (onRemove)
  * 4. Full Interactive: Wrapped sibling buttons with child content in the non-remove button
  */
-function Token(
-  {
-    children,
-    isDisabled,
-    css: cssProp,
-    color = "var(--global-color-gray-600)",
-    onPress,
-    onRemove,
-    size = "M",
-    style,
-    leadingVisual,
-    maxWidth,
-    ...rest
-  }: TokenProps,
-  ref: Ref<HTMLDivElement>
-) {
+function Token({
+  ref,
+  children,
+  isDisabled,
+  css: cssProp,
+  color = "var(--global-color-gray-600)",
+  onPress,
+  onRemove,
+  size = "M",
+  style,
+  leadingVisual,
+  maxWidth,
+  ...rest
+}: TokenProps & { ref?: Ref<HTMLDivElement> }) {
   const { theme } = useTheme();
 
   /**
@@ -276,6 +274,5 @@ function Token(
   );
 }
 
-const _Token = forwardRef(Token);
-export { _Token as Token };
+export { Token };
 export type { TokenProps };

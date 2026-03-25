@@ -1,14 +1,15 @@
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import { ProgressBar as ReactAriaProgressBar } from "react-aria-components";
 
 import { progressBarCSS } from "./styles";
 import type { ProgressBarProps } from "./types";
 
-function ProgressBar(
-  { width, height, ...props }: ProgressBarProps,
-  ref: Ref<HTMLDivElement>
-) {
+function ProgressBar({
+  ref,
+  width,
+  height,
+  ...props
+}: ProgressBarProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <ReactAriaProgressBar
       {...props}
@@ -28,5 +29,4 @@ function ProgressBar(
   );
 }
 
-const _ProgressBar = forwardRef(ProgressBar);
-export { _ProgressBar as ProgressBar };
+export { ProgressBar };

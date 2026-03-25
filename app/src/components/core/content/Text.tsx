@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, ReactNode, Ref } from "react";
-import { forwardRef } from "react";
 import type { TextProps as AriaTextProps } from "react-aria-components";
 import { Text as AriaText } from "react-aria-components";
 
@@ -69,7 +68,7 @@ const textCSS = (color: TextColorValue) =>
 /**
  * Text is used to create various sizes of typographic hierarchies.
  */
-function Text(props: TextProps, ref: Ref<HTMLElement>) {
+function Text({ ref, ...props }: TextProps & { ref?: Ref<HTMLElement> }) {
   const { isDisabled = false } = props;
   const {
     children,
@@ -101,5 +100,4 @@ function Text(props: TextProps, ref: Ref<HTMLElement>) {
   );
 }
 
-const _Text = forwardRef(Text);
-export { _Text as Text };
+export { Text };

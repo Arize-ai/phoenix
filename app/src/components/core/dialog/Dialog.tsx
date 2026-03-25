@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
-import type { HTMLAttributes } from "react";
-import { forwardRef } from "react";
+import type { HTMLAttributes, Ref } from "react";
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
@@ -21,21 +20,23 @@ const dialogCSS = css`
   overscroll-behavior: none !important;
 `;
 
-export const Dialog = forwardRef<HTMLDialogElement, DialogProps>(
-  ({ children, ...props }, ref) => {
-    return (
-      <AriaDialog
-        data-testid="dialog"
-        {...props}
-        css={dialogCSS}
-        className={classNames(props.className, "react-aria-Dialog")}
-        ref={ref}
-      >
-        {children}
-      </AriaDialog>
-    );
-  }
-);
+export function Dialog({
+  ref,
+  children,
+  ...props
+}: DialogProps & { ref?: Ref<HTMLDialogElement> }) {
+  return (
+    <AriaDialog
+      data-testid="dialog"
+      {...props}
+      css={dialogCSS}
+      className={classNames(props.className, "react-aria-Dialog")}
+      ref={ref}
+    >
+      {children}
+    </AriaDialog>
+  );
+}
 
 Dialog.displayName = "Dialog";
 

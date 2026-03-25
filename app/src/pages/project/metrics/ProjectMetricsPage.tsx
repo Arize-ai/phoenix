@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { forwardRef, memo, Suspense, useMemo, useRef } from "react";
+import React, { memo, Suspense, useMemo, useRef } from "react";
 import { useParams } from "react-router";
 
 import {
@@ -60,10 +60,12 @@ interface MetricPanelProps extends MetricPanelHeaderProps {
   children: React.ReactNode;
 }
 
-export const MetricPanel = forwardRef(function MetricPanel(
-  { title, subtitle, children }: MetricPanelProps,
-  ref: React.Ref<HTMLDivElement>
-) {
+export function MetricPanel({
+  ref,
+  title,
+  subtitle,
+  children,
+}: MetricPanelProps & { ref?: React.Ref<HTMLDivElement> }) {
   return (
     <View
       borderWidth="thin"
@@ -98,7 +100,7 @@ export const MetricPanel = forwardRef(function MetricPanel(
       </div>
     </View>
   );
-});
+}
 
 type EpochTimeRange = {
   start: number;
