@@ -19,7 +19,6 @@ import {
   ThemeSelector,
   TopNavbar,
 } from "@phoenix/components/nav";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -100,7 +99,6 @@ function SideNav() {
   );
   const loaderData = useLoaderData<LayoutLoaderData>();
   const { authenticationEnabled } = useFunctionality();
-  const isAgentsEnabled = useFeatureFlag("agents");
   const onLogout = useCallback(() => {
     window.location.replace(prependBasename("/auth/logout"));
   }, []);
@@ -169,16 +167,6 @@ function SideNav() {
               isExpanded={isSideNavExpanded}
             />
           </li>
-          {isAgentsEnabled && (
-            <li key="agents">
-              <NavLink
-                to="/agents"
-                text="Agents"
-                leadingVisual={<Icon svg={<Icons.Robot />} />}
-                isExpanded={isSideNavExpanded}
-              />
-            </li>
-          )}
           <li key="rest-api">
             <NavLink
               to="/apis/rest"

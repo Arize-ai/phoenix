@@ -6,7 +6,6 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
-import { AgentsPage } from "@phoenix/pages/agents/AgentsPage";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -419,13 +418,6 @@ const router = createBrowserRouter(
               }}
             />
           </Route>
-          <Route
-            path="/agents"
-            element={<AgentsPage />}
-            handle={{
-              crumb: () => "Agents",
-            }}
-          />
           <Route
             path="/redirects/spans/:span_otel_id"
             loader={spanRedirectLoader}
