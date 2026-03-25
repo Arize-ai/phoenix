@@ -1,17 +1,19 @@
+import type { ChatStatus } from "ai";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { ButtonProps } from "react-aria-components";
 
 import type { DOMProps } from "../../core/types/dom";
 
 /**
- * The lifecycle status of a prompt input.
+ * The lifecycle status of a prompt input, aligned with `ChatStatus` from the
+ * AI SDK (`ai` package) so it can be passed through directly from `useChat`.
  *
  * - `"ready"` — idle, accepting user input. Submit button sends the message.
  * - `"submitted"` — message has been sent, waiting for a response to begin.
  * - `"streaming"` — a response is actively streaming in. Submit button becomes a stop button.
  * - `"error"` — the last request failed. Submit button retries the message.
  */
-export type PromptInputStatus = "ready" | "submitted" | "streaming" | "error";
+export type PromptInputStatus = ChatStatus;
 
 /**
  * Internal context value shared between PromptInput and its descendant compound

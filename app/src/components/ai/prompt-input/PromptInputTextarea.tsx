@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { forwardRef, useCallback, useLayoutEffect, useRef } from "react";
+import { forwardRef, useLayoutEffect, useRef } from "react";
 
 import { usePromptInputContext } from "./PromptInputContext";
 import { promptInputTextareaCSS } from "./styles";
@@ -24,17 +24,14 @@ function PromptInputTextareaRoot(
   const handleChange =
     controlledOnChange !== undefined ? controlledOnChange : context.setValue;
 
-  const setRefs = useCallback(
-    (node: HTMLTextAreaElement | null) => {
-      internalRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-      } else if (ref && "current" in ref) {
-        (ref as React.RefObject<HTMLTextAreaElement | null>).current = node;
-      }
-    },
-    [ref]
-  );
+  const setRefs = (node: HTMLTextAreaElement | null) => {
+    internalRef.current = node;
+    if (typeof ref === "function") {
+      ref(node);
+    } else if (ref && "current" in ref) {
+      (ref as React.RefObject<HTMLTextAreaElement | null>).current = node;
+    }
+  };
 
   useLayoutEffect(() => {
     const textarea = internalRef.current;
@@ -56,22 +53,16 @@ function PromptInputTextareaRoot(
   }, [textareaValue, maxRows]);
 
   const { onSubmit } = context;
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        onSubmit();
-      }
-    },
-    [onSubmit]
-  );
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      onSubmit();
+    }
+  };
 
-  const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      handleChange(event.target.value);
-    },
-    [handleChange]
-  );
+  const handleInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    handleChange(event.target.value);
+  };
 
   return (
     <textarea

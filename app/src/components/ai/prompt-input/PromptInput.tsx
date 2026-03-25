@@ -1,7 +1,8 @@
 import type { Ref } from "react";
-import { forwardRef, useCallback, useMemo, useRef, useState } from "react";
+import { forwardRef, useRef, useState } from "react";
 
 import { PromptInputContext } from "./PromptInputContext";
+
 import {
   promptInputActionsCSS,
   promptInputBodyCSS,
@@ -17,7 +18,7 @@ import type {
   PromptInputToolsProps,
 } from "./types";
 
-function PromptInputRoot(
+function PromptInput(
   {
     children,
     onSubmit,
@@ -31,24 +32,21 @@ function PromptInputRoot(
   const valueRef = useRef(value);
   valueRef.current = value;
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = () => {
     const trimmed = valueRef.current.trim();
     if (trimmed) {
       onSubmit?.(trimmed);
       setValue("");
     }
-  }, [onSubmit]);
+  };
 
-  const contextValue = useMemo(
-    () => ({
-      status,
-      isDisabled,
-      onSubmit: handleSubmit,
-      value,
-      setValue,
-    }),
-    [status, isDisabled, handleSubmit, value]
-  );
+  const contextValue = {
+    status,
+    isDisabled,
+    onSubmit: handleSubmit,
+    value,
+    setValue,
+  };
 
   return (
     <PromptInputContext.Provider value={contextValue}>
@@ -64,11 +62,11 @@ function PromptInputRoot(
   );
 }
 
-const _PromptInput = forwardRef(PromptInputRoot);
+const _PromptInput = forwardRef(PromptInput);
 _PromptInput.displayName = "PromptInput";
 export { _PromptInput as PromptInput };
 
-function PromptInputBodyRoot(
+function PromptInputBody(
   { children, ...restProps }: PromptInputBodyProps,
   ref: Ref<HTMLDivElement>
 ) {
@@ -79,11 +77,11 @@ function PromptInputBodyRoot(
   );
 }
 
-const _PromptInputBody = forwardRef(PromptInputBodyRoot);
+const _PromptInputBody = forwardRef(PromptInputBody);
 _PromptInputBody.displayName = "PromptInputBody";
 export { _PromptInputBody as PromptInputBody };
 
-function PromptInputFooterRoot(
+function PromptInputFooter(
   { children, ...restProps }: PromptInputFooterProps,
   ref: Ref<HTMLDivElement>
 ) {
@@ -94,11 +92,11 @@ function PromptInputFooterRoot(
   );
 }
 
-const _PromptInputFooter = forwardRef(PromptInputFooterRoot);
+const _PromptInputFooter = forwardRef(PromptInputFooter);
 _PromptInputFooter.displayName = "PromptInputFooter";
 export { _PromptInputFooter as PromptInputFooter };
 
-function PromptInputToolsRoot(
+function PromptInputTools(
   { children, ...restProps }: PromptInputToolsProps,
   ref: Ref<HTMLDivElement>
 ) {
@@ -109,11 +107,11 @@ function PromptInputToolsRoot(
   );
 }
 
-const _PromptInputTools = forwardRef(PromptInputToolsRoot);
+const _PromptInputTools = forwardRef(PromptInputTools);
 _PromptInputTools.displayName = "PromptInputTools";
 export { _PromptInputTools as PromptInputTools };
 
-function PromptInputActionsRoot(
+function PromptInputActions(
   { children, ...restProps }: PromptInputActionsProps,
   ref: Ref<HTMLDivElement>
 ) {
@@ -124,6 +122,6 @@ function PromptInputActionsRoot(
   );
 }
 
-const _PromptInputActions = forwardRef(PromptInputActionsRoot);
+const _PromptInputActions = forwardRef(PromptInputActions);
 _PromptInputActions.displayName = "PromptInputActions";
 export { _PromptInputActions as PromptInputActions };
