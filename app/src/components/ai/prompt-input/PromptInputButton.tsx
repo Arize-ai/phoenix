@@ -1,15 +1,25 @@
 import { css } from "@emotion/react";
 import { forwardRef } from "react";
-import { Button, Keyboard, TooltipTrigger } from "react-aria-components";
+import { Button, TooltipTrigger } from "react-aria-components";
 
+import { Keyboard } from "../../core/content/Keyboard";
 import { Tooltip, TooltipArrow } from "../../core/tooltip";
+
 import { promptInputButtonCSS } from "./styles";
 import type { PromptInputButtonProps, PromptInputButtonTooltip } from "./types";
 
 const shortcutCSS = css`
   display: flex;
   align-items: center;
-  gap: var(--global-dimension-size-50);
+  gap: var(--global-dimension-size-75);
+
+  kbd {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: var(--global-rounding-small);
+    padding: 1px var(--global-dimension-size-50);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+  }
 `;
 
 function resolveTooltip(tooltip: PromptInputButtonTooltip) {
