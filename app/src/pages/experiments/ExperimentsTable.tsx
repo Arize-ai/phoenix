@@ -26,6 +26,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ExperimentTokenCount,
@@ -64,6 +65,7 @@ import type {
 import type { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
+import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
@@ -161,6 +163,10 @@ export function ExperimentsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [columnSizing, setColumnSizing] = useState({});
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<string, boolean>
+  >({});
+  const [, setSearchText] = useState("");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -564,6 +570,7 @@ export function ExperimentsTable({
     state: {
       rowSelection,
       columnSizing,
+      columnVisibility,
       columnPinning: {
         right: ["actions"],
       },
@@ -572,8 +579,11 @@ export function ExperimentsTable({
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const selectorColumns = table.getAllColumns();
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -624,87 +634,120 @@ export function ExperimentsTable({
   return (
     <div
       css={css`
+        display: flex;
+        flex-direction: column;
         height: 100%;
-        overflow: auto;
+        overflow: hidden;
       `}
-      ref={tableContainerRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table
-        css={selectableTableCSS}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  colSpan={header.colSpan}
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                    ...getCommonPinningStyles(header.column),
-                  }}
-                  align={header.column.columnDef?.meta?.textAlign}
-                >
-                  {header.isPlaceholder ? null : (
-                    <>
-                      <div>
-                        <Truncate maxWidth="100%">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                        </Truncate>
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
-                    </>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody
-            table={table}
-            hasNext={hasNext}
-            onLoadNext={() => loadNext(PAGE_SIZE)}
-            isLoadingNext={isLoadingNext}
-            dataset={data}
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <View flex="1 1 auto">
+            <DebouncedSearch
+              placeholder="Search experiments"
+              aria-label="Search experiments"
+              onChange={setSearchText}
+            />
+          </View>
+          <ExperimentColumnSelector
+            columns={selectorColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
-        ) : (
-          <TableBody
-            table={table}
-            hasNext={hasNext}
-            onLoadNext={() => loadNext(PAGE_SIZE)}
-            isLoadingNext={isLoadingNext}
-            dataset={data}
-          />
-        )}
-      </table>
-      {selectedRows.length ? (
-        <ExperimentSelectionToolbar
-          datasetId={data.id}
-          selectedExperiments={selectedExperiments}
-          onClearSelection={clearSelection}
-          onExperimentsDeleted={() => {
-            refetch({}, { fetchPolicy: "network-only" });
+        </Flex>
+      </View>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        ref={tableContainerRef}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      >
+        <table
+          css={selectableTableCSS}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
           }}
-        />
-      ) : null}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    colSpan={header.colSpan}
+                    key={header.id}
+                    style={{
+                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                      ...getCommonPinningStyles(header.column),
+                    }}
+                    align={header.column.columnDef?.meta?.textAlign}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <>
+                        <div>
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
+                        </div>
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      </>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              isLoadingNext={isLoadingNext}
+              dataset={data}
+            />
+          ) : (
+            <TableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              isLoadingNext={isLoadingNext}
+              dataset={data}
+            />
+          )}
+        </table>
+        {selectedRows.length ? (
+          <ExperimentSelectionToolbar
+            datasetId={data.id}
+            selectedExperiments={selectedExperiments}
+            onClearSelection={clearSelection}
+            onExperimentsDeleted={() => {
+              refetch({}, { fetchPolicy: "network-only" });
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }
