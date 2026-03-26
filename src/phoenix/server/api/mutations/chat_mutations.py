@@ -7,6 +7,13 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    get_dataset_example_revisions,
+    insert_experiment_with_examples_snapshot,
+)
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.types.annotation_configs import CategoricalOutputConfig, ContinuousOutputConfig
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -36,6 +43,16 @@ from phoenix.server.api.mutations.evaluator_mutations import (
     _convert_output_config_inputs_to_pydantic,
 )
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator
+from phoenix.server.api.subscriptions import (
+    _default_playground_experiment_name,
+)
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    TextChunk,
+    ToolCallChunk,
+)
+from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, CodeEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.Trace import Trace
@@ -95,6 +112,385 @@ def _to_evaluation_result(
 
 @strawberry.type
 class ChatCompletionMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @classmethod
+    async def chat_completion_over_dataset(
+        cls,
+        info: Info[Context, None],
+        input: ChatCompletionOverDatasetInput,
+    ) -> ChatCompletionOverDatasetMutationPayload:
+        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
+        dataset_version_id = (
+            from_global_id_with_expected_type(
+                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
+            )
+            if input.dataset_version_id
+            else None
+        )
+        project_name = generate_experiment_project_name()
+        async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
+                client_options=input.client_options,
+            )
+            dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
+            if dataset is None:
+                raise NotFound("Dataset not found")
+            if dataset_version_id is None:
+                resolved_version_id = await session.scalar(
+                    select(models.DatasetVersion.id)
+                    .filter_by(dataset_id=dataset_id)
+                    .order_by(models.DatasetVersion.id.desc())
+                    .limit(1)
+                )
+                if resolved_version_id is None:
+                    raise NotFound("No versions found for the given dataset")
+            else:
+                resolved_version_id = dataset_version_id
+            # Parse split IDs if provided
+            resolved_split_ids: Optional[list[int]] = None
+            if input.split_ids is not None and len(input.split_ids) > 0:
+                resolved_split_ids = [
+                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+                    for split_id in input.split_ids
+                ]
+
+            revisions = [
+                revision
+                async for revision in await session.stream_scalars(
+                    get_dataset_example_revisions(
+                        resolved_version_id,
+                        split_ids=resolved_split_ids,
+                    ).order_by(models.DatasetExampleRevision.id)
+                )
+            ]
+            if not revisions:
+                raise NotFound("No examples found for the given dataset and version")
+            user_id = get_user(info)
+            experiment = models.Experiment(
+                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
+                dataset_version_id=resolved_version_id,
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
+                description=input.experiment_description,
+                repetitions=input.repetitions,
+                metadata_=input.experiment_metadata or dict(),
+                project_name=project_name,
+                user_id=user_id,
+            )
+            if resolved_split_ids:
+                experiment.experiment_dataset_splits = [
+                    models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                    for split_id in resolved_split_ids
+                ]
+            await insert_experiment_with_examples_snapshot(session, experiment)
+
+        results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
+        batch_size = 3
+        start_time = datetime.now(timezone.utc)
+        unbatched_items = [
+            (revision, repetition_number)
+            for revision in revisions
+            for repetition_number in range(1, input.repetitions + 1)
+        ]
+
+        # Pre-extract appended messages for each revision if path is specified
+        appended_messages_by_revision: dict[int, list[PlaygroundMessage]] = {}
+        if input.appended_messages_path:
+            for revision in revisions:
+                try:
+                    appended_messages_by_revision[revision.id] = (
+                        extract_and_convert_example_messages(
+                            revision.input, input.appended_messages_path
+                        )
+                    )
+                except (KeyError, TypeError, ValueError):
+                    # If extraction fails, store empty list; error will surface when processing
+                    appended_messages_by_revision[revision.id] = []
+
+        # Pre-compute template variables for each revision based on template_variables_path
+        template_variables_by_revision: dict[int, dict[str, Any]] = {}
+        for revision in revisions:
+            try:
+                template_variables_by_revision[revision.id] = build_template_variables(
+                    input_data=revision.input,
+                    output_data=revision.output,
+                    metadata=revision.metadata_,
+                    template_variables_path=input.template_variables_path,
+                )
+            except (KeyError, TypeError, ValueError):
+                # If extraction fails, store empty dict; error will surface when formatting
+                template_variables_by_revision[revision.id] = {}
+
+        for batch in _get_batches(unbatched_items, batch_size):
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info,
+                        llm_client,
+                        ChatCompletionInput(
+                            client_options=input.client_options,
+                            prompt_version=input.prompt_version,
+                            credentials=input.credentials,
+                            template=PromptTemplateOptions(
+                                format=input.prompt_version.template_format,
+                                variables=template_variables_by_revision[revision.id],
+                            ),
+                            prompt_name=input.prompt_name,
+                            repetitions=repetition_number,
+                            evaluators=input.evaluators,
+                        ),
+                        repetition_number=repetition_number,
+                        project_name=project_name,
+                        appended_messages=appended_messages_by_revision.get(revision.id),
+                    )
+                    for revision, repetition_number in batch
+                ),
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
+
+        payload = ChatCompletionOverDatasetMutationPayload(
+            dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
+            dataset_version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
+            experiment_id=GlobalID(models.Experiment.__name__, str(experiment.id)),
+        )
+        experiment_runs = []
+        for (revision, repetition_number), result in zip(unbatched_items, results):
+            if isinstance(result, BaseException):
+                experiment_run = models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    output={},
+                    repetition_number=repetition_number,
+                    start_time=start_time,
+                    end_time=start_time,
+                    error=str(result),
+                )
+            else:
+                repetition, db_span = result
+                experiment_run = models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    trace_id=db_span.trace.trace_id,
+                    output=models.ExperimentRunOutput(
+                        task_output=get_experiment_example_output(db_span),
+                    ),
+                    prompt_token_count=db_span.cumulative_llm_token_count_prompt,
+                    completion_token_count=db_span.cumulative_llm_token_count_completion,
+                    repetition_number=repetition_number,
+                    start_time=db_span.start_time,
+                    end_time=db_span.end_time,
+                    error=str(repetition.error_message) if repetition.error_message else None,
+                )
+            experiment_runs.append(experiment_run)
+
+        async with info.context.db() as session:
+            session.add_all(experiment_runs)
+            await session.flush()
+
+        evaluations: dict[tuple[ExampleRowID, RepetitionNumber], list[EvaluationResult]] = {}
+        if input.evaluators:
+            dataset_evaluator_node_ids = [evaluator.id for evaluator in input.evaluators]
+            async with info.context.db() as session:
+                evaluators = await get_evaluators(
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+                project_ids = await get_evaluator_project_ids(
+                    dataset_evaluator_node_ids=dataset_evaluator_node_ids,
+                    session=session,
+                )
+            for (revision, repetition_number), experiment_run in zip(
+                unbatched_items, experiment_runs
+            ):
+                if experiment_run.error:
+                    continue  # skip runs that errored out
+                evaluation_key = (revision.dataset_example_id, repetition_number)
+                evaluations[evaluation_key] = []
+
+                context_dict: dict[str, Any] = {
+                    "input": revision.input,
+                    "reference": revision.output,
+                    "output": experiment_run.output.get("task_output", experiment_run.output),
+                    "metadata": revision.metadata_,
+                }
+
+                for evaluator, evaluator_input, project_id in zip(
+                    evaluators, input.evaluators, project_ids
+                ):
+                    name = str(evaluator_input.name)
+                    configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                    tracer: Tracer | None = None
+                    if input.tracing_enabled:
+                        tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
+
+                    eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                        context=context_dict,
+                        input_mapping=evaluator_input.input_mapping.to_orm(),
+                        name=name,
+                        output_configs=configs,
+                        tracer=tracer,
+                        session_key="",
+                    )
+
+                    trace: Trace | None = None
+                    if tracer is not None:
+                        async with info.context.db() as session:
+                            db_traces = tracer.get_db_traces(project_id=project_id)
+                            session.add_all(db_traces)
+                            await session.flush()
+                        if db_traces:
+                            db_trace = db_traces[0]
+                            trace = Trace(id=db_trace.id, db_record=db_trace)
+                            for eval_result in eval_results:
+                                eval_result["trace_id"] = db_trace.trace_id
+
+                    for eval_result in eval_results:
+                        if eval_result["error"] is None:
+                            annotation_model = evaluation_result_to_model(
+                                eval_result,
+                                experiment_run_id=experiment_run.id,
+                            )
+                            async with info.context.db() as session:
+                                session.add(annotation_model)
+                        evaluations[evaluation_key].append(
+                            _to_evaluation_result(eval_result, name, trace=trace)
+                        )
+
+        for (revision, repetition_number), experiment_run, result in zip(
+            unbatched_items, experiment_runs, results
+        ):
+            dataset_example_id = GlobalID(
+                models.DatasetExample.__name__, str(revision.dataset_example_id)
+            )
+            experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
+            evaluation_key = (revision.dataset_example_id, repetition_number)
+
+            if isinstance(result, BaseException):
+                repetition = ChatCompletionRepetition(
+                    repetition_number=repetition_number,
+                    content=None,
+                    tool_calls=[],
+                    span=None,
+                    error_message=str(result),
+                    evaluations=[],
+                )
+            else:
+                repetition = result[0]
+                repetition.evaluations = evaluations.get(evaluation_key, [])
+
+            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
+                dataset_example_id=dataset_example_id,
+                repetition_number=repetition_number,
+                experiment_run_id=experiment_run_id,
+                repetition=repetition,
+            )
+            payload.examples.append(example_payload)
+        return payload
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @classmethod
+    async def chat_completion(
+        cls, info: Info[Context, None], input: ChatCompletionInput
+    ) -> ChatCompletionMutationPayload:
+        async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model_provider=input.prompt_version.model_provider.to_model_provider(),
+                model_name=input.prompt_version.model_name,
+                custom_provider_id=input.prompt_version.resolved_custom_provider_id(),
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
+                client_options=input.client_options,
+            )
+        results: list[Union[tuple[ChatCompletionRepetition, models.Span], BaseException]] = []
+        batch_size = 3
+        for batch in _get_batches(range(1, input.repetitions + 1), batch_size):
+            batch_results = await asyncio.gather(
+                *(
+                    cls._chat_completion(
+                        info, llm_client, input, repetition_number=repetition_number
+                    )
+                    for repetition_number in batch
+                ),
+                return_exceptions=True,
+            )
+            results.extend(batch_results)
+
+        # Run evaluations if evaluators are specified
+        evaluations_by_repetition: dict[int, list[EvaluationResult]] = {}
+        if input.evaluators:
+            async with info.context.db() as session:
+                evaluators = await get_evaluators(
+                    dataset_evaluator_node_ids=[evaluator.id for evaluator in input.evaluators],
+                    session=session,
+                    decrypt=info.context.decrypt,
+                    credentials=input.credentials,
+                )
+            for repetition_number, result in enumerate(results, start=1):
+                if isinstance(result, BaseException):
+                    continue  # skip failed completions
+                repetition, db_span = result
+                if repetition.error_message:
+                    continue  # skip repetitions in which the task errored out
+                evaluations_by_repetition[repetition_number] = []
+
+                context_dict: dict[str, Any] = {
+                    "input": get_attribute_value(db_span.attributes, LLM_INPUT_MESSAGES),
+                    "output": get_attribute_value(db_span.attributes, LLM_OUTPUT_MESSAGES),
+                }
+
+                for evaluator, evaluator_input in zip(evaluators, input.evaluators):
+                    name = str(evaluator_input.name)
+                    configs = get_evaluator_output_configs(evaluator_input, evaluator)
+                    eval_results: list[EvaluationResultDict] = await evaluator.evaluate(
+                        context=context_dict,
+                        input_mapping=evaluator_input.input_mapping.to_orm(),
+                        name=name,
+                        output_configs=configs,
+                        session_key="",
+                    )
+
+                    for eval_result in eval_results:
+                        if eval_result["error"] is None:
+                            annotation_model = evaluation_result_to_span_annotation(
+                                eval_result,
+                                span_rowid=db_span.id,
+                            )
+                            async with info.context.db() as session:
+                                session.add(annotation_model)
+                        evaluations_by_repetition[repetition_number].append(
+                            _to_evaluation_result(eval_result, name)
+                        )
+
+        repetitions: list[ChatCompletionRepetition] = []
+        for repetition_number, result in enumerate(results, start=1):
+            if isinstance(result, BaseException):
+                repetitions.append(
+                    ChatCompletionRepetition(
+                        repetition_number=repetition_number,
+                        content=None,
+                        tool_calls=[],
+                        span=None,
+                        error_message=str(result),
+                        evaluations=[],
+                    )
+                )
+            else:
+                repetition, _ = result
+                repetition.evaluations = evaluations_by_repetition.get(repetition_number, [])
+                repetitions.append(repetition)
+
+        return ChatCompletionMutationPayload(repetitions=repetitions)
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
     async def evaluator_previews(
@@ -196,6 +592,88 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping.to_orm(),
                     name=evaluator.name,
                     output_configs=categorical_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
+            elif code_evaluator_id := evaluator_input.code_evaluator_id:
+                type_name, db_id = from_global_id(code_evaluator_id)
+                if type_name != CodeEvaluator.__name__:
+                    raise BadRequest(f"Expected code evaluator, got {type_name}")
+
+                from phoenix.server.api.evaluators import CodeEvaluatorRunner
+                from phoenix.server.sandbox import get_or_create_backend
+
+                async with info.context.db() as session:
+                    code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
+                    if code_evaluator_record is None:
+                        raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
+
+                    # Resolve language within session to avoid DetachedInstanceError
+                    language_row = await session.get(
+                        models.Language, code_evaluator_record.language_id
+                    )
+                    language = language_row.name if language_row is not None else "PYTHON"
+
+                    # Resolve sandbox backend via config → provider chain
+                    sandbox_backend = None
+                    backend_type: str | None = None
+                    merged_config: dict[str, Any] | None = None
+                    sandbox_timeout: int | None = None
+                    if code_evaluator_record.sandbox_config_id is not None:
+                        sandbox_cfg = await session.get(
+                            models.SandboxConfig, code_evaluator_record.sandbox_config_id
+                        )
+                        if sandbox_cfg is not None and sandbox_cfg.enabled:
+                            sandbox_timeout = sandbox_cfg.timeout
+                            provider = await session.get(
+                                models.SandboxProvider, sandbox_cfg.sandbox_provider_id
+                            )
+                            if provider is not None and provider.enabled:
+                                backend_type = provider.backend_type
+                                if (
+                                    code_evaluator_record.language_id is not None
+                                    and provider.language_id != code_evaluator_record.language_id
+                                ):
+                                    raise BadRequest(
+                                        "Sandbox provider language does not match "
+                                        "code evaluator language"
+                                    )
+                                merged_config = {**provider.config, **sandbox_cfg.config}
+
+                    # Eagerly capture scalar fields before session closes
+                    evaluator_name = str(code_evaluator_record.name)
+                    evaluator_description = code_evaluator_record.description
+                    evaluator_source_code = code_evaluator_record.source_code
+                    output_configs = [
+                        c
+                        for c in code_evaluator_record.output_configs
+                        if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    ]
+
+                if backend_type is not None:
+                    sandbox_backend = get_or_create_backend(backend_type, config=merged_config)
+                if sandbox_backend is None:
+                    raise BadRequest(
+                        f"No sandbox backend configured for language '{language}'. "
+                        "Please configure a sandbox provider for this evaluator."
+                    )
+
+                runner = CodeEvaluatorRunner(
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=evaluator_source_code,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                )
+                eval_results = await runner.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=str(code_evaluator_record.name),
+                    output_configs=output_configs,
+                    session_key="",
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))

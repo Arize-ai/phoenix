@@ -278,6 +278,32 @@ async def _cleanup_chat_completion_over_dataset_resources(
     logger.info("Resource cleanup complete")
 
 
+async def _cleanup_sandbox_sessions(
+    evaluators: list[BaseEvaluator],
+    session_key: str,
+) -> None:
+    """
+    Stop sandbox sessions for any CodeEvaluatorRunner instances in the evaluators list.
+
+    Called in a finally block after a dataset run completes or is cancelled so that
+    stateful sandbox backends (e.g. E2B, Daytona) release their remote sessions.
+    Errors are swallowed and logged — cleanup must not mask the original exception.
+    """
+    from phoenix.server.api.evaluators import CodeEvaluatorRunner
+
+    for evaluator in evaluators:
+        if not isinstance(evaluator, CodeEvaluatorRunner):
+            continue
+        try:
+            await evaluator._sandbox_backend.stop_session(session_key)
+        except Exception as exc:
+            logger.warning(
+                f"Failed to stop sandbox session {session_key!r} "
+                f"for evaluator {evaluator.name!r}: {exc}",
+                exc_info=True,
+            )
+
+
 @strawberry.type
 class Subscription:
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -501,6 +527,31 @@ class Subscription:
             experiment=to_gql_experiment(experiment)
         )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
+        # Generate a session key scoped to this experiment run. Stateful sandbox
+        # backends (E2B, Daytona) use this key to multiplex remote sessions.
+        from secrets import token_hex as _token_hex
+
+        session_key = f"experiment-{experiment.id}-{_token_hex(8)}"
+
+        # Start sandbox sessions for each unique CodeEvaluatorRunner backend.
+        from phoenix.server.api.evaluators import CodeEvaluatorRunner
+
+        seen_backends: set[int] = set()
+        for evaluator in evaluators:
+            if not isinstance(evaluator, CodeEvaluatorRunner):
+                continue
+            backend_id = id(evaluator._sandbox_backend)
+            if backend_id in seen_backends:
+                continue
+            seen_backends.add(backend_id)
+            try:
+                await evaluator._sandbox_backend.start_session(session_key)
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to start sandbox session {session_key!r}: {exc}",
+                    exc_info=True,
+                )
+
         not_started: list[tuple[DatasetExampleNodeID, RepetitionNumber, ChatStream]] = [
             (
                 GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
@@ -519,6 +570,7 @@ class Subscription:
                     ),
                     evaluators=evaluators,
                     evaluator_project_ids=project_ids,
+                    session_key=session_key,
                 ),
             )
             for revision in revisions
@@ -575,6 +627,10 @@ class Subscription:
                 in_progress=in_progress,
                 not_started=not_started,
             )
+            await _cleanup_sandbox_sessions(
+                evaluators=evaluators,
+                session_key=session_key,
+            )
 
 
 async def _stream_chat_completion_over_dataset_example(
@@ -590,6 +646,7 @@ async def _stream_chat_completion_over_dataset_example(
     on_span_insertion: Callable[[], None],
     evaluators: list[BaseEvaluator],
     evaluator_project_ids: list[int],
+    session_key: str = "",
 ) -> ChatStream:
     example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
     invocation_parameters = dict(input.prompt_version.invocation_parameters)
@@ -713,6 +770,7 @@ async def _stream_chat_completion_over_dataset_example(
                     name=name,
                     output_configs=configs,
                     tracer=eval_tracer,
+                    session_key=session_key,
                 )
             except Exception as eval_error:
                 logger.exception(eval_error)
