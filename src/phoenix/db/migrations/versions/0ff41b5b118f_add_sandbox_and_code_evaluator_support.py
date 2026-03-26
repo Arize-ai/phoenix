@@ -72,6 +72,12 @@ def upgrade() -> None:
             sa.String,
             nullable=False,
         ),
+        sa.Column(
+            "language_id",
+            _Integer,
+            sa.ForeignKey("languages.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
@@ -86,7 +92,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("backend_type"),
+        sa.UniqueConstraint("backend_type", "language_id"),
     )
 
     op.create_table(
@@ -100,12 +106,6 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
-        sa.Column(
-            "language_id",
-            _Integer,
-            sa.ForeignKey("languages.id", ondelete="RESTRICT"),
-            nullable=False,
-        ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
