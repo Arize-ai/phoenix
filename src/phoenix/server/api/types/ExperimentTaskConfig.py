@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
         GenerativeModelCustomProvider,
     )
+from strawberry import Private
+
 from phoenix.db.types import experiment_config as config_types
 from phoenix.db.types.prompts import (
     PromptTemplateFormat,
@@ -33,6 +35,7 @@ from phoenix.server.api.types.PromptResponseFormat import (
     PromptResponseFormatJSONSchema,
 )
 from phoenix.server.api.types.PromptTools import PromptTools
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
@@ -152,6 +155,7 @@ class PlaygroundConfig:
 
 @strawberry.type
 class PromptConfig:
+    prompt_version_id: Private[int | None] = None
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     template: PromptTemplate
@@ -161,7 +165,18 @@ class PromptConfig:
     model_provider: GenerativeProviderKey = strawberry.field(
         description="The model provider (OPENAI, ANTHROPIC, etc.)"
     )
-    model_name: str = ""
+    model_name: str
+
+    @strawberry.field
+    async def prompt_version(self, info: Info[Context, None]) -> PromptVersion | None:
+        if self.prompt_version_id is None:
+            return None
+        prompt_version = await info.context.data_loaders.prompt_versions.load(
+            self.prompt_version_id
+        )
+        if prompt_version is None:
+            return None
+        return to_gql_prompt_version(prompt_version=prompt_version)
 
 
 @strawberry.type
@@ -181,6 +196,7 @@ class PromptTaskConfig(Node):
         return cls(
             id=obj.id,
             prompt=PromptConfig(
+                prompt_version_id=obj.prompt_version_id,
                 template_type=obj.template_type,
                 template_format=obj.template_format,
                 template=template,

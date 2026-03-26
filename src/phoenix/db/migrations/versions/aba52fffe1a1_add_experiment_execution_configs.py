@@ -132,10 +132,17 @@ def upgrade() -> None:
             ["experiment_execution_configs.id", "experiment_execution_configs.task_type"],
             ondelete="CASCADE",
         ),
-        # Model identity (queryable)
+        # Prompt version (nullable)
+        sa.Column(
+            "prompt_version_id",
+            _Integer,
+            sa.ForeignKey("prompt_versions.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        # Model identity
         sa.Column("model_provider", sa.String(), nullable=False),
         sa.Column("model_name", sa.String(), nullable=False),
-        # Provider routing (FK with cascade protection)
+        # Provider routing
         sa.Column(
             "custom_provider_id",
             _Integer,

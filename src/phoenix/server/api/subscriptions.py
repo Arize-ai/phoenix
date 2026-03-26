@@ -401,6 +401,12 @@ class Subscription:
                 else to_connection_config(prompt_version.model_provider, input.connection)
             )
 
+            prompt_version_id = (
+                from_global_id_with_expected_type(input.prompt_version_id, "PromptVersion")
+                if input.prompt_version_id
+                else None
+            )
+
             # ExperimentPromptTask inherits from ExperimentExecutionConfig
             # (polymorphic joined table inheritance), so creating it
             # automatically inserts into both tables.
@@ -408,6 +414,7 @@ class Subscription:
                 id=experiment.id,
                 # claimed_at=NULL means not running; start_experiment(experiment.id) will claim it
                 max_concurrency=input.max_concurrency,
+                prompt_version_id=prompt_version_id,
                 model_provider=prompt_version.model_provider,
                 model_name=prompt_version.model_name,
                 custom_provider_id=prompt_version.custom_provider_id,

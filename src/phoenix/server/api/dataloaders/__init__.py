@@ -53,6 +53,7 @@ from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
+from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
@@ -132,6 +133,7 @@ __all__ = [
     "NumSpansPerTraceDataLoader",
     "ProjectByNameDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
+    "PromptVersionDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SecretsDataLoader",

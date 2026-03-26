@@ -2171,6 +2171,7 @@ export const getChatCompletionOverDatasetInput = ({
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
+    promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
   };
 };

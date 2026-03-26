@@ -54,6 +54,7 @@ if TYPE_CHECKING:
         NumSpansPerTraceDataLoader,
         ProjectByNameDataLoader,
         ProjectIdsByTraceRetentionPolicyIdDataLoader,
+        PromptVersionDataLoader,
         PromptVersionSequenceNumberDataLoader,
         RecordCountDataLoader,
         SecretsDataLoader,
@@ -167,6 +168,7 @@ class DataLoaders:
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
+    prompt_versions: PromptVersionDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader

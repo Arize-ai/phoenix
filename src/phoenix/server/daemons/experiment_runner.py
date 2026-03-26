@@ -32,6 +32,7 @@ from typing import (
     Callable,
     Hashable,
     Literal,
+    Mapping,
     Protocol,
     Sequence,
     overload,
@@ -90,17 +91,13 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 )
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.ExperimentRun import ExperimentRun
-from phoenix.server.api.types.ExperimentRun import ExperimentRun as GqlExperimentRun
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.Span import Span as GqlSpan
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DaemonTask, DbSessionFactory
-from phoenix.tracers import Tracer
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping as MappingABC
-
     from opentelemetry.context import Context
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -108,7 +105,7 @@ if TYPE_CHECKING:
     from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
     from phoenix.server.api.helpers.playground_clients import ChatCompletionChunk
     from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
-    from phoenix.tracers import Tracer as _TracerType
+    from phoenix.tracers import Tracer
 
 
 class TokenBucket(Protocol):
@@ -141,8 +138,8 @@ class LLMClient(Protocol):
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None = None,
-        invocation_parameters: MappingABC[str, Any] = ...,
-        tracer: _TracerType | None = None,
+        invocation_parameters: Mapping[str, Any] = ...,
+        tracer: Tracer | None = None,
         otel_context: Context | None = None,
         stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]: ...
@@ -168,8 +165,8 @@ class _NoOpLLMClient:
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None = None,
-        invocation_parameters: MappingABC[str, Any] | None = None,
-        tracer: _TracerType | None = None,
+        invocation_parameters: Mapping[str, Any] | None = None,
+        tracer: Tracer | None = None,
         otel_context: Context | None = None,
         stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
@@ -264,7 +261,7 @@ class Job(ABC):
 
     @property
     @abstractmethod
-    def experiment_id(self) -> int:
+    def experiment_id(self) -> ExperimentId:
         """Return the experiment ID this job belongs to."""
         ...
 
@@ -530,8 +527,8 @@ class TaskJob(Job):
 
                 self._running_experiment._broadcast(
                     ChatCompletionSubscriptionResult(
-                        span=GqlSpan(id=db_span.id, db_record=db_span),
-                        experiment_run=GqlExperimentRun(id=db_run.id, db_record=db_run),
+                        span=Span(id=db_span.id, db_record=db_span),
+                        experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
                         dataset_example_id=example_id,
                         repetition_number=self._repetition_number,
                     )
@@ -1264,7 +1261,10 @@ class RunningExperiment:
 
         has_more = len(rows) > self._task_batch_size
         if has_more:
+            next_cursor: int | None = rows[self._task_batch_size][0].id
             rows = rows[: self._task_batch_size]
+        else:
+            next_cursor = None
 
         if not rows:
             self._eval_db_exhausted = True
@@ -1274,8 +1274,9 @@ class RunningExperiment:
             return
 
         # Update cursor for next batch
-        self._eval_db_offset = rows[-1][0].id
-        if not has_more:
+        if next_cursor is not None:
+            self._eval_db_offset = next_cursor
+        else:
             self._eval_db_exhausted = True
 
         queued = 0
@@ -1369,17 +1370,6 @@ class RunningExperiment:
                 closed.append(stream)
         for stream in closed:
             self._subscribers.remove(stream)
-
-    def _close_subscribers(self) -> None:
-        """Close all subscriber streams (triggers EndOfStream) and clear the list.
-
-        Uses sync close() so this can be called from both sync (stop()) and
-        async contexts.  MemoryObjectSendStream.close() is equivalent to
-        aclose() for in-memory streams.
-        """
-        for stream in self._subscribers:
-            stream.close()
-        self._subscribers.clear()
 
     async def on_task_success(
         self,
@@ -2472,40 +2462,3 @@ class ExperimentRunner(DaemonTask):
     @property
     def replica_id(self) -> str:
         return self._replica_id
-
-    def get_experiment(self, experiment_id: int) -> RunningExperiment | None:
-        """Get a running experiment by ID."""
-        return self._experiments.get(experiment_id)
-
-    async def subscribe(
-        self, experiment_id: int
-    ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        """
-        Subscribe to experiment progress updates.
-
-        Yields payloads as the daemon processes the experiment.
-        """
-        exp = self._experiments.get(experiment_id)
-        if not exp:
-            logger.debug(f"Daemon.subscribe({experiment_id}): experiment not found")
-            return
-
-        logger.debug(f"Daemon.subscribe({experiment_id}): starting subscription loop")
-        receive_stream = exp.subscribe()
-        try:
-            while exp.has_work():
-                with anyio.move_on_after(1.0) as cancel_scope:
-                    payload = await receive_stream.receive()
-                    logger.debug(
-                        f"Daemon.subscribe({experiment_id}): received payload type "
-                        f"{type(payload).__name__}"
-                    )
-                    yield payload
-                if cancel_scope.cancelled_caught:
-                    continue  # Timeout - check if experiment still has work
-            logger.debug(f"Daemon.subscribe({experiment_id}): loop exited (has_work=False)")
-        except anyio.EndOfStream:
-            logger.debug(f"Daemon.subscribe({experiment_id}): EndOfStream received")
-        finally:
-            logger.debug(f"Daemon.subscribe({experiment_id}): closing receive stream")
-            await receive_stream.aclose()

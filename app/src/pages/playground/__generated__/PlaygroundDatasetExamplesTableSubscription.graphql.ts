@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<662210cb5a87af5a75e1a5491ed49986>>
+ * @generated SignedSource<<a0693f7acc0178fab906abfe609979a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,7 @@ export type ChatCompletionOverDatasetInput = {
   maxConcurrency?: number;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
+  promptVersionId?: string | null;
   repetitions: number;
   splitIds?: ReadonlyArray<string> | null;
   streamModelOutput?: boolean;

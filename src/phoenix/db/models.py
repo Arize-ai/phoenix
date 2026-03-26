@@ -1772,6 +1772,12 @@ class ExperimentPromptTask(ExperimentExecutionConfig):
         _ConnectionConfig, default=Null(), nullable=True
     )
 
+    # Prompt version (nullable FK)
+    prompt_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Playground-specific settings (evolving, stored as JSON)
     playground_config: Mapped[Optional[PlaygroundConfig]] = mapped_column(
         _PlaygroundConfig, default=Null(), nullable=True

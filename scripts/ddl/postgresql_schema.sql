@@ -1055,39 +1055,6 @@ CREATE TABLE public.generative_model_custom_providers (
 );
 
 
--- Table: experiment_prompt_tasks
--- ------------------------------
-CREATE TABLE public.experiment_prompt_tasks (
-    id BIGINT NOT NULL,
-    task_type VARCHAR NOT NULL DEFAULT 'PROMPT'::character varying,
-    model_provider VARCHAR NOT NULL,
-    model_name VARCHAR NOT NULL,
-    custom_provider_id BIGINT,
-    template_type VARCHAR NOT NULL,
-    template_format VARCHAR NOT NULL,
-    template JSONB NOT NULL,
-    tools JSONB,
-    response_format JSONB,
-    invocation_parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
-    connection JSONB,
-    playground_config JSONB,
-    stream_model_output BOOLEAN NOT NULL DEFAULT true,
-    CONSTRAINT pk_experiment_prompt_tasks PRIMARY KEY (id),
-    CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (connection IS NOT NULL)))),
-    CHECK (((task_type)::text = 'PROMPT'::text)),
-    CONSTRAINT fk_experiment_prompt_tasks_custom_provider_id_generativ_44e2
-        FOREIGN KEY
-        (custom_provider_id)
-        REFERENCES public.generative_model_custom_providers (id)
-        ON DELETE SET NULL,
-    CONSTRAINT fk_experiment_prompt_tasks_id_experiment_execution_configs
-        FOREIGN KEY
-        (id, task_type)
-        REFERENCES public.experiment_execution_configs (id, task_type)
-        ON DELETE CASCADE
-);
-
-
 -- Table: password_reset_tokens
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
@@ -1200,6 +1167,45 @@ CREATE INDEX ix_prompt_versions_prompt_id ON public.prompt_versions
     USING btree (prompt_id);
 CREATE INDEX ix_prompt_versions_user_id ON public.prompt_versions
     USING btree (user_id);
+
+
+-- Table: experiment_prompt_tasks
+-- ------------------------------
+CREATE TABLE public.experiment_prompt_tasks (
+    id BIGINT NOT NULL,
+    task_type VARCHAR NOT NULL DEFAULT 'PROMPT'::character varying,
+    prompt_version_id BIGINT,
+    model_provider VARCHAR NOT NULL,
+    model_name VARCHAR NOT NULL,
+    custom_provider_id BIGINT,
+    template_type VARCHAR NOT NULL,
+    template_format VARCHAR NOT NULL,
+    template JSONB NOT NULL,
+    tools JSONB,
+    response_format JSONB,
+    invocation_parameters JSONB NOT NULL DEFAULT '{}'::jsonb,
+    connection JSONB,
+    playground_config JSONB,
+    stream_model_output BOOLEAN NOT NULL DEFAULT true,
+    CONSTRAINT pk_experiment_prompt_tasks PRIMARY KEY (id),
+    CHECK ((NOT ((custom_provider_id IS NOT NULL) AND (connection IS NOT NULL)))),
+    CHECK (((task_type)::text = 'PROMPT'::text)),
+    CONSTRAINT fk_experiment_prompt_tasks_custom_provider_id_generativ_44e2
+        FOREIGN KEY
+        (custom_provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_experiment_prompt_tasks_id_experiment_execution_configs
+        FOREIGN KEY
+        (id, task_type)
+        REFERENCES public.experiment_execution_configs (id, task_type)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_experiment_prompt_tasks_prompt_version_id_prompt_versions
+        FOREIGN KEY
+        (prompt_version_id)
+        REFERENCES public.prompt_versions (id)
+        ON DELETE SET NULL
+);
 
 
 -- Table: prompt_version_tags

@@ -385,6 +385,7 @@ input ChatCompletionInput {
 }
 
 input ChatCompletionOverDatasetInput {
+  promptVersionId: ID = null
   promptVersion: ChatPromptVersionInput!
   connection: ConnectionConfigInput = null
   headers: JSON = null

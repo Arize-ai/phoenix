@@ -29,6 +29,7 @@ class ChatCompletionInput:
 
 @strawberry.input
 class ChatCompletionOverDatasetInput:
+    prompt_version_id: GlobalID | None = None
     prompt_version: ChatPromptVersionInput
     connection: Optional[ConnectionConfigInput] = None
     headers: Optional[JSON] = None
