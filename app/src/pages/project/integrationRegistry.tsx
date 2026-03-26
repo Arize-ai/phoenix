@@ -2,10 +2,12 @@ import { Icon, Icons } from "@phoenix/components";
 import {
   AgnoSVG,
   AnthropicSVG,
+  AutoGenSVG,
   BedrockSVG,
   ClaudeSVG,
   BeeAISVG,
   CrewAISVG,
+  DifySVG,
   DSPYSVG,
   GeminiSVG,
   GoogleADKSVG,
@@ -19,6 +21,7 @@ import {
   MastraSVG,
   MistralAISVG,
   OpenAISVG,
+  OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
   StrandsAgentsSVG,
@@ -544,6 +547,42 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-groq",
       },
+    },
+  },
+  {
+    id: "autogen",
+    name: "AutoGen",
+    icon: <AutoGenSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref: "https://arize.com/docs/phoenix/integrations/python/autogen",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-autogen",
+      },
+    },
+  },
+  {
+    id: "openrouter",
+    name: "OpenRouter",
+    icon: <OpenRouterSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+      },
+    },
+  },
+  {
+    id: "dify",
+    name: "Dify",
+    icon: <DifySVG />,
+    supportedLanguages: [],
+    languages: {},
+    platformConfig: {
+      docsHref:
+        "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
     },
   },
 ];

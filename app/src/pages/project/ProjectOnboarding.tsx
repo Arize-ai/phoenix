@@ -10,7 +10,11 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
-import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
+import {
+  PythonSVG,
+  Server,
+  TypeScriptSVG,
+} from "@phoenix/components/core/icon/Icons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
@@ -19,6 +23,8 @@ import { hasSnippets } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
 import { IntegrationSelectButtonGroup } from "./IntegrationSelectButtonGroup";
 import { DocsOnlyOnboardingView, OnboardingSteps } from "./OnboardingSteps";
+
+type LanguageTab = ProgrammingLanguage | "Platform";
 
 const onboardingCSS = css`
   overflow-y: auto;
@@ -60,16 +66,29 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
 
   const [integration, setIntegration] = useState(ONBOARDING_INTEGRATIONS[0]);
   const [selectedLanguage, setSelectedLanguage] =
-    useState<ProgrammingLanguage>(programmingLanguage);
+    useState<LanguageTab>(programmingLanguage);
 
-  // If the current language isn't supported by the selected integration,
-  // fall back to the first supported language.
-  const effectiveLanguage: ProgrammingLanguage =
-    integration.supportedLanguages.includes(selectedLanguage)
-      ? selectedLanguage
-      : integration.supportedLanguages[0];
+  // Determine the effective tab: prefer the user's selected language if supported,
+  // otherwise fall back to the first supported language, or "Platform" for
+  // integrations that only have a platformConfig.
+  const effectiveLanguage: LanguageTab = (() => {
+    if (
+      integration.supportedLanguages.includes(
+        selectedLanguage as ProgrammingLanguage
+      )
+    ) {
+      return selectedLanguage as ProgrammingLanguage;
+    }
+    if (integration.supportedLanguages.length > 0) {
+      return integration.supportedLanguages[0];
+    }
+    return "Platform";
+  })();
 
-  const languageConfig = integration.languages[effectiveLanguage];
+  const languageConfig =
+    effectiveLanguage === "Platform"
+      ? integration.platformConfig
+      : integration.languages[effectiveLanguage];
   const isDocsOnly = languageConfig && !hasSnippets(languageConfig);
 
   return (
@@ -91,16 +110,22 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             onSelectionChange={(nextIntegration) => {
               setIntegration(nextIntegration);
               if (
-                !nextIntegration.supportedLanguages.includes(selectedLanguage)
+                !nextIntegration.supportedLanguages.includes(
+                  selectedLanguage as ProgrammingLanguage
+                )
               ) {
-                setSelectedLanguage(nextIntegration.supportedLanguages[0]);
+                if (nextIntegration.supportedLanguages.length > 0) {
+                  setSelectedLanguage(nextIntegration.supportedLanguages[0]);
+                } else if (nextIntegration.platformConfig) {
+                  setSelectedLanguage("Platform");
+                }
               }
             }}
           />
           <Tabs
             selectedKey={effectiveLanguage}
             onSelectionChange={(key) =>
-              setSelectedLanguage(String(key) as ProgrammingLanguage)
+              setSelectedLanguage(String(key) as LanguageTab)
             }
           >
             <TabList>
@@ -117,6 +142,14 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   <span css={languageTabCSS}>
                     <TypeScriptSVG />
                     TypeScript
+                  </span>
+                </Tab>
+              )}
+              {integration.platformConfig && (
+                <Tab id="Platform">
+                  <span css={languageTabCSS}>
+                    <Server />
+                    Platform
                   </span>
                 </Tab>
               )}
@@ -179,6 +212,16 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                     onApiKeyGenerated={setGeneratedApiKey}
                   />
                 )}
+              </TabPanel>
+            )}
+            {integration.platformConfig && (
+              <TabPanel id="Platform">
+                <DocsOnlyOnboardingView
+                  docsHref={integration.platformConfig.docsHref}
+                  githubHref={integration.platformConfig.githubHref}
+                  generatedApiKey={generatedApiKey}
+                  onApiKeyGenerated={setGeneratedApiKey}
+                />
               </TabPanel>
             )}
           </Tabs>

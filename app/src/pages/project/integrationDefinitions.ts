@@ -43,6 +43,7 @@ export function hasSnippets(
  * An integration that can be selected on the onboarding page.
  * Each integration defines which languages it supports and provides
  * per-language install + implementation snippets or documentation links.
+ * Platform-level integrations (no Python/TypeScript code) use platformConfig instead.
  */
 export type OnboardingIntegration = {
   id: string;
@@ -50,4 +51,5 @@ export type OnboardingIntegration = {
   icon: ReactNode;
   supportedLanguages: readonly ProgrammingLanguage[];
   languages: Partial<Record<ProgrammingLanguage, IntegrationLanguageConfig>>;
+  platformConfig?: DocsOnlyIntegrationConfig;
 };

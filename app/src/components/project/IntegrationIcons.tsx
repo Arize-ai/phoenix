@@ -825,6 +825,124 @@ export const PortkeySVG = () => (
   </svg>
 );
 
+// Placeholder icons
+export const AutoGenSVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>AutoGen</title>
+    <circle cx="16" cy="5" r="4" fill="currentColor" />
+    <circle cx="5" cy="25" r="4" fill="currentColor" />
+    <circle cx="27" cy="25" r="4" fill="currentColor" />
+    <line
+      x1="13.1"
+      y1="8.2"
+      x2="7.9"
+      y2="21.8"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="18.9"
+      y1="8.2"
+      x2="24.1"
+      y2="21.8"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="9"
+      y1="25"
+      x2="23"
+      y2="25"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const OpenRouterSVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>OpenRouter</title>
+    <circle cx="5" cy="16" r="3.5" fill="currentColor" />
+    <circle cx="27" cy="7" r="3.5" fill="currentColor" />
+    <circle cx="27" cy="16" r="3.5" fill="currentColor" />
+    <circle cx="27" cy="25" r="3.5" fill="currentColor" />
+    <line
+      x1="8.5"
+      y1="15.1"
+      x2="23.5"
+      y2="7.9"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+    <line
+      x1="8.5"
+      y1="16"
+      x2="23.5"
+      y2="16"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+    <line
+      x1="8.5"
+      y1="16.9"
+      x2="23.5"
+      y2="24.1"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const DifySVG = () => (
+  <svg
+    width="32"
+    height="32"
+    viewBox="0 0 32 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Dify</title>
+    <rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor" />
+    <rect
+      x="17"
+      y="3"
+      width="12"
+      height="12"
+      rx="2"
+      fill="currentColor"
+      opacity="0.5"
+    />
+    <rect
+      x="3"
+      y="17"
+      width="12"
+      height="12"
+      rx="2"
+      fill="currentColor"
+      opacity="0.5"
+    />
+    <rect x="17" y="17" width="12" height="12" rx="2" fill="currentColor" />
+  </svg>
+);
+
 // Custom
 export const LiteLLMSVG = () => (
   <svg
