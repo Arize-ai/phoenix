@@ -1,0 +1,11 @@
+directive @defer(
+  if: Boolean = true
+  label: String
+) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+directive @stream(
+  if: Boolean = true
+  label: String
+  initialCount: Int = 0
+  useCustomizedBatch: Boolean = false
+) on FIELD

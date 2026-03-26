@@ -382,6 +382,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "email-validator" },
     { name = "fastapi" },
+    { name = "graphql-core" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx" },
@@ -569,6 +570,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.135.2" },
     { name = "google-genai", marker = "python_full_version >= '3.10' and extra == 'container'", specifier = ">=1.50.0" },
     { name = "google-genai", marker = "python_full_version < '3.10' and extra == 'container'" },
+    { name = "graphql-core", specifier = ">=3.3.0a0,<3.4" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx" },
@@ -2191,11 +2193,11 @@ grpc = [
 
 [[package]]
 name = "graphql-core"
-version = "3.2.8"
+version = "3.3.0a12"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/68/c5/36aa96205c3ecbb3d34c7c24189e4553c7ca2ebc7e1dd07432339b980272/graphql_core-3.2.8.tar.gz", hash = "sha256:015457da5d996c924ddf57a43f4e959b0b94fb695b85ed4c29446e508ed65cf3", size = 513181, upload-time = "2026-03-05T19:55:37.332Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/d2/ed926fe3d491604bf23e5c9b33e0185dfa15ae3b26fe8a15797314d66df8/graphql_core-3.3.0a12.tar.gz", hash = "sha256:be79996d640f67b2a240fede0eceb1fd1eb367aaab374747886a9eba75e64f22", size = 555400, upload-time = "2026-03-05T16:22:56.788Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/41/cb887d9afc5dabd78feefe6ccbaf83ff423c206a7a1b7aeeac05120b2125/graphql_core-3.2.8-py3-none-any.whl", hash = "sha256:cbee07bee1b3ed5e531723685369039f32ff815ef60166686e0162f540f1520c", size = 207349, upload-time = "2026-03-05T19:55:35.911Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/3f/7f4c3becebb10bd5669acb60bd024b8493e47475d8bf8a66b54e49784e5c/graphql_core-3.3.0a12-py3-none-any.whl", hash = "sha256:54bb48350641861fac2b2c851d1aeeaef2891972865979ce6972284123e4d124", size = 234105, upload-time = "2026-03-05T16:22:55.199Z" },
 ]
 
 [[package]]

@@ -2,6 +2,7 @@ from itertools import chain
 from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
+from strawberry.schema.config import StrawberryConfig
 from strawberry.extensions import SchemaExtension
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
@@ -28,6 +29,7 @@ def build_graphql_schema(
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
+        config=StrawberryConfig(enable_experimental_incremental_execution=True),
         types=list(
             chain(
                 _implementing_types(ChatCompletionSubscriptionPayload),
