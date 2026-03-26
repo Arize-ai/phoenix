@@ -1,4 +1,12 @@
-import { Badge, Icon, Icons, Tooltip, TooltipArrow, TooltipTrigger, TriggerWrap } from "@phoenix/components";
+import {
+  Badge,
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge/types";
 
 type ExperimentStatusValue = "RUNNING" | "COMPLETED" | "ERROR" | "STOPPED";

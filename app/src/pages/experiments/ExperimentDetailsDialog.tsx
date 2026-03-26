@@ -114,7 +114,6 @@ function DetailRow({
 
 type ErrorCategory = "TASK" | "EVAL" | "SYSTEM";
 
-
 function ExperimentDetailsDialogContent({
   experimentId,
 }: {
@@ -446,25 +445,15 @@ function ExperimentDetailsDialogContent({
               <DisclosurePanel>
                 <View padding="size-200">
                   <Flex direction="column" gap="size-100">
-                    <Flex
-                      direction="row"
-                      gap="size-100"
-                      alignItems="center"
-                    >
-                      <Badge
-                        size="S"
-                      >
-                        {lastError.category}
-                      </Badge>
+                    <Flex direction="row" gap="size-100" alignItems="center">
+                      <Badge size="S">{lastError.category}</Badge>
                       <Text size="XS" color="text-700">
                         {fullTimeFormatter(new Date(lastError.occurredAt))}
                       </Text>
                     </Flex>
                     <Text size="S">{lastError.message}</Text>
                     {lastError.detail?.stackTrace && (
-                      <pre
-                        css={stackTraceCSS}
-                      >
+                      <pre css={stackTraceCSS}>
                         {lastError.detail.stackTrace}
                       </pre>
                     )}
@@ -476,10 +465,7 @@ function ExperimentDetailsDialogContent({
 
           {/* All Errors */}
           {errors.length > 0 && (
-            <Disclosure
-              id="all-errors"
-              defaultExpanded={!lastError}
-            >
+            <Disclosure id="all-errors" defaultExpanded={!lastError}>
               <DisclosureTrigger arrowPosition="start">
                 <Heading level={3} weight="heavy">
                   {`Errors (${errors.length})`}
@@ -492,11 +478,8 @@ function ExperimentDetailsDialogContent({
                       <div
                         key={error.id}
                         css={css`
-                          border-bottom: 1px solid
-                            var(--ac-global-color-grey-300);
-                          padding-bottom: var(
-                            --ac-global-dimension-size-100
-                          );
+                          border-bottom: 1px solid var(--ac-global-color-grey-300);
+                          padding-bottom: var(--ac-global-dimension-size-100);
                           &:last-child {
                             border-bottom: none;
                           }
@@ -508,22 +491,14 @@ function ExperimentDetailsDialogContent({
                             gap="size-100"
                             alignItems="center"
                           >
-                            <Badge
-                              size="S"
-                            >
-                              {error.category}
-                            </Badge>
+                            <Badge size="S">{error.category}</Badge>
                             <Text size="XS" color="text-700">
-                              {fullTimeFormatter(
-                                new Date(error.occurredAt)
-                              )}
+                              {fullTimeFormatter(new Date(error.occurredAt))}
                             </Text>
                           </Flex>
                           <Text size="S">{error.message}</Text>
                           {error.detail?.stackTrace && (
-                            <pre
-                              css={stackTraceCSS}
-                            >
+                            <pre css={stackTraceCSS}>
                               {error.detail.stackTrace}
                             </pre>
                           )}

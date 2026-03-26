@@ -6,8 +6,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
-
-import { usePersistedState } from "@phoenix/hooks";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -54,6 +52,7 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { usePersistedState } from "@phoenix/hooks";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
@@ -232,7 +231,7 @@ export function ExperimentsTable({
   const [columnVisibility, setColumnVisibility] = usePersistedState<
     Record<string, boolean>
   >(`phoenix-experiments-column-visibility-${data.id}`, {
-    "id": false,
+    id: false,
   });
   const [columnSizing, setColumnSizing] = usePersistedState<
     Record<string, number>
