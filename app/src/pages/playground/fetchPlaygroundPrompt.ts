@@ -283,10 +283,10 @@ export const promptVersionToInstance = ({
                 .map((part) => part.text.text)
                 .join("");
               const toolCallParts = m.content
-                .filter(asToolCallPart)
+                .map(asToolCallPart)
                 .filter(Boolean) as ToolCallPart[];
               const toolResultParts = m.content
-                .filter(asToolResultPart)
+                .map(asToolResultPart)
                 .filter(Boolean) as ToolResultPart[];
               const firstToolResultPart = toolResultParts.at(0);
               const role = getChatRole(m.role);
