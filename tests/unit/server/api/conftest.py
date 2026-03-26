@@ -25,6 +25,8 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
 from phoenix.server.types import DbSessionFactory
 
 
@@ -1558,3 +1560,45 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
         example_by_name=example_by_name,
         example_id_map=example_id_map,
     )
+
+
+@pytest.fixture
+async def seed_languages(db: DbSessionFactory) -> None:
+    """Ensure PYTHON and TYPESCRIPT rows exist in the languages table."""
+    async with db() as session:
+        await sync_languages(session)
+
+
+@pytest.fixture
+async def seed_sandbox_providers(
+    db: DbSessionFactory,
+    seed_languages: None,
+) -> None:
+    """Seed one sandbox_providers row per (backend_type, language) pair."""
+    async with db() as session:
+        await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
+
+
+@pytest.fixture
+async def sandbox_config(
+    db: DbSessionFactory,
+    seed_sandbox_providers: None,
+) -> models.SandboxConfig:
+    """Return a SandboxConfig linked to the first available WASM/PYTHON provider."""
+    async with db() as session:
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+        )
+        assert provider is not None, (
+            "WASM sandbox provider not found; ensure seed_sandbox_providers ran"
+        )
+        config = models.SandboxConfig(
+            sandbox_provider_id=provider.id,
+            name="test-sandbox-config",
+            description="Fixture sandbox config for tests",
+            config={},
+            timeout=30,
+        )
+        session.add(config)
+        await session.flush()
+        return config
