@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5dde7221c0119a4a04bbe2f2a148fbce>>
+ * @generated SignedSource<<dcdf126d828f65722258b8921d11d3ca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -323,6 +323,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": 50,
+      "kind": "LocalArgument",
+      "name": "numDescendants"
+    },
+    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -542,9 +547,9 @@ return {
                   "alias": null,
                   "args": [
                     {
-                      "kind": "Literal",
+                      "kind": "Variable",
                       "name": "first",
-                      "value": 50
+                      "variableName": "numDescendants"
                     }
                   ],
                   "concreteType": "SpanConnection",
@@ -620,7 +625,7 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "storageKey": "descendants(first:50)"
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -688,6 +693,6 @@ return {
 };
 })();
 
-(node as any).hash = "b2ce5da0dab3a8061fce34751c19df14";
+(node as any).hash = "ec1fa49a8604fbc8d16f40deb3c7511c";
 
 export default node;
