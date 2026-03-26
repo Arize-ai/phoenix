@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8efaf4dbadf9dd6c3effe8ebc2ce10f7>>
+ * @generated SignedSource<<88ad73148f8418261b0b63f2440637ff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,7 @@ export type EvaluatorPreviewItemInput = {
 };
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId?: string | null;
+  codeEvaluatorId?: string | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {

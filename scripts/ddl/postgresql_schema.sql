@@ -204,13 +204,18 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
 CREATE TABLE public.sandbox_providers (
     id bigserial NOT NULL,
     backend_type VARCHAR NOT NULL,
+    language_id BIGINT NOT NULL,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_providers PRIMARY KEY (id),
-    CONSTRAINT uq_sandbox_providers_backend_type
-        UNIQUE (backend_type)
+    CONSTRAINT uq_sandbox_providers_backend_type_language_id
+        UNIQUE (backend_type, language_id),
+    CONSTRAINT fk_sandbox_providers_language_id_languages FOREIGN KEY
+        (language_id)
+        REFERENCES public.languages (id)
+        ON DELETE RESTRICT
 );
 
 
@@ -221,7 +226,6 @@ CREATE TABLE public.sandbox_configs (
     sandbox_provider_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    language_id BIGINT NOT NULL,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
     timeout INTEGER NOT NULL DEFAULT 30,
     enabled BOOLEAN NOT NULL DEFAULT true,
@@ -230,10 +234,6 @@ CREATE TABLE public.sandbox_configs (
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
     CONSTRAINT uq_sandbox_configs_sandbox_provider_id_name
         UNIQUE (sandbox_provider_id, name),
-    CONSTRAINT fk_sandbox_configs_language_id_languages FOREIGN KEY
-        (language_id)
-        REFERENCES public.languages (id)
-        ON DELETE RESTRICT,
     CONSTRAINT fk_sandbox_configs_sandbox_provider_id_sandbox_providers
         FOREIGN KEY
         (sandbox_provider_id)

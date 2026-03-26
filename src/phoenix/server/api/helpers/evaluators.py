@@ -23,6 +23,8 @@ from phoenix.db.types.prompts import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from phoenix.server.api.evaluators import BaseEvaluator
     from phoenix.server.api.input_types.AnnotationConfigInput import (
         AnnotationConfigInput,
@@ -376,3 +378,19 @@ def get_evaluator_output_configs(
         configs = list(evaluator.output_configs)
 
     return configs
+
+
+async def _resolve_language_id(
+    language_name: str,
+    session: "AsyncSession",
+) -> Optional[int]:
+    """
+    Look up the integer primary key for a language by its name (e.g. "PYTHON").
+
+    Returns None if no matching Language row exists. Used when creating or
+    updating CodeEvaluator / SandboxProvider rows that need a language_id FK.
+    """
+    from sqlalchemy import select
+
+    row = await session.scalar(select(models.Language).where(models.Language.name == language_name))
+    return row.id if row is not None else None

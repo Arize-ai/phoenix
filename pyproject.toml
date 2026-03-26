@@ -175,6 +175,18 @@ dev = [
 [project.optional-dependencies]
 evals = []
 experimental = []
+sandbox = [
+  "wasmtime>=15.0",
+]
+e2b = [
+  "e2b-code-interpreter>=0.0.12",
+]
+daytona = [
+  "daytona>=0.140.0",
+]
+vercel-sandbox = [
+  "vercel>=0.5.1",
+]
 pg = [
   "asyncpg",
 ]
