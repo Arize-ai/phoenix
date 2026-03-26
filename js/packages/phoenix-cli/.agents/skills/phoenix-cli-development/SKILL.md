@@ -159,10 +159,9 @@ interface StructuredError {
 ```json
 {
   "error": "Project not found",
-  "code": "INVALID_ARGUMENT",
+  "code": "FAILURE",
   "hint": "px project list --format raw"
 }
-```
 
 ### Progressive help discovery
 
