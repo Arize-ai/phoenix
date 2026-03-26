@@ -29,6 +29,7 @@ import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  ExperimentStatus,
   ExperimentTokenCount,
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
@@ -69,21 +70,6 @@ import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
-
-function experimentStatusColor(status: string): string {
-  switch (status) {
-    case "RUNNING":
-      return "var(--global-color-blue-700)";
-    case "COMPLETED":
-      return "var(--global-color-green-700)";
-    case "ERROR":
-      return "var(--global-color-danger)";
-    case "STOPPED":
-      return "var(--global-color-warning)";
-    default:
-      return "var(--global-color-gray-500)";
-  }
-}
 
 const runCountFractionCellCSS = css`
   float: right;
@@ -342,17 +328,9 @@ export function ExperimentsTable({
     {
       header: "status",
       id: "status",
-      cell: ({ row }) => {
-        const status = row.original.backgroundJob?.status;
-        if (status == null) {
-          return <Token color="var(--global-color-gray-500)">N/A</Token>;
-        }
-        return (
-          <Token color={experimentStatusColor(status)}>
-            {status.toLowerCase()}
-          </Token>
-        );
-      },
+      cell: ({ row }) => (
+        <ExperimentStatus status={row.original.backgroundJob?.status} />
+      ),
     },
     {
       header: "description",
