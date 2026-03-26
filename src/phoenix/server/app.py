@@ -626,6 +626,12 @@ class Scaffolder(DaemonTask):
                         ),
                     )
                 )
+        else:
+            logger.warning(
+                f"Skipping eval '{eval_name}': unrecognized index names {names!r}. "
+                "Expected a span_id index or a (span_id, document_position) MultiIndex."
+            )
+            return
         logger.info(f"Enqueued {len(eval_df)} eval annotations for '{eval_name}'")
 
 
