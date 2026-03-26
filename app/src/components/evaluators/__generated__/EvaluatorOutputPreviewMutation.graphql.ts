@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f2847cb3713e8616fdd65f320d3b4fa>>
+ * @generated SignedSource<<88ad73148f8418261b0b63f2440637ff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,7 @@ export type EvaluatorPreviewItemInput = {
 };
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId?: string | null;
+  codeEvaluatorId?: string | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
@@ -74,11 +75,10 @@ export type ToolResultContentValueInput = {
 export type PromptToolsInput = {
   disableParallelToolCalls?: boolean | null;
   toolChoice?: PromptToolChoiceInput | null;
-  tools: ReadonlyArray<PromptToolInput>;
+  tools: ReadonlyArray<PromptToolFunctionInput>;
 };
-export type PromptToolInput = {
-  function?: PromptToolFunctionDefinitionInput | null;
-  raw?: any | null;
+export type PromptToolFunctionInput = {
+  function: PromptToolFunctionDefinitionInput;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
