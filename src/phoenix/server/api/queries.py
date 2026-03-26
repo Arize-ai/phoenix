@@ -132,6 +132,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     ToolResultContentPart,
     ToolResultContentValue,
 )
+from phoenix.server.api.types.SandboxConfig import SandboxBackendInfo, get_sandbox_backend_info
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -1792,6 +1793,11 @@ class Query:
         )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
+
+    @strawberry.field
+    def sandbox_backends(self) -> list[SandboxBackendInfo]:
+        """Return static + runtime info for all known sandbox backends."""
+        return get_sandbox_backend_info()
 
 
 def _consolidate_sqlite_db_table_stats(

@@ -32,6 +32,7 @@ class EvaluatorPreviewInput:
 
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
+    code_evaluator_id: Optional[GlobalID] = UNSET
 
 
 @strawberry.input
