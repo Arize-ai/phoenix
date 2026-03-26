@@ -41,9 +41,6 @@ export function ColumnMultiSelector(props: {
       placeholder="Select columns"
       selectionMode="multiple"
       onChange={(keys) => {
-        if (keys === "all") {
-          return onChange(columns);
-        }
         return onChange(Array.from(keys as string[]));
       }}
       value={selectedColumns}
