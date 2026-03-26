@@ -989,7 +989,7 @@ export function PlaygroundDatasetExamplesTable({
           case "ChatCompletionSubscriptionError":
             if (chatCompletion.datasetExampleId == null) {
               // Experiment-level error (e.g., circuit breaker trip)
-              setApiError("Experiment Stopped");
+              setApiError(chatCompletion.message);
               return;
             }
             updateExampleData({
@@ -1410,6 +1410,7 @@ export function PlaygroundDatasetExamplesTable({
       {apiError && (
         <Alert
           variant="danger"
+          banner
           dismissable
           onDismissClick={() => setApiError(null)}
         >
