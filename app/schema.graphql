@@ -2650,6 +2650,7 @@ type PromptConfig {
   """The model provider (OPENAI, ANTHROPIC, etc.)"""
   modelProvider: GenerativeProviderKey!
   modelName: String!
+  promptVersion: PromptVersion
 }
 
 """A connection to a list of items."""
