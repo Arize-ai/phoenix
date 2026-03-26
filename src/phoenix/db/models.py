@@ -2737,13 +2737,17 @@ class Language(HasId):
 class SandboxProvider(HasId):
     __tablename__ = "sandbox_providers"
     backend_type: Mapped[str] = mapped_column(nullable=False)
+    language_id: Mapped[int] = mapped_column(
+        ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False
+    )
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (UniqueConstraint("backend_type"),)
+    language: Mapped["Language"] = relationship("Language")
+    __table_args__ = (UniqueConstraint("backend_type", "language_id"),)
 
 
 class SandboxConfig(HasId):
@@ -2753,9 +2757,6 @@ class SandboxConfig(HasId):
     )
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
-    language_id: Mapped[int] = mapped_column(
-        ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False
-    )
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
