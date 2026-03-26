@@ -4,7 +4,7 @@ description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze
 license: Apache-2.0
 metadata:
   author: arize-ai
-  version: "1.0"
+  version: "2.0.0"
 ---
 
 # Phoenix CLI
@@ -12,8 +12,18 @@ metadata:
 ## Invocation
 
 ```bash
-px <command>                          # if installed globally
-npx @arizeai/phoenix-cli <command>    # no install required
+px <resource> <action>                          # if installed globally
+npx @arizeai/phoenix-cli <resource> <action>    # no install required
+```
+
+The CLI uses singular resource commands with subcommands like `list` and `get`:
+
+```bash
+px trace list
+px trace get <trace-id>
+px span list
+px dataset list
+px dataset get <name>
 ```
 
 ## Setup
@@ -29,25 +39,25 @@ Always use `--format raw --no-progress` when piping to `jq`.
 ## Traces
 
 ```bash
-px traces --limit 20 --format raw --no-progress | jq .
-px traces --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
-px traces --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
-px trace <trace-id> --format raw | jq .
-px trace <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace list --limit 20 --format raw --no-progress | jq .
+px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
+px trace get <trace-id> --format raw | jq .
+px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
 ```
 
 ## Spans
 
 ```bash
-px spans --limit 20                                    # recent spans (table view)
-px spans --last-n-minutes 60 --limit 50                # spans from last hour
-px spans --span-kind LLM --limit 10                    # only LLM spans
-px spans --status-code ERROR --limit 20                # only errored spans
-px spans --name chat_completion --limit 10             # filter by span name
-px spans --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
-px spans --include-annotations --limit 10              # include annotation scores
-px spans output.json --limit 100                       # save to JSON file
-px spans --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
+px span list --limit 20                                    # recent spans (table view)
+px span list --last-n-minutes 60 --limit 50                # spans from last hour
+px span list --span-kind LLM --limit 10                    # only LLM spans
+px span list --status-code ERROR --limit 20                # only errored spans
+px span list --name chat_completion --limit 10             # filter by span name
+px span list --trace-id <id> --format raw --no-progress | jq .   # all spans for a trace
+px span list --include-annotations --limit 10              # include annotation scores
+px span list output.json --limit 100                       # save to JSON file
+px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 ```
 
 ### Span JSON shape
@@ -87,10 +97,10 @@ Trace
 ## Sessions
 
 ```bash
-px sessions --limit 10 --format raw --no-progress | jq .
-px sessions --order asc --format raw --no-progress | jq '.[].session_id'
-px session <session-id> --format raw | jq .
-px session <session-id> --include-annotations --format raw | jq '.annotations'
+px session list --limit 10 --format raw --no-progress | jq .
+px session list --order asc --format raw --no-progress | jq '.[].session_id'
+px session get <session-id> --format raw | jq .
+px session get <session-id> --include-annotations --format raw | jq '.annotations'
 ```
 
 ### Session JSON shape
@@ -111,12 +121,12 @@ SessionAnnotation (with --include-annotations)
 ## Datasets / Experiments / Prompts
 
 ```bash
-px datasets --format raw --no-progress | jq '.[].name'
-px dataset <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
-px experiments --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
-px experiment <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
-px prompts --format raw --no-progress | jq '.[].name'
-px prompt <name> --format text --no-progress   # plain text, ideal for piping to AI
+px dataset list --format raw --no-progress | jq '.[].name'
+px dataset get <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
+px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
+px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
+px prompt list --format raw --no-progress | jq '.[].name'
+px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 ```
 
 ## GraphQL
