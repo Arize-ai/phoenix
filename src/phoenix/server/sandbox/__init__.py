@@ -17,15 +17,11 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional, TypeAlias
+from typing import Any, Optional
 
 from phoenix.server.sandbox.types import SandboxAdapter, SandboxBackend
 
 logger = logging.getLogger(__name__)
-
-
-BackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO"]
-LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 
 
 @dataclass
@@ -33,7 +29,7 @@ class AdapterMetadata:
     """Static metadata for a sandbox adapter (no runtime deps)."""
 
     display_name: str
-    supported_languages: list[LanguageName] = field(default_factory=list)
+    supported_languages: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +37,7 @@ class AdapterMetadata:
 # One entry per backend type. supported_languages must match Language.name
 # values seeded to the DB by sync_languages().
 # ---------------------------------------------------------------------------
-SANDBOX_ADAPTER_METADATA: dict[BackendType, AdapterMetadata] = {
+SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "WASM": AdapterMetadata(
         display_name="WebAssembly (local)",
         supported_languages=["PYTHON"],
