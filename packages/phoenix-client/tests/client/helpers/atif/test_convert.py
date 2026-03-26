@@ -1,0 +1,189 @@
+"""Tests for ATIF trajectory to spans conversion."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Dict
+
+import pytest
+
+from phoenix.client.helpers.atif._convert import (
+    _convert_atif_trajectory_to_spans,
+    _md5_span_id,
+    _md5_trace_id,
+)
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _load_fixture(name: str) -> Dict[str, Any]:
+    with open(FIXTURES_DIR / name) as f:
+        return json.load(f)  # type: ignore[no-any-return]
+
+
+@pytest.fixture()
+def simple_trajectory() -> Dict[str, Any]:
+    return _load_fixture("simple_trajectory.json")
+
+
+@pytest.fixture()
+def multi_tool_trajectory() -> Dict[str, Any]:
+    return _load_fixture("multi_tool_trajectory.json")
+
+
+class TestDeterministicIds:
+    def test_trace_id_is_32_hex(self) -> None:
+        tid = _md5_trace_id("test-seed")
+        assert len(tid) == 32
+        int(tid, 16)  # should not raise
+
+    def test_span_id_is_16_hex(self) -> None:
+        sid = _md5_span_id("test-seed")
+        assert len(sid) == 16
+        int(sid, 16)  # should not raise
+
+    def test_same_input_same_output(self) -> None:
+        assert _md5_trace_id("abc") == _md5_trace_id("abc")
+        assert _md5_span_id("abc") == _md5_span_id("abc")
+
+    def test_different_input_different_output(self) -> None:
+        assert _md5_trace_id("a") != _md5_trace_id("b")
+        assert _md5_span_id("a") != _md5_span_id("b")
+
+
+class TestSimpleTrajectoryConversion:
+    def test_span_count(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        # 1 root AGENT + 1 user CHAIN + 1 agent LLM (with 1 tool call) + 1 TOOL
+        # + 1 agent LLM (no tools) = 5 spans
+        assert len(spans) == 5
+
+    def test_root_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        root = spans[0]
+        assert root["span_kind"] == "AGENT"
+        assert root["name"] == "finance-assistant"
+        assert "parent_id" not in root
+        assert root["status_code"] == "OK"
+
+    def test_all_spans_share_trace_id(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        trace_ids = {s["context"]["trace_id"] for s in spans}
+        assert len(trace_ids) == 1
+
+    def test_user_step_becomes_chain(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        user_span = spans[1]
+        assert user_span["span_kind"] == "CHAIN"
+        assert user_span["name"] == "user_message"
+        assert user_span["parent_id"] == spans[0]["context"]["span_id"]
+        attrs = user_span.get("attributes", {})
+        assert "What is the current price" in attrs.get("input.value", "")
+
+    def test_agent_step_becomes_llm(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        assert llm_span["span_kind"] == "LLM"
+        assert llm_span["parent_id"] == spans[0]["context"]["span_id"]
+
+    def test_tool_call_becomes_tool_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        tool_span = spans[3]
+        assert tool_span["span_kind"] == "TOOL"
+        assert tool_span["name"] == "financial_search"
+        # Tool is child of the LLM step, not the root
+        assert tool_span["parent_id"] == spans[2]["context"]["span_id"]
+
+    def test_tool_span_has_observation(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        tool_span = spans[3]
+        attrs = tool_span.get("attributes", {})
+        assert "GOOGL" in attrs.get("output.value", "")
+
+    def test_llm_token_counts(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.token_count.prompt") == 520
+        assert attrs.get("llm.token_count.completion") == 80
+        assert attrs.get("llm.token_count.total") == 600
+
+    def test_model_name_on_llm_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.model_name") == "gpt-4"
+
+    def test_root_span_has_input_output(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        root = spans[0]
+        attrs = root.get("attributes", {})
+        assert "GOOGL" in attrs.get("input.value", "")
+        assert "185.35" in attrs.get("output.value", "")
+
+
+class TestMultiToolTrajectoryConversion:
+    def test_span_count(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        # 1 root AGENT
+        # + 1 user CHAIN (step 1)
+        # + 1 agent LLM (step 2) + 3 TOOL spans
+        # + 1 system CHAIN (step 3)
+        # + 1 agent LLM (step 4) + 1 TOOL span
+        # + 1 agent LLM (step 5, no tools)
+        # = 10 spans
+        assert len(spans) == 10
+
+    def test_parallel_tool_calls(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
+        assert len(tool_spans) == 4
+        tool_names = {s["name"] for s in tool_spans}
+        assert "financial_search" in tool_names
+        assert "news_search" in tool_names
+        assert "analyst_estimates" in tool_names
+
+    def test_system_step_becomes_chain(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        system_spans = [s for s in spans if s["name"] == "system_message"]
+        assert len(system_spans) == 1
+        assert system_spans[0]["span_kind"] == "CHAIN"
+
+    def test_final_metrics_on_root(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        root = spans[0]
+        attrs = root.get("attributes", {})
+        assert attrs.get("llm.token_count.prompt") == 9150
+        assert attrs.get("llm.token_count.completion") == 635
+
+    def test_deterministic_ids_are_stable(self, multi_tool_trajectory: Dict[str, Any]) -> None:
+        spans_a = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        spans_b = _convert_atif_trajectory_to_spans(multi_tool_trajectory)
+        for a, b in zip(spans_a, spans_b):
+            assert a["context"]["span_id"] == b["context"]["span_id"]
+            assert a["context"]["trace_id"] == b["context"]["trace_id"]
+
+
+class TestMessageAttributes:
+    def test_llm_input_messages_from_user(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        # First agent step (spans[2]) should have input messages
+        # from the preceding user step
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.input_messages.0.message.role") == "user"
+        assert "GOOGL" in attrs.get("llm.input_messages.0.message.content", "")
+
+    def test_llm_output_message(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.output_messages.0.message.role") == "assistant"
+
+    def test_tool_calls_in_output_messages(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        key = "llm.output_messages.0.message.tool_calls.0.tool_call.function.name"
+        assert attrs.get(key) == "financial_search"
