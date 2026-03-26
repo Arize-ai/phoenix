@@ -112,8 +112,6 @@ function DetailRow({
   );
 }
 
-type ErrorCategory = "TASK" | "EVAL" | "SYSTEM";
-
 function ExperimentDetailsDialogContent({
   experimentId,
 }: {
