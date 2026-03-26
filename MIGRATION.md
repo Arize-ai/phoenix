@@ -147,6 +147,31 @@ The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`
 - `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
 - `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
 
+### `TraceDataset.evaluations` No Longer Auto-Ingested by `launch_app()`
+
+`launch_app()` (the notebook entry point) no longer automatically ingests evaluations attached to a `TraceDataset`. If you were passing a `TraceDataset` with evaluations to `launch_app()`, the evaluations will be silently ignored.
+
+**Action required:** Use the REST API or client to ingest evaluations separately:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+client.spans.log_span_annotations_dataframe(
+    dataframe=eval_df,
+    annotation_name="my-eval",
+    annotator_kind="LLM",
+)
+```
+
+Alternatively, use the `/v1/evaluations` REST endpoint with `application/x-pandas-arrow` content type.
+
+### Protobuf Evaluation Format Removed
+
+The `POST /v1/evaluations` endpoint no longer accepts `application/x-protobuf` content type. Evaluations must be sent as `application/x-pandas-arrow` (Apache Arrow IPC format via pandas).
+
+**Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
+
 ## v12.x to v13.0.0
 
 ### DB Index for Session ID

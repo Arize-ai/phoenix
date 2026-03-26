@@ -33,7 +33,6 @@ import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
-from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -53,7 +52,6 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias, override
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
@@ -67,8 +65,6 @@ from phoenix.config import (
     get_env_database_usage_insertion_blocking_threshold_percentage,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
-    get_env_grpc_interceptor_paths,
-    get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
     get_env_port,
@@ -177,11 +173,9 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
-from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -197,7 +191,6 @@ from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
     get_dataset_fixtures,
-    get_evals_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
@@ -210,6 +203,8 @@ from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
+    import pandas
+    from grpc.aio import ServerInterceptor
     from opentelemetry.trace import TracerProvider
 
     from phoenix.config import LDAPConfig
@@ -418,12 +413,16 @@ def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]
     return extensions
 
 
-def user_grpc_interceptors() -> list[ServerInterceptor]:
+def user_grpc_interceptors() -> list["ServerInterceptor"]:
+    from grpc.aio import ServerInterceptor as _ServerInterceptor
+
+    from phoenix.config import get_env_grpc_interceptor_paths
+
     paths = get_env_grpc_interceptor_paths()
-    interceptors = []
+    interceptors: list[ServerInterceptor] = []
     for file_path, object_name in paths:
         interceptor_class = import_object_from_file(file_path, object_name)
-        if not issubclass(interceptor_class, ServerInterceptor):
+        if not issubclass(interceptor_class, _ServerInterceptor):
             raise TypeError(f"{interceptor_class} is not a subclass of ServerInterceptor")
         interceptors.append(interceptor_class)
     return interceptors
@@ -466,12 +465,12 @@ class Scaffolder(DaemonTask):
         self,
         config: ScaffolderConfig,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
-        enqueue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        enqueue_annotations: Callable[..., Awaitable[None]],
     ) -> None:
         super().__init__()
         self._db = config.db
         self._enqueue_span = enqueue_span
-        self._enqueue_evaluation = enqueue_evaluation
+        self._enqueue_annotations = enqueue_annotations
         self._tracing_fixtures = [
             get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
         ]
@@ -518,21 +517,22 @@ class Scaffolder(DaemonTask):
         loading its trace dataframe, gettting and processings its
         spans and evals, and queuing.
         """
+        from phoenix.trace.fixtures import get_eval_dataframes_from_fixture
+
         loop = asyncio.get_running_loop()
         for fixture in self._tracing_fixtures:
             try:
                 trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-                fixture_spans, fixture_evals = await loop.run_in_executor(
+                fixture_spans, span_id_mapping = await loop.run_in_executor(
                     None,
                     reset_fixture_span_ids_and_timestamps,
-                    (
+                    [
                         # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                         # `encode` removes the hyphens in the UUIDs.
                         decode_otlp_span(encode_span_to_otlp(span))
                         for span in trace_ds.to_spans()
-                    ),
-                    get_evals_from_fixture(fixture.name),
+                    ],
                 )
 
                 # Ingest dataset fixtures
@@ -543,8 +543,11 @@ class Scaffolder(DaemonTask):
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
                     await self._enqueue_span(span, project_name)
-                for evaluation in fixture_evals:
-                    await self._enqueue_evaluation(evaluation)
+
+                # Ingest evaluation fixtures via the annotation pipeline
+                for eval_name, eval_df in get_eval_dataframes_from_fixture(fixture.name):
+                    eval_df = _remap_eval_span_ids(eval_df, span_id_mapping)
+                    await self._enqueue_eval_annotations(eval_name, eval_df)
 
             except FileNotFoundError:
                 logger.warning(f"Fixture file not found for '{fixture.name}'")
@@ -566,6 +569,86 @@ class Scaffolder(DaemonTask):
         except Exception as e:
             logger.error(f"Error processing dataset fixture: {e}")
 
+    async def _enqueue_eval_annotations(
+        self,
+        eval_name: str,
+        eval_df: "pandas.DataFrame",
+    ) -> None:
+        from phoenix.db.insertion.types import Precursors
+
+        names = eval_df.index.names
+        if (
+            len(names) == 2
+            and "document_position" in names
+            and ("context.span_id" in names or "span_id" in names)
+        ):
+            span_id_idx = (
+                names.index("span_id") if "span_id" in names else names.index("context.span_id")
+            )
+            doc_pos_idx = names.index("document_position")
+            for index, row in eval_df.iterrows():
+                idx = cast(tuple[Any, ...], index)
+                span_id = str(idx[span_id_idx])
+                doc_pos = int(idx[doc_pos_idx])
+                await self._enqueue_annotations(
+                    Precursors.DocumentAnnotation(
+                        datetime.now(timezone.utc),
+                        span_id=span_id,
+                        document_position=doc_pos,
+                        obj=models.DocumentAnnotation(
+                            document_position=doc_pos,
+                            name=eval_name,
+                            identifier="",
+                            source="APP",
+                            annotator_kind="LLM",
+                            score=row.get("score"),
+                            label=row.get("label"),
+                            explanation=row.get("explanation"),
+                            metadata_={},
+                        ),
+                    )
+                )
+        elif len(names) == 1 and names[0] in ("context.span_id", "span_id"):
+            for index, row in eval_df.iterrows():
+                await self._enqueue_annotations(
+                    Precursors.SpanAnnotation(
+                        datetime.now(timezone.utc),
+                        span_id=str(index),
+                        obj=models.SpanAnnotation(
+                            name=eval_name,
+                            identifier="",
+                            source="APP",
+                            annotator_kind="LLM",
+                            score=row.get("score"),
+                            label=row.get("label"),
+                            explanation=row.get("explanation"),
+                            metadata_={},
+                        ),
+                    )
+                )
+        logger.info(f"Enqueued {len(eval_df)} eval annotations for '{eval_name}'")
+
+
+def _remap_eval_span_ids(
+    eval_df: "pandas.DataFrame",
+    span_id_mapping: dict[str, str],
+) -> "pandas.DataFrame":
+    """Remap span_id index values in an eval DataFrame using the old->new mapping."""
+    import pandas as pd
+
+    if isinstance(eval_df.index, pd.MultiIndex):
+        new_levels = []
+        for i, name in enumerate(eval_df.index.names):
+            level_values = eval_df.index.get_level_values(i)
+            if name in ("span_id", "context.span_id"):
+                level_values = level_values.map(lambda x: span_id_mapping.get(x, x))
+            new_levels.append(level_values)
+        eval_df.index = pd.MultiIndex.from_arrays(new_levels, names=eval_df.index.names)
+    else:
+        if eval_df.index.name in ("span_id", "context.span_id", None):
+            eval_df.index = eval_df.index.map(lambda x: span_id_mapping.get(x, x))
+    return eval_df
+
 
 class _CapacityIndicator(Protocol):
     @property
@@ -573,7 +656,7 @@ class _CapacityIndicator(Protocol):
 
 
 class CapacityInterceptor(AsyncServerInterceptor):
-    def __init__(self, indicator: _CapacityIndicator):
+    def __init__(self, indicator: _CapacityIndicator) -> None:
         self._indicator = indicator
 
     @override
@@ -584,6 +667,8 @@ class CapacityInterceptor(AsyncServerInterceptor):
         context: grpc.aio.ServicerContext,
         method_name: str,
     ) -> Any:
+        from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+
         if self._indicator.is_full:
             SPAN_QUEUE_REJECTIONS.inc()
             context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
@@ -612,11 +697,14 @@ def _lifespan(
     read_only: bool = False,
     grpc_port: Optional[int] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
-    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
+    grpc_interceptors: Iterable["ServerInterceptor"] = (),
     welcome_message: str | None = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        from phoenix.config import get_env_grpc_port
+        from phoenix.server.grpc_server import GrpcServer
+
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -626,7 +714,6 @@ def _lifespan(
             (
                 enqueue_annotations,
                 enqueue_span,
-                enqueue_evaluation,
                 enqueue_operation,
             ) = await stack.enter_async_context(bulk_inserter)
             interceptors = [
@@ -656,7 +743,7 @@ def _lifespan(
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
                     enqueue_span=enqueue_span,
-                    enqueue_evaluation=enqueue_evaluation,
+                    enqueue_annotations=enqueue_annotations,
                 )
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
@@ -668,7 +755,6 @@ def _lifespan(
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
-                "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
             }
@@ -1003,7 +1089,6 @@ def create_app(
     grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -1034,7 +1119,6 @@ def create_app(
             for item in initial_spans
         )
     )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
@@ -1083,7 +1167,6 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
-        initial_batch_of_evaluations=initial_batch_of_evaluations,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
@@ -1134,7 +1217,7 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
-    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors: list[Any] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
         title="Arize-Phoenix REST API",

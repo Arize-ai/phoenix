@@ -1,4 +1,3 @@
-import gzip
 from collections.abc import Callable
 from datetime import datetime, timezone
 from itertools import chain
@@ -7,7 +6,6 @@ from typing import Any, Iterator, Optional, Union, cast
 import pandas as pd
 import pyarrow as pa
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from google.protobuf.message import DecodeError
 from pandas import DataFrame
 from sqlalchemy import select
 from sqlalchemy.engine import Connectable
@@ -17,7 +15,6 @@ from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from typing_extensions import TypeAlias
 
-import phoenix.trace.v1 as pb
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
@@ -49,9 +46,7 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
         [
             {
                 "status_code": 415,
-                "description": (
-                    "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
-                ),
+                "description": "Unsupported content type, only pandas-arrow is supported",
             },
             422,
         ]
@@ -60,7 +55,6 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
         "requestBody": {
             "required": True,
             "content": {
-                "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
                 "application/x-pandas-arrow": {"schema": {"type": "string", "format": "binary"}},
             },
         },
@@ -69,29 +63,10 @@ router = APIRouter(tags=["traces"], include_in_schema=True)
 async def post_evaluations(
     request: Request,
     content_type: Optional[str] = Header(default=None),
-    content_encoding: Optional[str] = Header(default=None),
 ) -> Response:
-    if content_type == "application/x-pandas-arrow":
-        return await _process_pyarrow(request)
-    if content_type != "application/x-protobuf":
+    if content_type != "application/x-pandas-arrow":
         raise HTTPException(detail="Unsupported content type", status_code=415)
-    body = await request.body()
-    if content_encoding == "gzip":
-        body = gzip.decompress(body)
-    elif content_encoding:
-        raise HTTPException(detail="Unsupported content encoding", status_code=415)
-    evaluation = pb.Evaluation()
-    try:
-        evaluation.ParseFromString(body)
-    except DecodeError:
-        raise HTTPException(detail="Request body is invalid", status_code=422)
-    if not evaluation.name.strip():
-        raise HTTPException(
-            detail="Evaluation name must not be blank/empty",
-            status_code=422,
-        )
-    await request.state.enqueue_evaluation(evaluation)
-    return Response()
+    return await _process_pyarrow(request)
 
 
 @router.get(

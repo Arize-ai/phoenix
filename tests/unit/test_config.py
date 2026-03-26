@@ -19,7 +19,6 @@ from phoenix.config import (
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
-    get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
 )
 from phoenix.db.models import UserRoleName
@@ -459,12 +458,11 @@ class TestGetEnvPhoenixAdminSecret:
 
 class TestGetEnvTlsEnabled:
     @pytest.mark.parametrize(
-        "env_vars, expected_http, expected_grpc",
+        "env_vars, expected_http",
         [
-            # Base case: No variables set - defaults to False for both
+            # Base case: No variables set - defaults to False
             pytest.param(
                 {},
-                False,
                 False,
                 id="no_vars_set",
             ),
@@ -472,12 +470,10 @@ class TestGetEnvTlsEnabled:
             pytest.param(
                 {"PHOENIX_TLS_ENABLED": "true"},
                 True,
-                True,
                 id="global_only_enabled",
             ),
             pytest.param(
                 {"PHOENIX_TLS_ENABLED": "false"},
-                False,
                 False,
                 id="global_only_disabled",
             ),
@@ -488,18 +484,7 @@ class TestGetEnvTlsEnabled:
                     "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
                 },
                 True,
-                False,
                 id="http_overrides_global",
-            ),
-            # gRPC-specific variable tests - should override global
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
-                },
-                True,
-                False,
-                id="grpc_overrides_global",
             ),
         ],
     )
@@ -508,12 +493,10 @@ class TestGetEnvTlsEnabled:
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, str],
         expected_http: bool,
-        expected_grpc: bool,
     ) -> None:
         # Clear all TLS-related environment variables first
         monkeypatch.delenv("PHOENIX_TLS_ENABLED", raising=False)
         monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_HTTP", raising=False)
-        monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_GRPC", raising=False)
 
         # Set the test environment variables
         for key, value in env_vars.items():
@@ -521,9 +504,6 @@ class TestGetEnvTlsEnabled:
 
         # Test HTTP TLS enablement
         assert get_env_tls_enabled_for_http() == expected_http
-
-        # Test gRPC TLS enablement
-        assert get_env_tls_enabled_for_grpc() == expected_grpc
 
 
 class TestGetEnvAuthSettings:

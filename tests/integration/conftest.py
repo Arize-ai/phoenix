@@ -14,13 +14,13 @@ from diskcache import Cache  # type: ignore[import-untyped]
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from phoenix.client.__generated__ import v1
 from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
+from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
@@ -33,7 +33,6 @@ from ._helpers import (
     _Email,
     _GetUser,
     _GqlId,
-    _grpc_span_exporter,
     _http_span_exporter,
     _httpx_client,
     _Password,
@@ -93,13 +92,9 @@ def _sql_database_url(
     assert_never(_db_backend)
 
 
-@pytest.fixture(scope="session", params=["http", "grpc"])
-def _span_exporter(request: SubRequest) -> _SpanExporterFactory:
-    if request.param == "http":
-        return _http_span_exporter
-    if request.param == "grpc":
-        return _grpc_span_exporter
-    raise ValueError(f"Unknown exporter: {request.param}")
+@pytest.fixture(scope="session")
+def _span_exporter() -> _SpanExporterFactory:
+    return _http_span_exporter
 
 
 @pytest.fixture(scope="package")
@@ -242,7 +237,6 @@ def _env_ports(
     """Configure port environment variables for testing."""
     return {
         "PHOENIX_PORT": str(next(_ports)),
-        "PHOENIX_GRPC_PORT": str(next(_ports)),
         # Disable error masking to see actual errors in tests
         "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
     }
@@ -322,14 +316,10 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
-    from opentelemetry.exporter.otlp.proto.grpc import exporter
     from opentelemetry.exporter.otlp.proto.http import trace_exporter
 
-    assert isinstance(exporter, ModuleType)
     assert isinstance(trace_exporter, ModuleType)
 
     name = "_MAX_RETRYS"
-    assert isinstance(getattr(exporter, name), int)
     assert isinstance(getattr(trace_exporter, name), int)
-    setattr(exporter, name, 2)
     setattr(trace_exporter, name, 2)

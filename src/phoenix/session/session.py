@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from enum import Enum
 from importlib.util import find_spec
-from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Awaitable, Callable, NamedTuple, Optional, Union
@@ -38,7 +37,6 @@ from phoenix.server.app import (
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
-from phoenix.session.evaluation import encode_evaluations
 from phoenix.settings import Settings
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -217,11 +215,6 @@ class ThreadSession(Session):
             db=factory,
             authentication_enabled=False,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
-            initial_evaluations=(
-                chain.from_iterable(map(encode_evaluations, initial_evaluations))
-                if (trace_dataset and (initial_evaluations := trace_dataset.evaluations))
-                else None
-            ),
             shutdown_callbacks=shutdown_callbacks,
         )
         self.server = ThreadServer(

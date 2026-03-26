@@ -53,7 +53,6 @@ from fastapi import FastAPI
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
-from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, SpanExportResult
@@ -511,9 +510,11 @@ def _http_span_exporter(
 
 def _grpc_span_exporter(
     app: _AppInfo,
+    /,
     *,
     headers: Optional[_Headers] = None,
 ) -> SpanExporter:
+    from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
     endpoint = app.grpc_url
@@ -2071,7 +2072,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
     assert len(spans := memory.get_finished_spans()) == n
 
     headers = {"authorization": f"Bearer {app.admin_secret}"}
-    assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
+    assert _http_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
 
     span_ids = set()
     for span in spans:

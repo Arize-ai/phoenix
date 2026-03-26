@@ -3,7 +3,6 @@ import os
 from typing import TYPE_CHECKING
 
 from phoenix.config import (
-    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
     ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
 )
 
@@ -55,6 +54,10 @@ def initialize_opentelemetry_tracer_provider() -> "TracerProvider":
         )
 
         tracer_provider.add_span_processor(BatchSpanProcessor(HttpExporter(http_endpoint)))
+    from phoenix.config import (
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+    )
+
     if grpc_endpoint := os.getenv(
         ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
     ):

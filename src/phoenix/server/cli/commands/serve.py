@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 from jinja2 import BaseLoader, Environment
 from uvicorn import Config, Server
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
@@ -62,7 +61,6 @@ from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     get_dataset_fixtures,
-    get_evals_from_fixture,
     get_trace_fixtures_by_project_name,
     load_example_traces,
     reset_fixture_span_ids_and_timestamps,
@@ -100,12 +98,10 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Basic Auth: Disabled
 {%- endif %}
 {%- if tls_enabled_for_http or tls_enabled_for_grpc %}
-{%- if tls_enabled_for_http %}
-|  TLS: Enabled for HTTP
-{%- endif %}
-{%- if tls_enabled_for_grpc %}
-|  TLS: Enabled for gRPC
-{%- endif %}
+|  TLS: Enabled for
+{%- if tls_enabled_for_http %} HTTP{%- endif %}
+{%- if tls_enabled_for_http and tls_enabled_for_grpc %} and{%- endif %}
+{%- if tls_enabled_for_grpc %} gRPC{%- endif %}
 {%- if tls_verify_client %}
 |  TLS Client Verification: Enabled
 {%- endif %}
@@ -114,8 +110,10 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Allowed Origins: {{ allowed_origins }}
 {%- endif %}
 |  Log traces:
-|    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
+{%- if grpc_path %}
+|    - gRPC: {{ grpc_path }}
+{%- endif %}
 |  Storage: {{ storage }}
 {%- if schema %}
 |    - Schema: {{ schema }}
@@ -133,14 +131,13 @@ def _add_server_args(parser: ArgumentParser) -> None:
     parser.add_argument("--database-url", required=False, help=SUPPRESS)
     parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
-    parser.add_argument("--grpc-port", type=int, required=False, help=SUPPRESS)
+    parser.add_argument("--grpc-port", type=int, required=False, default=None, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
     parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
-    parser.set_defaults(grpc_port=None)
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
@@ -229,23 +226,20 @@ def run(args: Namespace) -> None:
         host = None
 
     port = args.port or get_env_port()
-    grpc_port = _resolve_grpc_port(args)
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
     auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
-    fixture_evals: list[pb.Evaluation] = []
     if trace_dataset_name is not None:
-        fixture_spans, fixture_evals = reset_fixture_span_ids_and_timestamps(
+        fixture_spans, _ = reset_fixture_span_ids_and_timestamps(
             (
                 # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                 # `encode` removes the hyphens in the UUIDs.
                 decode_otlp_span(encode_span_to_otlp(span))
                 for span in load_example_traces(trace_dataset_name).to_spans()
             ),
-            get_evals_from_fixture(trace_dataset_name),
         )
         dataset_fixtures = list(get_dataset_fixtures(trace_dataset_name))
         if not read_only:
@@ -273,6 +267,8 @@ def run(args: Namespace) -> None:
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
 
+    grpc_port = args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
+
     tls_enabled_for_http = get_env_tls_enabled_for_http()
     tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
     tls_config = get_env_tls_config()
@@ -286,8 +282,8 @@ def run(args: Namespace) -> None:
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
         ui_path=display_root_path,
-        grpc_path=f"{grpc_scheme}://{display_host}:{grpc_port}",
         http_path=urljoin(display_root_path, "v1/traces"),
+        grpc_path=f"{grpc_scheme}://{display_host}:{grpc_port}",
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=auth_settings.enable_auth,
@@ -345,7 +341,6 @@ def run(args: Namespace) -> None:
         grpc_port=grpc_port,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
-        initial_evaluations=fixture_evals,
         welcome_message=msg,
         shutdown_callbacks=shutdown_callbacks,
         secret=auth_settings.phoenix_secret,
@@ -385,10 +380,6 @@ def run(args: Namespace) -> None:
         server.run()
     except KeyboardInterrupt:
         pass  # don't bother the user with a stack trace on Ctrl-C
-
-
-def _resolve_grpc_port(args: Namespace) -> int:
-    return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
 
 def _write_pid_file_when_ready(

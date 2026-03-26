@@ -20,7 +20,6 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
-from phoenix.client import Client
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -28,7 +27,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
-import phoenix.trace.v1 as pb
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -41,7 +40,6 @@ from phoenix.db.engines import (
 )
 from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.app import _db, create_app
-from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
@@ -292,7 +290,6 @@ async def app(
 ) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
-        await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,
             authentication_enabled=False,
@@ -371,31 +368,18 @@ def acall(loop: AbstractEventLoop) -> Callable[..., Awaitable[Any]]:
     return lambda f, *_, **__: loop.run_in_executor(None, partial(f, *_, **__))
 
 
-@contextlib.asynccontextmanager
-async def patch_grpc_server() -> AsyncIterator[None]:
-    cls = GrpcServer
-    original = cls.__init__
-    name = original.__name__
-    changes = {"disabled": True}
-    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
-    yield
-    setattr(cls, name, original)
-
-
 class TestBulkInserter(BulkInserter):
     async def __aenter__(
         self,
     ) -> tuple[
         Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
-        Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
         # Return the overridden methods
         return (
             self._enqueue_annotations_immediate,
             self._queue_span_immediate,
-            self._queue_evaluation_immediate,
             self._enqueue_operation_immediate,
         )
 
@@ -415,10 +399,6 @@ class TestBulkInserter(BulkInserter):
     async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
         await self._insert_spans(1)
-
-    async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
-        self._evaluations.append(evaluation)
-        await self._insert_evaluations(1)
 
 
 @contextlib.asynccontextmanager
