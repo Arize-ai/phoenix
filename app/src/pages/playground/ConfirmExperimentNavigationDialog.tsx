@@ -22,7 +22,7 @@ import {
  * Navigation dialog shown when leaving the playground while an experiment is running.
  *
  * - Ephemeral experiment: "Your experiment will stop if you leave." → Stay / Leave
- * - Non-ephemeral experiment: "Experiment will keep running." → Stay / Keep running / Stop and leave
+ * - Non-ephemeral experiment: "Leave this page?" → Stay on page / Delete experiment / Leave page
  */
 export function ConfirmExperimentNavigationDialog({
   blocker,
@@ -92,15 +92,15 @@ export function ConfirmExperimentNavigationDialog({
         <Dialog>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Experiment In Progress</DialogTitle>
+              <DialogTitle>Leave this page?</DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton close={() => blocker.reset?.()} />
               </DialogTitleExtra>
             </DialogHeader>
             <View padding="size-200">
               <Text>
-                Your experiment will keep running in the background. You can
-                check its progress from the experiments table.
+                This experiment will continue running in the background. You can
+                track its progress in the experiments table.
               </Text>
             </View>
             <View
@@ -109,9 +109,6 @@ export function ConfirmExperimentNavigationDialog({
               borderTopWidth="thin"
             >
               <Flex justifyContent="end" gap="size-100">
-                <Button size="S" onPress={() => blocker.reset?.()}>
-                  Stay
-                </Button>
                 <Button
                   size="S"
                   variant="danger"
@@ -125,14 +122,17 @@ export function ConfirmExperimentNavigationDialog({
                     });
                   }}
                 >
-                  Stop and delete
+                  Delete experiment
+                </Button>
+                <Button size="S" onPress={() => blocker.reset?.()}>
+                  Stay on page
                 </Button>
                 <Button
                   variant="primary"
                   size="S"
                   onPress={() => blocker.proceed?.()}
                 >
-                  Keep running
+                  Leave page
                 </Button>
               </Flex>
             </View>

@@ -38,7 +38,8 @@ export function ExperimentsPage() {
     `,
     {
       datasetId,
-    }
+    },
+    { fetchPolicy: "store-and-network" }
   );
 
   if (!data.dataset?.experimentCount) {

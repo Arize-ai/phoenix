@@ -1,4 +1,4 @@
-import { Badge, Icon, Icons } from "@phoenix/components";
+import { Badge, Icon, Icons, Tooltip, TooltipArrow, TooltipTrigger, TriggerWrap } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge/types";
 
 type ExperimentStatusValue = "RUNNING" | "COMPLETED" | "ERROR" | "STOPPED";
@@ -42,6 +42,19 @@ function getStatusLabel(status: ExperimentStatusValue): string {
   }
 }
 
+function getStatusTooltip(status: ExperimentStatusValue): string {
+  switch (status) {
+    case "RUNNING":
+      return "Experiment is currently in progress";
+    case "COMPLETED":
+      return "Experiment has finished successfully";
+    case "ERROR":
+      return "Experiment encountered an error during execution";
+    case "STOPPED":
+      return "Experiment was manually stopped before completion";
+  }
+}
+
 export function ExperimentStatus({
   status,
 }: {
@@ -49,16 +62,32 @@ export function ExperimentStatus({
 }) {
   if (status == null) {
     return (
-      <Badge variant="default" size="S">
-        N/A
-      </Badge>
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Badge variant="default" size="M">
+            N/A
+          </Badge>
+        </TriggerWrap>
+        <Tooltip offset={4}>
+          <TooltipArrow />
+          No background job associated with this experiment
+        </Tooltip>
+      </TooltipTrigger>
     );
   }
   const validStatus = status as ExperimentStatusValue;
   return (
-    <Badge variant={getStatusVariant(validStatus)} size="S">
-      <Icon svg={getStatusIcon(validStatus)} />
-      {getStatusLabel(validStatus)}
-    </Badge>
+    <TooltipTrigger>
+      <TriggerWrap>
+        <Badge variant={getStatusVariant(validStatus)} size="M">
+          <Icon svg={getStatusIcon(validStatus)} />
+          {getStatusLabel(validStatus)}
+        </Badge>
+      </TriggerWrap>
+      <Tooltip offset={4}>
+        <TooltipArrow />
+        {getStatusTooltip(validStatus)}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

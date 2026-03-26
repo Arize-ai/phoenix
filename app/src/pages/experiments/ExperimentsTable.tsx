@@ -6,6 +6,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
+
+import { usePersistedState } from "@phoenix/hooks";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -26,6 +28,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
@@ -41,6 +44,7 @@ import {
   IntCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
+import { CellWithControlsWrap } from "@phoenix/components/table/CellWithControlsWrap";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import {
   getCommonPinningStyles,
@@ -148,10 +152,6 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [columnSizing, setColumnSizing] = useState({});
-  const [columnVisibility, setColumnVisibility] = useState<
-    Record<string, boolean>
-  >({});
   const [, setSearchText] = useState("");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
@@ -229,6 +229,14 @@ export function ExperimentsTable({
       `,
       dataset
     );
+  const [columnVisibility, setColumnVisibility] = usePersistedState<
+    Record<string, boolean>
+  >(`phoenix-experiments-column-visibility-${data.id}`, {
+    "id": false,
+  });
+  const [columnSizing, setColumnSizing] = usePersistedState<
+    Record<string, number>
+  >(`phoenix-experiments-column-sizing-${data.id}`, {});
 
   const tableData = useMemo(
     () =>
@@ -290,6 +298,24 @@ export function ExperimentsTable({
       ),
     },
     {
+      header: "id",
+      id: "id",
+      accessorKey: "id",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
+    },
+    {
       header: "name",
       accessorKey: "name",
       minSize: 200,
@@ -326,7 +352,7 @@ export function ExperimentsTable({
       },
     },
     {
-      header: "status",
+      header: "job status",
       id: "status",
       cell: ({ row }) => (
         <ExperimentStatus status={row.original.backgroundJob?.status} />

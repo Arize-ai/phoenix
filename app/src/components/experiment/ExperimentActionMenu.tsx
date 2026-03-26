@@ -29,7 +29,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotify, useNotifySuccess } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -105,6 +105,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
+  const notify = useNotify();
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
   const onExperimentDeleted = props.onExperimentDeleted;
@@ -294,7 +295,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   commitStopExperiment({
                     variables: { experimentId: props.experimentId },
                     onCompleted: () => {
-                      notifySuccess({
+                      notify({
                         title: "Experiment stopped",
                         message: "The experiment has been stopped.",
                       });
