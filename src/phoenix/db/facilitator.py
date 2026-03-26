@@ -82,6 +82,7 @@ class Facilitator:
             _ensure_model_costs,
             _ensure_builtin_evaluators,
             _ensure_user_feedback_annotation_config,
+            _ensure_sandbox_providers,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -577,6 +578,16 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
             .where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
         )
+
+
+async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:
+    """Seed sandbox provider rows. Idempotent."""
+    from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
+    from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers  # noqa: PLC0415
+
+    async with db() as session:
+        await sync_languages(session)
+        await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
 
 async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:
