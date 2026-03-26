@@ -84,7 +84,7 @@ const editPart = makePart({
   output: "Edit applied successfully",
 });
 
-const grepPart = makePart({
+const _grepPart = makePart({
   toolName: "grep",
   state: "output-available",
   input: { pattern: "TODO", path: "/workspace/src" },

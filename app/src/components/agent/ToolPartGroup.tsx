@@ -24,9 +24,9 @@ const TERMINAL_STATES = new Set<ToolState>([
 const toolPoolCSS = css`
   width: 100%;
   margin-top: var(--global-dimension-size-150);
-  border: 1px solid var(--global-color-gray-300);
+  border: 1px solid var(--tool-call-border-color);
   border-radius: var(--global-rounding-medium);
-  background: var(--global-color-gray-100);
+  background: var(--tool-call-background-color);
   overflow: hidden;
 
   &:has(+ :not(.tool-pool)) {
@@ -39,13 +39,12 @@ const toolPoolCSS = css`
     flex-direction: column;
     gap: var(--global-dimension-size-50);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    background: var(--global-color-gray-75);
+    background: var(--tool-call-header-background-color);
     user-select: none;
-    border-radius: var(--global-rounding-medium);
     transition: background 150ms ease;
 
     &:hover {
-      background: var(--global-color-gray-200);
+      background: var(--tool-call-header-background-color-hover);
     }
 
     &:focus-visible {
@@ -67,12 +66,12 @@ const toolPoolCSS = css`
     gap: var(--global-dimension-size-50);
     font-size: var(--global-font-size-xs);
     font-weight: 600;
-    color: var(--global-text-color-700);
+    color: var(--tool-call-title-color);
   }
 
   .tool-pool__chevron {
     font-size: 12px;
-    color: var(--global-text-color-500);
+    color: var(--tool-call-secondary-color);
     transition: transform 150ms ease;
   }
 
@@ -86,11 +85,12 @@ const toolPoolCSS = css`
 
   .tool-pool__status {
     font-weight: 400;
-    color: var(--global-text-color-500);
+    font-size: var(--global-font-size-xs);
+    color: var(--tool-call-secondary-color);
   }
 
   .tool-pool__status[data-tone="error"] {
-    color: var(--global-color-danger);
+    color: var(--tool-call-error-color);
   }
 
   .tool-pool__breakdown {
@@ -98,13 +98,13 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__body {
-    border-top: 1px solid var(--global-color-gray-200);
+    border-top: 1px solid var(--tool-call-body-border-color);
 
     & > .tool-part {
       margin-top: 0;
       border: none;
       border-radius: 0;
-      border-bottom: 1px solid var(--global-color-gray-200);
+      border-bottom: 1px solid var(--tool-call-body-border-color);
 
       &:last-child {
         border-bottom: none;
@@ -228,16 +228,22 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               className="tool-pool__chevron"
               data-expanded={isExpanded}
             />
-            {stats.total} tool call{stats.total === 1 ? "" : "s"}{" "}
-            <span
-              className="tool-pool__status"
-              data-tone={statusTone ?? undefined}
-            >
-              {statusText}
-            </span>
+            <Icon
+              svg={<Icons.WrenchOutline />}
+              css={css`
+                font-size: 0.75rem;
+              `}
+            />
+            {stats.total} tool call{stats.total === 1 ? "" : "s"}
+          </span>
+          <span
+            className="tool-pool__status"
+            data-tone={statusTone ?? undefined}
+          >
+            {statusText}
           </span>
         </div>
-        <div className="tool-pool__breakdown">
+        {/* <div className="tool-pool__breakdown">
           <Flex gap="size-50" wrap>
             {Array.from(stats.byName.entries()).map(([name, count]) => (
               <Badge key={name} size="S">
@@ -251,7 +257,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               </Badge>
             ) : null}
           </Flex>
-        </div>
+        </div> */}
       </div>
       {isExpanded ? (
         <div className="tool-pool__body">

@@ -1027,6 +1027,23 @@ const cardCSS = (theme: Theme) => css`
   }
 `;
 
+const toolCallCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --tool-call-border-color: var(--global-card-border-color);
+    --tool-call-background-color: var(--global-color-gray-100);
+    --tool-call-header-background-color: var(--global-color-gray-75);
+    --tool-call-header-background-color-hover: var(
+      --global-card-header-background-color-hover
+    );
+    --tool-call-body-background-color: var(--global-color-gray-50);
+    --tool-call-body-border-color: var(--global-color-gray-200);
+    --tool-call-title-color: var(--global-text-color-700);
+    --tool-call-secondary-color: var(--global-text-color-500);
+    --tool-call-error-color: var(--global-color-danger);
+  }
+`;
+
 const popoverCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1193,6 +1210,7 @@ export const derivedCSS = (theme: Theme) =>
     disclosureCSS(theme),
     tooltipCSS(theme),
     cardCSS(theme),
+    toolCallCSS(theme),
     popoverCSS(theme),
     roundingCSS(theme),
     tableCSS(theme),

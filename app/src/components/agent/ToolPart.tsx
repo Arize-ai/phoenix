@@ -58,9 +58,9 @@ function stringifyToolValue(value: unknown) {
 
 export const toolPartCSS = css`
   margin-top: var(--global-dimension-size-150);
-  border: 1px solid var(--global-color-gray-300);
+  border: 1px solid var(--tool-call-border-color);
   border-radius: var(--global-rounding-medium);
-  background: var(--global-color-gray-100);
+  background: var(--tool-call-background-color);
   overflow: hidden;
 
   &:has(+ :not(.tool-part)) {
@@ -71,12 +71,12 @@ export const toolPartCSS = css`
     cursor: pointer;
     list-style: none;
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    background: var(--global-color-gray-75);
+    background: var(--tool-call-header-background-color);
     border-radius: var(--global-rounding-medium);
     transition: background 150ms ease;
 
     &:hover {
-      background: var(--global-color-gray-200);
+      background: var(--tool-call-header-background-color-hover);
     }
 
     &:focus-visible {
@@ -107,15 +107,15 @@ export const toolPartCSS = css`
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-s);
     font-family: var(--ac-global-font-family-code);
-    background: var(--global-color-gray-50);
-    border-top: 1px solid var(--global-color-gray-200);
+    background: var(--tool-call-body-background-color);
+    border-top: 1px solid var(--tool-call-body-border-color);
   }
 
   .tool-part__summary {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-100);
-    color: var(--global-text-color-700);
+    color: var(--tool-call-title-color);
     font-size: var(--global-font-size-xs);
     min-width: 0;
   }
@@ -132,7 +132,7 @@ export const toolPartCSS = css`
   .tool-part__preview {
     font-weight: 400;
     font-family: var(--ac-global-font-family-code);
-    color: var(--global-text-color-500);
+    color: var(--tool-call-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -143,16 +143,17 @@ export const toolPartCSS = css`
     margin-left: auto;
     flex-shrink: 0;
     white-space: nowrap;
-    color: var(--global-text-color-500);
+    font-size: var(--global-font-size-xs);
+    color: var(--tool-call-secondary-color);
   }
 
   .tool-part__status[data-tone="error"] {
-    color: var(--global-color-danger);
+    color: var(--tool-call-error-color);
   }
 
   .tool-part__chevron {
     font-size: 12px;
-    color: var(--global-text-color-500);
+    color: var(--tool-call-secondary-color);
     transition: transform 150ms ease;
     transform: rotate(-90deg);
   }
@@ -160,7 +161,7 @@ export const toolPartCSS = css`
   .tool-part__label {
     display: block;
     padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0;
-    color: var(--global-text-color-500);
+    color: var(--tool-call-secondary-color);
     font-size: var(--global-font-size-xs);
     font-weight: 600;
     text-transform: uppercase;
@@ -200,7 +201,13 @@ export function ToolPart({
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
-            Tool: {toolName}
+            <Icon
+              svg={<Icons.WrenchOutline />}
+              css={css`
+                font-size: 0.75rem;
+              `}
+            />
+            {toolName}
           </span>
           {preview ? (
             <span className="tool-part__preview">{preview}</span>
