@@ -1,7 +1,7 @@
 import copy from "copy-to-clipboard";
 import { useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import type { ButtonProps } from "@phoenix/components";
 import {
@@ -37,6 +37,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 export enum ExperimentAction {
   GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
+  VIEW_EXPERIMENT_DETAILS = "VIEW_EXPERIMENT_DETAILS",
   COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
   VIEW_METADATA = "VIEW_METADATA",
   OPEN_IN_PLAYGROUND = "OPEN_IN_PLAYGROUND",
@@ -101,6 +102,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
     }
   `);
   const { projectId, backgroundJobStatus } = props;
+  const { datasetId } = useParams();
   const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -150,6 +152,20 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       >
         <Icon svg={<Icons.Trace />} />
         <Text>View run traces</Text>
+      </Flex>
+    </MenuItem>,
+    <MenuItem
+      key={ExperimentAction.VIEW_EXPERIMENT_DETAILS}
+      id={ExperimentAction.VIEW_EXPERIMENT_DETAILS}
+    >
+      <Flex
+        direction="row"
+        gap="size-75"
+        justifyContent="start"
+        alignItems="center"
+      >
+        <Icon svg={<Icons.InfoOutline />} />
+        <Text>View details</Text>
       </Flex>
     </MenuItem>,
     <MenuItem
@@ -271,6 +287,14 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
               switch (action) {
                 case ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES: {
                   return navigate(`/projects/${projectId}`);
+                }
+                case ExperimentAction.VIEW_EXPERIMENT_DETAILS: {
+                  if (datasetId) {
+                    navigate(
+                      `/datasets/${datasetId}/experiments/${props.experimentId}`
+                    );
+                  }
+                  break;
                 }
                 case ExperimentAction.VIEW_METADATA: {
                   setIsMetadataDialogOpen(true);
