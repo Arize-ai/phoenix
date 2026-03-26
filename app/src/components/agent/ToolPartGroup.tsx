@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
 import { useMemo, useState } from "react";
 
-import { Badge, Flex, Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 
 import { ToolPart, type ToolPartType } from "./ToolPart";
 
@@ -94,7 +94,13 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__breakdown {
-    padding-left: calc(12px + var(--global-dimension-size-50));
+    font-size: var(--global-font-size-xs);
+    font-weight: 400;
+    color: var(--tool-call-secondary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .tool-pool__body {
@@ -175,16 +181,16 @@ function formatPoolStatus({
 }): { text: string; tone?: "error" } {
   if (running > 0) {
     return {
-      text: `${completed + failed} of ${total} done, ${running} running\u2026`,
+      text: `${completed + failed} of ${total} done, ${running} Running\u2026`,
     };
   }
   if (failed > 0) {
     return {
-      text: `${completed} completed, ${failed} failed`,
+      text: `${completed} Completed, ${failed} Failed`,
       tone: "error",
     };
   }
-  return { text: "completed" };
+  return { text: "Completed" };
 }
 
 /**
@@ -235,6 +241,15 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               `}
             />
             {stats.total} tool call{stats.total === 1 ? "" : "s"}
+            <span className="tool-pool__breakdown">
+              {Array.from(stats.byName.entries())
+                .map(
+                  ([name, count]) =>
+                    `${name}${count > 1 ? ` \u00D7${count}` : ""}`
+                )
+                .join(", ")}
+              {stats.failed > 0 ? ` \u2014 ${stats.failed} failed` : ""}
+            </span>
           </span>
           <span
             className="tool-pool__status"
@@ -243,21 +258,6 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
             {statusText}
           </span>
         </div>
-        {/* <div className="tool-pool__breakdown">
-          <Flex gap="size-50" wrap>
-            {Array.from(stats.byName.entries()).map(([name, count]) => (
-              <Badge key={name} size="S">
-                {name}
-                {count > 1 ? ` \u00D7${count}` : ""}
-              </Badge>
-            ))}
-            {stats.failed > 0 ? (
-              <Badge size="S" variant="danger">
-                {stats.failed} failed
-              </Badge>
-            ) : null}
-          </Flex>
-        </div> */}
       </div>
       {isExpanded ? (
         <div className="tool-pool__body">
