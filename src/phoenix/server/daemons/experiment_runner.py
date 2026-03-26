@@ -699,17 +699,29 @@ class EvalJob(Job):
                     tracer.get_db_traces(project_id=self._project_id)
                 )
                 annotations: list[models.ExperimentRunAnnotation] = []
+                seen_names: set[str] = set()
                 for result in eval_results:
                     annotation = evaluation_result_to_model(
                         result,
                         experiment_run_id=self._experiment_run.id,
                     )
-                    annotations.append(annotation)
+                    if annotation.name not in seen_names:
+                        seen_names.add(annotation.name)
+                        annotations.append(annotation)
 
                 with anyio.fail_after(5, shield=True):
-                    async with self._db() as session:
-                        session.add_all(db_traces)
-                        session.add_all(annotations)
+
+                    async def _persist_traces() -> None:
+                        async with self._db() as session:
+                            session.add_all(db_traces)
+
+                    async def _persist_annotations() -> None:
+                        async with self._db() as session:
+                            session.add_all(annotations)
+
+                    async with anyio.create_task_group() as tg:
+                        tg.start_soon(_persist_traces)
+                        tg.start_soon(_persist_annotations)
 
                 # Check for evaluation error - treat as permanent failure for circuit breaker
                 if any(r.get("error") is not None for r in eval_results):
@@ -1691,10 +1703,6 @@ class RunningExperiment:
         # Idempotency guard: if already stopped, no-op
         if not self._active:
             return
-
-        # Log stack trace to identify what triggered stop (helps debug mysterious stops)
-        stack = "".join(traceback.format_stack()[:-1])  # Exclude this frame
-        logger.info(f"Experiment {self._experiment.id} stop() called from:\n{stack}")
 
         self._active = False
         pending_tasks = len(self._task_queue)
