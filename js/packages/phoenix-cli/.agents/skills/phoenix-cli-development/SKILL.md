@@ -168,21 +168,23 @@ interface StructuredError {
 Every subcommand MUST include a `--help` with at least one concrete example. Use Commander's `.addHelpText('after', ...)` to append an `Examples:` block:
 
 ```
+
 $ px project create --help
 Usage: px project create [options]
 
 Create a new Phoenix project.
 
 Options:
-  --name <name>       Project name (required)
-  --description <d>   Project description
-  --format <format>   Output format (pretty|json|raw) (default: "pretty")
-  -h, --help          Display help
+--name <name> Project name (required)
+--description <d> Project description
+--format <format> Output format (pretty|json|raw) (default: "pretty")
+-h, --help Display help
 
 Examples:
-  px project create --name my-project
-  px project create --name my-project --format raw
-```
+px project create --name my-project
+px project create --name my-project --format raw
+
+````
 
 Agents discover capabilities incrementally: `px` → `px project` → `px project create --help`. Each level MUST provide enough information to navigate deeper.
 
@@ -200,7 +202,7 @@ interface CommonOptions {
   format?: OutputFormat; // --format: Output format (pretty/json/raw)
   progress?: boolean; // --no-progress: Suppress progress indicators
 }
-```
+````
 
 Commands that prompt for input or confirmation MUST support non-interactive mode:
 
