@@ -137,6 +137,7 @@ export function Chat({
           messages,
           trigger,
           messageId,
+          sessionId,
         }),
       }),
     }),

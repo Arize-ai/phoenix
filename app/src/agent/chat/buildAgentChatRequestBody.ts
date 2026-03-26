@@ -9,6 +9,7 @@ type BuildAgentChatRequestBodyOptions = {
   messages: UIMessage[];
   trigger: "submit-message" | "regenerate-message";
   messageId: string | undefined;
+  sessionId?: string | null;
 };
 
 /**
@@ -21,6 +22,7 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
+  sessionId,
 }: BuildAgentChatRequestBodyOptions) {
   return {
     ...body,
@@ -30,5 +32,10 @@ export function buildAgentChatRequestBody({
     messageId,
     system: AGENT_SYSTEM_PROMPT,
     tools: agentToolDefinitions,
+    traceNameSuffix: "Turn",
+    // Sent as camelCase `sessionId` — the backend's CamelBaseModel
+    // deserializes it to the `session_id` field on the request body,
+    // which is then used to create/link a ProjectSession for the trace.
+    ...(sessionId ? { sessionId } : {}),
   };
 }

@@ -117,6 +117,7 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         params: Annotated[ChatSearchParamsModel, Query()],
     ) -> Response:
         from phoenix.server.api.routers.data_stream_protocol import (
+            parse_chat_body,
             stream_text,
         )
 
@@ -141,6 +142,11 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         else:
             assert_never(params_)
 
-        return await stream_text(request, model)
+        body = parse_chat_body(await request.body())
+        return await stream_text(
+            request,
+            model,
+            body=body,
+        )
 
     return router
