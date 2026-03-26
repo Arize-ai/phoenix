@@ -11,6 +11,7 @@ Both functions are idempotent and safe to call on every startup.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Mapping, Protocol
 
 from sqlalchemy import select
@@ -26,7 +27,7 @@ _BUILTIN_LANGUAGES = ["PYTHON", "TYPESCRIPT"]
 class _HasSupportedLanguages(Protocol):
     """Structural type for AdapterMetadata — avoids a circular import."""
 
-    supported_languages: list[str]
+    supported_languages: Sequence[str]
 
 
 async def sync_languages(session: AsyncSession) -> None:
