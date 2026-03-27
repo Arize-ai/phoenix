@@ -417,6 +417,9 @@ export async function runExperiment({
 
     return ranExperiment;
   } finally {
+    // Safety net: on error paths the happy-path cleanup above is skipped,
+    // so ensure the task provider is always cleaned up. On the happy path
+    // taskProvider is already undefined (no-op).
     await cleanupOwnedTracerProvider({
       provider: taskProvider,
       globalRegistration: taskGlobalRegistration,

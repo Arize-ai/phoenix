@@ -580,6 +580,9 @@ export async function resumeExperiment({
       throw executionError;
     }
   } finally {
+    // Safety net: on error paths the happy-path cleanup above is skipped,
+    // so ensure the provider is always cleaned up. On the happy path
+    // provider is already null (no-op).
     await cleanupOwnedTracerProvider({
       provider,
       globalRegistration,
