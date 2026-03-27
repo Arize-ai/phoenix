@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.0.1
+
+### Patch Changes
+
+- f8d5871: Use explicit radix in parseInt for Commander.js option parsers
+
 ## 1.0.0
 
 ### Major Changes
