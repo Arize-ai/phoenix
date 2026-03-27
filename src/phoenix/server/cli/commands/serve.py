@@ -98,10 +98,12 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Basic Auth: Disabled
 {%- endif %}
 {%- if tls_enabled_for_http or tls_enabled_for_grpc %}
-|  TLS: Enabled for
-{%- if tls_enabled_for_http %} HTTP{%- endif %}
-{%- if tls_enabled_for_http and tls_enabled_for_grpc %} and{%- endif %}
-{%- if tls_enabled_for_grpc %} gRPC{%- endif %}
+{%- if tls_enabled_for_http %}
+|  TLS: Enabled for HTTP
+{%- endif %}
+{%- if tls_enabled_for_grpc %}
+|  TLS: Enabled for gRPC
+{%- endif %}
 {%- if tls_verify_client %}
 |  TLS Client Verification: Enabled
 {%- endif %}
@@ -267,7 +269,7 @@ def run(args: Namespace) -> None:
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
 
-    grpc_port = args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
+    grpc_port = _resolve_grpc_port(args)
 
     tls_enabled_for_http = get_env_tls_enabled_for_http()
     tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
@@ -380,6 +382,10 @@ def run(args: Namespace) -> None:
         server.run()
     except KeyboardInterrupt:
         pass  # don't bother the user with a stack trace on Ctrl-C
+
+
+def _resolve_grpc_port(args: Namespace) -> int:
+    return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
 
 
 def _write_pid_file_when_ready(

@@ -33,6 +33,7 @@ from ._helpers import (
     _Email,
     _GetUser,
     _GqlId,
+    _grpc_span_exporter,
     _http_span_exporter,
     _httpx_client,
     _Password,
@@ -92,9 +93,13 @@ def _sql_database_url(
     assert_never(_db_backend)
 
 
-@pytest.fixture(scope="session")
-def _span_exporter() -> _SpanExporterFactory:
-    return _http_span_exporter
+@pytest.fixture(scope="session", params=["http", "grpc"])
+def _span_exporter(request: SubRequest) -> _SpanExporterFactory:
+    if request.param == "http":
+        return _http_span_exporter
+    if request.param == "grpc":
+        return _grpc_span_exporter
+    raise ValueError(f"Unknown exporter: {request.param}")
 
 
 @pytest.fixture(scope="package")
@@ -317,10 +322,14 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
+    from opentelemetry.exporter.otlp.proto.grpc import exporter
     from opentelemetry.exporter.otlp.proto.http import trace_exporter
 
+    assert isinstance(exporter, ModuleType)
     assert isinstance(trace_exporter, ModuleType)
 
     name = "_MAX_RETRYS"
+    assert isinstance(getattr(exporter, name), int)
     assert isinstance(getattr(trace_exporter, name), int)
+    setattr(exporter, name, 2)
     setattr(trace_exporter, name, 2)

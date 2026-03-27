@@ -2072,7 +2072,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
     assert len(spans := memory.get_finished_spans()) == n
 
     headers = {"authorization": f"Bearer {app.admin_secret}"}
-    assert _http_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
+    assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
 
     span_ids = set()
     for span in spans:
