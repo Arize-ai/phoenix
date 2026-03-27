@@ -345,7 +345,7 @@ script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <comman
 
 [tool.uv]
 required-version = "==0.10.9"  # When updating this version, also update the `backend-builder` image in the Dockerfile
-exclude-newer = "2026-03-20T00:00:00Z"
+exclude-newer = "7 days"
 
 [tool.uv.workspace]
 members = ["packages/*"]
