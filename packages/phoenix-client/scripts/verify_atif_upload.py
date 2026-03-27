@@ -262,7 +262,9 @@ DEBUGGING_TRAJECTORY = {
         "total_cached_tokens": 5250,
         "total_cost_usd": 0.0101,
         "total_steps": 5,
-        "total_tool_calls": 5,
+        "extra": {
+            "total_tool_calls": 5,
+        },
     },
 }
 

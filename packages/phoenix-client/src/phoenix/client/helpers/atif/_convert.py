@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from phoenix.client.__generated__ import v1
 
@@ -20,8 +20,13 @@ def _md5_trace_id(seed: str) -> str:
     return hashlib.md5(seed.encode()).hexdigest()
 
 
-def _parse_timestamp(ts: str) -> datetime:
-    """Parse an ISO 8601 timestamp string to a timezone-aware datetime."""
+def _parse_timestamp(ts: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO 8601 timestamp string to a timezone-aware datetime.
+
+    Returns None if the input is None or empty.
+    """
+    if not ts:
+        return None
     dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -31,6 +36,43 @@ def _parse_timestamp(ts: str) -> datetime:
 def _format_timestamp(dt: datetime) -> str:
     """Format a datetime as ISO 8601 with timezone."""
     return dt.isoformat()
+
+
+def _stringify_message(
+    message: Union[str, list[Any], None],
+) -> str:
+    """Convert an ATIF message field to a plain string.
+
+    Handles both str messages and multimodal list[ContentPart] (v1.6+).
+    """
+    if message is None:
+        return ""
+    if isinstance(message, str):
+        return message
+    # list[ContentPart] — concatenate text parts
+    parts: list[str] = []
+    for part in message:
+        if isinstance(part, str):
+            parts.append(part)
+        elif isinstance(part, dict):
+            text = part.get("text")
+            if text:
+                parts.append(str(text))
+    return "\n".join(parts) if parts else ""
+
+
+def _stringify_content(
+    content: Union[str, list[Any], None],
+) -> Optional[str]:
+    """Convert an observation result content to a plain string.
+
+    Returns None if content is None.
+    """
+    if content is None:
+        return None
+    if isinstance(content, str):
+        return content
+    return _stringify_message(content)
 
 
 def _build_llm_attributes(
@@ -46,7 +88,7 @@ def _build_llm_attributes(
         attrs["llm.model_name"] = model_name
 
     # Input/output values
-    message = step.get("message")
+    message = _stringify_message(step.get("message"))
     if message:
         attrs["output.value"] = message
         attrs["output.mime_type"] = "text/plain"
@@ -93,21 +135,28 @@ def _build_tool_attributes(
 def _get_step_timestamps(
     steps: Sequence[Mapping[str, Any]],
     step_index: int,
+    fallback_start: datetime,
 ) -> tuple[datetime, datetime]:
     """Determine start/end timestamps for a step.
 
-    Strategy: step timestamp → start_time,
-    next step timestamp → end_time (or start + 1s for last step).
+    Strategy:
+    - If the step has a timestamp, use it as start_time.
+    - Otherwise use fallback_start (previous step's end or trajectory start).
+    - For end_time: use next step's timestamp if available, else start + 1s.
     """
     step = steps[step_index]
-    start = _parse_timestamp(step["timestamp"])
+    ts = _parse_timestamp(step.get("timestamp"))
+    start = ts if ts is not None else fallback_start
 
-    if step_index + 1 < len(steps):
-        end = _parse_timestamp(steps[step_index + 1]["timestamp"])
-    else:
-        # Last step: use 1-second duration
-        from datetime import timedelta
+    # Look for the next step with a timestamp for the end
+    end: Optional[datetime] = None
+    for j in range(step_index + 1, len(steps)):
+        next_ts = _parse_timestamp(steps[j].get("timestamp"))
+        if next_ts is not None:
+            end = next_ts
+            break
 
+    if end is None:
         end = start + timedelta(seconds=1)
 
     return start, end
@@ -134,7 +183,7 @@ def _build_message_attributes(
         src = prev.get("source")
         if src == "agent":
             break
-        msg = prev.get("message", "")
+        msg = _stringify_message(prev.get("message"))
         if src == "user":
             input_messages.insert(0, {"role": "user", "content": msg})
         elif src == "system":
@@ -146,7 +195,7 @@ def _build_message_attributes(
         attrs[f"{prefix}.message.content"] = msg_dict["content"]
 
     # Output message
-    agent_message = step.get("message")
+    agent_message = _stringify_message(step.get("message"))
     if agent_message:
         attrs["llm.output_messages.0.message.role"] = "assistant"
         attrs["llm.output_messages.0.message.content"] = agent_message
@@ -185,10 +234,21 @@ def _convert_atif_trajectory_to_spans(
 
     spans: List[v1.Span] = []
 
-    # --- Root AGENT span ---
-    first_start = _parse_timestamp(steps[0]["timestamp"])
-    _, last_end = _get_step_timestamps(steps, len(steps) - 1)
+    # --- Compute trajectory time bounds ---
+    # Find the first and last available timestamps; fall back to now.
+    fallback_now = datetime.now(tz=timezone.utc)
+    first_start: Optional[datetime] = None
+    for s in steps:
+        ts = _parse_timestamp(s.get("timestamp"))
+        if ts is not None:
+            first_start = ts
+            break
+    if first_start is None:
+        first_start = fallback_now
 
+    _, last_end = _get_step_timestamps(steps, len(steps) - 1, first_start)
+
+    # --- Root AGENT span ---
     root_attrs: Dict[str, Any] = {
         "openinference.span.kind": "AGENT",
         "input.value": _get_trajectory_input(steps),
@@ -201,8 +261,9 @@ def _convert_atif_trajectory_to_spans(
     agent_meta: Dict[str, Any] = {
         "agent_name": agent.get("name"),
         "agent_version": agent.get("version"),
-        "model_name": agent.get("model_name"),
     }
+    if agent.get("model_name"):
+        agent_meta["model_name"] = agent["model_name"]
     if agent.get("extra"):
         agent_meta.update(agent["extra"])
     root_attrs["metadata"] = json.dumps(agent_meta)
@@ -234,17 +295,19 @@ def _convert_atif_trajectory_to_spans(
     spans.append(root_span)
 
     # --- Per-step spans ---
+    prev_end = first_start
     for i, step in enumerate(steps):
         source = step.get("source", "agent")
         step_id = step.get("step_id", i + 1)
         step_span_id = _md5_span_id(f"{session_id}:step:{step_id}")
-        step_start, step_end = _get_step_timestamps(steps, i)
+        step_start, step_end = _get_step_timestamps(steps, i, prev_end)
+        prev_end = step_end
 
         if source in ("user", "system"):
             # CHAIN span for user/system messages
             step_attrs: Dict[str, Any] = {
                 "openinference.span.kind": "CHAIN",
-                "input.value": step.get("message", ""),
+                "input.value": _stringify_message(step.get("message")),
                 "input.mime_type": "text/plain",
             }
             step_span: v1.Span = {
@@ -287,12 +350,17 @@ def _convert_atif_trajectory_to_spans(
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
             results = observation.get("results", []) if observation else []
-            # Build lookup: source_call_id → content
-            obs_map: Dict[str, str] = {
-                r["source_call_id"]: r["content"]
-                for r in results
-                if isinstance(r, dict) and "source_call_id" in r and "content" in r
-            }
+            # Build lookup: source_call_id → content string
+            obs_map: Dict[str, str] = {}
+            for r in results:
+                if not isinstance(r, dict):
+                    continue
+                scid = r.get("source_call_id")
+                if not isinstance(scid, str):
+                    continue
+                content_str = _stringify_content(r.get("content"))
+                if content_str is not None:
+                    obs_map[scid] = content_str
 
             for j, tc in enumerate(tool_calls):
                 tc_id = tc.get("tool_call_id", f"tc_{j}")
@@ -325,7 +393,7 @@ def _get_trajectory_input(
     """Extract the first user message as the trajectory input."""
     for step in steps:
         if step.get("source") == "user":
-            return step.get("message", "")
+            return _stringify_message(step.get("message"))
     return ""
 
 
@@ -335,5 +403,5 @@ def _get_trajectory_output(
     """Extract the last agent message as the trajectory output."""
     for step in reversed(steps):
         if step.get("source") == "agent":
-            return step.get("message", "")
+            return _stringify_message(step.get("message"))
     return ""

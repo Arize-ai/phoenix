@@ -1,8 +1,11 @@
-"""TypedDict definitions for the ATIF (Agent Trajectory Interchange Format) schema v1.0–v1.6."""
+"""TypedDict definitions for the ATIF (Agent Trajectory Interchange Format) schema v1.0–v1.6.
+
+Based on the Harbor reference implementation at laude-institute/harbor.
+"""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from typing_extensions import TypedDict
 
@@ -15,11 +18,25 @@ class ATIFToolCall(TypedDict):
     arguments: Dict[str, Any]
 
 
-class ATIFObservationResult(TypedDict):
-    """A single observation result returned from a tool call."""
+class ATIFContentPart(TypedDict, total=False):
+    """A multimodal content part (v1.6+). All fields optional by convention."""
+
+    type: str  # "text", "image_url", etc.
+    text: str
+    image_url: str
+
+
+class ATIFObservationResult(TypedDict, total=False):
+    """A single observation result returned from a tool call.
+
+    Both source_call_id and content are optional per the spec:
+    source_call_id may be omitted for non-tool-call observations,
+    and content may be omitted when there is no output.
+    """
 
     source_call_id: str
-    content: str
+    content: Union[str, List[ATIFContentPart]]
+    subagent_trajectory_ref: List[Dict[str, Any]]
 
 
 class ATIFObservation(TypedDict):
@@ -38,38 +55,45 @@ class ATIFStepMetrics(TypedDict, total=False):
     logprobs: List[float]
     completion_token_ids: List[int]
     prompt_token_ids: List[int]
-    latency_ms: float
+    extra: Dict[str, Any]
 
 
 class ATIFStep(TypedDict, total=False):
     """A single step in an ATIF trajectory.
 
-    Required fields: step_id, timestamp, source.
+    Required fields: step_id, source.
     Conditional: message is required for user/system steps.
-    Agent-only: model_name, reasoning_content, tool_calls, observation, metrics.
+    Optional: timestamp (may be omitted).
+    Agent-only: model_name, reasoning_content, reasoning_effort.
+    Any-source: tool_calls, observation, metrics (observation allowed
+    on system steps since v1.2).
     """
 
     step_id: int  # required
-    timestamp: str  # required, ISO 8601
+    timestamp: str  # optional, ISO 8601
     source: str  # required: "user" | "agent" | "system"
-    message: str
+    message: Union[str, List[ATIFContentPart]]
     model_name: str
     reasoning_content: str
+    reasoning_effort: Union[str, float]
     tool_calls: List[ATIFToolCall]
     observation: ATIFObservation
     metrics: ATIFStepMetrics
+    is_copied_context: bool
     extra: Dict[str, Any]
 
 
 class ATIFAgent(TypedDict, total=False):
     """Agent metadata block.
 
-    Required: name, version, model_name.
+    Required: name, version.
+    Optional: model_name, tool_definitions, extra.
     """
 
     name: str  # required
     version: str  # required
-    model_name: str  # required
+    model_name: str  # optional
+    tool_definitions: List[Dict[str, Any]]
     extra: Dict[str, Any]
 
 
@@ -81,8 +105,6 @@ class ATIFFinalMetrics(TypedDict, total=False):
     total_cached_tokens: int
     total_cost_usd: float
     total_steps: int
-    total_tool_calls: int
-    total_latency_ms: float
     extra: Dict[str, Any]
 
 
@@ -97,5 +119,6 @@ class ATIFTrajectory(TypedDict, total=False):
     agent: ATIFAgent  # required
     steps: List[ATIFStep]  # required, at least one step
     final_metrics: ATIFFinalMetrics
-    environment: Dict[str, Any]
+    notes: str
+    continued_trajectory_ref: str
     extra: Dict[str, Any]

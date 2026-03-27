@@ -6,7 +6,10 @@ import re
 from typing import Any, List, Mapping, Set
 
 _VALID_SOURCES = {"user", "agent", "system"}
-_AGENT_ONLY_FIELDS = {"model_name", "reasoning_content", "tool_calls", "observation", "metrics"}
+# Fields that may ONLY appear on agent steps.
+# Note: observation is allowed on any source since ATIF v1.2,
+# and tool_calls/metrics are not restricted by the spec either.
+_AGENT_ONLY_FIELDS = {"model_name", "reasoning_content", "reasoning_effort"}
 _SCHEMA_VERSION_PATTERN = re.compile(r"^ATIF-v\d+\.\d+$")
 
 
@@ -16,12 +19,12 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
     Checks:
     - Required root fields: schema_version, session_id, agent, steps
     - schema_version format (ATIF-vX.Y)
-    - Agent required fields: name, version, model_name
+    - Agent required fields: name, version (model_name is optional)
     - Steps are non-empty with sequential step_ids starting at 1
     - Step source is one of: user, agent, system
     - message is required for user/system steps
-    - Agent-only fields only appear on agent steps
-    - Tool call observations reference valid tool_call_ids in the same step
+    - Agent-only fields (model_name, reasoning_content) only on agent steps
+    - Tool call observations with source_call_id reference valid tool_call_ids
     """
     errors: List[str] = []
 
@@ -48,11 +51,14 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
     if not isinstance(agent, dict):
         errors.append("'agent' must be a dict")
     else:
-        for field in ("name", "version", "model_name"):
+        for field in ("name", "version"):
             if field not in agent:
                 errors.append(f"Missing required agent field: '{field}'")
             elif not isinstance(agent[field], str) or not agent[field].strip():
                 errors.append(f"agent.{field} must be a non-empty string")
+        # model_name is optional but if present must be a string
+        if "model_name" in agent and not isinstance(agent["model_name"], str):
+            errors.append("agent.model_name must be a string if provided")
 
     # Steps validation
     steps = trajectory["steps"]
@@ -66,8 +72,9 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
             errors.append(f"{prefix}: must be a dict")
             continue
 
-        # Required step fields
-        for field in ("step_id", "timestamp", "source"):
+        # Required step fields: step_id and source.
+        # timestamp is optional per the ATIF spec.
+        for field in ("step_id", "source"):
             if field not in step:
                 errors.append(f"{prefix}: missing required field '{field}'")
 
@@ -76,8 +83,8 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
         expected_id = i + 1
         if step_id != expected_id:
             errors.append(
-                f"{prefix}: step_id is {step_id}, expected {expected_id} "
-                f"(must be sequential from 1)"
+                f"{prefix}: step_id is {step_id}, "
+                f"expected {expected_id} (must be sequential from 1)"
             )
 
         # Source validation
@@ -87,15 +94,16 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
 
         # Message required for user/system steps
         if source in ("user", "system"):
-            if "message" not in step or not isinstance(step.get("message"), str):
+            msg = step.get("message")
+            if msg is None:
                 errors.append(f"{prefix}: message is required for {source} steps")
-            # Agent-only fields should not appear
+            # Agent-only fields should not appear on user/system steps
             for field in _AGENT_ONLY_FIELDS:
                 if field in step:
                     errors.append(f"{prefix}: '{field}' is not allowed on {source} steps")
 
-        # Tool call / observation cross-reference
-        if source == "agent" and "tool_calls" in step:
+        # Tool call / observation cross-reference (allowed on any source)
+        if "tool_calls" in step:
             tool_calls = step["tool_calls"]
             if not isinstance(tool_calls, list):
                 errors.append(f"{prefix}: tool_calls must be a list")
@@ -106,7 +114,11 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
                     if not isinstance(tc, dict):
                         errors.append(f"{tc_prefix}: must be a dict")
                         continue
-                    for field in ("tool_call_id", "function_name", "arguments"):
+                    for field in (
+                        "tool_call_id",
+                        "function_name",
+                        "arguments",
+                    ):
                         if field not in tc:
                             errors.append(f"{tc_prefix}: missing required field '{field}'")
                     tc_id = tc.get("tool_call_id")
@@ -124,17 +136,18 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
                             if not isinstance(result, dict):
                                 errors.append(f"{r_prefix}: must be a dict")
                                 continue
-                            for field in ("source_call_id", "content"):
-                                if field not in result:
-                                    errors.append(f"{r_prefix}: missing required field '{field}'")
+                            # source_call_id is optional per spec,
+                            # but if present must match a tool_call_id
                             source_call_id = result.get("source_call_id")
                             if (
                                 isinstance(source_call_id, str)
                                 and source_call_id not in tool_call_ids
                             ):
                                 errors.append(
-                                    f"{r_prefix}: source_call_id '{source_call_id}' does not "
-                                    f"match any tool_call_id in this step"
+                                    f"{r_prefix}: source_call_id "
+                                    f"'{source_call_id}' does not "
+                                    f"match any tool_call_id in "
+                                    f"this step"
                                 )
 
     if errors:

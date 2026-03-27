@@ -35,6 +35,53 @@ class TestValidTrajectories:
     def test_multi_tool_trajectory_passes(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         _validate_atif_trajectory(multi_tool_trajectory)
 
+    def test_real_harbor_trajectory_passes(self) -> None:
+        """Validates that a real Harbor ATIF-v1.2 trajectory passes validation."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.2",
+            "session_id": "a232fe2e-4a36-4aaa-a3d0-821ecd662a0f",
+            "agent": {
+                "name": "claude-code",
+                "version": "2.1.75",
+                "model_name": "<synthetic>",
+                "extra": {"cwds": ["/app"], "git_branches": ["master"]},
+            },
+            "steps": [
+                {
+                    "step_id": 1,
+                    "timestamp": "2026-03-13T19:46:42.637Z",
+                    "source": "user",
+                    "message": "Fix the vulnerability in the code.",
+                    "extra": {"is_sidechain": False},
+                },
+                {
+                    "step_id": 2,
+                    "timestamp": "2026-03-13T19:46:42.657Z",
+                    "source": "agent",
+                    "model_name": "<synthetic>",
+                    "message": "Not logged in",
+                    "metrics": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "cached_tokens": 0,
+                        "extra": {
+                            "cache_creation_input_tokens": 0,
+                            "cache_read_input_tokens": 0,
+                        },
+                    },
+                    "extra": {"stop_reason": "stop_sequence"},
+                },
+            ],
+            "final_metrics": {
+                "total_prompt_tokens": 0,
+                "total_completion_tokens": 0,
+                "total_cached_tokens": 0,
+                "total_steps": 2,
+                "extra": {"total_cache_creation_input_tokens": 0},
+            },
+        }
+        _validate_atif_trajectory(trajectory)
+
 
 class TestMissingRootFields:
     @pytest.mark.parametrize(
@@ -60,10 +107,22 @@ class TestSchemaVersion:
 
 
 class TestAgentValidation:
-    @pytest.mark.parametrize("field", ["name", "version", "model_name"])
-    def test_missing_agent_field(self, simple_trajectory: Dict[str, Any], field: str) -> None:
+    @pytest.mark.parametrize("field", ["name", "version"])
+    def test_missing_required_agent_field(
+        self, simple_trajectory: Dict[str, Any], field: str
+    ) -> None:
         del simple_trajectory["agent"][field]
         with pytest.raises(ValueError, match=f"agent field: '{field}'"):
+            _validate_atif_trajectory(simple_trajectory)
+
+    def test_model_name_is_optional(self, simple_trajectory: Dict[str, Any]) -> None:
+        """agent.model_name is optional per the ATIF spec."""
+        del simple_trajectory["agent"]["model_name"]
+        _validate_atif_trajectory(simple_trajectory)  # should not raise
+
+    def test_model_name_must_be_string_if_present(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["agent"]["model_name"] = 123
+        with pytest.raises(ValueError, match="model_name must be a string"):
             _validate_atif_trajectory(simple_trajectory)
 
 
@@ -93,6 +152,26 @@ class TestStepValidation:
         with pytest.raises(ValueError, match="not allowed on user"):
             _validate_atif_trajectory(simple_trajectory)
 
+    def test_timestamp_is_optional(self, simple_trajectory: Dict[str, Any]) -> None:
+        """timestamp is optional per the ATIF spec."""
+        for step in simple_trajectory["steps"]:
+            step.pop("timestamp", None)
+        _validate_atif_trajectory(simple_trajectory)  # should not raise
+
+    def test_observation_allowed_on_system_step(self, simple_trajectory: Dict[str, Any]) -> None:
+        """observation is allowed on any source since ATIF v1.2."""
+        # Replace step 1 (user) with a system step that has observation
+        simple_trajectory["steps"][0] = {
+            "step_id": 1,
+            "timestamp": "2025-01-15T10:30:00Z",
+            "source": "system",
+            "message": "System check complete.",
+            "observation": {
+                "results": [{"content": "All systems operational"}],
+            },
+        }
+        _validate_atif_trajectory(simple_trajectory)  # should not raise
+
 
 class TestToolCallObservationValidation:
     def test_mismatched_source_call_id(self, simple_trajectory: Dict[str, Any]) -> None:
@@ -104,3 +183,12 @@ class TestToolCallObservationValidation:
     def test_valid_parallel_tool_calls(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         # Step 2 has 3 parallel tool calls — should pass
         _validate_atif_trajectory(multi_tool_trajectory)
+
+    def test_observation_result_fields_are_optional(
+        self, simple_trajectory: Dict[str, Any]
+    ) -> None:
+        """source_call_id and content are optional per the ATIF spec."""
+        step = simple_trajectory["steps"][1]
+        # Replace observation with a result that omits source_call_id and content
+        step["observation"] = {"results": [{}]}
+        _validate_atif_trajectory(simple_trajectory)  # should not raise

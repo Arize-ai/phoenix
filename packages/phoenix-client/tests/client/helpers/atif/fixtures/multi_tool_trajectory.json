@@ -12,15 +12,6 @@
       "max_tokens": 4096
     }
   },
-  "environment": {
-    "platform": "linux",
-    "runtime": "python-3.11",
-    "framework": "langchain-0.2.0",
-    "extra": {
-      "region": "us-east-1",
-      "instance_type": "g5.xlarge"
-    }
-  },
   "steps": [
     {
       "step_id": 1,
@@ -89,7 +80,9 @@
         "completion_tokens": 145,
         "cached_tokens": 512,
         "cost_usd": 0.0021,
-        "latency_ms": 2840
+        "extra": {
+          "latency_ms": 2840
+        }
       },
       "extra": {
         "parallel_tool_calls": true,
@@ -137,10 +130,10 @@
         "completion_tokens": 110,
         "cached_tokens": 1850,
         "cost_usd": 0.0018,
-        "latency_ms": 1950
-      },
-      "extra": {
-        "cache_hit_ratio": 0.578
+        "extra": {
+          "latency_ms": 1950,
+          "cache_hit_ratio": 0.578
+        }
       }
     },
     {
@@ -155,10 +148,12 @@
         "completion_tokens": 380,
         "cached_tokens": 3200,
         "cost_usd": 0.0035,
-        "latency_ms": 4200
+        "extra": {
+          "latency_ms": 4200,
+          "finish_reason": "stop"
+        }
       },
       "extra": {
-        "finish_reason": "stop",
         "response_format": "markdown"
       }
     }
@@ -169,8 +164,6 @@
     "total_cached_tokens": 5562,
     "total_cost_usd": 0.0074,
     "total_steps": 5,
-    "total_tool_calls": 4,
-    "total_latency_ms": 14000,
     "extra": {
       "avg_tokens_per_step": 1957,
       "cache_efficiency": 0.608

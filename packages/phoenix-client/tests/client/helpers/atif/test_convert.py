@@ -165,6 +165,83 @@ class TestMultiToolTrajectoryConversion:
             assert a["context"]["trace_id"] == b["context"]["trace_id"]
 
 
+class TestOptionalFields:
+    def test_missing_timestamps_still_converts(self) -> None:
+        """Steps without timestamps should still produce valid spans."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "no-timestamps",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 3  # root + user + agent
+        # All spans should have start/end times (derived from fallback)
+        for span in spans:
+            assert span["start_time"]
+            assert span["end_time"]
+
+    def test_optional_model_name(self) -> None:
+        """Trajectories without agent.model_name should convert."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "no-model",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "hello",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "hi",
+                    "timestamp": "2025-01-15T10:00:01Z",
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 3
+        # LLM span should not have model_name attribute
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert "llm.model_name" not in attrs
+
+    def test_observation_result_without_source_call_id(self) -> None:
+        """Observation results can omit source_call_id per the spec."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "no-source-call-id",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "checking",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "tc1",
+                            "function_name": "check",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {"results": [{"content": "result without source_call_id"}]},
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        # Tool span should have no output (result has no matching source_call_id)
+        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
+        attrs = tool_span.get("attributes", {})
+        assert "output.value" not in attrs
+
+
 class TestMessageAttributes:
     def test_llm_input_messages_from_user(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
