@@ -2,7 +2,7 @@ import { trace, type Tracer } from "@opentelemetry/api";
 
 const DEFAULT_TRACER_NAME = "phoenix-evals";
 
-function createDynamicTracer(name: string = DEFAULT_TRACER_NAME): Tracer {
+export function getTracer(name: string = DEFAULT_TRACER_NAME): Tracer {
   return {
     startSpan(spanName, options, context) {
       return trace.getTracer(name).startSpan(spanName, options, context);
@@ -15,8 +15,4 @@ function createDynamicTracer(name: string = DEFAULT_TRACER_NAME): Tracer {
   } as Tracer;
 }
 
-export function getTracer(name: string = DEFAULT_TRACER_NAME): Tracer {
-  return createDynamicTracer(name);
-}
-
-export const tracer = createDynamicTracer();
+export const tracer = getTracer();
