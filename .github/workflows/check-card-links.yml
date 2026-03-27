@@ -1,0 +1,49 @@
+name: Check Card Links
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run link checker
+        id: run-check
+        run: |
+          set -e
+          SUMMARY_PATH="card-links-summary.md"
+          node .github/.scripts/check-card-links.js --root . --timeout 10 --verbose --github-annotations --summary-file "$SUMMARY_PATH" || echo "exit_code=$?" >> $GITHUB_OUTPUT
+          echo "summary_path=$SUMMARY_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload summary artifact (always)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: card-links-summary
+          path: ${{ steps.run-check.outputs.summary_path }}
+
+      - name: Comment on PR with summary
+        if: ${{ github.event_name == 'pull_request' && always() }}
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: Card Links Check
+          recreate: false
+          path: ${{ steps.run-check.outputs.summary_path }}
+
+      - name: Fail if errors detected
+        if: ${{ steps.run-check.outputs.exit_code != '' }}
+        run: exit 1
