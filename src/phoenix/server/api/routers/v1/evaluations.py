@@ -1,7 +1,5 @@
-from collections.abc import Callable
-from datetime import datetime, timezone
 from itertools import chain
-from typing import Any, Iterator, Optional, Union, cast
+from typing import Iterator, Optional
 
 import pandas as pd
 import pyarrow as pa
@@ -10,17 +8,16 @@ from pandas import DataFrame
 from sqlalchemy import select
 from sqlalchemy.engine import Connectable
 from starlette.background import BackgroundTask
-from starlette.datastructures import State
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from typing_extensions import TypeAlias
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.insertion.types import Precursors
 from phoenix.exceptions import PhoenixEvaluationNameIsMissing
 from phoenix.server.api.routers.utils import table_to_bytes
 from phoenix.server.authorization import is_not_locked
+from phoenix.server.evaluations import enqueue_annotations_from_evaluations
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -156,108 +153,12 @@ async def _process_pyarrow(request: Request) -> Response:
             detail="Invalid data in request body",
             status_code=422,
         )
-    return Response(background=BackgroundTask(_add_evaluations, request.state, evaluations))
-
-
-async def _add_evaluations(state: State, evaluations: Evaluations) -> None:
-    dataframe = evaluations.dataframe
-    eval_name = evaluations.eval_name
-    names = dataframe.index.names
-    if (
-        len(names) == 2
-        and "document_position" in names
-        and ("context.span_id" in names or "span_id" in names)
-    ):
-        cls = _document_annotation_factory(
-            names.index("span_id") if "span_id" in names else names.index("context.span_id"),
-            names.index("document_position"),
+    return Response(
+        background=BackgroundTask(
+            enqueue_annotations_from_evaluations,
+            request.state.enqueue_annotations,
+            evaluations,
         )
-        for index, row in dataframe.iterrows():
-            score, label, explanation = _get_annotation_result(row)
-            document_annotation = cls(cast(Union[tuple[str, int], tuple[int, str]], index))(
-                name=eval_name,
-                identifier="",
-                source="API",
-                annotator_kind="LLM",
-                score=score,
-                label=label,
-                explanation=explanation,
-                metadata_={},
-            )
-            await state.enqueue_annotations(document_annotation)
-    elif len(names) == 1 and names[0] in ("context.span_id", "span_id"):
-        for index, row in dataframe.iterrows():
-            score, label, explanation = _get_annotation_result(row)
-            span_annotation = _span_annotation_factory(cast(str, index))(
-                name=eval_name,
-                identifier="",
-                source="API",
-                annotator_kind="LLM",
-                score=score,
-                label=label,
-                explanation=explanation,
-                metadata_={},
-            )
-            await state.enqueue_annotations(span_annotation)
-    elif len(names) == 1 and names[0] in ("context.trace_id", "trace_id"):
-        for index, row in dataframe.iterrows():
-            score, label, explanation = _get_annotation_result(row)
-            trace_annotation = _trace_annotation_factory(cast(str, index))(
-                name=eval_name,
-                identifier="",
-                source="API",
-                annotator_kind="LLM",
-                score=score,
-                label=label,
-                explanation=explanation,
-                metadata_={},
-            )
-            await state.enqueue_annotations(trace_annotation)
-
-
-def _get_annotation_result(
-    row: "pd.Series[Any]",
-) -> tuple[Optional[float], Optional[str], Optional[str]]:
-    return (
-        cast(Optional[float], row.get("score")),
-        cast(Optional[str], row.get("label")),
-        cast(Optional[str], row.get("explanation")),
-    )
-
-
-def _document_annotation_factory(
-    span_id_idx: int,
-    document_position_idx: int,
-) -> Callable[
-    [Union[tuple[str, int], tuple[int, str]]],
-    Callable[..., Precursors.DocumentAnnotation],
-]:
-    return lambda index: (
-        lambda **kwargs: Precursors.DocumentAnnotation(
-            datetime.now(timezone.utc),
-            span_id=str(index[span_id_idx]),
-            document_position=int(index[document_position_idx]),
-            obj=models.DocumentAnnotation(
-                document_position=int(index[document_position_idx]),
-                **kwargs,
-            ),
-        )
-    )
-
-
-def _span_annotation_factory(span_id: str) -> Callable[..., Precursors.SpanAnnotation]:
-    return lambda **kwargs: Precursors.SpanAnnotation(
-        datetime.now(timezone.utc),
-        span_id=str(span_id),
-        obj=models.SpanAnnotation(**kwargs),
-    )
-
-
-def _trace_annotation_factory(trace_id: str) -> Callable[..., Precursors.TraceAnnotation]:
-    return lambda **kwargs: Precursors.TraceAnnotation(
-        datetime.now(timezone.utc),
-        trace_id=str(trace_id),
-        obj=models.TraceAnnotation(**kwargs),
     )
 
 

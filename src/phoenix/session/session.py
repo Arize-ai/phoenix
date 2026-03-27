@@ -215,6 +215,11 @@ class ThreadSession(Session):
             db=factory,
             authentication_enabled=False,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+            initial_evaluations=(
+                trace_dataset.evaluations
+                if trace_dataset is not None and trace_dataset.evaluations
+                else None
+            ),
             shutdown_callbacks=shutdown_callbacks,
         )
         self.server = ThreadServer(

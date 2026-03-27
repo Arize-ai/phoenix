@@ -20,6 +20,7 @@ from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
 from httpx import AsyncByteStream, Request, Response
+from phoenix.client import Client
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -27,7 +28,6 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
-from phoenix.client import Client
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -389,6 +389,8 @@ class TestBulkInserter(BulkInserter):
         Callable[[Span, str], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
+        if self._spans:
+            await self._insert_spans(len(self._spans))
         # Return the overridden methods
         return (
             self._enqueue_annotations_immediate,

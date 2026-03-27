@@ -26,6 +26,7 @@ jobs:
     outputs:
       ipynb: ${{ steps.filter.outputs.ipynb }}
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
+      proto: ${{ steps.filter.outputs.proto }}
       prompts: ${{ steps.filter.outputs.prompts }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
       phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
