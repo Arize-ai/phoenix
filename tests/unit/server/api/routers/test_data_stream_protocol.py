@@ -1,8 +1,8 @@
 import json
 
+from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
-    StreamAccumulator,
     parse_chat_body,
 )
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from openinference.semconv.trace import (
@@ -41,6 +42,142 @@ if TYPE_CHECKING:
     from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class StreamAccumulator:
+    """Accumulates text and tool call content during streaming for tracing."""
+
+    text_parts: list[str] = field(default_factory=list)
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    _current_tool_args: dict[int, list[str]] = field(default_factory=dict)
+    _current_tool_meta: dict[int, dict[str, str]] = field(default_factory=dict)
+
+    @property
+    def accumulated_text(self) -> str:
+        return "".join(self.text_parts)
+
+
+class TracingContext:
+    """Encapsulates the full tracing lifecycle for a single chat request.
+
+    Manages span creation, finalization, persistence, and tracer shutdown.
+    Use :meth:`finalize` in the success path and :meth:`finalize_with_error`
+    in the error path.  :meth:`ensure_finalized` should be called in a
+    ``finally`` block to guarantee spans are always ended (e.g. on client
+    disconnect / ``GeneratorExit``).
+    """
+
+    def __init__(
+        self,
+        tracer: Tracer,
+        *,
+        agent_span: Span,
+        llm_span: Span,
+        accumulator: StreamAccumulator,
+    ) -> None:
+        self.tracer = tracer
+        self.agent_span = agent_span
+        self.llm_span = llm_span
+        self.accumulator = accumulator
+        self._finalized = False
+
+    def finalize(
+        self,
+        *,
+        usage: Any | None = None,
+        model_name: str | None = None,
+        provider: str | None = None,
+    ) -> None:
+        """Finalize both spans on the success path."""
+        if self._finalized:
+            return
+        self._finalized = True
+
+        accumulated_text = self.accumulator.accumulated_text or None
+        accumulated_tool_calls = self.accumulator.tool_calls or None
+
+        finalize_llm_span(
+            self.llm_span,
+            output_content=accumulated_text,
+            tool_calls=accumulated_tool_calls,
+            usage=usage,
+            model_name=model_name,
+            provider=provider,
+        )
+        finalize_agent_span(
+            self.agent_span,
+            output_content=accumulated_text,
+        )
+
+    def finalize_with_error(self, error: BaseException) -> None:
+        """Finalize both spans on the error path."""
+        if self._finalized:
+            return
+        self._finalized = True
+
+        accumulated_text = self.accumulator.accumulated_text or None
+        accumulated_tool_calls = self.accumulator.tool_calls or None
+
+        finalize_llm_span(
+            self.llm_span,
+            output_content=accumulated_text,
+            tool_calls=accumulated_tool_calls,
+            error=error,
+        )
+        finalize_agent_span(
+            self.agent_span,
+            output_content=accumulated_text,
+            error=error,
+        )
+
+    def ensure_finalized(self) -> None:
+        """Safety net — end spans if not already finalized.
+
+        Call this in a ``finally`` block so spans are always ended, even on
+        ``GeneratorExit`` (client disconnect) or unexpected ``BaseException``.
+        """
+        if self._finalized:
+            return
+        self._finalized = True
+
+        # Best-effort: end spans with error status since we're in an
+        # unexpected cleanup path.
+        try:
+            finalize_llm_span(self.llm_span, error=RuntimeError("stream terminated unexpectedly"))
+        except Exception:
+            logger.debug("Failed to finalize LLM span during cleanup", exc_info=True)
+
+        try:
+            finalize_agent_span(
+                self.agent_span, error=RuntimeError("stream terminated unexpectedly")
+            )
+        except Exception:
+            logger.debug("Failed to finalize agent span during cleanup", exc_info=True)
+
+    async def persist_and_shutdown(
+        self,
+        *,
+        db: "DbSessionFactory",
+        project_id: int,
+        session_id: str | None = None,
+        event_queue: Any,
+    ) -> list[models.Trace]:
+        """Persist traces and shut down the tracer to release resources."""
+        try:
+            return await persist_traces(
+                self.tracer,
+                db=db,
+                project_id=project_id,
+                session_id=session_id,
+                event_queue=event_queue,
+            )
+        finally:
+            try:
+                self.tracer.shutdown()
+            except Exception:
+                logger.debug("Failed to shut down tracer", exc_info=True)
+
 
 # Shorthand constants for readability.
 _AGENT = OpenInferenceSpanKindValues.AGENT.value
@@ -202,8 +339,8 @@ def finalize_llm_span(
         span.set_attribute(_LLM_SYSTEM, provider)
 
     # Output messages (flattened per OpenInference spec).
+    # Only set output message attributes when there's actual content or tool calls.
     output_msg_attrs: dict[str, Any] = {}
-    output_msg_attrs[f"llm.output_messages.0.{_MESSAGE_ROLE}"] = "assistant"
     if output_content:
         output_msg_attrs[f"llm.output_messages.0.{_MESSAGE_CONTENT}"] = output_content
     if tool_calls:
@@ -219,6 +356,7 @@ def finalize_llm_span(
                     args if isinstance(args, str) else json.dumps(args)
                 )
     if output_msg_attrs:
+        output_msg_attrs[f"llm.output_messages.0.{_MESSAGE_ROLE}"] = "assistant"
         span.set_attributes(output_msg_attrs)
 
     # Token usage.

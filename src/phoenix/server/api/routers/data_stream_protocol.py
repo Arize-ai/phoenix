@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
 
+    from phoenix.server.api.routers.chat_tracing import StreamAccumulator
+
 logger = logging.getLogger(__name__)
 
 _FINISH_REASON_MAP: dict[
@@ -37,6 +39,29 @@ class FrontendTool(BaseModel):
     name: str
     description: str
     parameters: dict[str, Any] = {}
+
+
+# Lazy-initialized module-level Pydantic model to avoid re-creating the schema
+# on every request.  The class is built on first use because it depends on
+# ``SubmitMessage`` which is an optional import.
+_VercelRequest: type | None = None
+
+
+def _get_vercel_request_class() -> type:
+    global _VercelRequest
+    if _VercelRequest is None:
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+
+        class _Cls(SubmitMessage):
+            tools: list[FrontendTool] | None = None
+            output_tools: list[FrontendTool] | None = None
+            system: str | None = None
+            session_id: str | None = None
+            ingest_traces: bool = True
+            trace_name_suffix: str = "Turn"
+
+        _VercelRequest = _Cls
+    return _VercelRequest
 
 
 @dataclass
@@ -61,17 +86,9 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     """
     from pydantic_ai.messages import ModelRequest, SystemPromptPart
     from pydantic_ai.ui.vercel_ai._adapter import VercelAIAdapter
-    from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
-    class _VercelRequest(SubmitMessage):
-        tools: list[FrontendTool] | None = None
-        output_tools: list[FrontendTool] | None = None
-        system: str | None = None
-        session_id: str | None = None
-        ingest_traces: bool = True
-        trace_name_suffix: str = "Turn"
-
-    body = _VercelRequest.model_validate_json(raw_body)
+    VercelRequestCls = _get_vercel_request_class()
+    body = VercelRequestCls.model_validate_json(raw_body)
     logger.debug("system=%r", body.system)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
@@ -101,24 +118,10 @@ def _sse(chunk: Any) -> str:
     return f"data: {chunk.encode(6)}\n\n"
 
 
-@dataclass
-class StreamAccumulator:
-    """Accumulates text and tool call content during streaming for tracing."""
-
-    text_parts: list[str] = field(default_factory=list)
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
-    _current_tool_args: dict[int, list[str]] = field(default_factory=dict)
-    _current_tool_meta: dict[int, dict[str, str]] = field(default_factory=dict)
-
-    @property
-    def accumulated_text(self) -> str:
-        return "".join(self.text_parts)
-
-
 async def _encode_stream(
     stream: Any,
     *,
-    accumulator: StreamAccumulator | None = None,
+    accumulator: "StreamAccumulator | None" = None,
     PartDeltaEvent: Any,
     PartEndEvent: Any,
     PartStartEvent: Any,
@@ -323,22 +326,19 @@ async def stream_text(
 
     from phoenix.config import get_env_phoenix_pxi_project_name
     from phoenix.server.api.routers.chat_tracing import (
+        StreamAccumulator,
+        TracingContext,
         create_agent_span,
         create_llm_span,
         ensure_project_exists,
-        finalize_agent_span,
-        finalize_llm_span,
-        persist_traces,
     )
     from phoenix.tracers import Tracer
 
     async def generate() -> AsyncIterator[str]:
         finish_reason: FinishReason = "stop"
+        tracing_ctx: TracingContext | None = None
         accumulator: StreamAccumulator | None = None
-        agent_span = None
-        llm_span = None
-        tracer = None
-        project_id = None
+        project_id: int | None = None
 
         # Set up tracing before streaming begins.
         if ingest_traces:
@@ -363,12 +363,16 @@ async def stream_text(
                     tools=body.raw_tools or None,
                     trace_name_suffix=body.trace_name_suffix,
                 )
+                tracing_ctx = TracingContext(
+                    tracer,
+                    agent_span=agent_span,
+                    llm_span=llm_span,
+                    accumulator=accumulator,
+                )
             except Exception:
                 logger.exception("Failed to set up chat tracing")
-                # Continue without tracing.
-                agent_span = None
-                llm_span = None
-                tracer = None
+                tracing_ctx = None
+                accumulator = None
 
         yield _sse(StartChunk())
         yield _sse(StartStepChunk())
@@ -378,63 +382,31 @@ async def stream_text(
                     yield chunk
                 finish_reason = _FINISH_REASON_MAP.get(stream.finish_reason or "stop", "other")
 
-                accumulated_text = accumulator.accumulated_text if accumulator else None
-                accumulated_tool_calls = accumulator.tool_calls if accumulator else None
-
-                # Finalize LLM child span first (must end before parent).
-                if llm_span is not None:
-                    finalize_llm_span(
-                        llm_span,
-                        output_content=accumulated_text,
-                        tool_calls=accumulated_tool_calls,
+                if tracing_ctx is not None:
+                    tracing_ctx.finalize(
                         usage=stream.usage(),
                         model_name=getattr(stream, "model_name", None),
                         provider=getattr(stream, "provider_name", None),
                     )
-                    llm_span = None
-
-                # Finalize AGENT parent span.
-                if agent_span is not None:
-                    finalize_agent_span(
-                        agent_span,
-                        output_content=accumulated_text,
-                    )
-                    agent_span = None
         except Exception as e:
             yield _sse(ErrorChunk(error_text=str(e)))
             finish_reason = "error"
-
-            accumulated_text = accumulator.accumulated_text if accumulator else None
-            accumulated_tool_calls = accumulator.tool_calls if accumulator else None
-
-            # Finalize LLM child span with error first.
-            if llm_span is not None:
-                finalize_llm_span(
-                    llm_span,
-                    output_content=accumulated_text,
-                    tool_calls=accumulated_tool_calls,
-                    error=e,
-                )
-                llm_span = None
-
-            # Finalize AGENT parent span with error.
-            if agent_span is not None:
-                finalize_agent_span(
-                    agent_span,
-                    output_content=accumulated_text,
-                    error=e,
-                )
-                agent_span = None
+            if tracing_ctx is not None:
+                tracing_ctx.finalize_with_error(e)
+        finally:
+            # Safety net: ensure spans are always ended, even on GeneratorExit
+            # (client disconnect) or unexpected BaseException.
+            if tracing_ctx is not None:
+                tracing_ctx.ensure_finalized()
 
         yield _sse(FinishStepChunk())
         yield _sse(FinishChunk(finish_reason=finish_reason))
         yield _sse(DoneChunk())
 
-        # Persist traces after streaming is complete.
-        if tracer is not None and project_id is not None:
+        # Persist traces and shut down the tracer to release resources.
+        if tracing_ctx is not None and project_id is not None:
             try:
-                await persist_traces(
-                    tracer,
+                await tracing_ctx.persist_and_shutdown(
                     db=request.app.state.db,
                     project_id=project_id,
                     session_id=body.session_id,
