@@ -234,9 +234,7 @@ def _build_message_attributes(
                     if isinstance(r, dict):
                         scid: object = r.get("source_call_id")
                         if isinstance(scid, str):
-                            c = _stringify_content(
-                                r.get("content")  # type: ignore[arg-type]
-                            )
+                            c = _stringify_content(r.get("content"))
                             if c is not None:
                                 obs_map[scid] = c
                 for tc in prev_tool_calls:
@@ -457,9 +455,7 @@ def _convert_atif_trajectory_to_spans(
                 scid: object = r.get("source_call_id")
                 if not isinstance(scid, str):
                     continue
-                content_str = _stringify_content(
-                    r.get("content")  # type: ignore[arg-type]
-                )
+                content_str = _stringify_content(r.get("content"))
                 if content_str is not None:
                     obs_map[scid] = content_str
 
