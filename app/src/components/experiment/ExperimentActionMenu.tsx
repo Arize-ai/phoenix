@@ -39,7 +39,6 @@ export enum ExperimentAction {
   GO_TO_EXPERIMENT_RUN_TRACES = "GO_TO_EXPERIMENT_RUN_TRACES",
   VIEW_EXPERIMENT_DETAILS = "VIEW_EXPERIMENT_DETAILS",
   COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
-  VIEW_METADATA = "VIEW_METADATA",
   OPEN_IN_PLAYGROUND = "OPEN_IN_PLAYGROUND",
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
@@ -169,20 +168,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </Flex>
     </MenuItem>,
     <MenuItem
-      key={ExperimentAction.VIEW_METADATA}
-      id={ExperimentAction.VIEW_METADATA}
-    >
-      <Flex
-        direction="row"
-        gap="size-75"
-        justifyContent="start"
-        alignItems="center"
-      >
-        <Icon svg={<Icons.InfoOutline />} />
-        <Text>View metadata</Text>
-      </Flex>
-    </MenuItem>,
-    <MenuItem
       key={ExperimentAction.COPY_EXPERIMENT_ID}
       id={ExperimentAction.COPY_EXPERIMENT_ID}
     >
@@ -294,10 +279,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                       `/datasets/${datasetId}/experiments/${props.experimentId}`
                     );
                   }
-                  break;
-                }
-                case ExperimentAction.VIEW_METADATA: {
-                  setIsMetadataDialogOpen(true);
                   break;
                 }
                 case ExperimentAction.COPY_EXPERIMENT_ID: {
