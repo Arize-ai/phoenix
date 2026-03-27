@@ -4,8 +4,8 @@ Captures agent turns as traces and persists them to the configured PXI project.
 Each request produces a two-level span tree whose span names are suffixed to
 distinguish chat turns from summarization calls:
 
-    AGENT ("ChatAgent Turn") / ("ChatAgent Summary")
-      └─ LLM ("ChatCompletion Turn") / ("ChatCompletion Summary")
+    AGENT ("pxiAgent Turn") / ("pxiAgent Summary")
+      └─ LLM ("pxiCompletion Turn") / ("pxiCompletion Summary")
 
 This module is intentionally isolated so it can be replaced by
 ``openinference-instrumentation-pydantic-ai`` or another approach in the future.
@@ -263,7 +263,7 @@ def create_agent_span(
         attributes[_SESSION_ID] = session_id
 
     span = tracer.start_span(
-        f"ChatAgent {trace_name_suffix}",
+        f"pxiAgent {trace_name_suffix}",
         context=OtelContext(),  # isolate from ambient context
         attributes=attributes,
         set_status_on_exception=False,  # we set status manually
@@ -301,7 +301,7 @@ def create_llm_span(
     parent_context = set_span_in_context(parent_span, context=OtelContext())
 
     span = tracer.start_span(
-        f"ChatCompletion {trace_name_suffix}",
+        f"pxiCompletion {trace_name_suffix}",
         context=parent_context,
         attributes=attributes,
         set_status_on_exception=False,

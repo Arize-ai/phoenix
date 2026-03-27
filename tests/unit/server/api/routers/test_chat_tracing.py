@@ -127,7 +127,7 @@ class TestSpanHierarchy:
         db_span = db_traces[0].spans[0]
 
         assert db_span.span_kind == OpenInferenceSpanKindValues.AGENT.value
-        assert db_span.name == "ChatAgent Turn"
+        assert db_span.name == "pxiAgent Turn"
         attrs = db_span.attributes
         assert attrs["openinference"]["span"]["kind"] == "AGENT"
         assert attrs["input"]["value"] == "What is 2+2?"
@@ -165,7 +165,7 @@ class TestSpanHierarchy:
         spans = db_traces[0].spans
         llm_db = next(s for s in spans if s.span_kind == OpenInferenceSpanKindValues.LLM.value)
 
-        assert llm_db.name == "ChatCompletion Turn"
+        assert llm_db.name == "pxiCompletion Turn"
         attrs = llm_db.attributes
         assert attrs["openinference"]["span"]["kind"] == "LLM"
         assert attrs["llm"]["model_name"] == "gpt-4o"
@@ -239,8 +239,8 @@ class TestSpanHierarchy:
         agent_db = next(s for s in spans if s.span_kind == OpenInferenceSpanKindValues.AGENT.value)
         llm_db = next(s for s in spans if s.span_kind == OpenInferenceSpanKindValues.LLM.value)
 
-        assert agent_db.name == "ChatAgent Summary"
-        assert llm_db.name == "ChatCompletion Summary"
+        assert agent_db.name == "pxiAgent Summary"
+        assert llm_db.name == "pxiCompletion Summary"
 
     def test_llm_span_with_input_messages_including_tool_calls(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import (
@@ -347,7 +347,7 @@ class TestPersistTraces:
             spans = result.scalars().all()
             assert len(spans) == 2
             names = {s.name for s in spans}
-            assert names == {"ChatAgent Turn", "ChatCompletion Turn"}
+            assert names == {"pxiAgent Turn", "pxiCompletion Turn"}
 
         assert len(event_queue.events) == 1
 
