@@ -1,6 +1,5 @@
 import { css, keyframes } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { ModalOverlayProps as AriaModalOverlayProps } from "react-aria-components";
 import {
   Modal as AriaModal,
@@ -137,7 +136,7 @@ export interface ModalProps extends AriaModalOverlayProps {
   size?: ModalSize;
 }
 
-function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
+function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", variant = "default", ...otherProps } = props;
   return (
     <AriaModal
@@ -149,8 +148,6 @@ function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
     />
   );
 }
-
-const _Modal = forwardRef(Modal);
 
 const modalOverlayCSS = css`
   position: fixed;
@@ -169,7 +166,10 @@ const modalOverlayCSS = css`
   }
 `;
 
-function ModalOverlay(props: AriaModalOverlayProps, ref: Ref<HTMLDivElement>) {
+function ModalOverlay({
+  ref,
+  ...props
+}: AriaModalOverlayProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaModalOverlay
       {...props}
@@ -183,6 +183,4 @@ function ModalOverlay(props: AriaModalOverlayProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _ModalOverlay = forwardRef(ModalOverlay);
-
-export { _Modal as Modal, _ModalOverlay as ModalOverlay };
+export { Modal, ModalOverlay };

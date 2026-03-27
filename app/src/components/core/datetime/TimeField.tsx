@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type {
   TimeFieldProps as AriaTimeFieldProps,
   TimeValue,
@@ -60,14 +59,13 @@ const timeFieldCSS = css`
   }
 `;
 
-function TimeField<T extends TimeValue>(
-  props: TimeFieldProps<T>,
-  ref: Ref<HTMLDivElement>
-) {
+function TimeField<T extends TimeValue>({
+  ref,
+  ...props
+}: TimeFieldProps<T> & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaTimeField css={css(fieldBaseCSS, timeFieldCSS)} {...props} ref={ref} />
   );
 }
 
-const _TimeField = forwardRef(TimeField);
-export { _TimeField as TimeField };
+export { TimeField };

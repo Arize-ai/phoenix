@@ -33,10 +33,18 @@ const streamdownIcons: Partial<IconMap> = {
 export function MarkdownBlock({
   children,
   mode,
+  renderMode = "static",
   margin = "default",
 }: {
   children: string;
   mode: MarkdownDisplayMode;
+  /**
+   * Controls how Streamdown parses the markdown content.
+   * - `"static"`: parses the full content at once (default, use for complete content)
+   * - `"streaming"`: parses incrementally per-block with memoization (use when
+   *   content is being actively streamed/appended)
+   */
+  renderMode?: "static" | "streaming";
   margin?: "default" | "none";
 }) {
   const spacingCSS =
@@ -54,7 +62,7 @@ export function MarkdownBlock({
         components={streamdownComponents}
         controls={{ code: { copy: true, download: true }, table: false }}
         icons={streamdownIcons}
-        mode="static"
+        mode={renderMode}
         plugins={plugins}
       >
         {children}
@@ -67,14 +75,16 @@ export function MarkdownBlock({
 
 export function ConnectedMarkdownBlock({
   children,
+  renderMode,
   margin = "default",
 }: {
   children: string;
+  renderMode?: "static" | "streaming";
   margin?: "default" | "none";
 }) {
   const { mode } = useMarkdownMode();
   return (
-    <MarkdownBlock mode={mode} margin={margin}>
+    <MarkdownBlock mode={mode} renderMode={renderMode} margin={margin}>
       {children}
     </MarkdownBlock>
   );

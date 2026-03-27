@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { ReactNode, Ref } from "react";
-import { forwardRef } from "react";
 import type { SwitchProps as AriaSwitchProps } from "react-aria-components";
 import { Switch as AriaSwitch } from "react-aria-components";
 
@@ -95,10 +94,12 @@ export interface SwitchProps extends AriaSwitchProps {
   labelPlacement?: "start" | "end";
 }
 
-function Switch(
-  { children, labelPlacement = "end", ...props }: SwitchProps,
-  ref: Ref<HTMLLabelElement>
-) {
+function Switch({
+  ref,
+  children,
+  labelPlacement = "end",
+  ...props
+}: SwitchProps & { ref?: Ref<HTMLLabelElement> }) {
   return (
     <AriaSwitch
       {...props}
@@ -112,6 +113,4 @@ function Switch(
   );
 }
 
-const _Switch = forwardRef(Switch);
-
-export { _Switch as Switch };
+export { Switch };

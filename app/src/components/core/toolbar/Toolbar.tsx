@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import type { ToolbarProps as AriaToolbarProps } from "react-aria-components";
 import { Toolbar as AriaToolbar } from "react-aria-components";
 
@@ -25,7 +25,10 @@ const toolbarCSS = css`
   }
 `;
 
-function Toolbar(props: ToolbarProps, ref: React.Ref<HTMLDivElement>) {
+function Toolbar({
+  ref,
+  ...props
+}: ToolbarProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaToolbar {...props} ref={ref} css={toolbarCSS}>
       {props.children}
@@ -33,8 +36,4 @@ function Toolbar(props: ToolbarProps, ref: React.Ref<HTMLDivElement>) {
   );
 }
 
-const _Toolbar = forwardRef(Toolbar);
-
-_Toolbar.displayName = "Toolbar";
-
-export { _Toolbar as Toolbar };
+export { Toolbar };

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<210a11f519486738d351868cd4154c05>>
+ * @generated SignedSource<<47da9ad05318801a4df2822b077123e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type ChatCompletionInput = {
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
   repetitions: number;
+  streamModelOutput?: boolean;
   template?: PromptTemplateOptions | null;
 };
 export type ChatPromptVersionInput = {

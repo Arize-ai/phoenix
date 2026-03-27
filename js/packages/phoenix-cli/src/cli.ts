@@ -8,19 +8,14 @@ import {
   createApiCommand,
   createAuthCommand,
   createDatasetCommand,
-  createDatasetsCommand,
   createDocsCommand,
   createExperimentCommand,
-  createExperimentsCommand,
-  createProjectsCommand,
+  createProjectCommand,
   createPromptCommand,
-  createPromptsCommand,
   createSessionCommand,
-  createSessionsCommand,
   createSelfCommand,
-  createSpansCommand,
+  createSpanCommand,
   createTraceCommand,
-  createTracesCommand,
 } from "./commands";
 import { CLI_VERSION } from "./version";
 
@@ -34,17 +29,12 @@ export function createProgram(): Command {
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
   program.addCommand(createAuthCommand());
-  program.addCommand(createProjectsCommand());
-  program.addCommand(createTracesCommand());
+  program.addCommand(createProjectCommand());
   program.addCommand(createTraceCommand());
-  program.addCommand(createSpansCommand());
-  program.addCommand(createDatasetsCommand());
+  program.addCommand(createSpanCommand());
   program.addCommand(createDatasetCommand());
-  program.addCommand(createSessionsCommand());
   program.addCommand(createSessionCommand());
-  program.addCommand(createExperimentsCommand());
   program.addCommand(createExperimentCommand());
-  program.addCommand(createPromptsCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());

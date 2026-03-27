@@ -29,8 +29,8 @@ Evals provide a framework for evaluating large language models (LLMs) or systems
 The [Phoenix CLI](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) (`@arizeai/phoenix-cli`) provides command-line access to datasets and experiments:
 
 ```bash
-npx @arizeai/phoenix-cli dataset my-dataset --file dataset.json
-npx @arizeai/phoenix-cli experiments --dataset my-dataset ./experiments/
+npx @arizeai/phoenix-cli dataset get my-dataset --file dataset.json
+npx @arizeai/phoenix-cli experiment list --dataset my-dataset ./experiments/
 ```
 
 The CLI integrates with AI coding assistants like [Claude Code](https://claude.com/product/claude-code), [Cursor](https://cursor.sh), and [Windsurf](https://codeium.com/windsurf)—ask them to fetch and analyze your Phoenix data directly.
@@ -43,4 +43,3 @@ The CLI integrates with AI coding assistants like [Claude Code](https://claude.c
     Programmatic access via the TypeScript SDK
   </Card>
 </CardGroup>
-

@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ONE_DAY_MS,
+  ONE_HOUR_MS,
+  ONE_MINUTE_MS,
+} from "@phoenix/constants/timeConstants";
+
+import {
   createFullTimeFormatter,
   createShortTimeFormatter,
   createTimeRangeFormatter,
+  formatRelativeShort,
   getLocaleDateFormatPattern,
 } from "../timeFormatUtils";
 
@@ -173,6 +180,62 @@ describe("timeFormatUtils", () => {
         timeZone: TIMEZONE,
       });
       expect(formatter({ start, end })).toBe(expected);
+    });
+  });
+
+  describe("formatRelativeShort", () => {
+    const NOW = new Date("2026-03-24T14:30:00").getTime();
+
+    it("returns empty string for timestamp 0", () => {
+      expect(formatRelativeShort(0, NOW)).toBe("");
+    });
+
+    it("returns locale time for ages under 6 hours", () => {
+      const fiveMinutesAgo = NOW - 5 * ONE_MINUTE_MS;
+      const result = formatRelativeShort(fiveMinutesAgo, NOW);
+      // locale time format, e.g. "2:25 PM"
+      expect(result).toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/i);
+    });
+
+    it("returns locale time just before the 6-hour boundary", () => {
+      const justUnder6h = NOW - (6 * ONE_HOUR_MS - ONE_MINUTE_MS);
+      const result = formatRelativeShort(justUnder6h, NOW);
+      expect(result).toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/i);
+    });
+
+    it("returns hours at exactly the 6-hour boundary", () => {
+      const sixHoursAgo = NOW - 6 * ONE_HOUR_MS;
+      expect(formatRelativeShort(sixHoursAgo, NOW)).toBe("6h");
+    });
+
+    it("returns whole hours between 6 and 24 hours", () => {
+      expect(formatRelativeShort(NOW - 8 * ONE_HOUR_MS, NOW)).toBe("8h");
+      expect(formatRelativeShort(NOW - 12 * ONE_HOUR_MS, NOW)).toBe("12h");
+      expect(formatRelativeShort(NOW - 23 * ONE_HOUR_MS, NOW)).toBe("23h");
+    });
+
+    it("returns days at exactly the 24-hour boundary", () => {
+      const oneDayAgo = NOW - ONE_DAY_MS;
+      expect(formatRelativeShort(oneDayAgo, NOW)).toBe("1d");
+    });
+
+    it("returns whole days beyond 24 hours", () => {
+      expect(formatRelativeShort(NOW - 2 * ONE_DAY_MS, NOW)).toBe("2d");
+      expect(formatRelativeShort(NOW - 7 * ONE_DAY_MS, NOW)).toBe("7d");
+      expect(formatRelativeShort(NOW - 30 * ONE_DAY_MS, NOW)).toBe("30d");
+      expect(formatRelativeShort(NOW - 365 * ONE_DAY_MS, NOW)).toBe("365d");
+    });
+
+    it("truncates partial hours (does not round)", () => {
+      // 8 hours 59 minutes → "8h", not "9h"
+      const offset = 8 * ONE_HOUR_MS + 59 * ONE_MINUTE_MS;
+      expect(formatRelativeShort(NOW - offset, NOW)).toBe("8h");
+    });
+
+    it("truncates partial days (does not round)", () => {
+      // 2 days 23 hours → "2d", not "3d"
+      const offset = 2 * ONE_DAY_MS + 23 * ONE_HOUR_MS;
+      expect(formatRelativeShort(NOW - offset, NOW)).toBe("2d");
     });
   });
 

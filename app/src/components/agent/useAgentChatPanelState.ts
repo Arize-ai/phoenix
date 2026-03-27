@@ -84,12 +84,25 @@ export function useAgentChatPanelState() {
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const createSession = useAgentContext((state) => state.createSession);
+  const setActiveSession = useAgentContext((state) => state.setActiveSession);
+  const deleteSession = useAgentContext((state) => state.deleteSession);
+  const sessionIds = useAgentContext((state) => state.sessions);
+  const sessionMap = useAgentContext((state) => state.sessionMap);
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
+
+  // Derive full session objects in newest-first order for the session list.
+  const orderedSessions = useMemo(() => {
+    const sessions = sessionIds
+      .map((sessionId) => sessionMap[sessionId])
+      .filter(Boolean);
+    // Reverse so newest sessions appear first
+    return sessions.reverse();
+  }, [sessionIds, sessionMap]);
   const previousRefreshRef = useRef<PreviousRefreshSnapshot | null>(null);
   const latestRefreshRequestIdRef = useRef(0);
   const pageContext = useCurrentAgentPageContext();
@@ -225,9 +238,12 @@ export function useAgentChatPanelState() {
   return {
     isOpen,
     activeSessionId,
+    orderedSessions,
     chatApiUrl,
     menuValue,
     createSession,
+    setActiveSession,
+    deleteSession,
     closePanel,
     handleModelChange,
   };

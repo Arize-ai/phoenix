@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
-import { forwardRef } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { Button } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -34,29 +33,32 @@ const loginCSS = css`
   }
 `;
 
-export const OAuth2Login = forwardRef<HTMLFormElement, OAuth2LoginProps>(
-  function OAuth2Login({ idpName, idpDisplayName, returnUrl }, ref) {
-    return (
-      <form
-        ref={ref}
-        action={prependBasename(
-          `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`
-        )}
-        method="post"
-        css={loginCSS}
-        data-provider={idpName}
+export function OAuth2Login({
+  ref,
+  idpName,
+  idpDisplayName,
+  returnUrl,
+}: OAuth2LoginProps & { ref?: Ref<HTMLFormElement> }) {
+  return (
+    <form
+      ref={ref}
+      action={prependBasename(
+        `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`
+      )}
+      method="post"
+      css={loginCSS}
+      data-provider={idpName}
+    >
+      <Button
+        variant="default"
+        type="submit"
+        leadingVisual={<IDPIcon idpName={idpName} />}
       >
-        <Button
-          variant="default"
-          type="submit"
-          leadingVisual={<IDPIcon idpName={idpName} />}
-        >
-          Login with {idpDisplayName}
-        </Button>
-      </form>
-    );
-  }
-);
+        Login with {idpDisplayName}
+      </Button>
+    </form>
+  );
+}
 
 function IDPIcon({ idpName }: { idpName: string }): ReactNode {
   const hasIcon =

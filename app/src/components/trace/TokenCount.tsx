@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
-import { forwardRef } from "react";
 
 import type { TextProps } from "@phoenix/components";
 import { Icon, Icons, Text } from "@phoenix/components";
@@ -25,7 +24,10 @@ interface TokenCountProps extends HTMLAttributes<HTMLDivElement> {
   size?: TextProps["size"];
 }
 
-function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
+function TokenCount({
+  ref,
+  ...props
+}: TokenCountProps & { ref?: Ref<HTMLDivElement> }) {
   const { children, size = "M", ...otherProps } = props;
 
   const text = typeof children === "number" ? formatNumber(children) : "--";
@@ -50,5 +52,4 @@ function TokenCount(props: TokenCountProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _TokenCount = forwardRef(TokenCount);
-export { _TokenCount as TokenCount };
+export { TokenCount };

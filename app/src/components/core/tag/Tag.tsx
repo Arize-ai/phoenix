@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { TagProps } from "react-aria-components";
 import { Tag as AriaTag } from "react-aria-components";
 
@@ -31,10 +30,9 @@ const tagCSS = css`
     background: var(--global-color-primary-700);
   }
 `;
-function Tag(props: TagProps, ref: Ref<HTMLDivElement>) {
+function Tag({ ref, ...props }: TagProps & { ref?: Ref<HTMLDivElement> }) {
   return <AriaTag {...props} ref={ref} css={tagCSS} />;
 }
 
-const _Tag = forwardRef(Tag);
-export { _Tag as Tag };
+export { Tag };
 export type { TagProps };

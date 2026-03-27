@@ -69,7 +69,7 @@ Use px to fetch the last 3 traces from my Phoenix project and analyze them for p
 ```
 
 ```
-Run px traces --limit 5 --format raw and identify any errors or slow spans in my agent workflow
+Run px trace list --limit 5 --format raw and identify any errors or slow spans in my agent workflow
 ```
 
 Claude Code will use the `px --help` command to discover the CLI capabilities and fetch your traces for analysis.
@@ -78,7 +78,7 @@ Claude Code will use the `px --help` command to discover the CLI capabilities an
 
 In Cursor or Windsurf, you can:
 
-1. Run `px traces --limit 1 --format json` in the terminal
+1. Run `px trace list --limit 1 --format json` in the terminal
 2. Select the output and ask the AI to analyze it
 3. Or ask the AI directly to run the command and interpret results
 
@@ -97,25 +97,25 @@ Use the Phoenix CLI to get the last failed trace and help me debug it
 In most cases, you won't need to find IDs manually (the CLI uses your environment's project name and latest traces by default). However, if you want to fetch a specific item by ID, you can find the IDs in the Phoenix UI:
 
 * **Project Name/ID**: Each project has a unique name and ID. You can find it in the project selector dropdown or in the project's URL.
-* **Trace ID**: Every trace has an ID. In the traces view, click on a specific trace to see its Trace ID (copyable from the trace details panel). You can use `px trace <trace-id>` to retrieve that exact trace.
+* **Trace ID**: Every trace has an ID. In the traces view, click on a specific trace to see its Trace ID (copyable from the trace details panel). You can use `px trace get <trace-id>` to retrieve that exact trace.
 
 ## Usage
 
 After installation and setup, you can use the `px` command to retrieve traces. The general usage is:
 
 ```bash
-px COMMAND [ARGUMENTS] [OPTIONS]
+px <resource> <action> [ARGUMENTS] [OPTIONS]
 ```
 
 Phoenix CLI provides the following commands:
 
 | Command | Fetches | Output location |
 |---------|---------|-----------------|
-| `projects` | List of all projects | stdout |
-| `trace <id>` | A specific trace by ID | stdout (or to a file with `--file`) |
-| `traces [directory]` | Recent traces from the project | Saves each trace as a JSON file in the given directory, or prints to stdout if no directory is provided |
-| `sessions` | List sessions for a project | stdout |
-| `session <id>` | A specific session with its traces | stdout (or to a file with `--file`) |
+| `project list` | List of all projects | stdout |
+| `trace get <id>` | A specific trace by ID | stdout (or to a file with `--file`) |
+| `trace list [directory]` | Recent traces from the project | Saves each trace as a JSON file in the given directory, or prints to stdout if no directory is provided |
+| `session list` | List sessions for a project | stdout |
+| `session get <id>` | A specific session with its traces | stdout (or to a file with `--file`) |
 
 <Note>
 Traces are fetched chronologically with most recent first.
@@ -127,15 +127,15 @@ The commands support additional flags to filter and format the output:
 
 | Option / Flag | Applies to | Description | Default |
 |---------------|------------|-------------|---------|
-| `-n, --limit <int>` | `traces` | Maximum number of traces to fetch | 10 |
-| `--last-n-minutes <int>` | `traces` | Only fetch traces from the last N minutes | No filter |
-| `--since <timestamp>` | `traces` | Only fetch traces since a specific time (ISO 8601 format) | No filter |
-| `--project <name>` | `trace`, `traces` | Override the configured project | From env |
+| `-n, --limit <int>` | `trace list` | Maximum number of traces to fetch | 10 |
+| `--last-n-minutes <int>` | `trace list` | Only fetch traces from the last N minutes | No filter |
+| `--since <timestamp>` | `trace list` | Only fetch traces since a specific time (ISO 8601 format) | No filter |
+| `--project <name>` | `trace get`, `trace list` | Override the configured project | From env |
 | `--format <type>` | All commands | Output format: `pretty`, `json`, or `raw` | `pretty` |
-| `--file <path>` | `trace` | Save the fetched trace to a file instead of printing | stdout |
-| `--max-concurrent <int>` | `traces` | Maximum concurrent fetch requests | 10 |
+| `--file <path>` | `trace get` | Save the fetched trace to a file instead of printing | stdout |
+| `--max-concurrent <int>` | `trace list` | Maximum concurrent fetch requests | 10 |
 | `--no-progress` | All commands | Disable progress bar output (useful for scripts and AI assistants) | Progress on |
-| `--include-annotations` | `trace`, `traces` | Include span annotations in trace export | Off |
+| `--include-annotations` | `trace get`, `trace list` | Include span annotations in trace export | Off |
 
 ### Output formats
 
@@ -159,13 +159,13 @@ The `--format` option controls how the fetched data is displayed:
 * **`json`**: Well-formatted JSON output with indentation. Use this if you want to examine the data structure:
 
   ```bash
-  px trace <trace-id> --format json
+  px trace get <trace-id> --format json
   ```
 
 * **`raw`**: Compact JSON with no extra whitespace. Ideal for piping to `jq` or other tools:
 
   ```bash
-  px trace <trace-id> --format raw | jq '.spans[] | select(.span_kind == "LLM")'
+  px trace get <trace-id> --format raw | jq '.spans[] | select(.span_kind == "LLM")'
   ```
 
 ## Fetch a Single Trace
@@ -173,25 +173,25 @@ The `--format` option controls how the fetched data is displayed:
 You can fetch a single trace with its ID. The command will output to the terminal by default:
 
 ```bash
-px trace <trace-id>
+px trace get <trace-id>
 ```
 
 You can optionally save the trace to a file using the `--file` option:
 
 ```bash
-px trace <trace-id> --file ./my-trace.json
+px trace get <trace-id> --file ./my-trace.json
 ```
 
 To include span annotations in the trace export:
 
 ```bash
-px trace <trace-id> --include-annotations --format json
+px trace get <trace-id> --include-annotations --format json
 ```
 
 To fetch a trace from a different project than the one configured:
 
 ```bash
-px trace <trace-id> --project different-project
+px trace get <trace-id> --project different-project
 ```
 
 ## Fetch Multiple Traces
@@ -203,19 +203,19 @@ For bulk fetches of traces, we recommend specifying a target directory path. Eac
 You can specify a destination directory for bulk exports. For example, the following command will save the 10 most recent traces as JSON files in the `my-traces-data` directory:
 
 ```bash
-px traces ./my-traces-data --limit 10
+px trace list ./my-traces-data --limit 10
 ```
 
 Include span annotations in the export:
 
 ```bash
-px traces ./my-traces-data --limit 10 --include-annotations
+px trace list ./my-traces-data --limit 10 --include-annotations
 ```
 
 If you omit the directory, the tool will output the results to your terminal:
 
 ```bash
-px traces --limit 10
+px trace list --limit 10
 ```
 
 When saving to a directory, files will be named by trace ID (e.g., `3b0b15fe-1e3a-4aef-afa8-48df15879cfe.json`).
@@ -226,10 +226,10 @@ Fetch traces from a specific time range:
 
 ```bash
 # Traces from the last 30 minutes
-px traces ./my-traces --limit 50 --last-n-minutes 30
+px trace list ./my-traces --limit 50 --last-n-minutes 30
 
 # Traces since a specific time
-px traces ./my-traces --since 2026-01-15T00:00:00Z
+px trace list ./my-traces --since 2026-01-15T00:00:00Z
 ```
 
 ## Export to Files
@@ -237,7 +237,7 @@ px traces ./my-traces --since 2026-01-15T00:00:00Z
 You can fetch traces and export them for offline analysis or building datasets:
 
 ```bash
-px traces ./exported-traces --since 2026-01-01T00:00:00Z --limit 100
+px trace list ./exported-traces --since 2026-01-01T00:00:00Z --limit 100
 ```
 
 This command retrieves traces that occurred since January 1, 2026, saving each as a JSON file under `./exported-traces`. This is useful for:
@@ -248,24 +248,24 @@ This command retrieves traces that occurred since January 1, 2026, saving each a
 
 ## Sessions
 
-Sessions group multiple traces into a single multi-turn conversation. Use the `sessions` and `session` commands to explore them.
+Sessions group multiple traces into a single multi-turn conversation. Use the `session list` and `session get` commands to explore them.
 
 ### List Sessions
 
 ```bash
-px sessions --limit 10
-px sessions --format raw --no-progress | jq '.[].session_id'
+px session list --limit 10
+px session list --format raw --no-progress | jq '.[].session_id'
 ```
 
 ### View a Session
 
 ```bash
-px session my-chat-session-001
-px session my-chat-session-001 --include-annotations
-px session my-chat-session-001 --format raw | jq '.session.traces[].trace_id'
+px session get my-chat-session-001
+px session get my-chat-session-001 --include-annotations
+px session get my-chat-session-001 --format raw | jq '.traces[].trace_id'
 ```
 
-To drill into a specific turn's input/output, use `px trace <trace-id>` with the trace ID from the session output.
+To drill into a specific turn's input/output, use `px trace get <trace-id>` with the trace ID from the session output.
 
 ## Trace Output Structure
 
@@ -330,7 +330,7 @@ Each span includes [OpenInference](https://github.com/Arize-ai/openinference) se
 
 ```bash
 # Fetch recent traces and find errors
-px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+px trace list --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 ```
 
 Then ask your AI assistant:
@@ -343,7 +343,7 @@ Here's a failed trace from my agent. Can you identify what went wrong and sugges
 
 ```bash
 # Get traces sorted by duration
-px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+px trace list --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
 ```
 
 Ask your AI assistant:
@@ -356,7 +356,7 @@ Analyze these slow traces and suggest optimizations for my agent workflow
 
 ```bash
 # Extract LLM spans with token counts
-px traces --limit 50 --format raw --no-progress | \
+px trace list --limit 50 --format raw --no-progress | \
   jq '[.[].spans[] | select(.span_kind == "LLM") | {name, model: .attributes["llm.model_name"], tokens: .attributes["llm.token_count.total"]}]'
 ```
 
@@ -366,16 +366,16 @@ The CLI is designed to work seamlessly in shell pipelines:
 
 ```bash
 # Count traces with errors
-px traces --limit 100 --format raw --no-progress | \
+px trace list --limit 100 --format raw --no-progress | \
   jq '[.[] | select(.status == "ERROR")] | length'
 
 # Extract all LLM models used
-px traces --limit 50 --format raw --no-progress | \
+px trace list --limit 50 --format raw --no-progress | \
   jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"] // empty' | \
   sort -u
 
 # Get total duration across traces
-px traces --limit 100 --format raw --no-progress | \
+px trace list --limit 100 --format raw --no-progress | \
   jq '[.[].duration // 0] | add'
 ```
 
@@ -392,7 +392,7 @@ export PHOENIX_HOST=http://localhost:6006
 Or use the `--endpoint` flag:
 
 ```bash
-px traces --endpoint http://localhost:6006 --limit 10
+px trace list --endpoint http://localhost:6006 --limit 10
 ```
 
 ### "Project not configured"
@@ -406,7 +406,7 @@ export PHOENIX_PROJECT=my-project
 Or use the `--project` flag:
 
 ```bash
-px traces --project my-project --limit 10
+px trace list --project my-project --limit 10
 ```
 
 ### "Failed to resolve project"
@@ -414,7 +414,7 @@ px traces --project my-project --limit 10
 Make sure your project name or ID is correct. List available projects:
 
 ```bash
-px projects
+px project list
 ```
 
 ## Related

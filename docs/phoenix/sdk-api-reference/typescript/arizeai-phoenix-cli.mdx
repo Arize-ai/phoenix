@@ -48,16 +48,16 @@ export PHOENIX_PROJECT=my-project
 export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 # Fetch the most recent trace
-px traces --limit 1
+px trace list --limit 1
 
 # Fetch a specific trace by ID
-px trace abc123def456
+px trace get abc123def456
 
 # Fetch recent LLM spans
-px spans --span-kind LLM --limit 10
+px span list --span-kind LLM --limit 10
 
 # Export traces to a directory
-px traces ./my-traces --limit 50
+px trace list ./my-traces --limit 50
 ```
 
 ## Environment Variables
@@ -73,13 +73,13 @@ CLI flags take priority over environment variables.
 
 ## Commands
 
-### `px projects`
+### `px project list`
 
 List all available projects.
 
 ```bash
-px projects
-px projects --format raw  # JSON output for piping
+px project list
+px project list --format raw  # JSON output for piping
 ```
 
 | Option | Description | Default |
@@ -90,16 +90,16 @@ px projects --format raw  # JSON output for piping
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum projects to fetch per page | 100 |
 
-### `px traces [directory]`
+### `px trace list [directory]`
 
 Fetch recent traces from the configured project.
 
 ```bash
-px traces --limit 10                          # Output to stdout
-px traces ./my-traces --limit 10              # Save to directory
-px traces --last-n-minutes 60 --limit 20      # Filter by time
-px traces --since 2026-01-13T10:00:00Z        # Since timestamp
-px traces --format raw --no-progress | jq     # Pipe to jq
+px trace list --limit 10                          # Output to stdout
+px trace list ./my-traces --limit 10              # Save to directory
+px trace list --last-n-minutes 60 --limit 20      # Filter by time
+px trace list --since 2026-01-13T10:00:00Z        # Since timestamp
+px trace list --format raw --no-progress | jq     # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -115,14 +115,14 @@ px traces --format raw --no-progress | jq     # Pipe to jq
 | `--no-progress` | Disable progress output | — |
 | `--max-concurrent <number>` | Maximum concurrent fetches | 10 |
 
-### `px trace <trace-id>`
+### `px trace get <trace-id>`
 
 Fetch a specific trace by ID.
 
 ```bash
-px trace abc123def456
-px trace abc123def456 --file trace.json      # Save to file
-px trace abc123def456 --format raw | jq      # Pipe to jq
+px trace get abc123def456
+px trace get abc123def456 --file trace.json      # Save to file
+px trace get abc123def456 --format raw | jq      # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -134,21 +134,21 @@ px trace abc123def456 --format raw | jq      # Pipe to jq
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px spans [file]`
+### `px span list [file]`
 
 Fetch individual spans from the configured project with comprehensive filtering.
 
 ```bash
-px spans --limit 20                                    # Recent spans (table view)
-px spans --last-n-minutes 60 --limit 50                # Spans from last hour
-px spans --span-kind LLM --limit 10                    # Only LLM spans
-px spans --status-code ERROR --limit 20                # Only errored spans
-px spans --span-kind LLM TOOL --status-code OK         # Combine filters
-px spans --name chat_completion --limit 10             # Filter by span name
-px spans --trace-id abc123 --format raw | jq           # All spans for a trace
-px spans --include-annotations --limit 10              # Include annotation scores
-px spans output.json --limit 100                       # Save to JSON file
-px spans --format raw --no-progress | jq               # Pipe to jq
+px span list --limit 20                                    # Recent spans (table view)
+px span list --last-n-minutes 60 --limit 50                # Spans from last hour
+px span list --span-kind LLM --limit 10                    # Only LLM spans
+px span list --status-code ERROR --limit 20                # Only errored spans
+px span list --span-kind LLM TOOL --status-code OK         # Combine filters
+px span list --name chat_completion --limit 10             # Filter by span name
+px span list --trace-id abc123 --format raw | jq           # All spans for a trace
+px span list --include-annotations --limit 10              # Include annotation scores
+px span list output.json --limit 100                       # Save to JSON file
+px span list --format raw --no-progress | jq               # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -169,15 +169,15 @@ px spans --format raw --no-progress | jq               # Pipe to jq
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px sessions`
+### `px session list`
 
 List sessions (multi-turn conversations) for a project.
 
 ```bash
-px sessions                                       # List recent sessions
-px sessions --limit 20                            # More sessions
-px sessions --order asc                           # Oldest first
-px sessions --format raw --no-progress | jq       # Pipe to jq
+px session list                                       # List recent sessions
+px session list --limit 20                            # More sessions
+px session list --order asc                           # Oldest first
+px session list --format raw --no-progress | jq       # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -190,16 +190,16 @@ px sessions --format raw --no-progress | jq       # Pipe to jq
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px session <session-id>`
+### `px session get <session-id>`
 
 View a session's conversation flow, including all traces (turns) in the session.
 
 ```bash
-px session my-chat-session-001                              # By session_id
-px session UHJvamVjdFNlc3Npb24...                           # By GlobalID
-px session my-chat-session-001 --include-annotations        # With annotations
-px session my-chat-session-001 --file session.json          # Save to file
-px session my-chat-session-001 --format raw | jq            # Pipe to jq
+px session get my-chat-session-001                              # By session_id
+px session get UHJvamVjdFNlc3Npb24...                           # By GlobalID
+px session get my-chat-session-001 --include-annotations        # With annotations
+px session get my-chat-session-001 --file session.json          # Save to file
+px session get my-chat-session-001 --format raw | jq            # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -212,14 +212,14 @@ px session my-chat-session-001 --format raw | jq            # Pipe to jq
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px datasets`
+### `px dataset list`
 
 List all available datasets.
 
 ```bash
-px datasets
-px datasets --format json                    # JSON output
-px datasets --format raw --no-progress | jq  # Pipe to jq
+px dataset list
+px dataset list --format json                    # JSON output
+px dataset list --format raw --no-progress | jq  # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -230,17 +230,17 @@ px datasets --format raw --no-progress | jq  # Pipe to jq
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum number of datasets | — |
 
-### `px dataset <dataset-identifier>`
+### `px dataset get <dataset-identifier>`
 
 Fetch examples from a dataset.
 
 ```bash
-px dataset query_response                        # Fetch all examples
-px dataset query_response --split train          # Filter by split
-px dataset query_response --split train --split test  # Multiple splits
-px dataset query_response --version <version-id> # Specific version
-px dataset query_response --file dataset.json    # Save to file
-px dataset query_response --format raw | jq '.examples[].input'
+px dataset get query_response                        # Fetch all examples
+px dataset get query_response --split train          # Filter by split
+px dataset get query_response --split train --split test  # Multiple splits
+px dataset get query_response --version <version-id> # Specific version
+px dataset get query_response --file dataset.json    # Save to file
+px dataset get query_response --format raw | jq '.examples[].input'
 ```
 
 | Option | Description | Default |
@@ -253,14 +253,14 @@ px dataset query_response --format raw | jq '.examples[].input'
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px experiments --dataset <name-or-id>`
+### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset, optionally exporting full data to files.
 
 ```bash
-px experiments --dataset my-dataset                 # List experiments
-px experiments --dataset my-dataset --format json   # JSON output
-px experiments --dataset my-dataset ./experiments   # Export to directory
+px experiment list --dataset my-dataset                 # List experiments
+px experiment list --dataset my-dataset --format json   # JSON output
+px experiment list --dataset my-dataset ./experiments   # Export to directory
 ```
 
 | Option | Description | Default |
@@ -273,14 +273,14 @@ px experiments --dataset my-dataset ./experiments   # Export to directory
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum number of experiments | — |
 
-### `px experiment <experiment-id>`
+### `px experiment get <experiment-id>`
 
 Fetch a single experiment with all run data, including inputs, outputs, evaluations, and trace IDs.
 
 ```bash
-px experiment RXhwZXJpbWVudDox
-px experiment RXhwZXJpbWVudDox --file exp.json   # Save to file
-px experiment RXhwZXJpbWVudDox --format json     # JSON output
+px experiment get RXhwZXJpbWVudDox
+px experiment get RXhwZXJpbWVudDox --file exp.json   # Save to file
+px experiment get RXhwZXJpbWVudDox --format json     # JSON output
 ```
 
 | Option | Description | Default |
@@ -291,14 +291,14 @@ px experiment RXhwZXJpbWVudDox --format json     # JSON output
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
 
-### `px prompts`
+### `px prompt list`
 
 List all available prompts.
 
 ```bash
-px prompts
-px prompts --format json                    # JSON output
-px prompts --format raw --no-progress | jq  # Pipe to jq
+px prompt list
+px prompt list --format json                    # JSON output
+px prompt list --format raw --no-progress | jq  # Pipe to jq
 ```
 
 | Option | Description | Default |
@@ -309,17 +309,17 @@ px prompts --format raw --no-progress | jq  # Pipe to jq
 | `--no-progress` | Disable progress indicators | — |
 | `--limit <number>` | Maximum number of prompts | — |
 
-### `px prompt <prompt_identifier>`
+### `px prompt get <prompt_identifier>`
 
 Show a Phoenix prompt.
  Supports multiple output formats including a `text` format optimized for piping to AI coding assistants.
 
 ```bash
-px prompt my-assistant-prompt                    # Latest version (pretty)
-px prompt my-assistant-prompt --tag production   # Get by tag
-px prompt my-assistant-prompt --version abc123   # Specific version
-px prompt my-assistant-prompt --format json      # JSON output
-px prompt my-assistant-prompt --format text      # Plain text for piping
+px prompt get my-assistant-prompt                    # Latest version (pretty)
+px prompt get my-assistant-prompt --tag production   # Get by tag
+px prompt get my-assistant-prompt --version abc123   # Specific version
+px prompt get my-assistant-prompt --format json      # JSON output
+px prompt get my-assistant-prompt --format text      # Plain text for piping
 ```
 
 | Option | Description | Default |
@@ -540,70 +540,70 @@ Spans include [OpenInference](https://github.com/Arize-ai/openinference) semanti
 ### Debug failed traces
 
 ```bash
-px traces --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+px trace list --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 ```
 
 ### Find slowest traces
 
 ```bash
-px traces --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
+px trace list --limit 10 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:3]'
 ```
 
 ### Find errored spans
 
 ```bash
-px spans --status-code ERROR --limit 50 --format raw --no-progress | jq '.[] | {name, status_message}'
+px span list --status-code ERROR --limit 50 --format raw --no-progress | jq '.[] | {name, status_message}'
 ```
 
 ### Inspect LLM spans with annotations
 
 ```bash
-px spans --span-kind LLM --include-annotations --limit 20
+px span list --span-kind LLM --include-annotations --limit 20
 ```
 
 ### Extract LLM models used
 
 ```bash
-px traces --limit 50 --format raw --no-progress | \
+px trace list --limit 50 --format raw --no-progress | \
   jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
 ```
 
 ### Count errors
 
 ```bash
-px traces --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
+px trace list --limit 100 --format raw --no-progress | jq '[.[] | select(.status == "ERROR")] | length'
 ```
 
 ### List datasets and experiments
 
 ```bash
 # List all datasets
-px datasets --format raw --no-progress | jq '.[].name'
+px dataset list --format raw --no-progress | jq '.[].name'
 # Output: "query_response"
 
 # List experiments for a dataset
-px experiments --dataset query_response --format raw --no-progress | \
+px experiment list --dataset query_response --format raw --no-progress | \
   jq '.[] | {id, successful_run_count, failed_run_count}'
 # Output: {"id":"RXhwZXJpbWVudDox","successful_run_count":249,"failed_run_count":1}
 
 # Export all experiment data for a dataset to a directory
-px experiments --dataset query_response ./experiments/
+px experiment list --dataset query_response ./experiments/
 ```
 
 ### Analyze experiment results
 
 ```bash
 # Get input queries and latency from an experiment
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '.[] | {query: .input.query, latency_ms, trace_id}'
 
 # Find failed runs in an experiment
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '.[] | select(.error != null) | {query: .input.query, error}'
 # Output: {"query":"looking for complex fodmap meal ideas","error":"peer closed connection..."}
 
 # Calculate average latency across runs
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '[.[].latency_ms] | add / length'
 ```
 
@@ -611,16 +611,16 @@ px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
 
 ```bash
 # List all prompts
-px prompts --format raw --no-progress | jq '.[].name'
+px prompt list --format raw --no-progress | jq '.[].name'
 
 # Get prompt template content
-px prompt my-evaluator --format text --no-progress
+px prompt get my-evaluator --format text --no-progress
 
 # View prompt with all metadata
-px prompt my-evaluator --format json --no-progress | jq '.template'
+px prompt get my-evaluator --format json --no-progress | jq '.template'
 
 # Get a specific tagged version
-px prompt my-evaluator --tag production --format text --no-progress
+px prompt get my-evaluator --tag production --format text --no-progress
 ```
 
 ### Query the GraphQL API directly
@@ -680,13 +680,13 @@ Pipe your Phoenix prompts directly to Claude Code for analysis and optimization 
 
 ```bash
 # Get prompt optimization ideas
-px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt and suggest improvements for clarity and effectiveness"
+px prompt get my-evaluator --format text --no-progress | claude -p "Review this prompt and suggest improvements for clarity and effectiveness"
 
 # Analyze prompt for edge cases
-px prompt my-assistant --format text --no-progress | claude -p "What edge cases might this prompt fail to handle?"
+px prompt get my-assistant --format text --no-progress | claude -p "What edge cases might this prompt fail to handle?"
 
 # Generate test cases for a prompt
-px prompt my-classifier --format text --no-progress | claude -p "Generate 5 diverse test inputs to evaluate this prompt"
+px prompt get my-classifier --format text --no-progress | claude -p "Generate 5 diverse test inputs to evaluate this prompt"
 ```
 
 You can also ask Claude Code to work with your prompts interactively:

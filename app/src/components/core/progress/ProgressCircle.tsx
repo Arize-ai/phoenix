@@ -1,11 +1,14 @@
 import type { Ref } from "react";
-import React, { forwardRef } from "react";
+import React from "react";
 import { ProgressBar } from "react-aria-components";
 
 import { progressCircleCSS } from "./styles";
 import type { ProgressCircleProps } from "./types";
 
-function ProgressCircle(props: ProgressCircleProps, ref: Ref<HTMLDivElement>) {
+function ProgressCircle({
+  ref,
+  ...props
+}: ProgressCircleProps & { ref?: Ref<HTMLDivElement> }) {
   const { isIndeterminate = false, value, size = "M" } = props;
 
   return (
@@ -31,5 +34,4 @@ function ProgressCircle(props: ProgressCircleProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _ProgressCircle = forwardRef(ProgressCircle);
-export { _ProgressCircle as ProgressCircle };
+export { ProgressCircle };

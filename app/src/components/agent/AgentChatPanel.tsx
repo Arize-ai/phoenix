@@ -1,18 +1,16 @@
 import { css } from "@emotion/react";
 import { Panel, Separator } from "react-resizable-panels";
 
-import {
-  Button,
-  Flex,
-  Heading,
-  Icon,
-  IconButton,
-  Icons,
-} from "@phoenix/components";
+import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { Chat } from "./Chat";
+import { SessionListMenu } from "./SessionListMenu";
+import {
+  EMPTY_SESSION_DISPLAY_NAME,
+  getSessionDisplayName,
+} from "./sessionSummaryUtils";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 
 const panelHeaderCSS = css`
@@ -21,6 +19,19 @@ const panelHeaderCSS = css`
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   border-bottom: 1px solid var(--global-border-color-default);
+  container-type: inline-size;
+`;
+
+const panelHeaderActionsCSS = css`
+  /* Allow the session summary label to truncate instead of overflowing */
+  min-width: 0;
+`;
+
+const sessionHeadingCSS = css`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const panelContentCSS = css`
@@ -44,12 +55,22 @@ export function AgentChatPanel() {
   const {
     isOpen,
     activeSessionId,
+    orderedSessions,
     chatApiUrl,
     menuValue,
     createSession,
+    setActiveSession,
+    deleteSession,
     closePanel,
     handleModelChange,
   } = useAgentChatPanelState();
+
+  const activeSession = orderedSessions.find(
+    (session) => session.id === activeSessionId
+  );
+  const sessionDisplayName = activeSession
+    ? getSessionDisplayName(activeSession)
+    : EMPTY_SESSION_DISPLAY_NAME;
 
   if (!isAgentsEnabled || !isOpen) {
     return null;
@@ -61,14 +82,35 @@ export function AgentChatPanel() {
       <Panel minSize="20%" maxSize="50%" defaultSize="30%">
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>
-            <Flex direction="row" alignItems="center" gap="size-50">
-              <Icon svg={<Icons.Robot />} />
-              <Heading weight="heavy">PXI</Heading>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-50"
+              minWidth={0}
+            >
+              <Text weight="heavy" css={sessionHeadingCSS}>
+                {sessionDisplayName}
+              </Text>
             </Flex>
-            <Flex direction="row" alignItems="center" gap="size-50">
-              <Button size="S" variant="quiet" onPress={() => createSession()}>
-                New chat
-              </Button>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-50"
+              css={panelHeaderActionsCSS}
+            >
+              <SessionListMenu
+                sessions={orderedSessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={setActiveSession}
+                onDeleteSession={deleteSession}
+              />
+              <IconButton
+                size="S"
+                aria-label="New chat"
+                onPress={() => createSession()}
+              >
+                <Icon svg={<Icons.PlusOutline />} />
+              </IconButton>
               <IconButton
                 size="S"
                 aria-label="Close agent chat"

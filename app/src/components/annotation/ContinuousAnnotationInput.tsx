@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 
 import type { NumberFieldProps } from "@phoenix/components";
 import { Flex, Input, NumberField, Text } from "@phoenix/components";
@@ -11,10 +11,13 @@ import type { AnnotationInputPropsBase } from "./types";
 type ContinuousAnnotationInputProps =
   AnnotationInputPropsBase<AnnotationConfigContinuous> & NumberFieldProps;
 
-export const ContinuousAnnotationInput = forwardRef<
-  HTMLDivElement,
-  ContinuousAnnotationInputProps
->(({ annotationConfig, annotation, onSubmitExplanation, ...props }, ref) => {
+export function ContinuousAnnotationInput({
+  ref,
+  annotationConfig,
+  annotation,
+  onSubmitExplanation,
+  ...props
+}: ContinuousAnnotationInputProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
       <AnnotationInputExplanation
@@ -46,6 +49,6 @@ export const ContinuousAnnotationInput = forwardRef<
       </NumberField>
     </Flex>
   );
-});
+}
 
 ContinuousAnnotationInput.displayName = "ContinuousAnnotationInput";

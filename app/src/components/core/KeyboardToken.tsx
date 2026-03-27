@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 
 import type { KeyboardProps } from "./content/Keyboard";
 import { Keyboard } from "./content/Keyboard";
@@ -23,13 +22,14 @@ const keyboardTokenCSS = css`
  * Keyboard Token represents text that specifies a keyboard command,
  * and is styled to look like a keyboard key.
  */
-export const KeyboardToken = forwardRef(function KeyboardToken(
-  { children, ...props }: KeyboardProps,
-  ref: Ref<HTMLElement>
-) {
+export function KeyboardToken({
+  ref,
+  children,
+  ...props
+}: KeyboardProps & { ref?: Ref<HTMLElement> }) {
   return (
     <Keyboard ref={ref} css={keyboardTokenCSS} {...props}>
       {children}
     </Keyboard>
   );
-});
+}

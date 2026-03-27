@@ -23,6 +23,7 @@ class ChatCompletionInput:
     prompt_name: Optional[Identifier] = None
     repetitions: int
     evaluators: list[PlaygroundEvaluatorInput] = strawberry.field(default_factory=list)
+    stream_model_output: bool = True
 
 
 @strawberry.input
@@ -50,3 +51,4 @@ class ChatCompletionOverDatasetInput:
         "{{input.query}} or {{reference.answer}} are required.",
     )
     tracing_enabled: bool = True
+    stream_model_output: bool = True

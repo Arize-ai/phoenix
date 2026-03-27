@@ -5,7 +5,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
@@ -26,6 +26,7 @@ import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
+import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 
 const chatCSS = css`
   display: flex;
@@ -38,6 +39,7 @@ const chatCSS = css`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
   }
 
   .chat__messages {
@@ -46,8 +48,7 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200);
-    padding-bottom: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-200) var(--global-dimension-size-150);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
@@ -109,6 +110,7 @@ export function Chat({
   onModelChange: (model: ModelMenuValue) => void;
 }) {
   const store = useAgentStore();
+  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
 
   // read stored messages for this session
   const initialMessages = sessionId
@@ -153,6 +155,10 @@ export function Chat({
       if (sessionId && finalMessages) {
         // persist after each assistant response completes
         store.getState().setSessionMessages(sessionId, finalMessages);
+        // Asynchronously generate a short summary for the session list after
+        // the first full exchange. This is fire-and-forget; the hook
+        // deduplicates and is a no-op when a summary already exists.
+        generateSummary({ sessionId });
       }
     },
   });
@@ -172,10 +178,25 @@ export function Chat({
   }, [sessionId, store]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRequestAnimationFrameRef = useRef<number>(0);
+
+  // Coalesce auto-scroll requests into a single rAF so rapid streaming
+  // updates don't queue overlapping smooth-scroll animations.
+  const scrollToBottom = useCallback(() => {
+    cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
+    scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
+    scrollToBottom();
+  }, [messages, status, scrollToBottom]);
+
+  // Cancel any pending rAF on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
+  }, []);
 
   return (
     <div css={chatCSS}>

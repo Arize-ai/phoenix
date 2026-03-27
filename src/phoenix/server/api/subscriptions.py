@@ -142,6 +142,7 @@ async def _stream_single_chat_completion(
             response_format=response_format,
             invocation_parameters=invocation_parameters,
             tracer=tracer,
+            stream_model_output=input.stream_model_output,
         ):
             chunk.repetition_number = repetition_number
             yield chunk
@@ -667,6 +668,7 @@ async def _stream_chat_completion_over_dataset_example(
             # a duplicate-key violation on uq_traces_trace_id when more than one
             # example is flushed.
             otel_context=OtelContext(),
+            stream_model_output=input.stream_model_output,
         ):
             chunk.dataset_example_id = example_id
             chunk.repetition_number = repetition_number

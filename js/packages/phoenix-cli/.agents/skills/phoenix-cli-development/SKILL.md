@@ -7,6 +7,11 @@ description: >
   working on phoenix-cli commands — adding new commands, modifying existing ones, refactoring command
   structure, or reviewing CLI code. Also triggers on mentions of `px` commands, CLI design,
   or adding a new resource to the CLI.
+license: Apache-2.0
+metadata:
+  author: oss@arize.com
+  version: "2.0.0"
+  internal: true
 ---
 
 # Phoenix CLI Design Specification
@@ -35,7 +40,7 @@ px auth status
 
 ### Standard verbs
 
-Implementations SHOULD use these verbs consistently across all resources:
+Commands SHOULD use these verbs consistently across all resources:
 
 | Verb     | Purpose                       | Takes argument? | Example                             |
 | -------- | ----------------------------- | --------------- | ----------------------------------- |
@@ -45,7 +50,7 @@ Implementations SHOULD use these verbs consistently across all resources:
 | `update` | Modify an existing resource   | Yes (required)  | `px project update <id> --name bar` |
 | `delete` | Remove a resource             | Yes (required)  | `px project delete <id>`            |
 
-Not every resource supports every verb — datasets MAY omit `create` via CLI if the primary flow is through the SDK. Implementations SHALL only add verbs that make sense for the resource.
+Not every resource supports every verb — datasets MAY omit `create` via CLI if the primary flow is through the SDK. Commands SHALL only add verbs that make sense for the resource.
 
 Additional verbs for specialized actions are RECOMMENDED when the standard set doesn't cover it:
 
@@ -81,7 +86,7 @@ px trace list --format raw --no-progress | jq '...'
 
 ### Semantic exit codes
 
-Defined in `src/exitCodes.ts`. Implementations MUST use the named constants and MUST NOT use bare numeric literals.
+Defined in `src/exitCodes.ts`. Commands MUST use the named constants and MUST NOT use bare numeric literals.
 
 | Code | Constant           | Meaning                                             |
 | ---- | ------------------ | --------------------------------------------------- |
@@ -91,6 +96,96 @@ Defined in `src/exitCodes.ts`. Implementations MUST use the named constants and 
 | 3    | `INVALID_ARGUMENT` | Bad CLI flags, missing required args, invalid input |
 | 4    | `AUTH_REQUIRED`    | Not authenticated or insufficient permissions       |
 | 5    | `NETWORK_ERROR`    | Failed to connect to server or network request      |
+
+### Interactive default with non-interactive mode
+
+Commands MAY prompt interactively when a required value is missing or a confirmation is needed — this is the human-friendly default. The `--no-input` flag MUST suppress all prompts: both missing-value prompts and destructive-action confirmations. Non-interactive mode is also activated automatically when no TTY is attached (piped stdin).
+
+In non-interactive mode, if a required value is missing, the command MUST exit immediately with `ExitCode.INVALID_ARGUMENT` and print the correct invocation. If a confirmation would have been shown, the command MUST proceed as if confirmed:
+
+```bash
+# Human: missing --name triggers interactive prompt
+px project create
+
+# Agent: all inputs as flags, no prompts
+px project create --name my-project --format raw --no-input
+
+# Human: gets "Are you sure?" prompt
+px dataset delete my-dataset
+
+# Agent: skips confirmation
+px dataset delete my-dataset --no-input --format raw
+```
+
+```
+Error: Missing required flag --name.
+  px project create --name <project-name>
+```
+
+### Idempotent commands
+
+Commands SHOULD be idempotent where possible. Running the same command twice MUST NOT produce duplicate resources or unexpected errors:
+
+- `create` commands SHOULD support `--if-not-exists` to return the existing resource instead of failing
+- `delete` commands on a missing resource SHOULD exit with `ExitCode.SUCCESS` (not an error)
+
+### Return structured data on success
+
+Mutating commands (`create`, `update`, `delete`) MUST return the affected resource in the selected `--format` on stdout. Commands MUST NOT print bare success messages like "Project created." — output the resource so agents can extract IDs, URLs, and other fields:
+
+```bash
+$ px project create --name foo --format raw
+{"id":"proj_abc","name":"foo","createdAt":"2025-03-15T10:00:00Z"}
+```
+
+### Fail fast with actionable errors
+
+When a command fails due to invalid input, the error message MUST include the correct invocation syntax. Follow the pattern established by `getConfigErrorMessage()` in `src/config.ts`:
+
+- Show what was wrong
+- Show the correct command to fix it
+- Suggest a related command when helpful (e.g., "Available projects: `px project list`")
+
+When `--format raw` or `--format json` is active, errors SHOULD also be written as structured JSON to stderr so agents can parse them. Use the `StructuredError` shape:
+
+```typescript
+interface StructuredError {
+  error: string; // Human-readable error message
+  code: string; // ExitCode constant name (e.g., "INVALID_ARGUMENT")
+  hint?: string; // Suggested command to resolve the issue
+}
+```
+
+```json
+{
+  "error": "Project not found",
+  "code": "FAILURE",
+  "hint": "px project list --format raw"
+}
+```
+
+### Progressive help discovery
+
+Every subcommand MUST include a `--help` with at least one concrete example. Use Commander's `.addHelpText('after', ...)` to append an `Examples:` block:
+
+```
+$ px project create --help
+Usage: px project create [options]
+
+Create a new Phoenix project.
+
+Options:
+  --name <name>       Project name (required)
+  --description <d>   Project description
+  --format <format>   Output format (pretty|json|raw) (default: "pretty")
+  -h, --help          Display help
+
+Examples:
+  px project create --name my-project
+  px project create --name my-project --format raw
+```
+
+Agents discover capabilities incrementally: `px` → `px project` → `px project create --help`. Each level MUST provide enough information to navigate deeper.
 
 ## Adding a New Command
 
@@ -105,6 +200,14 @@ interface CommonOptions {
   project?: string; // --project: Project name or ID override
   format?: OutputFormat; // --format: Output format (pretty/json/raw)
   progress?: boolean; // --no-progress: Suppress progress indicators
+}
+```
+
+Commands that prompt for input or confirmation MUST support non-interactive mode:
+
+```typescript
+interface InteractiveCommandOptions extends CommonOptions {
+  noInput?: boolean; // --no-input: Suppress all prompts
 }
 ```
 
@@ -129,7 +232,7 @@ Formatters MUST accept a `format` option and return a string.
 
 ### I/O functions
 
-Implementations MUST use the helpers from `src/io.ts`:
+Commands MUST use the helpers from `src/io.ts`:
 
 ```typescript
 writeOutput({ message }); // → stdout (data the user/agent wants)
@@ -141,7 +244,7 @@ writeProgress({ message, noProgress }); // → stderr (suppressible status updat
 
 ## Naming Conventions
 
-Implementations MUST follow these naming conventions (see also the phoenix-typescript skill):
+Code MUST follow these naming conventions (see also the phoenix-typescript skill):
 
 - **Functions and variables**: `camelCase` — `createProjectCommand`, `projectListHandler`
 - **Types and interfaces**: `PascalCase` — `ProjectListOptions`, `OutputFormat`
@@ -200,3 +303,7 @@ px project --endpoint http://my-server:6006 list
 10. Run `pnpm test` — fix any failures before proceeding
 11. Run `pnpm build` — fix any type errors before proceeding
 12. Update `README.md` with usage examples showing both human and agent-friendly invocations
+13. If the command prompts for input or confirmation, support `--no-input` (see `InteractiveCommandOptions`)
+14. Add at least one example to `--help` via `.addHelpText('after', ...)`
+15. Mutating commands return the affected resource on stdout (not just a success message)
+16. Run manually with `--format raw` and `--no-input` to verify agents get clean, parseable output

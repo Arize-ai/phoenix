@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import React, { forwardRef, useContext } from "react";
+import React, { useContext } from "react";
 import {
   Input,
   Label,
@@ -149,10 +149,14 @@ export type SliderProps<T> = AriaSliderProps<T> &
     thumbLabels?: string[];
   }>;
 
-function _Slider<T extends number | number[]>(
-  { label, thumbLabels, children, css: _css, ...props }: SliderProps<T>,
-  ref: React.Ref<HTMLDivElement>
-) {
+export function Slider<T extends number | number[]>({
+  ref,
+  label,
+  thumbLabels,
+  children,
+  css: _css,
+  ...props
+}: SliderProps<T> & { ref?: React.Ref<HTMLDivElement> }) {
   return (
     <AriaSlider css={css(sliderCSS, _css)} {...props} ref={ref}>
       {label && <Label className="slider__label">{label}</Label>}
@@ -194,10 +198,6 @@ function _Slider<T extends number | number[]>(
     </AriaSlider>
   );
 }
-
-export const Slider = forwardRef(_Slider) as <T extends number | number[]>(
-  props: SliderProps<T> & { ref?: React.Ref<HTMLDivElement> }
-) => ReturnType<typeof _Slider>;
 
 export function SliderNumberField({
   onChange: _onChange,

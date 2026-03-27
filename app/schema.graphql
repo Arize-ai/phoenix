@@ -366,11 +366,6 @@ type CategoricalAnnotationValue {
   score: Float
 }
 
-type ChatCompletionFunctionCall {
-  name: String!
-  arguments: String!
-}
-
 input ChatCompletionInput {
   promptVersion: ChatPromptVersionInput!
   clientOptions: ModelClientOptionsInput = null
@@ -379,10 +374,7 @@ input ChatCompletionInput {
   promptName: Identifier = null
   repetitions: Int!
   evaluators: [PlaygroundEvaluatorInput!]! = []
-}
-
-type ChatCompletionMutationPayload {
-  repetitions: [ChatCompletionRepetition!]!
+  streamModelOutput: Boolean! = true
 }
 
 input ChatCompletionOverDatasetInput {
@@ -409,29 +401,7 @@ input ChatCompletionOverDatasetInput {
   """
   templateVariablesPath: String = "input"
   tracingEnabled: Boolean! = true
-}
-
-type ChatCompletionOverDatasetMutationExamplePayload {
-  datasetExampleId: ID!
-  repetitionNumber: Int!
-  experimentRunId: ID!
-  repetition: ChatCompletionRepetition!
-}
-
-type ChatCompletionOverDatasetMutationPayload {
-  datasetId: ID!
-  datasetVersionId: ID!
-  experimentId: ID!
-  examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
-}
-
-type ChatCompletionRepetition {
-  repetitionNumber: Int!
-  content: String
-  toolCalls: [ChatCompletionToolCall!]!
-  span: Span
-  errorMessage: String
-  evaluations: [EvaluationResult!]!
+  streamModelOutput: Boolean! = true
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -456,11 +426,6 @@ type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPaylo
   repetitionNumber: Int
   span: Span
   experimentRun: ExperimentRun
-}
-
-type ChatCompletionToolCall {
-  id: String!
-  function: ChatCompletionFunctionCall!
 }
 
 input ChatPromptVersionInput {
@@ -2002,8 +1967,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionOverDatasetMutationPayload!
-  chatCompletion(input: ChatCompletionInput!): ChatCompletionMutationPayload!
   evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!

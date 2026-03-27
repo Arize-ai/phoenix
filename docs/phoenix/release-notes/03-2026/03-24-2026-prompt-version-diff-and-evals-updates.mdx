@@ -1,0 +1,70 @@
+---
+title: "Release Notes"
+---
+
+# Prompt Version Diff View
+
+March 24, 2026
+
+**Available in arize-phoenix 13.18.0+**
+
+The Prompts UI now includes a diff view for comparing two versions of a prompt side by side. Open any prompt version and select a baseline to see exactly what changed between versions — message roles, content additions, tool call arguments, and tool results are all diffed line by line.
+
+- **Side-by-side diff** highlights added and removed lines across the full chat template
+- **Works with all template types**: chat templates (with multi-part messages including tool calls and tool results) and string templates
+- **Supports all content parts**: text, tool calls, and tool results are each rendered and diffed
+
+# Evals Now Accept Structured Data as Inputs
+
+March 24, 2026
+
+**Available in arize-phoenix-evals 2.12.0+**
+
+Evaluators now accept dicts, lists, and other structured data as template variable values. Previously, non-string inputs were coerced via Python `str()`, which produced invalid JSON for nested objects. Now, structured values are JSON-serialized automatically before being inserted into the prompt.
+
+```python
+from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
+from phoenix.evals import LLM
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+evaluator = FaithfulnessEvaluator(llm=llm)
+
+# Structured data is now accepted directly — no manual serialization needed
+scores = evaluator.evaluate({
+    "input": {"query": "What is the capital of France?", "language": "en"},
+    "output": "Paris is the capital of France.",
+    "context": ["Paris is the capital of France.", "France is in Western Europe."],
+})
+```
+
+- **Dicts and lists** are serialized to valid JSON strings (e.g., `{"key": "value"}`) before prompt rendering
+- **Plain strings** pass through unchanged — existing evaluator code continues to work without modification
+- **Section variables** (`{{#var}}`, `{{^var}}`) in Mustache templates still receive the raw value so pystache can iterate lists and evaluate conditionals
+
+# Built-in Classification Evaluators Accept LLM Invocation Parameters
+
+March 24, 2026
+
+**Available in arize-phoenix-evals 2.12.0+**
+
+Built-in classification evaluators (`FaithfulnessEvaluator`, `CorrectnessEvaluator`, `HallucinationEvaluator`, and others) now accept arbitrary `**kwargs` that are forwarded to the LLM on every evaluation call. Use this to control generation behavior without needing to subclass.
+
+```python
+from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
+from phoenix.evals import LLM
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+
+# Pass LLM invocation parameters directly (e.g., temperature, max_tokens)
+evaluator = FaithfulnessEvaluator(llm=llm, temperature=0.0, max_tokens=256)
+
+eval_input = {
+    "input": "What is the capital of France?",
+    "output": "Paris is the capital of France.",
+    "context": "Paris is the capital and largest city of France.",
+}
+scores = evaluator.evaluate(eval_input)
+```
+
+- **Any keyword argument** beyond `llm` is stored as an invocation parameter and forwarded to the underlying LLM client on each call
+- Applies to all built-in evaluators: `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `DocumentRelevanceEvaluator`, `RefusalEvaluator`, `ConcisenessEvaluator`, `ToolSelectionEvaluator`, `ToolInvocationEvaluator`, and `ToolResponseHandlingEvaluator`

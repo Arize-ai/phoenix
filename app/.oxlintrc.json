@@ -23,6 +23,18 @@
   },
 
   "rules": {
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": ["forwardRef"],
+            "message": "Use ref as a prop instead (React 19). See https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop"
+          }
+        ]
+      }
+    ],
     "react/exhaustive-deps": "error",
     "react/rules-of-hooks": "error",
     "react-hooks-js/set-state-in-effect": "error",

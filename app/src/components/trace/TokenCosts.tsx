@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
-import { forwardRef } from "react";
 
 import type { TextProps } from "@phoenix/components";
 import { Text } from "@phoenix/components";
@@ -25,7 +24,10 @@ interface TokenCostsProps extends HTMLAttributes<HTMLDivElement> {
   size?: TextProps["size"];
 }
 
-function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
+function TokenCosts({
+  ref,
+  ...props
+}: TokenCostsProps & { ref?: Ref<HTMLDivElement> }) {
   const { children, size = "M", ...otherProps } = props;
 
   const text = typeof children === "number" ? costFormatter(children) : "--";
@@ -44,5 +46,4 @@ function TokenCosts(props: TokenCostsProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _TokenCosts = forwardRef(TokenCosts);
-export { _TokenCosts as TokenCosts };
+export { TokenCosts };

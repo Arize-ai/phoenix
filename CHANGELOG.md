@@ -1,5 +1,25 @@
 # Changelog
 
+## [13.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.2...arize-phoenix-v13.19.0) (2026-03-26)
+
+
+### Features
+
+* add PromptInput compound component for AI interactions ([#12353](https://github.com/Arize-ai/phoenix/issues/12353)) ([729a56f](https://github.com/Arize-ai/phoenix/commit/729a56fc832ffc6b7ee3a011f9f5a2bbd32e6aee))
+* **agent-chat:** collapse tool calls into expandable pool + streaming perf ([#12360](https://github.com/Arize-ai/phoenix/issues/12360)) ([39acfcf](https://github.com/Arize-ai/phoenix/commit/39acfcf2ff08f6db39b605acc4b146bf71d1f2ec))
+* **agent:** session switcher with delete controls and async summaries ([#12348](https://github.com/Arize-ai/phoenix/issues/12348)) ([1443c29](https://github.com/Arize-ai/phoenix/commit/1443c293274b10b34b37fdb0c9978889f3127341))
+* **app:** update project creation flow with color picker and description ([#12328](https://github.com/Arize-ai/phoenix/issues/12328)) ([ccfdcf2](https://github.com/Arize-ai/phoenix/commit/ccfdcf21afd31dbf553752e1c1bb62a76c20dffa))
+
+
+### Bug Fixes
+
+* **deps:** pin fastapi&gt;=0.135.2 to prevent 204 route assertion error ([#12386](https://github.com/Arize-ai/phoenix/issues/12386)) ([fc4e0be](https://github.com/Arize-ai/phoenix/commit/fc4e0be0e90274e33e61bb46d0c14e9a3878cf92)), closes [#12384](https://github.com/Arize-ai/phoenix/issues/12384)
+
+
+### Documentation
+
+* Add Phoenix release notes for 03-22-2026 through 03-24-2026 ([#12361](https://github.com/Arize-ai/phoenix/issues/12361)) ([7de83bd](https://github.com/Arize-ai/phoenix/commit/7de83bdb3b7947f0632e64755b7a770e538a0b51))
+
 ## [13.18.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.1...arize-phoenix-v13.18.2) (2026-03-24)
 
 

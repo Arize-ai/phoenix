@@ -1,3 +1,5 @@
+import { ONE_DAY_MS, ONE_HOUR_MS } from "@phoenix/constants/timeConstants";
+
 /**
  * Creates a time formatter from a pattern
  * NB: this is intentionally made strict to Date for safety
@@ -137,6 +139,39 @@ export function getTimeZoneShortName(
   })
     .formatToParts()
     .find((i) => i.type === "timeZoneName")?.value;
+}
+
+/**
+ * Formats a Unix timestamp as a compact, human-readable age string.
+ *
+ * Rules:
+ * - Within 6 hours: locale-formatted time, e.g. "1:23 PM"
+ * - Between 6 and 24 hours: whole hours, e.g. "8h"
+ * - Beyond 24 hours: whole days, e.g. "1d", "45d"
+ *
+ * @param timestamp - Unix timestamp in milliseconds. Returns empty string if 0.
+ * @param now - optional "now" timestamp for testability (defaults to Date.now())
+ */
+export function formatRelativeShort(
+  timestamp: number,
+  now: number = Date.now()
+): string {
+  if (timestamp === 0) return "";
+
+  const diffMs = now - timestamp;
+
+  if (diffMs < 6 * ONE_HOUR_MS) {
+    return new Date(timestamp).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  if (diffMs < ONE_DAY_MS) {
+    return `${Math.floor(diffMs / ONE_HOUR_MS)}h`;
+  }
+
+  return `${Math.floor(diffMs / ONE_DAY_MS)}d`;
 }
 
 export function getLocaleDateFormatPattern(locale: string) {

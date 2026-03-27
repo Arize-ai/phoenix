@@ -433,7 +433,7 @@ function addDocsOptions(command: Command): Command {
     .option(
       "--workers <n>",
       "Number of concurrent workers for docs downloads",
-      parseInt,
+      (v: string) => parseInt(v, 10),
       DEFAULT_WORKERS
     );
 }

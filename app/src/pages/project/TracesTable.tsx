@@ -81,15 +81,13 @@ type TracesTableProps = {
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
-// The number of descendants that's loaded from the server
-// NB: this number is hard coded in the query below but should be kept in sync
 const NUM_DESCENDANTS = 50;
 
 interface IAdditionalSpansIndicator {
   /**
    * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
    */
-  isAdditionalSpansRow?: true;
+  __additionalRow?: true;
 }
 /**
  * An indicator that this row is an additional row, not a span
@@ -213,6 +211,7 @@ export function TracesTable(props: TracesTableProps) {
           first: { type: "Int", defaultValue: 30 }
           sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
           filterCondition: { type: "String", defaultValue: null }
+          numDescendants: { type: "Int", defaultValue: 50 }
         ) {
           name
           ...SpanColumnSelector_annotations
@@ -276,7 +275,7 @@ export function TracesTable(props: TracesTableProps) {
                   precision
                   hit
                 }
-                descendants(first: 50) {
+                descendants(first: $numDescendants) {
                   edges {
                     node {
                       id
@@ -594,9 +593,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           const { traceId } = row.original.trace;
-          const spanId = row.original.isAdditionalSpansRow
-            ? null
-            : row.original.id;
+          const spanId = row.original.__additionalRow ? null : row.original.id;
           return (
             <Link
               to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
@@ -748,6 +745,7 @@ export function TracesTable(props: TracesTableProps) {
           after: null,
           first: PAGE_SIZE,
           filterCondition: filterCondition,
+          numDescendants: NUM_DESCENDANTS,
         },
         {
           fetchPolicy: "store-and-network",
