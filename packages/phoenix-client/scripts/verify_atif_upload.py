@@ -26,7 +26,6 @@ FIXTURES_DIR = (
 )
 
 HARBOR_JOBS_DIR = Path.home() / "Projects" / "phoenix" / "jobs"
-SAMPLE_TRAJECTORIES_DIR = Path(__file__).resolve().parent.parent.parent / "sample_trajectories"
 
 
 # ---------------------------------------------------------------------------
@@ -320,19 +319,7 @@ def main() -> None:
             trajectory = json.load(f)
         _upload_one(client, trajectory, f"harbor: {task_name}")
 
-    # ── 3. HuggingFace MCP agent trajectories ───────────────────────
-    print("\n── HuggingFace MCP Agent Trajectories ──")
-    hf_files = (
-        sorted(SAMPLE_TRAJECTORIES_DIR.glob("*.json")) if SAMPLE_TRAJECTORIES_DIR.exists() else []
-    )
-    if not hf_files:
-        print("  (no sample trajectories found — skipping)")
-    for traj_file in hf_files:
-        with open(traj_file) as f:
-            trajectory = json.load(f)
-        _upload_one(client, trajectory, f"huggingface: {traj_file.stem}")
-
-    # ── 4. Rich hand-crafted trajectory ───────────────────────────────
+    # ── 3. Rich hand-crafted trajectory ───────────────────────────────
     print("\n── Hand-Crafted Debugging Trajectory ──")
     _upload_one(client, DEBUGGING_TRAJECTORY, "inline: debug-assistant")
 

@@ -267,49 +267,7 @@ class TestMessageAttributes:
 
 
 class TestRealWorldTrajectories:
-    """Tests against real ATIF trajectories from HuggingFace and Harbor.
-
-    Includes both spec-conformant (Harbor) and non-conformant (HuggingFace)
-    trajectories to verify the converter handles real-world data gracefully.
-    """
-
-    def test_huggingface_accountant_conversion(self) -> None:
-        """Non-conformant ATIF from obaydata/mcp-agent-trajectory-benchmark.
-
-        This file uses step-level "usage" instead of "metrics" — an adapter
-        bug (fails Harbor's Pydantic validation), but our converter handles
-        it via a documented fallback.
-        """
-        trajectory = _load_fixture("huggingface_accountant.json")
-        spans = _convert_atif_trajectory_to_spans(trajectory)
-
-        # 12 steps: 5 user + 7 agent (4 of which have tool_calls)
-        # = 1 root + 5 user CHAIN + 7 agent LLM + 4 TOOL = 17
-        assert len(spans) == 17
-
-        # Root span
-        root = spans[0]
-        assert root["span_kind"] == "AGENT"
-        assert root["name"] == "mcp"
-        assert "parent_id" not in root
-
-        # Verify token counts extracted from "usage" field
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        assert len(llm_spans) == 7
-        # First agent step (step_id=2) has usage.prompt_tokens=1844
-        first_llm = llm_spans[0]
-        attrs = first_llm.get("attributes", {})
-        assert attrs.get("llm.token_count.prompt") == 1844
-        assert attrs.get("llm.token_count.completion") == 414
-        assert attrs.get("llm.token_count.total") == 2258
-
-        # Tool spans
-        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
-        assert len(tool_spans) == 4
-        tool_names = {s["name"] for s in tool_spans}
-        assert "get_financial_statements" in tool_names
-        assert "calculate_ratios" in tool_names
-        assert "check_balance" in tool_names
+    """Tests against real spec-conformant ATIF trajectories from Harbor."""
 
     def test_harbor_failed_trajectory_conversion(self) -> None:
         """Real Harbor ATIF-v1.2 trajectory from a failed Claude Code run.

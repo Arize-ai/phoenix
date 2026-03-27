@@ -98,11 +98,8 @@ def _build_llm_attributes(
     if reasoning:
         attrs["metadata"] = json.dumps({"reasoning_content": reasoning})
 
-    # Token counts from the spec "metrics" field. Also accept "usage"
-    # as a fallback — the obaydata/mcp-agent-trajectory-benchmark dataset
-    # on HuggingFace writes step-level "usage" instead of "metrics" (a bug
-    # in that adapter, not a spec variant, but common enough to handle).
-    metrics = step.get("metrics") or step.get("usage") or {}
+    # Token counts from the spec "metrics" field.
+    metrics = step.get("metrics") or {}
     if metrics.get("prompt_tokens") is not None:
         attrs["llm.token_count.prompt"] = metrics["prompt_tokens"]
     if metrics.get("completion_tokens") is not None:
