@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
+from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import select
@@ -305,7 +306,7 @@ class TestTracer:
         captured_endpoint: str | None = None
 
         class FakeRemoteExporter(SpanExporter):
-            def export(self, spans: Sequence[object]) -> SpanExportResult:
+            def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
                 exported_span_names.extend(span.name for span in spans)
                 return SpanExportResult.SUCCESS
 
