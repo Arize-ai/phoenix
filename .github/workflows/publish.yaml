@@ -15,7 +15,7 @@ jobs:
       phoenix_path: ${{ steps.paths.outputs.phoenix_path }}
       package_paths: ${{ steps.paths.outputs.package_paths }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .release-please-manifest.json
@@ -64,23 +64,23 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Read version from manifest
         id: version
         run: |
           v=$(jq -r '.["."] // empty' .release-please-manifest.json)
           if [ -z "$v" ]; then echo "::error::No version for root (.) in manifest"; exit 1; fi
           echo "version=$v" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: refs/tags/arize-phoenix-v${{ steps.version.outputs.version }}
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           package_json_file: app/package.json
       - name: Build frontend
         working-directory: ./app
         run: pnpm install --frozen-lockfile && pnpm run build
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.10"
           version: "0.10.9"
@@ -115,7 +115,7 @@ jobs:
           PY
       - name: Check wheel contents
         run: uv run --with check-wheel-contents check-wheel-contents --ignore W004 dist/*.whl
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
 
   publish-packages:
     name: Publish Python packages
@@ -127,7 +127,7 @@ jobs:
       matrix:
         path: ${{ fromJSON(needs.list-python-packages.outputs.package_paths) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Resolve ref from manifest
         id: ref
         run: |
@@ -140,10 +140,10 @@ jobs:
           echo "ref=refs/tags/${NAME}-v${VERSION}" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.ref.outputs.ref }}
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.10"
           version: "0.10.9"
@@ -196,7 +196,7 @@ jobs:
           fi
       - name: Send message to Slack
         if: steps.notify.outputs.text != ''
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook

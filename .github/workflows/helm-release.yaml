@@ -21,16 +21,16 @@ jobs:
       REGISTRY: arizephoenix
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
     - name: Install Helm
-      uses: azure/setup-helm@v3
+      uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
       with:
         version: 'latest'
     - name: Add Helm repositories
@@ -46,7 +46,7 @@ jobs:
         # Push the chart to Docker Hub as an OCI artifact
         helm push phoenix-helm-*.tgz oci://registry-1.docker.io/${{ env.REGISTRY }}
     - name: Docker Hub Description
-      uses: peter-evans/dockerhub-description@v4
+      uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
