@@ -37,6 +37,8 @@ import {
   getMastraCodeTypescript,
   getOpenaiAgentsCodePython,
   getOpenaiCodePython,
+  getOpenRouterCodePython,
+  getOpenRouterCodeTypescript,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getOpenaiCodeTypescript,
@@ -44,7 +46,17 @@ import {
   getVercelAiSdkCodeTypescript,
 } from "@phoenix/components/project/integrationSnippets";
 
-import type { OnboardingIntegration } from "./integrationDefinitions";
+import type { EnvVar, OnboardingIntegration } from "./integrationDefinitions";
+
+const OPENAI_ENV: readonly EnvVar[] = [
+  { name: "OPENAI_API_KEY", value: "<your-openai-api-key>" },
+];
+const ANTHROPIC_ENV: readonly EnvVar[] = [
+  { name: "ANTHROPIC_API_KEY", value: "<your-anthropic-api-key>" },
+];
+const OPENROUTER_ENV: readonly EnvVar[] = [
+  { name: "OPENAI_API_KEY", value: "<your-openrouter-api-key>" },
+];
 
 export const DEFAULT_INTEGRATION_ID = "phoenix-otel";
 
@@ -85,6 +97,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "langchain-openai",
         ],
         getImplementationCode: getLanggraphCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain",
         githubHref:
@@ -99,6 +112,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@langchain/openai",
         ],
         getImplementationCode: getLanggraphCodeTypescript,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/typescript/langchain",
         githubHref:
@@ -118,6 +132,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "langchain-openai",
         ],
         getImplementationCode: getLangchainCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain",
         githubHref:
@@ -131,6 +146,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@langchain/openai",
         ],
         getImplementationCode: getLangchainCodeTypescript,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/typescript/langchain",
         githubHref:
@@ -150,6 +166,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "openai",
         ],
         getImplementationCode: getOpenaiCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai",
         githubHref:
@@ -162,6 +179,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "openai",
         ],
         getImplementationCode: getOpenaiCodeTypescript,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk",
         githubHref:
@@ -182,6 +200,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "llama-index-llms-openai",
         ],
         getImplementationCode: getLlamaIndexCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex",
         githubHref:
@@ -202,6 +221,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "openai",
         ],
         getImplementationCode: getAgnoCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/agno",
         githubHref:
@@ -221,6 +241,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "openai-agents",
         ],
         getImplementationCode: getOpenaiAgentsCodePython,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
         githubHref:
@@ -309,6 +330,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
       TypeScript: {
         packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
         getImplementationCode: getVercelAiSdkCodeTypescript,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk",
         githubHref:
@@ -328,6 +350,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "anthropic",
         ],
         getImplementationCode: getAnthropicCodePython,
+        envVars: ANTHROPIC_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic",
         githubHref:
@@ -340,6 +363,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@anthropic-ai/sdk",
         ],
         getImplementationCode: getAnthropicCodeTypescript,
+        envVars: ANTHROPIC_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
         githubHref:
@@ -488,6 +512,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "@ai-sdk/openai",
         ],
         getImplementationCode: getMastraCodeTypescript,
+        envVars: OPENAI_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
         githubHref:
@@ -524,7 +549,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "autogen",
     name: "AutoGen",
-    icon: <OpenAISVG />,
+    icon: <OpenAISVG />, // TODO: add icons
     configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/autogen",
@@ -539,11 +564,30 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     icon: <OpenAISVG />,
     configs: {
       Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getOpenRouterCodePython,
+        envVars: OPENROUTER_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
-        // OpenRouter is traced via the OpenAI SDK instrumentation
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getOpenRouterCodeTypescript,
+        envVars: OPENROUTER_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
       },
     },
   },
@@ -552,6 +596,12 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Dify",
     icon: <OpenAISVG />,
     configs: {
+      Python: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
       Platform: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
