@@ -171,26 +171,28 @@ def _build_message_attributes(
 ) -> Dict[str, Any]:
     """Build LLM input/output message attributes for an agent step.
 
-    Input messages are constructed from all preceding user/system steps
-    since the last agent step (i.e. the conversation context for this
-    agent turn). The agent's own message becomes the output message.
+    Input messages are the full conversation history up to this step,
+    reconstructed from all preceding steps. This approximates what the
+    LLM would have received as its prompt, though the actual prompt
+    may differ (e.g. sliding windows, summarization).
     """
     attrs: Dict[str, Any] = {}
     step = steps[step_index]
 
-    # Collect input messages: walk backwards from this step to gather
-    # preceding user/system messages until we hit another agent step
+    # Build full conversation history from all prior steps.
     input_messages: List[Dict[str, str]] = []
-    for i in range(step_index - 1, -1, -1):
+    for i in range(step_index):
         prev = steps[i]
         src = prev.get("source")
-        if src == "agent":
-            break
         msg = _stringify_message(prev.get("message"))
+        if not msg:
+            continue
         if src == "user":
-            input_messages.insert(0, {"role": "user", "content": msg})
+            input_messages.append({"role": "user", "content": msg})
         elif src == "system":
-            input_messages.insert(0, {"role": "system", "content": msg})
+            input_messages.append({"role": "system", "content": msg})
+        elif src == "agent":
+            input_messages.append({"role": "assistant", "content": msg})
 
     for idx, msg_dict in enumerate(input_messages):
         prefix = f"llm.input_messages.{idx}"
