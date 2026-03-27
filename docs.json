@@ -676,6 +676,13 @@
                   "docs/phoenix/integrations/python/pydantic/pydantic-tracing",
                   "docs/phoenix/integrations/python/pydantic/pydantic-evals"
                 ]
+              },
+              {
+                "group": "Strands Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/strands-agents",
+                  "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
+                ]
               }
             ]
           },
