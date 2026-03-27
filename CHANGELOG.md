@@ -1,5 +1,17 @@
 # Changelog
 
+## [13.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.0...arize-phoenix-v13.19.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* **TracesTable:** update interface for additional spans row and adjust GraphQL fragments ([#12385](https://github.com/Arize-ai/phoenix/issues/12385)) ([0f38e06](https://github.com/Arize-ai/phoenix/commit/0f38e06638c5e18fcb349514649b44574474343f))
+
+
+### Documentation
+
+* **cli:** update phoenix CLI skill and docs for noun-verb commands ([#12393](https://github.com/Arize-ai/phoenix/issues/12393)) ([a195055](https://github.com/Arize-ai/phoenix/commit/a195055d03379c9e7d3587cc56a37592eba30e22))
+
 ## [13.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.2...arize-phoenix-v13.19.0) (2026-03-26)
 
 
