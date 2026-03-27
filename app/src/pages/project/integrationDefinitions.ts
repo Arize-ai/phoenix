@@ -39,17 +39,16 @@ export function hasSnippets(
   return "packages" in config && "getImplementationCode" in config;
 }
 
+export type OnboardingTab = ProgrammingLanguage | "Platform";
+
 /**
  * An integration that can be selected on the onboarding page.
- * Each integration defines which languages it supports and provides
- * per-language install + implementation snippets or documentation links.
- * Platform-level integrations (no Python/TypeScript code) use platformConfig instead.
+ * Each tab key (Python, TypeScript, or Platform) maps to either
+ * code snippets or a docs-only configuration.
  */
 export type OnboardingIntegration = {
   id: string;
   name: string;
   icon: ReactNode;
-  supportedLanguages: readonly ProgrammingLanguage[];
-  languages: Partial<Record<ProgrammingLanguage, IntegrationLanguageConfig>>;
-  platformConfig?: DocsOnlyIntegrationConfig;
+  configs: Partial<Record<OnboardingTab, IntegrationLanguageConfig>>;
 };

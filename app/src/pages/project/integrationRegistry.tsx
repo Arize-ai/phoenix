@@ -2,12 +2,10 @@ import { Icon, Icons } from "@phoenix/components";
 import {
   AgnoSVG,
   AnthropicSVG,
-  AutoGenSVG,
   BedrockSVG,
   ClaudeSVG,
   BeeAISVG,
   CrewAISVG,
-  DifySVG,
   DSPYSVG,
   GeminiSVG,
   GoogleADKSVG,
@@ -21,7 +19,6 @@ import {
   MastraSVG,
   MistralAISVG,
   OpenAISVG,
-  OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
   StrandsAgentsSVG,
@@ -56,8 +53,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "phoenix-otel",
     name: "Trace your app",
     icon: <Icon svg={<Icons.Trace />} />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         packages: ["arize-phoenix-otel"],
         getImplementationCode: getOtelInitCodePython,
@@ -80,8 +76,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "langgraph",
     name: "LangGraph",
     icon: <LangGraphSVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -115,8 +110,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "langchain",
     name: "LangChain",
     icon: <LangChainSVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -148,8 +142,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "openai",
     name: "OpenAI",
     icon: <OpenAISVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -180,8 +173,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "llama-index",
     name: "LlamaIndex",
     icon: <LlamaIndexSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -201,8 +193,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "agno",
     name: "Agno",
     icon: <AgnoSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -222,8 +213,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "openai-agents",
     name: "OpenAI Agents",
     icon: <OpenAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -263,8 +253,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "haystack",
     name: "Haystack",
     icon: <HaystackSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/haystack",
@@ -277,8 +266,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "google-adk",
     name: "Google ADK",
     icon: <GoogleADKSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
@@ -291,8 +279,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "gemini",
     name: "Gemini",
     icon: <GeminiSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai",
@@ -305,8 +292,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "litellm",
     name: "LiteLLM",
     icon: <LiteLLMSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/litellm",
@@ -319,8 +305,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "vercel-ai-sdk",
     name: "AI SDK",
     icon: <VercelSVG />,
-    supportedLanguages: ["TypeScript"],
-    languages: {
+    configs: {
       TypeScript: {
         packages: ["@arizeai/phoenix-otel", "ai", "@ai-sdk/openai"],
         getImplementationCode: getVercelAiSdkCodeTypescript,
@@ -335,8 +320,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "anthropic",
     name: "Anthropic",
     icon: <AnthropicSVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -367,8 +351,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "claude-agent-sdk",
     name: "Claude Agent SDK",
     icon: <ClaudeSVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk",
@@ -383,8 +366,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "bedrock",
     name: "Bedrock",
     icon: <BedrockSVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing",
@@ -403,8 +385,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "dspy",
     name: "DSPy",
     icon: <DSPYSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy",
@@ -417,8 +398,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "crewai",
     name: "CrewAI",
     icon: <CrewAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai",
@@ -431,8 +411,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "vertex-ai",
     name: "VertexAI",
     icon: <VertexAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/vertexai",
@@ -445,8 +424,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "portkey",
     name: "Portkey",
     icon: <PortkeySVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/portkey",
         githubHref:
@@ -458,8 +436,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "smolagents",
     name: "Smolagents",
     icon: <HuggingFaceSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/hfsmolagents",
@@ -472,8 +449,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "pydantic-ai",
     name: "PydanticAI",
     icon: <PydanticAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/pydantic",
         githubHref:
@@ -485,8 +461,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "beeai",
     name: "BeeAI",
     icon: <BeeAISVG />,
-    supportedLanguages: ["Python", "TypeScript"],
-    languages: {
+    configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/beeai",
         githubHref:
@@ -504,8 +479,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "mastra",
     name: "Mastra",
     icon: <MastraSVG />,
-    supportedLanguages: ["TypeScript"],
-    languages: {
+    configs: {
       TypeScript: {
         packages: [
           "@mastra/arize",
@@ -525,8 +499,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "mistral-ai",
     name: "MistralAI",
     icon: <MistralAISVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/mistralai",
@@ -539,8 +512,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "groq",
     name: "Groq",
     icon: <GroqSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/groq",
@@ -552,9 +524,8 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "autogen",
     name: "AutoGen",
-    icon: <AutoGenSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    icon: <OpenAISVG />,
+    configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/autogen",
         githubHref:
@@ -565,24 +536,26 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "openrouter",
     name: "OpenRouter",
-    icon: <OpenRouterSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    icon: <OpenAISVG />,
+    configs: {
       Python: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        // OpenRouter is traced via the OpenAI SDK instrumentation
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
       },
     },
   },
   {
     id: "dify",
     name: "Dify",
-    icon: <DifySVG />,
-    supportedLanguages: [],
-    languages: {},
-    platformConfig: {
-      docsHref:
-        "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
+    icon: <OpenAISVG />,
+    configs: {
+      Platform: {
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
+      },
     },
   },
 ];
