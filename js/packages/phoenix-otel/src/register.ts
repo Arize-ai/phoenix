@@ -356,6 +356,26 @@ export function attachGlobalTracerProvider(
   };
 }
 
+function bindGlobalTracerProviderRegistrationToShutdown({
+  provider,
+  registration,
+}: {
+  provider: NodeTracerProvider;
+  registration: GlobalTracerProviderRegistration;
+}): void {
+  const shutdown = provider.shutdown.bind(provider);
+  let hasDetachedRegistration = false;
+
+  provider.shutdown = async (): Promise<void> => {
+    if (!hasDetachedRegistration) {
+      hasDetachedRegistration = true;
+      registration.detach();
+    }
+
+    await shutdown();
+  };
+}
+
 /**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
@@ -464,7 +484,11 @@ export function register(params: RegisterParams): NodeTracerProvider {
     });
   }
   if (global) {
-    attachGlobalTracerProvider(provider);
+    const registration = attachGlobalTracerProvider(provider);
+    bindGlobalTracerProviderRegistrationToShutdown({
+      provider,
+      registration,
+    });
   }
   return provider;
 }

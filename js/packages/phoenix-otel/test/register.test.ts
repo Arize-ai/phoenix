@@ -149,6 +149,51 @@ describe("register", () => {
     await mountedProvider.shutdown();
   });
 
+  test("should detach managed global mounts when a registered provider shuts down", async () => {
+    let firstStarts = 0;
+    let secondStarts = 0;
+    const firstProcessor: SpanProcessor = {
+      onStart: () => {
+        firstStarts += 1;
+      },
+      onEnd: () => {},
+      forceFlush: async () => {},
+      shutdown: async () => {},
+    };
+    const secondProcessor: SpanProcessor = {
+      onStart: () => {
+        secondStarts += 1;
+      },
+      onEnd: () => {},
+      forceFlush: async () => {},
+      shutdown: async () => {},
+    };
+
+    const firstProvider = register({
+      url: "http://localhost:6006/v1/traces",
+      apiKey: "test",
+      spanProcessors: [firstProcessor],
+      global: true,
+    });
+    const secondProvider = register({
+      url: "http://localhost:6006/v1/traces",
+      apiKey: "test",
+      spanProcessors: [secondProcessor],
+      global: true,
+    });
+
+    trace.getTracer("global-test").startSpan("second-active").end();
+    await firstProvider.shutdown();
+
+    detachGlobalTracerProvider();
+    trace.getTracer("global-test").startSpan("after-detach").end();
+
+    expect(firstStarts).toBe(0);
+    expect(secondStarts).toBe(1);
+
+    await secondProvider.shutdown();
+  });
+
   test("should ignore out-of-order detach and restore the remaining top mount", async () => {
     let firstStarts = 0;
     let secondStarts = 0;
