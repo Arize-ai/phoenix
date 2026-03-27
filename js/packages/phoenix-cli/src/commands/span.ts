@@ -269,7 +269,7 @@ export function createSpanListCommand(): Command {
     .option(
       "-n, --limit <number>",
       "Maximum number of spans to fetch (newest first)",
-      parseInt,
+      (v: string) => parseInt(v, 10),
       100
     )
     .option(

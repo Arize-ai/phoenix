@@ -561,7 +561,7 @@ export function createTraceListCommand(): Command {
     .option(
       "-n, --limit <number>",
       "Fetch the last N traces (newest first)",
-      parseInt,
+      (v: string) => parseInt(v, 10),
       10
     )
     .option(
@@ -573,7 +573,7 @@ export function createTraceListCommand(): Command {
     .option(
       "--max-concurrent <number>",
       "Maximum concurrent fetches for bulk operations",
-      parseInt,
+      (v: string) => parseInt(v, 10),
       10
     )
     .option(

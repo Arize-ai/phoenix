@@ -358,7 +358,7 @@ export function createSessionListCommand(): Command {
     .option(
       "-n, --limit <number>",
       "Maximum number of sessions to return",
-      parseInt,
+      (v: string) => parseInt(v, 10),
       10
     )
     .option("--order <order>", "Sort order: asc or desc", "desc")
