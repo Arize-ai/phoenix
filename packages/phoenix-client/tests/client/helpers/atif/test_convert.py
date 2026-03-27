@@ -11,8 +11,8 @@ import pytest
 
 from phoenix.client.helpers.atif._convert import (
     _convert_atif_trajectory_to_spans,
-    _md5_span_id,
-    _md5_trace_id,
+    _sha256_span_id,
+    _sha256_trace_id,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -35,22 +35,22 @@ def multi_tool_trajectory() -> Dict[str, Any]:
 
 class TestDeterministicIds:
     def test_trace_id_is_32_hex(self) -> None:
-        tid = _md5_trace_id("test-seed")
+        tid = _sha256_trace_id("test-seed")
         assert len(tid) == 32
         int(tid, 16)  # should not raise
 
     def test_span_id_is_16_hex(self) -> None:
-        sid = _md5_span_id("test-seed")
+        sid = _sha256_span_id("test-seed")
         assert len(sid) == 16
         int(sid, 16)  # should not raise
 
     def test_same_input_same_output(self) -> None:
-        assert _md5_trace_id("abc") == _md5_trace_id("abc")
-        assert _md5_span_id("abc") == _md5_span_id("abc")
+        assert _sha256_trace_id("abc") == _sha256_trace_id("abc")
+        assert _sha256_span_id("abc") == _sha256_span_id("abc")
 
     def test_different_input_different_output(self) -> None:
-        assert _md5_trace_id("a") != _md5_trace_id("b")
-        assert _md5_span_id("a") != _md5_span_id("b")
+        assert _sha256_trace_id("a") != _sha256_trace_id("b")
+        assert _sha256_span_id("a") != _sha256_span_id("b")
 
 
 class TestSimpleTrajectoryConversion:

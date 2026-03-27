@@ -11,14 +11,14 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from phoenix.client.__generated__ import v1
 
 
-def _md5_span_id(seed: str) -> str:
+def _sha256_span_id(seed: str) -> str:
     """Derive a deterministic 16-hex-char span ID from a seed string."""
-    return hashlib.md5(seed.encode()).hexdigest()[:16]
+    return hashlib.sha256(seed.encode()).hexdigest()[:16]
 
 
-def _md5_trace_id(seed: str) -> str:
+def _sha256_trace_id(seed: str) -> str:
     """Derive a deterministic 32-hex-char trace ID from a seed string."""
-    return hashlib.md5(seed.encode()).hexdigest()
+    return hashlib.sha256(seed.encode()).hexdigest()[:32]
 
 
 def _parse_timestamp(ts: Optional[str]) -> Optional[datetime]:
@@ -311,8 +311,8 @@ def _convert_atif_trajectory_to_spans(
     agent: Mapping[str, Any] = trajectory["agent"]
     steps: List[Mapping[str, Any]] = trajectory["steps"]
 
-    trace_id = _md5_trace_id(f"{session_id}:trace")
-    root_span_id = _md5_span_id(f"{session_id}:root")
+    trace_id = _sha256_trace_id(f"{session_id}:trace")
+    root_span_id = _sha256_span_id(f"{session_id}:root")
 
     spans: List[v1.Span] = []
 
@@ -394,7 +394,7 @@ def _convert_atif_trajectory_to_spans(
     for i, step in enumerate(steps):
         source = step.get("source", "agent")
         step_id = step.get("step_id", i + 1)
-        step_span_id = _md5_span_id(f"{session_id}:step:{step_id}")
+        step_span_id = _sha256_span_id(f"{session_id}:step:{step_id}")
         step_start, step_end = step_timings[i]
 
         if source in ("user", "system"):
@@ -461,7 +461,7 @@ def _convert_atif_trajectory_to_spans(
 
             for j, tc in enumerate(tool_calls):
                 tc_id = tc.get("tool_call_id", f"tc_{j}")
-                tool_span_id = _md5_span_id(f"{session_id}:step:{step_id}:tool:{tc_id}")
+                tool_span_id = _sha256_span_id(f"{session_id}:step:{step_id}:tool:{tc_id}")
                 obs_content = obs_map.get(tc_id)
                 tool_attrs = _build_tool_attributes(tc, obs_content)
                 tool_attrs["openinference.span.kind"] = "TOOL"
