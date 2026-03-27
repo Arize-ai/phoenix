@@ -21,6 +21,7 @@ import {
   OpenAISVG,
   PortkeySVG,
   PydanticAISVG,
+  StrandsAgentsSVG,
   VercelSVG,
   VertexAISVG,
 } from "@phoenix/components/project/IntegrationIcons";
@@ -39,6 +40,7 @@ import {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getOpenaiCodeTypescript,
+  getStrandsAgentsCodePython,
   getVercelAiSdkCodeTypescript,
 } from "@phoenix/components/project/integrationSnippets";
 
@@ -230,6 +232,26 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
+      },
+    },
+  },
+  {
+    id: "strands-agents",
+    name: "Strands Agents",
+    icon: <StrandsAgentsSVG />,
+    supportedLanguages: ["Python"],
+    languages: {
+      Python: {
+        packages: [
+          "openinference-instrumentation-strands-agents",
+          "strands-agents",
+          "opentelemetry-exporter-otlp-proto-http",
+        ],
+        getImplementationCode: getStrandsAgentsCodePython,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-strands-agents",
       },
     },
   },
