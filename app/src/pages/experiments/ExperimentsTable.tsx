@@ -28,6 +28,12 @@ import {
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
+import { ProgressCircle } from "@phoenix/components/core/progress";
+import {
+  RichTooltipActions,
+  RichTooltipDescription,
+  RichTooltipTitle,
+} from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   ExperimentStatus,
@@ -73,10 +79,6 @@ import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
-
-const runCountFractionCellCSS = css`
-  float: right;
-`;
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -232,6 +234,8 @@ export function ExperimentsTable({
     Record<string, boolean>
   >(`phoenix-experiments-column-visibility-${data.id}`, {
     id: false,
+    experimentJobStatus: false,
+    experimentJobProgress: false,
   });
   const [columnSizing, setColumnSizing] = usePersistedState<
     Record<string, number>
@@ -321,6 +325,7 @@ export function ExperimentsTable({
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
+        const jobStatus = row.original.backgroundJob?.status;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
@@ -329,6 +334,11 @@ export function ExperimentsTable({
             >
               {getValue() as string}
             </Link>
+            <ExperimentJobStatusIcon
+              status={jobStatus}
+              experimentId={experimentId}
+              datasetId={data.id}
+            />
           </Flex>
         );
       },
@@ -349,13 +359,6 @@ export function ExperimentsTable({
           </Flex>
         );
       },
-    },
-    {
-      header: "job status",
-      id: "status",
-      cell: ({ row }) => (
-        <ExperimentStatus status={row.original.backgroundJob?.status} />
-      ),
     },
     {
       header: "description",
@@ -451,18 +454,49 @@ export function ExperimentsTable({
       meta: {
         textAlign: "right",
       },
-      cell: ({ row }) => {
-        const { runCount, expectedRunCount } = row.original;
-        return (
-          <span
-            className="font-mono"
-            css={runCountFractionCellCSS}
-            title={`${runCount} / ${expectedRunCount}`}
-          >
-            {intFormatter(runCount)} / {intFormatter(expectedRunCount)}
-          </span>
-        );
-      },
+      cell: IntCell,
+    },
+    {
+      header: "experiment job",
+      columns: [
+        {
+          header: "job status",
+          id: "experimentJobStatus",
+          cell: ({ row }) => (
+            <ExperimentStatus status={row.original.backgroundJob?.status} />
+          ),
+        },
+        {
+          header: "job progress",
+          id: "experimentJobProgress",
+          minSize: 200,
+          meta: {
+            textAlign: "right",
+          },
+          cell: ({ row }) => {
+            const { runCount, expectedRunCount } = row.original;
+            const progressValue =
+              expectedRunCount > 0 ? (runCount / expectedRunCount) * 100 : 0;
+            return (
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+                justifyContent="end"
+              >
+                <span className="font-mono">
+                  {intFormatter(runCount)} / {intFormatter(expectedRunCount)}
+                </span>
+                <ProgressBar
+                  width="60px"
+                  value={progressValue}
+                  aria-label="job progress"
+                />
+              </Flex>
+            );
+          },
+        },
+      ],
     },
     {
       header: "avg latency",
@@ -586,7 +620,7 @@ export function ExperimentsTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
-  const selectorColumns = table.getAllColumns();
+  const selectorColumns = table.getAllLeafColumns();
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -753,6 +787,59 @@ export function ExperimentsTable({
       </div>
     </div>
   );
+}
+
+function ExperimentJobStatusIcon({
+  status,
+  experimentId,
+  datasetId,
+}: {
+  status: string | null | undefined;
+  experimentId: string;
+  datasetId: string;
+}) {
+  if (status === "RUNNING") {
+    return (
+      <TooltipTrigger>
+        <TriggerWrap>
+          <ProgressCircle isIndeterminate size="S" aria-label="running" />
+        </TriggerWrap>
+        <RichTooltip>
+          <RichTooltipTitle>Experiment In Progress</RichTooltipTitle>
+          <RichTooltipDescription>
+            This experiment is currently running. The results may be incomplete
+          </RichTooltipDescription>
+        </RichTooltip>
+      </TooltipTrigger>
+    );
+  }
+  if (status === "ERROR") {
+    return (
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Icon
+            svg={<Icons.CloseCircleOutline />}
+            color="danger"
+            aria-label="error"
+          />
+        </TriggerWrap>
+        <RichTooltip>
+          <RichTooltipTitle>Experiment Error</RichTooltipTitle>
+          <RichTooltipDescription>
+            This experiment encountered an error during execution.
+          </RichTooltipDescription>
+          <RichTooltipActions>
+            <Link
+              to={`/datasets/${datasetId}/experiments/${experimentId}`}
+            >
+              View details
+            </Link>
+          </RichTooltipActions>
+        </RichTooltip>
+      </TooltipTrigger>
+    );
+  }
+  return null;
 }
 
 function MissingAnnotationPieChart({
