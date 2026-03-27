@@ -6,10 +6,15 @@ import re
 from typing import Any, List, Mapping, Set
 
 _VALID_SOURCES = {"user", "agent", "system"}
-# Fields that may ONLY appear on agent steps.
-# Note: observation is allowed on any source since ATIF v1.2,
-# and tool_calls/metrics are not restricted by the spec either.
-_AGENT_ONLY_FIELDS = {"model_name", "reasoning_content", "reasoning_effort"}
+# Fields that may ONLY appear on agent steps, per Harbor's Step.validate_agent_only_fields.
+# Note: observation is NOT in this list — it's allowed on any source.
+_AGENT_ONLY_FIELDS = {
+    "model_name",
+    "reasoning_content",
+    "reasoning_effort",
+    "tool_calls",
+    "metrics",
+}
 _SCHEMA_VERSION_PATTERN = re.compile(r"^ATIF-v\d+\.\d+$")
 
 

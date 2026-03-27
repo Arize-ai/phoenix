@@ -82,6 +82,15 @@ class TestValidTrajectories:
         }
         _validate_atif_trajectory(trajectory)
 
+    def test_huggingface_accountant_passes(self) -> None:
+        """Real MCP agent trajectory from HuggingFace passes validation.
+
+        This file uses non-spec "usage" field instead of "metrics" —
+        our validator should not reject it (we don't enforce extra=forbid).
+        """
+        trajectory = _load_fixture("huggingface_accountant.json")
+        _validate_atif_trajectory(trajectory)
+
 
 class TestMissingRootFields:
     @pytest.mark.parametrize(

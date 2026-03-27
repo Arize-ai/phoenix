@@ -98,8 +98,8 @@ def _build_llm_attributes(
     if reasoning:
         attrs["metadata"] = json.dumps({"reasoning_content": reasoning})
 
-    # Token counts from metrics
-    metrics = step.get("metrics", {})
+    # Token counts from metrics (spec field) or usage (common variant)
+    metrics = step.get("metrics") or step.get("usage") or {}
     if metrics.get("prompt_tokens") is not None:
         attrs["llm.token_count.prompt"] = metrics["prompt_tokens"]
     if metrics.get("completion_tokens") is not None:

@@ -264,3 +264,110 @@ class TestMessageAttributes:
         attrs = llm_span.get("attributes", {})
         key = "llm.output_messages.0.message.tool_calls.0.tool_call.function.name"
         assert attrs.get(key) == "financial_search"
+
+
+class TestRealWorldTrajectories:
+    """Tests against real ATIF trajectories from HuggingFace and Harbor."""
+
+    def test_huggingface_accountant_conversion(self) -> None:
+        """Real MCP agent trajectory from obaydata/mcp-agent-trajectory-benchmark.
+
+        This file uses "usage" instead of "metrics" (a common real-world variant).
+        """
+        trajectory = _load_fixture("huggingface_accountant.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+
+        # 12 steps: 5 user + 7 agent (4 of which have tool_calls)
+        # = 1 root + 5 user CHAIN + 7 agent LLM + 4 TOOL = 17
+        assert len(spans) == 17
+
+        # Root span
+        root = spans[0]
+        assert root["span_kind"] == "AGENT"
+        assert root["name"] == "mcp"
+        assert "parent_id" not in root
+
+        # Verify token counts extracted from "usage" field
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        assert len(llm_spans) == 7
+        # First agent step (step_id=2) has usage.prompt_tokens=1844
+        first_llm = llm_spans[0]
+        attrs = first_llm.get("attributes", {})
+        assert attrs.get("llm.token_count.prompt") == 1844
+        assert attrs.get("llm.token_count.completion") == 414
+        assert attrs.get("llm.token_count.total") == 2258
+
+        # Tool spans
+        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
+        assert len(tool_spans) == 4
+        tool_names = {s["name"] for s in tool_spans}
+        assert "get_financial_statements" in tool_names
+        assert "calculate_ratios" in tool_names
+        assert "check_balance" in tool_names
+
+    def test_harbor_failed_trajectory_conversion(self) -> None:
+        """Real Harbor ATIF-v1.2 trajectory from a failed Claude Code run.
+
+        These are minimal 2-step trajectories where the agent
+        failed to authenticate ("Not logged in").
+        """
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.2",
+            "session_id": "a232fe2e-4a36-4aaa-a3d0-821ecd662a0f",
+            "agent": {
+                "name": "claude-code",
+                "version": "2.1.75",
+                "model_name": "<synthetic>",
+                "extra": {"cwds": ["/app"], "git_branches": ["master"]},
+            },
+            "steps": [
+                {
+                    "step_id": 1,
+                    "timestamp": "2026-03-13T19:46:42.637Z",
+                    "source": "user",
+                    "message": "Fix the vulnerability in the code.",
+                    "extra": {"is_sidechain": False},
+                },
+                {
+                    "step_id": 2,
+                    "timestamp": "2026-03-13T19:46:42.657Z",
+                    "source": "agent",
+                    "model_name": "<synthetic>",
+                    "message": "Not logged in",
+                    "metrics": {
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "cached_tokens": 0,
+                        "extra": {
+                            "cache_creation_input_tokens": 0,
+                            "cache_read_input_tokens": 0,
+                        },
+                    },
+                    "extra": {"stop_reason": "stop_sequence"},
+                },
+            ],
+            "final_metrics": {
+                "total_prompt_tokens": 0,
+                "total_completion_tokens": 0,
+                "total_cached_tokens": 0,
+                "total_steps": 2,
+                "extra": {"total_cache_creation_input_tokens": 0},
+            },
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+
+        # 1 root + 1 user CHAIN + 1 agent LLM = 3 spans
+        assert len(spans) == 3
+        root = spans[0]
+        assert root["name"] == "claude-code"
+        assert root["span_kind"] == "AGENT"
+
+        # Agent step with 0 tokens should still have token attributes
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.model_name") == "<synthetic>"
+        # 0 tokens — total should not be set
+        assert "llm.token_count.total" not in attrs
+
+        # Output should be the error message
+        assert attrs.get("output.value") == "Not logged in"
