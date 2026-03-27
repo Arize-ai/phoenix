@@ -358,7 +358,7 @@ def _convert_atif_trajectory_to_spans(
                 llm_attrs["llm.tools"] = llm_tools
 
             step_span = {
-                "name": f"llm_call_{step_id}",
+                "name": "LLM",
                 "context": {
                     "trace_id": trace_id,
                     "span_id": step_span_id,
