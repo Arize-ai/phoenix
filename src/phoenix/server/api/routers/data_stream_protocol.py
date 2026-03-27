@@ -321,6 +321,7 @@ async def stream_text(
 
     ingest_traces = body.ingest_traces
 
+    from phoenix.config import get_env_phoenix_pxi_project_name
     from phoenix.server.api.routers.chat_tracing import (
         create_agent_span,
         create_llm_span,
@@ -342,7 +343,11 @@ async def stream_text(
         # Set up tracing before streaming begins.
         if ingest_traces:
             try:
-                tracer = Tracer(span_cost_calculator=request.app.state.span_cost_calculator)
+                tracer = Tracer(
+                    span_cost_calculator=request.app.state.span_cost_calculator,
+                    enable_remote_export=True,
+                    project_name=get_env_phoenix_pxi_project_name(),
+                )
                 project_id = await ensure_project_exists(request.app.state.db)
                 accumulator = StreamAccumulator()
                 agent_span = create_agent_span(

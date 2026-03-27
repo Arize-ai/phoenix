@@ -5,9 +5,9 @@ import pytest
 from openinference.semconv.trace import OpenInferenceSpanKindValues
 from sqlalchemy import select
 
+from phoenix.config import get_env_phoenix_pxi_project_name
 from phoenix.db import models
 from phoenix.server.api.routers.chat_tracing import (
-    PXI_AGENT_PROJECT_NAME,
     create_agent_span,
     create_llm_span,
     ensure_project_exists,
@@ -53,7 +53,7 @@ class TestEnsureProjectExists:
         async with db() as session:
             project = await session.get(models.Project, project_id)
             assert project is not None
-            assert project.name == PXI_AGENT_PROJECT_NAME
+            assert project.name == get_env_phoenix_pxi_project_name()
 
     @pytest.mark.asyncio
     async def test_returns_existing_project(self, db: DbSessionFactory) -> None:
@@ -77,7 +77,7 @@ class TestEnsureProjectExists:
             projects = (
                 (
                     await session.execute(
-                        select(models.Project).filter_by(name=PXI_AGENT_PROJECT_NAME)
+                        select(models.Project).filter_by(name=get_env_phoenix_pxi_project_name())
                     )
                 )
                 .scalars()
