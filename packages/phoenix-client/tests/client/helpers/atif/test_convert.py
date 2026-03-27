@@ -78,7 +78,7 @@ class TestSimpleTrajectoryConversion:
         user_span = spans[1]
         assert user_span["span_kind"] == "CHAIN"
         assert user_span["name"] == "user_message"
-        assert user_span["parent_id"] == spans[0]["context"]["span_id"]
+        assert user_span.get("parent_id") == spans[0]["context"]["span_id"]
         attrs = user_span.get("attributes", {})
         assert "What is the current price" in attrs.get("input.value", "")
 
@@ -86,7 +86,7 @@ class TestSimpleTrajectoryConversion:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
         llm_span = spans[2]
         assert llm_span["span_kind"] == "LLM"
-        assert llm_span["parent_id"] == spans[0]["context"]["span_id"]
+        assert llm_span.get("parent_id") == spans[0]["context"]["span_id"]
 
     def test_tool_call_becomes_tool_span(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
@@ -94,7 +94,7 @@ class TestSimpleTrajectoryConversion:
         assert tool_span["span_kind"] == "TOOL"
         assert tool_span["name"] == "financial_search"
         # Tool is child of the LLM step, not the root
-        assert tool_span["parent_id"] == spans[2]["context"]["span_id"]
+        assert tool_span.get("parent_id") == spans[2]["context"]["span_id"]
 
     def test_tool_span_has_observation(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
