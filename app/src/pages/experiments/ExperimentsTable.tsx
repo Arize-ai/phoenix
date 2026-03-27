@@ -829,9 +829,7 @@ function ExperimentJobStatusIcon({
             This experiment encountered an error during execution.
           </RichTooltipDescription>
           <RichTooltipActions>
-            <Link
-              to={`/datasets/${datasetId}/experiments/${experimentId}`}
-            >
+            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
               View details
             </Link>
           </RichTooltipActions>
