@@ -3,8 +3,8 @@ import {
   AgnoSVG,
   AnthropicSVG,
   BedrockSVG,
-  ClaudeSVG,
   BeeAISVG,
+  ClaudeSVG,
   CrewAISVG,
   DSPYSVG,
   GeminiSVG,
@@ -45,11 +45,12 @@ import {
   getMastraCodeTypescript,
   getOpenaiAgentsCodePython,
   getOpenaiCodePython,
+  getOpenaiCodeTypescript,
+  getOpenLLMetryCodePython,
   getOpenRouterCodePython,
   getOpenRouterCodeTypescript,
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
-  getOpenaiCodeTypescript,
   getStrandsAgentsCodePython,
   getPerplexityCodePython,
   getPerplexityCodeTypescript,
@@ -871,6 +872,27 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
       Platform: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
+      },
+    },
+  },
+  {
+    id: "openllmetry",
+    name: "OpenLLMetry",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openllmetry",
+          "opentelemetry-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getOpenLLMetryCodePython,
+        envVars: OPENAI_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openllmetry",
       },
     },
   },

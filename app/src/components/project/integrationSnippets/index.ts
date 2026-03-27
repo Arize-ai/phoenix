@@ -40,5 +40,6 @@ export {
 } from "./perplexity";
 export { getTogetherCodePython, getTogetherCodeTypescript } from "./together";
 export { getEnvironmentVariables } from "./environmentVariables";
+export { getOpenLLMetryCodePython } from "./openllmetry";
 export { getVercelAiSdkCodeTypescript } from "./vercelAiSdk";
 export { getXaiCodePython, getXaiCodeTypescript } from "./xai";
