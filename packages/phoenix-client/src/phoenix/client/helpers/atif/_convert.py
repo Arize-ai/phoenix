@@ -96,7 +96,7 @@ def _build_llm_attributes(
     # Reasoning content
     reasoning = step.get("reasoning_content")
     if reasoning:
-        attrs["metadata"] = json.dumps({"reasoning_content": reasoning})
+        attrs["metadata"] = {"reasoning_content": reasoning}
 
     # Token counts from the spec "metrics" field.
     metrics = step.get("metrics") or {}
@@ -266,7 +266,7 @@ def _convert_atif_trajectory_to_spans(
         agent_meta["model_name"] = agent["model_name"]
     if agent.get("extra"):
         agent_meta.update(agent["extra"])
-    root_attrs["metadata"] = json.dumps(agent_meta)
+    root_attrs["metadata"] = agent_meta
 
     # Add final metrics if present
     final_metrics = trajectory.get("final_metrics")
