@@ -82,11 +82,23 @@ class TestValidTrajectories:
         }
         _validate_atif_trajectory(trajectory)
 
-    def test_huggingface_accountant_passes(self) -> None:
-        """Real MCP agent trajectory from HuggingFace passes validation.
 
-        This file uses non-spec "usage" field instead of "metrics" —
-        our validator should not reject it (we don't enforce extra=forbid).
+class TestNonConformantTrajectories:
+    """Trajectories that violate the strict ATIF spec but exist in the wild.
+
+    Our validator is intentionally lenient — it checks structural
+    correctness (required fields, step ordering, source constraints)
+    but does NOT enforce extra=forbid like Harbor's Pydantic models.
+    This means non-conformant files pass validation and can be converted.
+    """
+
+    def test_huggingface_usage_field_not_rejected(self) -> None:
+        """HuggingFace mcp-agent-trajectory-benchmark uses step-level
+        "usage" instead of "metrics" (an adapter bug, not a spec variant).
+
+        This file fails Harbor's own Pydantic validation with 7
+        'extra inputs are not permitted' errors, but our lenient
+        validator accepts it so users can still upload these trajectories.
         """
         trajectory = _load_fixture("huggingface_accountant.json")
         _validate_atif_trajectory(trajectory)

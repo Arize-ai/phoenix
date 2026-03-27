@@ -267,12 +267,18 @@ class TestMessageAttributes:
 
 
 class TestRealWorldTrajectories:
-    """Tests against real ATIF trajectories from HuggingFace and Harbor."""
+    """Tests against real ATIF trajectories from HuggingFace and Harbor.
+
+    Includes both spec-conformant (Harbor) and non-conformant (HuggingFace)
+    trajectories to verify the converter handles real-world data gracefully.
+    """
 
     def test_huggingface_accountant_conversion(self) -> None:
-        """Real MCP agent trajectory from obaydata/mcp-agent-trajectory-benchmark.
+        """Non-conformant ATIF from obaydata/mcp-agent-trajectory-benchmark.
 
-        This file uses "usage" instead of "metrics" (a common real-world variant).
+        This file uses step-level "usage" instead of "metrics" — an adapter
+        bug (fails Harbor's Pydantic validation), but our converter handles
+        it via a documented fallback.
         """
         trajectory = _load_fixture("huggingface_accountant.json")
         spans = _convert_atif_trajectory_to_spans(trajectory)
