@@ -1,4 +1,4 @@
-export function getOpenRouterCodePython({
+export function getCerebrasCodePython({
   projectName,
 }: {
   projectName: string;
@@ -15,16 +15,16 @@ tracer_provider = register(
 import openai
 
 client = openai.OpenAI(
-  base_url="https://openrouter.ai/api/v1",
-  api_key=os.environ["OPENROUTER_API_KEY"],
+  base_url="https://api.cerebras.ai/v1",
+  api_key=os.environ["CEREBRAS_API_KEY"],
 )
 response = client.chat.completions.create(
-  model="openai/gpt-4o-mini",
-  messages=[{"role": "user", "content": "Explain the theory of relativity in simple terms."}],
+  model="llama3.1-8b",
+  messages=[{"role": "user", "content": "What makes large language models effective at understanding context?"}],
 )`;
 }
 
-export function getOpenRouterCodeTypescript({
+export function getCerebrasCodeTypescript({
   projectName,
 }: {
   projectName: string;
@@ -41,12 +41,12 @@ const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
 const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://api.cerebras.ai/v1",
+  apiKey: process.env.CEREBRAS_API_KEY,
 });
 const response = await openai.chat.completions.create({
-  model: "openai/gpt-4o-mini",
-  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+  model: "llama3.1-8b",
+  messages: [{ role: "user", content: "What makes large language models effective at understanding context?" }],
 });
 
 // Flush pending traces before the process exits

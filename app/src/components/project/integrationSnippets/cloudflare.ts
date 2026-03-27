@@ -1,4 +1,4 @@
-export function getOpenRouterCodePython({
+export function getCloudflareCodePython({
   projectName,
 }: {
   projectName: string;
@@ -14,17 +14,18 @@ tracer_provider = register(
 # SDK imports must come after register() so auto-instrumentation can patch them
 import openai
 
+account_id = os.environ["CLOUDFLARE_ACCOUNT_ID"]
 client = openai.OpenAI(
-  base_url="https://openrouter.ai/api/v1",
-  api_key=os.environ["OPENROUTER_API_KEY"],
+  base_url=f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+  api_key=os.environ["CLOUDFLARE_API_KEY"],
 )
 response = client.chat.completions.create(
-  model="openai/gpt-4o-mini",
-  messages=[{"role": "user", "content": "Explain the theory of relativity in simple terms."}],
+  model="@cf/meta/llama-3.1-8b-instruct",
+  messages=[{"role": "user", "content": "What are the benefits of edge computing for AI applications?"}],
 )`;
 }
 
-export function getOpenRouterCodeTypescript({
+export function getCloudflareCodeTypescript({
   projectName,
 }: {
   projectName: string;
@@ -40,13 +41,14 @@ const provider = register({
 const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
+const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://api.cloudflare.com/client/v4/accounts/" + accountId + "/ai/v1",
+  apiKey: process.env.CLOUDFLARE_API_KEY,
 });
 const response = await openai.chat.completions.create({
-  model: "openai/gpt-4o-mini",
-  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+  model: "@cf/meta/llama-3.1-8b-instruct",
+  messages: [{ role: "user", content: "What are the benefits of edge computing for AI applications?" }],
 });
 
 // Flush pending traces before the process exits

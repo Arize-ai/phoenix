@@ -29,6 +29,14 @@ import {
   getAgnoCodePython,
   getAnthropicCodePython,
   getAnthropicCodeTypescript,
+  getBasetenCodePython,
+  getBasetenCodeTypescript,
+  getCerebrasCodePython,
+  getCerebrasCodeTypescript,
+  getCloudflareCodePython,
+  getCloudflareCodeTypescript,
+  getFireworksCodePython,
+  getFireworksCodeTypescript,
   getLangchainCodePython,
   getLangchainCodeTypescript,
   getLanggraphCodePython,
@@ -43,7 +51,13 @@ import {
   getOtelInitCodeTypescript,
   getOpenaiCodeTypescript,
   getStrandsAgentsCodePython,
+  getPerplexityCodePython,
+  getPerplexityCodeTypescript,
+  getTogetherCodePython,
+  getTogetherCodeTypescript,
   getVercelAiSdkCodeTypescript,
+  getXaiCodePython,
+  getXaiCodeTypescript,
 } from "@phoenix/components/project/integrationSnippets";
 
 import type { EnvVar, OnboardingIntegration } from "./integrationDefinitions";
@@ -55,7 +69,29 @@ const ANTHROPIC_ENV: readonly EnvVar[] = [
   { name: "ANTHROPIC_API_KEY", value: "<your-anthropic-api-key>" },
 ];
 const OPENROUTER_ENV: readonly EnvVar[] = [
-  { name: "OPENAI_API_KEY", value: "<your-openrouter-api-key>" },
+  { name: "OPENROUTER_API_KEY", value: "<your-openrouter-api-key>" },
+];
+const CEREBRAS_ENV: readonly EnvVar[] = [
+  { name: "CEREBRAS_API_KEY", value: "<your-cerebras-api-key>" },
+];
+const FIREWORKS_ENV: readonly EnvVar[] = [
+  { name: "FIREWORKS_API_KEY", value: "<your-fireworks-api-key>" },
+];
+const PERPLEXITY_ENV: readonly EnvVar[] = [
+  { name: "PERPLEXITY_API_KEY", value: "<your-perplexity-api-key>" },
+];
+const TOGETHER_ENV: readonly EnvVar[] = [
+  { name: "TOGETHER_API_KEY", value: "<your-together-api-key>" },
+];
+const XAI_ENV: readonly EnvVar[] = [
+  { name: "XAI_API_KEY", value: "<your-xai-api-key>" },
+];
+const BASETEN_ENV: readonly EnvVar[] = [
+  { name: "BASETEN_API_KEY", value: "<your-baseten-api-key>" },
+];
+const CLOUDFLARE_ENV: readonly EnvVar[] = [
+  { name: "CLOUDFLARE_API_KEY", value: "<your-cloudflare-api-key>" },
+  { name: "CLOUDFLARE_ACCOUNT_ID", value: "<your-account-id>" },
 ];
 
 export const DEFAULT_INTEGRATION_ID = "phoenix-otel";
@@ -168,7 +204,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         getImplementationCode: getOpenaiCodePython,
         envVars: OPENAI_ENV,
         docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai",
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
       },
@@ -243,7 +279,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         getImplementationCode: getOpenaiAgentsCodePython,
         envVars: OPENAI_ENV,
         docsHref:
-          "https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk",
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai-agents-sdk",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
       },
@@ -253,8 +289,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     id: "strands-agents",
     name: "Strands Agents",
     icon: <StrandsAgentsSVG />,
-    supportedLanguages: ["Python"],
-    languages: {
+    configs: {
       Python: {
         packages: [
           "arize-phoenix-otel",
@@ -586,6 +621,237 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
         envVars: OPENROUTER_ENV,
         docsHref:
           "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "cerebras",
+    name: "Cerebras",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getCerebrasCodePython,
+        envVars: CEREBRAS_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getCerebrasCodeTypescript,
+        envVars: CEREBRAS_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "fireworks",
+    name: "Fireworks",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getFireworksCodePython,
+        envVars: FIREWORKS_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getFireworksCodeTypescript,
+        envVars: FIREWORKS_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getPerplexityCodePython,
+        envVars: PERPLEXITY_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getPerplexityCodeTypescript,
+        envVars: PERPLEXITY_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "together",
+    name: "Together",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getTogetherCodePython,
+        envVars: TOGETHER_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getTogetherCodeTypescript,
+        envVars: TOGETHER_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "xai",
+    name: "xAI",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getXaiCodePython,
+        envVars: XAI_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getXaiCodeTypescript,
+        envVars: XAI_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "baseten",
+    name: "Baseten",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getBasetenCodePython,
+        envVars: BASETEN_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getBasetenCodeTypescript,
+        envVars: BASETEN_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
+      },
+    },
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare",
+    icon: <OpenAISVG />,
+    configs: {
+      Python: {
+        packages: [
+          "arize-phoenix-otel",
+          "openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getCloudflareCodePython,
+        envVars: CLOUDFLARE_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai",
+          "openai",
+        ],
+        getImplementationCode: getCloudflareCodeTypescript,
+        envVars: CLOUDFLARE_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/llm-providers/openai",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai",
       },

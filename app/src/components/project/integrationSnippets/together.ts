@@ -1,4 +1,4 @@
-export function getOpenRouterCodePython({
+export function getTogetherCodePython({
   projectName,
 }: {
   projectName: string;
@@ -15,16 +15,16 @@ tracer_provider = register(
 import openai
 
 client = openai.OpenAI(
-  base_url="https://openrouter.ai/api/v1",
-  api_key=os.environ["OPENROUTER_API_KEY"],
+  base_url="https://api.together.xyz/v1",
+  api_key=os.environ["TOGETHER_API_KEY"],
 )
 response = client.chat.completions.create(
-  model="openai/gpt-4o-mini",
-  messages=[{"role": "user", "content": "Explain the theory of relativity in simple terms."}],
+  model="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+  messages=[{"role": "user", "content": "Explain how neural networks learn from data."}],
 )`;
 }
 
-export function getOpenRouterCodeTypescript({
+export function getTogetherCodeTypescript({
   projectName,
 }: {
   projectName: string;
@@ -41,12 +41,12 @@ const instrumentation = new OpenAIInstrumentation();
 instrumentation.manuallyInstrument(OpenAI);
 
 const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: "https://api.together.xyz/v1",
+  apiKey: process.env.TOGETHER_API_KEY,
 });
 const response = await openai.chat.completions.create({
-  model: "openai/gpt-4o-mini",
-  messages: [{ role: "user", content: "Explain the theory of relativity in simple terms." }],
+  model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+  messages: [{ role: "user", content: "Explain how neural networks learn from data." }],
 });
 
 // Flush pending traces before the process exits
