@@ -2,11 +2,18 @@ import { css } from "@emotion/react";
 import type { Key } from "react";
 import { useMemo, useState } from "react";
 
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 import { DebouncedSearch } from "@phoenix/components/core/field";
 
 import type { OnboardingIntegration } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
+
+const COLLAPSED_INTEGRATION_COUNT = 15;
 
 const integrationSelectorCSS = css`
   display: flex;
@@ -35,6 +42,16 @@ const integrationSelectorCSS = css`
   .integration-selector__toggle:not([data-selected="true"]) {
     border-left: 1px solid var(--button-border-color) !important;
   }
+
+  .integration-selector__show-more {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    align-self: center;
+    cursor: pointer;
+    color: var(--ac-global-text-color-700);
+    font-size: var(--global-font-size-s);
+  }
 `;
 
 function getSelectedKey(selection: Set<Key> | "all"): string | null {
@@ -52,6 +69,7 @@ export function IntegrationSelectButtonGroup({
   onSelectionChange: (integration: OnboardingIntegration) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const filteredIntegrations = useMemo(() => {
     if (!searchQuery) return ONBOARDING_INTEGRATIONS;
@@ -61,6 +79,13 @@ export function IntegrationSelectButtonGroup({
         i.id === selectedIntegration.id || i.name.toLowerCase().includes(query)
     );
   }, [searchQuery, selectedIntegration.id]);
+
+  const isSearching = searchQuery.length > 0;
+  const showAll = isExpanded || isSearching;
+  const visibleIntegrations = showAll
+    ? filteredIntegrations
+    : filteredIntegrations.slice(0, COLLAPSED_INTEGRATION_COUNT);
+  const hasMore = filteredIntegrations.length > COLLAPSED_INTEGRATION_COUNT;
 
   return (
     <div css={integrationSelectorCSS}>
@@ -90,7 +115,7 @@ export function IntegrationSelectButtonGroup({
           }
         }}
       >
-        {filteredIntegrations.map((i) => (
+        {visibleIntegrations.map((i) => (
           <ToggleButton
             key={i.id}
             id={i.id}
@@ -102,6 +127,18 @@ export function IntegrationSelectButtonGroup({
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
+      {hasMore && !isSearching && (
+        <button
+          className="button--reset integration-selector__show-more"
+          onClick={() => setIsExpanded((prev) => !prev)}
+          aria-expanded={isExpanded}
+        >
+          <span>{isExpanded ? "Show less" : "Show more"}</span>
+          <Icon
+            svg={isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+          />
+        </button>
+      )}
     </div>
   );
 }
