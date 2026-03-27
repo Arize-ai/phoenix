@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from itertools import chain
 from secrets import token_hex
@@ -34,10 +35,10 @@ from .._helpers import (
 
 
 @pytest.fixture
-def _env_sql_database(
+async def _env_sql_database(
     _sql_database_url: URL,
     tmp_path_factory: TempPathFactory,
-) -> Iterator[dict[str, str]]:
+) -> AsyncIterator[dict[str, str]]:
     if _sql_database_url.get_backend_name() == "sqlite":
         tmp = tmp_path_factory.mktemp(token_hex(8))
         database = str(tmp / "phoenix.db")
@@ -46,7 +47,7 @@ def _env_sql_database(
     if not _sql_database_url.get_backend_name().startswith("postgresql"):
         yield env
     else:
-        with _random_schema(_sql_database_url) as schema:
+        async with _random_schema(_sql_database_url) as schema:
             yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
 
 
@@ -71,30 +72,39 @@ def _no_auth_app(
 
 
 class TestDbMigrate:
-    def test_db_migrate(self, _env_sql_database: dict[str, str]) -> None:
+    async def test_db_migrate(self, _env_sql_database: dict[str, str]) -> None:
         from pathlib import Path
 
         import sqlalchemy
         from alembic.config import Config
         from alembic.script import ScriptDirectory
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import NullPool
 
         import phoenix.db as _phoenix_db
+        from phoenix.db.engines import get_async_db_url
 
         raw_url = _env_sql_database["PHOENIX_SQL_DATABASE_URL"]
         schema = _env_sql_database.get("PHOENIX_SQL_DATABASE_SCHEMA") or None
         url = sqlalchemy.make_url(raw_url)
         if url.get_backend_name() == "postgresql":
-            url = url.set(drivername="postgresql+psycopg")
+            async_url = get_async_db_url(url.render_as_string(hide_password=False))
+            async_engine = create_async_engine(async_url, poolclass=NullPool)
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
 
-        engine = sqlalchemy.create_engine(url)
-        try:
-            # Verify the database is fresh: alembic_version must not exist yet.
-            inspector = sqlalchemy.inspect(engine)
+        # Verify the database is fresh: alembic_version must not exist yet.
+        def _check_fresh(conn: sqlalchemy.Connection) -> None:
+            inspector = sqlalchemy.inspect(conn)
             assert "alembic_version" not in inspector.get_table_names(schema=schema), (
                 "alembic_version already exists before migration ran"
             )
-        finally:
-            engine.dispose()
+
+        async with async_engine.connect() as conn:
+            await conn.run_sync(_check_fresh)
+        await async_engine.dispose()
 
         command = [sys.executable, "-m", "phoenix.server.main", "db", "migrate"]
         env = (
@@ -106,16 +116,23 @@ class TestDbMigrate:
         assert result.returncode == 0, result.stdout + result.stderr
 
         # Confirm alembic_version now matches the current head revision.
-        engine = sqlalchemy.create_engine(url)
-        try:
-            with engine.connect() as conn:
-                if schema:
-                    conn.execute(sqlalchemy.text(f'SET search_path TO "{schema}"'))
-                actual = conn.execute(
-                    sqlalchemy.text("SELECT version_num FROM alembic_version")
-                ).scalar()
-        finally:
-            engine.dispose()
+        if url.get_backend_name() == "postgresql":
+            async_engine = create_async_engine(
+                get_async_db_url(url.render_as_string(hide_password=False)), poolclass=NullPool
+            )
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
+
+        def _get_version(conn: sqlalchemy.Connection) -> Any:
+            if schema:
+                conn.execute(sqlalchemy.text(f'SET search_path TO "{schema}"'))
+            return conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
+
+        async with async_engine.connect() as conn:
+            actual = await conn.run_sync(_get_version)
+        await async_engine.dispose()
 
         scripts_dir = str(Path(_phoenix_db.__file__).parent / "migrations")
         cfg = Config()

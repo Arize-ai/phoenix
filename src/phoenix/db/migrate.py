@@ -7,7 +7,7 @@ from typing import Optional
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.exceptions import PhoenixMigrationError
 from phoenix.utilities import no_emojis_on_windows
@@ -35,34 +35,37 @@ def printif(condition: bool, text: str) -> None:
 
 
 def migrate(
-    engine: Engine,
+    engine: AsyncEngine,
     error_queue: Optional["SimpleQueue[BaseException]"] = None,
     log_migrations: bool = True,
 ) -> None:
     """
     Runs migrations on the database.
-    NB: Migrate only works on non-memory databases.
 
-    Args:
-        url: The database URL.
+    The caller must provide a disposable engine (e.g. with NullPool) — this
+    function disposes it after use. Do not pass the server's main engine.
     """
+    import asyncio
+
     try:
         printif(log_migrations, "🏃‍♀️‍➡️ Running migrations on the database.")
         printif(log_migrations, "---------------------------")
         config_path = str(Path(__file__).parent.resolve() / "alembic.ini")
         alembic_cfg = Config(config_path)
 
-        # Explicitly set the migration directory
         scripts_location = str(Path(__file__).parent.resolve() / "migrations")
         alembic_cfg.set_main_option("script_location", scripts_location)
         url = str(engine.url).replace("%", "%%")
         alembic_cfg.set_main_option("sqlalchemy.url", url)
         start_time = perf_counter()
-        with engine.connect() as conn:
-            alembic_cfg.attributes["connection"] = conn
-            command.upgrade(alembic_cfg, "head")
+
+        async def run() -> None:
+            async with engine.connect() as conn:
+                await conn.run_sync(_run_alembic_upgrade, alembic_cfg)
+            await engine.dispose()
+
+        asyncio.run(run())
         elapsed_time = perf_counter() - start_time
-        engine.dispose()
         printif(log_migrations, "---------------------------")
         printif(log_migrations, f"✅ Migrations completed in {elapsed_time:.3f} seconds.")
     except BaseException as e:
@@ -72,7 +75,12 @@ def migrate(
         raise
 
 
-def migrate_in_thread(engine: Engine, log_migrations: bool = True) -> None:
+def _run_alembic_upgrade(connection, alembic_cfg: Config) -> None:  # type: ignore[no-untyped-def]
+    alembic_cfg.attributes["connection"] = connection
+    command.upgrade(alembic_cfg, "head")
+
+
+def migrate_in_thread(engine: AsyncEngine, log_migrations: bool = True) -> None:
     """
     Runs migrations on the database in a separate thread.
     This is needed because depending on the context (notebook)
