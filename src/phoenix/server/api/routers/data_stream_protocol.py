@@ -41,18 +41,19 @@ class FrontendTool(BaseModel):
     parameters: dict[str, Any] = {}
 
 
-# Lazy-initialized module-level Pydantic model to avoid re-creating the schema
-# on every request.  The class is built on first use because it depends on
-# ``SubmitMessage`` which is an optional import.
-_VercelRequest: type | None = None
+# Lazy-initialized Pydantic model cached at module level to avoid re-creating
+# the schema on every request.  Typed as ``Any`` because the concrete class
+# (a subclass of ``SubmitMessage``) is built lazily and mypy cannot see its
+# dynamic attributes.
+_VercelRequestCls: Any = None
 
 
-def _get_vercel_request_class() -> type:
-    global _VercelRequest
-    if _VercelRequest is None:
+def _get_vercel_request_class() -> Any:
+    global _VercelRequestCls
+    if _VercelRequestCls is None:
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
-        class _Cls(SubmitMessage):
+        class _VercelRequest(SubmitMessage):
             tools: list[FrontendTool] | None = None
             output_tools: list[FrontendTool] | None = None
             system: str | None = None
@@ -60,8 +61,8 @@ def _get_vercel_request_class() -> type:
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
 
-        _VercelRequest = _Cls
-    return _VercelRequest
+        _VercelRequestCls = _VercelRequest
+    return _VercelRequestCls
 
 
 @dataclass
@@ -87,8 +88,8 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     from pydantic_ai.messages import ModelRequest, SystemPromptPart
     from pydantic_ai.ui.vercel_ai._adapter import VercelAIAdapter
 
-    VercelRequestCls = _get_vercel_request_class()
-    body = VercelRequestCls.model_validate_json(raw_body)
+    cls = _get_vercel_request_class()
+    body = cls.model_validate_json(raw_body)
     logger.debug("system=%r", body.system)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
