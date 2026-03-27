@@ -183,6 +183,32 @@ class TestOptionalFields:
         for span in spans:
             assert span["start_time"]
             assert span["end_time"]
+        root = spans[0]
+        assert root["end_time"] == spans[-1]["end_time"]
+
+    def test_root_span_covers_children_when_last_step_has_no_timestamp(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "missing-last-timestamp",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "user",
+                    "message": "hello",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                },
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "hi",
+                },
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        agent_step = spans[-1]
+        assert root["end_time"] == agent_step["end_time"]
 
     def test_optional_model_name(self) -> None:
         """Trajectories without agent.model_name should convert."""
@@ -264,6 +290,41 @@ class TestMessageAttributes:
         attrs = llm_span.get("attributes", {})
         key = "llm.output_messages.0.message.tool_calls.0.tool_call.function.name"
         assert attrs.get(key) == "financial_search"
+
+    def test_tool_definitions_are_flattened(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.5",
+            "session_id": "tool-definitions",
+            "agent": {
+                "name": "agent",
+                "version": "1.0",
+                "tool_definitions": [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "lookup",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {"ticker": {"type": "string"}},
+                            },
+                        },
+                    }
+                ],
+            },
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "agent",
+                    "message": "checking",
+                    "timestamp": "2025-01-15T10:00:00Z",
+                }
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm_span = spans[1]
+        attrs = llm_span.get("attributes", {})
+        assert "llm.tools" not in attrs
+        assert "llm.tools.0.tool.json_schema" in attrs
 
 
 class TestRealWorldTrajectories:

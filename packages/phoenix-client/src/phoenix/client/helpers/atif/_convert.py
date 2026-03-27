@@ -135,6 +135,16 @@ def _build_tool_attributes(
     return attrs
 
 
+def _build_llm_tools_attributes(
+    tool_definitions: Sequence[Mapping[str, Any]],
+) -> Dict[str, str]:
+    """Build flattened OpenInference tool definition attributes."""
+    attrs: Dict[str, str] = {}
+    for idx, tool_definition in enumerate(tool_definitions):
+        attrs[f"llm.tools.{idx}.tool.json_schema"] = json.dumps(tool_definition)
+    return attrs
+
+
 def _get_step_timestamps(
     steps: Sequence[Mapping[str, Any]],
     step_index: int,
@@ -306,7 +316,7 @@ def _convert_atif_trajectory_to_spans(
     spans: List[v1.Span] = []
 
     # --- Compute trajectory time bounds ---
-    # Find the first and last available timestamps; fall back to now.
+    # Find the first available timestamp; fall back to now.
     fallback_now = datetime.now(tz=timezone.utc)
     first_start: Optional[datetime] = None
     for s in steps:
@@ -317,14 +327,20 @@ def _convert_atif_trajectory_to_spans(
     if first_start is None:
         first_start = fallback_now
 
-    _, last_end = _get_step_timestamps(steps, len(steps) - 1, first_start)
+    step_timings: List[tuple[datetime, datetime]] = []
+    prev_end = first_start
+    for i, _step in enumerate(steps):
+        step_start, step_end = _get_step_timestamps(steps, i, prev_end)
+        step_timings.append((step_start, step_end))
+        prev_end = step_end
+    last_end = step_timings[-1][1]
 
     # --- Shared attributes for all spans ---
     # Tool definitions from agent config (v1.5+), mapped to llm.tools
     tool_definitions = agent.get("tool_definitions")
-    llm_tools: Optional[List[Dict[str, Any]]] = None
+    llm_tool_attrs: Dict[str, str] = {}
     if tool_definitions:
-        llm_tools = [{"tool.json_schema": json.dumps(td)} for td in tool_definitions]
+        llm_tool_attrs = _build_llm_tools_attributes(tool_definitions)
 
     # --- Root AGENT span ---
     root_attrs: Dict[str, Any] = {
@@ -374,13 +390,11 @@ def _convert_atif_trajectory_to_spans(
     spans.append(root_span)
 
     # --- Per-step spans ---
-    prev_end = first_start
     for i, step in enumerate(steps):
         source = step.get("source", "agent")
         step_id = step.get("step_id", i + 1)
         step_span_id = _md5_span_id(f"{session_id}:step:{step_id}")
-        step_start, step_end = _get_step_timestamps(steps, i, prev_end)
-        prev_end = step_end
+        step_start, step_end = step_timings[i]
 
         if source in ("user", "system"):
             # CHAIN span for user/system messages
@@ -411,8 +425,7 @@ def _convert_atif_trajectory_to_spans(
             llm_attrs["openinference.span.kind"] = "LLM"
             llm_attrs["session.id"] = session_id
             llm_attrs.update(_build_message_attributes(steps, i))
-            if llm_tools:
-                llm_attrs["llm.tools"] = llm_tools
+            llm_attrs.update(llm_tool_attrs)
 
             step_span = {
                 "name": "LLM",
