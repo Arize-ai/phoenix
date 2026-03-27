@@ -4,6 +4,10 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - docs/**
+      - .github/workflows/check-card-links.yml
+      - scripts/ci/check-card-links.js
   workflow_dispatch:
 
 jobs:
