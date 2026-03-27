@@ -17,6 +17,10 @@ export { getOpenaiCodePython, getOpenaiCodeTypescript } from "./openai";
 export { getOpenaiAgentsCodePython } from "./openaiAgents";
 export { getStrandsAgentsCodePython } from "./strandsAgents";
 export {
+  getOpenRouterCodePython,
+  getOpenRouterCodeTypescript,
+} from "./openRouter";
+export {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
 } from "./phoenixOtel";
