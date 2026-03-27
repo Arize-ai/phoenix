@@ -108,6 +108,9 @@ def _build_llm_attributes(
     completion_tokens = metrics.get("completion_tokens", 0) or 0
     if prompt_tokens or completion_tokens:
         attrs["llm.token_count.total"] = prompt_tokens + completion_tokens
+    # Cache token details
+    if metrics.get("cached_tokens") is not None:
+        attrs["llm.token_count.prompt_details.cache_read"] = metrics["cached_tokens"]
 
     return attrs
 
@@ -194,6 +197,14 @@ def _build_message_attributes(
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
         attrs[f"{prefix}.message.content"] = msg_dict["content"]
 
+    # Set input.value to the JSON representation of input messages,
+    # matching how real instrumented traces store it.
+    if input_messages:
+        attrs["input.value"] = json.dumps(
+            [{"role": m["role"], "content": m["content"]} for m in input_messages]
+        )
+        attrs["input.mime_type"] = "application/json"
+
     # Output message
     agent_message = _stringify_message(step.get("message"))
     if agent_message:
@@ -205,6 +216,9 @@ def _build_message_attributes(
     for idx, tc in enumerate(tool_calls):
         tc_prefix = f"llm.output_messages.0.message.tool_calls.{idx}"
         attrs[f"{tc_prefix}.tool_call.function.name"] = tc.get("function_name", "")
+        tc_id = tc.get("tool_call_id")
+        if tc_id:
+            attrs[f"{tc_prefix}.tool_call.id"] = tc_id
         arguments = tc.get("arguments")
         if arguments is not None:
             attrs[f"{tc_prefix}.tool_call.function.arguments"] = json.dumps(arguments)
@@ -248,9 +262,17 @@ def _convert_atif_trajectory_to_spans(
 
     _, last_end = _get_step_timestamps(steps, len(steps) - 1, first_start)
 
+    # --- Shared attributes for all spans ---
+    # Tool definitions from agent config (v1.5+), mapped to llm.tools
+    tool_definitions = agent.get("tool_definitions")
+    llm_tools: Optional[List[Dict[str, Any]]] = None
+    if tool_definitions:
+        llm_tools = [{"tool.json_schema": json.dumps(td)} for td in tool_definitions]
+
     # --- Root AGENT span ---
     root_attrs: Dict[str, Any] = {
         "openinference.span.kind": "AGENT",
+        "session.id": session_id,
         "input.value": _get_trajectory_input(steps),
         "input.mime_type": "text/plain",
         "output.value": _get_trajectory_output(steps),
@@ -307,6 +329,7 @@ def _convert_atif_trajectory_to_spans(
             # CHAIN span for user/system messages
             step_attrs: Dict[str, Any] = {
                 "openinference.span.kind": "CHAIN",
+                "session.id": session_id,
                 "input.value": _stringify_message(step.get("message")),
                 "input.mime_type": "text/plain",
             }
@@ -329,7 +352,10 @@ def _convert_atif_trajectory_to_spans(
             # LLM span for agent steps
             llm_attrs = _build_llm_attributes(step, agent)
             llm_attrs["openinference.span.kind"] = "LLM"
+            llm_attrs["session.id"] = session_id
             llm_attrs.update(_build_message_attributes(steps, i))
+            if llm_tools:
+                llm_attrs["llm.tools"] = llm_tools
 
             step_span = {
                 "name": f"llm_call_{step_id}",
@@ -368,6 +394,7 @@ def _convert_atif_trajectory_to_spans(
                 obs_content = obs_map.get(tc_id)
                 tool_attrs = _build_tool_attributes(tc, obs_content)
                 tool_attrs["openinference.span.kind"] = "TOOL"
+                tool_attrs["session.id"] = session_id
 
                 tool_span: v1.Span = {
                     "name": tc.get("function_name", "tool_call"),
