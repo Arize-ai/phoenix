@@ -90,7 +90,10 @@ function getMultipartBoundary(contentType: string): string {
   return boundaryMatch[1];
 }
 
-function findHeadersEnd(buffer: string, searchStart: number): {
+function findHeadersEnd(
+  buffer: string,
+  searchStart: number
+): {
   index: number;
   delimiterLength: number;
 } | null {
@@ -110,8 +113,14 @@ function findNextBoundary(
   boundaryMarker: string,
   searchStart: number
 ): number {
-  const boundaryAtLineStart = buffer.indexOf(`\r\n${boundaryMarker}`, searchStart);
-  const boundaryAtLfLineStart = buffer.indexOf(`\n${boundaryMarker}`, searchStart);
+  const boundaryAtLineStart = buffer.indexOf(
+    `\r\n${boundaryMarker}`,
+    searchStart
+  );
+  const boundaryAtLfLineStart = buffer.indexOf(
+    `\n${boundaryMarker}`,
+    searchStart
+  );
   const candidateIndices = [boundaryAtLineStart, boundaryAtLfLineStart].filter(
     (value) => value !== -1
   );
@@ -148,7 +157,10 @@ async function streamMultipartResponse<T>({
       if (firstBoundaryIndex > 0) {
         buffer = buffer.slice(firstBoundaryIndex);
       }
-      if (buffer === closingBoundaryMarker || buffer.startsWith(`${closingBoundaryMarker}\r\n`)) {
+      if (
+        buffer === closingBoundaryMarker ||
+        buffer.startsWith(`${closingBoundaryMarker}\r\n`)
+      ) {
         sink.complete();
         return true;
       }
@@ -168,7 +180,9 @@ async function streamMultipartResponse<T>({
         return true;
       }
 
-      const lineBreakLength = buffer.startsWith("\r\n", boundaryLineEndIndex) ? 2 : 1;
+      const lineBreakLength = buffer.startsWith("\r\n", boundaryLineEndIndex)
+        ? 2
+        : 1;
       const headersStart = boundaryLineEndIndex + lineBreakLength;
       const headersEnd = findHeadersEnd(buffer, headersStart);
       if (!headersEnd) {
@@ -176,7 +190,11 @@ async function streamMultipartResponse<T>({
       }
 
       const bodyStart = headersEnd.index + headersEnd.delimiterLength;
-      const nextBoundaryIndex = findNextBoundary(buffer, boundaryMarker, bodyStart);
+      const nextBoundaryIndex = findNextBoundary(
+        buffer,
+        boundaryMarker,
+        bodyStart
+      );
       if (nextBoundaryIndex === -1) {
         return false;
       }
@@ -186,7 +204,9 @@ async function streamMultipartResponse<T>({
         sink.next(JSON.parse(body) as T);
       }
 
-      const boundaryPrefixLength = buffer.startsWith("\r\n", nextBoundaryIndex) ? 2 : 1;
+      const boundaryPrefixLength = buffer.startsWith("\r\n", nextBoundaryIndex)
+        ? 2
+        : 1;
       buffer = buffer.slice(nextBoundaryIndex + boundaryPrefixLength);
     }
   };
@@ -204,7 +224,9 @@ async function streamMultipartResponse<T>({
 
   buffer += decoder.decode();
   if (!emitAvailableParts()) {
-    throw new Error("multipart response terminated before a complete GraphQL payload was received");
+    throw new Error(
+      "multipart response terminated before a complete GraphQL payload was received"
+    );
   }
 }
 

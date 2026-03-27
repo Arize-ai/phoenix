@@ -3,7 +3,6 @@ module.exports = {
   src: "./src",
   language: "typescript",
   schema: "./schema.graphql",
-  schemaExtensions: ["./schema_extensions"],
   exclude: ["**/node_modules/**", "**/__mocks__/**", "**/__generated__/**"],
   noFutureProofEnums: true,
   eagerEsModules: true,

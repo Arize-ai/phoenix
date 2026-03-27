@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f3f171b13e29fc44d76ce94d4382c141>>
+ * @generated SignedSource<<d7d28223e7c827fa7018eaba0192073e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -254,12 +254,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2ff2fbfc0bffe82674ffed79649ae731",
+    "cacheID": "1517411d3a823bec4886bdfa5f4b7462",
     "id": null,
     "metadata": {},
     "name": "ProjectPageHeaderDeferredStatsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderDeferredStatsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      id\n      ...ProjectPageHeaderDeferredMetrics_project\n      ...ProjectPageHeaderDeferredSummaryNames_project\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeaderDeferredMetrics_project on Project {\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n}\n\nfragment ProjectPageHeaderDeferredSummaryNames_project on Project {\n  spanAnnotationNames\n  documentEvaluationNames\n}\n"
+    "text": "query ProjectPageHeaderDeferredStatsQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      id\n      ...ProjectPageHeaderDeferredMetrics_project @defer(label: \"ProjectPageHeaderDeferredStatsQuery$defer$ProjectPageHeaderDeferredMetrics\")\n      ...ProjectPageHeaderDeferredSummaryNames_project @defer(label: \"ProjectPageHeaderDeferredStatsQuery$defer$ProjectPageHeaderDeferredSummaryNames\")\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeaderDeferredMetrics_project on Project {\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n}\n\nfragment ProjectPageHeaderDeferredSummaryNames_project on Project {\n  spanAnnotationNames\n  documentEvaluationNames\n}\n"
   }
 };
 })();

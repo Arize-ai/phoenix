@@ -2,7 +2,12 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { startTransition, Suspense, useEffect } from "react";
 import { Focusable } from "react-aria";
-import { graphql, useFragment, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  useLazyLoadQuery,
+  useRefetchableFragment,
+} from "react-relay";
 import { useParams } from "react-router";
 
 import {
@@ -15,17 +20,17 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { ProjectPageHeaderDeferredStatsQuery } from "./__generated__/ProjectPageHeaderDeferredStatsQuery.graphql";
-import type { ProjectPageHeaderDeferredMetrics_project$key } from "./__generated__/ProjectPageHeaderDeferredMetrics_project.graphql";
-import type { ProjectPageHeaderDeferredSummaryNames_project$key } from "./__generated__/ProjectPageHeaderDeferredSummaryNames_project.graphql";
 import type { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
+import type { ProjectPageHeaderDeferredMetrics_project$key } from "./__generated__/ProjectPageHeaderDeferredMetrics_project.graphql";
+import type { ProjectPageHeaderDeferredStatsQuery } from "./__generated__/ProjectPageHeaderDeferredStatsQuery.graphql";
+import type { ProjectPageHeaderDeferredSummaryNames_project$key } from "./__generated__/ProjectPageHeaderDeferredSummaryNames_project.graphql";
 import type { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
@@ -135,10 +140,7 @@ function ProjectPageHeaderDeferredStats() {
   const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<ProjectPageHeaderDeferredStatsQuery>(
     graphql`
-      query ProjectPageHeaderDeferredStatsQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-      ) {
+      query ProjectPageHeaderDeferredStatsQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
             id
