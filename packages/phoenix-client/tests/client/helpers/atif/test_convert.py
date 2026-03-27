@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Tests for ATIF trajectory to spans conversion."""
 
 from __future__ import annotations

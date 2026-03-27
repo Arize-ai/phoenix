@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 """ATIF (Agent Trajectory Interchange Format) to Phoenix trace conversion.
 
 Public API:

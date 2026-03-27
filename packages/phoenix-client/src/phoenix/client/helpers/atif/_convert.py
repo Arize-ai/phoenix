@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Convert an ATIF trajectory dict into a list of Phoenix/OTel-compatible spans."""
 
 from __future__ import annotations
@@ -55,7 +56,7 @@ def _stringify_message(
         if isinstance(part, str):
             parts.append(part)
         elif isinstance(part, dict):
-            text = part.get("text")
+            text: object = part.get("text")
             if text:
                 parts.append(str(text))
     return "\n".join(parts) if parts else ""
@@ -99,13 +100,13 @@ def _build_llm_attributes(
         attrs["metadata"] = {"reasoning_content": reasoning}
 
     # Token counts from the spec "metrics" field.
-    metrics = step.get("metrics") or {}
+    metrics: Dict[str, Any] = step.get("metrics") or {}
     if metrics.get("prompt_tokens") is not None:
         attrs["llm.token_count.prompt"] = metrics["prompt_tokens"]
     if metrics.get("completion_tokens") is not None:
         attrs["llm.token_count.completion"] = metrics["completion_tokens"]
-    prompt_tokens = metrics.get("prompt_tokens", 0) or 0
-    completion_tokens = metrics.get("completion_tokens", 0) or 0
+    prompt_tokens: int = int(metrics.get("prompt_tokens", 0) or 0)
+    completion_tokens: int = int(metrics.get("completion_tokens", 0) or 0)
     if prompt_tokens or completion_tokens:
         attrs["llm.token_count.total"] = prompt_tokens + completion_tokens
     # Cache token details
@@ -231,9 +232,11 @@ def _build_message_attributes(
                 obs_map: Dict[str, str] = {}
                 for r in results:
                     if isinstance(r, dict):
-                        scid = r.get("source_call_id")
+                        scid: object = r.get("source_call_id")
                         if isinstance(scid, str):
-                            c = _stringify_content(r.get("content"))
+                            c = _stringify_content(
+                                r.get("content")  # type: ignore[arg-type]
+                            )
                             if c is not None:
                                 obs_map[scid] = c
                 for tc in prev_tool_calls:
@@ -445,16 +448,18 @@ def _convert_atif_trajectory_to_spans(
             # TOOL child spans for each tool_call
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
-            results = observation.get("results", []) if observation else []
+            results: List[Any] = observation.get("results", []) if observation else []
             # Build lookup: source_call_id → content string
             obs_map: Dict[str, str] = {}
             for r in results:
                 if not isinstance(r, dict):
                     continue
-                scid = r.get("source_call_id")
+                scid: object = r.get("source_call_id")
                 if not isinstance(scid, str):
                     continue
-                content_str = _stringify_content(r.get("content"))
+                content_str = _stringify_content(
+                    r.get("content")  # type: ignore[arg-type]
+                )
                 if content_str is not None:
                     obs_map[scid] = content_str
 

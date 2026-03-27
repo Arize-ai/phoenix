@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Integration test: upload_atif_trajectory_as_spans with mock transport."""
 
 from __future__ import annotations

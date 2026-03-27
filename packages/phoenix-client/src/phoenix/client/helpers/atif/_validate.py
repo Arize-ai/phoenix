@@ -1,3 +1,4 @@
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Internal validation for ATIF trajectories."""
 
 from __future__ import annotations
@@ -59,32 +60,35 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
         for field in ("name", "version"):
             if field not in agent:
                 errors.append(f"Missing required agent field: '{field}'")
-            elif not isinstance(agent[field], str) or not agent[field].strip():
+            elif not isinstance(agent[field], str) or not str(agent[field]).strip():
                 errors.append(f"agent.{field} must be a non-empty string")
         # model_name is optional but if present must be a string
         if "model_name" in agent and not isinstance(agent["model_name"], str):
             errors.append("agent.model_name must be a string if provided")
 
     # Steps validation
-    steps = trajectory["steps"]
-    if not isinstance(steps, list) or len(steps) == 0:
+    raw_steps: object = trajectory["steps"]
+    if not isinstance(raw_steps, list) or len(raw_steps) == 0:
         errors.append("'steps' must be a non-empty list")
         raise ValueError("Invalid ATIF trajectory:\n" + "\n".join(f"  - {e}" for e in errors))
 
+    steps: List[Any] = raw_steps
     for i, step in enumerate(steps):
         prefix = f"steps[{i}]"
         if not isinstance(step, dict):
             errors.append(f"{prefix}: must be a dict")
             continue
 
+        step_dict: dict[str, Any] = step
+
         # Required step fields: step_id and source.
         # timestamp is optional per the ATIF spec.
         for field in ("step_id", "source"):
-            if field not in step:
+            if field not in step_dict:
                 errors.append(f"{prefix}: missing required field '{field}'")
 
         # Sequential step_id check
-        step_id = step.get("step_id")
+        step_id: object = step_dict.get("step_id")
         expected_id = i + 1
         if step_id != expected_id:
             errors.append(
@@ -93,57 +97,61 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
             )
 
         # Source validation
-        source = step.get("source")
+        source: object = step_dict.get("source")
         if source not in _VALID_SOURCES:
             errors.append(f"{prefix}: source '{source}' must be one of {_VALID_SOURCES}")
 
         # Message required for user/system steps
         if source in ("user", "system"):
-            msg = step.get("message")
+            msg: object = step_dict.get("message")
             if msg is None:
                 errors.append(f"{prefix}: message is required for {source} steps")
             # Agent-only fields should not appear on user/system steps
             for field in _AGENT_ONLY_FIELDS:
-                if field in step:
+                if field in step_dict:
                     errors.append(f"{prefix}: '{field}' is not allowed on {source} steps")
 
         # Tool call / observation cross-reference (allowed on any source)
-        if "tool_calls" in step:
-            tool_calls = step["tool_calls"]
+        if "tool_calls" in step_dict:
+            tool_calls: object = step_dict["tool_calls"]
             if not isinstance(tool_calls, list):
                 errors.append(f"{prefix}: tool_calls must be a list")
             else:
+                tc_list: List[Any] = tool_calls
                 tool_call_ids: Set[str] = set()
-                for j, tc in enumerate(tool_calls):
+                for j, tc in enumerate(tc_list):
                     tc_prefix = f"{prefix}.tool_calls[{j}]"
                     if not isinstance(tc, dict):
                         errors.append(f"{tc_prefix}: must be a dict")
                         continue
+                    tc_dict: dict[str, Any] = tc
                     for field in (
                         "tool_call_id",
                         "function_name",
                         "arguments",
                     ):
-                        if field not in tc:
+                        if field not in tc_dict:
                             errors.append(f"{tc_prefix}: missing required field '{field}'")
-                    tc_id = tc.get("tool_call_id")
+                    tc_id: object = tc_dict.get("tool_call_id")
                     if isinstance(tc_id, str):
                         tool_call_ids.add(tc_id)
 
                 # Validate observations reference valid tool_call_ids
-                observation = step.get("observation")
+                observation: object = step_dict.get("observation")
                 if observation is not None:
                     if not isinstance(observation, dict) or "results" not in observation:
                         errors.append(f"{prefix}.observation: must be a dict with 'results'")
                     else:
-                        for k, result in enumerate(observation["results"]):
+                        obs_dict: dict[str, Any] = observation
+                        for k, result in enumerate(obs_dict["results"]):
                             r_prefix = f"{prefix}.observation.results[{k}]"
                             if not isinstance(result, dict):
                                 errors.append(f"{r_prefix}: must be a dict")
                                 continue
+                            result_dict: dict[str, Any] = result
                             # source_call_id is optional per spec,
                             # but if present must match a tool_call_id
-                            source_call_id = result.get("source_call_id")
+                            source_call_id: object = result_dict.get("source_call_id")
                             if (
                                 isinstance(source_call_id, str)
                                 and source_call_id not in tool_call_ids
