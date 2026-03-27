@@ -112,10 +112,8 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Allowed Origins: {{ allowed_origins }}
 {%- endif %}
 |  Log traces:
-|    - HTTP: {{ http_path }}
-{%- if grpc_path %}
 |    - gRPC: {{ grpc_path }}
-{%- endif %}
+|    - HTTP: {{ http_path }}
 |  Storage: {{ storage }}
 {%- if schema %}
 |    - Schema: {{ schema }}
@@ -133,13 +131,14 @@ def _add_server_args(parser: ArgumentParser) -> None:
     parser.add_argument("--database-url", required=False, help=SUPPRESS)
     parser.add_argument("--host", type=str, required=False, help=SUPPRESS)
     parser.add_argument("--port", type=int, required=False, help=SUPPRESS)
-    parser.add_argument("--grpc-port", type=int, required=False, default=None, help=SUPPRESS)
+    parser.add_argument("--grpc-port", type=int, required=False, help=SUPPRESS)
     parser.add_argument("--read-only", action="store_true", required=False, help=SUPPRESS)
     parser.add_argument("--no-internet", action="store_true", help=SUPPRESS)
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev-vite-port", type=int, default=5173, help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
+    parser.set_defaults(grpc_port=None)
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
@@ -228,6 +227,7 @@ def run(args: Namespace) -> None:
         host = None
 
     port = args.port or get_env_port()
+    grpc_port = _resolve_grpc_port(args)
     host_root_path = get_env_host_root_path()
     read_only = args.read_only
 
@@ -269,8 +269,6 @@ def run(args: Namespace) -> None:
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
 
-    grpc_port = _resolve_grpc_port(args)
-
     tls_enabled_for_http = get_env_tls_enabled_for_http()
     tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
     tls_config = get_env_tls_config()
@@ -284,8 +282,8 @@ def run(args: Namespace) -> None:
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
         ui_path=display_root_path,
-        http_path=urljoin(display_root_path, "v1/traces"),
         grpc_path=f"{grpc_scheme}://{display_host}:{grpc_port}",
+        http_path=urljoin(display_root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=auth_settings.enable_auth,
