@@ -5,18 +5,20 @@ name: Publish Python packages
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   list-python-packages:
     name: List Python packages from manifest
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       phoenix_path: ${{ steps.paths.outputs.phoenix_path }}
       package_paths: ${{ steps.paths.outputs.package_paths }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             .release-please-manifest.json
             release-please-config.json
@@ -52,19 +54,17 @@ jobs:
           echo "Phoenix path: $NEED_PHOENIX"
           echo "Package paths: $NEED_PACKAGES"
 
-  publish-phoenix:
-    name: Publish Phoenix (main package)
+  build-phoenix:
+    name: Build Phoenix (main package)
     runs-on: ubuntu-latest
     needs: list-python-packages
     if: needs.list-python-packages.outputs.phoenix_path == '.'
-    environment:
-      name: pypi
-      url: https://pypi.org/p/arize-phoenix
     permissions:
-      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Read version from manifest
         id: version
         run: |
@@ -73,6 +73,7 @@ jobs:
           echo "version=$v" >> $GITHUB_OUTPUT
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           ref: refs/tags/arize-phoenix-v${{ steps.version.outputs.version }}
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -115,20 +116,60 @@ jobs:
           PY
       - name: Check wheel contents
         run: uv run --with check-wheel-contents check-wheel-contents --ignore W004 dist/*.whl
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: phoenix-dist
+          path: dist/
+
+  publish-phoenix:
+    name: Publish Phoenix (main package)
+    runs-on: ubuntu-latest
+    needs: build-phoenix
+    environment:
+      name: pypi
+      url: https://pypi.org/p/arize-phoenix
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: phoenix-dist
+          path: dist/
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
 
-  publish-packages:
-    name: Publish Python packages
+  build-packages:
+    name: Build Python packages
     runs-on: ubuntu-latest
     needs: list-python-packages
     if: needs.list-python-packages.outputs.package_paths != '[]'
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        path: ${{ fromJSON(needs.list-python-packages.outputs.package_paths) }}
+        include:
+          - path: packages/phoenix-client
+            package_name: arize-phoenix-client
+          - path: packages/phoenix-evals
+            package_name: arize-phoenix-evals
+          - path: packages/phoenix-otel
+            package_name: arize-phoenix-otel
     steps:
+      - name: Check if package needs building
+        id: check
+        run: |
+          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+            echo "needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Skipping ${{ matrix.path }} — already on PyPI"
+            echo "needed=false" >> $GITHUB_OUTPUT
+          fi
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.check.outputs.needed == 'true'
+        with:
+          persist-credentials: false
       - name: Resolve ref from manifest
+        if: steps.check.outputs.needed == 'true'
         id: ref
         run: |
           VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
@@ -141,36 +182,117 @@ jobs:
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.check.outputs.needed == 'true'
         with:
+          persist-credentials: false
           ref: ${{ steps.ref.outputs.ref }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        if: steps.check.outputs.needed == 'true'
         with:
           python-version: "3.10"
           version: "0.10.9"
       - run: uv build
+        if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
       - run: uv run --with check-wheel-contents check-wheel-contents dist/*.whl
-      - run: uv run --with twine twine upload --skip-existing --verbose dist/*
-        env:
-          TWINE_USERNAME: "__token__"
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        if: steps.check.outputs.needed == 'true'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.check.outputs.needed == 'true'
+        with:
+          name: ${{ matrix.package_name }}-dist
+          path: dist/
+
+  publish-packages:
+    name: Publish Python packages
+    runs-on: ubuntu-latest
+    needs: [list-python-packages, build-packages]
+    if: needs.build-packages.result == 'success'
+    environment:
+      name: ${{ matrix.environment_name }}
+      url: https://pypi.org/p/${{ matrix.package_name }}
+    permissions:
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - path: packages/phoenix-client
+            package_name: arize-phoenix-client
+            environment_name: pypi/arize-phoenix-client
+          - path: packages/phoenix-evals
+            package_name: arize-phoenix-evals
+            environment_name: pypi/arize-phoenix-evals
+          - path: packages/phoenix-otel
+            package_name: arize-phoenix-otel
+            environment_name: pypi/arize-phoenix-otel
+    steps:
+      - name: Check if package needs publishing
+        id: check
+        run: |
+          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+            echo "needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "needed=false" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: steps.check.outputs.needed == 'true'
+        with:
+          name: ${{ matrix.package_name }}-dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        if: steps.check.outputs.needed == 'true'
+
+  trigger-version-updates:
+    name: Trigger dependency updates
+    runs-on: ubuntu-latest
+    needs: [list-python-packages, publish-packages]
+    if: needs.publish-packages.result == 'success'
+    permissions:
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - path: packages/phoenix-client
+            package_name: arize-phoenix-client
+          - path: packages/phoenix-evals
+            package_name: arize-phoenix-evals
+          - path: packages/phoenix-otel
+            package_name: arize-phoenix-otel
+    steps:
+      - name: Check if package was published
+        id: check
+        run: |
+          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+            echo "needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "needed=false" >> $GITHUB_OUTPUT
+          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.check.outputs.needed == 'true'
+        with:
+          persist-credentials: false
+          sparse-checkout: .release-please-manifest.json
+          sparse-checkout-cone-mode: false
       - name: Trigger dependency update workflow
+        if: steps.check.outputs.needed == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PACKAGE="${{ steps.ref.outputs.name }}"
-          VERSION="${{ steps.ref.outputs.version }}"
+          VERSION=$(jq -r --arg p "${{ matrix.path }}" '.[$p] // empty' .release-please-manifest.json)
           gh workflow run update-phoenix-package-versions.yml \
             --repo "$GITHUB_REPOSITORY" \
-            --field package="$PACKAGE" \
+            --field package="${{ matrix.package_name }}" \
             --field version="$VERSION"
 
   slack:
     name: Slack notification
-    needs: [list-python-packages, publish-phoenix, publish-packages]
+    needs: [list-python-packages, publish-phoenix, publish-packages, trigger-version-updates]
     if: always() && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped')
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Set notification content
         id: notify
