@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
+export type EnvVar = { name: string; value: string };
+
 type BaseIntegrationConfig = {
   githubHref?: string;
 };
@@ -13,6 +15,7 @@ type SnippetLanguageConfig = BaseIntegrationConfig & {
   packages: readonly string[];
   getImplementationCode: (params: { projectName: string }) => string;
   docsHref?: string;
+  envVars?: readonly EnvVar[];
 };
 
 /**

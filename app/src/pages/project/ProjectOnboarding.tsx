@@ -155,6 +155,9 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                     githubHref={config?.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
+                    extraEnvVars={
+                      config && hasSnippets(config) ? config.envVars : undefined
+                    }
                   />
                 )}
               </TabPanel>
@@ -183,6 +186,9 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                     githubHref={config?.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
+                    extraEnvVars={
+                      config && hasSnippets(config) ? config.envVars : undefined
+                    }
                   />
                 )}
               </TabPanel>
