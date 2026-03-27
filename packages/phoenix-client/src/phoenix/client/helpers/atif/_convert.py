@@ -179,32 +179,87 @@ def _build_message_attributes(
     attrs: Dict[str, Any] = {}
     step = steps[step_index]
 
-    # Build full conversation history from all prior steps.
-    input_messages: List[Dict[str, str]] = []
+    # Build full conversation history from all prior steps,
+    # including tool calls and their results. This reconstructs
+    # the message array the LLM would receive as its prompt.
+    input_messages: List[Dict[str, Any]] = []
     for i in range(step_index):
         prev = steps[i]
         src = prev.get("source")
         msg = _stringify_message(prev.get("message"))
-        if not msg:
-            continue
-        if src == "user":
+
+        if src == "user" and msg:
             input_messages.append({"role": "user", "content": msg})
-        elif src == "system":
+        elif src == "system" and msg:
             input_messages.append({"role": "system", "content": msg})
         elif src == "agent":
-            input_messages.append({"role": "assistant", "content": msg})
+            # Assistant message (may include tool calls)
+            assistant_msg: Dict[str, Any] = {
+                "role": "assistant",
+            }
+            if msg:
+                assistant_msg["content"] = msg
+            # Include tool calls if present
+            prev_tool_calls = prev.get("tool_calls", [])
+            if prev_tool_calls:
+                assistant_msg["tool_calls"] = [
+                    {
+                        "id": tc.get("tool_call_id", ""),
+                        "function": {
+                            "name": tc.get("function_name", ""),
+                            "arguments": json.dumps(tc.get("arguments", {})),
+                        },
+                    }
+                    for tc in prev_tool_calls
+                ]
+            input_messages.append(assistant_msg)
+
+            # Add tool result messages from observation
+            observation = prev.get("observation")
+            if observation and prev_tool_calls:
+                results = observation.get("results", [])
+                obs_map: Dict[str, str] = {}
+                for r in results:
+                    if isinstance(r, dict):
+                        scid = r.get("source_call_id")
+                        if isinstance(scid, str):
+                            c = _stringify_content(r.get("content"))
+                            if c is not None:
+                                obs_map[scid] = c
+                for tc in prev_tool_calls:
+                    tc_id = tc.get("tool_call_id", "")
+                    tc_result = obs_map.get(tc_id, "")
+                    input_messages.append(
+                        {
+                            "role": "tool",
+                            "content": tc_result,
+                            "tool_call_id": tc_id,
+                        }
+                    )
 
     for idx, msg_dict in enumerate(input_messages):
         prefix = f"llm.input_messages.{idx}"
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
-        attrs[f"{prefix}.message.content"] = msg_dict["content"]
+        if "content" in msg_dict:
+            attrs[f"{prefix}.message.content"] = msg_dict["content"]
+        if "tool_call_id" in msg_dict:
+            attrs[f"{prefix}.message.tool_call_id"] = msg_dict["tool_call_id"]
+        # Tool calls on assistant messages
+        if "tool_calls" in msg_dict:
+            for tc_idx, tc in enumerate(msg_dict["tool_calls"]):
+                tc_pf = f"{prefix}.message.tool_calls.{tc_idx}"
+                if "id" in tc:
+                    attrs[f"{tc_pf}.tool_call.id"] = tc["id"]
+                fn = tc.get("function", {})
+                if "name" in fn:
+                    attrs[f"{tc_pf}.tool_call.function.name"] = fn["name"]
+                if "arguments" in fn:
+                    attrs[f"{tc_pf}.tool_call.function.arguments"] = fn["arguments"]
 
     # Set input.value to the JSON representation of input messages,
     # matching how real instrumented traces store it.
     if input_messages:
-        attrs["input.value"] = json.dumps(
-            [{"role": m["role"], "content": m["content"]} for m in input_messages]
-        )
+        attrs["input.value"] = json.dumps(input_messages)
         attrs["input.mime_type"] = "application/json"
 
     # Output message
