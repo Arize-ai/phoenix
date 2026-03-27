@@ -96,7 +96,7 @@ async def enqueue_annotations_from_evaluations(
 
 
 def _get_annotation_result(
-    row: "pd.Series[object]",
+    row: "pd.Series[str]",
 ) -> tuple[Optional[float], Optional[str], Optional[str]]:
     return (
         cast(Optional[float], row.get("score")),
