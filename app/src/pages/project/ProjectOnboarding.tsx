@@ -125,7 +125,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
               {"Platform" in integration.configs && (
                 <Tab id="Platform">
                   <span css={languageTabCSS}>
-                    <Server />
+                    <Server width={16} height={16} />
                     Platform
                   </span>
                 </Tab>
