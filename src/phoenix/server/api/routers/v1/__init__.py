@@ -13,6 +13,7 @@ from .experiment_runs import router as experiment_runs_router
 from .experiments import router as experiments_router
 from .projects import router as projects_router
 from .prompts import router as prompts_router
+from .secrets import router as secrets_router
 from .sessions import router as sessions_router
 from .spans import router as spans_router
 from .traces import router as traces_router
@@ -89,4 +90,5 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     router.include_router(sessions_router)
     router.include_router(documents_router)
     router.include_router(users_router)
+    router.include_router(secrets_router)
     return router

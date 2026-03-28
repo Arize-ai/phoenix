@@ -2217,6 +2217,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
+    (422, "PUT", "v1/secrets"),
 )
 
 # Write operations blocked for viewers (POST/PUT/DELETE)
