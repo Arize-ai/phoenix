@@ -23,7 +23,7 @@ Explore a few existing components to match the established file structure (compo
 
 ## Memoization
 
-React Compiler is enabled — do NOT use `useMemo`, `useCallback`, or `React.memo`. The compiler handles memoization automatically.
+React Compiler is enabled — do NOT use `useMemo`, `useCallback`, or `React.memo`. The compiler handles memoization automatically. This includes callback props passed to children; define them inline without wrapping in `useCallback`.
 
 ## Refs
 
@@ -40,6 +40,10 @@ Name callback props after the **event** (`onProjectCreated`, `onDismiss`), not t
 // Avoid
 <NewProjectButton refetchProjects={() => refetchProjects()} />
 ```
+
+## Avoid useEffect
+
+Prefer declarative React and React Aria patterns over imperative `useEffect`. Reach for `useEffect` only when there is no declarative alternative.
 
 ## Shared constants
 
