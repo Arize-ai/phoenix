@@ -307,6 +307,11 @@ export function ModelMenu({
 
   const isSearching = searchValue.trim().length > 0;
 
+  const searchFilter = useCallback(
+    (textValue: string, inputValue: string) => contains(textValue, inputValue),
+    [contains]
+  );
+
   const selectedProvider = value?.provider;
   const isValidSelectedProvider =
     selectedProvider && isModelProvider(selectedProvider);
@@ -327,33 +332,36 @@ export function ModelMenu({
         {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
-        <MenuHeader>
-          <SearchField
-            aria-label="Search models"
-            variant="quiet"
-            size="L"
-            value={searchValue}
-            onChange={setSearchValue}
-          >
-            <SearchIcon />
-            <Input placeholder="Search models..." />
-          </SearchField>
-        </MenuHeader>
-        {isSearching ? (
-          <ModelsByProviderMenu
-            modelsByProvider={filteredModelsByProvider}
-            providerInfoMap={providerInfoMap}
-            customProviders={filteredCustomProviders}
-            onChange={handleModelChange}
-          />
-        ) : (
-          <ProviderMenu
-            providers={data.modelProviders}
-            modelsByProvider={modelsByProvider}
-            customProviders={customProviders}
-            onChange={handleModelChange}
-          />
-        )}
+        <Autocomplete filter={isSearching ? searchFilter : undefined}>
+          <MenuHeader>
+            <SearchField
+              aria-label="Search models"
+              variant="quiet"
+              size="L"
+              autoFocus
+              value={searchValue}
+              onChange={setSearchValue}
+            >
+              <SearchIcon />
+              <Input placeholder="Search models..." />
+            </SearchField>
+          </MenuHeader>
+          {isSearching ? (
+            <ModelsByProviderMenu
+              modelsByProvider={filteredModelsByProvider}
+              providerInfoMap={providerInfoMap}
+              customProviders={filteredCustomProviders}
+              onChange={handleModelChange}
+            />
+          ) : (
+            <ProviderMenu
+              providers={data.modelProviders}
+              modelsByProvider={modelsByProvider}
+              customProviders={customProviders}
+              onChange={handleModelChange}
+            />
+          )}
+        </Autocomplete>
         <MenuFooter>
           <LinkButton
             size="S"
