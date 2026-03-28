@@ -4266,6 +4266,93 @@
         }
       }
     },
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+      "put": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Upsert tag on prompt version",
+        "description": "Create or move a named tag to a specific prompt version. If the tag already exists on another version of the same prompt, it will be moved to this version. Tag names are unique per prompt.",
+        "operationId": "upsertPromptVersionTag",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the tag to create or move to this version.",
+              "title": "Tag Name"
+            },
+            "description": "The name of the tag to create or move to this version."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpsertPromptVersionTagRequestBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag upsert"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/projects": {
       "get": {
         "tags": [
@@ -11254,6 +11341,23 @@
           "id"
         ],
         "title": "UpsertExperimentEvaluationResponseBodyData"
+      },
+      "UpsertPromptVersionTagRequestBody": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "UpsertPromptVersionTagRequestBody"
       },
       "ValidationError": {
         "properties": {
