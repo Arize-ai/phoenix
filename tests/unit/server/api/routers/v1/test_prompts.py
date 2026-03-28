@@ -11,10 +11,10 @@ import httpx
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
-from sqlalchemy import select
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -142,7 +142,7 @@ class TestPrompts:
         async with db() as session:
             tag = await session.scalar(
                 select(models.PromptVersionTag).filter_by(
-                    name=tag_name, prompt_version_id=prompt_version.id
+                    name=Identifier.model_validate(tag_name), prompt_version_id=prompt_version.id
                 )
             )
         assert tag is not None
@@ -158,9 +158,7 @@ class TestPrompts:
         version_b = prompt_versions[1]
         tag_name = "production"
         # Create the tag on version_a first
-        await self._tag_prompt_version(
-            db, version_a, tag_name=Identifier.model_validate(tag_name)
-        )
+        await self._tag_prompt_version(db, version_a, tag_name=Identifier.model_validate(tag_name))
         # Upsert the tag onto version_b — it should move from version_a
         prompt_version_b_id = str(GlobalID(PromptVersion.__name__, str(version_b.id)))
         url = f"v1/prompt_versions/{quote_plus(prompt_version_b_id)}/tags/{tag_name}"
@@ -169,7 +167,7 @@ class TestPrompts:
         async with db() as session:
             tag = await session.scalar(
                 select(models.PromptVersionTag).filter_by(
-                    name=tag_name, prompt_id=version_b.prompt_id
+                    name=Identifier.model_validate(tag_name), prompt_id=version_b.prompt_id
                 )
             )
         assert tag is not None
@@ -178,7 +176,7 @@ class TestPrompts:
         async with db() as session:
             old_tag = await session.scalar(
                 select(models.PromptVersionTag).filter_by(
-                    name=tag_name, prompt_version_id=version_a.id
+                    name=Identifier.model_validate(tag_name), prompt_version_id=version_a.id
                 )
             )
         assert old_tag is None
@@ -197,7 +195,7 @@ class TestPrompts:
         async with db() as session:
             tag = await session.scalar(
                 select(models.PromptVersionTag).filter_by(
-                    name="staging", prompt_version_id=prompt_version.id
+                    name=Identifier.model_validate("staging"), prompt_version_id=prompt_version.id
                 )
             )
         assert tag is not None
