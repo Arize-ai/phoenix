@@ -688,7 +688,6 @@ async def create_prompt_version_tag(
 
 @router.delete(
     "/prompt_versions/{prompt_version_id}/tags/{tag_name}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deletePromptVersionTag",
     summary="Delete a tag from a prompt version",
     description="Delete a tag from a specific prompt version by tag name. The tag is resolved "
