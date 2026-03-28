@@ -10148,10 +10148,11 @@
         },
         "type": "object",
         "required": [
-          "key"
+          "key",
+          "value"
         ],
         "title": "SecretKeyValue",
-        "description": "A single secret entry specifying a key and an optional value."
+        "description": "A single secret entry specifying a key and a required nullable value."
       },
       "SessionAnnotation": {
         "properties": {

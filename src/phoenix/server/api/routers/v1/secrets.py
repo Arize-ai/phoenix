@@ -8,8 +8,6 @@ Encryption/decryption is handled by Fernet (AES-128-CBC + HMAC-SHA256) derived f
 the PHOENIX_SECRET environment variable. Secret values are never returned in responses.
 """
 
-from typing import Optional
-
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Request
 from pydantic import field_validator
@@ -25,10 +23,10 @@ router = APIRouter(tags=["secrets"])
 
 
 class SecretKeyValue(V1RoutesBaseModel):
-    """A single secret entry specifying a key and an optional value."""
+    """A single secret entry specifying a key and a required nullable value."""
 
     key: str
-    value: Optional[str] = None
+    value: str | None
 
     @field_validator("key")
     @classmethod
@@ -43,8 +41,8 @@ class SecretKeyValue(V1RoutesBaseModel):
 
     @field_validator("value")
     @classmethod
-    def validate_value(cls, v: Optional[str]) -> Optional[str]:
-        """Values, when provided, must be non-empty strings (after trimming)."""
+    def validate_value(cls, v: str | None) -> str | None:
+        """Values, when non-null, must be non-empty strings (after trimming)."""
         if v is None:
             return None
         v = v.strip()

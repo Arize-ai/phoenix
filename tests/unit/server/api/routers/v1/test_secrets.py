@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from phoenix.db import models
+from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.types import DbSessionFactory
 
 
@@ -78,6 +79,30 @@ class TestUpsertOrDeleteSecrets:
                 sa.select(models.Secret).where(models.Secret.key == "OLD_KEY")
             )
         assert secret is None
+
+    async def test_missing_value_field_returns_422_without_deleting_existing_secret(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Omitting value is rejected and leaves an existing secret untouched."""
+        await httpx_client.put(
+            "v1/secrets",
+            json={"secrets": [{"key": "OPENAI_API_KEY", "value": "sk-test-1234"}]},
+        )
+
+        response = await httpx_client.put(
+            "v1/secrets",
+            json={"secrets": [{"key": "OPENAI_API_KEY"}]},
+        )
+
+        assert response.status_code == 422, response.text
+
+        async with db() as session:
+            secret = await session.scalar(
+                sa.select(models.Secret).where(models.Secret.key == "OPENAI_API_KEY")
+            )
+        assert secret is not None
 
     async def test_delete_nonexistent_secret_is_idempotent(
         self,
@@ -195,3 +220,13 @@ class TestUpsertOrDeleteSecrets:
         """Malformed request bodies are rejected with 422."""
         response = await httpx_client.put("v1/secrets", json=payload)
         assert response.status_code == 422, response.text
+
+    def test_openapi_marks_secret_value_as_required_and_nullable(self) -> None:
+        """The generated schema requires value but still allows explicit null."""
+        schema = get_openapi_schema()
+        secret_key_value_schema = schema["components"]["schemas"]["SecretKeyValue"]
+
+        assert set(secret_key_value_schema["required"]) == {"key", "value"}
+        value_schema = secret_key_value_schema["properties"]["value"]
+        assert {"type": "string"} in value_schema["anyOf"]
+        assert {"type": "null"} in value_schema["anyOf"]

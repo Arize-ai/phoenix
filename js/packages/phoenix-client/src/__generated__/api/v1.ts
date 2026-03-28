@@ -993,6 +993,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert or delete secrets
+         * @description Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.
+         */
+        put: operations["upsertOrDeleteSecrets"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2785,6 +2805,20 @@ export interface components {
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
         };
+        /** ResponseBody[UpsertOrDeleteSecretsResult] */
+        ResponseBody_UpsertOrDeleteSecretsResult_: {
+            data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+        };
+        /**
+         * SecretKeyValue
+         * @description A single secret entry specifying a key and a required nullable value.
+         */
+        SecretKeyValue: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: string | null;
+        };
         /** SessionAnnotation */
         SessionAnnotation: {
             /** Id */
@@ -3439,6 +3473,24 @@ export interface components {
              * @description The ID of the upserted experiment evaluation
              */
             id: string;
+        };
+        /**
+         * UpsertOrDeleteSecretsRequest
+         * @description Request body for the PUT /secrets endpoint.
+         */
+        UpsertOrDeleteSecretsRequest: {
+            /** Secrets */
+            secrets: components["schemas"]["SecretKeyValue"][];
+        };
+        /**
+         * UpsertOrDeleteSecretsResult
+         * @description Result payload listing which keys were upserted and which were deleted.
+         */
+        UpsertOrDeleteSecretsResult: {
+            /** Upserted Keys */
+            upserted_keys: string[];
+            /** Deleted Keys */
+            deleted_keys: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -6734,6 +6786,57 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    upsertOrDeleteSecrets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertOrDeleteSecretsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_UpsertOrDeleteSecretsResult_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };
