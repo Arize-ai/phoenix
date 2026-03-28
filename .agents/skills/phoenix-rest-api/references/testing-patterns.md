@@ -9,3 +9,5 @@ Tests in `tests/integration/client/`. Every endpoint MUST test:
 Helpers: `_httpx_client(_app, _app.admin_secret)` for auth, `_httpx_client(_app)` for no-auth. No-auth server: `_server(_AppInfo({**_env_database, "PHOENIX_PORT": str(next(_ports)), "PHOENIX_GRPC_PORT": str(next(_ports))}))`.
 
 Every endpoint MUST be added to one of three lists in `tests/integration/_helpers.py`: `_COMMON_RESOURCE_ENDPOINTS`, `_ADMIN_ONLY_ENDPOINTS`, or `_VIEWER_BLOCKED_WRITE_OPERATIONS`. Format: `(status_code, "METHOD", "v1/path")`.
+
+**Path normalization**: The `_ensure_endpoint_coverage_is_exhaustive()` function normalizes paths to match against the router. Use `fake-id-{}` for ID path params and `test-tag` for non-ID path params like tag names. These get normalized to `{id}` for comparison. Using other placeholder values (e.g. `fake-tag`) will cause a mismatch.
