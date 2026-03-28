@@ -230,3 +230,5 @@ class TestUpsertOrDeleteSecrets:
         value_schema = secret_key_value_schema["properties"]["value"]
         assert {"type": "string"} in value_schema["anyOf"]
         assert {"type": "null"} in value_schema["anyOf"]
+        assert "explicit null to delete" in value_schema["description"]
+        assert "omitting it returns 422" in value_schema["description"]

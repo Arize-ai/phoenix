@@ -1003,7 +1003,7 @@ export interface paths {
         get?: never;
         /**
          * Upsert or delete secrets
-         * @description Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.
+         * @description Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. The `value` field is required for every entry, and omitting it returns 422. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.
          */
         put: operations["upsertOrDeleteSecrets"];
         post?: never;
@@ -2816,7 +2816,10 @@ export interface components {
         SecretKeyValue: {
             /** Key */
             key: string;
-            /** Value */
+            /**
+             * Value
+             * @description Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422.
+             */
             value: string | null;
         };
         /** SessionAnnotation */

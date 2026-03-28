@@ -10,7 +10,7 @@ the PHOENIX_SECRET environment variable. Secret values are never returned in res
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Request
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -26,7 +26,12 @@ class SecretKeyValue(V1RoutesBaseModel):
     """A single secret entry specifying a key and a required nullable value."""
 
     key: str
-    value: str | None
+    value: str | None = Field(
+        description=(
+            "Provide a string to create or update the secret, or explicit null to delete it. "
+            "This field is required; omitting it returns 422."
+        )
+    )
 
     @field_validator("key")
     @classmethod
@@ -86,6 +91,7 @@ class UpsertOrDeleteSecretsResult(V1RoutesBaseModel):
         "Atomically upsert or delete a batch of secrets. "
         "Entries with a non-null `value` are created or updated; "
         "entries with `value: null` are deleted. "
+        "The `value` field is required for every entry, and omitting it returns 422. "
         "When the same key appears more than once, the last occurrence wins. "
         "Deleting a non-existent key succeeds silently. "
         "Secret values are never returned in the response."
