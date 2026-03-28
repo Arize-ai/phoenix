@@ -136,8 +136,8 @@ class TestPrompts:
         tag_name: Identifier = await self._tag_prompt_version(db, prompt_version)
         prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus(tag_name.root)}"
-        assert (response := await httpx_client.delete(url)).status_code == 204
-        assert (response := await httpx_client.delete(url)).status_code == 404
+        assert (await httpx_client.delete(url)).status_code == 204
+        assert (await httpx_client.delete(url)).status_code == 404
 
     async def test_delete_prompt_version_tag_not_found(
         self,
@@ -148,14 +148,14 @@ class TestPrompts:
         prompt_version = prompt_versions[0]
         prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/nonexistent-tag"
-        assert (response := await httpx_client.delete(url)).status_code == 404
+        assert (await httpx_client.delete(url)).status_code == 404
 
     async def test_delete_prompt_version_tag_invalid_version_id(
         self,
         httpx_client: httpx.AsyncClient,
     ) -> None:
         url = "v1/prompt_versions/invalid-id/tags/some-tag"
-        assert (response := await httpx_client.delete(url)).status_code == 422
+        assert (await httpx_client.delete(url)).status_code == 422
 
     async def test_delete_prompt_version_tag_invalid_tag_name(
         self,
@@ -165,8 +165,10 @@ class TestPrompts:
         _, prompt_versions = await self._insert_prompt_versions(db)
         prompt_version = prompt_versions[0]
         prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
-        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus('invalid tag!')}"
-        assert (response := await httpx_client.delete(url)).status_code == 422
+        url = (
+            f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus('invalid tag!')}"
+        )
+        assert (await httpx_client.delete(url)).status_code == 422
 
     @pytest.mark.parametrize(
         "name",

@@ -741,6 +741,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a tag from a prompt version
+         * @description Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.
+         */
+        delete: operations["deletePromptVersionTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects": {
         parameters: {
             query?: never;
@@ -5837,6 +5857,56 @@ export interface operations {
         };
         responses: {
             /** @description No content returned on successful tag creation */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deletePromptVersionTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+                /** @description The name of the tag to delete. */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful tag deletion */
             204: {
                 headers: {
                     [name: string]: unknown;

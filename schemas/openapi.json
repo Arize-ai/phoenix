@@ -4266,6 +4266,75 @@
         }
       }
     },
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+      "delete": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Delete a tag from a prompt version",
+        "description": "Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.",
+        "operationId": "deletePromptVersionTag",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the tag to delete.",
+              "title": "Tag Name"
+            },
+            "description": "The name of the tag to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag deletion"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/projects": {
       "get": {
         "tags": [
