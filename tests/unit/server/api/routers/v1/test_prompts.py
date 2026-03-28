@@ -14,6 +14,7 @@ from faker import Faker
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -169,6 +170,39 @@ class TestPrompts:
             f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus('invalid tag!')}"
         )
         assert (await httpx_client.delete(url)).status_code == 422
+
+    async def test_delete_prompt_by_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    async def test_delete_prompt_by_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    async def test_delete_prompt_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 404
 
     @pytest.mark.parametrize(
         "name",

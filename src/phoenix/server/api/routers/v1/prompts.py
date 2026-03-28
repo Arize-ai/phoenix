@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from starlette.requests import Request
@@ -748,6 +748,34 @@ async def delete_prompt_version_tag(
             raise HTTPException(404)
         await session.delete(tag)
     return None
+
+
+@router.delete(
+    "/prompts/{prompt_identifier}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deletePrompt",
+    summary="Delete a prompt",
+    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    status_code=204,
+    responses=add_errors_to_responses([404, 422]),
+)
+async def delete_prompt(
+    request: Request,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> None:
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(
+            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
+        )
+    if prompt_id is None:
+        raise HTTPException(status_code=404, detail="Prompt not found")
 
 
 class _PromptId(int): ...
