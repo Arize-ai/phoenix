@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.19.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.1...arize-phoenix-v13.19.2) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ui:** fix model menu search losing focus on first keystroke ([#12417](https://github.com/Arize-ai/phoenix/issues/12417)) ([f5b2cc2](https://github.com/Arize-ai/phoenix/commit/f5b2cc2eb49a2d64cea1208bcba397adccc117c8))
+
 ## [13.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.0...arize-phoenix-v13.19.1) (2026-03-27)
 
 
