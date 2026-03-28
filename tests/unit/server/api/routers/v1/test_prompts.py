@@ -11,6 +11,7 @@ import httpx
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
+from sqlalchemy import select
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
@@ -125,6 +126,111 @@ class TestPrompts:
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
+
+    async def test_upsert_prompt_version_tag_creates_new_tag(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        tag_name = "production"
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{tag_name}"
+        response = await httpx_client.put(url, json={"description": "prod tag"})
+        assert response.status_code == 204
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).filter_by(
+                    name=tag_name, prompt_version_id=prompt_version.id
+                )
+            )
+        assert tag is not None
+        assert tag.description == "prod tag"
+
+    async def test_upsert_prompt_version_tag_moves_existing_tag(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        version_a = prompt_versions[0]
+        version_b = prompt_versions[1]
+        tag_name = "production"
+        # Create the tag on version_a first
+        await self._tag_prompt_version(
+            db, version_a, tag_name=Identifier.model_validate(tag_name)
+        )
+        # Upsert the tag onto version_b — it should move from version_a
+        prompt_version_b_id = str(GlobalID(PromptVersion.__name__, str(version_b.id)))
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_b_id)}/tags/{tag_name}"
+        response = await httpx_client.put(url, json={})
+        assert response.status_code == 204
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).filter_by(
+                    name=tag_name, prompt_id=version_b.prompt_id
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == version_b.id
+        # Tag must no longer be associated with version_a
+        async with db() as session:
+            old_tag = await session.scalar(
+                select(models.PromptVersionTag).filter_by(
+                    name=tag_name, prompt_version_id=version_a.id
+                )
+            )
+        assert old_tag is None
+
+    async def test_upsert_prompt_version_tag_no_body(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/staging"
+        response = await httpx_client.put(url)
+        assert response.status_code == 204
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).filter_by(
+                    name="staging", prompt_version_id=prompt_version.id
+                )
+            )
+        assert tag is not None
+        assert tag.description is None
+
+    async def test_upsert_prompt_version_tag_invalid_version_id(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = "v1/prompt_versions/not-a-valid-id/tags/production"
+        response = await httpx_client.put(url)
+        assert response.status_code == 422
+
+    async def test_upsert_prompt_version_tag_version_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        nonexistent_id = str(GlobalID(PromptVersion.__name__, "999999"))
+        url = f"v1/prompt_versions/{quote_plus(nonexistent_id)}/tags/production"
+        response = await httpx_client.put(url)
+        assert response.status_code == 404
+
+    async def test_upsert_prompt_version_tag_invalid_tag_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/invalid%20name"
+        response = await httpx_client.put(url)
+        assert response.status_code == 422
 
     @pytest.mark.parametrize(
         "name",

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -670,6 +670,96 @@ async def create_prompt_version_tag(
         values = dict(
             name=request_body.name,
             description=request_body.description,
+            prompt_id=prompt_id,
+            prompt_version_id=id_,
+            user_id=user_id,
+        )
+        await session.execute(
+            insert_on_conflict(
+                values,
+                dialect=dialect,
+                table=models.PromptVersionTag,
+                unique_by=("name", "prompt_id"),
+                on_conflict=OnConflict.DO_UPDATE,
+            )
+        )
+    return None
+
+
+class UpsertPromptVersionTagRequestBody(V1RoutesBaseModel):
+    description: Optional[str] = None
+
+
+@router.put(
+    "/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="upsertPromptVersionTag",
+    summary="Upsert tag on prompt version",
+    description="Create or move a named tag to a specific prompt version. If the tag already "
+    "exists on another version of the same prompt, it will be moved to this version. "
+    "Tag names are unique per prompt.",
+    response_description="No content returned on successful tag upsert",
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            404,
+            422,
+        ]
+    ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def upsert_prompt_version_tag(
+    request: Request,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+    tag_name: str = Path(description="The name of the tag to create or move to this version."),
+    request_body: Optional[UpsertPromptVersionTagRequestBody] = Body(default=None),
+) -> None:
+    """
+    Upsert a tag on a specific prompt version.
+
+    Creates the tag if it does not exist, or moves it to this version if it already exists
+    on another version of the same prompt. Tag names are unique within a prompt.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_version_id (str): The ID of the prompt version to tag.
+        tag_name (str): The name of the tag to create or move.
+        request_body (Optional[UpsertPromptVersionTagRequestBody]): Optional body with
+            description to associate with the tag.
+
+    Returns:
+        None: Returns a 204 No Content response on success.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid, the tag name is invalid,
+            or the prompt version is not found.
+    """
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(422, "Invalid prompt version ID")
+    try:
+        validated_tag_name = Identifier.model_validate(tag_name)
+    except ValidationError:
+        raise HTTPException(422, "Invalid tag name")
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
+    description = request_body.description if request_body is not None else None
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
+        if prompt_id is None:
+            raise HTTPException(404)
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        values = dict(
+            name=validated_tag_name,
+            description=description,
             prompt_id=prompt_id,
             prompt_version_id=id_,
             user_id=user_id,
