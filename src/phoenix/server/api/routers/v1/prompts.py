@@ -686,6 +686,71 @@ async def create_prompt_version_tag(
     return None
 
 
+@router.delete(
+    "/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deletePromptVersionTag",
+    summary="Delete a tag from a prompt version",
+    description="Delete a tag from a specific prompt version by tag name. The tag is resolved "
+    "within the scope of the prompt linked to the version.",
+    response_description="No content returned on successful tag deletion",
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            404,
+            422,
+        ]
+    ),
+)
+async def delete_prompt_version_tag(
+    request: Request,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+    tag_name: str = Path(description="The name of the tag to delete."),
+) -> None:
+    """
+    Delete a tag from a specific prompt version by tag name.
+
+    Resolves the tag within the scope of the prompt linked to the given prompt version.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_version_id (str): The ID of the prompt version.
+        tag_name (str): The name of the tag to delete.
+
+    Returns:
+        None: Returns a 204 No Content response on success.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid, the tag name is invalid,
+            the prompt version is not found, or the tag is not found.
+    """
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(422, "Invalid prompt version ID")
+    try:
+        name = Identifier.model_validate(tag_name)
+    except ValidationError:
+        raise HTTPException(422, "Invalid tag name")
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
+        if prompt_id is None:
+            raise HTTPException(404)
+        tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == name,
+            )
+        )
+        if tag is None:
+            raise HTTPException(404)
+        await session.delete(tag)
+    return None
+
+
 class _PromptId(int): ...
 
 
