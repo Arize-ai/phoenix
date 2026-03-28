@@ -66,9 +66,6 @@ from phoenix.db.types.prompts import (
     PromptResponseFormat,
     PromptTools,
 )
-from phoenix.evals.models.rate_limiters import (
-    RateLimiter,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
@@ -99,6 +96,7 @@ from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
     GenerativeProviderKey,
 )
+from phoenix.server.rate_limiters import RateLimiter
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
