@@ -110,7 +110,7 @@ async def upsert_or_delete_secrets(
     dialect = request.app.state.db.dialect
     encrypt = request.app.state.encrypt
     user_id: int | None = None
-    if isinstance(request.user, PhoenixUser):
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
 
     keys_to_delete: list[str] = []

@@ -190,7 +190,7 @@ class TestUpsertOrDeleteSecrets:
     async def test_invalid_request_body_returns_422(
         self,
         httpx_client: httpx.AsyncClient,
-        payload: dict,
+        payload: dict[str, object],
     ) -> None:
         """Malformed request bodies are rejected with 422."""
         response = await httpx_client.put("v1/secrets", json=payload)

@@ -5399,6 +5399,68 @@
           }
         }
       }
+    },
+    "/v1/secrets": {
+      "put": {
+        "tags": [
+          "secrets"
+        ],
+        "summary": "Upsert or delete secrets",
+        "description": "Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.",
+        "operationId": "upsertOrDeleteSecrets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertOrDeleteSecretsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_UpsertOrDeleteSecretsResult_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10054,6 +10116,43 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "ResponseBody_UpsertOrDeleteSecretsResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertOrDeleteSecretsResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseBody[UpsertOrDeleteSecretsResult]"
+      },
+      "SecretKeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "SecretKeyValue",
+        "description": "A single secret entry specifying a key and an optional value."
+      },
       "SessionAnnotation": {
         "properties": {
           "id": {
@@ -11381,6 +11480,48 @@
           "id"
         ],
         "title": "UpsertExperimentEvaluationResponseBodyData"
+      },
+      "UpsertOrDeleteSecretsRequest": {
+        "properties": {
+          "secrets": {
+            "items": {
+              "$ref": "#/components/schemas/SecretKeyValue"
+            },
+            "type": "array",
+            "title": "Secrets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "title": "UpsertOrDeleteSecretsRequest",
+        "description": "Request body for the PUT /secrets endpoint."
+      },
+      "UpsertOrDeleteSecretsResult": {
+        "properties": {
+          "upserted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upserted Keys"
+          },
+          "deleted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Keys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upserted_keys",
+          "deleted_keys"
+        ],
+        "title": "UpsertOrDeleteSecretsResult",
+        "description": "Result payload listing which keys were upserted and which were deleted."
       },
       "ValidationError": {
         "properties": {
