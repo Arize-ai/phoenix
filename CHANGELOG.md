@@ -1,5 +1,14 @@
 # Changelog
 
+## [13.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.2...arize-phoenix-v13.20.0) (2026-03-29)
+
+
+### Features
+
+* **rest-api:** DELETE /prompt_versions/{id}/tags/{tag_name} ([#12427](https://github.com/Arize-ai/phoenix/issues/12427)) ([0c61d16](https://github.com/Arize-ai/phoenix/commit/0c61d1629c683a8736df893e296fc9d7c9d5a45f))
+* **rest-api:** DELETE /prompts/{prompt_identifier} ([#12426](https://github.com/Arize-ai/phoenix/issues/12426)) ([ac9ffbe](https://github.com/Arize-ai/phoenix/commit/ac9ffbe4e74a19ed7b1a9a5972cd2b41f3475b17))
+* **ui:** add CopyField component and clean up settings layout ([#12435](https://github.com/Arize-ai/phoenix/issues/12435)) ([3c7bd2b](https://github.com/Arize-ai/phoenix/commit/3c7bd2bbf6dabcab25a293ee98692470126c1593))
+
 ## [13.19.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.1...arize-phoenix-v13.19.2) (2026-03-28)
 
 
