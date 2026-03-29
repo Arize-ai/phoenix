@@ -135,7 +135,7 @@ class AdaptiveTokenBucket:
 
     def available_requests(self) -> float:
         now = time.time()
-        time_since_last_checked = time.time() - self.last_checked
+        time_since_last_checked = now - self.last_checked
         self.tokens = min(self.max_tokens(), self.rate * time_since_last_checked + self.tokens)
         self.last_checked = now
         return self.tokens
