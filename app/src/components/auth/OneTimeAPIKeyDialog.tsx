@@ -45,11 +45,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
             <CopyInput />
           </CopyField>
         </View>
-        <View
-          padding="size-200"
-          borderTopColor="default"
-          borderTopWidth="thin"
-        >
+        <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
           <Heading level={2} weight="heavy">
             How to Use the API Key
           </Heading>
@@ -74,8 +70,8 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
           </CodeWrap>
           <View paddingBottom="size-100" paddingTop="size-100">
             <Text>
-              When using the Phoenix REST and GraphQL APIs, pass the API key
-              as a{" "}
+              When using the Phoenix REST and GraphQL APIs, pass the API key as
+              a{" "}
               <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
                 bearer token
               </ExternalLink>
@@ -86,11 +82,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
             <PythonBlockWithCopy value={`Authorization: Bearer ${jwt}`} />
           </CodeWrap>
         </View>
-        <View
-          padding="size-200"
-          borderTopColor="default"
-          borderTopWidth="thin"
-        >
+        <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
           <Flex direction="row" justifyContent="end">
             <Button variant="primary" aria-label="dismiss" slot="close">
               Close
