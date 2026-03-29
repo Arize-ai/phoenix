@@ -35,8 +35,8 @@ export function ProfilePage() {
       <div css={profilePageInnerCSS}>
         <Flex direction="column" gap="size-200">
           {viewer && <ViewerProfileCard />}
-          <ViewerPreferences />
           {viewer && <ViewerAPIKeys viewer={viewer} />}
+          <ViewerPreferences />
         </Flex>
       </div>
     </main>
