@@ -2255,6 +2255,10 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/sessions/delete"),
 )
 
+# Self PATCH is allowed for non-admins, so this route is not in the admin-only matrices.
+# Kept here for route coverage; unauthenticated PATCH with an empty body returns 422.
+_USER_PATCH_ENDPOINTS = ((422, "PATCH", "v1/users/fake-id-{}"),)
+
 
 def _ensure_endpoint_coverage_is_exhaustive() -> None:
     """Verify that test constants cover all actual v1 API routes.
@@ -2284,6 +2288,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _USER_PATCH_ENDPOINTS,
         )
     }
 
@@ -2318,7 +2323,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"Add these to _helpers.py:\n"
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
-                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
+                f"  - User PATCH (mixed auth) → _USER_PATCH_ENDPOINTS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2329,7 +2335,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, or _USER_PATCH_ENDPOINTS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 

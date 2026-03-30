@@ -21,6 +21,7 @@ from phoenix.trace.dsl import SpanQuery
 from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,
     _COMMON_RESOURCE_ENDPOINTS,
+    _USER_PATCH_ENDPOINTS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
     _get,
@@ -196,6 +197,7 @@ class TestLaunchApp:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _USER_PATCH_ENDPOINTS,
         ):
             response = client.request(method, endpoint.format(token_hex(4)))
             assert response.status_code == expected_status_code, (

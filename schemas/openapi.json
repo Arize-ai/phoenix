@@ -5343,6 +5343,109 @@
       }
     },
     "/v1/users/{user_id}": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update a user by ID",
+        "description": "Partially update a user. Admins may update another user's role, username, and password. Any authenticated user may update their own username and password; changing your own password requires the current password.",
+        "operationId": "patchUser",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the user.",
+              "title": "User Id"
+            },
+            "description": "The GlobalID of the user."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchUserRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden (e.g. not admin, or invalid self-update)."
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request (e.g. role not found)."
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not authenticated."
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "User not found."
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict (e.g. username exists, invalid password)."
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "users"
@@ -7105,6 +7208,37 @@
         ],
         "title": "GetTracesResponseBody"
       },
+      "GetUserResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocalUser"
+              },
+              {
+                "$ref": "#/components/schemas/OAuth2User"
+              },
+              {
+                "$ref": "#/components/schemas/LDAPUser"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "auth_method",
+              "mapping": {
+                "LDAP": "#/components/schemas/LDAPUser",
+                "LOCAL": "#/components/schemas/LocalUser",
+                "OAUTH2": "#/components/schemas/OAuth2User"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetUserResponseBody"
+      },
       "GetUsersResponseBody": {
         "properties": {
           "data": {
@@ -8303,6 +8437,63 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpStatus"
+      },
+      "PatchUserRequestBody": {
+        "properties": {
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          },
+          "current_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Password"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "SYSTEM",
+                  "ADMIN",
+                  "MEMBER",
+                  "VIEWER"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "title": "PatchUserRequestBody",
+        "description": "Fields to update. At least one must be provided."
       },
       "Project": {
         "properties": {

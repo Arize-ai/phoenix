@@ -18,7 +18,7 @@ from phoenix.auth import (
 )
 from phoenix.server.api.routers.v1.users import DEFAULT_PAGINATION_PAGE_LIMIT
 
-from .._helpers import _AppInfo, _httpx_client, _log_in
+from .._helpers import _AppInfo, _httpx_client, _log_in, _log_out
 
 
 class _UsersApi:
@@ -83,6 +83,18 @@ class _UsersApi:
         url = f"v1/users/{user_id}"
         response = self._client.delete(url)
         response.raise_for_status()
+
+    def patch(
+        self,
+        *,
+        user_id: str,
+        body: v1.PatchUserRequestBody,
+    ) -> Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]:
+        """Patch a user by GlobalID."""
+        url = f"v1/users/{user_id}"
+        response = self._client.patch(url, json=body)
+        response.raise_for_status()
+        return cast(v1.GetUserResponseBody, response.json())["data"]
 
 
 class TestClientForUsersAPI:
@@ -733,3 +745,81 @@ class TestGetViewer:
         client = _httpx_client(_app)
         response = client.get("v1/user")
         assert response.status_code == 401
+
+
+class TestPatchUser:
+    """Tests for PATCH /v1/users/{id}."""
+
+    async def test_admin_can_patch_username(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        users_api = _UsersApi(_httpx_client(_app, _app.admin_secret))
+        new_username = f"test_user_local_member_{token_hex(8)}"
+        user_data = v1.LocalUserData(
+            email=f"test_local_member_{token_hex(8)}@example.com",
+            username=f"test_user_local_member_{token_hex(8)}",
+            role="MEMBER",
+            auth_method="LOCAL",
+            password="some_password",
+        )
+        created = users_api.create(user=user_data)
+        updated = users_api.patch(user_id=created["id"], body={"username": new_username})
+        assert updated["username"] == new_username
+        users_api.delete(user_id=created["id"])
+
+    async def test_member_cannot_patch_another_user(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        admin_client = _UsersApi(_httpx_client(_app, _app.admin_secret))
+        member_email = f"test_local_member_{token_hex(8)}@example.com"
+        member_password = "some_password"
+        member_user = admin_client.create(
+            user=v1.LocalUserData(
+                email=member_email,
+                username=f"test_user_local_member_{token_hex(8)}",
+                role="MEMBER",
+                auth_method="LOCAL",
+                password=member_password,
+            )
+        )
+        other = admin_client.create(
+            user=v1.LocalUserData(
+                email=f"test_local_member_{token_hex(8)}@example.com",
+                username=f"test_user_local_member_{token_hex(8)}",
+                role="MEMBER",
+                auth_method="LOCAL",
+                password=member_password,
+            )
+        )
+        tokens = _log_in(_app, member_password, email=member_email)
+        member_http = _httpx_client(_app, tokens)
+        response = member_http.patch(
+            f"v1/users/{other['id']}",
+            json={"username": "should_fail"},
+        )
+        assert response.status_code == 403
+        # Log out so access/refresh tokens are cleared before admin deletes the member user.
+        _log_out(_app, tokens)
+        admin_client.delete(user_id=member_user["id"])
+        admin_client.delete(user_id=other["id"])
+
+    async def test_patch_empty_body_returns_422(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        admin_client = _UsersApi(_httpx_client(_app, _app.admin_secret))
+        created = admin_client.create(
+            user=v1.LocalUserData(
+                email=f"test_local_member_{token_hex(8)}@example.com",
+                username=f"test_user_local_member_{token_hex(8)}",
+                role="MEMBER",
+                auth_method="LOCAL",
+                password="some_password",
+            )
+        )
+        client = _httpx_client(_app, _app.admin_secret)
+        response = client.patch(f"v1/users/{created['id']}", json={})
+        assert response.status_code == 422
+        admin_client.delete(user_id=created["id"])

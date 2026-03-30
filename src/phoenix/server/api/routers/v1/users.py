@@ -1,19 +1,19 @@
 import asyncio
 import logging
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from typing import Annotated, Literal, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
-from pydantic import Field
+from pydantic import Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
@@ -22,10 +22,12 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
+    is_valid_password,
     sanitize_email,
     validate_email_format,
     validate_password_format,
 )
+from phoenix.config import get_env_disable_basic_auth
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
@@ -37,6 +39,7 @@ from phoenix.server.api.routers.v1.utils import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import UserId
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +121,21 @@ class CreateUserRequestBody(V1RoutesBaseModel):
 
 class CreateUserResponseBody(ResponseBody[User]):
     pass
+
+
+class PatchUserRequestBody(V1RoutesBaseModel):
+    """Fields to update. At least one must be provided."""
+
+    username: str | None = None
+    password: str | None = None
+    current_password: str | None = None
+    role: models.UserRoleName | None = None
+
+    @model_validator(mode="after")
+    def _at_least_one_field(self) -> Self:
+        if self.username is None and self.password is None and self.role is None:
+            raise ValueError("At least one field must be set")
+        return self
 
 
 DEFAULT_PAGINATION_PAGE_LIMIT = 100
@@ -346,6 +364,175 @@ async def create_user(
             # Log the error but do not raise it
             logger.error(f"Failed to send welcome email: {error}")
     return CreateUserResponseBody(data=data)
+
+
+@router.patch(
+    "/users/{user_id}",
+    operation_id="patchUser",
+    summary="Update a user by ID",
+    description=(
+        "Partially update a user. Admins may update another user's role, username, and password. "
+        "Any authenticated user may update their own username and password; "
+        "changing your own password requires the current password."
+    ),
+    response_description="The updated user.",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 400, "description": "Invalid request (e.g. role not found)."},
+            {"status_code": 401, "description": "Not authenticated."},
+            {
+                "status_code": 403,
+                "description": "Forbidden (e.g. not admin, or invalid self-update).",
+            },
+            {"status_code": 404, "description": "User not found."},
+            {
+                "status_code": 409,
+                "description": "Conflict (e.g. username exists, invalid password).",
+            },
+            422,
+        ]
+    ),
+    dependencies=[Depends(is_not_locked)],
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
+)
+async def patch_user(
+    request: Request,
+    request_body: PatchUserRequestBody,
+    user_id: str = Path(..., description="The GlobalID of the user."),
+) -> GetUserResponseBody:
+    try:
+        target_id = from_global_id_with_expected_type(GlobalID.from_id(user_id), "User")
+    except Exception:
+        raise HTTPException(status_code=422, detail=f"Invalid User GlobalID format: {user_id}")
+
+    auth_enabled = request.app.state.authentication_enabled
+    if auth_enabled:
+        if not isinstance(request.user, PhoenixUser):
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        requester_id = int(request.user.identity)
+        is_admin = request.user.is_admin
+        is_self = requester_id == target_id
+        if not is_self and not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Only admin or system users can perform this action.",
+            )
+    else:
+        is_self = False
+
+    if request_body.role is not None and auth_enabled and is_self:
+        raise HTTPException(status_code=403, detail="Cannot modify own role")
+
+    if request_body.password is not None and get_env_disable_basic_auth():
+        raise HTTPException(
+            status_code=400,
+            detail="Basic auth is disabled: OAuth2 authentication only",
+        )
+
+    if (
+        auth_enabled
+        and is_self
+        and request_body.password is not None
+        and not request_body.current_password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="current_password is required when modifying password",
+        )
+
+    should_log_out = False
+
+    async with request.app.state.db() as session:
+        user = await session.scalar(
+            select(models.User)
+            .options(joinedload(models.User.role))
+            .where(models.User.id == target_id)
+        )
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if request_body.role is not None:
+            if user.email == DEFAULT_ADMIN_EMAIL:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Cannot modify role for the default admin user",
+                )
+            user_role_id = await session.scalar(
+                select(models.UserRole.id).filter_by(name=request_body.role)
+            )
+            if user_role_id is None:
+                raise HTTPException(status_code=400, detail=f"Role '{request_body.role}' not found")
+            user.user_role_id = user_role_id
+            should_log_out = True
+
+        if request_body.password is not None:
+            if user.auth_method != "LOCAL":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot modify password for non local user",
+                )
+            assert isinstance(user, models.LocalUser)
+            validate_password_format(request_body.password)
+            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+            compute = partial(
+                compute_password_hash,
+                password=Secret(request_body.password),
+                salt=salt,
+            )
+            password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
+            if auth_enabled and is_self:
+                if request_body.current_password is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="current_password is required when modifying password",
+                    )
+                current_salt = user.password_salt
+                current_password_hash = user.password_hash
+                if current_salt is None or current_password_hash is None:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Local user missing password credentials",
+                    )
+                if not is_valid_password(
+                    password=Secret(request_body.current_password),
+                    salt=current_salt,
+                    password_hash=current_password_hash,
+                ):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Valid current password is required to modify password",
+                    )
+                user.reset_password = False
+                should_log_out = True
+            else:
+                user.reset_password = True
+                should_log_out = True
+            user.password_salt = salt
+            user.password_hash = password_hash
+
+        if request_body.username is not None:
+            user.username = request_body.username
+
+        user.updated_at = datetime.now(timezone.utc)
+
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "users.username" in str(e):
+                raise HTTPException(status_code=409, detail="Username already exists")
+            if "users.email" in str(e):
+                raise HTTPException(status_code=409, detail="Email already exists")
+            raise HTTPException(status_code=409, detail="Failed to modify user")
+
+        await session.refresh(user, ["role"])
+        data = _db_user_to_response(user)
+
+    if should_log_out and (token_store := getattr(request.app.state, "_token_store", None)):
+        await token_store.log_out(UserId(target_id))
+
+    return GetUserResponseBody(data=data)
 
 
 @router.delete(

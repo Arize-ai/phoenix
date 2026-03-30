@@ -260,6 +260,13 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchUserRequestBody(TypedDict):
+    username: NotRequired[str]
+    password: NotRequired[str]
+    current_password: NotRequired[str]
+    role: NotRequired[Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]]
+
+
 class Project(TypedDict):
     name: str
     id: str
@@ -793,6 +800,10 @@ class GetPromptVersionTagsResponseBody(TypedDict):
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
     next_cursor: Optional[str]
+
+
+class GetUserResponseBody(TypedDict):
+    data: Union[LocalUser, OAuth2User, LDAPUser]
 
 
 class GetUsersResponseBody(TypedDict):
