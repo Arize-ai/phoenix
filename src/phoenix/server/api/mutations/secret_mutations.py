@@ -55,11 +55,16 @@ class SecretKeyValueInput:
 
     def __post_init__(self) -> None:
         """Validate and normalize the key and value fields."""
+        import re
+
         self.key = self.key.strip()
         if not self.key:
             raise BadRequest("Key cannot be empty")
-        if not self.key.isascii():
-            raise BadRequest("Key must be ASCII")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.key):
+            raise BadRequest(
+                "Key must start with a letter or underscore and contain only "
+                "letters, digits, and underscores"
+            )
         if self.value is None:
             return
         self.value = self.value.strip()

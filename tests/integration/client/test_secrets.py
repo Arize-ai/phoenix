@@ -473,6 +473,20 @@ class TestSecretsValidation:
         resp = _put_secrets(_app, [{"key": "КЛЮЧ", "value": "val"}])
         assert resp.status_code == 422, resp.text
 
+    @pytest.mark.parametrize(
+        "bad_key",
+        [
+            pytest.param("has space", id="whitespace"),
+            pytest.param("has-dash", id="dash"),
+            pytest.param("has.dot", id="dot"),
+            pytest.param("key!", id="punctuation"),
+            pytest.param("0STARTS_WITH_DIGIT", id="leading_digit"),
+        ],
+    )
+    def test_key_with_invalid_characters_returns_422(self, _app: _AppInfo, bad_key: str) -> None:
+        resp = _put_secrets(_app, [{"key": bad_key, "value": "val"}])
+        assert resp.status_code == 422, resp.text
+
     def test_empty_value_returns_422(self, _app: _AppInfo) -> None:
         resp = _put_secrets(_app, [{"key": "SOME_KEY", "value": "   "}])
         assert resp.status_code == 422, resp.text
@@ -511,6 +525,16 @@ class TestSecretsValidation:
             _app.admin_secret,
             query=UPSERT_OR_DELETE_MUTATION,
             variables={"input": {"secrets": [{"key": "", "value": "v"}]}},
+            operation_name="UpsertOrDeleteSecrets",
+        )
+        assert result.get("errors")
+
+    def test_graphql_invalid_key_characters_returns_error(self, _app: _AppInfo) -> None:
+        result, _ = _gql(
+            _app,
+            _app.admin_secret,
+            query=UPSERT_OR_DELETE_MUTATION,
+            variables={"input": {"secrets": [{"key": "has-dash", "value": "v"}]}},
             operation_name="UpsertOrDeleteSecrets",
         )
         assert result.get("errors")

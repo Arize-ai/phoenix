@@ -36,12 +36,17 @@ class SecretKeyValue(V1RoutesBaseModel):
     @field_validator("key")
     @classmethod
     def validate_key(cls, v: str) -> str:
-        """Keys must be non-empty ASCII strings (after trimming)."""
+        """Keys must match ``[A-Za-z_][A-Za-z0-9_]*`` (env-var style)."""
         v = v.strip()
         if not v:
             raise ValueError("Key cannot be empty")
-        if not v.isascii():
-            raise ValueError("Key must be ASCII")
+        import re
+
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", v):
+            raise ValueError(
+                "Key must start with a letter or underscore and contain only "
+                "letters, digits, and underscores"
+            )
         return v
 
     @field_validator("value")
