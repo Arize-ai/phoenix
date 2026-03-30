@@ -97,7 +97,11 @@ export function DeleteSandboxConfigButton({
                 </div>
               </View>
               <DialogFooter>
-                <Button variant="default" onPress={() => setIsOpen(false)} size="S">
+                <Button
+                  variant="default"
+                  onPress={() => setIsOpen(false)}
+                  size="S"
+                >
                   Cancel
                 </Button>
                 <Button

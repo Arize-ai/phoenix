@@ -44,7 +44,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         supported_languages=["PYTHON"],
         dependency_hints=[
             "Install Phoenix with the `sandbox` extra so `wasmtime` is available.",
-            "Allow Phoenix to download the CPython WASM binary on first use, or pre-populate the local WASM cache.",
+            (
+                "Allow Phoenix to download the CPython WASM binary on first use, "
+                "or pre-populate the local WASM cache."
+            ),
         ],
     ),
     "E2B": AdapterMetadata(

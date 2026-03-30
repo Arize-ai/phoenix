@@ -15,11 +15,12 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
     CreateSandboxConfigInput,
     SandboxConfig,
-    UpdateSandboxProviderInput,
     UpdateSandboxConfigInput,
+    UpdateSandboxProviderInput,
     sandbox_config_from_input,
     to_gql_sandbox_config,
     to_gql_sandbox_provider,
@@ -27,7 +28,6 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider as SandboxProviderType,
 )
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 # ---------------------------------------------------------------------------
 # Payload types
