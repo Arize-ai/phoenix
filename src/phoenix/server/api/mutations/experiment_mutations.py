@@ -67,13 +67,13 @@ class ExperimentMutationMixin:
         async with info.context.db() as session:
             # Single atomic UPDATE: state guard + cooldown in one statement
             stmt = (
-                update(models.ExperimentExecutionConfig)
-                .where(models.ExperimentExecutionConfig.id == exp_rowid)
-                .where(models.ExperimentExecutionConfig.claimed_at.is_not(None))
+                update(models.ExperimentJob)
+                .where(models.ExperimentJob.id == exp_rowid)
+                .where(models.ExperimentJob.claimed_at.is_not(None))
                 .where(
                     or_(
-                        models.ExperimentExecutionConfig.cooldown_until.is_(None),
-                        models.ExperimentExecutionConfig.cooldown_until <= now,
+                        models.ExperimentJob.cooldown_until.is_(None),
+                        models.ExperimentJob.cooldown_until <= now,
                     )
                 )
                 .values(
@@ -82,13 +82,13 @@ class ExperimentMutationMixin:
                     status="STOPPED",
                     cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN,
                 )
-                .returning(models.ExperimentExecutionConfig)
+                .returning(models.ExperimentJob)
             )
             updated_config = await session.scalar(stmt)
 
             if updated_config is None:
                 # 0 rows updated - diagnose why
-                config = await session.get(models.ExperimentExecutionConfig, exp_rowid)
+                config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
                     raise BadRequest(f"Experiment {experiment_id} not found")
                 if config.claimed_at is None:
@@ -124,13 +124,13 @@ class ExperimentMutationMixin:
             # NOTE: COMPLETED experiments are resumable — the runner scans for
             # incomplete/errored runs, so resuming retries failures or picks up new examples.
             stmt = (
-                update(models.ExperimentExecutionConfig)
-                .where(models.ExperimentExecutionConfig.id == exp_rowid)
-                .where(models.ExperimentExecutionConfig.claimed_at.is_(None))
+                update(models.ExperimentJob)
+                .where(models.ExperimentJob.id == exp_rowid)
+                .where(models.ExperimentJob.claimed_at.is_(None))
                 .where(
                     or_(
-                        models.ExperimentExecutionConfig.cooldown_until.is_(None),
-                        models.ExperimentExecutionConfig.cooldown_until <= now,
+                        models.ExperimentJob.cooldown_until.is_(None),
+                        models.ExperimentJob.cooldown_until <= now,
                     )
                 )
                 .values(
@@ -139,13 +139,13 @@ class ExperimentMutationMixin:
                     status="RUNNING",
                     cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN,
                 )
-                .returning(models.ExperimentExecutionConfig)
+                .returning(models.ExperimentJob)
             )
             updated_config = await session.scalar(stmt)
 
             if updated_config is None:
                 # 0 rows updated - diagnose why
-                config = await session.get(models.ExperimentExecutionConfig, exp_rowid)
+                config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
                     raise BadRequest(f"Experiment {experiment_id} not found")
                 if config.claimed_at is not None:

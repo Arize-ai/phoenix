@@ -1282,7 +1282,7 @@ enum EvalAttr {
   label
 }
 
-type EvalJobId {
+type EvalWorkItemId {
   experimentRunId: Int!
   datasetEvaluatorId: Int!
 }
@@ -1534,7 +1534,7 @@ type ExperimentErrorEdge {
   node: ExperimentError!
 }
 
-union ExperimentErrorJobId = TaskJobId | EvalJobId
+union ExperimentErrorWorkItemId = TaskWorkItemId | EvalWorkItemId
 
 type ExperimentJob implements Node {
   """The Globally Unique ID of this object"""
@@ -1754,7 +1754,7 @@ input ExperimentRunSort {
 }
 
 type FailureDetail {
-  job: ExperimentErrorJobId
+  workItem: ExperimentErrorWorkItemId
   errorType: String!
   stackTrace: String
 }
@@ -2979,7 +2979,7 @@ type ResumeExperimentPayload {
 }
 
 type RetriesExhaustedDetail {
-  job: ExperimentErrorJobId
+  workItem: ExperimentErrorWorkItemId
   retryCount: Int!
   reason: String!
   stackTrace: String
@@ -3400,7 +3400,7 @@ type SystemApiKey implements ApiKey & Node {
   id: ID!
 }
 
-type TaskJobId {
+type TaskWorkItemId {
   datasetExampleId: Int!
   repetitionNumber: Int!
 }

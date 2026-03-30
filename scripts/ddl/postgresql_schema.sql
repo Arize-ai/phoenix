@@ -806,9 +806,9 @@ CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 
 
--- Table: experiment_execution_configs
--- -----------------------------------
-CREATE TABLE public.experiment_execution_configs (
+-- Table: experiment_jobs
+-- ----------------------
+CREATE TABLE public.experiment_jobs (
     id BIGINT NOT NULL,
     type VARCHAR NOT NULL,
     status VARCHAR NOT NULL DEFAULT 'STOPPED'::character varying,
@@ -817,8 +817,8 @@ CREATE TABLE public.experiment_execution_configs (
     cooldown_until TIMESTAMP WITH TIME ZONE,
     max_concurrency INTEGER NOT NULL DEFAULT 10,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_experiment_execution_configs PRIMARY KEY (id),
-    CONSTRAINT uq_experiment_execution_configs_type_id
+    CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
+    CONSTRAINT uq_experiment_jobs_type_id
         UNIQUE (type, id),
     CHECK (((status)::text = ANY ((ARRAY[
             'RUNNING'::character varying,
@@ -830,7 +830,7 @@ CREATE TABLE public.experiment_execution_configs (
             'PROMPT'::character varying,
             'EVAL_ONLY'::character varying
         ])::text[]))),
-    CONSTRAINT fk_experiment_execution_configs_id_experiments FOREIGN KEY
+    CONSTRAINT fk_experiment_jobs_id_experiments FOREIGN KEY
         (id)
         REFERENCES public.experiments (id)
         ON DELETE CASCADE
@@ -848,10 +848,10 @@ CREATE TABLE public.experiment_dataset_evaluators (
         (dataset_evaluator_id)
         REFERENCES public.dataset_evaluators (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiment_dataset_evaluators_experiment_id_experime_031b
+    CONSTRAINT fk_experiment_dataset_evaluators_experiment_id_experiment_jobs
         FOREIGN KEY
         (experiment_id)
-        REFERENCES public.experiment_execution_configs (id)
+        REFERENCES public.experiment_jobs (id)
         ON DELETE CASCADE
 );
 
@@ -882,10 +882,10 @@ CREATE TABLE public.experiment_events (
             'WARN'::character varying,
             'INFO'::character varying
         ])::text[]))),
-    CONSTRAINT fk_experiment_events_experiment_id_experiment_execution_configs
+    CONSTRAINT fk_experiment_events_experiment_id_experiment_jobs
         FOREIGN KEY
         (experiment_id)
-        REFERENCES public.experiment_execution_configs (id)
+        REFERENCES public.experiment_jobs (id)
         ON DELETE CASCADE
 );
 
@@ -1257,10 +1257,9 @@ CREATE TABLE public.experiment_prompt_tasks (
         (prompt_version_id)
         REFERENCES public.prompt_versions (id)
         ON DELETE SET NULL,
-    CONSTRAINT fk_experiment_prompt_tasks_type_experiment_execution_configs
-        FOREIGN KEY
+    CONSTRAINT fk_experiment_prompt_tasks_type_experiment_jobs FOREIGN KEY
         (type, id)
-        REFERENCES public.experiment_execution_configs (type, id)
+        REFERENCES public.experiment_jobs (type, id)
         ON DELETE CASCADE
 );
 

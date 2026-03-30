@@ -447,10 +447,10 @@ class Dataset(Node):
         )
         async with info.context.db() as session:
             stmt = (
-                select(models.ExperimentExecutionConfig)
+                select(models.ExperimentJob)
                 .join(models.Experiment)
                 .where(models.Experiment.dataset_id == self.id)
-                .order_by(models.ExperimentExecutionConfig.created_at.desc())
+                .order_by(models.ExperimentJob.created_at.desc())
             )
             results = await session.scalars(stmt)
             jobs = [ExperimentJob(id=config.id, db_record=config) for config in results]

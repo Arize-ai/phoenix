@@ -33,12 +33,12 @@ class ExperimentJobStatus(Enum):
 
 @strawberry.type
 class ExperimentJob(Node):
-    id: NodeID[int]  # Uses ExperimentExecutionConfig.id (FK to experiments.id)
-    db_record: strawberry.Private[models.ExperimentExecutionConfig | None] = None
+    id: NodeID[int]  # Uses ExperimentJob.id (FK to experiments.id)
+    db_record: strawberry.Private[models.ExperimentJob | None] = None
 
     @strawberry.field
     def experiment(self) -> Annotated["Experiment", strawberry.lazy(".Experiment")]:
-        # ExperimentExecutionConfig.id IS the experiment_id (1:1 FK relationship)
+        # ExperimentJob.id IS the experiment_id (1:1 FK relationship)
         from .Experiment import Experiment
 
         return Experiment(id=self.id)
@@ -48,8 +48,8 @@ class ExperimentJob(Node):
         if self.db_record:
             val = self.db_record.status
         else:
-            val = await info.context.data_loaders.experiment_execution_config_fields.load(
-                (self.id, models.ExperimentExecutionConfig.status),
+            val = await info.context.data_loaders.experiment_job_fields.load(
+                (self.id, models.ExperimentJob.status),
             )
         return ExperimentJobStatus(val)
 
@@ -58,8 +58,8 @@ class ExperimentJob(Node):
         if self.db_record:
             val = self.db_record.created_at
         else:
-            val = await info.context.data_loaders.experiment_execution_config_fields.load(
-                (self.id, models.ExperimentExecutionConfig.created_at),
+            val = await info.context.data_loaders.experiment_job_fields.load(
+                (self.id, models.ExperimentJob.created_at),
             )
         return val
 
@@ -104,8 +104,8 @@ class ExperimentJob(Node):
         if self.db_record:
             val = self.db_record.max_concurrency
         else:
-            val = await info.context.data_loaders.experiment_execution_config_fields.load(
-                (self.id, models.ExperimentExecutionConfig.max_concurrency),
+            val = await info.context.data_loaders.experiment_job_fields.load(
+                (self.id, models.ExperimentJob.max_concurrency),
             )
         return val
 

@@ -31,8 +31,8 @@ from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
-from .experiment_execution_configs import ExperimentExecutionConfigsDataLoader
 from .experiment_expected_run_counts import ExperimentExpectedRunCountsDataLoader
+from .experiment_jobs import ExperimentJobsDataLoader
 from .experiment_repeated_run_group_annotation_summaries import (
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
 )
@@ -116,7 +116,7 @@ __all__ = [
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
-    "ExperimentExecutionConfigsDataLoader",
+    "ExperimentJobsDataLoader",
     "ExperimentExpectedRunCountsDataLoader",
     "LastExperimentErrorsDataLoader",
     "ExperimentRepeatedRunGroupsDataLoader",

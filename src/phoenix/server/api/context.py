@@ -37,8 +37,8 @@ if TYPE_CHECKING:
         ExperimentAnnotationSummaryDataLoader,
         ExperimentDatasetSplitsDataLoader,
         ExperimentErrorRatesDataLoader,
-        ExperimentExecutionConfigsDataLoader,
         ExperimentExpectedRunCountsDataLoader,
+        ExperimentJobsDataLoader,
         ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
         ExperimentRepeatedRunGroupsDataLoader,
         ExperimentRunAnnotations,
@@ -139,8 +139,8 @@ class DataLoaders:
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
-    experiment_execution_config_fields: TableFieldsDataLoader
-    experiment_execution_configs: ExperimentExecutionConfigsDataLoader
+    experiment_job_fields: TableFieldsDataLoader
+    experiment_jobs: ExperimentJobsDataLoader
     experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
     last_experiment_errors: LastExperimentErrorsDataLoader
     experiment_fields: TableFieldsDataLoader

@@ -408,7 +408,7 @@ class Experiment(Node):
     async def background_job(
         self, info: Info[Context, None]
     ) -> Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")] | None:
-        job = await info.context.data_loaders.experiment_execution_configs.load(self.id)
+        job = await info.context.data_loaders.experiment_jobs.load(self.id)
         if job is None:
             return None
         from .ExperimentJob import ExperimentJob

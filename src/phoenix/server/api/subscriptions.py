@@ -407,7 +407,7 @@ class Subscription:
                 else None
             )
 
-            # ExperimentPromptTask inherits from ExperimentExecutionConfig
+            # ExperimentPromptTask inherits from ExperimentJob
             # (polymorphic joined table inheritance), so creating it
             # automatically inserts into both tables.
             execution_config = models.ExperimentPromptTask(

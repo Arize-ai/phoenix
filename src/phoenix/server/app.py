@@ -103,8 +103,8 @@ from phoenix.server.api.dataloaders import (
     ExperimentAnnotationSummaryDataLoader,
     ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
-    ExperimentExecutionConfigsDataLoader,
     ExperimentExpectedRunCountsDataLoader,
+    ExperimentJobsDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRunAnnotations,
@@ -784,10 +784,8 @@ def create_graphql_router(
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
-                experiment_execution_config_fields=TableFieldsDataLoader(
-                    db, models.ExperimentExecutionConfig
-                ),
-                experiment_execution_configs=ExperimentExecutionConfigsDataLoader(db),
+                experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),
+                experiment_jobs=ExperimentJobsDataLoader(db),
                 experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
                 last_experiment_errors=LastExperimentErrorsDataLoader(db),
                 experiment_fields=TableFieldsDataLoader(db, models.Experiment),

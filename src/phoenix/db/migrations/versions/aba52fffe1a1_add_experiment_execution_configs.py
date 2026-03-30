@@ -1,4 +1,4 @@
-"""add experiment_execution_configs
+"""add experiment_jobs
 
 Revision ID: aba52fffe1a1
 Revises: a1b2c3d4e5f6
@@ -52,7 +52,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_table(
-        "experiment_execution_configs",
+        "experiment_jobs",
         sa.Column(
             "id",
             _Integer,
@@ -129,7 +129,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["type", "id"],
-            ["experiment_execution_configs.type", "experiment_execution_configs.id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
             ondelete="CASCADE",
         ),
         # Prompt version (nullable)
@@ -183,7 +183,7 @@ def upgrade() -> None:
         sa.Column(
             "experiment_id",
             _Integer,
-            sa.ForeignKey("experiment_execution_configs.id", ondelete="CASCADE"),
+            sa.ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -296,7 +296,7 @@ def upgrade() -> None:
         sa.Column(
             "experiment_id",
             _Integer,
-            sa.ForeignKey("experiment_execution_configs.id", ondelete="CASCADE"),
+            sa.ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -320,4 +320,4 @@ def downgrade() -> None:
     op.drop_table("experiment_task_events")
     op.drop_table("experiment_events")
     op.drop_table("experiment_prompt_tasks")
-    op.drop_table("experiment_execution_configs")
+    op.drop_table("experiment_jobs")

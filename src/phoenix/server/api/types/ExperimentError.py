@@ -20,17 +20,17 @@ class ExperimentErrorCategory(Enum):
 
 
 # =============================================================================
-# Job Identifier (from DB columns on polymorphic subtables)
+# Work Item Identifier (from DB columns on polymorphic subtables)
 # =============================================================================
 
 
 @strawberry.type
-class TaskJobId:
+class TaskWorkItemId:
     dataset_example_id: int
     repetition_number: int
 
     @classmethod
-    def from_orm(cls, row: models.ExperimentTaskEvent) -> TaskJobId:
+    def from_orm(cls, row: models.ExperimentTaskEvent) -> TaskWorkItemId:
         return cls(
             dataset_example_id=row.dataset_example_id,
             repetition_number=row.repetition_number,
@@ -38,30 +38,30 @@ class TaskJobId:
 
 
 @strawberry.type
-class EvalJobId:
+class EvalWorkItemId:
     experiment_run_id: int
     dataset_evaluator_id: int
 
     @classmethod
-    def from_orm(cls, row: models.ExperimentEvalEvent) -> EvalJobId:
+    def from_orm(cls, row: models.ExperimentEvalEvent) -> EvalWorkItemId:
         return cls(
             experiment_run_id=row.experiment_run_id,
             dataset_evaluator_id=row.dataset_evaluator_id,
         )
 
 
-ExperimentErrorJobId = Annotated[
-    Union[TaskJobId, EvalJobId],
-    strawberry.union(name="ExperimentErrorJobId"),
+ExperimentErrorWorkItemId = Annotated[
+    Union[TaskWorkItemId, EvalWorkItemId],
+    strawberry.union(name="ExperimentErrorWorkItemId"),
 ]
 
 
-def _job_id_from_orm(row: models.ExperimentEvent) -> ExperimentErrorJobId | None:
+def _work_item_id_from_orm(row: models.ExperimentEvent) -> ExperimentErrorWorkItemId | None:
     if isinstance(row, models.ExperimentTaskEvent):
-        return TaskJobId.from_orm(row)
+        return TaskWorkItemId.from_orm(row)
     if isinstance(row, models.ExperimentEvalEvent):
-        return EvalJobId.from_orm(row)
-    return None  # SYSTEM events have no job
+        return EvalWorkItemId.from_orm(row)
+    return None  # SYSTEM events have no work item
 
 
 # =============================================================================
@@ -71,7 +71,7 @@ def _job_id_from_orm(row: models.ExperimentEvent) -> ExperimentErrorJobId | None
 
 @strawberry.type
 class FailureDetail:
-    job: ExperimentErrorJobId | None
+    work_item: ExperimentErrorWorkItemId | None
     error_type: str
     stack_trace: str | None = None
 
@@ -82,7 +82,7 @@ class FailureDetail:
         row: models.ExperimentEvent,
     ) -> FailureDetail:
         return cls(
-            job=_job_id_from_orm(row),
+            work_item=_work_item_id_from_orm(row),
             error_type=obj.error_type,
             stack_trace=obj.stack_trace,
         )
@@ -90,7 +90,7 @@ class FailureDetail:
 
 @strawberry.type
 class RetriesExhaustedDetail:
-    job: ExperimentErrorJobId | None
+    work_item: ExperimentErrorWorkItemId | None
     retry_count: int
     reason: str
     stack_trace: str | None = None
@@ -102,7 +102,7 @@ class RetriesExhaustedDetail:
         row: models.ExperimentEvent,
     ) -> RetriesExhaustedDetail:
         return cls(
-            job=_job_id_from_orm(row),
+            work_item=_work_item_id_from_orm(row),
             retry_count=obj.retry_count,
             reason=obj.reason,
             stack_trace=obj.stack_trace,

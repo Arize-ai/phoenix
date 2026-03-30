@@ -1745,8 +1745,8 @@ class TestBuiltinEvaluatorMultiOutput:
             assert config.optimization_direction == OptimizationDirection.MINIMIZE
 
 
-class TestExperimentExecutionConfigPolymorphism:
-    """Test polymorphic dispatch for ExperimentExecutionConfig subclasses."""
+class TestExperimentJobPolymorphism:
+    """Test polymorphic dispatch for ExperimentJob subclasses."""
 
     async def test_polymorphic_dispatch(self, db: DbSessionFactory) -> None:
         async with db() as session:
@@ -1793,7 +1793,7 @@ class TestExperimentExecutionConfigPolymorphism:
 
         # Query base class returns correct subclass types
         async with db() as session:
-            configs = (await session.scalars(select(models.ExperimentExecutionConfig))).all()
+            configs = (await session.scalars(select(models.ExperimentJob))).all()
             assert len(configs) == 2
             by_id = {c.id: c for c in configs}
 

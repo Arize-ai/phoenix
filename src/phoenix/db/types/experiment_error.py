@@ -11,12 +11,12 @@ from pydantic import ConfigDict, Field
 from phoenix.db.types.db_helper_types import DBBaseModel
 
 # =============================================================================
-# Job Identifier (which job failed)
+# Work Item Identifier (which work item failed)
 # =============================================================================
 
 
-class TaskJobId(DBBaseModel):
-    """Identifies a task job that failed."""
+class TaskWorkItemId(DBBaseModel):
+    """Identifies a task work item that failed."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -25,8 +25,8 @@ class TaskJobId(DBBaseModel):
     repetition_number: int
 
 
-class EvalJobId(DBBaseModel):
-    """Identifies an eval job that failed."""
+class EvalWorkItemId(DBBaseModel):
+    """Identifies an eval work item that failed."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -35,8 +35,8 @@ class EvalJobId(DBBaseModel):
     dataset_evaluator_id: int
 
 
-JobId = Annotated[
-    Union[TaskJobId, EvalJobId],
+WorkItemId = Annotated[
+    Union[TaskWorkItemId, EvalWorkItemId],
     Field(discriminator="type"),
 ]
 
@@ -52,7 +52,7 @@ class PermanentFailureDetail(DBBaseModel):
     model_config = ConfigDict(frozen=True)
 
     type: Literal["permanent_failure"]
-    job: JobId
+    work_item: WorkItemId
     error_type: str
     stack_trace: str | None = None
 
@@ -63,7 +63,7 @@ class RetriesExhaustedDetail(DBBaseModel):
     model_config = ConfigDict(frozen=True)
 
     type: Literal["retries_exhausted"]
-    job: JobId
+    work_item: WorkItemId
     retry_count: int
     reason: str
     stack_trace: str | None = None

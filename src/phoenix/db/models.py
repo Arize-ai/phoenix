@@ -1676,8 +1676,8 @@ class ExperimentTag(HasId):
     __table_args__ = (UniqueConstraint("dataset_id", "name"),)
 
 
-class ExperimentExecutionConfig(HasId):
-    __tablename__ = "experiment_execution_configs"
+class ExperimentJob(HasId):
+    __tablename__ = "experiment_jobs"
     id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
         primary_key=True,
@@ -1730,7 +1730,7 @@ class ExperimentExecutionConfig(HasId):
     __table_args__ = (UniqueConstraint("type", "id"),)
 
 
-class ExperimentPromptTask(ExperimentExecutionConfig):
+class ExperimentPromptTask(ExperimentJob):
     """Prompt-specific task configuration for an experiment.
 
     Stores the prompt template, model config, and connection details
@@ -1795,7 +1795,7 @@ class ExperimentPromptTask(ExperimentExecutionConfig):
     __table_args__ = (  # type: ignore[assignment]
         ForeignKeyConstraint(
             ["type", "id"],
-            ["experiment_execution_configs.type", "experiment_execution_configs.id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
             ondelete="CASCADE",
         ),
         CheckConstraint(
@@ -1805,11 +1805,11 @@ class ExperimentPromptTask(ExperimentExecutionConfig):
     )
 
 
-class ExperimentEvalOnlyConfig(ExperimentExecutionConfig):
+class ExperimentEvalOnlyConfig(ExperimentJob):
     """Eval-only execution config — no task, just run evaluators against existing runs.
 
     Uses single-table inheritance: no extra columns, so no separate table needed.
-    Rows live in ``experiment_execution_configs`` with ``type = 'EVAL_ONLY'``.
+    Rows live in ``experiment_jobs`` with ``type = 'EVAL_ONLY'``.
     """
 
     __mapper_args__ = {
@@ -1822,7 +1822,7 @@ class ExperimentDatasetEvaluator(Base):
 
     __tablename__ = "experiment_dataset_evaluators"
     experiment_id: Mapped[int] = mapped_column(
-        ForeignKey("experiment_execution_configs.id", ondelete="CASCADE"),
+        ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
         primary_key=True,
     )
     dataset_evaluator_id: Mapped[int] = mapped_column(
@@ -1830,7 +1830,7 @@ class ExperimentDatasetEvaluator(Base):
         primary_key=True,
         index=True,
     )
-    execution_config: Mapped["ExperimentExecutionConfig"] = relationship(
+    execution_config: Mapped["ExperimentJob"] = relationship(
         back_populates="dataset_evaluator_links",
     )
     dataset_evaluator: Mapped["DatasetEvaluators"] = relationship()
@@ -1851,7 +1851,7 @@ class ExperimentEvent(HasId):
 
     __tablename__ = "experiment_events"
     experiment_id: Mapped[int] = mapped_column(
-        ForeignKey("experiment_execution_configs.id", ondelete="CASCADE"),
+        ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[str] = mapped_column(
@@ -1870,7 +1870,7 @@ class ExperimentEvent(HasId):
     detail: Mapped[Optional[ExperimentEventDetail]] = mapped_column(
         _ExperimentEventDetail, nullable=True
     )
-    execution_config: Mapped["ExperimentExecutionConfig"] = relationship(
+    execution_config: Mapped["ExperimentJob"] = relationship(
         back_populates="events",
     )
 

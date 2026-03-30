@@ -4,11 +4,11 @@ Background experiment runner daemon.
 Three concepts:
 - ExperimentRunner: Daemon orchestrator with fair dispatch and concurrency control
 - RunningExperiment: Per-experiment state with queues and rate limit awareness
-- TaskJob / EvalJob: Self-executing command objects
+- TaskWorkItem / EvalWorkItem: Self-executing command objects
 
 Key patterns:
 - Non-blocking rate limit check: Experiment checks capacity before returning work
-- Jobs are self-executing with callbacks (Command pattern)
+- Work items are self-executing with callbacks (Command pattern)
 - Semaphore-first: Acquire concurrency slot before looking for work
 """
 
@@ -211,7 +211,7 @@ def _output_configs_for_eval_run(
     dataset_evaluator: models.DatasetEvaluators,
     evaluator: BaseEvaluator,
 ) -> list[OutputConfigType]:
-    """Configs for EvalJob.evaluate.
+    """Configs for EvalWorkItem.evaluate.
 
     Annotation and subscription chunk names come from each output config's ``name``.
     Prefer ``dataset_evaluators.output_configs`` from the database; fall back to the
@@ -262,15 +262,15 @@ logger = logging.getLogger(__name__)
 ExperimentId: TypeAlias = int
 
 # =============================================================================
-# Jobs (Command Pattern)
+# Work Items (Command Pattern)
 # =============================================================================
 
 
-class Job(ABC):
+class WorkItem(ABC):
     """
-    Base class for self-executing jobs.
+    Base class for self-executing work items.
 
-    Jobs are Commands (Gang of Four pattern) - they carry everything needed
+    Work items are Commands (Gang of Four pattern) - they carry everything needed
     for execution and report results to their owning RunningExperiment.
     """
 
@@ -292,23 +292,23 @@ class Job(ABC):
     @property
     @abstractmethod
     def experiment_id(self) -> ExperimentId:
-        """Return the experiment ID this job belongs to."""
+        """Return the experiment ID this work item belongs to."""
         ...
 
     @abstractmethod
     async def execute(self) -> None:
-        """Execute this job. Results reported to owning RunningExperiment."""
+        """Execute this work item. Results reported to owning RunningExperiment."""
         ...
 
     @abstractmethod
     def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this job's LLM client."""
+        """Return the rate limit key for this work item's LLM client."""
         ...
 
 
-class TaskJob(Job):
+class TaskWorkItem(WorkItem):
     """
-    Task job: run LLM completion for one dataset example × one repetition.
+    Task work item: run LLM completion for one dataset example x one repetition.
 
     Carries everything needed for execution:
     - Data: example input, repetition number, messages
@@ -383,7 +383,7 @@ class TaskJob(Job):
 
     @override
     def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this job's LLM client."""
+        """Return the rate limit key for this work item's LLM client."""
         return self._llm_client.get_rate_limit_key()
 
     def _build_messages(self) -> list[PlaygroundMessage]:
@@ -464,7 +464,7 @@ class TaskJob(Job):
     @override
     async def execute(self) -> None:
         """Execute the task, write to DB, and report results."""
-        logger.debug(f"TaskJob {self.debug_identifier} starting execution")
+        logger.debug(f"TaskWorkItem {self.debug_identifier} starting execution")
         tracer = self._tracer_factory()
         example_id = GlobalID(
             DatasetExample.__name__,
@@ -512,7 +512,8 @@ class TaskJob(Job):
 
         try:
             logger.debug(
-                f"TaskJob {self.debug_identifier}: starting streaming (timeout={self._timeout}s)"
+                f"TaskWorkItem {self.debug_identifier}: "
+                f"starting streaming (timeout={self._timeout}s)"
             )
             with anyio.fail_after(self._timeout):
                 async for chunk in self._llm_client.chat_completion_create(
@@ -530,12 +531,14 @@ class TaskJob(Job):
                     chunk.repetition_number = self._repetition_number
                     self._running_experiment._broadcast(chunk)
 
-                logger.debug(f"TaskJob {self.debug_identifier}: stream finished, building traces")
+                logger.debug(
+                    f"TaskWorkItem {self.debug_identifier}: stream finished, building traces"
+                )
                 task_db_traces = tracer.get_db_traces(project_id=self._project_id)
                 task_db_trace = task_db_traces[0] if task_db_traces else None
                 if not task_db_trace or not task_db_trace.spans:
                     logger.warning(
-                        f"TaskJob {self.debug_identifier}: no trace recorded "
+                        f"TaskWorkItem {self.debug_identifier}: no trace recorded "
                         "(stream may have completed without emitting spans)"
                     )
                     no_trace_error = RuntimeError(
@@ -562,27 +565,29 @@ class TaskJob(Job):
                     )
                 )
 
-                logger.debug(f"TaskJob {self.debug_identifier} completed successfully")
+                logger.debug(f"TaskWorkItem {self.debug_identifier} completed successfully")
                 await self._running_experiment.on_task_success(self, db_run)
 
         except TimeoutError:
-            logger.warning(f"TaskJob {self.debug_identifier} timed out")
+            logger.warning(f"TaskWorkItem {self.debug_identifier} timed out")
             await self._running_experiment.on_timeout(self)
 
         except anyio.get_cancelled_exc_class():
-            logger.debug(f"TaskJob {self.debug_identifier} cancelled")
+            logger.debug(f"TaskWorkItem {self.debug_identifier} cancelled")
             raise
 
         except Exception as e:
             err_type = type(e).__name__
             if self._is_rate_limit_error(e):
-                logger.debug(f"TaskJob {self.debug_identifier} hit rate limit ({err_type})")
+                logger.debug(f"TaskWorkItem {self.debug_identifier} hit rate limit ({err_type})")
                 await self._running_experiment.on_rate_limit(self)
             elif self._is_transient_error(e):
-                logger.warning(f"TaskJob {self.debug_identifier} transient error ({err_type}): {e}")
+                logger.warning(
+                    f"TaskWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
+                )
                 await self._running_experiment.on_transient_error(self, e)
             else:
-                logger.exception(f"TaskJob {self.debug_identifier} failed ({err_type}): {e}")
+                logger.exception(f"TaskWorkItem {self.debug_identifier} failed ({err_type}): {e}")
                 self._running_experiment._broadcast(
                     ChatCompletionSubscriptionError(
                         message=str(e),
@@ -603,9 +608,9 @@ class TaskJob(Job):
         return bool(self._llm_client.is_transient_error(e))
 
 
-class EvalJob(Job):
+class EvalWorkItem(WorkItem):
     """
-    Eval job: run one evaluator on one task result.
+    Eval work item: run one evaluator on one task result.
 
     No streaming - evaluators run silently.
     Results written to experiment_run_annotations table.
@@ -685,7 +690,7 @@ class EvalJob(Job):
 
     @override
     def get_rate_limit_key(self) -> Hashable:
-        """Return the rate limit key for this job's evaluator.
+        """Return the rate limit key for this work item's evaluator.
 
         For LLM evaluators, delegates to the LLM client's rate limit key.
         For built-in evaluators (which run locally), returns a unique key
@@ -699,7 +704,7 @@ class EvalJob(Job):
     @override
     async def execute(self) -> None:
         """Execute the evaluation, write to DB, and report results."""
-        logger.debug(f"EvalJob {self.debug_identifier}: starting (timeout={self._timeout}s)")
+        logger.debug(f"EvalWorkItem {self.debug_identifier}: starting (timeout={self._timeout}s)")
         try:
             with anyio.fail_after(self._timeout):
                 context_dict: dict[str, Any] = {
@@ -718,7 +723,7 @@ class EvalJob(Job):
                     tracer=tracer,
                 )
                 logger.debug(
-                    f"EvalJob {self.debug_identifier}: evaluator returned "
+                    f"EvalWorkItem {self.debug_identifier}: evaluator returned "
                     f"{len(eval_results)} result(s)"
                 )
                 db_traces: list[models.Trace] = list(
@@ -781,36 +786,40 @@ class EvalJob(Job):
                 error_result = next((r for r in eval_results if r.get("error") is not None), None)
                 if error_result is not None:
                     error_exc = error_result.get("error_exc") or Exception(error_result["error"])
-                    logger.warning(f"EvalJob {self.debug_identifier} returned error: {error_exc}")
+                    logger.warning(
+                        f"EvalWorkItem {self.debug_identifier} returned error: {error_exc}"
+                    )
                     await self._running_experiment.on_failure(self, error_exc)
                 else:
                     logger.debug(
-                        f"EvalJob {self.debug_identifier}: success, "
+                        f"EvalWorkItem {self.debug_identifier}: success, "
                         f"wrote {len(annotations)} annotation(s)"
                     )
                     await self._running_experiment.on_eval_success(self, annotations, db_traces)
 
         except TimeoutError:
-            logger.warning(f"EvalJob {self.debug_identifier} timed out")
+            logger.warning(f"EvalWorkItem {self.debug_identifier} timed out")
             await self._running_experiment.on_timeout(self)
 
         except anyio.get_cancelled_exc_class():
             # Must re-raise so _run_and_release sees cancellation instead of
             # misclassifying it as a transient/permanent error via the
             # generic Exception handler below.
-            logger.debug(f"EvalJob {self.debug_identifier} cancelled")
+            logger.debug(f"EvalWorkItem {self.debug_identifier} cancelled")
             raise
 
         except Exception as e:
             err_type = type(e).__name__
             if self._is_rate_limit_error(e):
-                logger.debug(f"EvalJob {self.debug_identifier} hit rate limit ({err_type})")
+                logger.debug(f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})")
                 await self._running_experiment.on_rate_limit(self)
             elif self._is_transient_error(e):
-                logger.warning(f"EvalJob {self.debug_identifier} transient error ({err_type}): {e}")
+                logger.warning(
+                    f"EvalWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
+                )
                 await self._running_experiment.on_transient_error(self, e)
             else:
-                logger.exception(f"EvalJob {self.debug_identifier} failed ({err_type}): {e}")
+                logger.exception(f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}")
                 await self._running_experiment.on_failure(self, e)
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
@@ -893,7 +902,7 @@ class RetryItem:
     """Item in the retry queue, ordered by ready_at time."""
 
     ready_at: datetime
-    job: Job = field(compare=False)
+    work_item: WorkItem = field(compare=False)
 
 
 # =============================================================================
@@ -913,10 +922,10 @@ class OnExperimentDone(Protocol):
 
 class RunningExperiment:
     """
-    Per-experiment state: queues, rate limit check, creates Jobs.
+    Per-experiment state: queues, rate limit check, creates work items.
 
     Key behavior:
-    - try_get_ready_job() checks rate limit and returns a Job or None
+    - try_get_ready_work_item() checks rate limit and returns a WorkItem or None
     - If None (rate limited or no work), Daemon tries another experiment
     - Rate limit check returns immediately, never blocks waiting for capacity
 
@@ -927,7 +936,7 @@ class RunningExperiment:
         self,
         *,
         experiment: models.Experiment,
-        execution_config: models.ExperimentExecutionConfig,
+        execution_config: models.ExperimentJob,
         llm_client: LLMClient,
         db: DbSessionFactory,
         decrypt: Callable[[bytes], bytes],
@@ -957,11 +966,11 @@ class RunningExperiment:
         self._max_concurrency = execution_config.max_concurrency
 
         # Queues (priority: evals > retries > tasks)
-        self._task_queue: deque[TaskJob] = deque()
-        self._eval_queue: deque[EvalJob] = deque()
+        self._task_queue: deque[TaskWorkItem] = deque()
+        self._eval_queue: deque[EvalWorkItem] = deque()
         self._retry_heap: list[RetryItem] = []
-        self._in_flight: set[Job] = set()
-        self._cancel_scopes: dict[Job, anyio.CancelScope] = {}
+        self._in_flight: set[WorkItem] = set()
+        self._cancel_scopes: dict[WorkItem, anyio.CancelScope] = {}
 
         # UI subscribers for streaming
         self._subscribers: list[MemoryObjectSendStream[ChatCompletionSubscriptionPayload]] = []
@@ -1035,18 +1044,18 @@ class RunningExperiment:
             return False
         return self._retry_heap[0].ready_at <= datetime.now(timezone.utc)
 
-    async def try_get_ready_job(self) -> Job | None:
+    async def try_get_ready_work_item(self) -> WorkItem | None:
         """
-        Return a Job if work is available AND rate limit allows, else None.
+        Return a WorkItem if work is available AND rate limit allows, else None.
 
-        Ensures the task buffer is filled from DB, peeks at the next job,
+        Ensures the task buffer is filled from DB, peeks at the next work item,
         checks rate limit using its key, then pops if allowed.
         """
         await self._ensure_task_buffer()
         await self._ensure_eval_buffer()
         if not self._active:
             logger.debug(
-                f"Experiment {self._experiment.id}: try_get_ready_job() -> None (inactive)"
+                f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None (inactive)"
             )
             return None
 
@@ -1060,42 +1069,42 @@ class RunningExperiment:
             await self._check_completion()
             return None
 
-        # Peek at next job without popping
-        job, pop = self._peek_next_job()
-        if job is None:
+        # Peek at next work item without popping
+        work_item, pop = self._peek_next_work_item()
+        if work_item is None:
             logger.debug(
-                f"Experiment {self._experiment.id}: try_get_ready_job() -> None "
+                f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None "
                 f"(peek returned None despite has_pending_work=True)"
             )
             return None
 
-        # Check rate limit using job's key
-        key = job.get_rate_limit_key()
+        # Check rate limit using work item's key
+        key = work_item.get_rate_limit_key()
         bucket = self._token_buckets[key]
         try:
             bucket.make_request_if_ready()
         except UnavailableTokensError:
             # Rate limited - return None, Daemon tries another experiment
             logger.debug(
-                f"Experiment {self._experiment.id}: try_get_ready_job() -> None "
-                f"(rate limited for key={key}, job={job.debug_identifier})"
+                f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None "
+                f"(rate limited for key={key}, work_item={work_item.debug_identifier})"
             )
             return None
 
         # Allowed - pop and return (update fairness so we're served last next time)
         self.last_served_at = datetime.now(timezone.utc)
         pop()
-        return job
+        return work_item
 
-    def _peek_next_job(self) -> tuple[Job | None, Callable[[], Any]]:
-        """Peek at the next job in priority order without removing it."""
+    def _peek_next_work_item(self) -> tuple[WorkItem | None, Callable[[], Any]]:
+        """Peek at the next work item in priority order without removing it."""
         # Priority 1: Evals
         if self._eval_queue:
             return self._eval_queue[0], lambda: self._eval_queue.popleft()
 
         # Priority 2: Ready retries
         if self._has_ready_retries():
-            return self._retry_heap[0].job, lambda: heapq.heappop(self._retry_heap)
+            return self._retry_heap[0].work_item, lambda: heapq.heappop(self._retry_heap)
 
         # Priority 3: Tasks
         if self._task_queue:
@@ -1103,15 +1112,21 @@ class RunningExperiment:
 
         return None, lambda: None
 
-    def register_cancel_scope(self, job: Job, scope: anyio.CancelScope) -> None:
-        """Register a cancel scope for an in-flight job. Called by Runner when execution starts."""
-        self._cancel_scopes[job] = scope
-        self._in_flight.add(job)
+    def register_cancel_scope(self, work_item: WorkItem, scope: anyio.CancelScope) -> None:
+        """Register a cancel scope for an in-flight work item.
 
-    async def unregister_cancel_scope(self, job: Job) -> None:
-        """Unregister a cancel scope when job completes. Called by Runner when execution ends."""
-        self._cancel_scopes.pop(job, None)
-        self._in_flight.discard(job)
+        Called by Runner when execution starts.
+        """
+        self._cancel_scopes[work_item] = scope
+        self._in_flight.add(work_item)
+
+    async def unregister_cancel_scope(self, work_item: WorkItem) -> None:
+        """Unregister a cancel scope when work item completes.
+
+        Called by Runner when execution ends.
+        """
+        self._cancel_scopes.pop(work_item, None)
+        self._in_flight.discard(work_item)
         if not self._active and not self._in_flight:
             self._drained.set()
         await self._check_completion()
@@ -1120,7 +1135,7 @@ class RunningExperiment:
         """Check if any work is pending (ignoring rate limits).
 
         Must mirror has_work() minus the in_flight check. If this returns False
-        while DB eval scanning is incomplete, try_get_ready_job() calls
+        while DB eval scanning is incomplete, try_get_ready_work_item() calls
         _check_completion() prematurely and the experiment finishes before all
         evaluations are discovered.
         """
@@ -1262,20 +1277,20 @@ class RunningExperiment:
             else:
                 incomplete = [r for r in json.loads(incomplete_reps) if r is not None]
 
-            # Create a TaskJob for each incomplete repetition
+            # Create a TaskWorkItem for each incomplete repetition
             for repetition_number in incomplete:
-                job = self._create_task_job(
+                work_item = self._create_task_work_item(
                     dataset_example_revision=revision,
                     repetition_number=repetition_number,
                     prompt_task=prompt_task,
                     project_id=project_id,
                 )
-                self._task_queue.append(job)
+                self._task_queue.append(work_item)
 
         logger.debug(f"Loaded {len(self._task_queue)} tasks for experiment {self._experiment.id}")
 
     async def _ensure_eval_buffer(self) -> None:
-        """Load eval jobs for runs with missing evaluations, in batches.
+        """Load eval work items for runs with missing evaluations, in batches.
 
         Only runs after all tasks are done to avoid racing with
         on_task_success (which queues evals reactively as tasks complete).
@@ -1360,7 +1375,7 @@ class RunningExperiment:
             for name, spec in specs_by_name.items():
                 if name not in successful_names:
                     self._eval_queue.append(
-                        self._create_eval_job(
+                        self._create_eval_work_item(
                             experiment_run=run,
                             dataset_example_revision=revision,
                             dataset_evaluator_id=spec.dataset_evaluator_id,
@@ -1374,18 +1389,18 @@ class RunningExperiment:
 
         logger.info(
             f"Experiment {self._experiment.id}: _ensure_eval_buffer() "
-            f"queued {queued} eval job(s) from {len(rows)} run(s)"
+            f"queued {queued} eval work item(s) from {len(rows)} run(s)"
         )
 
-    def _create_task_job(
+    def _create_task_work_item(
         self,
         dataset_example_revision: models.DatasetExampleRevision,
         repetition_number: int,
         prompt_task: models.ExperimentPromptTask,
         project_id: int,
-    ) -> TaskJob:
-        """Create a TaskJob owned by this experiment."""
-        return TaskJob(
+    ) -> TaskWorkItem:
+        """Create a TaskWorkItem owned by this experiment."""
+        return TaskWorkItem(
             running_experiment=self,
             experiment=self._experiment,
             dataset_example_revision=dataset_example_revision,
@@ -1399,7 +1414,7 @@ class RunningExperiment:
             credentials=self._credentials,
         )
 
-    def _create_eval_job(
+    def _create_eval_work_item(
         self,
         experiment_run: models.ExperimentRun,
         dataset_example_revision: models.DatasetExampleRevision,
@@ -1408,9 +1423,9 @@ class RunningExperiment:
         input_mapping: InputMapping,
         output_configs: Sequence[OutputConfigType],
         project_id: int,
-    ) -> EvalJob:
-        """Create an EvalJob owned by this experiment."""
-        return EvalJob(
+    ) -> EvalWorkItem:
+        """Create an EvalWorkItem owned by this experiment."""
+        return EvalWorkItem(
             running_experiment=self,
             experiment_run=experiment_run,
             dataset_example_revision=dataset_example_revision,
@@ -1442,22 +1457,22 @@ class RunningExperiment:
 
     async def on_task_success(
         self,
-        job: TaskJob,
+        work_item: TaskWorkItem,
         experiment_run: models.ExperimentRun,
     ) -> None:
-        """Task completed. Queue eval jobs for each evaluator (feedback loop)."""
+        """Task completed. Queue eval work items for each evaluator (feedback loop)."""
         self._tasks_succeeded += 1
         self._task_circuit_breaker.record_success()
 
         if not self._active:
             return
 
-        # Feedback loop: queue eval jobs for this task's result
+        # Feedback loop: queue eval work items for this task's result
         for spec in self._evaluator_run_specs:
             self._eval_queue.append(
-                self._create_eval_job(
+                self._create_eval_work_item(
                     experiment_run=experiment_run,
-                    dataset_example_revision=job.dataset_example_revision,
+                    dataset_example_revision=work_item.dataset_example_revision,
                     dataset_evaluator_id=spec.dataset_evaluator_id,
                     evaluator=spec.evaluator,
                     input_mapping=spec.input_mapping,
@@ -1468,20 +1483,20 @@ class RunningExperiment:
 
     async def on_eval_success(
         self,
-        job: EvalJob,
+        work_item: EvalWorkItem,
         annotations: Sequence[models.ExperimentRunAnnotation],
         db_traces: Sequence[models.Trace] = (),
     ) -> None:
         """Eval completed - broadcast results to UI subscribers."""
         self._evals_succeeded += 1
-        self._eval_circuit_breakers[job.dataset_evaluator_id].record_success()
+        self._eval_circuit_breakers[work_item.dataset_evaluator_id].record_success()
 
         if not self._active:
             return
 
         traces_by_trace_id = {t.trace_id: t for t in db_traces}
         example_id = GlobalID(
-            DatasetExample.__name__, str(job.dataset_example_revision.dataset_example_id)
+            DatasetExample.__name__, str(work_item.dataset_example_revision.dataset_example_id)
         )
         for annotation in annotations:
             eval_db_trace = (
@@ -1496,7 +1511,7 @@ class RunningExperiment:
                         else None
                     ),
                     dataset_example_id=example_id,
-                    repetition_number=job.experiment_run.repetition_number,
+                    repetition_number=work_item.experiment_run.repetition_number,
                     trace=(
                         Trace(id=eval_db_trace.id, db_record=eval_db_trace)
                         if eval_db_trace
@@ -1510,84 +1525,84 @@ class RunningExperiment:
 
     def _make_event(
         self,
-        job: Job,
+        work_item: WorkItem,
         *,
         message: str,
         level: str = "ERROR",
         detail: FailureDetail | RetriesExhaustedDetail | None = None,
     ) -> models.ExperimentEvent:
-        """Create the correct polymorphic event subtype for a job."""
-        if isinstance(job, TaskJob):
+        """Create the correct polymorphic event subtype for a work item."""
+        if isinstance(work_item, TaskWorkItem):
             return models.ExperimentTaskEvent(
                 experiment_id=self._experiment.id,
                 level=level,
                 message=message,
                 detail=detail,
-                dataset_example_id=job.dataset_example_revision.dataset_example_id,
-                repetition_number=job.repetition_number,
+                dataset_example_id=work_item.dataset_example_revision.dataset_example_id,
+                repetition_number=work_item.repetition_number,
             )
-        assert isinstance(job, EvalJob)
+        assert isinstance(work_item, EvalWorkItem)
         return models.ExperimentEvalEvent(
             experiment_id=self._experiment.id,
             level=level,
             message=message,
             detail=detail,
-            experiment_run_id=job.experiment_run.id,
-            dataset_evaluator_id=job.dataset_evaluator_id,
+            experiment_run_id=work_item.experiment_run.id,
+            dataset_evaluator_id=work_item.dataset_evaluator_id,
         )
 
-    def _get_circuit_breaker(self, job: Job) -> CircuitBreaker:
-        if isinstance(job, TaskJob):
+    def _get_circuit_breaker(self, work_item: WorkItem) -> CircuitBreaker:
+        if isinstance(work_item, TaskWorkItem):
             return self._task_circuit_breaker
-        assert isinstance(job, EvalJob)
-        return self._eval_circuit_breakers[job.dataset_evaluator_id]
+        assert isinstance(work_item, EvalWorkItem)
+        return self._eval_circuit_breakers[work_item.dataset_evaluator_id]
 
-    def _record_failure(self, job: Job) -> None:
-        if isinstance(job, TaskJob):
+    def _record_failure(self, work_item: WorkItem) -> None:
+        if isinstance(work_item, TaskWorkItem):
             self._tasks_failed += 1
         else:
             self._evals_failed += 1
 
-    async def on_rate_limit(self, job: Job) -> None:
-        """Job hit rate limit. Update token bucket and requeue with backoff."""
-        key = job.get_rate_limit_key()
+    async def on_rate_limit(self, work_item: WorkItem) -> None:
+        """Work item hit rate limit. Update token bucket and requeue with backoff."""
+        key = work_item.get_rate_limit_key()
         bucket = self._token_buckets[key]
         bucket.on_rate_limit_error(
             request_start_time=datetime.now(timezone.utc).timestamp(), verbose=False
         )
-        await self._retry_or_fail(job, "rate limit")
+        await self._retry_or_fail(work_item, "rate limit")
 
-    async def on_transient_error(self, job: Job, error: Exception) -> None:
-        """Job hit transient/network error. Check circuit breaker, then retry."""
-        breaker = self._get_circuit_breaker(job)
+    async def on_transient_error(self, work_item: WorkItem, error: Exception) -> None:
+        """Work item hit transient/network error. Check circuit breaker, then retry."""
+        breaker = self._get_circuit_breaker(work_item)
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
-                "task" if isinstance(job, TaskJob) else "eval",
+                "task" if isinstance(work_item, TaskWorkItem) else "eval",
                 breaker.trip_reason or str(error),
             )
             return
-        await self._retry_or_fail(job, f"transient error: {error}", error=error)
+        await self._retry_or_fail(work_item, f"transient error: {error}", error=error)
 
     async def on_failure(
         self,
-        job: Job,
+        work_item: WorkItem,
         error: Exception,
         *,
         notify_subscribers: bool = True,
     ) -> None:
-        """Job failed with non-retryable error. Record and check circuit breaker.
+        """Work item failed with non-retryable error. Record and check circuit breaker.
 
         When ``notify_subscribers`` is False, the caller has already broadcast the
         user-facing :class:`ChatCompletionSubscriptionError` (and optionally a
         :class:`ChatCompletionSubscriptionResult`); only persistence and circuit
         breakers run here.
         """
-        self._record_failure(job)
-        category = "TASK" if isinstance(job, TaskJob) else "EVAL"
-        logger.warning(f"{job.debug_identifier} {error}")
+        self._record_failure(work_item)
+        category = "TASK" if isinstance(work_item, TaskWorkItem) else "EVAL"
+        logger.warning(f"{work_item.debug_identifier} {error}")
         await self._persist_event(
             self._make_event(
-                job,
+                work_item,
                 message=str(error),
                 detail=FailureDetail(
                     type="failure",
@@ -1596,49 +1611,51 @@ class RunningExperiment:
                 ),
             )
         )
-        if isinstance(job, TaskJob) and notify_subscribers:
+        if isinstance(work_item, TaskWorkItem) and notify_subscribers:
             self._broadcast(
                 ChatCompletionSubscriptionError(
                     message=str(error),
                     dataset_example_id=GlobalID(
                         DatasetExample.__name__,
-                        str(job.dataset_example_revision.dataset_example_id),
+                        str(work_item.dataset_example_revision.dataset_example_id),
                     ),
-                    repetition_number=job.repetition_number,
+                    repetition_number=work_item.repetition_number,
                 )
             )
-        breaker = self._get_circuit_breaker(job)
+        breaker = self._get_circuit_breaker(work_item)
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
                 category.lower(),
                 breaker.trip_reason or str(error),
             )
 
-    async def on_timeout(self, job: Job) -> None:
-        """Job timed out. Treat as retryable."""
-        await self._retry_or_fail(job, "timeout")
+    async def on_timeout(self, work_item: WorkItem) -> None:
+        """Work item timed out. Treat as retryable."""
+        await self._retry_or_fail(work_item, "timeout")
 
-    async def _retry_or_fail(self, job: Job, reason: str, error: Exception | None = None) -> None:
+    async def _retry_or_fail(
+        self, work_item: WorkItem, reason: str, error: Exception | None = None
+    ) -> None:
         """Requeue with exponential backoff, or record failure if retries exhausted."""
-        if job.retry_count < self._max_retries:
-            job.retry_count += 1
-            backoff = self._base_backoff_seconds * (2 ** (job.retry_count - 1))
+        if work_item.retry_count < self._max_retries:
+            work_item.retry_count += 1
+            backoff = self._base_backoff_seconds * (2 ** (work_item.retry_count - 1))
             ready_at = datetime.now(timezone.utc) + timedelta(seconds=backoff)
             logger.debug(
-                f"{job.debug_identifier} {reason}, retry "
-                f"{job.retry_count}/{self._max_retries} in {backoff:.1f}s"
+                f"{work_item.debug_identifier} {reason}, retry "
+                f"{work_item.retry_count}/{self._max_retries} in {backoff:.1f}s"
             )
-            heapq.heappush(self._retry_heap, RetryItem(ready_at=ready_at, job=job))
+            heapq.heappush(self._retry_heap, RetryItem(ready_at=ready_at, work_item=work_item))
         else:
-            self._record_failure(job)
+            self._record_failure(work_item)
             error_msg = f"{reason} after {self._max_retries} retries"
             logger.warning(
-                f"{job.debug_identifier} exceeded max retries "
+                f"{work_item.debug_identifier} exceeded max retries "
                 f"({self._max_retries}), reason: {reason}"
             )
             await self._persist_event(
                 self._make_event(
-                    job,
+                    work_item,
                     message=error_msg,
                     detail=RetriesExhaustedDetail(
                         type="retries_exhausted",
@@ -1649,15 +1666,15 @@ class RunningExperiment:
                 )
             )
             # Notify task subscribers of exhausted retries (evals don't stream errors)
-            if isinstance(job, TaskJob):
+            if isinstance(work_item, TaskWorkItem):
                 self._broadcast(
                     ChatCompletionSubscriptionError(
                         message=error_msg,
                         dataset_example_id=GlobalID(
                             DatasetExample.__name__,
-                            str(job.dataset_example_revision.dataset_example_id),
+                            str(work_item.dataset_example_revision.dataset_example_id),
                         ),
-                        repetition_number=job.repetition_number,
+                        repetition_number=work_item.repetition_number,
                     )
                 )
 
@@ -1768,7 +1785,7 @@ class RunningExperiment:
         pending_retries = len(self._retry_heap)
         in_flight = len(self._in_flight)
 
-        # Cancel all in-flight jobs via their scopes
+        # Cancel all in-flight work items via their scopes
         cancelled_count = 0
         for scope in self._cancel_scopes.values():
             scope.cancel()
@@ -1879,8 +1896,8 @@ class ExperimentRunner(DaemonTask):
 
         1. Wait for experiments if none exist
         2. Acquire semaphore slot (wait if all busy)
-        3. Round-robin through experiments for ready job
-        4. If job found, dispatch; else release slot and sleep
+        3. Round-robin through experiments for ready work item
+        4. If work item found, dispatch; else release slot and sleep
         """
         logger.debug(f"ExperimentRunner daemon starting (replica_id={self._replica_id})")
 
@@ -1915,17 +1932,17 @@ class ExperimentRunner(DaemonTask):
                         )
 
                         # Round-robin through experiments for fairness
-                        job = await self._try_get_ready_job()
+                        work_item = await self._try_get_ready_work_item()
 
-                        if job:
-                            logger.debug(f"Dispatching job: {job.debug_identifier}")
-                            tg.start_soon(self._run_and_release, job)
-                            acquired = False  # Ownership transferred to job
+                        if work_item:
+                            logger.debug(f"Dispatching work item: {work_item.debug_identifier}")
+                            tg.start_soon(self._run_and_release, work_item)
+                            acquired = False  # Ownership transferred to work item
                         else:
                             self._seats.release()
                             acquired = False
                             logger.debug(
-                                "Dispatch loop: no ready job, sleeping %.2fs",
+                                "Dispatch loop: no ready work item, sleeping %.2fs",
                                 self.POLL_INTERVAL,
                             )
                             await anyio.sleep(self.POLL_INTERVAL)
@@ -1962,18 +1979,18 @@ class ExperimentRunner(DaemonTask):
                 logger.debug("Dispatch loop cancelled")
                 raise
             finally:
-                # On shutdown, wait for in-flight jobs to complete
+                # On shutdown, wait for in-flight work items to complete
                 logger.debug(
                     f"Dispatch loop ending (_running={self._running}), starting graceful shutdown"
                 )
                 await self._graceful_shutdown()
 
-    async def _try_get_ready_job(self) -> Job | None:
+    async def _try_get_ready_work_item(self) -> WorkItem | None:
         """
-        Try to get a ready job from any experiment (round-robin for fairness).
+        Try to get a ready work item from any experiment (round-robin for fairness).
 
         Sorts experiments by last_served_at so least-recently-served gets priority.
-        Each experiment's try_get_ready_job() checks rate limit non-blocking.
+        Each experiment's try_get_ready_work_item() checks rate limit non-blocking.
         """
         # Sort by fairness: least recently served first
         candidates = sorted(
@@ -1982,12 +1999,12 @@ class ExperimentRunner(DaemonTask):
         )
 
         if not candidates:
-            logger.debug("_try_get_ready_job: no experiments in registry")
+            logger.debug("_try_get_ready_work_item: no experiments in registry")
             return None
 
         for candidate in candidates:
-            if job := await candidate.try_get_ready_job():
-                return job
+            if work_item := await candidate.try_get_ready_work_item():
+                return work_item
 
         # Log why we couldn't find work (helps debug stalled experiments)
         states = [
@@ -2003,29 +2020,34 @@ class ExperimentRunner(DaemonTask):
             for e in candidates
         ]
         logger.debug(
-            f"_try_get_ready_job: checked {len(candidates)} experiments, none had ready work. "
-            f"States (id, active, tasks, evals, in_flight, retries, db_exhausted): {states}"
+            f"_try_get_ready_work_item: checked {len(candidates)} experiments, "
+            f"none had ready work. States (id, active, tasks, evals, "
+            f"in_flight, retries, db_exhausted): {states}"
         )
         return None
 
-    async def _run_and_release(self, job: Job) -> None:
-        """Execute job and release semaphore."""
+    async def _run_and_release(self, work_item: WorkItem) -> None:
+        """Execute work item and release semaphore."""
         try:
-            # Create cancel scope so experiment can cancel this job
+            # Create cancel scope so experiment can cancel this work item
             with anyio.CancelScope() as scope:
-                job.running_experiment.register_cancel_scope(job, scope)
-                await job.execute()
+                work_item.running_experiment.register_cancel_scope(work_item, scope)
+                await work_item.execute()
         except anyio.get_cancelled_exc_class():
-            logger.debug(f"Job {job.debug_identifier} was cancelled")
+            logger.debug(f"Work item {work_item.debug_identifier} was cancelled")
         except Exception:
-            logger.exception(f"Job {job.debug_identifier} raised unhandled exception")
+            logger.exception(f"Work item {work_item.debug_identifier} raised unhandled exception")
         finally:
             try:
-                await job.running_experiment.unregister_cancel_scope(job)
+                await work_item.running_experiment.unregister_cancel_scope(work_item)
             except Exception:
-                logger.exception(f"Job {job.debug_identifier} failed to unregister cancel scope")
+                logger.exception(
+                    f"Work item {work_item.debug_identifier} failed to unregister cancel scope"
+                )
             finally:
-                logger.debug(f"Job {job.debug_identifier} finished, releasing semaphore")
+                logger.debug(
+                    f"Work item {work_item.debug_identifier} finished, releasing semaphore"
+                )
                 self._seats.release()
 
     async def _graceful_shutdown(self, timeout: float = 5.0) -> None:
@@ -2049,7 +2071,7 @@ class ExperimentRunner(DaemonTask):
 
         logger.info(
             f"Graceful shutdown: stopping {experiment_count} experiments "
-            f"with {in_flight_count} in-flight jobs"
+            f"with {in_flight_count} in-flight work items"
         )
 
         # Stop all experiments (in-memory only - preserves DB ownership for resume)
@@ -2059,14 +2081,14 @@ class ExperimentRunner(DaemonTask):
         # Don't clear _experiments here - let shielded operations reference them
 
         if in_flight_count == 0:
-            logger.debug("Graceful shutdown: no in-flight jobs to wait for")
+            logger.debug("Graceful shutdown: no in-flight work items to wait for")
             self._experiments.clear()
             return
 
         logger.debug(f"Graceful shutdown: waiting up to {timeout}s for shielded DB writes")
 
         # Wait for semaphore to be fully released (all shielded operations complete).
-        # Acquiring all MAX_CONCURRENT slots proves every in-flight job has released
+        # Acquiring all MAX_CONCURRENT slots proves every in-flight work item has released
         # its slot (including shielded DB writes). Free slots are acquired instantly;
         # only held slots block. The slots are NOT released after drain — this is
         # intentional since the daemon is shutting down and _run() will not loop again.
@@ -2108,9 +2130,9 @@ class ExperimentRunner(DaemonTask):
         async with self._db() as session:
             # Find orphaned experiments (claimed but stale)
             stmt = (
-                select(models.ExperimentExecutionConfig.id)
-                .where(models.ExperimentExecutionConfig.claimed_at.is_not(None))
-                .where(models.ExperimentExecutionConfig.claimed_at < cutoff)
+                select(models.ExperimentJob.id)
+                .where(models.ExperimentJob.claimed_at.is_not(None))
+                .where(models.ExperimentJob.claimed_at < cutoff)
             )
             result = await session.execute(stmt)
             orphan_ids = [row[0] for row in result]
@@ -2148,13 +2170,13 @@ class ExperimentRunner(DaemonTask):
         now = datetime.now(timezone.utc)
         stale_cutoff = now - self.STALE_CLAIM_TIMEOUT
         stmt = (
-            update(models.ExperimentExecutionConfig)
-            .where(models.ExperimentExecutionConfig.id == experiment_id)
+            update(models.ExperimentJob)
+            .where(models.ExperimentJob.id == experiment_id)
             .where(
                 or_(
-                    models.ExperimentExecutionConfig.claimed_by.is_(None),
-                    models.ExperimentExecutionConfig.claimed_by == self._replica_id,
-                    models.ExperimentExecutionConfig.claimed_at < stale_cutoff,
+                    models.ExperimentJob.claimed_by.is_(None),
+                    models.ExperimentJob.claimed_by == self._replica_id,
+                    models.ExperimentJob.claimed_at < stale_cutoff,
                 )
             )
             .values(
@@ -2162,7 +2184,7 @@ class ExperimentRunner(DaemonTask):
                 claimed_by=self._replica_id,
                 status="RUNNING",
             )
-            .returning(models.ExperimentExecutionConfig.id)
+            .returning(models.ExperimentJob.id)
         )
         claimed = await session.scalar(stmt)
         if claimed is None:
@@ -2184,19 +2206,19 @@ class ExperimentRunner(DaemonTask):
         session: AsyncSession,
         experiment_id: int,
         credentials: Sequence[GenerativeCredentialInput] | None,
-    ) -> tuple[models.ExperimentExecutionConfig, LLMClient, list[EvaluatorRunSpec]]:
+    ) -> tuple[models.ExperimentJob, LLMClient, list[EvaluatorRunSpec]]:
         """Load execution config, resolve LLM client, and build evaluator specs.
 
         Returns (execution_config, llm_client, evaluator_run_specs).
         """
         # Load child class directly to eagerly populate all columns.
-        # Using session.get() on the base ExperimentExecutionConfig with joined-table
+        # Using session.get() on the base ExperimentJob with joined-table
         # inheritance lazily loads child-class columns, which triggers a greenlet_spawn
         # error when accessed outside the session's internal greenlet.
         llm_client: LLMClient
         prompt_task = await session.get(models.ExperimentPromptTask, experiment_id)
         if prompt_task is not None:
-            execution_config: models.ExperimentExecutionConfig = prompt_task
+            execution_config: models.ExperimentJob = prompt_task
             llm_client = await get_playground_client(
                 model_provider=prompt_task.model_provider,
                 model_name=prompt_task.model_name,
@@ -2211,7 +2233,7 @@ class ExperimentRunner(DaemonTask):
                 execution_config = eval_config
                 llm_client = _NO_OP_LLM_CLIENT
             else:
-                raise ValueError(f"No ExperimentExecutionConfig for experiment {experiment_id}")
+                raise ValueError(f"No ExperimentJob for experiment {experiment_id}")
 
         dataset_evaluators_result = await session.scalars(
             select(models.DatasetEvaluators)
@@ -2285,7 +2307,7 @@ class ExperimentRunner(DaemonTask):
         """Register and start a new experiment.
 
         Args:
-            experiment_id: Primary key of the experiment (same as ``ExperimentExecutionConfig.id``).
+            experiment_id: Primary key of the experiment (same as ``ExperimentJob.id``).
             credentials: Ephemeral API credentials (not stored, passed at runtime).
             subscribe: If True (default), returns a subscription stream to receive chunks.
                        Subscribe before work starts to avoid missing early chunks.
@@ -2368,12 +2390,12 @@ class ExperimentRunner(DaemonTask):
                 with anyio.fail_after(5, shield=True):
                     async with self._db() as session:
                         stmt = (
-                            update(models.ExperimentExecutionConfig)
-                            .where(models.ExperimentExecutionConfig.id.in_(experiment_ids))
-                            .where(models.ExperimentExecutionConfig.claimed_by == self._replica_id)
-                            .where(models.ExperimentExecutionConfig.claimed_at.is_not(None))
+                            update(models.ExperimentJob)
+                            .where(models.ExperimentJob.id.in_(experiment_ids))
+                            .where(models.ExperimentJob.claimed_by == self._replica_id)
+                            .where(models.ExperimentJob.claimed_at.is_not(None))
                             .values(claimed_at=now)
-                            .returning(models.ExperimentExecutionConfig.id)
+                            .returning(models.ExperimentJob.id)
                         )
                         result = await session.execute(stmt)
                         updated_ids = {row.id for row in result}
@@ -2499,11 +2521,11 @@ class ExperimentRunner(DaemonTask):
         # CONDITIONAL update: only if we still own it
         # This prevents clobbering another replica's running experiment
         stmt = (
-            update(models.ExperimentExecutionConfig)
-            .where(models.ExperimentExecutionConfig.id == experiment_id)
-            .where(models.ExperimentExecutionConfig.claimed_by == self._replica_id)
+            update(models.ExperimentJob)
+            .where(models.ExperimentJob.id == experiment_id)
+            .where(models.ExperimentJob.claimed_by == self._replica_id)
             .values(claimed_at=None, claimed_by=None, status=status)
-            .returning(models.ExperimentExecutionConfig.id)
+            .returning(models.ExperimentJob.id)
         )
         try:
             with anyio.fail_after(5, shield=True):

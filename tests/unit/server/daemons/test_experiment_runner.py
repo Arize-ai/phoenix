@@ -11,11 +11,11 @@ import pytest
 from phoenix.db import models
 from phoenix.server.daemons.experiment_runner import (
     CircuitBreaker,
-    EvalJob,
     EvaluatorRunSpec,
+    EvalWorkItem,
     RetryItem,
     RunningExperiment,
-    TaskJob,
+    TaskWorkItem,
     _NoOpLLMClient,
 )
 from phoenix.server.types import DbSessionFactory
@@ -32,12 +32,12 @@ def _make_experiment(experiment_id: int = 1) -> models.Experiment:
     return exp
 
 
-def _make_execution_config(
+def _make_experiment_job(
     experiment_id: int = 1,
     *,
     max_concurrency: int = 10,
-) -> models.ExperimentExecutionConfig:
-    config = MagicMock(spec=models.ExperimentExecutionConfig)
+) -> models.ExperimentJob:
+    config = MagicMock(spec=models.ExperimentJob)
     config.id = experiment_id
     config.max_concurrency = max_concurrency
     return config
@@ -115,7 +115,7 @@ def _make_running_experiment(
 ) -> RunningExperiment:
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
-        execution_config=_make_execution_config(experiment_id, max_concurrency=max_concurrency),
+        experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
         llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
@@ -141,14 +141,14 @@ class _StubLLMClient:
         return False
 
 
-def _make_task_job(
+def _make_task_work_item(
     running_experiment: RunningExperiment,
     *,
     dataset_example_id: int = 100,
     repetition_number: int = 0,
     retry_count: int = 0,
-) -> TaskJob:
-    return TaskJob(
+) -> TaskWorkItem:
+    return TaskWorkItem(
         running_experiment=running_experiment,
         experiment=running_experiment._experiment,
         dataset_example_revision=_make_dataset_example_revision(dataset_example_id),
@@ -163,18 +163,18 @@ def _make_task_job(
     )
 
 
-def _make_eval_job(
+def _make_eval_work_item(
     running_experiment: RunningExperiment,
     *,
     run_id: int = 1,
     dataset_evaluator_id: int = 10,
     retry_count: int = 0,
-) -> EvalJob:
+) -> EvalWorkItem:
     evaluator = MagicMock()
     evaluator.name = "test-evaluator"
     output_config = MagicMock()
     output_config.name = "test-output"
-    return EvalJob(
+    return EvalWorkItem(
         running_experiment=running_experiment,
         experiment_run=_make_experiment_run(run_id=run_id),
         dataset_example_revision=_make_dataset_example_revision(),
@@ -246,39 +246,39 @@ class TestRunningExperimentQueueLogic:
         assert exp.has_work() is True
 
     @pytest.mark.anyio
-    async def test_try_get_ready_job_priority_order(self) -> None:
+    async def test_try_get_ready_work_item_priority_order(self) -> None:
         """Evals > ready retries > tasks."""
         exp = _make_running_experiment()
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
 
-        task = _make_task_job(exp, dataset_example_id=1)
-        eval_job = _make_eval_job(exp)
-        retry_task = _make_task_job(exp, dataset_example_id=2)
+        task = _make_task_work_item(exp, dataset_example_id=1)
+        eval_work_item = _make_eval_work_item(exp)
+        retry_task = _make_task_work_item(exp, dataset_example_id=2)
         retry_item = RetryItem(
             ready_at=datetime.now(timezone.utc) - timedelta(seconds=1),
-            job=retry_task,
+            work_item=retry_task,
         )
 
         # Add all three types
         exp._task_queue.append(task)
-        exp._eval_queue.append(eval_job)
+        exp._eval_queue.append(eval_work_item)
         heapq.heappush(exp._retry_heap, retry_item)
 
         # First: eval (highest priority)
-        job1 = await exp.try_get_ready_job()
-        assert job1 is eval_job
+        work_item1 = await exp.try_get_ready_work_item()
+        assert work_item1 is eval_work_item
 
         # Second: ready retry
-        job2 = await exp.try_get_ready_job()
-        assert job2 is retry_task
+        work_item2 = await exp.try_get_ready_work_item()
+        assert work_item2 is retry_task
 
         # Third: task
-        job3 = await exp.try_get_ready_job()
-        assert job3 is task
+        work_item3 = await exp.try_get_ready_work_item()
+        assert work_item3 is task
 
     @pytest.mark.anyio
-    async def test_try_get_ready_job_rate_limited(self) -> None:
+    async def test_try_get_ready_work_item_rate_limited(self) -> None:
         """Returns None when token bucket raises UnavailableTokensError."""
         exp = _make_running_experiment(
             token_buckets=_StubTokenBucketRegistry(_BlockingTokenBucket())
@@ -286,38 +286,38 @@ class TestRunningExperimentQueueLogic:
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
 
-        task = _make_task_job(exp)
+        task = _make_task_work_item(exp)
         exp._task_queue.append(task)
 
-        job = await exp.try_get_ready_job()
-        assert job is None
+        work_item = await exp.try_get_ready_work_item()
+        assert work_item is None
         # Task should still be in queue (not consumed)
         assert len(exp._task_queue) == 1
 
     @pytest.mark.anyio
-    async def test_try_get_ready_job_respects_max_concurrency(self) -> None:
+    async def test_try_get_ready_work_item_respects_max_concurrency(self) -> None:
         """Returns None when in_flight >= max_concurrency."""
         exp = _make_running_experiment(max_concurrency=1)
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
 
-        task1 = _make_task_job(exp, dataset_example_id=1)
-        task2 = _make_task_job(exp, dataset_example_id=2)
+        task1 = _make_task_work_item(exp, dataset_example_id=1)
+        task2 = _make_task_work_item(exp, dataset_example_id=2)
         exp._task_queue.append(task1)
         exp._task_queue.append(task2)
 
-        # Simulate one in-flight job
+        # Simulate one in-flight work item
         exp._in_flight.add(task1)
         exp._task_queue.popleft()
 
-        job = await exp.try_get_ready_job()
-        assert job is None
+        work_item = await exp.try_get_ready_work_item()
+        assert work_item is None
 
     @pytest.mark.anyio
     async def test_on_rate_limit_requeues_with_backoff(self) -> None:
-        """Job lands in retry heap with correct ready_at."""
+        """Work item lands in retry heap with correct ready_at."""
         exp = _make_running_experiment(base_backoff_seconds=1.0)
-        task = _make_task_job(exp)
+        task = _make_task_work_item(exp)
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
 
@@ -327,7 +327,7 @@ class TestRunningExperimentQueueLogic:
 
         assert len(exp._retry_heap) == 1
         retry = exp._retry_heap[0]
-        assert retry.job is task
+        assert retry.work_item is task
         assert task.retry_count == 1
         # Backoff = 1.0 * 2^(1-1) = 1.0s
         assert retry.ready_at >= before + timedelta(seconds=1.0)
@@ -340,7 +340,7 @@ class TestRunningExperimentQueueLogic:
         exp._task_db_exhausted = True
         exp._eval_db_exhausted = True
 
-        task = _make_task_job(exp, retry_count=2)  # Already at max
+        task = _make_task_work_item(exp, retry_count=2)  # Already at max
 
         with patch.object(exp, "_persist_event", new_callable=AsyncMock) as mock_record:
             await exp._retry_or_fail(task, "test failure")
@@ -359,7 +359,7 @@ class TestRunningExperimentQueueLogic:
 
         with patch.object(exp, "_handle_circuit_trip", new_callable=AsyncMock) as mock_trip:
             for i in range(5):
-                task = _make_task_job(exp, dataset_example_id=i)
+                task = _make_task_work_item(exp, dataset_example_id=i)
                 await exp.on_transient_error(task, RuntimeError(f"error-{i}"))
 
         mock_trip.assert_called_once()
@@ -382,12 +382,12 @@ class TestRunningExperimentQueueLogic:
         """stop() cancels scopes, clears queues and subscribers."""
         exp = _make_running_experiment()
 
-        task = _make_task_job(exp, dataset_example_id=1)
-        eval_job = _make_eval_job(exp)
+        task = _make_task_work_item(exp, dataset_example_id=1)
+        eval_work_item = _make_eval_work_item(exp)
         scope = MagicMock(spec=anyio.CancelScope)
 
         exp._task_queue.append(task)
-        exp._eval_queue.append(eval_job)
+        exp._eval_queue.append(eval_work_item)
         exp._cancel_scopes[task] = scope
         exp._in_flight.add(task)
 
@@ -414,7 +414,7 @@ class TestRunningExperimentQueueLogic:
 class TestRoundRobinFairness:
     @pytest.mark.anyio
     async def test_round_robin_picks_least_recently_served(self) -> None:
-        """_try_get_ready_job in ExperimentRunner picks least-recently-served experiment."""
+        """_try_get_ready_work_item in ExperimentRunner picks least-recently-served experiment."""
         from phoenix.server.daemons.experiment_runner import ExperimentRunner
 
         runner = object.__new__(ExperimentRunner)
@@ -430,36 +430,36 @@ class TestRoundRobinFairness:
         exp_b._eval_db_exhausted = True
         exp_b.last_served_at = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)  # older
 
-        task_a = _make_task_job(exp_a, dataset_example_id=1)
-        task_b = _make_task_job(exp_b, dataset_example_id=2)
+        task_a = _make_task_work_item(exp_a, dataset_example_id=1)
+        task_b = _make_task_work_item(exp_b, dataset_example_id=2)
         exp_a._task_queue.append(task_a)
         exp_b._task_queue.append(task_b)
 
         runner._experiments = {1: exp_a, 2: exp_b}
 
-        job = await runner._try_get_ready_job()
+        work_item = await runner._try_get_ready_work_item()
         # exp_b was served less recently, so it should be picked first
-        assert job is task_b
+        assert work_item is task_b
 
 
 # ===========================================================================
-# Group 4: EvalJob cancellation
+# Group 4: EvalWorkItem cancellation
 # ===========================================================================
 
 
-class TestEvalJobCancellation:
+class TestEvalWorkItemCancellation:
     @pytest.mark.anyio
-    async def test_eval_job_cancellation_reraises(self) -> None:
-        """Cancelled EvalJob re-raises instead of falling to error handler."""
+    async def test_eval_work_item_cancellation_reraises(self) -> None:
+        """Cancelled EvalWorkItem re-raises instead of falling to error handler."""
         exp = _make_running_experiment()
-        eval_job = _make_eval_job(exp)
+        eval_work_item = _make_eval_work_item(exp)
 
         async def raise_cancelled(**kwargs: Any) -> list[Any]:
             raise anyio.get_cancelled_exc_class()()
 
-        with patch.object(eval_job._evaluator, "evaluate", side_effect=raise_cancelled):
+        with patch.object(eval_work_item._evaluator, "evaluate", side_effect=raise_cancelled):
             with pytest.raises(anyio.get_cancelled_exc_class()):
-                await eval_job.execute()
+                await eval_work_item.execute()
 
 
 # ===========================================================================
