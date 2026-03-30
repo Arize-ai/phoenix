@@ -936,7 +936,7 @@ class RunningExperiment:
         self,
         *,
         experiment: models.Experiment,
-        execution_config: models.ExperimentJob,
+        experiment_job: models.ExperimentJob,
         llm_client: LLMClient,
         db: DbSessionFactory,
         decrypt: Callable[[bytes], bytes],
@@ -950,7 +950,7 @@ class RunningExperiment:
     ) -> None:
         # Required dependencies
         self._experiment = experiment
-        self._execution_config = execution_config
+        self._experiment_job = experiment_job
         self._llm_client = llm_client
         self._db = db
         self._decrypt = decrypt
@@ -963,7 +963,7 @@ class RunningExperiment:
         self._evaluator_run_specs = evaluator_run_specs
         self._max_retries = max_retries
         self._base_backoff_seconds = base_backoff_seconds
-        self._max_concurrency = execution_config.max_concurrency
+        self._max_concurrency = experiment_job.max_concurrency
 
         # Queues (priority: evals > retries > tasks)
         self._task_queue: deque[TaskWorkItem] = deque()
@@ -1166,10 +1166,10 @@ class RunningExperiment:
     async def _ensure_task_buffer(self) -> None:
         """Load more tasks from DB if buffer is empty to avoid memory exhaustion."""
         # Early exit if not a prompt task (nothing to dispatch)
-        if not isinstance(self._execution_config, models.ExperimentPromptTask):
+        if not isinstance(self._experiment_job, models.ExperimentPromptTask):
             self._task_db_exhausted = True
             return
-        prompt_task = self._execution_config
+        prompt_task = self._experiment_job
         if self._task_queue:
             logger.debug(
                 f"Experiment {self._experiment.id}: _ensure_task_buffer() skipped "
@@ -2209,7 +2209,7 @@ class ExperimentRunner(DaemonTask):
     ) -> tuple[models.ExperimentJob, LLMClient, list[EvaluatorRunSpec]]:
         """Load execution config, resolve LLM client, and build evaluator specs.
 
-        Returns (execution_config, llm_client, evaluator_run_specs).
+        Returns (experiment_job, llm_client, evaluator_run_specs).
         """
         # Load child class directly to eagerly populate all columns.
         # Using session.get() on the base ExperimentJob with joined-table
@@ -2218,7 +2218,7 @@ class ExperimentRunner(DaemonTask):
         llm_client: LLMClient
         prompt_task = await session.get(models.ExperimentPromptTask, experiment_id)
         if prompt_task is not None:
-            execution_config: models.ExperimentJob = prompt_task
+            experiment_job: models.ExperimentJob = prompt_task
             llm_client = await get_playground_client(
                 model_provider=prompt_task.model_provider,
                 model_name=prompt_task.model_name,
@@ -2230,7 +2230,7 @@ class ExperimentRunner(DaemonTask):
         else:
             eval_config = await session.get(models.ExperimentEvalOnlyConfig, experiment_id)
             if eval_config is not None:
-                execution_config = eval_config
+                experiment_job = eval_config
                 llm_client = _NO_OP_LLM_CLIENT
             else:
                 raise ValueError(f"No ExperimentJob for experiment {experiment_id}")
@@ -2272,7 +2272,7 @@ class ExperimentRunner(DaemonTask):
             f"evaluator(s) from junction)"
         )
 
-        return execution_config, llm_client, evaluator_run_specs
+        return experiment_job, llm_client, evaluator_run_specs
 
     # === Public API ===
 
@@ -2323,15 +2323,15 @@ class ExperimentRunner(DaemonTask):
 
         async with self._db() as session:
             experiment = await self._claim_experiment(session, experiment_id)
-            execution_config, llm_client, evaluator_run_specs = await self._load_experiment_config(
+            experiment_job, llm_client, evaluator_run_specs = await self._load_experiment_config(
                 session, experiment_id, credentials
             )
             session.expunge(experiment)
-            session.expunge(execution_config)
+            session.expunge(experiment_job)
 
         exp = RunningExperiment(
             experiment=experiment,
-            execution_config=execution_config,
+            experiment_job=experiment_job,
             llm_client=llm_client,
             db=self._db,
             decrypt=self._decrypt,
