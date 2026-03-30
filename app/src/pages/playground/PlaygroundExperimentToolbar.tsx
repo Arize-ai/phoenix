@@ -19,6 +19,7 @@ import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playgro
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
@@ -75,7 +76,9 @@ export function PlaygroundExperimentToolbar({
               isDisabled={isRunning}
               variant="quiet"
               trailingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
-              href={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              href={prependBasename(
+                `/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
+              )}
             >
               View Experiment{instances.length > 1 ? "s" : ""}
             </ExternalLinkButton>

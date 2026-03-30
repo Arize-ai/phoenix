@@ -61,7 +61,7 @@ export const Icon = ({
         css`
           width: 1em;
           height: 1em;
-          font-size: 1.2rem;
+          font-size: 1.2em;
           color: ${resolvedColor};
           display: flex;
           svg {

@@ -10,7 +10,6 @@ class DBBaseModel(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
-        use_enum_values=True,
         validate_assignment=True,
     )
 

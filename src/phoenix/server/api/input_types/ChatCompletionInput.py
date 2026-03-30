@@ -5,10 +5,10 @@ from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.input_types.ConnectionConfigInput import ConnectionConfigInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.Identifier import Identifier
 
-from .ModelClientOptionsInput import ModelClientOptionsInput
 from .PlaygroundEvaluatorInput import PlaygroundEvaluatorInput
 from .PromptTemplateOptions import PromptTemplateOptions
 from .PromptVersionInput import ChatPromptVersionInput
@@ -17,7 +17,8 @@ from .PromptVersionInput import ChatPromptVersionInput
 @strawberry.input
 class ChatCompletionInput:
     prompt_version: ChatPromptVersionInput
-    client_options: Optional[ModelClientOptionsInput] = None
+    connection_config: Optional[ConnectionConfigInput] = None
+    headers: Optional[JSON] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
     prompt_name: Optional[Identifier] = None
@@ -28,8 +29,10 @@ class ChatCompletionInput:
 
 @strawberry.input
 class ChatCompletionOverDatasetInput:
+    prompt_version_id: GlobalID | None = None
     prompt_version: ChatPromptVersionInput
-    client_options: Optional[ModelClientOptionsInput] = None
+    connection_config: Optional[ConnectionConfigInput] = None
+    headers: Optional[JSON] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     repetitions: int
     dataset_id: GlobalID
@@ -53,3 +56,4 @@ class ChatCompletionOverDatasetInput:
     tracing_enabled: bool = True
     stream_model_output: bool = True
     create_ephemeral_experiment: bool | None = False
+    max_concurrency: int = 10

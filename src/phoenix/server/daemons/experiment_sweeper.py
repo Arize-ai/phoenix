@@ -19,7 +19,7 @@ _JITTER_SECONDS = 60  # plus or minus 1 minute
 
 class ExperimentSweeper(DaemonTask):
     """
-    Periodically deletes ephemeral experiments that were created more than
+    Periodically deletes ephemeral experiments that were last updated more than
     EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS ago, along with their associated
     projects and traces.
     """
@@ -43,7 +43,7 @@ class ExperimentSweeper(DaemonTask):
         stmt = (
             sa.delete(models.Experiment)
             .where(models.Experiment.is_ephemeral.is_(True))
-            .where(models.Experiment.created_at < cutoff)
+            .where(models.Experiment.updated_at < cutoff)
             .returning(models.Experiment.project_name)
         )
         async with self._db() as session:

@@ -1455,24 +1455,20 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
-  const clientOptions = customProvider
-    ? {
-        custom: {
-          extraHeaders: instance.model.customHeaders,
-        },
-      }
+  const connectionConfig = customProvider
+    ? null
     : {
-        builtin: {
-          baseUrl: instance.model.baseUrl,
-          customHeaders: instance.model.customHeaders,
-          ...openaiApiTypeParams,
-          ...azureModelParams,
-          ...awsModelParams,
-        },
+        baseUrl: instance.model.baseUrl ?? null,
+        ...openaiApiTypeParams,
+        ...azureModelParams,
+        ...awsModelParams,
       };
 
+  const headers = instance.model.customHeaders ?? null;
+
   return {
-    clientOptions,
+    connectionConfig,
+    headers,
     credentials: toGqlCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
@@ -2054,7 +2050,8 @@ export const getChatCompletionInput = ({
 
   return {
     promptVersion,
-    clientOptions: baseChatCompletionVariables.clientOptions,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
+    headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     template: {
       variables: variablesMap,
@@ -2063,7 +2060,7 @@ export const getChatCompletionInput = ({
     promptName: instance.prompt?.name,
     repetitions,
     streamModelOutput: streaming,
-  } satisfies ChatCompletionInput;
+  } as unknown as ChatCompletionInput;
 };
 
 /**
@@ -2107,8 +2104,8 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions,
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
-    streaming,
     recordExperiments,
+    streaming,
   } = playgroundStore.getState();
 
   const instance = instances.find((i) => i.id === instanceId);
@@ -2156,12 +2153,13 @@ export const getChatCompletionOverDatasetInput = ({
   };
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
-  const { appendedMessagesPath, templateVariablesPath } =
+  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
     playgroundDatasetState ?? {};
 
   return {
     promptVersion,
-    clientOptions: baseChatCompletionVariables.clientOptions,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
+    headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     repetitions,
     datasetId,
@@ -2176,8 +2174,10 @@ export const getChatCompletionOverDatasetInput = ({
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
-    streamModelOutput: streaming,
+    promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
+    streamModelOutput: streaming,
+    maxConcurrency: maxConcurrency ?? 10,
   };
 };
 

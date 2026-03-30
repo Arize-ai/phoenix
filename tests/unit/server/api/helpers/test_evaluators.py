@@ -1,5 +1,6 @@
 import json
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -25,7 +26,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    LLMClientFactory,
+    ModelProvider,
+    openai_rate_limit_key,
+)
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
@@ -2243,11 +2248,15 @@ class TestLLMEvaluator:
         self,
         openai_api_key: str,
     ) -> "OpenAIStreamingClient":
-        def create_openai_client() -> AsyncOpenAI:
-            return AsyncOpenAI()
+        @asynccontextmanager
+        async def create_openai_client() -> Any:
+            yield AsyncOpenAI(api_key=openai_api_key, max_retries=0)
 
+        client_factory = LLMClientFactory(
+            create_openai_client, openai_rate_limit_key(openai_api_key, None)
+        )
         return OpenAIStreamingClient(
-            client_factory=create_openai_client,
+            client_factory=client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
         )
@@ -2471,6 +2480,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -2672,7 +2682,6 @@ class TestLLMEvaluator:
         assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
-            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -2844,6 +2853,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -2953,6 +2963,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -3109,7 +3120,6 @@ class TestLLMEvaluator:
         assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
-            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -3195,6 +3205,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -3367,6 +3378,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
     async def test_evaluate_with_multipart_template(
@@ -3403,6 +3415,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:

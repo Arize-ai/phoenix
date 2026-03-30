@@ -42,6 +42,11 @@ input AWSBedrockClientKwargsInput {
   endpointUrl: String
 }
 
+type AWSBedrockConnectionConfig {
+  regionName: String
+  endpointUrl: String
+}
+
 type AWSBedrockCustomProviderConfig {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs!
@@ -203,6 +208,10 @@ input AnthropicClientKwargsInput {
   defaultHeaders: JSON
 }
 
+type AnthropicConnectionConfig {
+  baseUrl: String
+}
+
 type AnthropicCustomProviderConfig {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
@@ -273,6 +282,11 @@ input AzureOpenAIClientKwargsInput {
   defaultHeaders: JSON
 }
 
+type AzureOpenAIConnectionConfig {
+  azureEndpoint: String!
+  openaiApiType: OpenAIApiType!
+}
+
 type AzureOpenAICustomProviderConfig {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
@@ -324,14 +338,6 @@ type BuiltInEvaluator implements Evaluator & Node {
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
 
-input BuiltinClientOptionsInput {
-  baseUrl: String
-  endpoint: String
-  region: String
-  customHeaders: JSON
-  openaiApiType: OpenAIApiType
-}
-
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
@@ -372,7 +378,8 @@ type CategoricalAnnotationValue {
 
 input ChatCompletionInput {
   promptVersion: ChatPromptVersionInput!
-  clientOptions: ModelClientOptionsInput = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
@@ -382,8 +389,10 @@ input ChatCompletionInput {
 }
 
 input ChatCompletionOverDatasetInput {
+  promptVersionId: ID = null
   promptVersion: ChatPromptVersionInput!
-  clientOptions: ModelClientOptionsInput = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   repetitions: Int!
   datasetId: ID!
@@ -407,6 +416,7 @@ input ChatCompletionOverDatasetInput {
   tracingEnabled: Boolean! = true
   streamModelOutput: Boolean! = true
   createEphemeralExperiment: Boolean = false
+  maxConcurrency: Int! = 10
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
@@ -481,6 +491,18 @@ type CodeEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
+}
+
+union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
+
+input ConnectionConfigInput {
+  baseUrl: String = null
+  azureEndpoint: String = null
+  regionName: String = null
+  endpointUrl: String = null
+  openaiApiType: OpenAIApiType = null
+  organization: String = null
+  project: String = null
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
@@ -732,10 +754,6 @@ input CreateUserInput {
 
 scalar CronExpression
 
-input CustomClientOptionsInput {
-  extraHeaders: JSON
-}
-
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
 
 type Dataset implements Node {
@@ -760,6 +778,7 @@ type Dataset implements Node {
   """
   experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
@@ -1163,6 +1182,10 @@ type DeleteUsersPayload {
   userIds: [ID!]!
 }
 
+type DismissExperimentPayload {
+  experiment: Experiment!
+}
+
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1266,6 +1289,11 @@ enum EvalAttr {
 input EvalResultKey {
   name: String!
   attr: EvalAttr!
+}
+
+type EvalWorkItemId {
+  experimentRunId: Int!
+  datasetEvaluatorId: Int!
 }
 
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
@@ -1394,7 +1422,8 @@ type Experiment implements Node {
   """
   isEphemeral: Boolean!
   repetitions: Int!
-  datasetVersionId: ID!
+  datasetVersion: DatasetVersion!
+  dataset: Dataset!
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1419,6 +1448,7 @@ type Experiment implements Node {
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   datasetSplits: DatasetSplitConnection!
+  job: ExperimentJob
 }
 
 type ExperimentAnnotationSummary {
@@ -1471,6 +1501,91 @@ type ExperimentEdge {
 
   """The item at the end of the edge"""
   node: Experiment!
+}
+
+type ExperimentError implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  occurredAt: DateTime!
+  category: ExperimentErrorCategory!
+  message: String!
+  detail: ExperimentErrorDetail
+}
+
+enum ExperimentErrorCategory {
+  TASK
+  EVAL
+  EXPERIMENT
+}
+
+"""A connection to a list of items."""
+type ExperimentErrorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentErrorEdge!]!
+}
+
+union ExperimentErrorDetail = FailureDetail | RetriesExhaustedDetail
+
+"""An edge in a connection."""
+type ExperimentErrorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentError!
+}
+
+union ExperimentErrorWorkItemId = TaskWorkItemId | EvalWorkItemId
+
+type ExperimentJob implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experiment: Experiment!
+  status: ExperimentJobStatus!
+  createdAt: DateTime!
+
+  """Most recent error from this experiment, or null if no errors."""
+  lastError: ExperimentError
+
+  """Errors recorded during experiment execution, most recent first."""
+  errors(first: Int = 50, last: Int, after: String, before: String): ExperimentErrorConnection!
+  maxConcurrency: Int!
+
+  """
+  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  """
+  taskConfig: PromptTaskConfig
+
+  """Dataset evaluators attached to this experiment job."""
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+}
+
+"""A connection to a list of items."""
+type ExperimentJobConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentJobEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentJobEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentJob!
+}
+
+enum ExperimentJobStatus {
+  RUNNING
+  COMPLETED
+  STOPPED
+  ERROR
 }
 
 type ExperimentMutationPayload {
@@ -1640,6 +1755,12 @@ type ExperimentRunMetricComparisons {
 input ExperimentRunSort {
   col: ExperimentRunColumn!
   dir: SortDir!
+}
+
+type FailureDetail {
+  workItem: ExperimentErrorWorkItemId
+  errorType: String!
+  stackTrace: String
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
@@ -1833,6 +1954,10 @@ input GoogleGenAIClientKwargsInput {
   httpOptions: GoogleGenAIHttpOptionsInput
 }
 
+type GoogleGenAIConnectionConfig {
+  baseUrl: String
+}
+
 type GoogleGenAICustomProviderConfig {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
@@ -1934,11 +2059,6 @@ enum MimeType {
   json
 }
 
-input ModelClientOptionsInput @oneOf {
-  builtin: BuiltinClientOptionsInput
-  custom: CustomClientOptionsInput
-}
-
 interface ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey
@@ -2002,6 +2122,10 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  stopExperiment(experimentId: ID!): StopExperimentPayload!
+  resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
+  dismissExperiment(experimentId: ID!): DismissExperimentPayload!
+  reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2078,6 +2202,13 @@ input OpenAIClientKwargsInput {
   organization: String
   project: String
   defaultHeaders: JSON
+}
+
+type OpenAIConnectionConfig {
+  baseUrl: String
+  organization: String
+  project: String
+  openaiApiType: OpenAIApiType!
 }
 
 type OpenAICustomProviderConfig {
@@ -2198,6 +2329,11 @@ input PatchViewerInput {
   newUsername: String
   newPassword: String
   currentPassword: String
+}
+
+type PlaygroundConfig {
+  templateVariablesPath: String
+  appendedMessagesPath: String
 }
 
 input PlaygroundEvaluatorInput {
@@ -2510,6 +2646,20 @@ input PromptChatTemplateInput {
   messages: [PromptMessageInput!]!
 }
 
+type PromptConfig {
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  invocationParameters: JSON!
+
+  """The model provider (OPENAI, ANTHROPIC, etc.)"""
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  promptVersion: PromptVersion
+}
+
 """A connection to a list of items."""
 type PromptConnection {
   """Pagination data for this connection"""
@@ -2620,6 +2770,20 @@ input PromptResponseFormatJSONSchemaInput {
 
 type PromptStringTemplate {
   template: String!
+}
+
+type PromptTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  prompt: PromptConfig!
+  connection: ConnectionConfig
+  playgroundConfig: PlaygroundConfig
+  streamModelOutput: Boolean!
+
+  """
+  The custom provider used by this experiment, if any. Resolved from the task config's connection.
+  """
+  customProvider: GenerativeModelCustomProvider
 }
 
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
@@ -2801,6 +2965,10 @@ type Query {
   evaluatorCount: Int!
 }
 
+type ReinstateExperimentPayload {
+  experiment: Experiment!
+}
+
 input RemoveAnnotationConfigFromProjectInput {
   projectId: ID!
   annotationConfigId: ID!
@@ -2812,6 +2980,17 @@ type RemoveAnnotationConfigFromProjectPayload {
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
+
+type ResumeExperimentPayload {
+  job: ExperimentJob!
+}
+
+type RetriesExhaustedDetail {
+  workItem: ExperimentErrorWorkItemId
+  retryCount: Int!
+  reason: String!
+  stackTrace: String
+}
 
 enum RevisionKind {
   CREATE
@@ -3184,6 +3363,10 @@ enum SpanStatusCode {
   UNSET
 }
 
+type StopExperimentPayload {
+  job: ExperimentJob!
+}
+
 type StringInvocationParameter implements InvocationParameterBase {
   invocationName: String!
   canonicalName: CanonicalParameterName
@@ -3222,6 +3405,11 @@ type SystemApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: ID!
+}
+
+type TaskWorkItemId {
+  datasetExampleId: Int!
+  repetitionNumber: Int!
 }
 
 type TestGenerativeModelCustomProviderCredentialsResult {

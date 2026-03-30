@@ -115,7 +115,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
@@ -249,7 +248,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "tool_choice": "auto",
-            "stream_options": {"include_usage": True},
         }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
@@ -416,7 +414,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
 
         assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "user"
@@ -437,7 +434,6 @@ class TestOpenAIBaseStreamingClient:
         assert input_data == {
             "messages": [{"role": "user", "content": "Say hello"}],
             "model": "gpt-4o-mini",
-            "stream_options": {"include_usage": True},
             "temperature": 0.1,
         }
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
