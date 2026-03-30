@@ -18,6 +18,7 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.SandboxConfig import (
     CreateSandboxConfigInput,
     SandboxConfig,
+    UpdateSandboxProviderInput,
     UpdateSandboxConfigInput,
     sandbox_config_from_input,
     to_gql_sandbox_config,
@@ -26,6 +27,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider as SandboxProviderType,
 )
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 # ---------------------------------------------------------------------------
 # Payload types
@@ -56,6 +58,12 @@ class SetSandboxProviderEnabledPayload:
     query: Query
 
 
+@strawberry.type
+class UpdateSandboxProviderPayload:
+    sandbox_provider: SandboxProviderType
+    query: Query
+
+
 # ---------------------------------------------------------------------------
 # Mixin
 # ---------------------------------------------------------------------------
@@ -75,13 +83,15 @@ class SandboxConfigMutationMixin:
         from sqlalchemy import select
 
         async with info.context.db() as session:
+            provider_id = from_global_id_with_expected_type(
+                input.sandbox_provider_id,
+                expected_type_name=SandboxProviderType.__name__,
+            )
             provider = await session.scalar(
-                select(models.SandboxProvider).where(
-                    models.SandboxProvider.id == input.sandbox_provider_id
-                )
+                select(models.SandboxProvider).where(models.SandboxProvider.id == provider_id)
             )
             if provider is None:
-                raise NotFound(f"SandboxProvider not found: {input.sandbox_provider_id}")
+                raise NotFound(f"SandboxProvider not found: {provider_id}")
 
             values = sandbox_config_from_input(input)
             row = models.SandboxConfig(**values)
@@ -104,11 +114,15 @@ class SandboxConfigMutationMixin:
         from sqlalchemy import select
 
         async with info.context.db() as session:
+            config_id = from_global_id_with_expected_type(
+                input.id,
+                expected_type_name=SandboxConfig.__name__,
+            )
             row = await session.scalar(
-                select(models.SandboxConfig).where(models.SandboxConfig.id == input.id)
+                select(models.SandboxConfig).where(models.SandboxConfig.id == config_id)
             )
             if row is None:
-                raise NotFound(f"SandboxConfig not found: {input.id}")
+                raise NotFound(f"SandboxConfig not found: {config_id}")
 
             if input.description is not strawberry.UNSET:
                 row.description = input.description
@@ -164,6 +178,39 @@ class SandboxConfigMutationMixin:
             await session.refresh(row)
 
         return SetSandboxProviderEnabledPayload(
+            sandbox_provider=to_gql_sandbox_provider(row),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_sandbox_provider(
+        self,
+        info: Info[Context, None],
+        input: UpdateSandboxProviderInput,
+    ) -> UpdateSandboxProviderPayload:
+        """Update provider-level sandbox settings such as config and enabled state."""
+        from sqlalchemy import select
+
+        async with info.context.db() as session:
+            provider_id = from_global_id_with_expected_type(
+                input.id,
+                expected_type_name=SandboxProviderType.__name__,
+            )
+            row = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.id == provider_id)
+            )
+            if row is None:
+                raise NotFound(f"SandboxProvider not found: {provider_id}")
+
+            if input.config is not strawberry.UNSET and input.config is not None:
+                row.config = dict(input.config)
+            if input.enabled is not strawberry.UNSET and input.enabled is not None:
+                row.enabled = input.enabled
+
+            await session.flush()
+            await session.refresh(row)
+
+        return UpdateSandboxProviderPayload(
             sandbox_provider=to_gql_sandbox_provider(row),
             query=Query(),
         )

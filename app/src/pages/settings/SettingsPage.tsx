@@ -24,6 +24,7 @@ const settingsPageInnerCSS = css`
 const tabs: { id: string; label: string }[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "AI Providers" },
+  { id: "sandboxes", label: "Sandboxes" },
   { id: "models", label: "Models" },
   { id: "datasets", label: "Datasets" },
   { id: "annotations", label: "Annotations" },

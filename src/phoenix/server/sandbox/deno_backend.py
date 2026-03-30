@@ -1,5 +1,5 @@
 """
-Deno Deploy sandbox backend.
+Local Deno sandbox backend.
 
 Stateless (BaseNoSessionBackend) — each execute() call is independent.
 Requires the ``deno_sandbox`` package (optional extra).
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class DenoSandboxBackend(BaseNoSessionBackend):
-    """Sandbox backend executing TypeScript code via Deno Deploy."""
+    """Sandbox backend executing TypeScript code in a local Deno runtime."""
 
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
@@ -62,7 +62,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
 
 class DenoAdapter(SandboxAdapter):
     key = "DENO"
-    display_name = "Deno Deploy"
+    display_name = "Deno (local)"
     supported_languages = ["TYPESCRIPT"]
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
