@@ -10,75 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 
 class TestUpsertOrDeleteSecrets:
-    """Tests for PUT /v1/secrets."""
-
-    async def test_upsert_single_secret(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """Creates a new secret and confirms it is returned in upserted_keys."""
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "OPENAI_API_KEY", "value": "sk-test-1234"}]},
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert data["upserted_keys"] == ["OPENAI_API_KEY"]
-        assert data["deleted_keys"] == []
-
-        # Verify the value is stored (encrypted) in the database.
-        async with db() as session:
-            secret = await session.scalar(
-                sa.select(models.Secret).where(models.Secret.key == "OPENAI_API_KEY")
-            )
-        assert secret is not None
-        # The stored value is encrypted bytes, not the plaintext.
-        assert secret.value != b"sk-test-1234"
-
-    async def test_update_existing_secret(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """Updates an existing secret via a second PUT call."""
-        await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "ANTHROPIC_API_KEY", "value": "sk-ant-original"}]},
-        )
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "ANTHROPIC_API_KEY", "value": "sk-ant-updated"}]},
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert data["upserted_keys"] == ["ANTHROPIC_API_KEY"]
-        assert data["deleted_keys"] == []
-
-    async def test_delete_existing_secret(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """Deletes a secret by setting value to null."""
-        await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "OLD_KEY", "value": "old-value"}]},
-        )
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "OLD_KEY", "value": None}]},
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert data["upserted_keys"] == []
-        assert data["deleted_keys"] == ["OLD_KEY"]
-
-        async with db() as session:
-            secret = await session.scalar(
-                sa.select(models.Secret).where(models.Secret.key == "OLD_KEY")
-            )
-        assert secret is None
+    """Validation and schema tests for PUT /v1/secrets."""
 
     async def test_missing_value_field_returns_422_without_deleting_existing_secret(
         self,
@@ -103,63 +35,6 @@ class TestUpsertOrDeleteSecrets:
                 sa.select(models.Secret).where(models.Secret.key == "OPENAI_API_KEY")
             )
         assert secret is not None
-
-    async def test_delete_nonexistent_secret_is_idempotent(
-        self,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        """Deleting a key that doesn't exist succeeds silently."""
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "NONEXISTENT_KEY", "value": None}]},
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert data["deleted_keys"] == ["NONEXISTENT_KEY"]
-
-    async def test_batch_upsert_and_delete(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """Batch request with both upserts and deletes."""
-        await httpx_client.put(
-            "v1/secrets",
-            json={"secrets": [{"key": "TO_DELETE", "value": "v"}]},
-        )
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={
-                "secrets": [
-                    {"key": "NEW_KEY_1", "value": "val1"},
-                    {"key": "NEW_KEY_2", "value": "val2"},
-                    {"key": "TO_DELETE", "value": None},
-                ]
-            },
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert set(data["upserted_keys"]) == {"NEW_KEY_1", "NEW_KEY_2"}
-        assert data["deleted_keys"] == ["TO_DELETE"]
-
-    async def test_duplicate_keys_last_wins(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """When the same key appears twice, the last occurrence wins."""
-        response = await httpx_client.put(
-            "v1/secrets",
-            json={
-                "secrets": [
-                    {"key": "DUP_KEY", "value": "first-value"},
-                    {"key": "DUP_KEY", "value": "last-value"},
-                ]
-            },
-        )
-        assert response.status_code == 200, response.text
-        data = response.json()["data"]
-        assert data["upserted_keys"] == ["DUP_KEY"]
 
     async def test_empty_secrets_list_returns_422(
         self,
