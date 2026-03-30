@@ -7,11 +7,11 @@ import {
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  Flex,
   Icon,
   Icons,
   Modal,
@@ -24,34 +24,6 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { DeleteSandboxConfigButtonDeleteSandboxConfigMutation } from "./__generated__/DeleteSandboxConfigButtonDeleteSandboxConfigMutation.graphql";
 import type { SandboxConfig } from "./types";
-
-function DialogActions({
-  submitLabel,
-  isSubmitting,
-  onCancel,
-  onSubmit,
-}: {
-  submitLabel: string;
-  isSubmitting: boolean;
-  onCancel: () => void;
-  onSubmit: () => void;
-}) {
-  return (
-    <Flex justifyContent="end" gap="size-100">
-      <Button variant="default" onPress={onCancel} size="S">
-        Cancel
-      </Button>
-      <Button
-        variant="danger"
-        onPress={onSubmit}
-        isDisabled={isSubmitting}
-        size="S"
-      >
-        {submitLabel}
-      </Button>
-    </Flex>
-  );
-}
 
 export function DeleteSandboxConfigButton({
   config,
@@ -112,7 +84,7 @@ export function DeleteSandboxConfigButton({
                 </DialogTitleExtra>
               </DialogHeader>
               <View padding="size-200">
-                <Flex direction="column" gap="size-200">
+                <div>
                   {error ? (
                     <Alert variant="danger" banner>
                       {error}
@@ -122,14 +94,21 @@ export function DeleteSandboxConfigButton({
                     Deleting {config.name} will remove it from any evaluators
                     that currently reference it.
                   </Text>
-                  <DialogActions
-                    submitLabel="Delete Config"
-                    isSubmitting={isDeleting}
-                    onCancel={() => setIsOpen(false)}
-                    onSubmit={handleDelete}
-                  />
-                </Flex>
+                </div>
               </View>
+              <DialogFooter>
+                <Button variant="default" onPress={() => setIsOpen(false)} size="S">
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  onPress={handleDelete}
+                  isDisabled={isDeleting}
+                  size="S"
+                >
+                  Delete Config
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </Modal>
