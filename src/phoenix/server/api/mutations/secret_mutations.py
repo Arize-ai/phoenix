@@ -36,7 +36,8 @@ class SecretKeyValueInput:
     Input type for a single secret key-value pair.
 
     Attributes:
-        key: The unique identifier for the secret. Must be non-empty ASCII after trimming.
+        key: The unique identifier for the secret. Must be non-empty ASCII after trimming
+             and contain no whitespace.
         value: The secret value. If None, the secret with this key will be deleted.
                If provided, must be non-empty after trimming.
 
@@ -55,16 +56,11 @@ class SecretKeyValueInput:
 
     def __post_init__(self) -> None:
         """Validate and normalize the key and value fields."""
-        import re
-
         self.key = self.key.strip()
         if not self.key:
             raise BadRequest("Key cannot be empty")
-        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", self.key):
-            raise BadRequest(
-                "Key must start with a letter or underscore and contain only "
-                "letters, digits, and underscores"
-            )
+        if not self.key.isascii() or any(char.isspace() for char in self.key):
+            raise BadRequest("Key must be ASCII and cannot contain whitespace")
         if self.value is None:
             return
         self.value = self.value.strip()

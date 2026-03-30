@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Callable
 import httpx
 import pytest
 
+from phoenix.server.api.exceptions import Unauthorized
+
 from .._helpers import (
     _ADMIN,
     _MEMBER,
@@ -401,7 +403,7 @@ class TestSecretsAuthorization:
 
     def test_unauthenticated_cannot_access_rest(self, _app: _AppInfo) -> None:
         resp = _put_secrets(_app, [{"key": "NOPE", "value": "v"}], auth=None)
-        assert resp.status_code == 403, resp.text
+        assert resp.status_code == 401, resp.text
 
     def test_admin_can_mutate_secrets_graphql(
         self, _app: _AppInfo, _secret_keys: Callable[[str], str]
@@ -420,27 +422,27 @@ class TestSecretsAuthorization:
         self, _app: _AppInfo, _get_user: _GetUser
     ) -> None:
         member = _get_user(_app, _MEMBER)
-        result, _ = _gql(
-            _app,
-            member,
-            query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": [{"key": "NOPE", "value": "v"}]}},
-            operation_name="UpsertOrDeleteSecrets",
-        )
-        assert result.get("errors"), "Expected permission error for member"
+        with pytest.raises(Unauthorized, match="Only admin can perform this action"):
+            _gql(
+                _app,
+                member,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": [{"key": "NOPE", "value": "v"}]}},
+                operation_name="UpsertOrDeleteSecrets",
+            )
 
     def test_viewer_cannot_mutate_secrets_graphql(
         self, _app: _AppInfo, _get_user: _GetUser
     ) -> None:
         viewer = _get_user(_app, _VIEWER)
-        result, _ = _gql(
-            _app,
-            viewer,
-            query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": [{"key": "NOPE", "value": "v"}]}},
-            operation_name="UpsertOrDeleteSecrets",
-        )
-        assert result.get("errors"), "Expected permission error for viewer"
+        with pytest.raises(Unauthorized, match="Viewers cannot perform this action"):
+            _gql(
+                _app,
+                viewer,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": [{"key": "NOPE", "value": "v"}]}},
+                operation_name="UpsertOrDeleteSecrets",
+            )
 
     def test_non_admin_cannot_read_secret_value_graphql(
         self, _app: _AppInfo, _get_user: _GetUser, _secret_keys: Callable[[str], str]
@@ -448,18 +450,35 @@ class TestSecretsAuthorization:
         key = _secret_keys(f"AUTH_GQL_READ_{token_hex(4)}")
         _put_secrets(_app, [{"key": key, "value": "secret-val"}])
         member = _get_user(_app, _MEMBER)
-        result, _ = _gql(
-            _app,
-            member,
-            query=SECRETS_QUERY,
-            variables={"keys": [key]},
-            operation_name="SecretsQuery",
-        )
-        assert result.get("errors"), "Expected permission error reading secret value"
+        with pytest.raises(Unauthorized, match="Only admin can perform this action"):
+            _gql(
+                _app,
+                member,
+                query=SECRETS_QUERY,
+                variables={"keys": [key]},
+                operation_name="SecretsQuery",
+            )
 
 
 class TestSecretsValidation:
     """Validation edge cases through the real HTTP stack."""
+
+    @pytest.mark.parametrize(
+        "valid_key",
+        [
+            pytest.param("has-dash", id="dash"),
+            pytest.param("has.dot", id="dot"),
+            pytest.param("key!", id="punctuation"),
+            pytest.param("0STARTS_WITH_DIGIT", id="leading_digit"),
+        ],
+    )
+    def test_ascii_key_without_whitespace_is_accepted(
+        self, _app: _AppInfo, _secret_keys: Callable[[str], str], valid_key: str
+    ) -> None:
+        key = _secret_keys(valid_key)
+        resp = _put_secrets(_app, [{"key": key, "value": "val"}])
+        assert resp.status_code == 200, resp.text
+        assert _query_secret_value(_app, key) == "val"
 
     def test_empty_secrets_list_returns_422(self, _app: _AppInfo) -> None:
         resp = _put_secrets(_app, [])
@@ -477,13 +496,11 @@ class TestSecretsValidation:
         "bad_key",
         [
             pytest.param("has space", id="whitespace"),
-            pytest.param("has-dash", id="dash"),
-            pytest.param("has.dot", id="dot"),
-            pytest.param("key!", id="punctuation"),
-            pytest.param("0STARTS_WITH_DIGIT", id="leading_digit"),
+            pytest.param("has\ttab", id="tab"),
+            pytest.param("has\nnewline", id="newline"),
         ],
     )
-    def test_key_with_invalid_characters_returns_422(self, _app: _AppInfo, bad_key: str) -> None:
+    def test_key_with_whitespace_returns_422(self, _app: _AppInfo, bad_key: str) -> None:
         resp = _put_secrets(_app, [{"key": bad_key, "value": "val"}])
         assert resp.status_code == 422, resp.text
 
@@ -510,41 +527,55 @@ class TestSecretsValidation:
         assert resp.status_code == 422, resp.text
 
     def test_graphql_empty_secrets_list_returns_error(self, _app: _AppInfo) -> None:
-        result, _ = _gql(
-            _app,
-            _app.admin_secret,
-            query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": []}},
-            operation_name="UpsertOrDeleteSecrets",
-        )
-        assert result.get("errors")
+        with pytest.raises(RuntimeError, match="At least one secret is required"):
+            _gql(
+                _app,
+                _app.admin_secret,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": []}},
+                operation_name="UpsertOrDeleteSecrets",
+            )
 
     def test_graphql_empty_key_returns_error(self, _app: _AppInfo) -> None:
-        result, _ = _gql(
-            _app,
-            _app.admin_secret,
-            query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": [{"key": "", "value": "v"}]}},
-            operation_name="UpsertOrDeleteSecrets",
-        )
-        assert result.get("errors")
+        with pytest.raises(RuntimeError, match="Key cannot be empty"):
+            _gql(
+                _app,
+                _app.admin_secret,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": [{"key": "", "value": "v"}]}},
+                operation_name="UpsertOrDeleteSecrets",
+            )
 
-    def test_graphql_invalid_key_characters_returns_error(self, _app: _AppInfo) -> None:
+    def test_graphql_key_with_whitespace_returns_error(self, _app: _AppInfo) -> None:
+        with pytest.raises(RuntimeError, match="Key must be ASCII and cannot contain whitespace"):
+            _gql(
+                _app,
+                _app.admin_secret,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": [{"key": "has whitespace", "value": "v"}]}},
+                operation_name="UpsertOrDeleteSecrets",
+            )
+
+    def test_graphql_ascii_key_without_whitespace_is_accepted(
+        self, _app: _AppInfo, _secret_keys: Callable[[str], str]
+    ) -> None:
+        key = _secret_keys("has-dash")
         result, _ = _gql(
             _app,
             _app.admin_secret,
             query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": [{"key": "has-dash", "value": "v"}]}},
+            variables={"input": {"secrets": [{"key": key, "value": "v"}]}},
             operation_name="UpsertOrDeleteSecrets",
         )
-        assert result.get("errors")
+        assert not result.get("errors"), result.get("errors")
+        assert _query_secret_value(_app, key) == "v"
 
     def test_graphql_empty_value_returns_error(self, _app: _AppInfo) -> None:
-        result, _ = _gql(
-            _app,
-            _app.admin_secret,
-            query=UPSERT_OR_DELETE_MUTATION,
-            variables={"input": {"secrets": [{"key": "k", "value": ""}]}},
-            operation_name="UpsertOrDeleteSecrets",
-        )
-        assert result.get("errors")
+        with pytest.raises(RuntimeError, match="Value cannot be empty"):
+            _gql(
+                _app,
+                _app.admin_secret,
+                query=UPSERT_OR_DELETE_MUTATION,
+                variables={"input": {"secrets": [{"key": "k", "value": ""}]}},
+                operation_name="UpsertOrDeleteSecrets",
+            )

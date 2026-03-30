@@ -244,7 +244,39 @@ class TestSecretMutations:
         assert whitespace_key_result.errors is not None
         assert any("key cannot be empty" in e.message.lower() for e in whitespace_key_result.errors)
 
-        # Test 8: Empty value (should fail)
+        # Test 8: Key with internal whitespace (should fail)
+        spaced_key_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "secrets": [{"key": "contains whitespace", "value": "some-value"}],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
+        )
+        assert spaced_key_result.errors is not None
+        assert any(
+            "key must be ascii and cannot contain whitespace" in e.message.lower()
+            for e in spaced_key_result.errors
+        )
+
+        # Test 9: Non-ASCII key (should fail)
+        non_ascii_key_result = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "secrets": [{"key": "ключ", "value": "some-value"}],
+                }
+            },
+            operation_name="UpsertOrDeleteSecretsMutation",
+        )
+        assert non_ascii_key_result.errors is not None
+        assert any(
+            "key must be ascii and cannot contain whitespace" in e.message.lower()
+            for e in non_ascii_key_result.errors
+        )
+
+        # Test 10: Empty value (should fail)
         empty_value_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -257,7 +289,7 @@ class TestSecretMutations:
         assert empty_value_result.errors is not None
         assert any("value cannot be empty" in e.message.lower() for e in empty_value_result.errors)
 
-        # Test 9: Value with only whitespace (should fail)
+        # Test 11: Value with only whitespace (should fail)
         whitespace_value_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -274,7 +306,7 @@ class TestSecretMutations:
 
         # ===== DELETE TESTS =====
 
-        # Test 10: Delete existing secret (by passing value: null)
+        # Test 12: Delete existing secret (by passing value: null)
         delete_result = await gql_client.execute(
             query=self.QUERY,
             variables={
@@ -295,7 +327,7 @@ class TestSecretMutations:
             deleted_secret = await session.get(models.Secret, secret_key_1)
         assert deleted_secret is None  # Hard deleted, secret no longer exists
 
-        # Test 11: Re-create secret after deletion by upserting
+        # Test 13: Re-create secret after deletion by upserting
         secret_value_1_recreated = "recreated-value-789"
         recreate_result = await gql_client.execute(
             query=self.QUERY,
@@ -318,7 +350,7 @@ class TestSecretMutations:
         assert fetched_recreated is not None
         assert fetched_recreated["value"]["value"] == secret_value_1_recreated
 
-        # Test 12: Delete non-existent secret (idempotent - should succeed)
+        # Test 14: Delete non-existent secret (idempotent - should succeed)
         nonexistent_key = f"nonexistent-secret-{token_hex(4)}"
         nonexistent_delete_result = await gql_client.execute(
             query=self.QUERY,
@@ -336,7 +368,7 @@ class TestSecretMutations:
             expected_nonexistent_id
         ]
 
-        # Test 13: Batch delete multiple secrets to clean up
+        # Test 15: Batch delete multiple secrets to clean up
         batch_delete_result = await gql_client.execute(
             query=self.QUERY,
             variables={
