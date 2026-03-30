@@ -220,7 +220,7 @@ export function ExperimentsTable({
                   username
                   profilePictureUrl
                 }
-                backgroundJob {
+                job {
                   status
                 }
               }
@@ -325,7 +325,7 @@ export function ExperimentsTable({
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
-        const jobStatus = row.original.backgroundJob?.status;
+        const jobStatus = row.original.job?.status;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
@@ -463,7 +463,7 @@ export function ExperimentsTable({
           header: "job status",
           id: "experimentJobStatus",
           cell: ({ row }) => (
-            <ExperimentStatus status={row.original.backgroundJob?.status} />
+            <ExperimentStatus status={row.original.job?.status} />
           ),
         },
         {
@@ -587,7 +587,7 @@ export function ExperimentsTable({
                 projectId={project?.id || null}
                 experimentId={row.original.id}
                 metadata={metadata}
-                backgroundJobStatus={row.original.backgroundJob?.status ?? null}
+                jobStatus={row.original.job?.status ?? null}
                 size="S"
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {

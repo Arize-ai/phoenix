@@ -374,7 +374,7 @@ type CategoricalAnnotationValue {
 
 input ChatCompletionInput {
   promptVersion: ChatPromptVersionInput!
-  connection: ConnectionConfigInput = null
+  connectionConfig: ConnectionConfigInput = null
   headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
@@ -387,7 +387,7 @@ input ChatCompletionInput {
 input ChatCompletionOverDatasetInput {
   promptVersionId: ID = null
   promptVersion: ChatPromptVersionInput!
-  connection: ConnectionConfigInput = null
+  connectionConfig: ConnectionConfigInput = null
   headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   repetitions: Int!
@@ -1444,7 +1444,7 @@ type Experiment implements Node {
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   datasetSplits: DatasetSplitConnection!
-  backgroundJob: ExperimentJob
+  job: ExperimentJob
 }
 
 type ExperimentAnnotationSummary {

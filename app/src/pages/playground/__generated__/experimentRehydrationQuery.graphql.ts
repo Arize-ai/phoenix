@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74848e83283c5a8d63f2621245da70f9>>
+ * @generated SignedSource<<f216e68a83a7566ed8e2bc8b9d1771f4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,10 @@ export type experimentRehydrationQuery$variables = {
 };
 export type experimentRehydrationQuery$data = {
   readonly node: {
-    readonly backgroundJob?: {
+    readonly dataset?: {
+      readonly id: string;
+    };
+    readonly job?: {
       readonly datasetEvaluators: {
         readonly edges: ReadonlyArray<{
           readonly node: {
@@ -129,9 +132,6 @@ export type experimentRehydrationQuery$data = {
         readonly streamModelOutput: boolean;
       } | null;
     } | null;
-    readonly dataset?: {
-      readonly id: string;
-    };
   };
 };
 export type experimentRehydrationQuery = {
@@ -694,7 +694,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentJob",
                 "kind": "LinkedField",
-                "name": "backgroundJob",
+                "name": "job",
                 "plural": false,
                 "selections": [
                   (v5/*: any*/),
@@ -753,7 +753,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentJob",
                 "kind": "LinkedField",
-                "name": "backgroundJob",
+                "name": "job",
                 "plural": false,
                 "selections": [
                   (v5/*: any*/),
@@ -790,16 +790,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79e41b8a638332ae4bc3e3354244bc0a",
+    "cacheID": "1ac181a242bce7b7e49603784d880ac7",
     "id": null,
     "metadata": {},
     "name": "experimentRehydrationQuery",
     "operationKind": "query",
-    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      backgroundJob {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          prompt {\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              tools {\n                function {\n                  name\n                  description\n                  parameters\n                  strict\n                }\n              }\n              toolChoice {\n                type\n                functionName\n              }\n              disableParallelToolCalls\n            }\n            responseFormat {\n              jsonSchema {\n                name\n                description\n                schema\n                strict\n              }\n            }\n            invocationParameters\n            modelProvider\n            modelName\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              baseUrl\n            }\n          }\n          customProvider {\n            id\n            name\n          }\n          playgroundConfig {\n            templateVariablesPath\n            appendedMessagesPath\n          }\n          streamModelOutput\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          prompt {\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              tools {\n                function {\n                  name\n                  description\n                  parameters\n                  strict\n                }\n              }\n              toolChoice {\n                type\n                functionName\n              }\n              disableParallelToolCalls\n            }\n            responseFormat {\n              jsonSchema {\n                name\n                description\n                schema\n                strict\n              }\n            }\n            invocationParameters\n            modelProvider\n            modelName\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              baseUrl\n            }\n          }\n          customProvider {\n            id\n            name\n          }\n          playgroundConfig {\n            templateVariablesPath\n            appendedMessagesPath\n          }\n          streamModelOutput\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c99bc0c7cdaadd5a06a21335d77a35b5";
+(node as any).hash = "0571ee0f2dd3e36672abba5fb0a487f4";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a4f2f141e182dfbda69c01a28620fbd2>>
+ * @generated SignedSource<<231010dbea5ea9d62621f5f701c3f450>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
-  connection?: ConnectionConfigInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
   headers?: any | null;

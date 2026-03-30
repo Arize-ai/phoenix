@@ -52,7 +52,7 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
-      backgroundJobStatus?: ExperimentJobStatus | null;
+      jobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: true;
       size?: ButtonProps["size"];
       onExperimentDeleted: () => void;
@@ -61,7 +61,7 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
-      backgroundJobStatus?: ExperimentJobStatus | null;
+      jobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: false;
       size?: ButtonProps["size"];
       onExperimentDeleted?: undefined;
@@ -100,7 +100,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
-  const { projectId, backgroundJobStatus } = props;
+  const { projectId, jobStatus } = props;
   const { datasetId } = useParams();
   const credentials = useCredentialsContext((state) => state);
   const navigate = useNavigate();
@@ -182,7 +182,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </Flex>
     </MenuItem>,
   ];
-  if (backgroundJobStatus != null) {
+  if (jobStatus != null) {
     menuItems.push(
       <MenuItem
         key={ExperimentAction.OPEN_IN_PLAYGROUND}
@@ -200,7 +200,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </MenuItem>
     );
   }
-  if (backgroundJobStatus === "RUNNING") {
+  if (jobStatus === "RUNNING") {
     menuItems.push(
       <MenuItem
         key={ExperimentAction.STOP_EXPERIMENT}
@@ -217,7 +217,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         </Flex>
       </MenuItem>
     );
-  } else if (backgroundJobStatus != null) {
+  } else if (jobStatus != null) {
     menuItems.push(
       <MenuItem
         key={ExperimentAction.RESUME_EXPERIMENT}

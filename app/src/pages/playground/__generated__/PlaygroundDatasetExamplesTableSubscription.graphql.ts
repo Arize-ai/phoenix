@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0693f7acc0178fab906abfe609979a5>>
+ * @generated SignedSource<<f90db853eac2b71be1e6a3c4defbe3a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
-  connection?: ConnectionConfigInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
   createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;

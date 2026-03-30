@@ -17,7 +17,7 @@ from .PromptVersionInput import ChatPromptVersionInput
 @strawberry.input
 class ChatCompletionInput:
     prompt_version: ChatPromptVersionInput
-    connection: Optional[ConnectionConfigInput] = None
+    connection_config: Optional[ConnectionConfigInput] = None
     headers: Optional[JSON] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     template: Optional[PromptTemplateOptions] = UNSET
@@ -31,7 +31,7 @@ class ChatCompletionInput:
 class ChatCompletionOverDatasetInput:
     prompt_version_id: GlobalID | None = None
     prompt_version: ChatPromptVersionInput
-    connection: Optional[ConnectionConfigInput] = None
+    connection_config: Optional[ConnectionConfigInput] = None
     headers: Optional[JSON] = None
     credentials: Optional[list[GenerativeCredentialInput]] = UNSET
     repetitions: int

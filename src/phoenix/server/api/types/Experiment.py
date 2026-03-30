@@ -405,7 +405,7 @@ class Experiment(Node):
         )
 
     @strawberry.field
-    async def background_job(
+    async def job(
         self, info: Info[Context, None]
     ) -> Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")] | None:
         job = await info.context.data_loaders.experiment_jobs.load(self.id)

@@ -50,7 +50,7 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
         dataset {
           id
         }
-        backgroundJob {
+        job {
           maxConcurrency
           datasetEvaluators {
             edges {
@@ -175,7 +175,7 @@ export type ExperimentRehydrationResult = {
 type TaskConfig = NonNullable<
   NonNullable<
     NonNullable<
-      experimentRehydrationQuery["response"]["node"]["backgroundJob"]
+      experimentRehydrationQuery["response"]["node"]["job"]
     >["taskConfig"]
   >
 >;
@@ -386,7 +386,7 @@ export async function fetchExperimentPlaygroundProps(
   if (!data?.node) return null;
 
   const node = data.node;
-  const job = node.backgroundJob;
+  const job = node.job;
   if (!job?.taskConfig) return null;
 
   const prompt = job.taskConfig.prompt;

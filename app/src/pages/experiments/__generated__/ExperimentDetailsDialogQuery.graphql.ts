@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e64e2e2f315c8b6d2f98f8718433babc>>
+ * @generated SignedSource<<c1a59d0e9641e6a13c090aff7606ab86>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,26 @@ export type ExperimentDetailsDialogQuery$variables = {
 export type ExperimentDetailsDialogQuery$data = {
   readonly experiment: {
     readonly averageRunLatencyMs?: number | null;
-    readonly backgroundJob?: {
+    readonly costSummary?: {
+      readonly completion: {
+        readonly cost: number | null;
+        readonly tokens: number | null;
+      };
+      readonly prompt: {
+        readonly cost: number | null;
+        readonly tokens: number | null;
+      };
+      readonly total: {
+        readonly cost: number | null;
+        readonly tokens: number | null;
+      };
+    };
+    readonly createdAt?: string;
+    readonly description?: string | null;
+    readonly errorRate?: number | null;
+    readonly expectedRunCount?: number;
+    readonly id?: string;
+    readonly job?: {
       readonly createdAt: string;
       readonly errors: {
         readonly edges: ReadonlyArray<{
@@ -88,25 +107,6 @@ export type ExperimentDetailsDialogQuery$data = {
         readonly streamModelOutput: boolean;
       } | null;
     } | null;
-    readonly costSummary?: {
-      readonly completion: {
-        readonly cost: number | null;
-        readonly tokens: number | null;
-      };
-      readonly prompt: {
-        readonly cost: number | null;
-        readonly tokens: number | null;
-      };
-      readonly total: {
-        readonly cost: number | null;
-        readonly tokens: number | null;
-      };
-    };
-    readonly createdAt?: string;
-    readonly description?: string | null;
-    readonly errorRate?: number | null;
-    readonly expectedRunCount?: number;
-    readonly id?: string;
     readonly metadata?: any;
     readonly name?: string;
     readonly project?: {
@@ -586,7 +586,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentJob",
                 "kind": "LinkedField",
-                "name": "backgroundJob",
+                "name": "job",
                 "plural": false,
                 "selections": [
                   (v19/*: any*/),
@@ -766,7 +766,7 @@ return {
                 "args": null,
                 "concreteType": "ExperimentJob",
                 "kind": "LinkedField",
-                "name": "backgroundJob",
+                "name": "job",
                 "plural": false,
                 "selections": [
                   (v19/*: any*/),
@@ -893,16 +893,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "226efbd3f805985b1628cb10ca48c8f5",
+    "cacheID": "de83bbba325c6154eeb39ab1767ce857",
     "id": null,
     "metadata": {},
     "name": "ExperimentDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      backgroundJob {\n        status\n        createdAt\n        maxConcurrency\n        lastError {\n          id\n          occurredAt\n          category\n          message\n          detail {\n            __typename\n            ... on FailureDetail {\n              errorType\n              stackTrace\n            }\n            ... on RetriesExhaustedDetail {\n              retryCount\n              reason\n              stackTrace\n            }\n          }\n        }\n        errors(first: 20) {\n          edges {\n            node {\n              id\n              occurredAt\n              category\n              message\n              detail {\n                __typename\n                ... on FailureDetail {\n                  errorType\n                  stackTrace\n                }\n                ... on RetriesExhaustedDetail {\n                  retryCount\n                  reason\n                  stackTrace\n                }\n              }\n            }\n          }\n        }\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      job {\n        status\n        createdAt\n        maxConcurrency\n        lastError {\n          id\n          occurredAt\n          category\n          message\n          detail {\n            __typename\n            ... on FailureDetail {\n              errorType\n              stackTrace\n            }\n            ... on RetriesExhaustedDetail {\n              retryCount\n              reason\n              stackTrace\n            }\n          }\n        }\n        errors(first: 20) {\n          edges {\n            node {\n              id\n              occurredAt\n              category\n              message\n              detail {\n                __typename\n                ... on FailureDetail {\n                  errorType\n                  stackTrace\n                }\n                ... on RetriesExhaustedDetail {\n                  retryCount\n                  reason\n                  stackTrace\n                }\n              }\n            }\n          }\n        }\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bdb0b54f548c0b12821262d4ade2bbd7";
+(node as any).hash = "3d4139b38261795eb5bd76b29fb2e437";
 
 export default node;

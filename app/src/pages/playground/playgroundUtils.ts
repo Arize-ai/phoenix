@@ -1455,7 +1455,7 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
-  const connection = customProvider
+  const connectionConfig = customProvider
     ? null
     : {
         baseUrl: instance.model.baseUrl ?? null,
@@ -1467,7 +1467,7 @@ const getBaseChatCompletionInput = ({
   const headers = instance.model.customHeaders ?? null;
 
   return {
-    connection,
+    connectionConfig,
     headers,
     credentials: toGqlCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
@@ -2050,7 +2050,7 @@ export const getChatCompletionInput = ({
 
   return {
     promptVersion,
-    connection: baseChatCompletionVariables.connection,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     template: {
@@ -2158,7 +2158,7 @@ export const getChatCompletionOverDatasetInput = ({
 
   return {
     promptVersion,
-    connection: baseChatCompletionVariables.connection,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     repetitions,

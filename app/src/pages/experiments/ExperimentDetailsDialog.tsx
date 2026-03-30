@@ -157,7 +157,7 @@ function ExperimentDetailsDialogContent({
                 cost
               }
             }
-            backgroundJob {
+            job {
               status
               createdAt
               maxConcurrency
@@ -260,7 +260,7 @@ function ExperimentDetailsDialogContent({
     );
   }
 
-  const job = experiment.backgroundJob;
+  const job = experiment.job;
   const taskConfig = job?.taskConfig;
   const lastError = job?.lastError;
   const errors = job?.errors?.edges ?? [];

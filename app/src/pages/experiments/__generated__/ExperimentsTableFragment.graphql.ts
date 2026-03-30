@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5305b9db4ad7b6045b42ef680a514ad7>>
+ * @generated SignedSource<<9eb9a209d799798dd9fb30d414409f7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,9 +27,6 @@ export type ExperimentsTableFragment$data = {
           readonly meanScore: number | null;
         }>;
         readonly averageRunLatencyMs: number | null;
-        readonly backgroundJob: {
-          readonly status: ExperimentJobStatus;
-        } | null;
         readonly costSummary: {
           readonly completion: {
             readonly cost: number | null;
@@ -58,6 +55,9 @@ export type ExperimentsTableFragment$data = {
         readonly errorRate: number | null;
         readonly expectedRunCount: number;
         readonly id: string;
+        readonly job: {
+          readonly status: ExperimentJobStatus;
+        } | null;
         readonly metadata: any;
         readonly name: string;
         readonly project: {
@@ -442,7 +442,7 @@ return {
                   "args": null,
                   "concreteType": "ExperimentJob",
                   "kind": "LinkedField",
-                  "name": "backgroundJob",
+                  "name": "job",
                   "plural": false,
                   "selections": [
                     {
@@ -520,6 +520,6 @@ return {
 };
 })();
 
-(node as any).hash = "9bd6d39e05394953bfe39cb0ead9f095";
+(node as any).hash = "f030ce18df72171c2246907cda544324";
 
 export default node;
