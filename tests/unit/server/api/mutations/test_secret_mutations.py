@@ -257,8 +257,7 @@ class TestSecretMutations:
         assert spaced_key_result.errors is not None
         assert any(
             "key must start with a letter or underscore and contain only "
-            "letters, digits, and underscores"
-            in e.message.lower()
+            "letters, digits, and underscores" in e.message.lower()
             for e in spaced_key_result.errors
         )
 
@@ -275,8 +274,7 @@ class TestSecretMutations:
         assert non_ascii_key_result.errors is not None
         assert any(
             "key must start with a letter or underscore and contain only "
-            "letters, digits, and underscores"
-            in e.message.lower()
+            "letters, digits, and underscores" in e.message.lower()
             for e in non_ascii_key_result.errors
         )
 

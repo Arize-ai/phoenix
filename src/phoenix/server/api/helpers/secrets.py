@@ -1,8 +1,7 @@
 import re
 
 SECRET_KEY_VALIDATION_ERROR = (
-    "Key must start with a letter or underscore and contain only "
-    "letters, digits, and underscores"
+    "Key must start with a letter or underscore and contain only letters, digits, and underscores"
 )
 
 _SECRET_KEY_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
