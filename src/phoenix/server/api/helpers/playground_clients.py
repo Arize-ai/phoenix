@@ -16,6 +16,7 @@ from typing import (
     Hashable,
     Iterable,
     Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     TypeVar,
@@ -57,10 +58,18 @@ from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
 from phoenix.db import models
+from phoenix.db.types.experiment_config import ConnectionConfig
 from phoenix.db.types.model_provider import (
+    ClientFactory,
     GenerativeModelCustomerProviderConfig,
+    LLMClientFactory,
     ModelProvider,
+    anthropic_rate_limit_key,
+    azure_rate_limit_key,
+    bedrock_rate_limit_key,
+    google_rate_limit_key,
     is_sdk_compatible_with_model_provider,
+    openai_rate_limit_key,
 )
 from phoenix.db.types.prompts import (
     PromptResponseFormat,
@@ -69,6 +78,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
+from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
@@ -80,12 +90,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
     StringInvocationParameter,
     StringListInvocationParameter,
 )
-from phoenix.server.api.input_types.ModelClientOptionsInput import (
-    BuiltinClientOptionsInput,
-    CustomClientOptionsInput,
-    ModelClientOptionsInput,
-    OpenAIApiType,
-)
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
@@ -96,12 +101,11 @@ from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
     GenerativeProviderKey,
 )
-from phoenix.server.rate_limiters import RateLimiter
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
-    from anthropic.lib.streaming import AsyncMessageStream, AsyncMessageStreamManager
+    from anthropic.lib.streaming import AsyncMessageStreamManager
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
@@ -139,7 +143,6 @@ ClientT = TypeVar("ClientT")
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
-ClientFactory: TypeAlias = Callable[[], AbstractAsyncContextManager[ClientT]]
 ToolCallID: TypeAlias = str
 
 
@@ -157,66 +160,6 @@ class Dependency:
         return self.module_name or self.name
 
 
-class KeyedSingleton:
-    _instances: dict[Hashable, "KeyedSingleton"] = {}
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> "KeyedSingleton":
-        if "singleton_key" in kwargs:
-            singleton_key = kwargs.pop("singleton_key")
-        elif args:
-            singleton_key = args[0]
-            args = args[1:]
-        else:
-            raise ValueError("singleton_key must be provided")
-
-        instance_key = (cls, singleton_key)
-        if instance_key not in cls._instances:
-            instance = super().__new__(cls)
-            cls._instances[instance_key] = instance
-        return cls._instances[instance_key]
-
-
-class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
-    """
-    A rate rate limiter class that will be instantiated once per `singleton_key`.
-    """
-
-    def __init__(self, singleton_key: Hashable, rate_limit_error: Optional[type[BaseException]]):
-        super().__init__(
-            rate_limit_error=rate_limit_error,
-            max_rate_limit_retries=3,
-            initial_per_second_request_rate=1.0,
-            maximum_per_second_request_rate=3.0,
-            enforcement_window_minutes=0.05,
-            rate_reduction_factor=0.5,
-            rate_increase_factor=0.01,
-            cooldown_seconds=5,
-            verbose=False,
-        )
-
-
-class PlaygroundOutboundRateLimitError(Exception):
-    """Raised when Bedrock/Gemini throttles so PlaygroundRateLimiter can adapt."""
-
-
-def _reraise_if_bedrock_rate_limit(exc: BaseException) -> None:
-    from botocore.exceptions import ClientError  # type: ignore[import-untyped]
-
-    if isinstance(exc, ClientError):
-        code = exc.response.get("Error", {}).get("Code", "")
-        if code in ("ThrottlingException", "TooManyRequestsException"):
-            raise PlaygroundOutboundRateLimitError from exc
-
-
-def _reraise_if_google_rate_limit(exc: BaseException) -> None:
-    status = getattr(exc, "status_code", None)
-    if status == 429:
-        raise PlaygroundOutboundRateLimitError from exc
-    code = getattr(exc, "code", None)
-    if code == 429:
-        raise PlaygroundOutboundRateLimitError from exc
-
-
 class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     _client_factory: ClientFactory[ClientT]
 
@@ -230,6 +173,7 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         self.provider = provider
         self.model_name = model_name
         self._client_factory = client_factory
+        self._attributes: dict[str, Any] = {}
 
     @property
     @abstractmethod
@@ -346,6 +290,74 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             # happens in some cases if the spec is None
             return False
 
+    @property
+    def attributes(self) -> dict[str, Any]:
+        return dict(self._attributes)
+
+    def get_rate_limit_key(self) -> Hashable:
+        """Return a hashable key for rate limit bucketing.
+
+        Clients sharing the same key will share rate limit capacity.
+        Delegates to the client factory which has the full context.
+        """
+        return self._client_factory.rate_limit_key
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        """Check if the exception is a rate limit error for this provider.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation uses class name heuristics.
+        """
+        error_name = type(e).__name__.lower()
+        return "ratelimit" in error_name or "throttl" in error_name
+
+    def is_transient_error(self, e: Exception) -> bool:
+        """Check if the exception is a transient error that should be retried.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation checks for common transient patterns.
+        """
+        error_name = type(e).__name__.lower()
+        if "timeout" in error_name or "connection" in error_name:
+            return True
+        # Check HTTP status code if available
+        status_code = getattr(e, "status_code", None)
+        if status_code and 500 <= status_code < 600:
+            return True
+        return False
+
+    def get_retry_after_seconds(self, e: Exception) -> Optional[float]:
+        """Extract retry-after duration from the error response, if available.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation checks for common header patterns.
+        """
+        response = getattr(e, "response", None)
+        if response is None:
+            return None
+
+        headers = getattr(response, "headers", None)
+        if headers is None:
+            return None
+
+        # Try retry-after-ms first (non-standard but more precise)
+        retry_ms = headers.get("retry-after-ms")
+        if retry_ms:
+            try:
+                return float(retry_ms) / 1000
+            except (TypeError, ValueError):
+                pass
+
+        # Try retry-after as seconds
+        retry_after = headers.get("retry-after")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except (TypeError, ValueError):
+                pass
+
+        return None
+
 
 class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     @property
@@ -368,11 +380,27 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             provider=provider,
             model_name=model_name,
         )
-        self.rate_limiter = PlaygroundRateLimiter(provider, OpenAIRateLimitError)
+        self._rate_limit_error_cls = OpenAIRateLimitError
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="openai")]
+
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return isinstance(e, self._rate_limit_error_cls)
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from openai import APIConnectionError, APITimeoutError, InternalServerError
+
+        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
+            return True
+        # Also check status code for 5xx errors
+        status_code = getattr(e, "status_code", None)
+        if status_code and 500 <= status_code < 600:
+            return True
+        return False
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -573,22 +601,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
         )
         params["stream_options"] = ChatCompletionStreamOptionsParam(include_usage=True)
 
-        input_value = dict(params)
-        if extra_body:
-            input_value["extra_body"] = extra_body
-        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
-        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
-        input_value.pop("messages", None)
-        input_value.pop("model", None)
-        input_value.pop("tools", None)
-        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
-
-        stream = await self.rate_limiter.alimit(client.chat.completions.create)(
+        chat_completion_stream = await client.chat.completions.create(
             **params,
             extra_body=extra_body,
             stream=True,
         )
-        return stream
+        return chat_completion_stream
 
     async def _openai_chat_completion_create_non_stream(
         self,
@@ -609,7 +627,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             invocation_parameters=invocation_parameters,
             span=span,
         )
-        result = await self.rate_limiter.alimit(client.chat.completions.create)(
+        result = await client.chat.completions.create(
             **params,
             extra_body=extra_body,
             stream=False,
@@ -974,9 +992,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     invocation_parameters=invocation_parameters,
                     span=span,
                 )
-                resp = await self.rate_limiter.alimit(client.responses.create)(
-                    **params, extra_body=extra_body
-                )
+                resp = await client.responses.create(**params, extra_body=extra_body)
                 completed_response = resp
                 for chunk in self._chunks_from_openai_responses_response(resp):
                     yield chunk
@@ -1001,8 +1017,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 invocation_parameters=invocation_parameters,
                 span=span,
             )
-            event_stream = await self.rate_limiter.alimit(stream_manager.__aenter__)()
-            stack.push_async_exit(stream_manager)
+            event_stream = await stack.enter_async_context(stream_manager)
             async for event in event_stream:
                 if event.type == "response.output_text.delta":
                     delta = event.delta
@@ -1483,6 +1498,28 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     def llm_system(self) -> str:
         return "aws"
 
+    # AWS Bedrock throttling error codes
+    _THROTTLE_ERROR_CODES = frozenset(
+        [
+            "ThrottlingException",
+            "TooManyRequestsException",
+            "ServiceQuotaExceededException",
+            "ProvisionedThroughputExceededException",
+            "RequestLimitExceeded",
+            "BandwidthLimitExceeded",
+            "LimitExceededException",
+        ]
+    )
+    _TRANSIENT_ERROR_CODES = frozenset(
+        [
+            "ServiceUnavailableException",
+            "InternalServerException",
+            "ModelNotReadyException",
+            "RequestTimeout",
+            "RequestTimeoutException",
+        ]
+    )
+
     def __init__(
         self,
         *,
@@ -1491,11 +1528,54 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         provider: str = "aws",
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
-        self.rate_limiter = PlaygroundRateLimiter(provider, PlaygroundOutboundRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="aioboto3")]
+
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
+        if isinstance(e, ClientError):
+            error_code = e.response.get("Error", {}).get("Code", "")
+            return error_code in self._THROTTLE_ERROR_CODES
+        return False
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from botocore.exceptions import (
+            ClientError,
+            ConnectionError,
+            ConnectTimeoutError,
+            HTTPClientError,
+            ReadTimeoutError,
+        )
+
+        # Connection/timeout errors are transient
+        if isinstance(e, (ConnectionError, ConnectTimeoutError, ReadTimeoutError, HTTPClientError)):
+            return True
+
+        if isinstance(e, ClientError):
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in self._TRANSIENT_ERROR_CODES:
+                return True
+            # Also check HTTP status for 5xx
+            status_code = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if status_code and 500 <= status_code < 600:
+                return True
+        return False
+
+    @override
+    def get_retry_after_seconds(self, e: Exception) -> Optional[float]:
+        # AWS doesn't typically provide retry-after headers
+        # Return None to use exponential backoff
+        return None
+
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Bedrock has per-model, per-region rate limits."""
+        return (self._client_factory.rate_limit_key, self.model_name)
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -1551,7 +1631,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
-    ) -> ConverseStreamRequestTypeDef:
+    ) -> "ConverseStreamRequestTypeDef":
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ConverseStreamRequestTypeDef,
             InferenceConfigurationTypeDef,
@@ -1693,14 +1773,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         client: BedrockRuntimeClient,
         request: "ConverseStreamRequestTypeDef",
     ) -> ConverseStreamResponseTypeDef:
-        async def _call() -> ConverseStreamResponseTypeDef:
-            try:
-                return await client.converse_stream(**request)
-            except BaseException as exc:
-                _reraise_if_bedrock_rate_limit(exc)
-                raise
-
-        return await self.rate_limiter.alimit(_call)()
+        return await client.converse_stream(**request)
 
     async def _handle_converse_api(
         self,
@@ -1721,15 +1794,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
                 span=span,
             )
             if not stream_model_output:
-
-                async def _converse_non_stream() -> Any:
-                    try:
-                        return await client.converse(**request)
-                    except BaseException as exc:
-                        _reraise_if_bedrock_rate_limit(exc)
-                        raise
-
-                converse_response = await self.rate_limiter.alimit(_converse_non_stream)()
+                converse_response = await client.converse(**request)
                 for chunk in self._chunks_from_converse_response(converse_response, span):
                     yield chunk
                 return
@@ -1910,7 +1975,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
-    pass
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """OpenAI has per-model rate limits within an organization."""
+        return (self._client_factory.rate_limit_key, self.model_name)
 
 
 OPENAI_REASONING_MODELS = [
@@ -2140,6 +2208,11 @@ class AzureOpenAIResponsesAPIStreamingClient(
         ):
             yield chunk
 
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Azure has per-deployment rate limits (endpoint + model_name)."""
+        return (self._client_factory.rate_limit_key, self.model_name)
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
@@ -2236,11 +2309,41 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self.provider = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        self.rate_limiter = PlaygroundRateLimiter(provider, anthropic.RateLimitError)
+        self._anthropic = anthropic
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="anthropic")]
+
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        # Anthropic has both RateLimitError (429) and OverloadedError (529)
+        # OverloadedError may not exist in all anthropic SDK versions
+        rate_limit_types: tuple[type, ...] = (self._anthropic.RateLimitError,)
+        if hasattr(self._anthropic, "OverloadedError"):
+            rate_limit_types = (*rate_limit_types, self._anthropic.OverloadedError)
+        return isinstance(e, rate_limit_types)
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        # Anthropic-specific transient errors
+        # Some error types may not exist in all anthropic SDK versions
+        transient_types: list[type] = [
+            self._anthropic.APIConnectionError,
+            self._anthropic.APITimeoutError,
+            self._anthropic.InternalServerError,
+        ]
+        if hasattr(self._anthropic, "ServiceUnavailableError"):
+            transient_types.append(self._anthropic.ServiceUnavailableError)
+        if hasattr(self._anthropic, "OverloadedError"):
+            transient_types.append(self._anthropic.OverloadedError)
+
+        if isinstance(e, tuple(transient_types)):
+            return True
+        status_code = getattr(e, "status_code", None)
+        if status_code and 500 <= status_code < 600:
+            return True
+        return False
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -2281,7 +2384,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-    ) -> MessageCreateParamsBase:
+    ) -> "MessageCreateParamsBase":
         from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
         from anthropic.types.message_create_params import MessageCreateParamsBase
         from anthropic.types.thinking_config_param import ThinkingConfigParam
@@ -2413,11 +2516,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         token_counts: dict[str, AttributeValue] = {}
         if prompt_tokens := (
             (usage.input_tokens or 0)
-            + (usage.cache_creation_input_tokens or 0)
-            + (usage.cache_read_input_tokens or 0)
+            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
         ):
             token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-        if cache_creation_tokens := usage.cache_creation_input_tokens:
+        if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
             if cache_creation_tokens is not None:
                 token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = cache_creation_tokens
         if token_counts:
@@ -2425,7 +2528,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         output_token_counts: dict[str, Any] = {}
         if usage.output_tokens:
             output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-        if cache_read_tokens := usage.cache_read_input_tokens:
+        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
             if cache_read_tokens is not None:
                 output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cache_read_tokens
         if output_token_counts:
@@ -2452,7 +2555,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                     invocation_parameters=invocation_parameters,
                 )
                 self._anthropic_record_message_request_on_span(span, params)
-                message = await self.rate_limiter.alimit(client.messages.create)(**params)
+                message = await client.messages.create(**params)
                 if message.usage:
                     self._anthropic_apply_usage_to_span(span, message.usage)
                 for block in message.content:
@@ -2480,11 +2583,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 invocation_parameters=invocation_parameters,
                 span=span,
             )
-            anthropic_message_stream: AsyncMessageStream[Any] = await self.rate_limiter.alimit(
-                stream_manager.__aenter__
-            )()
-            stack.push_async_exit(stream_manager)
-            async for event in anthropic_message_stream:
+            anthropic_stream = await stack.enter_async_context(stream_manager)
+            async for event in anthropic_stream:
                 if event.type == "message_start":
                     usage = event.message.usage
                     token_counts: dict[str, Any] = {}
@@ -2658,11 +2758,37 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     ) -> None:
         super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
         self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
-        self.rate_limiter = PlaygroundRateLimiter(provider, PlaygroundOutboundRateLimitError)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="google-genai", module_name="google.genai")]
+
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        # Google GenAI uses Stainless SDK with RateLimitError (429)
+        from google.genai._interactions._exceptions import RateLimitError
+
+        return isinstance(e, RateLimitError)
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from google.genai._interactions._exceptions import (
+            APIConnectionError,
+            APITimeoutError,
+            InternalServerError,
+        )
+
+        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
+            return True
+        status_code = getattr(e, "status_code", None)
+        if status_code and 500 <= status_code < 600:
+            return True
+        return False
+
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Google has per-model rate limits within a project."""
+        return (self._client_factory.rate_limit_key, self.model_name)
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -2945,37 +3071,21 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         )
         if not stream_model_output:
             async with self._client_factory() as client:
-
-                async def _generate() -> Any:
-                    try:
-                        return await client.models.generate_content(
-                            model=self.model_name,
-                            contents=contents,
-                            config=config,
-                        )
-                    except BaseException as exc:
-                        _reraise_if_google_rate_limit(exc)
-                        raise
-
-                response = await self.rate_limiter.alimit(_generate)()
+                response = await client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=config,
+                )
                 for chunk in self._iter_gemini_response_chunks(response, span):
                     yield chunk
             return
 
         async with self._client_factory() as client:
-
-            async def _generate_stream() -> Any:
-                try:
-                    return await client.models.generate_content_stream(
-                        model=self.model_name,
-                        contents=contents,
-                        config=config,
-                    )
-                except BaseException as exc:
-                    _reraise_if_google_rate_limit(exc)
-                    raise
-
-            gemini_stream = await self.rate_limiter.alimit(_generate_stream)()
+            gemini_stream = await client.models.generate_content_stream(
+                model=self.model_name,
+                contents=contents,
+                config=config,
+            )
             async for event in gemini_stream:
                 for chunk in self._iter_gemini_response_chunks(event, span):
                     yield chunk
@@ -3161,15 +3271,18 @@ class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
         return cast(httpx.Response, response)
 
 
+CustomProviderId: TypeAlias = int
+
+
 async def get_playground_client(
     *,
     model_provider: ModelProvider,
     model_name: str,
-    custom_provider_id: int | None = None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
-    client_options: ModelClientOptionsInput | None = None,
+    connection: CustomProviderId | ConnectionConfig | None = None,
+    headers: dict[str, str] | None = None,
 ) -> "PlaygroundStreamingClient[Any]":
     """
     Create a playground streaming client for the given model configuration.
@@ -3181,41 +3294,45 @@ async def get_playground_client(
     Args:
         model_provider: Canonical model provider enum (DB-level type).
         model_name: Model name (or Azure deployment name).
-        custom_provider_id: Raw DB primary key of the custom provider, or
-            None for a builtin provider.
         session: Async database session (used for secret resolution and
             custom-provider lookup).
         decrypt: Decryption function for encrypted values in the database.
         credentials: Optional explicit credentials (highest priority).
-        client_options: Optional connection overrides from the playground UI.
+        connection: ``None`` = builtin provider with defaults. A positive int =
+            custom provider row id. Otherwise an SDK-specific ``ConnectionConfig``
+            for builtin provider overrides.
+        headers: Extra HTTP headers passed to the SDK client (ephemeral,
+            not persisted in ConnectionConfig).
     """
-    if custom_provider_id is None:
-        builtin_opts = (client_options.builtin or None) if client_options else None
-        return await _get_builtin_provider_client(
-            model_provider=model_provider,
+    if isinstance(connection, int):
+        custom_provider_id = connection
+        provider_record = await session.get(
+            models.GenerativeModelCustomProvider, custom_provider_id
+        )
+        if not provider_record:
+            raise NotFound(f"Custom provider with ID {custom_provider_id} not found")
+
+        if not is_sdk_compatible_with_model_provider(provider_record.sdk, model_provider):
+            raise BadRequest(
+                f"Custom provider '{provider_record.name}' has SDK '{provider_record.sdk}' "
+                f"which is not compatible with model provider '{model_provider.value}'."
+            )
+
+        return await _get_custom_provider_client(
+            provider_record=provider_record,
             model_name=model_name,
-            client_options=builtin_opts,
-            session=session,
+            extra_headers=headers,
             decrypt=decrypt,
-            credentials=credentials,
         )
 
-    provider_record = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
-    if not provider_record:
-        raise NotFound(f"Custom provider with ID {custom_provider_id} not found")
-
-    if not is_sdk_compatible_with_model_provider(provider_record.sdk, model_provider):
-        raise BadRequest(
-            f"Custom provider '{provider_record.name}' has SDK '{provider_record.sdk}' "
-            f"which is not compatible with model provider '{model_provider.value}'."
-        )
-
-    custom_opts = (client_options.custom or None) if client_options else None
-    return await _get_custom_provider_client(
-        provider_record=provider_record,
+    return await _get_builtin_provider_client(
+        model_provider=model_provider,
         model_name=model_name,
-        client_options=custom_opts,
+        connection=connection,
+        headers=headers,
+        session=session,
         decrypt=decrypt,
+        credentials=credentials,
     )
 
 
@@ -3314,10 +3431,45 @@ def get_openai_client_class(
     return None
 
 
+class _BuiltinSDKFields(NamedTuple):
+    base_url: str | None = None
+    endpoint: str | None = None  # Azure
+    region: str | None = None  # AWS
+    openai_api_type: OpenAIApiType | None = None
+
+
+def _builtin_sdk_fields_from_connection(
+    model_provider: ModelProvider,
+    connection: ConnectionConfig | None,
+) -> _BuiltinSDKFields:
+    """Map persisted ConnectionConfig to fields used by builtin SDK client setup."""
+    if connection is None:
+        return _BuiltinSDKFields()
+    provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+    if connection.type == "openai" and provider_key in OPENAI_SDK_STYLE_PROVIDER_KEYS:
+        return _BuiltinSDKFields(
+            base_url=connection.base_url,
+            openai_api_type=OpenAIApiType(connection.openai_api_type),
+        )
+    if connection.type == "azure_openai" and provider_key is GenerativeProviderKey.AZURE_OPENAI:
+        return _BuiltinSDKFields(
+            endpoint=connection.azure_endpoint,
+            openai_api_type=OpenAIApiType(connection.openai_api_type),
+        )
+    if connection.type == "anthropic" and provider_key is GenerativeProviderKey.ANTHROPIC:
+        return _BuiltinSDKFields(base_url=connection.base_url)
+    if connection.type == "google_genai" and provider_key is GenerativeProviderKey.GOOGLE:
+        return _BuiltinSDKFields(base_url=connection.base_url)
+    if connection.type == "aws_bedrock" and provider_key is GenerativeProviderKey.AWS:
+        return _BuiltinSDKFields(region=connection.region_name)
+    return _BuiltinSDKFields()
+
+
 async def _get_builtin_provider_client(
     model_provider: ModelProvider,
     model_name: str,
-    client_options: BuiltinClientOptionsInput | None,
+    connection: ConnectionConfig | None,
+    headers: dict[str, str] | None,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None = None,
@@ -3330,22 +3482,15 @@ async def _get_builtin_provider_client(
     2. Encrypted secrets in the database
     3. Environment variables
     """
-    headers = (
-        dict(client_options.custom_headers)
-        if client_options and client_options.custom_headers
-        else None
-    )
+    headers = dict(headers) if headers else None
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
     provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
 
-    base_url = client_options.base_url if client_options and client_options.base_url else None
-    endpoint = client_options.endpoint if client_options and client_options.endpoint else None
-    region = client_options.region if client_options and client_options.region else None
-    openai_api_type = (
-        client_options.openai_api_type
-        if client_options and client_options.openai_api_type
-        else None
-    )
+    sdk = _builtin_sdk_fields_from_connection(model_provider, connection)
+    base_url = sdk.base_url
+    endpoint = sdk.endpoint
+    region = sdk.region
+    openai_api_type = sdk.openai_api_type
 
     if provider_key == GenerativeProviderKey.OPENAI:
         try:
@@ -3377,7 +3522,9 @@ async def _get_builtin_provider_client(
                 timeout=30,
             )
 
-        client_factory: ClientFactory[Any] = create_openai_client
+        client_factory: ClientFactory[AsyncOpenAI] = LLMClientFactory(
+            create_openai_client, openai_rate_limit_key(api_key, base_url)
+        )
         client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
         if client_class is None:
             raise BadRequest(f"No client found for OpenAI model: {model_name}")
@@ -3414,6 +3561,7 @@ async def _get_builtin_provider_client(
 
         # Create factory that returns fresh Azure OpenAI client (native async context manager)
         # Uses AsyncOpenAI with base_url (cleaner than AsyncAzureOpenAI)
+        rate_limit_key = azure_rate_limit_key(endpoint, api_key)
         if api_key:
 
             def create_azure_client() -> AsyncOpenAI:
@@ -3423,7 +3571,7 @@ async def _get_builtin_provider_client(
                     default_headers=headers,
                 )
 
-            client_factory = create_azure_client
+            client_factory = LLMClientFactory(create_azure_client, rate_limit_key)
         else:
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
@@ -3445,7 +3593,9 @@ async def _get_builtin_provider_client(
                     default_headers=headers,
                 )
 
-            client_factory = create_client_with_token
+            client_factory = LLMClientFactory(
+                create_client_with_token, azure_rate_limit_key(endpoint, None)
+            )
         client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
         if client_class is None:
             raise BadRequest(f"No client found for Azure OpenAI model: {model_name}")
@@ -3475,18 +3625,21 @@ async def _get_builtin_provider_client(
             )
 
         # Create factory that returns fresh Anthropic client (native async context manager)
-        def create_anthropic_client() -> anthropic.AsyncAnthropic:
+        # AsyncAnthropic implements __aenter__/__aexit__ so it IS a context manager
+        def create_anthropic_client() -> AbstractAsyncContextManager["AsyncAnthropic"]:
             return anthropic.AsyncAnthropic(api_key=api_key, default_headers=headers)
 
-        client_factory = create_anthropic_client
+        anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
+            create_anthropic_client, anthropic_rate_limit_key(api_key, None)
+        )
         if model_name in ANTHROPIC_REASONING_MODELS:
             return AnthropicReasoningStreamingClient(
-                client_factory=client_factory,
+                client_factory=anthropic_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
         return AnthropicStreamingClient(
-            client_factory=client_factory,
+            client_factory=anthropic_client_factory,
             model_name=model_name,
             provider=provider,
         )
@@ -3525,21 +3678,24 @@ async def _get_builtin_provider_client(
             async with GoogleGenAIClient(api_key=api_key).aio as client:
                 yield client
 
-        client_factory = create_google_client
+        google_client_factory = cast(
+            "LLMClientFactory[GoogleAsyncClient]",
+            LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
+        )
         if model_name in GEMINI_2_0_MODELS:
             return GoogleStreamingClient(
-                client_factory=client_factory,
+                client_factory=google_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
         if model_name in GEMINI_2_5_MODELS:
             return Gemini25GoogleStreamingClient(
-                client_factory=client_factory,
+                client_factory=google_client_factory,
                 model_name=model_name,
                 provider=provider,
             )
         return Gemini3GoogleStreamingClient(
-            client_factory=client_factory,
+            client_factory=google_client_factory,
             model_name=model_name,
             provider=provider,
         )
@@ -3582,10 +3738,12 @@ async def _get_builtin_provider_client(
         def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
             return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
 
-        client_factory = create_bedrock_client
+        bedrock_client_factory: ClientFactory["BedrockRuntimeClient"] = LLMClientFactory(
+            create_bedrock_client, bedrock_rate_limit_key(region, aws_access_key_id)
+        )
 
         return BedrockStreamingClient(
-            client_factory=client_factory,
+            client_factory=bedrock_client_factory,
             model_name=model_name,
             provider=provider,
         )
@@ -3621,7 +3779,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_deepseek_client
+        client_factory = LLMClientFactory(
+            create_deepseek_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3657,7 +3817,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_xai_client
+        client_factory = LLMClientFactory(
+            create_xai_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3686,7 +3848,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_ollama_client
+        client_factory = LLMClientFactory(
+            create_ollama_client, openai_rate_limit_key(None, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3723,7 +3887,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_cerebras_client
+        client_factory = LLMClientFactory(
+            create_cerebras_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3762,7 +3928,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_fireworks_client
+        client_factory = LLMClientFactory(
+            create_fireworks_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3797,7 +3965,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_groq_client
+        client_factory = LLMClientFactory(
+            create_groq_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3834,7 +4004,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_moonshot_client
+        client_factory = LLMClientFactory(
+            create_moonshot_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3871,7 +4043,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_perplexity_client
+        client_factory = LLMClientFactory(
+            create_perplexity_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3908,7 +4082,9 @@ async def _get_builtin_provider_client(
                 default_headers=headers,
             )
 
-        client_factory = create_together_client
+        client_factory = LLMClientFactory(
+            create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
         return OpenAIStreamingClient(
             client_factory=client_factory,
             model_name=model_name,
@@ -3922,7 +4098,7 @@ async def _get_builtin_provider_client(
 async def _get_custom_provider_client(
     provider_record: models.GenerativeModelCustomProvider,
     model_name: str,
-    client_options: CustomClientOptionsInput | None,
+    extra_headers: dict[str, str] | None,
     decrypt: Callable[[bytes], bytes],
 ) -> "PlaygroundStreamingClient[Any]":
     """
@@ -3933,7 +4109,7 @@ async def _get_custom_provider_client(
     Args:
         provider_record: The custom provider DB record (already fetched).
         model_name: The model name to use.
-        client_options: Optional extra headers for the client.
+        extra_headers: Optional extra HTTP headers for the client.
         decrypt: Decryption function for the stored config.
 
     Returns:
@@ -3954,11 +4130,7 @@ async def _get_custom_provider_client(
         raise BadRequest("Failed to parse custom provider config")
 
     provider = provider_record.provider
-    headers = (
-        dict(client_options.extra_headers)
-        if client_options and client_options.extra_headers
-        else None
-    )
+    headers = dict(extra_headers) if extra_headers else None
     cfg = config.root
 
     if cfg.type == "openai":

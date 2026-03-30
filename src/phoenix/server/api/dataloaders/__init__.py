@@ -32,6 +32,7 @@ from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoad
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_expected_run_counts import ExperimentExpectedRunCountsDataLoader
+from .experiment_jobs import ExperimentJobsDataLoader
 from .experiment_repeated_run_group_annotation_summaries import (
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
 )
@@ -42,6 +43,7 @@ from .experiment_runs_by_experiment_and_example import (
     ExperimentRunsByExperimentAndExampleDataLoader,
 )
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
+from .last_experiment_errors import LastExperimentErrorsDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
@@ -52,6 +54,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
+from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
@@ -114,7 +117,9 @@ __all__ = [
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
+    "ExperimentJobsDataLoader",
     "ExperimentExpectedRunCountsDataLoader",
+    "LastExperimentErrorsDataLoader",
     "ExperimentRepeatedRunGroupsDataLoader",
     "ExperimentRepeatedRunGroupAnnotationSummariesDataLoader",
     "ExperimentRunAnnotations",
@@ -130,6 +135,7 @@ __all__ = [
     "ProjectByNameDataLoader",
     "ProjectHasTracesDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
+    "PromptVersionDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SecretsDataLoader",
