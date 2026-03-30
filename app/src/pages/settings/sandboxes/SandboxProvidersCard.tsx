@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -318,8 +319,8 @@ function ProviderSettingsDialogContent({
           {error}
         </Alert>
       ) : null}
-      <View padding="size-200">
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
+        <View padding="size-200">
           <Flex direction="column" gap="size-200">
             <Controller
               name="configText"
@@ -341,22 +342,22 @@ function ProviderSettingsDialogContent({
                 </CodeEditorFieldWrapper>
               )}
             />
-            <Flex justifyContent="end" gap="size-100">
-              <Button variant="default" onPress={onClose} size="S">
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                isDisabled={isSubmitting}
-                size="S"
-              >
-                Save Provider
-              </Button>
-            </Flex>
           </Flex>
-        </form>
-      </View>
+        </View>
+        <DialogFooter>
+          <Button variant="default" onPress={onClose} size="S">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            isDisabled={isSubmitting}
+            size="S"
+          >
+            Save Provider
+          </Button>
+        </DialogFooter>
+      </form>
     </>
   );
 }

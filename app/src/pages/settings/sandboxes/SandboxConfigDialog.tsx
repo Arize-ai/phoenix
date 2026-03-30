@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -41,32 +42,6 @@ import type {
   SandboxProvider,
 } from "./types";
 import { languageLabel, parseConfigText, toPrettyJSONObject } from "./utils";
-
-function DialogActions({
-  submitLabel,
-  isSubmitting,
-  onCancel,
-}: {
-  submitLabel: string;
-  isSubmitting: boolean;
-  onCancel: () => void;
-}) {
-  return (
-    <Flex justifyContent="end" gap="size-100">
-      <Button variant="default" onPress={onCancel} size="S">
-        Cancel
-      </Button>
-      <Button
-        type="submit"
-        variant="primary"
-        isDisabled={isSubmitting}
-        size="S"
-      >
-        {submitLabel}
-      </Button>
-    </Flex>
-  );
-}
 
 export function SandboxConfigDialogTrigger({
   mode,
@@ -249,8 +224,8 @@ function SandboxConfigDialogContent({
           {error}
         </Alert>
       ) : null}
-      <View padding="size-200">
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
+        <View padding="size-200">
           <Flex direction="column" gap="size-200">
             {mode === "create" ? (
               <Controller
@@ -364,14 +339,22 @@ function SandboxConfigDialogContent({
                 </CodeEditorFieldWrapper>
               )}
             />
-            <DialogActions
-              submitLabel={mode === "create" ? "Create Config" : "Save Changes"}
-              isSubmitting={isSubmitting}
-              onCancel={onClose}
-            />
           </Flex>
-        </form>
-      </View>
+        </View>
+        <DialogFooter>
+          <Button variant="default" onPress={onClose} size="S">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            isDisabled={isSubmitting}
+            size="S"
+          >
+            {mode === "create" ? "Create Config" : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </form>
     </>
   );
 }
