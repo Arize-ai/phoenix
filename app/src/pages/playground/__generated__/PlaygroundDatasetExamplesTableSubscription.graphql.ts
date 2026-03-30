@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c2e0c5bc13c288c46f568c573a610284>>
+ * @generated SignedSource<<f90db853eac2b71be1e6a3c4defbe3a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
-  clientOptions?: ModelClientOptionsInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
   createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
@@ -26,8 +26,11 @@ export type ChatCompletionOverDatasetInput = {
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
+  headers?: any | null;
+  maxConcurrency?: number;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
+  promptVersionId?: string | null;
   repetitions: number;
   splitIds?: ReadonlyArray<string> | null;
   streamModelOutput?: boolean;
@@ -103,19 +106,14 @@ export type PromptResponseFormatJSONSchemaDefinitionInput = {
   schema?: any | null;
   strict?: boolean | null;
 };
-export type ModelClientOptionsInput = {
-  builtin?: BuiltinClientOptionsInput | null;
-  custom?: CustomClientOptionsInput | null;
-};
-export type BuiltinClientOptionsInput = {
+export type ConnectionConfigInput = {
+  azureEndpoint?: string | null;
   baseUrl?: string | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
+  endpointUrl?: string | null;
   openaiApiType?: OpenAIApiType | null;
-  region?: string | null;
-};
-export type CustomClientOptionsInput = {
-  extraHeaders?: any | null;
+  organization?: string | null;
+  project?: string | null;
+  regionName?: string | null;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;

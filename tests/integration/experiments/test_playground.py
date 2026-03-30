@@ -63,6 +63,28 @@ subscription ChatCompletionOverDataset($input: ChatCompletionOverDatasetInput!) 
 }
 """
 
+RESUME_EXPERIMENT = """
+mutation ResumeExperiment($experimentId: ID!) {
+    resumeExperiment(experimentId: $experimentId) {
+        job {
+            id
+            status
+        }
+    }
+}
+"""
+
+GET_EXPERIMENT_JOB_STATUS = """
+query GetExperimentJobStatus($id: ID!) {
+    node(id: $id) {
+        ... on ExperimentJob {
+            id
+            status
+        }
+    }
+}
+"""
+
 GET_EXPERIMENT = """
 query GetExperiment($id: ID!) {
     node(id: $id) {
@@ -426,6 +448,27 @@ async def _run_subscription_without_evaluators(
         raise AssertionError("Subscription timed out after 60 seconds")
 
 
+async def _wait_for_job_status(
+    client: httpx.AsyncClient,
+    job_id: str,
+    expected_status: str = "COMPLETED",
+    timeout: float = 30.0,
+) -> None:
+    """Poll an ExperimentJob until it reaches the expected status."""
+
+    async def _poll() -> None:
+        for _ in range(int(timeout / 0.5)):
+            data = await _gql(client, GET_EXPERIMENT_JOB_STATUS, {"id": job_id})
+            if data["node"]["status"] == expected_status:
+                return
+            await asyncio.sleep(0.5)
+        raise AssertionError(
+            f"Experiment job {job_id} did not reach {expected_status} within {timeout}s"
+        )
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
+
+
 async def _get_experiment(
     client: httpx.AsyncClient,
     experiment_id: str,
@@ -569,6 +612,12 @@ class TestChatCompletionOverDataset:
                         f"got {ann_total_tokens}"
                     )
 
+            # Resume the completed experiment and verify it completes quickly.
+            resume_data = await _gql(client, RESUME_EXPERIMENT, {"experimentId": experiment_id})
+            job = resume_data["resumeExperiment"]["job"]
+            assert job["status"] == "RUNNING"
+            await _wait_for_job_status(client, job["id"])
+
     @pytest.mark.parametrize(
         "stream_model_output",
         [
@@ -668,3 +717,9 @@ class TestChatCompletionOverDataset:
                 # Verify no annotations (since no evaluators)
                 annotations = run_node["annotations"]["edges"]
                 assert len(annotations) == 0, f"Expected 0 annotations, got {len(annotations)}"
+
+            # Resume the completed experiment and verify it completes quickly.
+            resume_data = await _gql(client, RESUME_EXPERIMENT, {"experimentId": experiment_id})
+            job = resume_data["resumeExperiment"]["job"]
+            assert job["status"] == "RUNNING"
+            await _wait_for_job_status(client, job["id"])

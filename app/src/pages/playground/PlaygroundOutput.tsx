@@ -316,7 +316,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         },
         onError: (error) => {
           markPlaygroundInstanceComplete(props.playgroundInstanceId);
-          clearRepetitions(instanceId);
           const instance = playgroundStore
             .getState()
             .instances.find((inst) => inst.id === instanceId);
@@ -350,7 +349,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     playgroundStore,
     props.playgroundInstanceId,
     setRepetitionStatus,
-    clearRepetitions,
   ]);
 
   return (

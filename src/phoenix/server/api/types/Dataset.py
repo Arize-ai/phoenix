@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterable
 from datetime import datetime
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
@@ -35,6 +35,9 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
+
+if TYPE_CHECKING:
+    from .ExperimentJob import ExperimentJob
 
 
 @strawberry.type
@@ -293,7 +296,7 @@ class Dataset(Node):
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
-            .order_by(models.DatasetExample.id.desc())
+            .order_by(models.DatasetExample.id.asc())
         )
 
         # Filter by split IDs if provided
@@ -424,6 +427,34 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_jobs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")]]:
+        from .ExperimentJob import ExperimentJob
+
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            stmt = (
+                select(models.ExperimentJob)
+                .join(models.Experiment)
+                .where(models.Experiment.dataset_id == self.id)
+                .order_by(models.ExperimentJob.created_at.desc())
+            )
+            results = await session.scalars(stmt)
+            jobs = [ExperimentJob(id=config.id, db_record=config) for config in results]
+        return connection_from_list(data=jobs, args=args)
 
     @strawberry.field
     async def experiment_annotation_summaries(

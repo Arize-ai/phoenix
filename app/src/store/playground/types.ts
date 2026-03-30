@@ -325,6 +325,11 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
      */
     appendedMessagesPath: z.string().nullish(),
     /**
+     * The maximum number of tasks/evals that will be run concurrently.
+     * @default 10
+     */
+    maxConcurrency: z.number().int().min(1).max(100).default(10),
+    /**
      * Dot-notation path prefix for template variables when running over a dataset.
      * Default 'input' means {{query}} resolves to input.query of the dataset example.
      * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
@@ -348,6 +353,8 @@ export type PlaygroundStateByDatasetId = z.infer<
 export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
   datasetId?: string | null;
+  stateByDatasetId?: PlaygroundStateByDatasetId;
+  selectedDatasetEvaluatorIds?: string[];
 };
 
 /**
@@ -392,6 +399,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * A map of dataset id to the playground state for that dataset
    */
   stateByDatasetId: PlaygroundStateByDatasetId;
+
+  /**
+   * Initial evaluator IDs from experiment rehydration, or null if not from an experiment.
+   * Used by PlaygroundDatasetSection to restrict the initial evaluator selection.
+   */
+  initialSelectedDatasetEvaluatorIds: string[] | null;
 
   /**
    * The id of the dataset currently being used
@@ -549,6 +562,16 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set whether to record experiments
    */
   setRecordExperiments: (recordExperiments: boolean) => void;
+  /**
+   * Set the max concurrency for experiment execution
+   */
+  setMaxConcurrency: ({
+    maxConcurrency,
+    datasetId,
+  }: {
+    maxConcurrency: number;
+    datasetId: string;
+  }) => void;
   /**
    * Set the appended messages path
    */
