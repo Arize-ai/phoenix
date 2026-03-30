@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from secrets import token_hex
+
 import httpx
 import pytest
 import sqlalchemy as sa
@@ -7,10 +9,53 @@ import sqlalchemy as sa
 from phoenix.db import models
 from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
+
+SECRETS_QUERY = """
+query SecretsQuery($keys: [String!]) {
+    secrets(keys: $keys) {
+        edges {
+            node {
+                key
+                value {
+                    ... on DecryptedSecret { value }
+                }
+            }
+        }
+    }
+}
+"""
 
 
 class TestUpsertOrDeleteSecrets:
     """Validation and schema tests for PUT /v1/secrets."""
+
+    async def test_rest_upsert_is_readable_via_graphql(
+        self,
+        httpx_client: httpx.AsyncClient,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Secrets created via REST PUT can be fetched and decrypted via GraphQL."""
+        key = f"REST_GQL_ROUNDTRIP_{token_hex(4)}"
+        value = f"sk-test-{token_hex(8)}"
+
+        resp = await httpx_client.put(
+            "v1/secrets",
+            json={"secrets": [{"key": key, "value": value}]},
+        )
+        assert resp.status_code == 200, resp.text
+
+        result = await gql_client.execute(
+            query=SECRETS_QUERY,
+            variables={"keys": [key]},
+            operation_name="SecretsQuery",
+        )
+        assert not result.errors
+        assert result.data is not None
+        edges = result.data["secrets"]["edges"]
+        assert len(edges) == 1
+        assert edges[0]["node"]["key"] == key
+        assert edges[0]["node"]["value"]["value"] == value
 
     async def test_missing_value_field_returns_422_without_deleting_existing_secret(
         self,
