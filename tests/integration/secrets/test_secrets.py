@@ -77,6 +77,14 @@ def _query_secret_value(app: _AppInfo, key: str, auth: _SecurityArtifact | None 
     return value
 
 
+def _assert_secret_absent(app: _AppInfo, key: str) -> None:
+    """Verify a secret no longer exists via GraphQL."""
+    result, _ = _gql(app, app.admin_secret, query=SECRETS_QUERY, variables={"keys": [key]})
+    assert not result.get("errors"), result.get("errors")
+    edges = result["data"]["secrets"]["edges"]
+    assert len(edges) == 0, f"Expected secret '{key}' to be absent, got {len(edges)} result(s)"
+
+
 def _delete_secret(app: _AppInfo, key: str) -> None:
     """Delete a secret via REST (best-effort cleanup)."""
     _httpx_client(app, app.admin_secret).put(
@@ -142,6 +150,7 @@ class TestSecretsCRUDViaREST:
             data = resp.json()["data"]
             assert data["upserted_keys"] == [key]
             assert data["deleted_keys"] == []
+            assert _query_secret_value(_app, key) == "val"
         finally:
             _delete_secret(_app, key)
 
@@ -152,6 +161,7 @@ class TestSecretsCRUDViaREST:
             resp = _put_secrets(_app, [{"key": key, "value": "v2"}])
             assert resp.status_code == 200, resp.text
             assert resp.json()["data"]["upserted_keys"] == [key]
+            assert _query_secret_value(_app, key) == "v2"
         finally:
             _delete_secret(_app, key)
 
@@ -163,6 +173,7 @@ class TestSecretsCRUDViaREST:
         data = resp.json()["data"]
         assert data["upserted_keys"] == []
         assert data["deleted_keys"] == [key]
+        _assert_secret_absent(_app, key)
 
     def test_delete_nonexistent_secret_is_idempotent(self, _app: _AppInfo) -> None:
         key = f"REST_NODEL_{token_hex(4)}"
@@ -186,6 +197,9 @@ class TestSecretsCRUDViaREST:
             data = resp.json()["data"]
             assert set(data["upserted_keys"]) == {k1, k2}
             assert data["deleted_keys"] == [k_del]
+            assert _query_secret_value(_app, k1) == "val1"
+            assert _query_secret_value(_app, k2) == "val2"
+            _assert_secret_absent(_app, k_del)
         finally:
             for k in (k1, k2):
                 _delete_secret(_app, k)
@@ -227,6 +241,7 @@ class TestSecretsCRUDViaGraphQL:
             assert len(upserted) == 1
             assert upserted[0]["key"] == key
             assert upserted[0]["value"]["value"] == value
+            assert _query_secret_value(_app, key) == value
         finally:
             _delete_secret(_app, key)
 
@@ -250,6 +265,7 @@ class TestSecretsCRUDViaGraphQL:
             assert not result.get("errors"), result.get("errors")
             upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
             assert upserted[0]["value"]["value"] == "new"
+            assert _query_secret_value(_app, key) == "new"
         finally:
             _delete_secret(_app, key)
 
@@ -272,6 +288,7 @@ class TestSecretsCRUDViaGraphQL:
         assert not result.get("errors"), result.get("errors")
         deleted = result["data"]["upsertOrDeleteSecrets"]["deletedIds"]
         assert len(deleted) == 1
+        _assert_secret_absent(_app, key)
 
     def test_batch_operations(self, _app: _AppInfo) -> None:
         k1 = f"GQL_BATCH_1_{token_hex(4)}"
@@ -306,6 +323,9 @@ class TestSecretsCRUDViaGraphQL:
             upserted_keys = {s["key"] for s in payload["upsertedSecrets"]}
             assert upserted_keys == {k1, k2}
             assert len(payload["deletedIds"]) == 1
+            assert _query_secret_value(_app, k1) == "v1"
+            assert _query_secret_value(_app, k2) == "v2"
+            _assert_secret_absent(_app, k_del)
         finally:
             for k in (k1, k2):
                 _delete_secret(_app, k)
@@ -331,6 +351,7 @@ class TestSecretsCRUDViaGraphQL:
             upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
             assert len(upserted) == 1
             assert upserted[0]["value"]["value"] == "last"
+            assert _query_secret_value(_app, key) == "last"
         finally:
             _delete_secret(_app, key)
 
