@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<92ecfa107815b9eca380ad3100c37e0d>>
+ * @generated SignedSource<<0cb6c47504b705af6f1c1e04561daec0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -363,7 +363,7 @@ v25 = {
     },
     (v24/*: any*/)
   ],
-  "type": "PermanentFailureDetail",
+  "type": "FailureDetail",
   "abstractKey": null
 },
 v26 = {
@@ -893,16 +893,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f6534e21baef5b8d5991ca4a9cd923c5",
+    "cacheID": "226efbd3f805985b1628cb10ca48c8f5",
     "id": null,
     "metadata": {},
     "name": "ExperimentDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      backgroundJob {\n        status\n        createdAt\n        maxConcurrency\n        lastError {\n          id\n          occurredAt\n          category\n          message\n          detail {\n            __typename\n            ... on PermanentFailureDetail {\n              errorType\n              stackTrace\n            }\n            ... on RetriesExhaustedDetail {\n              retryCount\n              reason\n              stackTrace\n            }\n          }\n        }\n        errors(first: 20) {\n          edges {\n            node {\n              id\n              occurredAt\n              category\n              message\n              detail {\n                __typename\n                ... on PermanentFailureDetail {\n                  errorType\n                  stackTrace\n                }\n                ... on RetriesExhaustedDetail {\n                  retryCount\n                  reason\n                  stackTrace\n                }\n              }\n            }\n          }\n        }\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      backgroundJob {\n        status\n        createdAt\n        maxConcurrency\n        lastError {\n          id\n          occurredAt\n          category\n          message\n          detail {\n            __typename\n            ... on FailureDetail {\n              errorType\n              stackTrace\n            }\n            ... on RetriesExhaustedDetail {\n              retryCount\n              reason\n              stackTrace\n            }\n          }\n        }\n        errors(first: 20) {\n          edges {\n            node {\n              id\n              occurredAt\n              category\n              message\n              detail {\n                __typename\n                ... on FailureDetail {\n                  errorType\n                  stackTrace\n                }\n                ... on RetriesExhaustedDetail {\n                  retryCount\n                  reason\n                  stackTrace\n                }\n              }\n            }\n          }\n        }\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e2fc74446729003943909eec3af460a";
+(node as any).hash = "bdb0b54f548c0b12821262d4ade2bbd7";
 
 export default node;

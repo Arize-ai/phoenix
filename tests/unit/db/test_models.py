@@ -1799,11 +1799,11 @@ class TestExperimentExecutionConfigPolymorphism:
 
             prompt_config = by_id[exp1_id]
             assert isinstance(prompt_config, models.ExperimentPromptTask)
-            assert prompt_config.task_type == "PROMPT"
+            assert prompt_config.type == "PROMPT"
             await session.refresh(prompt_config)
             assert prompt_config.model_name == "gpt-4"
 
             eval_config = by_id[exp2_id]
             assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
             assert not isinstance(eval_config, models.ExperimentPromptTask)
-            assert eval_config.task_type == "EVAL_ONLY"
+            assert eval_config.type == "EVAL_ONLY"

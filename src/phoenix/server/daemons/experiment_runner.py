@@ -58,12 +58,9 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.db.types.experiment_error import (
-    EvalJobId,
-    JobId,
-    PermanentFailureDetail,
+from phoenix.db.types.experiment_event import (
+    FailureDetail,
     RetriesExhaustedDetail,
-    TaskJobId,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, get_raw_invocation_parameters
 from phoenix.evals.models.rate_limiters import AdaptiveTokenBucket, UnavailableTokensError
@@ -119,6 +116,39 @@ class _NoOpTokenBucket:
 
 
 _NO_OP_TOKEN_BUCKET = _NoOpTokenBucket()
+
+
+def _stack_trace_prefixes() -> tuple[tuple[str, str], ...]:
+    import os
+    import sys
+
+    import phoenix
+
+    prefixes: list[tuple[str, str]] = []
+    phoenix_pkg = os.path.dirname(phoenix.__file__)  # .../src/phoenix
+    src_root = os.path.dirname(phoenix_pkg)  # .../src
+    project_root = os.path.dirname(src_root)  # .../project
+    prefixes.append((project_root + os.sep, ""))
+    # Site-packages
+    site_prefix = os.path.join(sys.prefix, "lib")
+    prefixes.append((site_prefix + os.sep, ""))
+    # Python standard library
+    stdlib_dir = os.path.dirname(os.__file__)  # .../lib/python3.x
+    prefixes.append((stdlib_dir + os.sep, ""))
+    # Sort by length descending so longer (more specific) prefixes match first
+    prefixes.sort(key=lambda p: len(p[0]), reverse=True)
+    return tuple(prefixes)
+
+
+_STACK_TRACE_PREFIXES = _stack_trace_prefixes()
+
+
+def _redact_stack_trace(error: BaseException) -> str:
+    """Format an exception's traceback with common path prefixes stripped."""
+    raw = "".join(traceback.format_exception(error))
+    for old, new in _STACK_TRACE_PREFIXES:
+        raw = raw.replace(old, new)
+    return raw
 
 
 class LLMClient(Protocol):
@@ -477,9 +507,7 @@ class TaskJob(Job):
                     repetition_number=self._repetition_number,
                 )
             )
-            await self._running_experiment.on_permanent_failure(
-                self, error, notify_subscribers=False
-            )
+            await self._running_experiment.on_failure(self, error, notify_subscribers=False)
             return
 
         try:
@@ -513,7 +541,7 @@ class TaskJob(Job):
                     no_trace_error = RuntimeError(
                         "No trace recorded for completion (stream completed without spans)"
                     )
-                    await self._running_experiment.on_permanent_failure(self, no_trace_error)
+                    await self._running_experiment.on_failure(self, no_trace_error)
                     return
                 db_span = task_db_trace.spans[0]
                 db_run = get_db_experiment_run(
@@ -562,9 +590,7 @@ class TaskJob(Job):
                         repetition_number=self._repetition_number,
                     )
                 )
-                await self._running_experiment.on_permanent_failure(
-                    self, e, notify_subscribers=False
-                )
+                await self._running_experiment.on_failure(self, e, notify_subscribers=False)
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using client's provider-specific logic."""
@@ -717,17 +743,46 @@ class EvalJob(Job):
 
                     async def _persist_annotations() -> None:
                         async with self._db() as session:
-                            session.add_all(annotations)
+                            stmt = insert_on_conflict(
+                                *[
+                                    {
+                                        "experiment_run_id": a.experiment_run_id,
+                                        "name": a.name,
+                                        "annotator_kind": a.annotator_kind,
+                                        "label": a.label,
+                                        "score": a.score,
+                                        "explanation": a.explanation,
+                                        "trace_id": a.trace_id,
+                                        "error": a.error,
+                                        "metadata_": a.metadata_,
+                                        "start_time": a.start_time,
+                                        "end_time": a.end_time,
+                                    }
+                                    for a in annotations
+                                ],
+                                table=models.ExperimentRunAnnotation,
+                                dialect=self._db.dialect,
+                                unique_by=["experiment_run_id", "name"],
+                                on_conflict=OnConflict.DO_UPDATE,
+                                constraint_name="uq_experiment_run_annotations_experiment_run_id_name",
+                            )
+                            result = await session.execute(
+                                stmt.returning(models.ExperimentRunAnnotation.id)
+                            )
+                            ids = [row[0] for row in result]
+                            for a, id_ in zip(annotations, ids):
+                                a.id = id_
 
                     async with anyio.create_task_group() as tg:
                         tg.start_soon(_persist_traces)
                         tg.start_soon(_persist_annotations)
 
                 # Check for evaluation error - treat as permanent failure for circuit breaker
-                if any(r.get("error") is not None for r in eval_results):
-                    error_msg = next(r["error"] for r in eval_results if r.get("error") is not None)
-                    logger.warning(f"EvalJob {self.debug_identifier} returned error: {error_msg}")
-                    await self._running_experiment.on_permanent_failure(self, Exception(error_msg))
+                error_result = next((r for r in eval_results if r.get("error") is not None), None)
+                if error_result is not None:
+                    error_exc = error_result.get("error_exc") or Exception(error_result["error"])
+                    logger.warning(f"EvalJob {self.debug_identifier} returned error: {error_exc}")
+                    await self._running_experiment.on_failure(self, error_exc)
                 else:
                     logger.debug(
                         f"EvalJob {self.debug_identifier}: success, "
@@ -756,7 +811,7 @@ class EvalJob(Job):
                 await self._running_experiment.on_transient_error(self, e)
             else:
                 logger.exception(f"EvalJob {self.debug_identifier} failed ({err_type}): {e}")
-                await self._running_experiment.on_permanent_failure(self, e)
+                await self._running_experiment.on_failure(self, e)
 
     def _is_rate_limit_error(self, e: Exception) -> bool:
         """Check if exception is a rate limit error using evaluator's client."""
@@ -928,12 +983,13 @@ class RunningExperiment:
         self._task_circuit_breaker = CircuitBreaker()
         self._eval_circuit_breakers: dict[int, CircuitBreaker] = defaultdict(CircuitBreaker)
 
-        # Pagination: load tasks in batches to avoid memory exhaustion
+        # Pagination: load tasks/evals in batches to avoid memory exhaustion
         self._task_batch_size: int = 10
         self._task_db_offset: int = 0
         self._task_db_exhausted: bool = False
 
-        # Eval buffer: scans for runs with missing evaluations
+        # Eval buffer: scans for runs with missing evaluations in batches.
+        # Only runs after all tasks are done to avoid racing with on_task_success.
         self._eval_db_exhausted: bool = not bool(evaluator_run_specs)
         self._eval_db_offset: int = 0
 
@@ -951,6 +1007,7 @@ class RunningExperiment:
         has_tasks = bool(self._task_queue)
         has_in_flight = bool(self._in_flight)
         has_more_tasks_in_db = not self._task_db_exhausted
+
         has_more_evals_in_db = not self._eval_db_exhausted
 
         result = (
@@ -1218,24 +1275,24 @@ class RunningExperiment:
         logger.debug(f"Loaded {len(self._task_queue)} tasks for experiment {self._experiment.id}")
 
     async def _ensure_eval_buffer(self) -> None:
-        """Load eval jobs for runs with missing evaluations.
+        """Load eval jobs for runs with missing evaluations, in batches.
 
-        Only runs when no evals are queued or in-flight, which prevents
-        duplicates: reactively-queued evals (from on_task_success) are
-        guaranteed to have written their annotations before this runs.
+        Only runs after all tasks are done to avoid racing with
+        on_task_success (which queues evals reactively as tasks complete).
+        Also waits for all in-flight work to finish so reactively-queued
+        evals have written their annotations before we scan.
 
         Catches:
-        - Evals lost to a crash during the previous run
+        - Evals lost to a crash during a previous run
         - Newly attached evaluators on a resumed experiment
-        - Normal operation: typically returns 0 rows (evals queued reactively)
+        - For new experiments: no-op (no completed runs exist yet)
         """
         if self._eval_db_exhausted:
             return
-        # Wait for queued and in-flight evals to finish before scanning.
-        # This prevents duplicates: a reactively-queued eval that's in-flight
-        # hasn't written its annotation yet, so the DB query would return it
-        # as "missing." Waiting eliminates the overlap window entirely.
-        if self._eval_queue or any(isinstance(j, EvalJob) for j in self._in_flight):
+        # Wait until all tasks are done and nothing is in flight.
+        if not self._task_db_exhausted or self._task_queue or self._retry_heap:
+            return
+        if self._eval_queue or self._in_flight:
             return
 
         # Build eval name → spec mapping
@@ -1451,17 +1508,30 @@ class RunningExperiment:
 
     # === Unified Error Handlers ===
 
-    @staticmethod
-    def _get_job_id(job: Job) -> JobId:
+    def _make_event(
+        self,
+        job: Job,
+        *,
+        message: str,
+        level: str = "ERROR",
+        detail: FailureDetail | RetriesExhaustedDetail | None = None,
+    ) -> models.ExperimentEvent:
+        """Create the correct polymorphic event subtype for a job."""
         if isinstance(job, TaskJob):
-            return TaskJobId(
-                type="task",
+            return models.ExperimentTaskEvent(
+                experiment_id=self._experiment.id,
+                level=level,
+                message=message,
+                detail=detail,
                 dataset_example_id=job.dataset_example_revision.dataset_example_id,
                 repetition_number=job.repetition_number,
             )
         assert isinstance(job, EvalJob)
-        return EvalJobId(
-            type="eval",
+        return models.ExperimentEvalEvent(
+            experiment_id=self._experiment.id,
+            level=level,
+            message=message,
+            detail=detail,
             experiment_run_id=job.experiment_run.id,
             dataset_evaluator_id=job.dataset_evaluator_id,
         )
@@ -1498,7 +1568,7 @@ class RunningExperiment:
             return
         await self._retry_or_fail(job, f"transient error: {error}", error=error)
 
-    async def on_permanent_failure(
+    async def on_failure(
         self,
         job: Job,
         error: Exception,
@@ -1515,15 +1585,16 @@ class RunningExperiment:
         self._record_failure(job)
         category = "TASK" if isinstance(job, TaskJob) else "EVAL"
         logger.warning(f"{job.debug_identifier} {error}")
-        await self._record_error(
-            category=category,
-            message=str(error),
-            detail=PermanentFailureDetail(
-                type="permanent_failure",
-                job=self._get_job_id(job),
-                error_type=type(error).__name__,
-                stack_trace="".join(traceback.format_exception(error)),
-            ),
+        await self._persist_event(
+            self._make_event(
+                job,
+                message=str(error),
+                detail=FailureDetail(
+                    type="failure",
+                    error_type=type(error).__name__,
+                    stack_trace=_redact_stack_trace(error) if error.__traceback__ else None,
+                ),
+            )
         )
         if isinstance(job, TaskJob) and notify_subscribers:
             self._broadcast(
@@ -1560,22 +1631,22 @@ class RunningExperiment:
             heapq.heappush(self._retry_heap, RetryItem(ready_at=ready_at, job=job))
         else:
             self._record_failure(job)
-            category = "TASK" if isinstance(job, TaskJob) else "EVAL"
             error_msg = f"{reason} after {self._max_retries} retries"
             logger.warning(
                 f"{job.debug_identifier} exceeded max retries "
                 f"({self._max_retries}), reason: {reason}"
             )
-            await self._record_error(
-                category=category,
-                message=error_msg,
-                detail=RetriesExhaustedDetail(
-                    type="retries_exhausted",
-                    job=self._get_job_id(job),
-                    retry_count=self._max_retries,
-                    reason=reason,
-                    stack_trace="".join(traceback.format_exception(error)) if error else None,
-                ),
+            await self._persist_event(
+                self._make_event(
+                    job,
+                    message=error_msg,
+                    detail=RetriesExhaustedDetail(
+                        type="retries_exhausted",
+                        retry_count=self._max_retries,
+                        reason=reason,
+                        stack_trace=_redact_stack_trace(error) if error else None,
+                    ),
+                )
             )
             # Notify task subscribers of exhausted retries (evals don't stream errors)
             if isinstance(job, TaskJob):
@@ -1590,27 +1661,14 @@ class RunningExperiment:
                     )
                 )
 
-    async def _record_error(
-        self,
-        *,
-        category: str,
-        message: str,
-        detail: PermanentFailureDetail | RetriesExhaustedDetail | None = None,
-    ) -> None:
-        """Persist an error row for this experiment."""
+    async def _persist_event(self, event: models.ExperimentEvent) -> None:
+        """Persist an event row for this experiment."""
         try:
             async with self._db() as session:
-                session.add(
-                    models.ExperimentError(
-                        experiment_id=self._experiment.id,
-                        category=category,
-                        message=message,
-                        detail=detail,
-                    )
-                )
+                session.add(event)
         except Exception:
             logger.exception(
-                f"Experiment {self._experiment.id}: failed to persist error: {message}"
+                f"Experiment {self._experiment.id}: failed to persist event: {event.message}"
             )
 
     # === Circuit Breaker & Completion ===
@@ -2112,8 +2170,8 @@ class ExperimentRunner(DaemonTask):
                 f"Experiment {experiment_id} is owned by another replica, cannot start"
             )
         await session.execute(
-            delete(models.ExperimentError).where(
-                models.ExperimentError.experiment_id == experiment_id
+            delete(models.ExperimentEvent).where(
+                models.ExperimentEvent.experiment_id == experiment_id
             )
         )
         experiment = await session.get(models.Experiment, experiment_id)
@@ -2261,6 +2319,11 @@ class ExperimentRunner(DaemonTask):
             credentials=credentials,
             evaluator_run_specs=evaluator_run_specs,
         )
+
+        # Eagerly scan for incomplete evals so resumed experiments
+        # start processing stragglers immediately rather than waiting
+        # for all tasks to finish first.
+        await exp._ensure_eval_buffer()
 
         # Subscribe BEFORE registering - guarantees no missed chunks
         receive_stream = exp.subscribe() if subscribe else None
@@ -2448,9 +2511,9 @@ class ExperimentRunner(DaemonTask):
                     updated = await session.scalar(stmt)
                     if updated and error_message:
                         session.add(
-                            models.ExperimentError(
+                            models.ExperimentSystemEvent(
                                 experiment_id=experiment_id,
-                                category=error_category or "SYSTEM",
+                                level="ERROR",
                                 message=error_message,
                             )
                         )

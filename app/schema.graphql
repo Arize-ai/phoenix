@@ -1523,7 +1523,7 @@ type ExperimentErrorConnection {
   edges: [ExperimentErrorEdge!]!
 }
 
-union ExperimentErrorDetail = PermanentFailureDetail | RetriesExhaustedDetail
+union ExperimentErrorDetail = FailureDetail | RetriesExhaustedDetail
 
 """An edge in a connection."""
 type ExperimentErrorEdge {
@@ -1751,6 +1751,12 @@ type ExperimentRunMetricComparisons {
 input ExperimentRunSort {
   col: ExperimentRunColumn!
   dir: SortDir!
+}
+
+type FailureDetail {
+  job: ExperimentErrorJobId
+  errorType: String!
+  stackTrace: String
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
@@ -2319,12 +2325,6 @@ input PatchViewerInput {
   newUsername: String
   newPassword: String
   currentPassword: String
-}
-
-type PermanentFailureDetail {
-  job: ExperimentErrorJobId!
-  errorType: String!
-  stackTrace: String
 }
 
 type PlaygroundConfig {
@@ -2979,7 +2979,7 @@ type ResumeExperimentPayload {
 }
 
 type RetriesExhaustedDetail {
-  job: ExperimentErrorJobId!
+  job: ExperimentErrorJobId
   retryCount: Int!
   reason: String!
   stackTrace: String

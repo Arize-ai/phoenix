@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Annotated
 
 import strawberry
 from sqlalchemy import select
+from sqlalchemy.orm import with_polymorphic
 from strawberry import UNSET
 from strawberry.relay import Node, NodeID
 from strawberry.relay.types import Connection
@@ -90,11 +91,10 @@ class ExperimentJob(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        poly = with_polymorphic(models.ExperimentEvent, "*")
         async with info.context.db() as session:
             result = await session.scalars(
-                select(models.ExperimentError)
-                .where(models.ExperimentError.experiment_id == self.id)
-                .order_by(models.ExperimentError.occurred_at.desc())
+                select(poly).where(poly.experiment_id == self.id).order_by(poly.occurred_at.desc())
             )
             data = [ExperimentError.from_orm(row) for row in result.all()]
         return connection_from_list(data=data, args=args)

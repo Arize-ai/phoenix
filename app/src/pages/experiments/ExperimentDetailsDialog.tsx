@@ -167,7 +167,7 @@ function ExperimentDetailsDialogContent({
                 category
                 message
                 detail {
-                  ... on PermanentFailureDetail {
+                  ... on FailureDetail {
                     errorType
                     stackTrace
                   }
@@ -186,7 +186,7 @@ function ExperimentDetailsDialogContent({
                     category
                     message
                     detail {
-                      ... on PermanentFailureDetail {
+                      ... on FailureDetail {
                         errorType
                         stackTrace
                       }

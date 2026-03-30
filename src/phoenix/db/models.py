@@ -67,7 +67,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
-from phoenix.db.types.experiment_error import ExperimentErrorDetail
+from phoenix.db.types.experiment_event import ExperimentEventDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -601,13 +601,13 @@ class _ConnectionConfig(TypeDecorator[ConnectionConfig]):
         return self._adapter.validate_python(value)
 
 
-class _ExperimentErrorDetail(TypeDecorator[ExperimentErrorDetail]):
+class _ExperimentEventDetail(TypeDecorator[ExperimentEventDetail]):
     cache_ok = True
     impl = JSON_
-    _adapter: TypeAdapter[ExperimentErrorDetail] = TypeAdapter(ExperimentErrorDetail)
+    _adapter: TypeAdapter[ExperimentEventDetail] = TypeAdapter(ExperimentEventDetail)
 
     def process_bind_param(
-        self, value: Optional[ExperimentErrorDetail], _: Dialect
+        self, value: Optional[ExperimentEventDetail], _: Dialect
     ) -> Optional[dict[str, Any]]:
         if value is None:
             return None
@@ -615,7 +615,7 @@ class _ExperimentErrorDetail(TypeDecorator[ExperimentErrorDetail]):
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[ExperimentErrorDetail]:
+    ) -> Optional[ExperimentEventDetail]:
         if value is None:
             return None
         return self._adapter.validate_python(value)
@@ -1682,10 +1682,10 @@ class ExperimentExecutionConfig(HasId):
         ForeignKey("experiments.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    task_type: Mapped[str] = mapped_column(
+    type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "task_type IN ('PROMPT', 'EVAL_ONLY')",
-            name="valid_task_type",
+            "type IN ('PROMPT', 'EVAL_ONLY')",
+            name="valid_type",
         ),
         nullable=False,
     )
@@ -1717,17 +1717,17 @@ class ExperimentExecutionConfig(HasId):
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     experiment: Mapped["Experiment"] = relationship("Experiment")
-    errors: WriteOnlyMapped[list["ExperimentError"]] = relationship(
+    events: WriteOnlyMapped[list["ExperimentEvent"]] = relationship(
         back_populates="execution_config",
         passive_deletes=True,
     )
 
     __mapper_args__ = {
-        "polymorphic_on": "task_type",
+        "polymorphic_on": "type",
         "polymorphic_identity": None,  # Base class is abstract
     }
 
-    __table_args__ = (UniqueConstraint("id", "task_type"),)
+    __table_args__ = (UniqueConstraint("type", "id"),)
 
 
 class ExperimentPromptTask(ExperimentExecutionConfig):
@@ -1739,8 +1739,8 @@ class ExperimentPromptTask(ExperimentExecutionConfig):
 
     __tablename__ = "experiment_prompt_tasks"
     id: Mapped[int] = mapped_column(primary_key=True)
-    task_type: Mapped[Literal["PROMPT"]] = mapped_column(
-        CheckConstraint("task_type = 'PROMPT'", name="valid_task_type"),
+    type: Mapped[Literal["PROMPT"]] = mapped_column(
+        CheckConstraint("type = 'PROMPT'", name="valid_type"),
         server_default="PROMPT",
         nullable=False,
     )
@@ -1794,8 +1794,8 @@ class ExperimentPromptTask(ExperimentExecutionConfig):
     }
     __table_args__ = (  # type: ignore[assignment]
         ForeignKeyConstraint(
-            ["id", "task_type"],
-            ["experiment_execution_configs.id", "experiment_execution_configs.task_type"],
+            ["type", "id"],
+            ["experiment_execution_configs.type", "experiment_execution_configs.id"],
             ondelete="CASCADE",
         ),
         CheckConstraint(
@@ -1809,7 +1809,7 @@ class ExperimentEvalOnlyConfig(ExperimentExecutionConfig):
     """Eval-only execution config — no task, just run evaluators against existing runs.
 
     Uses single-table inheritance: no extra columns, so no separate table needed.
-    Rows live in ``experiment_execution_configs`` with ``task_type = 'EVAL_ONLY'``.
+    Rows live in ``experiment_execution_configs`` with ``type = 'EVAL_ONLY'``.
     """
 
     __mapper_args__ = {
@@ -1842,8 +1842,14 @@ class ExperimentDatasetEvaluator(Base):
     )
 
 
-class ExperimentError(HasId):
-    __tablename__ = "experiment_errors"
+class ExperimentEvent(HasId):
+    """Base event for experiment execution logging.
+
+    Polymorphic on ``category``: TASK and EVAL events live in subtables
+    with proper FK columns; SYSTEM events use single-table inheritance.
+    """
+
+    __tablename__ = "experiment_events"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_execution_configs.id", ondelete="CASCADE"),
     )
@@ -1851,21 +1857,99 @@ class ExperimentError(HasId):
     category: Mapped[str] = mapped_column(
         CheckConstraint(
             "category IN ('TASK', 'EVAL', 'SYSTEM')",
-            name="valid_error_category",
+            name="valid_event_category",
+        ),
+    )
+    level: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "level IN ('ERROR', 'WARN', 'INFO')",
+            name="valid_event_level",
         ),
     )
     message: Mapped[str] = mapped_column(String)
-    detail: Mapped[Optional[ExperimentErrorDetail]] = mapped_column(_ExperimentErrorDetail)
-    execution_config: Mapped["ExperimentExecutionConfig"] = relationship(
-        back_populates="errors",
+    detail: Mapped[Optional[ExperimentEventDetail]] = mapped_column(
+        _ExperimentEventDetail, nullable=True
     )
+    execution_config: Mapped["ExperimentExecutionConfig"] = relationship(
+        back_populates="events",
+    )
+
+    __mapper_args__ = {
+        "polymorphic_on": "category",
+        "polymorphic_identity": None,
+    }
     __table_args__ = (
+        UniqueConstraint("category", "id"),
         Index(
-            "ix_experiment_errors_experiment_id_occurred_at",
+            "ix_experiment_events_experiment_id_occurred_at",
             "experiment_id",
             occurred_at.desc(),
         ),
     )
+
+
+class ExperimentTaskEvent(ExperimentEvent):
+    """Event tied to a specific task job (dataset_example + repetition)."""
+
+    __tablename__ = "experiment_task_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[Literal["TASK"]] = mapped_column(
+        CheckConstraint("category = 'TASK'", name="valid_category"),
+        server_default="TASK",
+        nullable=False,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+    )
+    repetition_number: Mapped[int] = mapped_column()
+
+    __mapper_args__ = {
+        "polymorphic_identity": "TASK",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_events.category", "experiment_events.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ExperimentEvalEvent(ExperimentEvent):
+    """Event tied to a specific eval job (experiment_run + evaluator)."""
+
+    __tablename__ = "experiment_eval_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[Literal["EVAL"]] = mapped_column(
+        CheckConstraint("category = 'EVAL'", name="valid_category"),
+        server_default="EVAL",
+        nullable=False,
+    )
+    experiment_run_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+    )
+    dataset_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EVAL",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_events.category", "experiment_events.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ExperimentSystemEvent(ExperimentEvent):
+    """System-level event — no subtable, single-table inheritance."""
+
+    __mapper_args__ = {
+        "polymorphic_identity": "SYSTEM",
+    }
 
 
 class UserRole(HasId):

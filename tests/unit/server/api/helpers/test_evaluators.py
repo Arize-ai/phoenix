@@ -2480,6 +2480,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -2852,6 +2853,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -2961,6 +2963,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -3202,6 +3205,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -3374,6 +3378,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
     async def test_evaluate_with_multipart_template(
@@ -3410,6 +3415,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:

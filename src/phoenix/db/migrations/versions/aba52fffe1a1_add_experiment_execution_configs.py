@@ -59,17 +59,17 @@ def upgrade() -> None:
             sa.ForeignKey("experiments.id", ondelete="CASCADE"),
             primary_key=True,
         ),
-        # Task type discriminator for polymorphic dispatch
+        # Type discriminator for polymorphic dispatch
         sa.Column(
-            "task_type",
+            "type",
             sa.String(),
             sa.CheckConstraint(
-                "task_type IN ('PROMPT', 'EVAL_ONLY')",
-                name="valid_task_type",
+                "type IN ('PROMPT', 'EVAL_ONLY')",
+                name="valid_type",
             ),
             nullable=False,
         ),
-        sa.UniqueConstraint("id", "task_type"),
+        sa.UniqueConstraint("type", "id"),
         # Experiment lifecycle status
         sa.Column(
             "status",
@@ -121,15 +121,15 @@ def upgrade() -> None:
             primary_key=True,
         ),
         sa.Column(
-            "task_type",
+            "type",
             sa.String(),
-            sa.CheckConstraint("task_type = 'PROMPT'", name="valid_task_type"),
+            sa.CheckConstraint("type = 'PROMPT'", name="valid_type"),
             nullable=False,
             server_default="PROMPT",
         ),
         sa.ForeignKeyConstraint(
-            ["id", "task_type"],
-            ["experiment_execution_configs.id", "experiment_execution_configs.task_type"],
+            ["type", "id"],
+            ["experiment_execution_configs.type", "experiment_execution_configs.id"],
             ondelete="CASCADE",
         ),
         # Prompt version (nullable)
@@ -173,7 +173,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "experiment_errors",
+        "experiment_events",
         sa.Column(
             "id",
             _Integer,
@@ -192,17 +192,23 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.Index(
-            "ix_experiment_errors_experiment_id_occurred_at",
-            "experiment_id",
-            sa.text("occurred_at DESC"),
-        ),
+        # Polymorphic discriminator
         sa.Column(
             "category",
             sa.String(),
             sa.CheckConstraint(
                 "category IN ('TASK', 'EVAL', 'SYSTEM')",
-                name="valid_error_category",
+                name="valid_event_category",
+            ),
+            nullable=False,
+        ),
+        sa.UniqueConstraint("category", "id"),
+        sa.Column(
+            "level",
+            sa.String(),
+            sa.CheckConstraint(
+                "level IN ('ERROR', 'WARN', 'INFO')",
+                name="valid_event_level",
             ),
             nullable=False,
         ),
@@ -215,6 +221,74 @@ def upgrade() -> None:
             "detail",
             JSON_,
             nullable=True,
+        ),
+        sa.Index(
+            "ix_experiment_events_experiment_id_occurred_at",
+            "experiment_id",
+            sa.text("occurred_at DESC"),
+        ),
+    )
+    op.create_table(
+        "experiment_task_events",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "category",
+            sa.String(),
+            sa.CheckConstraint("category = 'TASK'", name="valid_category"),
+            nullable=False,
+            server_default="TASK",
+        ),
+        sa.ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_events.category", "experiment_events.id"],
+            ondelete="CASCADE",
+        ),
+        sa.Column(
+            "dataset_example_id",
+            _Integer,
+            sa.ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "repetition_number",
+            sa.Integer,
+            nullable=False,
+        ),
+    )
+    op.create_table(
+        "experiment_eval_events",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "category",
+            sa.String(),
+            sa.CheckConstraint("category = 'EVAL'", name="valid_category"),
+            nullable=False,
+            server_default="EVAL",
+        ),
+        sa.ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_events.category", "experiment_events.id"],
+            ondelete="CASCADE",
+        ),
+        sa.Column(
+            "experiment_run_id",
+            _Integer,
+            sa.ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "dataset_evaluator_id",
+            _Integer,
+            sa.ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
         ),
     )
     op.create_table(
@@ -242,6 +316,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("experiment_dataset_evaluators")
-    op.drop_table("experiment_errors")
+    op.drop_table("experiment_eval_events")
+    op.drop_table("experiment_task_events")
+    op.drop_table("experiment_events")
     op.drop_table("experiment_prompt_tasks")
     op.drop_table("experiment_execution_configs")
