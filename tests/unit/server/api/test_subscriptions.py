@@ -17,6 +17,13 @@ from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+)
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -266,7 +273,6 @@ class TestChatCompletionSubscription:
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -417,7 +423,6 @@ class TestChatCompletionSubscription:
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
@@ -583,7 +588,6 @@ class TestChatCompletionSubscription:
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {
             "tool_choice": "auto",
-            "stream_options": {"include_usage": True},
         }
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -760,7 +764,7 @@ class TestChatCompletionSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
-        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
+        assert json.loads(invocation_paramaters) == {}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -1266,7 +1270,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
-        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
+        assert json.loads(invocation_paramaters) == {}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -1356,7 +1360,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
-        assert json.loads(invocation_paramaters) == {"stream_options": {"include_usage": True}}
+        assert json.loads(invocation_paramaters) == {}
         assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
@@ -1919,20 +1923,12 @@ class TestChatCompletionOverDatasetSubscription:
                     {
                         "id": llm_evaluator_gid,
                         "name": "correctness",
-                        "inputMapping": {
-                            "pathMapping": {
-                                "input": "$.input",
-                                "output": "$.output",
-                            },
-                        },
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     },
                     {
                         "id": builtin_evaluator_gid,
                         "name": "exact-match",
-                        "inputMapping": {
-                            "literalMapping": {"expected": "France"},
-                            "pathMapping": {"actual": "$.output.messages[0].content"},
-                        },
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     },
                 ],
             }
@@ -2541,14 +2537,29 @@ class TestChatCompletionOverDatasetSubscription:
         openai_api_key: str,
         single_example_dataset: models.Dataset,
         assign_exact_match_builtin_evaluator_to_dataset: Callable[
-            [int], Awaitable[models.DatasetEvaluators]
+            ..., Awaitable[models.DatasetEvaluators]
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
     ) -> None:
         """Test that builtin evaluators use name for annotation names in dataset runs."""
         builtin_dataset_evaluator = await assign_exact_match_builtin_evaluator_to_dataset(
-            single_example_dataset.id
+            single_example_dataset.id,
+            input_mapping=InputMapping(
+                literal_mapping={"expected": "test", "actual": "test"},
+                path_mapping={},
+            ),
+            output_configs=[
+                CategoricalOutputConfig(
+                    type=AnnotationType.CATEGORICAL.value,
+                    name="my-dataset-exact-match",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="true", score=1.0),
+                        CategoricalAnnotationValue(label="false", score=0.0),
+                    ],
+                )
+            ],
         )
         evaluator_gid = str(
             GlobalID(
@@ -2591,12 +2602,7 @@ class TestChatCompletionOverDatasetSubscription:
                     {
                         "id": evaluator_gid,
                         "name": custom_name,
-                        "inputMapping": {
-                            "literalMapping": {
-                                "expected": "test",
-                                "actual": "test",
-                            },
-                        },
+                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     }
                 ],
             }

@@ -413,6 +413,14 @@ async def delete_experiment(
             status_code=404,
         )
 
+    # Stop any running experiment and wait for in-flight shielded DB writes
+    # to drain, avoiding FK constraint violations from concurrent writes.
+    # Note: only drains experiments owned by this replica. In multi-replica
+    # deployments, another replica's shielded writes may still race with
+    # the DELETE (possible FK errors or orphaned rows), but these are
+    # harmless since the experiment is being deleted anyway.
+    await request.state.experiment_runner.stop_experiment(experiment_rowid)
+
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)

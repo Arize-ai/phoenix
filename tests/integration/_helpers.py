@@ -751,7 +751,7 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
-    command = f"{sys.executable} -m phoenix.server.main serve"
+    command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: list[str] = []

@@ -3,6 +3,7 @@ import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
 import type {
   PlaygroundDatasetSection_evaluator$data,
@@ -99,11 +100,20 @@ export function PlaygroundDatasetSection({
       }) ?? [],
     [data.dataset.datasetEvaluators]
   );
+  const initialEvaluatorIds = usePlaygroundContext(
+    (state) => state.initialSelectedDatasetEvaluatorIds
+  );
   const [selectedDatasetEvaluatorIds, setSelectedDatasetEvaluatorIds] =
-    useState<string[]>(
-      () =>
-        datasetEvaluators.map((datasetEvaluator) => datasetEvaluator.id) ?? []
-    );
+    useState<string[]>(() => {
+      if (initialEvaluatorIds) {
+        // When rehydrating from an experiment, only select the evaluators
+        // that were attached to that experiment (not all dataset evaluators).
+        return datasetEvaluators
+          .filter((e) => initialEvaluatorIds.includes(e.id))
+          .map((e) => e.id);
+      }
+      return datasetEvaluators.map((e) => e.id);
+    });
   const onEvaluatorCreated = useCallback((datasetEvaluatorId: string) => {
     setSelectedDatasetEvaluatorIds((prev) => [...prev, datasetEvaluatorId]);
   }, []);

@@ -33,8 +33,17 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
   }
 
   try {
-    const parsedFeatureFlags = JSON.parse(featureFlagsFromLocalStorage);
-    return Object.assign({}, DEFAULT_FEATURE_FLAGS, parsedFeatureFlags);
+    const parsedFeatureFlags = JSON.parse(
+      featureFlagsFromLocalStorage
+    ) as Record<string, unknown>;
+    const next = { ...DEFAULT_FEATURE_FLAGS };
+    for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
+      const v = parsedFeatureFlags[key];
+      if (typeof v === "boolean") {
+        next[key] = v;
+      }
+    }
+    return next;
   } catch (_e) {
     return DEFAULT_FEATURE_FLAGS;
   }

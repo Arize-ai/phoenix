@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<47da9ad05318801a4df2822b077123e3>>
+ * @generated SignedSource<<231010dbea5ea9d62621f5f701c3f450>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,9 +15,10 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
-  clientOptions?: ModelClientOptionsInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  headers?: any | null;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
   repetitions: number;
@@ -93,19 +94,14 @@ export type PromptResponseFormatJSONSchemaDefinitionInput = {
   schema?: any | null;
   strict?: boolean | null;
 };
-export type ModelClientOptionsInput = {
-  builtin?: BuiltinClientOptionsInput | null;
-  custom?: CustomClientOptionsInput | null;
-};
-export type BuiltinClientOptionsInput = {
+export type ConnectionConfigInput = {
+  azureEndpoint?: string | null;
   baseUrl?: string | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
+  endpointUrl?: string | null;
   openaiApiType?: OpenAIApiType | null;
-  region?: string | null;
-};
-export type CustomClientOptionsInput = {
-  extraHeaders?: any | null;
+  organization?: string | null;
+  project?: string | null;
+  regionName?: string | null;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;

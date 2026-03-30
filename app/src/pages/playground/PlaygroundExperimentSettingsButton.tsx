@@ -50,14 +50,16 @@ export function PlaygroundExperimentSettingsButton({
   const playgroundDatasetState = usePlaygroundContext(
     (state) => state.stateByDatasetId[datasetId]
   );
-  const { appendedMessagesPath, templateVariablesPath } =
+  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
     playgroundDatasetState ?? {};
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
-
   const setTemplateVariablesPath = usePlaygroundContext(
     (state) => state.setTemplateVariablesPath
+  );
+  const setMaxConcurrency = usePlaygroundContext(
+    (state) => state.setMaxConcurrency
   );
 
   return (
@@ -119,6 +121,25 @@ export function PlaygroundExperimentSettingsButton({
                 <Input placeholder="Disabled" />
                 <Text slot="description">
                   Path to messages from the dataset to append to prompts
+                </Text>
+              </TextField>
+              <TextField
+                value={String(maxConcurrency ?? 10)}
+                size="S"
+                onChange={(value) => {
+                  const parsed = parseInt(value, 10);
+                  if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
+                    setMaxConcurrency({
+                      maxConcurrency: parsed,
+                      datasetId,
+                    });
+                  }
+                }}
+              >
+                <Label>Max concurrency</Label>
+                <Input type="number" />
+                <Text slot="description">
+                  Maximum number of tasks/evals that will be run concurrently.
                 </Text>
               </TextField>
             </Flex>

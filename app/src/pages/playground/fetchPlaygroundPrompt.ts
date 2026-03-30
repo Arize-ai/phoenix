@@ -283,10 +283,10 @@ export const promptVersionToInstance = ({
                 .map((part) => part.text.text)
                 .join("");
               const toolCallParts = m.content
-                .filter(asToolCallPart)
+                .map(asToolCallPart)
                 .filter(Boolean) as ToolCallPart[];
               const toolResultParts = m.content
-                .filter(asToolResultPart)
+                .map(asToolResultPart)
                 .filter(Boolean) as ToolResultPart[];
               const firstToolResultPart = toolResultParts.at(0);
               const role = getChatRole(m.role);
@@ -624,7 +624,7 @@ const supportedInvocationParametersQuery = graphql`
  * @param openaiApiType - The OpenAI API type (chat_completions or responses)
  * @returns The supported invocation parameters
  */
-const fetchSupportedInvocationParameters = async ({
+export const fetchSupportedInvocationParameters = async ({
   modelName,
   providerKey,
   openaiApiType,

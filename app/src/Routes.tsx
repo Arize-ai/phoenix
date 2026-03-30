@@ -47,6 +47,7 @@ import {
   examplesLoader,
   ExamplesPage,
   ExperimentComparePage,
+  ExperimentDetailPage,
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
@@ -201,7 +202,12 @@ const router = createBrowserRouter(
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
                 <Route index element={<ExperimentsPage />} />
-                <Route path="experiments" element={<ExperimentsPage />} />
+                <Route path="experiments" element={<ExperimentsPage />}>
+                  <Route
+                    path=":experimentId"
+                    element={<ExperimentDetailPage />}
+                  />
+                </Route>
                 <Route
                   path="examples"
                   element={<ExamplesPage />}
