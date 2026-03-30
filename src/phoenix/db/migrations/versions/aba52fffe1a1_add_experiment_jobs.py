@@ -173,7 +173,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "experiment_events",
+        "experiment_logs",
         sa.Column(
             "id",
             _Integer,
@@ -197,7 +197,7 @@ def upgrade() -> None:
             "category",
             sa.String(),
             sa.CheckConstraint(
-                "category IN ('TASK', 'EVAL', 'SYSTEM')",
+                "category IN ('TASK', 'EVAL', 'EXPERIMENT')",
                 name="valid_event_category",
             ),
             nullable=False,
@@ -223,7 +223,7 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Index(
-            "ix_experiment_events_experiment_id_occurred_at",
+            "ix_experiment_logs_experiment_id_occurred_at",
             "experiment_id",
             sa.text("occurred_at DESC"),
         ),
@@ -244,7 +244,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["category", "id"],
-            ["experiment_events.category", "experiment_events.id"],
+            ["experiment_logs.category", "experiment_logs.id"],
             ondelete="CASCADE",
         ),
         sa.Column(
@@ -275,7 +275,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["category", "id"],
-            ["experiment_events.category", "experiment_events.id"],
+            ["experiment_logs.category", "experiment_logs.id"],
             ondelete="CASCADE",
         ),
         sa.Column(
@@ -318,6 +318,6 @@ def downgrade() -> None:
     op.drop_table("experiment_dataset_evaluators")
     op.drop_table("experiment_eval_events")
     op.drop_table("experiment_task_events")
-    op.drop_table("experiment_events")
+    op.drop_table("experiment_logs")
     op.drop_table("experiment_prompt_tasks")
     op.drop_table("experiment_jobs")

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0cb6c47504b705af6f1c1e04561daec0>>
+ * @generated SignedSource<<e64e2e2f315c8b6d2f98f8718433babc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentErrorCategory = "EVAL" | "SYSTEM" | "TASK";
+export type ExperimentErrorCategory = "EVAL" | "EXPERIMENT" | "TASK";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";

@@ -91,7 +91,7 @@ class ExperimentJob(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        poly = with_polymorphic(models.ExperimentEvent, "*")
+        poly = with_polymorphic(models.ExperimentLog, "*")
         async with info.context.db() as session:
             result = await session.scalars(
                 select(poly).where(poly.experiment_id == self.id).order_by(poly.occurred_at.desc())

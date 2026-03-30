@@ -342,7 +342,7 @@ class TestRunningExperimentQueueLogic:
 
         task = _make_task_work_item(exp, retry_count=2)  # Already at max
 
-        with patch.object(exp, "_persist_event", new_callable=AsyncMock) as mock_record:
+        with patch.object(exp, "_persist_log", new_callable=AsyncMock) as mock_record:
             await exp._retry_or_fail(task, "test failure")
 
         assert exp._tasks_failed == 1

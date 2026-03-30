@@ -67,7 +67,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
-from phoenix.db.types.experiment_event import ExperimentEventDetail
+from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -601,13 +601,13 @@ class _ConnectionConfig(TypeDecorator[ConnectionConfig]):
         return self._adapter.validate_python(value)
 
 
-class _ExperimentEventDetail(TypeDecorator[ExperimentEventDetail]):
+class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
     cache_ok = True
     impl = JSON_
-    _adapter: TypeAdapter[ExperimentEventDetail] = TypeAdapter(ExperimentEventDetail)
+    _adapter: TypeAdapter[ExperimentLogDetail] = TypeAdapter(ExperimentLogDetail)
 
     def process_bind_param(
-        self, value: Optional[ExperimentEventDetail], _: Dialect
+        self, value: Optional[ExperimentLogDetail], _: Dialect
     ) -> Optional[dict[str, Any]]:
         if value is None:
             return None
@@ -615,7 +615,7 @@ class _ExperimentEventDetail(TypeDecorator[ExperimentEventDetail]):
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[ExperimentEventDetail]:
+    ) -> Optional[ExperimentLogDetail]:
         if value is None:
             return None
         return self._adapter.validate_python(value)
@@ -1717,7 +1717,7 @@ class ExperimentJob(HasId):
 
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     experiment: Mapped["Experiment"] = relationship("Experiment")
-    events: WriteOnlyMapped[list["ExperimentEvent"]] = relationship(
+    logs: WriteOnlyMapped[list["ExperimentLog"]] = relationship(
         back_populates="execution_config",
         passive_deletes=True,
     )
@@ -1842,21 +1842,21 @@ class ExperimentDatasetEvaluator(Base):
     )
 
 
-class ExperimentEvent(HasId):
-    """Base event for experiment execution logging.
+class ExperimentLog(HasId):
+    """Base row for experiment execution logging.
 
-    Polymorphic on ``category``: TASK and EVAL events live in subtables
-    with proper FK columns; SYSTEM events use single-table inheritance.
+    Polymorphic on ``category``: TASK and EVAL logs live in subtables
+    with proper FK columns; EXPERIMENT logs use single-table inheritance.
     """
 
-    __tablename__ = "experiment_events"
+    __tablename__ = "experiment_logs"
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[str] = mapped_column(
         CheckConstraint(
-            "category IN ('TASK', 'EVAL', 'SYSTEM')",
+            "category IN ('TASK', 'EVAL', 'EXPERIMENT')",
             name="valid_event_category",
         ),
     )
@@ -1867,11 +1867,11 @@ class ExperimentEvent(HasId):
         ),
     )
     message: Mapped[str] = mapped_column(String)
-    detail: Mapped[Optional[ExperimentEventDetail]] = mapped_column(
-        _ExperimentEventDetail, nullable=True
+    detail: Mapped[Optional[ExperimentLogDetail]] = mapped_column(
+        _ExperimentLogDetail, nullable=True
     )
     execution_config: Mapped["ExperimentJob"] = relationship(
-        back_populates="events",
+        back_populates="logs",
     )
 
     __mapper_args__ = {
@@ -1881,15 +1881,15 @@ class ExperimentEvent(HasId):
     __table_args__ = (
         UniqueConstraint("category", "id"),
         Index(
-            "ix_experiment_events_experiment_id_occurred_at",
+            "ix_experiment_logs_experiment_id_occurred_at",
             "experiment_id",
             occurred_at.desc(),
         ),
     )
 
 
-class ExperimentTaskEvent(ExperimentEvent):
-    """Event tied to a specific task job (dataset_example + repetition)."""
+class ExperimentTaskLog(ExperimentLog):
+    """Log row tied to a specific task job (dataset_example + repetition)."""
 
     __tablename__ = "experiment_task_events"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -1909,14 +1909,14 @@ class ExperimentTaskEvent(ExperimentEvent):
     __table_args__ = (  # type: ignore[assignment]
         ForeignKeyConstraint(
             ["category", "id"],
-            ["experiment_events.category", "experiment_events.id"],
+            ["experiment_logs.category", "experiment_logs.id"],
             ondelete="CASCADE",
         ),
     )
 
 
-class ExperimentEvalEvent(ExperimentEvent):
-    """Event tied to a specific eval job (experiment_run + evaluator)."""
+class ExperimentEvalLog(ExperimentLog):
+    """Log row tied to a specific eval job (experiment_run + evaluator)."""
 
     __tablename__ = "experiment_eval_events"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -1938,17 +1938,17 @@ class ExperimentEvalEvent(ExperimentEvent):
     __table_args__ = (  # type: ignore[assignment]
         ForeignKeyConstraint(
             ["category", "id"],
-            ["experiment_events.category", "experiment_events.id"],
+            ["experiment_logs.category", "experiment_logs.id"],
             ondelete="CASCADE",
         ),
     )
 
 
-class ExperimentSystemEvent(ExperimentEvent):
-    """System-level event — no subtable, single-table inheritance."""
+class ExperimentJobLog(ExperimentLog):
+    """Experiment-wide log row (not tied to a single task or eval) — no subtable."""
 
     __mapper_args__ = {
-        "polymorphic_identity": "SYSTEM",
+        "polymorphic_identity": "EXPERIMENT",
     }
 
 

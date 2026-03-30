@@ -859,9 +859,9 @@ CREATE INDEX ix_experiment_dataset_evaluators_dataset_evaluator_id ON public.exp
     USING btree (dataset_evaluator_id);
 
 
--- Table: experiment_events
--- ------------------------
-CREATE TABLE public.experiment_events (
+-- Table: experiment_logs
+-- ----------------------
+CREATE TABLE public.experiment_logs (
     id bigserial NOT NULL,
     experiment_id BIGINT NOT NULL,
     occurred_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
@@ -869,27 +869,27 @@ CREATE TABLE public.experiment_events (
     level VARCHAR NOT NULL,
     message VARCHAR NOT NULL,
     detail JSONB,
-    CONSTRAINT pk_experiment_events PRIMARY KEY (id),
-    CONSTRAINT uq_experiment_events_category_id
+    CONSTRAINT pk_experiment_logs PRIMARY KEY (id),
+    CONSTRAINT uq_experiment_logs_category_id
         UNIQUE (category, id),
     CHECK (((category)::text = ANY ((ARRAY[
             'TASK'::character varying,
             'EVAL'::character varying,
-            'SYSTEM'::character varying
+            'EXPERIMENT'::character varying
         ])::text[]))),
     CHECK (((level)::text = ANY ((ARRAY[
             'ERROR'::character varying,
             'WARN'::character varying,
             'INFO'::character varying
         ])::text[]))),
-    CONSTRAINT fk_experiment_events_experiment_id_experiment_jobs
+    CONSTRAINT fk_experiment_logs_experiment_id_experiment_jobs
         FOREIGN KEY
         (experiment_id)
         REFERENCES public.experiment_jobs (id)
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_experiment_events_experiment_id_occurred_at ON public.experiment_events
+CREATE INDEX ix_experiment_logs_experiment_id_occurred_at ON public.experiment_logs
     USING btree (experiment_id, occurred_at DESC);
 
 
@@ -934,10 +934,10 @@ CREATE TABLE public.experiment_eval_events (
     dataset_evaluator_id BIGINT NOT NULL,
     CONSTRAINT pk_experiment_eval_events PRIMARY KEY (id),
     CHECK (((category)::text = 'EVAL'::text)),
-    CONSTRAINT fk_experiment_eval_events_category_experiment_events
+    CONSTRAINT fk_experiment_eval_events_category_experiment_logs
         FOREIGN KEY
         (category, id)
-        REFERENCES public.experiment_events (category, id)
+        REFERENCES public.experiment_logs (category, id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_eval_events_dataset_evaluator_id_dataset__fe6f
         FOREIGN KEY
@@ -1024,10 +1024,10 @@ CREATE TABLE public.experiment_task_events (
     repetition_number INTEGER NOT NULL,
     CONSTRAINT pk_experiment_task_events PRIMARY KEY (id),
     CHECK (((category)::text = 'TASK'::text)),
-    CONSTRAINT fk_experiment_task_events_category_experiment_events
+    CONSTRAINT fk_experiment_task_events_category_experiment_logs
         FOREIGN KEY
         (category, id)
-        REFERENCES public.experiment_events (category, id)
+        REFERENCES public.experiment_logs (category, id)
         ON DELETE CASCADE,
     CONSTRAINT fk_experiment_task_events_dataset_example_id_dataset_examples
         FOREIGN KEY

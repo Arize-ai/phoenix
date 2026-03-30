@@ -58,7 +58,7 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.db.types.experiment_event import (
+from phoenix.db.types.experiment_log import (
     FailureDetail,
     RetriesExhaustedDetail,
 )
@@ -1523,17 +1523,17 @@ class RunningExperiment:
 
     # === Unified Error Handlers ===
 
-    def _make_event(
+    def _make_log(
         self,
         work_item: WorkItem,
         *,
         message: str,
         level: str = "ERROR",
         detail: FailureDetail | RetriesExhaustedDetail | None = None,
-    ) -> models.ExperimentEvent:
-        """Create the correct polymorphic event subtype for a work item."""
+    ) -> models.ExperimentLog:
+        """Create the correct polymorphic log subtype for a work item."""
         if isinstance(work_item, TaskWorkItem):
-            return models.ExperimentTaskEvent(
+            return models.ExperimentTaskLog(
                 experiment_id=self._experiment.id,
                 level=level,
                 message=message,
@@ -1542,7 +1542,7 @@ class RunningExperiment:
                 repetition_number=work_item.repetition_number,
             )
         assert isinstance(work_item, EvalWorkItem)
-        return models.ExperimentEvalEvent(
+        return models.ExperimentEvalLog(
             experiment_id=self._experiment.id,
             level=level,
             message=message,
@@ -1600,8 +1600,8 @@ class RunningExperiment:
         self._record_failure(work_item)
         category = "TASK" if isinstance(work_item, TaskWorkItem) else "EVAL"
         logger.warning(f"{work_item.debug_identifier} {error}")
-        await self._persist_event(
-            self._make_event(
+        await self._persist_log(
+            self._make_log(
                 work_item,
                 message=str(error),
                 detail=FailureDetail(
@@ -1653,8 +1653,8 @@ class RunningExperiment:
                 f"{work_item.debug_identifier} exceeded max retries "
                 f"({self._max_retries}), reason: {reason}"
             )
-            await self._persist_event(
-                self._make_event(
+            await self._persist_log(
+                self._make_log(
                     work_item,
                     message=error_msg,
                     detail=RetriesExhaustedDetail(
@@ -1678,14 +1678,14 @@ class RunningExperiment:
                     )
                 )
 
-    async def _persist_event(self, event: models.ExperimentEvent) -> None:
-        """Persist an event row for this experiment."""
+    async def _persist_log(self, log: models.ExperimentLog) -> None:
+        """Persist a log row for this experiment."""
         try:
             async with self._db() as session:
-                session.add(event)
+                session.add(log)
         except Exception:
             logger.exception(
-                f"Experiment {self._experiment.id}: failed to persist event: {event.message}"
+                f"Experiment {self._experiment.id}: failed to persist log: {log.message}"
             )
 
     # === Circuit Breaker & Completion ===
@@ -1744,7 +1744,7 @@ class RunningExperiment:
         await self._on_done(
             self._experiment.id,
             error_message=error_message,
-            error_category="SYSTEM",
+            error_category="EXPERIMENT",
         )
 
     async def _check_completion(self) -> None:
@@ -2192,9 +2192,7 @@ class ExperimentRunner(DaemonTask):
                 f"Experiment {experiment_id} is owned by another replica, cannot start"
             )
         await session.execute(
-            delete(models.ExperimentEvent).where(
-                models.ExperimentEvent.experiment_id == experiment_id
-            )
+            delete(models.ExperimentLog).where(models.ExperimentLog.experiment_id == experiment_id)
         )
         experiment = await session.get(models.Experiment, experiment_id)
         if experiment is None:
@@ -2533,7 +2531,7 @@ class ExperimentRunner(DaemonTask):
                     updated = await session.scalar(stmt)
                     if updated and error_message:
                         session.add(
-                            models.ExperimentSystemEvent(
+                            models.ExperimentJobLog(
                                 experiment_id=experiment_id,
                                 level="ERROR",
                                 message=error_message,

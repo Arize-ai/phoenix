@@ -1,5 +1,5 @@
 """
-Pydantic models for the experiment_events.detail JSON column.
+Pydantic models for the experiment_logs.detail JSON column.
 
 Job identifiers (dataset_example_id, experiment_run_id, etc.) are now
 proper DB columns on the polymorphic subtables, so the detail payload
@@ -36,7 +36,7 @@ class RetriesExhaustedDetail(DBBaseModel):
     stack_trace: str | None = None
 
 
-ExperimentEventDetail = Annotated[
+ExperimentLogDetail = Annotated[
     Union[FailureDetail, RetriesExhaustedDetail],
     Field(discriminator="type"),
 ]

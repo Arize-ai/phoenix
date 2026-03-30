@@ -1282,14 +1282,14 @@ enum EvalAttr {
   label
 }
 
-type EvalWorkItemId {
-  experimentRunId: Int!
-  datasetEvaluatorId: Int!
-}
-
 input EvalResultKey {
   name: String!
   attr: EvalAttr!
+}
+
+type EvalWorkItemId {
+  experimentRunId: Int!
+  datasetEvaluatorId: Int!
 }
 
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
@@ -1511,7 +1511,7 @@ type ExperimentError implements Node {
 enum ExperimentErrorCategory {
   TASK
   EVAL
-  SYSTEM
+  EXPERIMENT
 }
 
 """A connection to a list of items."""
