@@ -86,6 +86,7 @@ from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
     ExperimentComparison,
 )
+from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
     parse_experiment_repeated_run_group_node_id,
@@ -732,12 +733,12 @@ class Query:
                 select(models.DatasetExample)
                 .join(models.ExperimentDatasetExample)
                 .where(models.ExperimentDatasetExample.experiment_id == base_experiment_rowid)
-                .order_by(models.DatasetExample.id.desc())
+                .order_by(models.DatasetExample.id.asc())
                 .limit(page_size + 1)
             )
 
             if cursor is not None:
-                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
+                examples_query = examples_query.where(models.DatasetExample.id > cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
@@ -1151,6 +1152,8 @@ class Query:
             return Experiment(id=node_id)
         elif type_name == ExperimentRun.__name__:
             return ExperimentRun(id=node_id)
+        elif type_name == ExperimentJob.__name__:
+            return ExperimentJob(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)

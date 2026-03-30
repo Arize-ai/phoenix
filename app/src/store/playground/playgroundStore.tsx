@@ -245,13 +245,18 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
-    stateByDatasetId: props.datasetId
-      ? {
-          [props.datasetId]: {
-            templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-          },
-        }
-      : {},
+    stateByDatasetId: props.stateByDatasetId
+      ? props.stateByDatasetId
+      : props.datasetId
+        ? {
+            [props.datasetId]: {
+              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+            },
+          }
+        : {},
+    initialSelectedDatasetEvaluatorIds:
+      props.selectedDatasetEvaluatorIds ?? null,
     datasetId: props.datasetId ?? null,
     setDatasetId: (datasetId: string | null) => {
       set({ datasetId }, false, { type: "setDatasetId" });
@@ -269,6 +274,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...get().stateByDatasetId,
             [datasetId]: {
               templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
             },
           },
         },
@@ -836,6 +842,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setRecordExperiments: (recordExperiments: boolean) => {
       set({ recordExperiments }, false, { type: "setRecordExperiments" });
+    },
+    setMaxConcurrency: ({
+      maxConcurrency,
+      datasetId,
+    }: {
+      maxConcurrency: number;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              maxConcurrency,
+            },
+          },
+        },
+        false,
+        { type: "setMaxConcurrency" }
+      );
     },
     setAppendedMessagesPath: ({
       path,
@@ -1494,5 +1521,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 };
 
 export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
+export const DEFAULT_MAX_CONCURRENCY = 10;
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;

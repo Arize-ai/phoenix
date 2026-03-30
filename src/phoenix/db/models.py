@@ -6,6 +6,7 @@ import orjson
 import sqlalchemy as sa
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
+from pydantic import TypeAdapter
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -65,6 +66,8 @@ from phoenix.db.types.annotation_configs import (
     OutputConfig as OutputConfigModel,
 )
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
+from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -176,6 +179,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "google_genai",
     "aws_bedrock",
 ]
+ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 
 
 class JSONB(JSON):
@@ -556,6 +560,65 @@ class _InputMapping(TypeDecorator[InputMapping]):
         if value is None:
             raise ValueError("Input mapping cannot be None")
         return InputMapping.model_validate(value)
+
+
+class _PlaygroundConfig(TypeDecorator[PlaygroundConfig]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PlaygroundConfig], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PlaygroundConfig]:
+        if value is None:
+            return None
+        return PlaygroundConfig.model_validate(value)
+
+
+class _ConnectionConfig(TypeDecorator[ConnectionConfig]):
+    cache_ok = True
+    impl = JSON_
+    _adapter: TypeAdapter[ConnectionConfig] = TypeAdapter(ConnectionConfig)
+
+    def process_bind_param(
+        self, value: Optional[ConnectionConfig], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[ConnectionConfig]:
+        if value is None:
+            return None
+        return self._adapter.validate_python(value)
+
+
+class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
+    cache_ok = True
+    impl = JSON_
+    _adapter: TypeAdapter[ExperimentLogDetail] = TypeAdapter(ExperimentLogDetail)
+
+    def process_bind_param(
+        self, value: Optional[ExperimentLogDetail], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[ExperimentLogDetail]:
+        if value is None:
+            return None
+        return self._adapter.validate_python(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1455,8 +1518,8 @@ class Experiment(HasId):
     )
     __table_args__ = (
         Index(
-            "ix_experiments_ephemeral_created_at",
-            "created_at",
+            "ix_experiments_ephemeral_updated_at",
+            "updated_at",
             postgresql_where=text("is_ephemeral IS TRUE"),
             sqlite_where=text("is_ephemeral IS TRUE"),
         ),
@@ -1611,6 +1674,282 @@ class ExperimentTag(HasId):
     user: Mapped[Optional["User"]] = relationship("User")
 
     __table_args__ = (UniqueConstraint("dataset_id", "name"),)
+
+
+class ExperimentJob(HasId):
+    __tablename__ = "experiment_jobs"
+    id: Mapped[int] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    type: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "type IN ('PROMPT', 'EVAL_ONLY')",
+            name="valid_type",
+        ),
+        nullable=False,
+    )
+
+    dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
+        back_populates="execution_config",
+    )
+
+    # Experiment lifecycle status
+    status: Mapped[ExperimentStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')",
+            name="valid_experiment_status",
+        ),
+        default="STOPPED",
+        server_default="STOPPED",
+    )
+
+    # Ownership: claimed_at NOT NULL = running, NULL = not running
+    # Updated by heartbeat to maintain claim
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+
+    # Cooldown: earliest time the next stop/resume is allowed
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    # Per-experiment concurrency limit
+    max_concurrency: Mapped[int] = mapped_column(default=10, server_default="10")
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    experiment: Mapped["Experiment"] = relationship("Experiment")
+    logs: WriteOnlyMapped[list["ExperimentLog"]] = relationship(
+        back_populates="execution_config",
+        passive_deletes=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_on": "type",
+        "polymorphic_identity": None,  # Base class is abstract
+    }
+
+    __table_args__ = (UniqueConstraint("type", "id"),)
+
+
+class ExperimentPromptTask(ExperimentJob):
+    """Prompt-specific task configuration for an experiment.
+
+    Stores the prompt template, model config, and connection details
+    in a dedicated table with proper FKs (e.g., custom_provider_id).
+    """
+
+    __tablename__ = "experiment_prompt_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["PROMPT"]] = mapped_column(
+        CheckConstraint("type = 'PROMPT'", name="valid_type"),
+        server_default="PROMPT",
+        nullable=False,
+    )
+
+    # Model identity
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str] = mapped_column(String)
+
+    # Provider routing (FK)
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Prompt definition (complex nested → JSON)
+    template_type: Mapped[PromptTemplateType] = mapped_column(_PromptTemplateType)
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(String)
+    template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate)
+    tools: Mapped[Optional[PromptTools]] = mapped_column(_Tools, default=Null(), nullable=True)
+    response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
+        _PromptResponseFormat, default=Null(), nullable=True
+    )
+    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(
+        _InvocationParameters, server_default="{}"
+    )
+
+    # Connection overrides (SDK-specific)
+    connection: Mapped[Optional[ConnectionConfig]] = mapped_column(
+        _ConnectionConfig, default=Null(), nullable=True
+    )
+
+    # Prompt version (nullable FK)
+    prompt_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Playground-specific settings (evolving, stored as JSON)
+    playground_config: Mapped[Optional[PlaygroundConfig]] = mapped_column(
+        _PlaygroundConfig, default=Null(), nullable=True
+    )
+
+    # Runtime
+    stream_model_output: Mapped[bool] = mapped_column(default=True, server_default="1")
+
+    # Relationships
+    custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship()
+
+    __mapper_args__ = {
+        "polymorphic_identity": "PROMPT",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "NOT (custom_provider_id IS NOT NULL AND connection IS NOT NULL)",
+            name="custom_provider_or_connection",
+        ),
+    )
+
+
+class ExperimentEvalOnlyConfig(ExperimentJob):
+    """Eval-only execution config — no task, just run evaluators against existing runs.
+
+    Uses single-table inheritance: no extra columns, so no separate table needed.
+    Rows live in ``experiment_jobs`` with ``type = 'EVAL_ONLY'``.
+    """
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EVAL_ONLY",
+    }
+
+
+class ExperimentDatasetEvaluator(Base):
+    """Which dataset evaluators are attached to an experiment execution config."""
+
+    __tablename__ = "experiment_dataset_evaluators"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    dataset_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    execution_config: Mapped["ExperimentJob"] = relationship(
+        back_populates="dataset_evaluator_links",
+    )
+    dataset_evaluator: Mapped["DatasetEvaluators"] = relationship()
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "experiment_id",
+            "dataset_evaluator_id",
+        ),
+    )
+
+
+class ExperimentLog(HasId):
+    """Base row for experiment execution logging.
+
+    Polymorphic on ``category``: TASK and EVAL logs live in subtables
+    with proper FK columns; EXPERIMENT logs use single-table inheritance.
+    """
+
+    __tablename__ = "experiment_logs"
+    experiment_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
+    )
+    occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    category: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "category IN ('TASK', 'EVAL', 'EXPERIMENT')",
+            name="valid_event_category",
+        ),
+    )
+    level: Mapped[str] = mapped_column(
+        CheckConstraint(
+            "level IN ('ERROR', 'WARN', 'INFO')",
+            name="valid_event_level",
+        ),
+    )
+    message: Mapped[str] = mapped_column(String)
+    detail: Mapped[Optional[ExperimentLogDetail]] = mapped_column(
+        _ExperimentLogDetail, nullable=True
+    )
+    execution_config: Mapped["ExperimentJob"] = relationship(
+        back_populates="logs",
+    )
+
+    __mapper_args__ = {
+        "polymorphic_on": "category",
+        "polymorphic_identity": None,
+    }
+    __table_args__ = (
+        UniqueConstraint("category", "id"),
+        Index(
+            "ix_experiment_logs_experiment_id_occurred_at",
+            "experiment_id",
+            occurred_at.desc(),
+        ),
+    )
+
+
+class ExperimentTaskLog(ExperimentLog):
+    """Log row tied to a specific task job (dataset_example + repetition)."""
+
+    __tablename__ = "experiment_task_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[Literal["TASK"]] = mapped_column(
+        CheckConstraint("category = 'TASK'", name="valid_category"),
+        server_default="TASK",
+        nullable=False,
+    )
+    dataset_example_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+    )
+    repetition_number: Mapped[int] = mapped_column()
+
+    __mapper_args__ = {
+        "polymorphic_identity": "TASK",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_logs.category", "experiment_logs.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ExperimentEvalLog(ExperimentLog):
+    """Log row tied to a specific eval job (experiment_run + evaluator)."""
+
+    __tablename__ = "experiment_eval_events"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category: Mapped[Literal["EVAL"]] = mapped_column(
+        CheckConstraint("category = 'EVAL'", name="valid_category"),
+        server_default="EVAL",
+        nullable=False,
+    )
+    experiment_run_id: Mapped[int] = mapped_column(
+        ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+    )
+    dataset_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EVAL",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["category", "id"],
+            ["experiment_logs.category", "experiment_logs.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class ExperimentJobLog(ExperimentLog):
+    """Experiment-wide log row (not tied to a single task or eval) — no subtable."""
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EXPERIMENT",
+    }
 
 
 class UserRole(HasId):

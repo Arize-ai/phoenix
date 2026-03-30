@@ -294,48 +294,6 @@ async def test_compare_experiments_returns_expected_comparisons(
                 {
                     "node": {
                         "example": {
-                            "id": str(GlobalID("DatasetExample", str(2))),
-                            "revision": {
-                                "input": {"revision-4-input-key": "revision-4-input-value"},
-                                "output": {"revision-4-output-key": "revision-4-output-value"},
-                                "metadata": {
-                                    "revision-4-metadata-key": "revision-4-metadata-value"
-                                },
-                            },
-                        },
-                        "repeatedRunGroups": [
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(4))),
-                                        "output": "",
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(7))),
-                                        "output": "run-7-output-value",
-                                    },
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(8))),
-                                        "output": 8,
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                },
-                {
-                    "node": {
-                        "example": {
                             "id": str(GlobalID("DatasetExample", str(1))),
                             "revision": {
                                 "input": {"revision-2-input-key": "revision-2-input-value"},
@@ -374,6 +332,48 @@ async def test_compare_experiments_returns_expected_comparisons(
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(6))),
                                         "output": {"output": "run-6-output-value"},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    "node": {
+                        "example": {
+                            "id": str(GlobalID("DatasetExample", str(2))),
+                            "revision": {
+                                "input": {"revision-4-input-key": "revision-4-input-value"},
+                                "output": {"revision-4-output-key": "revision-4-output-value"},
+                                "metadata": {
+                                    "revision-4-metadata-key": "revision-4-metadata-value"
+                                },
+                            },
+                        },
+                        "repeatedRunGroups": [
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(2))),
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(4))),
+                                        "output": "",
+                                    },
+                                ],
+                            },
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(1))),
+                                "runs": [],
+                            },
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(3))),
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(7))),
+                                        "output": "run-7-output-value",
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(8))),
+                                        "output": 8,
                                     },
                                 ],
                             },

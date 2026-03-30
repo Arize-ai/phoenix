@@ -29,9 +29,9 @@ def upgrade() -> None:
             ),
         )
     op.create_index(
-        "ix_experiments_ephemeral_created_at",
+        "ix_experiments_ephemeral_updated_at",
         "experiments",
-        ["created_at"],
+        ["updated_at"],
         unique=False,
         if_not_exists=True,
         postgresql_where=sa.text("is_ephemeral IS TRUE"),
@@ -41,7 +41,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index(
-        "ix_experiments_ephemeral_created_at",
+        "ix_experiments_ephemeral_updated_at",
         table_name="experiments",
         if_exists=True,
     )

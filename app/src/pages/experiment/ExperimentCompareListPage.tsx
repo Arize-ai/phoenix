@@ -177,7 +177,9 @@ export function ExperimentCompareListPage({
                   experiment: node {
                     id
                     repetitions
-                    datasetVersionId
+                    datasetVersion {
+                      id
+                    }
                     averageRunLatencyMs
                     runCount
                     costSummary {
@@ -1297,7 +1299,7 @@ export function ExperimentCompareListPage({
                     : undefined
                 }
                 datasetId={datasetId}
-                datasetVersionId={baseExperiment?.datasetVersionId}
+                datasetVersionId={baseExperiment?.datasetVersion?.id}
                 selectedExampleIndex={selectedExampleIndex}
                 selectedExampleId={rows[selectedExampleIndex].original.example}
                 baseExperimentId={baseExperiment?.id}

@@ -209,7 +209,7 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
-	$(UV) run phoenix serve
+	$(UV) run phoenix serve --debug
 dev-frontend: ## Frontend only (React dev server)
 	@echo -e "$(CYAN)Starting frontend dev server...$(NC)"
 	cd $(APP_DIR) && $(PNPM) run dev:ui

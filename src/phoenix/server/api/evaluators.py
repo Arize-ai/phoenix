@@ -17,7 +17,7 @@ from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_t
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
-from typing_extensions import TypedDict, assert_never
+from typing_extensions import NotRequired, TypedDict, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -77,6 +77,7 @@ class EvaluationResult(TypedDict):
     trace_id: Optional[str]
     start_time: datetime
     end_time: datetime
+    error_exc: NotRequired[Optional[Exception]]
 
 
 class BaseEvaluator(ABC):
@@ -180,6 +181,10 @@ class LLMEvaluator(BaseEvaluator):
     @property
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._output_configs
+
+    @property
+    def llm_client(self) -> "PlaygroundStreamingClient[Any]":
+        return self._llm_client
 
     @property
     def input_schema(self) -> dict[str, Any]:
@@ -461,7 +466,7 @@ class LLMEvaluator(BaseEvaluator):
                 evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
 
                 end_time = datetime.now(timezone.utc)
-                # On error, return a single error result for the evaluator
+                # On error, return a single error result for the evaluator.
                 results = [
                     EvaluationResult(
                         name=name,
@@ -474,6 +479,7 @@ class LLMEvaluator(BaseEvaluator):
                         trace_id=trace_id,
                         start_time=start_time,
                         end_time=end_time,
+                        error_exc=e,
                     )
                 ]
 
@@ -661,10 +667,10 @@ async def _get_llm_evaluators(
         llm_client = await get_playground_client(
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
-            custom_provider_id=prompt_version.custom_provider_id,
             session=session,
             decrypt=decrypt,
             credentials=credentials,
+            connection=prompt_version.custom_provider_id,
         )
 
         template = prompt_version.template

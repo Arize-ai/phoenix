@@ -1115,7 +1115,7 @@ def validate_schema_syntax(schema_file: Path) -> bool:
     for i, statement in enumerate(statements, 1):
         try:
             # Parse statement for syntax validation
-            pglast.parse_sql(statement)  # type: ignore (pglast typing incomplete)
+            pglast.parse_sql(statement)
         except pglast.Error as e:
             error_msg = f"Statement {i} syntax error: {e}"
             validation_errors.append(error_msg)

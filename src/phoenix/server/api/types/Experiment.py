@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import strawberry
 from sqlalchemy import func, select
 from strawberry import UNSET, Private
-from strawberry.relay import Connection, GlobalID, Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -35,6 +35,9 @@ from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE = 50
 
 if TYPE_CHECKING:
+    from .Dataset import Dataset
+    from .DatasetVersion import DatasetVersion
+    from .ExperimentJob import ExperimentJob
     from .Project import Project
     from .User import User
 
@@ -119,17 +122,34 @@ class Experiment(Node):
         return val
 
     @strawberry.field
-    async def dataset_version_id(
+    async def dataset_version(
         self,
         info: Info[Context, None],
-    ) -> GlobalID:
+    ) -> Annotated["DatasetVersion", strawberry.lazy(".DatasetVersion")]:
         if self.db_record:
             version_id = self.db_record.dataset_version_id
         else:
             version_id = await info.context.data_loaders.experiment_fields.load(
                 (self.id, models.Experiment.dataset_version_id),
             )
-        return GlobalID(DatasetVersion.__name__, str(version_id))
+        from phoenix.server.api.types.DatasetVersion import DatasetVersion
+
+        return DatasetVersion(id=version_id)
+
+    @strawberry.field
+    async def dataset(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Dataset", strawberry.lazy(".Dataset")]:
+        if self.db_record:
+            dataset_id = self.db_record.dataset_id
+        else:
+            dataset_id = await info.context.data_loaders.experiment_fields.load(
+                (self.id, models.Experiment.dataset_id),
+            )
+        from phoenix.server.api.types.Dataset import Dataset
+
+        return Dataset(id=dataset_id)
 
     @strawberry.field
     async def metadata(
@@ -383,6 +403,17 @@ class Experiment(Node):
         return connection_from_list(
             [DatasetSplit(id=split.id, db_record=split) for split in splits], ConnectionArgs()
         )
+
+    @strawberry.field
+    async def job(
+        self, info: Info[Context, None]
+    ) -> Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")] | None:
+        job = await info.context.data_loaders.experiment_jobs.load(self.id)
+        if job is None:
+            return None
+        from .ExperimentJob import ExperimentJob
+
+        return ExperimentJob(id=job.id, db_record=job)
 
 
 def to_gql_experiment(
