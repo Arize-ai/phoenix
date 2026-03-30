@@ -14,6 +14,7 @@ from pydantic import Field, field_validator
 
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.api.helpers.secrets import normalize_secret_key
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
 from phoenix.server.authorization import is_not_locked, require_admin
@@ -36,13 +37,8 @@ class SecretKeyValue(V1RoutesBaseModel):
     @field_validator("key")
     @classmethod
     def validate_key(cls, v: str) -> str:
-        """Keys must be trimmed, non-empty ASCII strings with no whitespace."""
-        v = v.strip()
-        if not v:
-            raise ValueError("Key cannot be empty")
-        if not v.isascii() or any(char.isspace() for char in v):
-            raise ValueError("Key must be ASCII and cannot contain whitespace")
-        return v
+        """Keys must match ``[A-Za-z_][A-Za-z0-9_]*`` after trimming."""
+        return normalize_secret_key(v)
 
     @field_validator("value")
     @classmethod

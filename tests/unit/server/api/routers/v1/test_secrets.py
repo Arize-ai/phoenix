@@ -114,11 +114,11 @@ class TestUpsertOrDeleteSecrets:
         )
         assert response.status_code == 422, response.text
 
-    async def test_key_with_whitespace_returns_422(
+    async def test_key_with_invalid_characters_returns_422(
         self,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        """A key containing internal whitespace is rejected with 422."""
+        """A key outside the shared regex is rejected with 422."""
         response = await httpx_client.put(
             "v1/secrets",
             json={"secrets": [{"key": "BAD KEY", "value": "val"}]},

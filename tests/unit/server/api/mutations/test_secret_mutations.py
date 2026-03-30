@@ -78,7 +78,7 @@ class TestSecretMutations:
         # ===== CREATE/UPSERT TESTS =====
 
         # Test 1: Create a new secret
-        secret_key_1 = f"test-secret-{token_hex(4)}"
+        secret_key_1 = f"TEST_SECRET_{token_hex(4)}"
         secret_value_1 = "initial-value-123"
 
         create_result = await gql_client.execute(
@@ -128,9 +128,9 @@ class TestSecretMutations:
         assert fetched_updated["value"]["value"] == secret_value_1_updated
 
         # Test 3: Batch create multiple secrets
-        secret_key_2 = f"test-secret-special-{token_hex(4)}"
+        secret_key_2 = f"TEST_SECRET_SPECIAL_{token_hex(4)}"
         secret_value_2 = "value!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
-        secret_key_3_raw = f"  test-secret-whitespace-{token_hex(4)}  "
+        secret_key_3_raw = f"  TEST_SECRET_WHITESPACE_{token_hex(4)}  "
         secret_key_3 = secret_key_3_raw.strip()
         secret_value_3_raw = "  value with spaces  "
         secret_value_3 = secret_value_3_raw.strip()
@@ -159,7 +159,7 @@ class TestSecretMutations:
         assert batch_secrets_by_key[secret_key_3]["value"]["value"] == secret_value_3
 
         # Test 4: Duplicate keys in same request (last value wins)
-        secret_key_4 = f"test-secret-duplicate-{token_hex(4)}"
+        secret_key_4 = f"TEST_SECRET_DUPLICATE_{token_hex(4)}"
         first_value = "first-value"
         last_value = "last-value-wins"
 
@@ -256,7 +256,9 @@ class TestSecretMutations:
         )
         assert spaced_key_result.errors is not None
         assert any(
-            "key must be ascii and cannot contain whitespace" in e.message.lower()
+            "key must start with a letter or underscore and contain only "
+            "letters, digits, and underscores"
+            in e.message.lower()
             for e in spaced_key_result.errors
         )
 
@@ -272,7 +274,9 @@ class TestSecretMutations:
         )
         assert non_ascii_key_result.errors is not None
         assert any(
-            "key must be ascii and cannot contain whitespace" in e.message.lower()
+            "key must start with a letter or underscore and contain only "
+            "letters, digits, and underscores"
+            in e.message.lower()
             for e in non_ascii_key_result.errors
         )
 
@@ -281,7 +285,7 @@ class TestSecretMutations:
             query=self.QUERY,
             variables={
                 "input": {
-                    "secrets": [{"key": "valid-key", "value": ""}],
+                    "secrets": [{"key": "VALID_KEY", "value": ""}],
                 }
             },
             operation_name="UpsertOrDeleteSecretsMutation",
@@ -294,7 +298,7 @@ class TestSecretMutations:
             query=self.QUERY,
             variables={
                 "input": {
-                    "secrets": [{"key": "valid-key", "value": "   "}],
+                    "secrets": [{"key": "VALID_KEY", "value": "   "}],
                 }
             },
             operation_name="UpsertOrDeleteSecretsMutation",
@@ -351,7 +355,7 @@ class TestSecretMutations:
         assert fetched_recreated["value"]["value"] == secret_value_1_recreated
 
         # Test 14: Delete non-existent secret (idempotent - should succeed)
-        nonexistent_key = f"nonexistent-secret-{token_hex(4)}"
+        nonexistent_key = f"NONEXISTENT_SECRET_{token_hex(4)}"
         nonexistent_delete_result = await gql_client.execute(
             query=self.QUERY,
             variables={

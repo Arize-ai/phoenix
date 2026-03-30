@@ -466,13 +466,13 @@ class TestSecretsValidation:
     @pytest.mark.parametrize(
         "valid_key",
         [
-            pytest.param("has-dash", id="dash"),
-            pytest.param("has.dot", id="dot"),
-            pytest.param("key!", id="punctuation"),
-            pytest.param("0STARTS_WITH_DIGIT", id="leading_digit"),
+            pytest.param("VALID_KEY", id="uppercase"),
+            pytest.param("_LEADING_UNDERSCORE", id="leading_underscore"),
+            pytest.param("CamelCase123", id="alphanumeric"),
+            pytest.param("A1", id="short"),
         ],
     )
-    def test_ascii_key_without_whitespace_is_accepted(
+    def test_env_var_style_key_is_accepted(
         self, _app: _AppInfo, _secret_keys: Callable[[str], str], valid_key: str
     ) -> None:
         key = _secret_keys(valid_key)
@@ -496,11 +496,13 @@ class TestSecretsValidation:
         "bad_key",
         [
             pytest.param("has space", id="whitespace"),
-            pytest.param("has\ttab", id="tab"),
-            pytest.param("has\nnewline", id="newline"),
+            pytest.param("has-dash", id="dash"),
+            pytest.param("has.dot", id="dot"),
+            pytest.param("key!", id="punctuation"),
+            pytest.param("0STARTS_WITH_DIGIT", id="leading_digit"),
         ],
     )
-    def test_key_with_whitespace_returns_422(self, _app: _AppInfo, bad_key: str) -> None:
+    def test_key_outside_regex_returns_422(self, _app: _AppInfo, bad_key: str) -> None:
         resp = _put_secrets(_app, [{"key": bad_key, "value": "val"}])
         assert resp.status_code == 422, resp.text
 
@@ -546,20 +548,26 @@ class TestSecretsValidation:
                 operation_name="UpsertOrDeleteSecrets",
             )
 
-    def test_graphql_key_with_whitespace_returns_error(self, _app: _AppInfo) -> None:
-        with pytest.raises(RuntimeError, match="Key must be ASCII and cannot contain whitespace"):
+    def test_graphql_key_outside_regex_returns_error(self, _app: _AppInfo) -> None:
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Key must start with a letter or underscore and contain only "
+                "letters, digits, and underscores"
+            ),
+        ):
             _gql(
                 _app,
                 _app.admin_secret,
                 query=UPSERT_OR_DELETE_MUTATION,
-                variables={"input": {"secrets": [{"key": "has whitespace", "value": "v"}]}},
+                variables={"input": {"secrets": [{"key": "has-dash", "value": "v"}]}},
                 operation_name="UpsertOrDeleteSecrets",
             )
 
-    def test_graphql_ascii_key_without_whitespace_is_accepted(
+    def test_graphql_env_var_style_key_is_accepted(
         self, _app: _AppInfo, _secret_keys: Callable[[str], str]
     ) -> None:
-        key = _secret_keys("has-dash")
+        key = _secret_keys("VALID_KEY")
         result, _ = _gql(
             _app,
             _app.admin_secret,
