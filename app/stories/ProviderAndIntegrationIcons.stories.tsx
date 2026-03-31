@@ -1,33 +1,7 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
-import {
-  AgnoSVG,
-  AnthropicSVG,
-  BedrockSVG,
-  BeeAISVG,
-  CrewAISVG,
-  ClaudeSVG,
-  DSPYSVG,
-  GeminiSVG,
-  GoogleADKSVG,
-  GroqSVG,
-  HaystackSVG,
-  HuggingFaceSVG,
-  LangChainSVG,
-  LangGraphSVG,
-  LiteLLMSVG,
-  LlamaIndexSVG,
-  MastraSVG,
-  McpSVG,
-  MistralAISVG,
-  NodeJSSVG,
-  OpenAISVG,
-  PortkeySVG,
-  PydanticAISVG,
-  VercelSVG,
-  VertexAISVG,
-} from "@phoenix/components/project/IntegrationIcons";
+import { INTEGRATION_ICONS } from "@phoenix/components/project/IntegrationIcons";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 
 const meta: Meta = {
@@ -38,34 +12,6 @@ export default meta;
 const providers = Object.entries(ModelProviders)
   .map(([key, name]) => ({ key: key as ModelProvider, name }))
   .sort((a, b) => a.name.localeCompare(b.name));
-
-const integrationIcons: { name: string; icon: React.ReactNode }[] = [
-  { name: "Agno", icon: <AgnoSVG /> },
-  { name: "Anthropic", icon: <AnthropicSVG /> },
-  { name: "Bedrock", icon: <BedrockSVG /> },
-  { name: "BeeAI", icon: <BeeAISVG /> },
-  { name: "CrewAI", icon: <CrewAISVG /> },
-  { name: "Claude", icon: <ClaudeSVG /> },
-  { name: "DSPy", icon: <DSPYSVG /> },
-  { name: "Gemini", icon: <GeminiSVG /> },
-  { name: "Google ADK", icon: <GoogleADKSVG /> },
-  { name: "Groq", icon: <GroqSVG /> },
-  { name: "Haystack", icon: <HaystackSVG /> },
-  { name: "HuggingFace", icon: <HuggingFaceSVG /> },
-  { name: "LangChain", icon: <LangChainSVG /> },
-  { name: "LangGraph", icon: <LangGraphSVG /> },
-  { name: "LiteLLM", icon: <LiteLLMSVG /> },
-  { name: "LlamaIndex", icon: <LlamaIndexSVG /> },
-  { name: "Mastra", icon: <MastraSVG /> },
-  { name: "MCP", icon: <McpSVG /> },
-  { name: "Mistral AI", icon: <MistralAISVG /> },
-  { name: "Node.js", icon: <NodeJSSVG /> },
-  { name: "OpenAI", icon: <OpenAISVG /> },
-  { name: "Portkey", icon: <PortkeySVG /> },
-  { name: "Pydantic AI", icon: <PydanticAISVG /> },
-  { name: "Vercel", icon: <VercelSVG /> },
-  { name: "Vertex AI", icon: <VertexAISVG /> },
-];
 
 const listStyle: React.CSSProperties = {
   listStyle: "none",
@@ -107,12 +53,14 @@ export const Integrations: StoryFn = () => (
   <div>
     <h3 style={headingStyle}>Integration Icons</h3>
     <ul style={listStyle}>
-      {integrationIcons.map(({ name, icon }) => (
-        <li key={name} style={itemStyle}>
-          {icon}
-          <span>{name}</span>
-        </li>
-      ))}
+      {Object.entries(INTEGRATION_ICONS)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, Icon]) => (
+          <li key={key} style={itemStyle}>
+            <Icon />
+            <span>{key.replace(/SVG$/, "")}</span>
+          </li>
+        ))}
     </ul>
   </div>
 );
