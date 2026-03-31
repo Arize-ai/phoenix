@@ -26,7 +26,6 @@ def get_db_experiment_run(
         error=db_span.status_message or None,
         prompt_token_count=get_attribute_value(db_span.attributes, LLM_TOKEN_COUNT_PROMPT),
         completion_token_count=get_attribute_value(db_span.attributes, LLM_TOKEN_COUNT_COMPLETION),
-        trace=db_trace,
     )
 
 

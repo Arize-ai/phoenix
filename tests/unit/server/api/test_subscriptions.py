@@ -1153,11 +1153,14 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert set(payloads.keys()) == set(example_ids) | {None}
 
-        # gather spans and experiment runs
+        # gather spans and experiment runs (only for successful examples)
         subscription_runs = {}
         subscription_spans = {}
         for example_id in example_ids:
-            assert (result_payload := payloads[example_id].pop()["chatCompletionOverDataset"])
+            last_payload = payloads[example_id][-1]["chatCompletionOverDataset"]
+            if last_payload["__typename"] != ChatCompletionSubscriptionResult.__name__:
+                continue
+            result_payload = payloads[example_id].pop()["chatCompletionOverDataset"]
             assert result_payload.pop("__typename") == ChatCompletionSubscriptionResult.__name__
             assert result_payload.pop("datasetExampleId") == example_id
             subscription_runs[example_id] = result_payload.pop("experimentRun")
@@ -1388,9 +1391,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
-        # check that example 3 has no span
+        # check that example 3 has no span (template error, no Result payload)
         example_id = example_ids[2]
-        assert subscription_spans[example_id] is None
+        assert example_id not in subscription_spans
 
         # check experiment
         response = await gql_client.execute(
@@ -1465,12 +1468,15 @@ class TestChatCompletionOverDatasetSubscription:
         assert not trace
         assert not run
 
-        # check example 3 run
+        # check example 3 run (template error — no Result broadcast, verify via DB only)
         example_id = example_ids[2]
-        subscription_run = subscription_runs[example_id]
-        run_id = subscription_run["id"]
-        run = runs.pop(run_id)
-        assert run == subscription_run
+        assert example_id not in subscription_runs
+        # find the error run from the DB query
+        error_runs = [r for r in runs.values() if r.get("error")]
+        assert len(error_runs) == 1
+        run = error_runs[0]
+        run_id = run["id"]
+        runs.pop(run_id)
         assert run.pop("id") == run_id
         assert isinstance(experiment_id := run.pop("experimentId"), str)
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
