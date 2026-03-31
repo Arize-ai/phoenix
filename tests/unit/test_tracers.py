@@ -300,10 +300,12 @@ class TestTracer:
 
     def test_remote_exporter_is_flushed_when_building_db_traces(
         self,
+        monkeypatch: pytest.MonkeyPatch,
         span_cost_calculator: SpanCostCalculator,
     ) -> None:
         exported_span_names: list[str] = []
         captured_endpoint: str | None = None
+        flush_timeout_millis: int | None = None
 
         class FakeRemoteExporter(SpanExporter):
             def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
@@ -314,6 +316,8 @@ class TestTracer:
                 return None
 
             def force_flush(self, timeout_millis: int = 30_000) -> bool:
+                nonlocal flush_timeout_millis
+                flush_timeout_millis = timeout_millis
                 return True
 
         def make_remote_exporter(endpoint: str) -> SpanExporter:
@@ -328,6 +332,15 @@ class TestTracer:
             remote_span_exporter_factory=make_remote_exporter,
         )
 
+        original_force_flush = tracer.force_flush
+
+        def capture_force_flush(timeout_millis: int = 30_000) -> bool:
+            nonlocal flush_timeout_millis
+            flush_timeout_millis = timeout_millis
+            return original_force_flush(timeout_millis)
+
+        monkeypatch.setattr(tracer, "force_flush", capture_force_flush)
+
         with tracer.start_as_current_span(
             "span",
             attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
@@ -338,6 +351,7 @@ class TestTracer:
 
         assert captured_endpoint == "https://collector.example"
         assert exported_span_names == ["span"]
+        assert flush_timeout_millis == 1_000
 
     def test_remote_exporter_uses_env_endpoint_only_when_enabled(
         self,

@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -26,6 +27,10 @@ from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import get_attribute_value, unflatten
+
+logger = logging.getLogger(__name__)
+
+_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS = 1_000
 
 
 class _BufferedSpanExporter(SpanExporter):
@@ -148,7 +153,8 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             A list of models.Trace instances, or an empty list if no
             spans have been captured.
         """
-        self.force_flush()
+        if not self.force_flush(timeout_millis=_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS):
+            logger.debug("Tracer force_flush timed out before building DB traces")
         otel_spans = self._self_exporter.get_finished_spans()
         if not otel_spans:
             return []

@@ -101,7 +101,13 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     # Build raw tool dicts for tracing (OpenInference tool json_schema).
     raw_tools: list[dict[str, Any]] = []
     for t in body.tools or []:
-        raw_tools.append({"name": t.name, "description": t.description, "parameters": t.parameters})
+        function: dict[str, Any] = {
+            "name": t.name,
+            "parameters": t.parameters,
+        }
+        if t.description is not None:
+            function["description"] = t.description
+        raw_tools.append({"type": "function", "function": function})
 
     return ChatBody(
         messages=messages,
@@ -332,6 +338,7 @@ async def stream_text(
         create_agent_span,
         create_llm_span,
         ensure_project_exists,
+        replay_history_spans,
     )
     from phoenix.tracers import Tracer
 
@@ -357,18 +364,29 @@ async def stream_text(
                     session_id=body.session_id,
                     trace_name_suffix=body.trace_name_suffix,
                 )
+                completed_step_count = replay_history_spans(
+                    tracer,
+                    parent_span=agent_span,
+                    messages=messages,
+                    tools=body.raw_tools or None,
+                )
                 llm_span = create_llm_span(
                     tracer,
                     parent_span=agent_span,
                     input_messages=messages,
                     tools=body.raw_tools or None,
-                    trace_name_suffix=body.trace_name_suffix,
+                    trace_name_suffix=(
+                        f"Step {completed_step_count + 1}"
+                        if completed_step_count
+                        else body.trace_name_suffix
+                    ),
                 )
                 tracing_ctx = TracingContext(
                     tracer,
                     agent_span=agent_span,
                     llm_span=llm_span,
                     accumulator=accumulator,
+                    tools=body.raw_tools or None,
                 )
             except Exception:
                 logger.exception("Failed to set up chat tracing")

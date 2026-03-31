@@ -75,7 +75,9 @@ class TestParseChatBody:
         assert len(body.tools) == 1
         assert body.tools[0].name == "search"
         assert len(body.raw_tools) == 1
-        assert body.raw_tools[0]["name"] == "search"
+        assert body.raw_tools[0]["type"] == "function"
+        assert body.raw_tools[0]["function"]["name"] == "search"
+        assert body.raw_tools[0]["function"]["description"] == "Search the web"
 
     def test_parses_system_prompt(self) -> None:
         raw = json.dumps(

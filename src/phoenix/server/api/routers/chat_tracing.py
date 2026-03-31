@@ -1,11 +1,14 @@
 """Custom OpenInference-compliant instrumentation for the /chat endpoint.
 
-Captures agent turns as traces and persists them to the configured PXI project.
-Each request produces a two-level span tree whose span names are suffixed to
-distinguish chat turns from summarization calls:
+Captures each chat turn as a single trace and persists it to the configured PXI
+project. The trace is rooted at an AGENT span and may include completed LLM/
+TOOL steps reconstructed from the request history plus the current in-flight
+LLM step:
 
-    AGENT ("pxiAgent Turn") / ("pxiAgent Summary")
-      └─ LLM ("pxiCompletion Turn") / ("pxiCompletion Summary")
+    AGENT ("pxiAgent Turn")
+      ├─ LLM ("pxiCompletion Step 1")
+      ├─ TOOL ("search")
+      └─ LLM ("pxiCompletion Step 2")
 
 This module is intentionally isolated so it can be replaced by
 ``openinference-instrumentation-pydantic-ai`` or another approach in the future.
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
@@ -37,7 +41,7 @@ from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.tracers import Tracer
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from pydantic_ai.messages import ModelResponse
 
     from phoenix.server.types import DbSessionFactory
 
@@ -75,11 +79,13 @@ class TracingContext:
         agent_span: Span,
         llm_span: Span,
         accumulator: StreamAccumulator,
+        tools: Sequence[Mapping[str, Any]] | None = None,
     ) -> None:
         self.tracer = tracer
         self.agent_span = agent_span
         self.llm_span = llm_span
         self.accumulator = accumulator
+        self.tools = tools
         self._finalized = False
 
     def finalize(
@@ -105,6 +111,12 @@ class TracingContext:
             model_name=model_name,
             provider=provider,
         )
+        finalize_tool_call_spans(
+            self.tracer,
+            parent_span=self.agent_span,
+            tool_calls=accumulated_tool_calls,
+            tools=self.tools,
+        )
         finalize_agent_span(
             self.agent_span,
             output_content=accumulated_text,
@@ -123,6 +135,13 @@ class TracingContext:
             self.llm_span,
             output_content=accumulated_text,
             tool_calls=accumulated_tool_calls,
+            error=error,
+        )
+        finalize_tool_call_spans(
+            self.tracer,
+            parent_span=self.agent_span,
+            tool_calls=accumulated_tool_calls,
+            tools=self.tools,
             error=error,
         )
         finalize_agent_span(
@@ -182,6 +201,7 @@ class TracingContext:
 # Shorthand constants for readability.
 _AGENT = OpenInferenceSpanKindValues.AGENT.value
 _LLM = OpenInferenceSpanKindValues.LLM.value
+_TOOL = OpenInferenceSpanKindValues.TOOL.value
 _TEXT = OpenInferenceMimeTypeValues.TEXT.value
 _JSON = OpenInferenceMimeTypeValues.JSON.value
 
@@ -197,6 +217,9 @@ _LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 _LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 _LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 _LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+_TOOL_NAME = cast(str, getattr(SpanAttributes, "TOOL_NAME", "tool.name"))
+_TOOL_DESCRIPTION = cast(str, getattr(SpanAttributes, "TOOL_DESCRIPTION", "tool.description"))
+_TOOL_PARAMETERS = cast(str, getattr(SpanAttributes, "TOOL_PARAMETERS", "tool.parameters"))
 _MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 _MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 _MESSAGE_TOOL_CALL_ID = MessageAttributes.MESSAGE_TOOL_CALL_ID
@@ -228,7 +251,8 @@ async def ensure_project_exists(db: DbSessionFactory) -> int:
         project_id = await session.scalar(
             select(models.Project.id).where(models.Project.name == pxi_project_name)
         )
-        assert project_id is not None
+        if project_id is None:
+            raise RuntimeError(f"Failed to resolve PXI project '{pxi_project_name}' after insert")
     return project_id
 
 
@@ -288,7 +312,8 @@ def create_llm_span(
         _SPAN_KIND: _LLM,
     }
 
-    # Flatten input messages into OpenInference attributes.
+    # Intentionally include the full conversation history on every LLM step so
+    # trajectory evals can judge the step with its complete prior context.
     attributes.update(_flatten_input_messages(input_messages))
 
     # Flatten tool definitions.
@@ -302,6 +327,41 @@ def create_llm_span(
 
     span = tracer.start_span(
         f"pxiCompletion {trace_name_suffix}",
+        context=parent_context,
+        attributes=attributes,
+        set_status_on_exception=False,
+    )
+    return cast(Span, span)
+
+
+def create_tool_span(
+    tracer: Tracer,
+    *,
+    parent_span: Span,
+    tool_name: str | None,
+    tool_parameters: str | None = None,
+    tool_output: str | None = None,
+    tool_description: str | None = None,
+) -> Span:
+    """Create and start a TOOL span as a child of the AGENT root."""
+    attributes: dict[str, Any] = {
+        _SPAN_KIND: _TOOL,
+    }
+    if tool_name:
+        attributes[_TOOL_NAME] = tool_name
+    if tool_description:
+        attributes[_TOOL_DESCRIPTION] = tool_description
+    if tool_parameters:
+        attributes[_TOOL_PARAMETERS] = tool_parameters
+        attributes[_INPUT_VALUE] = tool_parameters
+        attributes[_INPUT_MIME_TYPE] = _JSON
+    if tool_output:
+        attributes[_OUTPUT_VALUE] = tool_output
+        attributes[_OUTPUT_MIME_TYPE] = _JSON
+
+    parent_context = set_span_in_context(parent_span, context=OtelContext())
+    span = tracer.start_span(
+        tool_name or "tool",
         context=parent_context,
         attributes=attributes,
         set_status_on_exception=False,
@@ -394,6 +454,19 @@ def finalize_agent_span(
     span.end()
 
 
+def finalize_tool_span(
+    span: Span,
+    *,
+    error: BaseException | None = None,
+) -> None:
+    if error is not None:
+        span.set_status(Status(StatusCode.ERROR, str(error)))
+        span.record_exception(error)
+    else:
+        span.set_status(Status(StatusCode.OK))
+    span.end()
+
+
 async def persist_traces(
     tracer: Tracer,
     *,
@@ -433,7 +506,8 @@ async def persist_traces(
             project_session = await session.scalar(
                 select(models.ProjectSession).filter_by(session_id=session_id)
             )
-            assert project_session is not None
+            if project_session is None:
+                raise RuntimeError(f"Failed to resolve project session '{session_id}' after insert")
             if start_time < project_session.start_time:
                 project_session.start_time = start_time
             if end_time > project_session.end_time:
@@ -466,6 +540,130 @@ def _extract_last_user_content(messages: Sequence[Any]) -> str | None:
                     if isinstance(content, str):
                         return content
     return None
+
+
+def replay_history_spans(
+    tracer: Tracer,
+    *,
+    parent_span: Span,
+    messages: Sequence[Any],
+    tools: Sequence[Mapping[str, Any]] | None = None,
+) -> int:
+    """Reconstruct completed LLM and TOOL steps already present in the turn history."""
+    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolReturnPart
+
+    tool_definitions = _tool_definitions_by_name(tools)
+    tool_calls_by_id: dict[str, dict[str, str]] = {}
+    completed_step_count = 0
+
+    for idx, msg in enumerate(messages):
+        if isinstance(msg, ModelResponse):
+            completed_step_count += 1
+            output_content, tool_calls = _extract_response_content_and_tool_calls(msg)
+            finalize_llm_span(
+                create_llm_span(
+                    tracer,
+                    parent_span=parent_span,
+                    input_messages=messages[:idx],
+                    tools=tools,
+                    trace_name_suffix=f"Step {completed_step_count}",
+                ),
+                output_content=output_content,
+                tool_calls=tool_calls,
+            )
+            for tool_call in tool_calls or ():
+                tool_call_id = tool_call.get("id")
+                if tool_call_id:
+                    tool_calls_by_id[tool_call_id] = tool_call
+        elif isinstance(msg, ModelRequest):
+            for part in msg.parts:
+                if not isinstance(part, ToolReturnPart):
+                    continue
+                tool_call = tool_calls_by_id.get(part.tool_call_id, {})
+                tool_parameters = tool_call.get("arguments")
+                tool_output = (
+                    part.content if isinstance(part.content, str) else json.dumps(part.content)
+                )
+                tool_span = create_tool_span(
+                    tracer,
+                    parent_span=parent_span,
+                    tool_name=part.tool_name or tool_call.get("name"),
+                    tool_parameters=tool_parameters,
+                    tool_output=tool_output,
+                    tool_description=_tool_description(tool_definitions, part.tool_name),
+                )
+                finalize_tool_span(tool_span)
+
+    return completed_step_count
+
+
+def finalize_tool_call_spans(
+    tracer: Tracer,
+    *,
+    parent_span: Span,
+    tool_calls: Sequence[dict[str, Any]] | None,
+    tools: Sequence[Mapping[str, Any]] | None = None,
+    error: BaseException | None = None,
+) -> None:
+    if not tool_calls:
+        return
+
+    tool_definitions = _tool_definitions_by_name(tools)
+    for tool_call in tool_calls:
+        tool_name = tool_call.get("name")
+        arguments = tool_call.get("arguments")
+        tool_parameters = arguments if isinstance(arguments, str) else json.dumps(arguments)
+        tool_span = create_tool_span(
+            tracer,
+            parent_span=parent_span,
+            tool_name=tool_name,
+            tool_parameters=tool_parameters,
+            tool_description=_tool_description(tool_definitions, tool_name),
+        )
+        finalize_tool_span(tool_span, error=error)
+
+
+def _extract_response_content_and_tool_calls(
+    message: "ModelResponse",
+) -> tuple[str | None, list[dict[str, str]] | None]:
+    from pydantic_ai.messages import TextPart, ToolCallPart
+
+    text_parts: list[str] = []
+    tool_calls: list[dict[str, str]] = []
+    for part in message.parts:
+        if isinstance(part, TextPart):
+            text_parts.append(part.content)
+        elif isinstance(part, ToolCallPart):
+            tool_calls.append(
+                {
+                    "id": part.tool_call_id,
+                    "name": part.tool_name,
+                    "arguments": part.args_as_json_str() if part.args is not None else "",
+                }
+            )
+    return ("".join(text_parts) or None, tool_calls or None)
+
+
+def _tool_definitions_by_name(
+    tools: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, Mapping[str, Any]]:
+    tool_definitions: dict[str, Mapping[str, Any]] = {}
+    for tool in tools or ():
+        function = cast(Mapping[str, Any], tool.get("function", tool))
+        name = function.get("name")
+        if isinstance(name, str):
+            tool_definitions[name] = function
+    return tool_definitions
+
+
+def _tool_description(
+    tool_definitions: Mapping[str, Mapping[str, Any]],
+    tool_name: str | None,
+) -> str | None:
+    if tool_name is None:
+        return None
+    description = tool_definitions.get(tool_name, {}).get("description")
+    return description if isinstance(description, str) else None
 
 
 def _flatten_input_messages(messages: Sequence[Any]) -> dict[str, Any]:

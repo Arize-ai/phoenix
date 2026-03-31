@@ -14,6 +14,7 @@ from phoenix.server.api.routers.chat_tracing import (
     finalize_agent_span,
     finalize_llm_span,
     persist_traces,
+    replay_history_spans,
 )
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
@@ -146,7 +147,16 @@ class TestSpanHierarchy:
             ModelRequest(parts=[SystemPromptPart(content="You are helpful.")]),
             ModelRequest(parts=[UserPromptPart(content="Hi")]),
         ]
-        tools = [{"name": "search", "description": "Search the web", "parameters": {}}]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search",
+                    "description": "Search the web",
+                    "parameters": {},
+                },
+            }
+        ]
 
         agent_span = create_agent_span(tracer, input_messages=messages)
         llm_span = create_llm_span(
@@ -190,7 +200,84 @@ class TestSpanHierarchy:
         # Tool definitions.
         tool_schema = attrs["llm"]["tools"][0]["tool"]["json_schema"]
         parsed = json.loads(tool_schema)
-        assert parsed["name"] == "search"
+        assert parsed["type"] == "function"
+        assert parsed["function"]["name"] == "search"
+        assert parsed["function"]["description"] == "Search the web"
+
+    def test_replays_prior_llm_and_tool_steps(self, db: DbSessionFactory) -> None:
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        tracer = _make_tracer(db)
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="What is 2+2?")]),
+            ModelResponse(
+                parts=[
+                    TextPart(content="Let me calculate that."),
+                    ToolCallPart(
+                        tool_name="calculator",
+                        args=json.dumps({"expr": "2+2"}),
+                        tool_call_id="tc-1",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="calculator",
+                        content={"result": 4},
+                        tool_call_id="tc-1",
+                    )
+                ]
+            ),
+        ]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "calculator",
+                    "description": "Evaluates arithmetic expressions",
+                    "parameters": {"type": "object"},
+                },
+            }
+        ]
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        completed_step_count = replay_history_spans(
+            tracer,
+            parent_span=agent_span,
+            messages=messages,
+            tools=tools,
+        )
+        llm_span = create_llm_span(
+            tracer,
+            parent_span=agent_span,
+            input_messages=messages,
+            tools=tools,
+            trace_name_suffix=f"Step {completed_step_count + 1}",
+        )
+
+        finalize_llm_span(llm_span, output_content="The answer is 4.")
+        finalize_agent_span(agent_span, output_content="The answer is 4.")
+
+        spans = tracer.get_db_traces(project_id=1)[0].spans
+        llm_spans = [s for s in spans if s.span_kind == OpenInferenceSpanKindValues.LLM.value]
+        tool_spans = [s for s in spans if s.span_kind == OpenInferenceSpanKindValues.TOOL.value]
+
+        assert [s.name for s in llm_spans] == ["pxiCompletion Step 1", "pxiCompletion Step 2"]
+        assert len(tool_spans) == 1
+        assert tool_spans[0].name == "calculator"
+        tool_attrs = tool_spans[0].attributes
+        assert tool_attrs["tool"]["name"] == "calculator"
+        assert tool_attrs["tool"]["description"] == "Evaluates arithmetic expressions"
+        assert tool_attrs["tool"]["parameters"] == '{"expr": "2+2"}'
+        assert tool_attrs["output"]["value"] == '{"result": 4}'
 
     def test_llm_span_with_tool_calls(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import ModelRequest, UserPromptPart
