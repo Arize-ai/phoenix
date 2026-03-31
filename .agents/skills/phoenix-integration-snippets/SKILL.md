@@ -60,7 +60,7 @@ Do NOT pass `endpoint`/`url` in snippet code — the onboarding UI displays env 
 
 **Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
 
-Exception: if the framework emits native OpenTelemetry spans and uses a mutating span processor, start with `register(...)` so Phoenix becomes the global provider the framework will use. Then add the mutating processor so it replaces Phoenix's default processor, and add the Phoenix exporter back after it with `replace_default_processor=False`.
+Exception: if the framework emits native OpenTelemetry spans and uses a mutating span processor, start with `register(...)` so Phoenix becomes the global provider the framework will use. Then add the mutating processor so it replaces Phoenix's default processor, and add the Phoenix exporter back after it.
 
 **TypeScript:** ESM imports are hoisted so import ordering doesn't matter. `await provider.forceFlush()` is required in short-lived scripts.
 

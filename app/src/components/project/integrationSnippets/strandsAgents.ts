@@ -16,7 +16,6 @@ tracer_provider = register(
 tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
 tracer_provider.add_span_processor(
   SimpleSpanProcessor(HTTPSpanExporter()),
-  replace_default_processor=False,
 )
 
 from strands import Agent
