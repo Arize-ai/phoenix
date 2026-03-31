@@ -1200,6 +1200,15 @@ const promptInputCSS = (theme: Theme) => css`
   }
 `;
 
+const messageTokensCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --message-user-background-color: var(--global-color-gray-200);
+    --message-user-text-color: var(--global-text-color-900);
+    --message-user-border-radius: var(--global-rounding-medium);
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1218,7 +1227,8 @@ export const derivedCSS = (theme: Theme) =>
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
-    promptInputCSS(theme)
+    promptInputCSS(theme),
+    messageTokensCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

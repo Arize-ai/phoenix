@@ -2,22 +2,12 @@ import { css } from "@emotion/react";
 import { isTextUIPart, type UIMessage } from "ai";
 import { useMemo } from "react";
 
+import { Message, MessageContent } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { groupMessageParts } from "./groupMessageParts";
 import { ToolPart } from "./ToolPart";
 import { ToolPartGroup } from "./ToolPartGroup";
-
-const userMessageCSS = css`
-  align-self: flex-end;
-  background-color: var(--global-color-primary-700);
-  color: var(--global-color-gray-50);
-  border-radius: var(--global-rounding-large) var(--global-rounding-large) 0
-    var(--global-rounding-large);
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  max-width: 75%;
-  word-wrap: break-word;
-`;
 
 const assistantMessageCSS = css`
   align-self: flex-start;
@@ -31,13 +21,15 @@ const assistantMessageCSS = css`
 
 /** Renders a user message bubble (right-aligned, primary colour). */
 export function UserMessage({ parts }: { parts: UIMessage["parts"] }) {
+  const text = parts
+    .filter(isTextUIPart)
+    .map((p) => p.text)
+    .join("");
+
   return (
-    <div css={userMessageCSS}>
-      {parts
-        .filter(isTextUIPart)
-        .map((p) => p.text)
-        .join("")}
-    </div>
+    <Message from="user">
+      <MessageContent>{text}</MessageContent>
+    </Message>
   );
 }
 
