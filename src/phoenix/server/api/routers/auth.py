@@ -77,7 +77,6 @@ _BRUTE_FORCE_MESSAGE = "Too many failed login attempts. Please try again later."
 
 
 def _check_brute_force_limit(key: str) -> None:
-
     if brute_force_rate_limiter is None:
         return
     try:

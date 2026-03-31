@@ -128,7 +128,11 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     ToolResultContentPart,
     ToolResultContentValue,
 )
-from phoenix.server.api.types.SandboxConfig import SandboxBackendInfo, get_sandbox_backend_info
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxBackendInfo,
+    SandboxProvider,
+    get_sandbox_backend_info,
+)
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -1773,6 +1777,22 @@ class Query:
     def sandbox_backends(self) -> list[SandboxBackendInfo]:
         """Return static + runtime info for all known sandbox backends."""
         return get_sandbox_backend_info()
+
+    @strawberry.field
+    async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
+        """Return all persisted sandbox providers with their nested configs."""
+        stmt = (
+            select(models.SandboxProvider)
+            .join(models.Language, models.Language.id == models.SandboxProvider.language_id)
+            .order_by(
+                models.SandboxProvider.backend_type.asc(),
+                models.Language.name.asc(),
+                models.SandboxProvider.id.asc(),
+            )
+        )
+        async with info.context.db() as session:
+            rows = (await session.scalars(stmt)).all()
+        return [SandboxProvider(id=row.id, db_record=row) for row in rows]
 
 
 def _consolidate_sqlite_db_table_stats(

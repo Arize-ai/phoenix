@@ -27,6 +27,8 @@ import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
+import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
+import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 
 import type {
   DatasetLoaderData,
@@ -382,6 +384,14 @@ const router = createBrowserRouter(
               element={<SettingsAIProvidersPage />}
               handle={{
                 crumb: () => "AI Providers",
+              }}
+            />
+            <Route
+              path="sandboxes"
+              loader={settingsSandboxesPageLoader}
+              element={<SettingsSandboxesPage />}
+              handle={{
+                crumb: () => "Sandboxes",
               }}
             />
             <Route

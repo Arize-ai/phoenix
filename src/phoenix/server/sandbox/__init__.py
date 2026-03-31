@@ -30,6 +30,7 @@ class AdapterMetadata:
 
     display_name: str
     supported_languages: list[str] = field(default_factory=list)
+    dependency_hints: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -41,22 +42,44 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "WASM": AdapterMetadata(
         display_name="WebAssembly (local)",
         supported_languages=["PYTHON"],
+        dependency_hints=[
+            "Install Phoenix with the `sandbox` extra so `wasmtime` is available.",
+            (
+                "Allow Phoenix to download the CPython WASM binary on first use, "
+                "or pre-populate the local WASM cache."
+            ),
+        ],
     ),
     "E2B": AdapterMetadata(
         display_name="E2B",
         supported_languages=["PYTHON"],
+        dependency_hints=[
+            "Install Phoenix with the `e2b` extra.",
+            "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+        ],
     ),
     "DAYTONA": AdapterMetadata(
         display_name="Daytona",
         supported_languages=["PYTHON", "TYPESCRIPT"],
+        dependency_hints=[
+            "Install Phoenix with the `daytona` extra.",
+            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
+        ],
     ),
     "VERCEL": AdapterMetadata(
         display_name="Vercel Sandbox",
         supported_languages=["TYPESCRIPT"],
+        dependency_hints=[
+            "Install Phoenix with the `vercel-sandbox` extra.",
+            "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+        ],
     ),
     "DENO": AdapterMetadata(
-        display_name="Deno Deploy",
+        display_name="Deno (local)",
         supported_languages=["TYPESCRIPT"],
+        dependency_hints=[
+            "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
+        ],
     ),
 }
 
