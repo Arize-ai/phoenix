@@ -1,5 +1,5 @@
 """Tests for sandbox GQL mutations: createSandboxConfig, updateSandboxConfig,
-deleteSandboxConfig, setSandboxProviderEnabled.
+updateSandboxProvider, deleteSandboxConfig, setSandboxProviderEnabled.
 
 Uses the gql_client fixture to send real GQL mutations against the in-memory
 test app, backed by seed_sandbox_providers DB fixtures.
@@ -66,6 +66,18 @@ mutation SetSandboxProviderEnabled($providerId: Int!, $enabled: Boolean!) {
 }
 """
 
+_UPDATE_PROVIDER = """
+mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
+    updateSandboxProvider(input: $input) {
+        sandboxProvider {
+            id
+            enabled
+            config
+        }
+    }
+}
+"""
+
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
@@ -73,6 +85,10 @@ mutation SetSandboxProviderEnabled($providerId: Int!, $enabled: Boolean!) {
 
 def _config_global_id(config_id: int) -> str:
     return str(GlobalID("SandboxConfig", str(config_id)))
+
+
+def _provider_global_id(provider_id: int) -> str:
+    return str(GlobalID("SandboxProvider", str(provider_id)))
 
 
 # ---------------------------------------------------------------------------
@@ -97,7 +113,7 @@ class TestCreateSandboxConfig:
             _CREATE,
             variables={
                 "input": {
-                    "sandboxProviderId": provider.id,
+                    "sandboxProviderId": _provider_global_id(provider.id),
                     "name": "my-wasm-config",
                     "timeout": 15,
                 }
@@ -118,7 +134,7 @@ class TestCreateSandboxConfig:
             _CREATE,
             variables={
                 "input": {
-                    "sandboxProviderId": 99999,
+                    "sandboxProviderId": _provider_global_id(99999),
                     "name": "ghost-config",
                 }
             },
@@ -137,7 +153,7 @@ class TestUpdateSandboxConfig:
             _UPDATE,
             variables={
                 "input": {
-                    "id": sandbox_config.id,
+                    "id": _config_global_id(sandbox_config.id),
                     "timeout": 60,
                     "description": "updated description",
                     "enabled": False,
@@ -157,7 +173,7 @@ class TestUpdateSandboxConfig:
     ) -> None:
         result = await gql_client.execute(
             _UPDATE,
-            variables={"input": {"id": 99999, "timeout": 5}},
+            variables={"input": {"id": _config_global_id(99999), "timeout": 5}},
         )
         assert result.errors
 
@@ -250,6 +266,46 @@ class TestSetSandboxProviderEnabled:
         assert result.errors
 
 
+class TestUpdateSandboxProvider:
+    async def test_updates_provider_config_and_enabled(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+        assert provider is not None
+
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id(provider.id),
+                    "enabled": False,
+                    "config": {"template": "custom-template"},
+                }
+            },
+        )
+        assert result.data and not result.errors
+        sandbox_provider = result.data["updateSandboxProvider"]["sandboxProvider"]
+        assert sandbox_provider["enabled"] is False
+        assert sandbox_provider["config"] == {"template": "custom-template"}
+
+    async def test_update_provider_not_found_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={"input": {"id": _provider_global_id(99999), "enabled": True}},
+        )
+        assert result.errors
+
+
 _EVALUATOR_PREVIEWS = """
 mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
     evaluatorPreviews(input: $input) {
@@ -329,7 +385,7 @@ class TestDisabledProviderAndConfigGuards:
         # Disable the sandbox config via the mutation
         result = await gql_client.execute(
             _UPDATE,
-            variables={"input": {"id": sandbox_config.id, "enabled": False}},
+            variables={"input": {"id": _config_global_id(sandbox_config.id), "enabled": False}},
         )
         assert result.data and not result.errors
         assert result.data["updateSandboxConfig"]["sandboxConfig"]["enabled"] is False
