@@ -13,7 +13,7 @@ from enum import Enum
 from typing import Any, Optional
 
 import strawberry
-from strawberry.relay import Node, NodeID
+from strawberry.relay import GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 
@@ -55,6 +55,7 @@ class SandboxBackendInfo:
     display_name: str
     supported_languages: list[Language]
     status: SandboxBackendStatus
+    dependency_hints: list[str]
 
 
 @strawberry.type
@@ -106,6 +107,21 @@ class SandboxProvider(Node):
     async def updated_at(self, info: Info[Context, None]) -> datetime:
         record = await self._get_record(info)
         return record.updated_at
+
+    @strawberry.field
+    async def configs(self, info: Info[Context, None]) -> list["SandboxConfig"]:
+        record = await self._get_record(info)
+        from sqlalchemy import select
+
+        async with info.context.db() as session:
+            rows = (
+                await session.scalars(
+                    select(models.SandboxConfig)
+                    .where(models.SandboxConfig.sandbox_provider_id == record.id)
+                    .order_by(models.SandboxConfig.name.asc(), models.SandboxConfig.id.asc())
+                )
+            ).all()
+        return [SandboxConfig(id=row.id, db_record=row) for row in rows]
 
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxProvider:
         if self.db_record is not None:
@@ -203,7 +219,7 @@ class SandboxConfig(Node):
 
 @strawberry.input
 class CreateSandboxConfigInput:
-    sandbox_provider_id: int
+    sandbox_provider_id: GlobalID
     name: str
     description: Optional[str] = None
     config: Optional[JSON] = None
@@ -213,10 +229,17 @@ class CreateSandboxConfigInput:
 
 @strawberry.input
 class UpdateSandboxConfigInput:
-    id: int
+    id: GlobalID
     description: Optional[str] = strawberry.UNSET
     config: Optional[JSON] = strawberry.UNSET
     timeout: Optional[int] = strawberry.UNSET
+    enabled: Optional[bool] = strawberry.UNSET
+
+
+@strawberry.input
+class UpdateSandboxProviderInput:
+    id: GlobalID
+    config: Optional[JSON] = strawberry.UNSET
     enabled: Optional[bool] = strawberry.UNSET
 
 
@@ -245,6 +268,10 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
         if backend_type not in _SANDBOX_ADAPTERS:
             status = SandboxBackendStatus.NOT_INSTALLED
         else:
+            # TODO: Add backend-specific dependency validation here where possible.
+            # Adapter registration and backend construction can still over-report
+            # availability when runtime prerequisites are only checked later
+            # (for example, missing binaries, API keys, or first-use downloads).
             backend = get_or_create_backend(backend_type)
             status = (
                 SandboxBackendStatus.AVAILABLE
@@ -257,6 +284,7 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
                 display_name=meta.display_name,
                 supported_languages=[Language(lang) for lang in meta.supported_languages],
                 status=status,
+                dependency_hints=meta.dependency_hints,
             )
         )
     return infos
@@ -267,7 +295,7 @@ def sandbox_config_from_input(
 ) -> dict[str, Any]:
     """Convert CreateSandboxConfigInput to a dict of column values."""
     values: dict[str, Any] = {
-        "sandbox_provider_id": input_.sandbox_provider_id,
+        "sandbox_provider_id": int(input_.sandbox_provider_id.node_id),
         "name": input_.name,
         "description": input_.description,
         "config": input_.config if input_.config is not None else {},
