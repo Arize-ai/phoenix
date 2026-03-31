@@ -6,7 +6,6 @@ import json
 import wave
 from typing import List, Optional
 
-import lameenc
 import numpy as np
 import pandas as pd
 import pytest
@@ -1302,7 +1301,6 @@ PCM_BYTES = base64.b64decode(PCM_ENC_STR)
 SAMPLE_RATE = 44100
 CHANNELS = 1
 SAMPLE_WIDTH = 2
-BITRATE = 128
 
 
 def test_snap_to_rail():
@@ -1338,18 +1336,15 @@ def test_get_audio_format_from_base64_wav():
 
 
 def test_get_audio_format_from_base64_mp3():
-    encoder = lameenc.Encoder()
-    encoder.set_bit_rate(BITRATE)
-    encoder.set_in_sample_rate(SAMPLE_RATE)
-    encoder.set_channels(CHANNELS)
-    encoder.set_quality(2)
+    # Hardcoded MP3 frame header bytes instead of runtime lameenc encoding,
+    # which was flaky across platforms due to undersized PCM input buffers.
+    # ID3v2 header followed by a minimal MPEG audio frame sync word.
+    audio_base64 = (
+        "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQ"
+        "AAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7"
+    )
 
-    mp3_bytes = encoder.encode(PCM_BYTES)
-    mp3_bytes += encoder.flush()
-
-    mp3_base64 = base64.b64encode(mp3_bytes).decode("utf-8")
-
-    assert get_audio_format_from_base64(mp3_base64) == "mp3"
+    assert get_audio_format_from_base64(audio_base64) == "mp3"
 
 
 def test_get_audio_format_from_base64_ogg():
