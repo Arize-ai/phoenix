@@ -13,13 +13,14 @@ This test verifies the migration that:
 
 from hashlib import md5
 from secrets import token_hex
-from typing import Literal
+from typing import Literal, Tuple
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 # Legacy markers used before this migration
 LDAP_CLIENT_ID_MARKER = "\ue000LDAP(stopgap)"
@@ -31,8 +32,8 @@ def _generate_null_email_marker(unique_id: str) -> str:
     return f"{NULL_EMAIL_MARKER_PREFIX}{md5(unique_id.lower().encode()).hexdigest()}"
 
 
-def test_ldap_schema_migration(
-    _engine: Engine,
+async def test_ldap_schema_migration(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
     _schema: str,
@@ -49,13 +50,15 @@ def test_ldap_schema_migration(
     """
     # No migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
     # Apply migrations up to right before our migration
-    _up(_engine, _alembic_config, "3f53d82a1b7e", _schema)
+    await _up(_engine, _alembic_config, "3f53d82a1b7e", _schema)
 
     # Create test data in legacy format
-    with _engine.connect() as conn:
+    def _create_test_data(
+        conn: Connection,
+    ) -> Tuple[int, int, int, int, int, str, str]:
         # Create a user role
         role_id = conn.execute(
             text(
@@ -172,12 +175,31 @@ def test_ldap_schema_migration(
         assert isinstance(ldap_user_null_email_id, int)
 
         conn.commit()
+        return (
+            role_id,
+            local_user_id,
+            oauth_user_id,
+            ldap_user_with_email_id,
+            ldap_user_null_email_id,
+            ldap_unique_id,
+            ldap_unique_id_2,
+        )
+
+    (
+        role_id,
+        local_user_id,
+        oauth_user_id,
+        ldap_user_with_email_id,
+        ldap_user_null_email_id,
+        ldap_unique_id,
+        ldap_unique_id_2,
+    ) = await _run_async(_engine, _create_test_data)
 
     # Run the LDAP schema migration
-    _up(_engine, _alembic_config, "a1b2c3d4e5f6", _schema)
+    await _up(_engine, _alembic_config, "a1b2c3d4e5f6", _schema)
 
     # Verify migration results
-    with _engine.connect() as conn:
+    def _verify_migration(conn: Connection) -> None:
         # Verify LOCAL user is unchanged
         local_user = conn.execute(
             text(
@@ -247,35 +269,14 @@ def test_ldap_schema_migration(
         assert ldap_user_null[3] == ldap_unique_id_2, "LDAP user ldap_unique_id should be preserved"
         assert ldap_user_null[4] is None, "Null email marker should be converted to NULL"
 
+    await _run_async(_engine, _verify_migration)
+
     # ==========================================================================
     # TEST ALL CONSTRAINTS
     # ==========================================================================
-    #
-    # Constraint summary (R = Required, N = Must be NULL, O = Optional):
-    #
-    # | Field            | LOCAL | OAUTH2 | LDAP |
-    # |------------------|-------|--------|------|
-    # | email            |   R   |   R    |  *   |
-    # | password         |   R   |   N    |  N   |
-    # | ldap_unique_id   |   N   |   N    |  *   |
-    # | oauth2_client_id |   N   |   O    |  N   |
-    # | oauth2_user_id   |   N   |   O    |  N   |
-    #
-    # *: LDAP users must have email OR ldap_unique_id (or both).
-    #
-    # Constraints:
-    # - valid_auth_method: auth_method IN ('LOCAL', 'OAUTH2', 'LDAP')
-    # - local_auth_has_password_no_oauth: LOCAL must have password, no oauth2/ldap fields
-    # - non_local_auth_has_no_password: OAUTH2/LDAP must NOT have password
-    # - ldap_auth_valid: LDAP must have no oauth2 fields, must have email OR ldap_unique_id
-    # - oauth2_auth_no_ldap_fields: OAUTH2 must NOT have ldap_unique_id
-    # - non_ldap_auth_has_email: LOCAL/OAUTH2 must have email
-    # ==========================================================================
 
-    # -------------------------------------------------------------------------
     # Test ldap_auth_valid: LDAP user with oauth2_client_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_ldap_with_oauth_client(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -302,10 +303,10 @@ def test_ldap_schema_migration(
             "Expected ldap_auth_valid constraint violation for LDAP with oauth2_client_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_ldap_with_oauth_client)
+
     # Test ldap_auth_valid: LDAP user with oauth2_user_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_ldap_with_oauth_user(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -332,11 +333,10 @@ def test_ldap_schema_migration(
             "Expected ldap_auth_valid constraint violation for LDAP with oauth2_user_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_ldap_with_oauth_user)
+
     # Test ldap_auth_valid: LDAP orphan (NULL email AND NULL ldap_unique_id) should fail
-    # This is the critical bug we're preventing!
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_ldap_orphan(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -362,10 +362,10 @@ def test_ldap_schema_migration(
             "(NULL email AND NULL ldap_unique_id)"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_ldap_orphan)
+
     # Test non_ldap_auth_has_email: LOCAL user with NULL email should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_local_null_email(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -394,10 +394,10 @@ def test_ldap_schema_migration(
             "Expected non_ldap_auth_has_email constraint violation for LOCAL with NULL email"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_local_null_email)
+
     # Test non_ldap_auth_has_email: OAUTH2 user with NULL email should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_oauth_null_email(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -424,10 +424,10 @@ def test_ldap_schema_migration(
             "Expected non_ldap_auth_has_email constraint violation for OAUTH2 with NULL email"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_oauth_null_email)
+
     # Test oauth2_auth_no_ldap_fields: OAUTH2 user with ldap_unique_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_oauth_with_ldap(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -456,10 +456,10 @@ def test_ldap_schema_migration(
             "Expected oauth2_auth_no_ldap_fields constraint violation"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_oauth_with_ldap)
+
     # Test local_auth_has_password_no_oauth: LOCAL user with ldap_unique_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_local_with_ldap(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -490,10 +490,10 @@ def test_ldap_schema_migration(
             "Expected local_auth_has_password_no_oauth constraint violation for LOCAL with ldap_unique_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_local_with_ldap)
+
     # Test local_auth_has_password_no_oauth: LOCAL user with oauth2_client_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_local_with_oauth_client(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -524,10 +524,10 @@ def test_ldap_schema_migration(
             "Expected local_auth_has_password_no_oauth constraint violation for LOCAL with oauth2_client_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_local_with_oauth_client)
+
     # Test non_local_auth_has_no_password: LDAP user with password should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_ldap_with_password(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -558,10 +558,10 @@ def test_ldap_schema_migration(
             "Expected non_local_auth_has_no_password constraint violation for LDAP with password"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_ldap_with_password)
+
     # Test non_local_auth_has_no_password: OAUTH2 user with password should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_oauth_with_password(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -593,12 +593,11 @@ def test_ldap_schema_migration(
             "Expected non_local_auth_has_no_password constraint violation for OAUTH2 with password"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_oauth_with_password)
+
     # Test unique index: Duplicate ldap_unique_id should fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _create_first_ldap_dup(conn: Connection) -> str:
         duplicate_ldap_id = f"duplicate-ldap-guid-{token_hex(4)}"
-        # Create first LDAP user
         conn.execute(
             text(
                 """
@@ -620,8 +619,11 @@ def test_ldap_schema_migration(
             },
         )
         conn.commit()
+        return duplicate_ldap_id
 
-    with _engine.connect() as conn:
+    duplicate_ldap_id = await _run_async(_engine, _create_first_ldap_dup)
+
+    def _test_dup_ldap_id(conn: Connection) -> None:
         # Try to create second LDAP user with same ldap_unique_id
         with pytest.raises(Exception) as exc_info:
             conn.execute(
@@ -649,14 +651,14 @@ def test_ldap_schema_migration(
             "Expected unique constraint violation for duplicate ldap_unique_id"
         )
 
+    await _run_async(_engine, _test_dup_ldap_id)
+
     # ==========================================================================
     # TEST VALID EDGE CASES
     # ==========================================================================
 
-    # -------------------------------------------------------------------------
     # Valid: LDAP user with ldap_unique_id but NULL email (null email mode)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_valid_ldap_null_email(conn: Connection) -> None:
         new_ldap_id = conn.execute(
             text(
                 """
@@ -680,10 +682,10 @@ def test_ldap_schema_migration(
         conn.commit()
         assert isinstance(new_ldap_id, int), "Should be able to create LDAP user with NULL email"
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_valid_ldap_null_email)
+
     # Valid: LDAP user with email but NULL ldap_unique_id (simple mode)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_valid_ldap_email_only(conn: Connection) -> None:
         ldap_email_only_id = conn.execute(
             text(
                 """
@@ -709,10 +711,10 @@ def test_ldap_schema_migration(
             "Should be able to create LDAP user with email but NULL ldap_unique_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_valid_ldap_email_only)
+
     # Valid: LDAP user with both email and ldap_unique_id (enterprise mode)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_valid_ldap_both(conn: Connection) -> None:
         ldap_both_id = conn.execute(
             text(
                 """
@@ -739,10 +741,10 @@ def test_ldap_schema_migration(
             "Should be able to create LDAP user with both email and ldap_unique_id"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_valid_ldap_both)
+
     # Valid: OAUTH2 user with NULL oauth2 fields (pre-provisioned)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_valid_oauth_preprovisioned(conn: Connection) -> None:
         oauth_preprovisioned_id = conn.execute(
             text(
                 """
@@ -768,11 +770,13 @@ def test_ldap_schema_migration(
             "Should be able to create OAUTH2 user with NULL oauth2 fields (pre-provisioned)"
         )
 
+    await _run_async(_engine, _test_valid_oauth_preprovisioned)
+
     # Test downgrade
-    _down(_engine, _alembic_config, "3f53d82a1b7e", _schema)
+    await _down(_engine, _alembic_config, "3f53d82a1b7e", _schema)
 
     # Verify downgrade state
-    with _engine.connect() as conn:
+    def _verify_downgrade(conn: Connection) -> None:
         # Verify LDAP users are reverted to legacy format
         ldap_user_reverted = conn.execute(
             text(
@@ -817,22 +821,14 @@ def test_ldap_schema_migration(
             "Email should start with null marker prefix"
         )
 
+    await _run_async(_engine, _verify_downgrade)
+
     # ==========================================================================
     # TEST DOWNGRADE CONSTRAINTS
     # ==========================================================================
-    #
-    # After downgrade, the old constraints should be restored:
-    # - valid_auth_method: only 'LOCAL' and 'OAUTH2' (no 'LDAP')
-    # - email is NOT NULL (required for all users)
-    # - ldap_unique_id column does not exist
-    # - local_auth_has_password_no_oauth: LOCAL must have password, no oauth2 fields
-    # - non_local_auth_has_no_password: OAUTH2 must NOT have password
-    # ==========================================================================
 
-    # -------------------------------------------------------------------------
     # Downgrade: Verify ldap_unique_id column was dropped
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_no_ldap_column(conn: Connection) -> None:
         # Try to select ldap_unique_id - should fail because column doesn't exist
         with pytest.raises(Exception) as exc_info:
             conn.execute(text("SELECT ldap_unique_id FROM users LIMIT 1"))
@@ -841,10 +837,10 @@ def test_ldap_schema_migration(
             "Expected error mentioning ldap_unique_id column (should not exist after downgrade)"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_downgrade_no_ldap_column)
+
     # Downgrade: auth_method='LDAP' should fail (not in valid_auth_method)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_no_ldap_auth(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -870,10 +866,10 @@ def test_ldap_schema_migration(
             "Expected valid_auth_method constraint violation for 'LDAP' after downgrade"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_downgrade_no_ldap_auth)
+
     # Downgrade: NULL email should fail (email is NOT NULL after downgrade)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_null_email(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -900,10 +896,10 @@ def test_ldap_schema_migration(
             "Expected NOT NULL constraint violation for NULL email after downgrade"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_downgrade_null_email)
+
     # Downgrade: LOCAL user with oauth2_client_id should still fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_local_with_oauth(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -934,10 +930,10 @@ def test_ldap_schema_migration(
             "Expected local_auth_has_password_no_oauth constraint after downgrade"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_downgrade_local_with_oauth)
+
     # Downgrade: OAUTH2 user with password should still fail
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_oauth_with_password(conn: Connection) -> None:
         with pytest.raises(Exception) as exc_info:
             conn.execute(
                 text(
@@ -969,10 +965,10 @@ def test_ldap_schema_migration(
             "Expected non_local_auth_has_no_password constraint after downgrade"
         )
 
-    # -------------------------------------------------------------------------
+    await _run_async(_engine, _test_downgrade_oauth_with_password)
+
     # Downgrade: Valid LDAP user creation (using legacy marker format)
-    # -------------------------------------------------------------------------
-    with _engine.connect() as conn:
+    def _test_downgrade_valid_legacy_ldap(conn: Connection) -> None:
         legacy_ldap_id = conn.execute(
             text(
                 """
@@ -999,3 +995,5 @@ def test_ldap_schema_migration(
         assert isinstance(legacy_ldap_id, int), (
             "Should be able to create legacy LDAP user with marker after downgrade"
         )
+
+    await _run_async(_engine, _test_downgrade_valid_legacy_ldap)

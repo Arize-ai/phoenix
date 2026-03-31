@@ -7,37 +7,42 @@ from typing import Any, Iterable, Iterator, Sequence, Union, cast
 import pandas as pd
 import pytest
 from alembic.config import Config
-from sqlalchemy import Column, Engine, MetaData, Table, insert
+from sqlalchemy import Column, Connection, MetaData, Table, insert
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.db.migrations.data_migration_scripts.populate_project_sessions import (
     populate_project_sessions,
 )
 from phoenix.db.models import JSON_
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 
-def test_data_migration_for_project_sessions(
-    _engine: Engine,
+async def test_data_migration_for_project_sessions(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _schema: str,
 ) -> None:
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
-    _up(_engine, _alembic_config, "cd164e83824f", _schema)
+    await _up(_engine, _alembic_config, "cd164e83824f", _schema)
 
-    metadata = MetaData()
-    metadata.reflect(bind=_engine)
-    table_projects = metadata.tables["projects"]
-    table_traces = metadata.tables["traces"]
-    table_spans = Table(
-        "spans",
-        MetaData(),
-        Column("attributes", JSON_),
-        Column("events", JSON_),
-        autoload_with=_engine,
-    )
+    def _reflect_tables(conn: Connection) -> tuple[Table, Table, Table]:
+        metadata = MetaData()
+        metadata.reflect(bind=conn)
+        t_projects = metadata.tables["projects"]
+        t_traces = metadata.tables["traces"]
+        t_spans = Table(
+            "spans",
+            MetaData(),
+            Column("attributes", JSON_),
+            Column("events", JSON_),
+            autoload_with=conn,
+        )
+        return t_projects, t_traces, t_spans
+
+    table_projects, table_traces, table_spans = await _run_async(_engine, _reflect_tables)
 
     def time_gen(
         t: datetime,
@@ -93,7 +98,7 @@ def test_data_migration_for_project_sessions(
                 }
                 parent_id = span_id
 
-    with _engine.connect() as conn:
+    def _insert_data(conn: Connection) -> None:
         project_rowids = conn.scalars(
             insert(table_projects).returning(table_projects.c.id),
             [{"name": token_urlsafe(16)} for _ in range(num_projects)],
@@ -120,18 +125,36 @@ def test_data_migration_for_project_sessions(
         conn.execute(insert(table_spans), list(get_spans(traces)))
         conn.commit()
 
-    for _ in range(2):
-        _down(_engine, _alembic_config, "cd164e83824f", _schema)
-        metadata = MetaData()
-        metadata.reflect(bind=_engine)
-        assert metadata.tables.get("project_sessions") is None
-        _up(_engine, _alembic_config, "4ded9e43755f", _schema)
-        populate_project_sessions(_engine)
+    await _run_async(_engine, _insert_data)
 
-        with _engine.connect() as conn:
-            df_spans = pd.read_sql_table("spans", conn, index_col="id")
-            df_traces = pd.read_sql_table("traces", conn, index_col="id")
-            df_project_sessions = pd.read_sql_table("project_sessions", conn, index_col="id")
+    for _ in range(2):
+        await _down(_engine, _alembic_config, "cd164e83824f", _schema)
+
+        def _check_no_project_sessions(conn: Connection) -> None:
+            metadata = MetaData()
+            metadata.reflect(bind=conn)
+            assert metadata.tables.get("project_sessions") is None
+
+        await _run_async(_engine, _check_no_project_sessions)
+        await _up(_engine, _alembic_config, "4ded9e43755f", _schema)
+
+        def _populate(conn: Connection) -> None:
+            populate_project_sessions(conn)
+
+        await _run_async(_engine, _populate)
+
+        def _read_tables(conn: Connection) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+            df_spans = pd.read_sql_table("spans", conn)
+            df_traces = pd.read_sql_table("traces", conn)
+            df_project_sessions = pd.read_sql_table("project_sessions", conn)
+            return df_spans, df_traces, df_project_sessions
+
+        df_spans, df_traces, df_project_sessions = await _run_async(_engine, _read_tables)
+        # Set index after reading since read_sql_table with index_col
+        # may not work consistently across sync/async
+        df_spans = df_spans.set_index("id")
+        df_traces = df_traces.set_index("id")
+        df_project_sessions = df_project_sessions.set_index("id")
 
         assert len(df_project_sessions) == num_project_sessions
         assert len(df_traces) == num_projects * num_traces_per_project

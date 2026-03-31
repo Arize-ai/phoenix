@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
 from collections.abc import AsyncIterator, Iterable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import AbstractContextManager, contextmanager, nullcontext
+from contextlib import AbstractContextManager, asynccontextmanager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -62,8 +62,10 @@ from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
 from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
+from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from strawberry.relay import GlobalID
@@ -83,6 +85,7 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     ENV_PHOENIX_SQL_DATABASE_URL,
 )
+from phoenix.db.engines import get_async_db_url
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -803,28 +806,33 @@ def _capture_stdout(
                 log.append(line)
 
 
-@contextmanager
-def _random_schema(
+@asynccontextmanager
+async def _random_schema(
     url: URL,
-) -> Iterator[str]:
-    engine = create_engine(url.set(drivername="postgresql+psycopg"))
-    engine.connect().close()
-    engine.dispose()
+) -> AsyncIterator[str]:
+    async_url = get_async_db_url(url.render_as_string(hide_password=False))
+    async_engine = create_async_engine(async_url, poolclass=NullPool)
+
     schema = f"{_SCHEMA_PREFIX}{token_hex(16)}"[:63]
+    async with async_engine.connect() as conn:
+        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        await conn.commit()
+
     yield schema
+
     time_limit = time() + 30
     while time() < time_limit:
         try:
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
-                conn.commit()
+            async with async_engine.connect() as conn:
+                await conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
+                await conn.commit()
         except OperationalError as exc:
             if "too many clients" in str(exc):
-                sleep(1)
+                await asyncio.sleep(1)
                 continue
             raise
         break
-    engine.dispose()
+    await async_engine.dispose()
 
 
 def _gql(

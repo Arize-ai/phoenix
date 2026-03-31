@@ -1,30 +1,26 @@
 from __future__ import annotations
 
 import ssl
-from typing import Any, Container, Final, Literal, Mapping, TypedDict, get_type_hints
+from typing import Any, Container, Final, Mapping, TypedDict, get_type_hints
 
 from sqlalchemy import URL
-from typing_extensions import assert_never
 
 
 def get_pg_config(
     url: URL,
-    driver: Literal["psycopg", "asyncpg"],
     enforce_ssl: bool = False,
 ) -> tuple[URL, dict[str, Any]]:
-    """Convert SQLAlchemy URL to driver-specific configuration.
+    """Convert SQLAlchemy URL to asyncpg-specific configuration.
 
     Args:
         url: SQLAlchemy URL
-        driver: "psycopg" or "asyncpg"
         enforce_ssl: If True, ensure SSL is enabled (required for AWS RDS IAM auth)
 
     Returns:
         Tuple of (base_url, connect_args):
         - base_url: URL with driver prefix and non-SSL parameters
-        - connect_args: SSL configuration for the driver
+        - connect_args: SSL configuration for asyncpg
     """
-    # Create new URL with appropriate driver
     query = url.query
     ssl_args = _get_ssl_args(query)
 
@@ -36,25 +32,16 @@ def get_pg_config(
             "Remove 'sslmode=disable' from the connection string."
         )
 
-    # Create base URL without SSL parameters
     base_url = url.set(
-        drivername=f"postgresql+{driver}",
+        drivername="postgresql+asyncpg",
         query={k: v for k, v in query.items() if k not in _SSL_KEYS},
     )
 
-    # Get appropriate SSL configuration based on driver
-    if driver == "psycopg":
-        connect_args = dict(ssl_args)
-        # Remove asyncpg-specific parameters from base URL
-        base_url = base_url.set(query=_remove_asyncpg_only_params(base_url.query))
-    elif driver == "asyncpg":
-        # Only create SSL context if we have SSL parameters and sslmode is not disable
-        if ssl_args and ssl_args.get("sslmode") != "disable":
-            connect_args = {"ssl": _get_ssl_context(ssl_args)}
-        else:
-            connect_args = {}
+    if ssl_args and ssl_args.get("sslmode") != "disable":
+        connect_args = {"ssl": _get_ssl_context(ssl_args)}
     else:
-        assert_never(driver)
+        connect_args = {}
+
     return base_url, connect_args
 
 
@@ -184,24 +171,3 @@ def _get_ssl_context(ssl_args: _SSLArgs) -> ssl.SSLContext:
         ssl_context.verify_mode = ssl.CERT_NONE
 
     return ssl_context
-
-
-def _remove_asyncpg_only_params(
-    query: Mapping[str, str | tuple[str, ...]],
-) -> dict[str, str | tuple[str, ...]]:
-    """Remove asyncpg-specific parameters from a SQLAlchemy URL query.
-
-    Args:
-        query: SQLAlchemy URL query parameters
-
-    Returns:
-        Dictionary of query parameters with asyncpg-specific parameters removed
-    """
-    return {k: v for k, v in query.items() if k not in _ASYNCPG_ONLY_KEYS}
-
-
-# Asyncpg-specific parameter keys
-_ASYNCPG_ONLY_KEYS: Final[tuple[str, ...]] = (
-    "prepared_statement_cache_size",
-    # Add other asyncpg-specific parameters here if needed
-)

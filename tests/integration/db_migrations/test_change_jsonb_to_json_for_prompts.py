@@ -1,16 +1,17 @@
 import json
 import re
-from typing import Literal
+from typing import Any, Literal, Tuple
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 
-def test_change_jsonb_to_json_for_prompts(
-    _engine: Engine,
+async def test_change_jsonb_to_json_for_prompts(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
     _schema: str,
@@ -28,10 +29,10 @@ def test_change_jsonb_to_json_for_prompts(
     """
     # Verify we're starting from a clean state
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
     # Run the migration that creates the prompt_versions table
-    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+    await _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # Sample data for testing - intentionally using keys in arbitrary order
     # to demonstrate the difference between JSONB and JSON in PostgreSQL
@@ -39,7 +40,7 @@ def test_change_jsonb_to_json_for_prompts(
     response_format_data = {"ZZZ": 3, "Z": 1, "ZZ": 2}
 
     # Insert test data with JSONB columns
-    with _engine.connect() as conn:
+    def _insert_test_data(conn: Connection) -> Tuple[Any, Any]:
         # Create a prompt to reference
         prompt_id = conn.execute(
             text(
@@ -75,9 +76,12 @@ def test_change_jsonb_to_json_for_prompts(
             },
         ).scalar()
         conn.commit()  # Commit to ensure data is visible to subsequent connections
+        return prompt_id, prompt_version_id
+
+    _, prompt_version_id = await _run_async(_engine, _insert_test_data)
 
     # STEP 1: Verify initial state with JSONB columns
-    with _engine.connect() as conn:
+    def _verify_initial_state(conn: Connection) -> None:
         # Check column types based on database backend
         if _db_backend == "postgresql":
             # PostgreSQL: Use pg_typeof to check column types
@@ -139,11 +143,13 @@ def test_change_jsonb_to_json_for_prompts(
             assert result[0] != json.dumps(tools_data)
             assert result[1] != json.dumps(response_format_data)
 
+    await _run_async(_engine, _verify_initial_state)
+
     # STEP 2: Run the migration to change JSONB to JSON
-    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
+    await _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Verify the migration worked correctly
-    with _engine.connect() as conn:
+    def _verify_after_upgrade(conn: Connection) -> None:
         # Check data is still accessible
         result = conn.execute(
             text("SELECT tools, response_format FROM prompt_versions WHERE id = :id"),
@@ -189,11 +195,13 @@ def test_change_jsonb_to_json_for_prompts(
             assert re.search(r"\btools\s+JSON\b", table_def) is not None
             assert re.search(r"\bresponse_format\s+JSON\b", table_def) is not None
 
+    await _run_async(_engine, _verify_after_upgrade)
+
     # STEP 3: Test downgrade back to JSONB
-    _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+    await _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # Verify the downgrade worked correctly
-    with _engine.connect() as conn:
+    def _verify_after_downgrade(conn: Connection) -> None:
         # Check data is still accessible
         result = conn.execute(
             text("SELECT tools, response_format FROM prompt_versions WHERE id = :id"),
@@ -237,3 +245,5 @@ def test_change_jsonb_to_json_for_prompts(
             assert table_def is not None
             assert re.search(r"\btools\s+JSONB\b", table_def) is not None
             assert re.search(r"\bresponse_format\s+JSONB\b", table_def) is not None
+
+    await _run_async(_engine, _verify_after_downgrade)
