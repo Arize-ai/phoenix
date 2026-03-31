@@ -8,7 +8,7 @@ description: "Phoenix provides tracing support for Strands Agents through a span
 ## Install
 
 ```bash
-pip install openinference-instrumentation-strands-agents strands-agents opentelemetry-exporter-otlp-proto-http
+pip install arize-phoenix-otel openinference-instrumentation-strands-agents strands-agents openai
 ```
 
 ## Setup
@@ -22,16 +22,26 @@ export OPENAI_API_KEY=[your_key_here]
 Strands Agents provides its own OpenTelemetry-based telemetry. The `openinference-instrumentation-strands-agents` package adds a span processor that transforms Strands' native spans into OpenInference format for Phoenix.
 
 ```python
-from strands.telemetry import StrandsTelemetry
+from phoenix.otel import HTTPSpanExporter, SimpleSpanProcessor, register
 from openinference.instrumentation.strands_agents import StrandsAgentsToOpenInferenceProcessor
 
-telemetry = StrandsTelemetry()
-telemetry.tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
-telemetry.setup_otlp_exporter(endpoint="http://localhost:6006/v1/traces")
+# Strands reads the global tracer provider, so start with register() to make
+# Phoenix's provider the process-wide default.
+tracer_provider = register(
+    project_name="strands-agents",
+)
+
+# This processor rewrites Strands' native spans into OpenInference spans, so it
+# must run before the Phoenix exporter that sends spans to your collector.
+tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
+tracer_provider.add_span_processor(
+    SimpleSpanProcessor(HTTPSpanExporter()),
+    replace_default_processor=False,
+)
 ```
 
 <Info>
-**Processor ordering matters.** The `StrandsAgentsToOpenInferenceProcessor` mutates spans in-place. Add it **before** any exporters that should receive OpenInference spans.
+**Processor ordering matters.** `register()` sets Phoenix as the global tracer provider for Strands, but it also installs Phoenix's default exporter-backed processor immediately. Replace that default with `StrandsAgentsToOpenInferenceProcessor()`, then add the Phoenix exporter back after it so Phoenix receives the transformed OpenInference spans.
 </Info>
 
 ## Run Strands Agents

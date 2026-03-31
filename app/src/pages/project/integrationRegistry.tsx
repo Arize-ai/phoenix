@@ -243,9 +243,10 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     languages: {
       Python: {
         packages: [
+          "arize-phoenix-otel",
           "openinference-instrumentation-strands-agents",
           "strands-agents",
-          "opentelemetry-exporter-otlp-proto-http",
+          "openai",
         ],
         getImplementationCode: getStrandsAgentsCodePython,
         docsHref:

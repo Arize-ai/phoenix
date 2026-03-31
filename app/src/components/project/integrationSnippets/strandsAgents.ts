@@ -3,20 +3,21 @@ export function getStrandsAgentsCodePython({
 }: {
   projectName: string;
 }): string {
-  return `# Strands uses its own OpenTelemetry telemetry instead of phoenix.otel.register()
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry import trace as trace_api
-from strands.telemetry import StrandsTelemetry
+  return `from phoenix.otel import HTTPSpanExporter, SimpleSpanProcessor, register
 from openinference.instrumentation.strands_agents import StrandsAgentsToOpenInferenceProcessor
 
-resource = Resource.create({"openinference.project.name": "${projectName}"})
-provider = TracerProvider(resource=resource)
-trace_api.set_tracer_provider(provider)
-
-telemetry = StrandsTelemetry(tracer_provider=provider)
-telemetry.tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
-telemetry.setup_otlp_exporter(endpoint="http://localhost:6006/v1/traces")
+# Strands reads the global tracer provider, so start with register() to make
+# Phoenix's provider the process-wide default.
+tracer_provider = register(
+  project_name="${projectName}",
+)
+# This processor rewrites Strands' native spans into OpenInference spans, so it
+# must run before the Phoenix exporter that sends spans to your collector.
+tracer_provider.add_span_processor(StrandsAgentsToOpenInferenceProcessor())
+tracer_provider.add_span_processor(
+  SimpleSpanProcessor(HTTPSpanExporter()),
+  replace_default_processor=False,
+)
 
 from strands import Agent
 from strands.models.openai import OpenAIModel
@@ -27,5 +28,6 @@ agent = Agent(
   system_prompt="You are a helpful assistant.",
 )
 
-result = agent("Explain the theory of relativity in simple terms.")`;
+result = agent("Explain the theory of relativity in simple terms.")
+`;
 }
