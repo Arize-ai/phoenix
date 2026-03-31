@@ -423,6 +423,8 @@ type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayloa
   datasetExampleId: ID
   repetitionNumber: Int
   message: String!
+  span: Span
+  experimentRun: ExperimentRun
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
