@@ -253,12 +253,20 @@ def _env_database(
     _sql_database_url: URL,
 ) -> Iterator[dict[str, str]]:
     """Configure database environment variables for testing."""
+    import asyncio
+
     env = {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
     if not _sql_database_url.get_backend_name().startswith("postgresql"):
         yield env
     else:
-        with _random_schema(_sql_database_url) as schema:
+        loop = asyncio.new_event_loop()
+        ctx = _random_schema(_sql_database_url)
+        schema = loop.run_until_complete(ctx.__aenter__())
+        try:
             yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
+        finally:
+            loop.run_until_complete(ctx.__aexit__(None, None, None))
+            loop.close()
 
 
 @pytest.fixture(scope="package")

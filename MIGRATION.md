@@ -31,6 +31,18 @@ python -m phoenix.server.main db migrate --database-url "postgresql://..."
 
 Top-level `--help` only shows global usage; use `phoenix serve --help`, or `phoenix db migrate --help` for subcommand options.
 
+### PostgreSQL Driver: `psycopg` Removed
+
+The `psycopg` driver has been removed. Phoenix now uses `asyncpg` as the sole PostgreSQL driver for both runtime queries and migrations. If you have `psycopg` installed only for Phoenix, it can be uninstalled.
+
+The `pg` extra no longer includes `psycopg`:
+
+```shell
+pip install arize-phoenix[pg]  # only installs asyncpg
+```
+
+No configuration changes are needed — `PHOENIX_SQL_DATABASE_URL` continues to work with the same `postgresql://` connection strings.
+
 ### Legacy Client Removed
 
 The legacy `phoenix.session.client.Client` (accessed via `px.Client()`) has been removed. All client interactions now go through the `arize-phoenix-client` package.
