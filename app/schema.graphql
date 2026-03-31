@@ -391,7 +391,7 @@ input ChatCompletionOverDatasetInput {
   splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
-  experimentMetadata: JSON = {}
+  experimentMetadata: JSON = {  }
   promptName: Identifier = null
   evaluators: [PlaygroundEvaluatorInput!]! = []
 
@@ -436,7 +436,7 @@ input ChatPromptVersionInput {
   description: String = null
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
-  invocationParameters: JSON! = {}
+  invocationParameters: JSON! = {  }
   tools: PromptToolsInput = null
   responseFormat: PromptResponseFormatJSONSchemaInput = null
   modelProvider: GenerativeProviderKey!
@@ -606,7 +606,7 @@ input CreateDocumentAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON! = {  }
   source: AnnotationSource!
   identifier: String
 }
@@ -650,7 +650,7 @@ input CreateProjectSessionAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON! = {  }
   source: AnnotationSource! = APP
   identifier: String
 }
@@ -680,7 +680,7 @@ input CreateSpanAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON! = {  }
   source: AnnotationSource!
   identifier: String
 }
@@ -703,7 +703,7 @@ input CreateTraceAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON! = {  }
   source: AnnotationSource!
   identifier: String
 }
@@ -1339,8 +1339,8 @@ type EvaluatorInputMapping {
 }
 
 input EvaluatorInputMappingInput {
-  literalMapping: JSON! = {}
-  pathMapping: JSON! = {}
+  literalMapping: JSON! = {  }
+  pathMapping: JSON! = {  }
 }
 
 enum EvaluatorKind {
@@ -1357,7 +1357,7 @@ input EvaluatorPreviewInput @oneOf {
 input EvaluatorPreviewItemInput {
   evaluator: EvaluatorPreviewInput!
   context: JSON!
-  inputMapping: EvaluatorInputMappingInput! = {}
+  inputMapping: EvaluatorInputMappingInput! = {  }
 }
 
 input EvaluatorPreviewsInput {
@@ -2198,7 +2198,7 @@ input PlaygroundEvaluatorInput {
   id: ID!
   name: Identifier!
   description: String = null
-  inputMapping: EvaluatorInputMappingInput! = {}
+  inputMapping: EvaluatorInputMappingInput! = {  }
   outputConfigs: [AnnotationConfigInput!] = null
 }
 
@@ -3541,7 +3541,7 @@ input UpdateAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON! = {  }
   source: AnnotationSource! = APP
 }
 

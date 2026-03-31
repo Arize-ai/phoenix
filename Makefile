@@ -154,7 +154,6 @@ setup: check-tools install-python install-node ## Complete development environme
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
 	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
-	@sed -i '' 's/{  }/{}/g' $(APP_DIR)/schema.graphql
 	@echo -e "$(GREEN)✓ app/schema.graphql$(NC)"
 
 relay-build: ## Build Relay from GraphQL schema
