@@ -2,6 +2,7 @@ import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
+import { TableEmpty } from "@phoenix/components/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SandboxConfigsCardProviderEnabledSwitchMutation } from "./__generated__/SandboxConfigsCardProviderEnabledSwitchMutation.graphql";
@@ -10,7 +11,6 @@ import { SandboxConfigDialogTrigger } from "./SandboxConfigDialog";
 import {
   configNameCSS,
   configNameCellCSS,
-  emptyStateWrapCSS,
   inlineTokenRowCSS,
   pageIntroCSS,
   sandboxesTableCSS,
@@ -47,19 +47,19 @@ export function SandboxConfigsCard({
           </Text>
         </Flex>
       </div>
-      {configRows.length > 0 ? (
-        <div css={sandboxesTableWrapCSS}>
-          <table css={sandboxesTableCSS}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Provider</th>
-                <th>Status</th>
-                <th>Settings</th>
-                <th>Updated</th>
-                <th />
-              </tr>
-            </thead>
+      <div css={sandboxesTableWrapCSS}>
+        <table css={sandboxesTableCSS}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Provider</th>
+              <th>Status</th>
+              <th>Settings</th>
+              <th>Updated</th>
+              <th />
+            </tr>
+          </thead>
+          {configRows.length > 0 ? (
             <tbody>
               {configRows.map(({ backend, provider, config }) => (
                 <tr key={config.id}>
@@ -84,15 +84,10 @@ export function SandboxConfigsCard({
                       <StatusText status={backend.status} />
                     </div>
                   </td>
-
                   <td>
                     <Flex direction="column" gap="size-25">
                       <Text>{config.timeout}s timeout</Text>
-                      <Text
-                        color={
-                          hasConfig(config.config) ? undefined : "text-700"
-                        }
-                      >
+                      <Text color={hasConfig(config.config) ? undefined : "text-700"}>
                         {hasConfig(config.config)
                           ? summarizeConfig(config.config)
                           : "No advanced settings"}
@@ -127,22 +122,11 @@ export function SandboxConfigsCard({
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      ) : (
-        <div css={emptyStateWrapCSS}>
-          <Flex direction="column" alignItems="center" gap="size-150">
-            <Text>No sandbox configs yet.</Text>
-            <Text color="text-700">
-              Create your first config to get started.
-            </Text>
-            <SandboxConfigDialogTrigger
-              mode="create"
-              providers={providerRows}
-            />
-          </Flex>
-        </div>
-      )}
+          ) : (
+            <TableEmpty message="No sandbox configs" />
+          )}
+        </table>
+      </div>
     </Card>
   );
 }

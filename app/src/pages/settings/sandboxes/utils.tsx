@@ -1,3 +1,4 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   isPlainObject,
   safelyParseJSON,
@@ -28,6 +29,8 @@ export function statusLabel(status: BackendInfo["status"]) {
       return "Unavailable";
     case "NOT_INSTALLED":
       return "Not installed";
+    default:
+      assertUnreachable(status);
   }
 }
 
