@@ -527,6 +527,7 @@ class TaskWorkItem(WorkItem):
                     message=str(error),
                     dataset_example_id=example_id,
                     repetition_number=self._repetition_number,
+                    experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
                 )
             )
             await self._running_experiment.on_failure(self, error)
@@ -599,11 +600,22 @@ class TaskWorkItem(WorkItem):
                     await self._running_experiment.on_failure(self, persist_err)
                     return
 
+                error_db_span = (
+                    task_db_trace.spans[0]
+                    if task_db_trace is not None and task_db_trace.spans
+                    else None
+                )
                 self._running_experiment._broadcast(
                     ChatCompletionSubscriptionError(
                         message=str(e),
                         dataset_example_id=example_id,
                         repetition_number=self._repetition_number,
+                        span=(
+                            Span(id=error_db_span.id, db_record=error_db_span)
+                            if error_db_span is not None
+                            else None
+                        ),
+                        experiment_run=ExperimentRun(id=db_run.id, db_record=db_run),
                     )
                 )
                 await self._running_experiment.on_failure(self, e)
