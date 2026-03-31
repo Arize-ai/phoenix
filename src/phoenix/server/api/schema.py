@@ -24,9 +24,14 @@ def _patch_strawberry_schema_printer() -> None:
     """
     Fix Strawberry's schema printer for graphql-core 3.3.
 
-    Strawberry currently builds object/list AST nodes for custom scalar defaults using
-    Python lists. graphql-core 3.3 tightened AST validation and now expects tuples,
-    which breaks schema export for JSON defaults like {} and [].
+    graphql-core 3.3 made AST nodes frozen dataclasses, so fields like
+    ObjectValueNode(fields=...) now require a tuple instead of a list.
+    Strawberry 0.287.3 still passes fields=[...] (a list), which causes
+    ``TypeError: Invalid AST Node: []`` when printing the schema. This patch
+    swaps in a version that passes tuple(...) instead.
+
+    TODO: Remove after upgrading strawberry-graphql past 0.310.1.
+    Fixed upstream in https://github.com/strawberry-graphql/strawberry/pull/4267
     """
     if getattr(strawberry_ast_from_value, "_phoenix_patch_applied", False):
         return
