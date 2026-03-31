@@ -5520,14 +5520,12 @@ export interface operations {
             query?: never;
             header?: {
                 "content-type"?: string | null;
-                "content-encoding"?: string | null;
             };
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/x-protobuf": string;
                 "application/x-pandas-arrow": string;
             };
         };
@@ -5548,7 +5546,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
+            /** @description Unsupported content type, only pandas-arrow is supported */
             415: {
                 headers: {
                     [name: string]: unknown;

@@ -53,7 +53,6 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias, override
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
@@ -178,6 +177,7 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.evaluations import enqueue_annotations_from_evaluations
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
@@ -198,14 +198,16 @@ from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
     get_dataset_fixtures,
-    get_evals_from_fixture,
+    get_evaluations_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
+    remap_evaluation_ids,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.trace.span_evaluations import Evaluations
 from phoenix.tracers import Tracer
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
@@ -421,7 +423,7 @@ def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]
 
 def user_grpc_interceptors() -> list[ServerInterceptor]:
     paths = get_env_grpc_interceptor_paths()
-    interceptors = []
+    interceptors: list[ServerInterceptor] = []
     for file_path, object_name in paths:
         interceptor_class = import_object_from_file(file_path, object_name)
         if not issubclass(interceptor_class, ServerInterceptor):
@@ -467,12 +469,12 @@ class Scaffolder(DaemonTask):
         self,
         config: ScaffolderConfig,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
-        enqueue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        enqueue_annotations: Callable[..., Awaitable[None]],
     ) -> None:
         super().__init__()
         self._db = config.db
         self._enqueue_span = enqueue_span
-        self._enqueue_evaluation = enqueue_evaluation
+        self._enqueue_annotations = enqueue_annotations
         self._tracing_fixtures = [
             get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
         ]
@@ -524,16 +526,15 @@ class Scaffolder(DaemonTask):
             try:
                 trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-                fixture_spans, fixture_evals = await loop.run_in_executor(
+                fixture_spans, trace_id_mapping, span_id_mapping = await loop.run_in_executor(
                     None,
                     reset_fixture_span_ids_and_timestamps,
-                    (
+                    [
                         # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                         # `encode` removes the hyphens in the UUIDs.
                         decode_otlp_span(encode_span_to_otlp(span))
                         for span in trace_ds.to_spans()
-                    ),
-                    get_evals_from_fixture(fixture.name),
+                    ],
                 )
 
                 # Ingest dataset fixtures
@@ -544,8 +545,22 @@ class Scaffolder(DaemonTask):
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
                     await self._enqueue_span(span, project_name)
-                for evaluation in fixture_evals:
-                    await self._enqueue_evaluation(evaluation)
+
+                for evaluations in get_evaluations_from_fixture(fixture.name):
+                    evaluations = remap_evaluation_ids(
+                        evaluations,
+                        trace_id_mapping=trace_id_mapping,
+                        span_id_mapping=span_id_mapping,
+                    )
+                    await enqueue_annotations_from_evaluations(
+                        self._enqueue_annotations,
+                        evaluations,
+                    )
+                    logger.info(
+                        "Enqueued %s eval annotations for '%s'",
+                        len(evaluations),
+                        evaluations.eval_name,
+                    )
 
             except FileNotFoundError:
                 logger.warning(f"Fixture file not found for '{fixture.name}'")
@@ -574,7 +589,7 @@ class _CapacityIndicator(Protocol):
 
 
 class CapacityInterceptor(AsyncServerInterceptor):
-    def __init__(self, indicator: _CapacityIndicator):
+    def __init__(self, indicator: _CapacityIndicator) -> None:
         self._indicator = indicator
 
     @override
@@ -612,8 +627,9 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    initial_evaluations: Iterable[Evaluations] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
-    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
+    grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
@@ -627,7 +643,6 @@ def _lifespan(
             (
                 enqueue_annotations,
                 enqueue_span,
-                enqueue_evaluation,
                 enqueue_operation,
             ) = await stack.enter_async_context(bulk_inserter)
             interceptors = [
@@ -646,6 +661,11 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            for evaluations in initial_evaluations:
+                await enqueue_annotations_from_evaluations(
+                    enqueue_annotations,
+                    evaluations,
+                )
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(experiment_sweeper)
@@ -657,7 +677,7 @@ def _lifespan(
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
                     enqueue_span=enqueue_span,
-                    enqueue_evaluation=enqueue_evaluation,
+                    enqueue_annotations=enqueue_annotations,
                 )
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
@@ -669,7 +689,6 @@ def _lifespan(
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
-                "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
             }
@@ -1005,7 +1024,7 @@ def create_app(
     grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    initial_evaluations: Optional[Iterable[Evaluations]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -1036,7 +1055,7 @@ def create_app(
             for item in initial_spans
         )
     )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    startup_evaluations = () if initial_evaluations is None else initial_evaluations
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
@@ -1085,7 +1104,6 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
-        initial_batch_of_evaluations=initial_batch_of_evaluations,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
@@ -1136,7 +1154,7 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
-    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
         title="Arize-Phoenix REST API",
@@ -1145,6 +1163,7 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
+            initial_evaluations=startup_evaluations,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
