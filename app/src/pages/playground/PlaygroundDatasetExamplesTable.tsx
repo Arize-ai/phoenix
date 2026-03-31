@@ -996,8 +996,20 @@ export function PlaygroundDatasetExamplesTable({
               instanceId,
               exampleId: chatCompletion.datasetExampleId,
               repetitionNumber: chatCompletion.repetitionNumber ?? 1,
-              patch: { errorMessage: chatCompletion.message },
+              patch: {
+                errorMessage: chatCompletion.message,
+                span: chatCompletion.span,
+                experimentRunId: chatCompletion.experimentRun?.id,
+              },
             });
+            if (chatCompletion.span) {
+              handleExperimentRunCost({
+                instanceId,
+                latencyMs: chatCompletion.span.latencyMs ?? null,
+                tokenCountTotal: chatCompletion.span.tokenCountTotal ?? null,
+                cost: chatCompletion.span.costSummary?.total?.cost ?? null,
+              });
+            }
             incrementRunsFailed(instanceId);
             break;
           case "TextChunk":
@@ -1609,6 +1621,25 @@ graphql`
         datasetExampleId
         repetitionNumber
         message
+        span {
+          id
+          tokenCountTotal
+          costSummary {
+            total {
+              cost
+            }
+          }
+          latencyMs
+          project {
+            id
+          }
+          context {
+            traceId
+          }
+        }
+        experimentRun {
+          id
+        }
       }
       ... on EvaluationChunk {
         datasetExampleId
