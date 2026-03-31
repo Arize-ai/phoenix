@@ -87,7 +87,11 @@ export function SandboxConfigsCard({
                   <td>
                     <Flex direction="column" gap="size-25">
                       <Text>{config.timeout}s timeout</Text>
-                      <Text color={hasConfig(config.config) ? undefined : "text-700"}>
+                      <Text
+                        color={
+                          hasConfig(config.config) ? undefined : "text-700"
+                        }
+                      >
                         {hasConfig(config.config)
                           ? summarizeConfig(config.config)
                           : "No advanced settings"}
