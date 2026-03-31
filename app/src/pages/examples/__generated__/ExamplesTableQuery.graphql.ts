@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4fdcb00aeff3fdfca60119c13fbb1f21>>
+ * @generated SignedSource<<6dfb19502a57fd97dcee3f1e67907d5b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -195,6 +195,13 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "kind": "ScalarField",
+                            "name": "externalId",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "DatasetSplit",
                             "kind": "LinkedField",
                             "name": "datasetSplits",
@@ -327,16 +334,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "25fc48ec69201eec67455bbeeb490734",
+    "cacheID": "08b9b430cbac31725b4d110a4461d5b0",
     "id": null,
     "metadata": {},
     "name": "ExamplesTableQuery",
     "operationKind": "query",
-    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $filter: String = null\n  $first: Int = 100\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_FYWYy\n    id\n  }\n}\n\nfragment ExamplesTableFragment_FYWYy on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after, filter: $filter, splitIds: $splitIds) {\n    edges {\n      example: node {\n        id\n        datasetSplits {\n          id\n          name\n          color\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExamplesTableQuery(\n  $after: String = null\n  $datasetVersionId: ID\n  $filter: String = null\n  $first: Int = 100\n  $splitIds: [ID!]\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExamplesTableFragment_FYWYy\n    id\n  }\n}\n\nfragment ExamplesTableFragment_FYWYy on Dataset {\n  examples(datasetVersionId: $datasetVersionId, first: $first, after: $after, filter: $filter, splitIds: $splitIds) {\n    edges {\n      example: node {\n        id\n        externalId\n        datasetSplits {\n          id\n          name\n          color\n        }\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ebe08bedf9904f2cb003b0ebc5d3f682";
+(node as any).hash = "dd9f3e4db3c8392059ec821c221b5bb9";
 
 export default node;

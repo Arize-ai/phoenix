@@ -89,6 +89,7 @@ export function ExamplesTable({
             edges {
               example: node {
                 id
+                externalId
                 datasetSplits {
                   id
                   name
@@ -175,6 +176,7 @@ export function ExamplesTable({
         const revision = example.revision;
         return {
           id: example.id,
+          externalId: example.externalId ?? null,
           splits: example.datasetSplits,
           input: revision.input,
           output: revision.output,
@@ -263,13 +265,14 @@ export function ExamplesTable({
         header: "example id",
         accessorKey: "id",
         size: 180,
-        cell: ({ getValue, row }) => {
+        cell: ({ row }) => {
           const exampleId = row.original.id;
+          const displayId = row.original.externalId ?? exampleId;
           return (
             <CellWithControlsWrap
-              controls={<CopyToClipboardButton text={exampleId} />}
+              controls={<CopyToClipboardButton text={displayId} />}
             >
-              <Link to={`${exampleId}`}>{getValue() as string}</Link>
+              <Link to={`${exampleId}`}>{displayId}</Link>
             </CellWithControlsWrap>
           );
         },
