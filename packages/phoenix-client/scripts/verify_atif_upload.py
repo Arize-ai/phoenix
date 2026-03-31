@@ -322,8 +322,8 @@ def main() -> None:
             continue
         total_spans += _upload_batch(client, [data], f"fixture: {fixture_file.name}")
 
-    # ── 2. Synthetic subagent linking demo ──────────────────────────
-    print("\n── Synthetic Subagent Linking (batch) ──")
+    # ── 2. Synthetic subagent linking (batch) ────────────────────────
+    print("\n── Subagent Linking (batch) ──")
     subagent_path = FIXTURES_DIR / "subagent_trajectories.json"
     if subagent_path.exists():
         with open(subagent_path) as f:
@@ -334,7 +334,6 @@ def main() -> None:
             client,
             [parent, child],
             "batch: synthetic parent + child",
-            project=f"atif-subagent-{_SUFFIX}",
         )
 
     # ── 3. Harbor Terminus-2 subagent batch ──────────────────────────
@@ -356,7 +355,6 @@ def main() -> None:
             client,
             [harbor_parent] + harbor_children,
             "batch: terminus-2 + 3 subagents (real)",
-            project=f"atif-subagent-{_SUFFIX}",
         )
 
     # ── 4. Harbor continuation pair ──────────────────────────────────
@@ -372,7 +370,6 @@ def main() -> None:
             client,
             [cont_traj, cont1_traj],
             "batch: continuation + cont-1",
-            project=f"atif-continuation-{_SUFFIX}",
         )
 
     # ── 5. Rich hand-crafted trajectory ──────────────────────────────
@@ -385,8 +382,6 @@ def main() -> None:
         f"Done! Total spans uploaded: {total_spans}\n"
         f"Open Phoenix to inspect the traces:\n"
         f"  {PHOENIX_URL}/projects/{PROJECT_NAME}/traces\n"
-        f"  {PHOENIX_URL}/projects/atif-subagent-{_SUFFIX}/traces\n"
-        f"  {PHOENIX_URL}/projects/atif-continuation-{_SUFFIX}/traces\n"
         f"{'=' * 70}"
     )
 

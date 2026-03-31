@@ -1,6 +1,6 @@
 {
   "schema_version": "ATIF-v1.5",
-  "session_id": "NORMALIZED_SESSION_ID",
+  "session_id": "harbor-openhands-hello-world",
   "agent": {
     "name": "openhands",
     "version": "1.1.0",

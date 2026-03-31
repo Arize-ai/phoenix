@@ -8,22 +8,22 @@
         "step_id": 1,
         "timestamp": "2025-02-01T10:00:00Z",
         "source": "user",
-        "message": "Summarize and analyze this document."
+        "message": "Summarize and analyze the following document:\n\nArtificial intelligence adoption is accelerating across industries. In healthcare, AI-powered diagnostics now match radiologist accuracy for certain imaging tasks. The automotive sector continues investing heavily in autonomous vehicle technology, with Level 3 systems reaching consumer markets in 2025. Meanwhile, generative AI tools have transformed content creation workflows, with 68% of marketing teams reporting regular use of AI writing assistants."
       },
       {
         "step_id": 2,
         "timestamp": "2025-02-01T10:00:02Z",
         "source": "agent",
-        "message": "I will delegate summarization to a sub-agent.",
+        "message": "I will delegate the summarization to a specialized sub-agent that can focus on extracting key points.",
         "model_name": "gpt-4",
         "tool_calls": [
-          { "tool_call_id": "call_summarize", "function_name": "delegate_summary", "arguments": { "doc_id": "doc-123" } }
+          { "tool_call_id": "call_summarize", "function_name": "delegate_summary", "arguments": { "task": "summarize the document provided by the user" } }
         ],
         "observation": {
           "results": [
             {
               "source_call_id": "call_summarize",
-              "content": "Summarization delegated to sub-agent.",
+              "content": "Summarization task delegated to sub-agent.",
               "subagent_trajectory_ref": [
                 { "session_id": "sess-child-summary-001" }
               ]
@@ -36,7 +36,7 @@
         "step_id": 3,
         "timestamp": "2025-02-01T10:00:10Z",
         "source": "agent",
-        "message": "The document discusses key trends in AI adoption across industries.",
+        "message": "Based on the sub-agent's analysis, the document covers three major trends in AI adoption: healthcare diagnostics matching radiologist accuracy, Level 3 autonomous vehicles reaching consumers, and 68% of marketing teams using generative AI tools.",
         "model_name": "gpt-4",
         "metrics": { "prompt_tokens": 1200, "completion_tokens": 80 }
       }
@@ -56,21 +56,28 @@
         "step_id": 1,
         "timestamp": "2025-02-01T10:00:03Z",
         "source": "user",
-        "message": "Summarize document doc-123."
+        "message": "Summarize and analyze the following document:\n\nArtificial intelligence adoption is accelerating across industries. In healthcare, AI-powered diagnostics now match radiologist accuracy for certain imaging tasks. The automotive sector continues investing heavily in autonomous vehicle technology, with Level 3 systems reaching consumer markets in 2025. Meanwhile, generative AI tools have transformed content creation workflows, with 68% of marketing teams reporting regular use of AI writing assistants.",
+        "is_copied_context": true
       },
       {
         "step_id": 2,
-        "timestamp": "2025-02-01T10:00:05Z",
+        "timestamp": "2025-02-01T10:00:04Z",
+        "source": "system",
+        "message": "You are a summarization specialist. Provide a concise summary of the document, highlighting key statistics and trends."
+      },
+      {
+        "step_id": 3,
+        "timestamp": "2025-02-01T10:00:06Z",
         "source": "agent",
-        "message": "The document covers three main topics: AI in healthcare, autonomous vehicles, and generative AI in content creation.",
+        "message": "The document covers three main AI adoption trends:\n1. **Healthcare**: AI diagnostics now match radiologist accuracy for certain imaging tasks\n2. **Automotive**: Level 3 autonomous vehicles reaching consumer markets in 2025\n3. **Generative AI**: 68% of marketing teams regularly use AI writing assistants\n\nThe overarching theme is accelerating AI adoption across industries, with each sector reaching significant capability milestones.",
         "model_name": "gpt-4o-mini",
-        "metrics": { "prompt_tokens": 600, "completion_tokens": 40 }
+        "metrics": { "prompt_tokens": 600, "completion_tokens": 80 }
       }
     ],
     "final_metrics": {
       "total_prompt_tokens": 600,
-      "total_completion_tokens": 40,
-      "total_steps": 2
+      "total_completion_tokens": 80,
+      "total_steps": 3
     }
   }
 }
