@@ -2782,6 +2782,7 @@ type Query {
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
   getProjectSessionById(sessionId: String!): ProjectSession
+  getDatasetExampleByExternalId(datasetId: ID!, externalId: String!): DatasetExample
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
   datasetCount: Int!

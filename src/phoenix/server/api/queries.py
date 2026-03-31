@@ -1636,6 +1636,26 @@ class Query:
         return None
 
     @strawberry.field
+    async def get_dataset_example_by_external_id(
+        self,
+        info: Info[Context, None],
+        dataset_id: GlobalID,
+        external_id: str,
+    ) -> Optional[DatasetExample]:
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name="Dataset"
+        )
+        stmt = select(models.DatasetExample).where(
+            models.DatasetExample.dataset_id == dataset_rowid,
+            models.DatasetExample.external_id == external_id,
+        )
+        async with info.context.db() as session:
+            example = await session.scalar(stmt)
+        if example:
+            return DatasetExample(id=example.id, db_record=example)
+        return None
+
+    @strawberry.field
     async def apply_chat_template(
         self,
         template: PromptChatTemplateInput,
