@@ -2,8 +2,7 @@
 """Convert an ATIF trajectory dict into a list of Phoenix/OTel-compatible spans."""
 
 # Intentionally not mapped to OpenInference span attributes:
-# - continued_trajectory_ref: trajectory continuation linking handled via batch upload
-# - subagent_trajectory_ref: resolved to cross-trace parent_id links in batch upload
+# - continued_trajectory_ref: no OpenInference equivalent for trajectory continuation
 # - notes: free-form annotation with no OpenInference equivalent
 # - reasoning_effort (on agent steps): configuration hint, not observable output
 # - step-level extra: arbitrary vendor extensions, no standard mapping
@@ -11,7 +10,10 @@
 # - prompt_token_ids, completion_token_ids (in step metrics): RL training data,
 #   no OpenInference attribute; arrays can be very large
 # - logprobs (in step metrics): RL training data, no OpenInference attribute
-# - cost_usd is mapped to llm.cost.total
+#
+# Mapped elsewhere (not in this "not mapped" list but worth noting):
+# - subagent_trajectory_ref: resolved to cross-trace parent_id links via _build_subagent_ref_map
+# - cost_usd (in step metrics): mapped to llm.cost.total on LLM spans
 
 from __future__ import annotations
 
@@ -369,13 +371,17 @@ def _build_subagent_ref_map(
 ) -> Dict[str, tuple[str, str]]:
     """Scan trajectories for subagent_trajectory_ref entries.
 
+    Trace IDs are derived as ``sha256(session_id:trace)[:32]`` and tool
+    span IDs as ``sha256(session_id:step:{step_id}:tool:{tc_id})[:16]``,
+    matching the deterministic IDs produced by the converter.
+
     Returns:
         Dict mapping child_session_id -> (parent_tool_span_id, parent_trace_id)
     """
     ref_map: Dict[str, tuple[str, str]] = {}
     for trajectory in trajectories:
         session_id = trajectory["session_id"]
-        trace_id = _sha256_trace_id(f"{session_id}:trace")
+        trace_id = _sha256_trace_id(f"{_base_session_id(session_id)}:trace")
         for step in trajectory.get("steps", []):
             step_id = step.get("step_id")
             observation = step.get("observation")
@@ -397,16 +403,108 @@ def _build_subagent_ref_map(
     return ref_map
 
 
+def _split_into_turns(
+    steps: Sequence[Mapping[str, Any]],
+) -> List[List[int]]:
+    """Split step indices into turns based on user messages.
+
+    The first turn includes all steps from the beginning through the
+    agent/system steps that follow the first user message, up to (but
+    not including) the next user message. Each subsequent user message
+    starts a new turn. This means leading system/context steps before
+    the first user message are grouped into the first turn rather than
+    creating an empty turn.
+
+    Returns a list of lists of step indices.
+    """
+    turns: List[List[int]] = []
+    current: List[int] = []
+    seen_first_user = False
+    for i, step in enumerate(steps):
+        if step.get("source") == "user":
+            if seen_first_user and current:
+                turns.append(current)
+                current = []
+            seen_first_user = True
+        current.append(i)
+    if current:
+        turns.append(current)
+    return turns
+
+
+def _base_session_id(session_id: str) -> str:
+    """Extract the base session_id, stripping any continuation suffix.
+
+    Harbor appends ``-cont-{N}`` to the session_id for continuation
+    trajectories (context window splits). We derive trace_id from the
+    base so that the original and all continuations share one trace.
+
+    Examples::
+
+        "abc123"         -> "abc123"
+        "abc123-cont-1"  -> "abc123"
+        "abc123-cont-2"  -> "abc123"
+    """
+    parts = session_id.split("-cont-")
+    if len(parts) == 2 and parts[1].isdigit():
+        return parts[0]
+    return session_id
+
+
+def _get_turn_input(
+    steps: Sequence[Mapping[str, Any]],
+    step_indices: Sequence[int],
+) -> str:
+    """Extract the user message that starts a turn."""
+    for idx in step_indices:
+        if steps[idx].get("source") == "user":
+            return _stringify_message(steps[idx].get("message"))
+    # Fallback: first non-empty message in the turn
+    for idx in step_indices:
+        msg = _stringify_message(steps[idx].get("message"))
+        if msg:
+            return msg
+    return ""
+
+
+def _get_turn_output(
+    steps: Sequence[Mapping[str, Any]],
+    step_indices: Sequence[int],
+) -> str:
+    """Extract the last agent reply in a turn."""
+    for idx in reversed(step_indices):
+        if steps[idx].get("source") == "agent":
+            return _stringify_message(steps[idx].get("message"))
+    return ""
+
+
 def _convert_atif_trajectory_to_spans(
     trajectory: Mapping[str, Any],
     parent_span_context: Optional[tuple[str, str]] = None,
 ) -> List[v1.Span]:
     """Convert a validated ATIF trajectory into a flat list of spans.
 
-    Span hierarchy:
-      - Root AGENT span (covers entire trajectory)
-        - Per-step CHAIN spans (user/system) or LLM spans (agent)
-          - TOOL spans (one per tool_call in agent steps)
+    Produces one trace per trajectory. For multi-turn conversations,
+    each user turn gets a nested AGENT span under the root:
+
+    Single-turn::
+
+        AGENT (root)
+          LLM
+            TOOL
+          LLM
+
+    Multi-turn::
+
+        AGENT (root)
+          AGENT (turn 1 — input=user msg 1, output=agent reply 1)
+            LLM
+              TOOL
+          AGENT (turn 2 — input=user msg 2, output=agent reply 2)
+            LLM
+
+    User/system messages are not separate spans — they appear as
+    ``llm.input_messages`` on the LLM spans that follow them.
 
     IDs are deterministic, derived from session_id via SHA-256 so that
     re-uploading the same trajectory produces the same trace.
@@ -414,9 +512,7 @@ def _convert_atif_trajectory_to_spans(
     Args:
         trajectory: A validated ATIF trajectory dict.
         parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
-            for linking child trajectories to a parent's tool span. When
-            provided, the child uses the parent's trace_id and sets parent_id
-            on the root span.
+            for linking child trajectories to a parent's tool span.
     """
     session_id: str = trajectory["session_id"]
     agent: Mapping[str, Any] = trajectory["agent"]
@@ -425,13 +521,12 @@ def _convert_atif_trajectory_to_spans(
     if parent_span_context is not None:
         trace_id = parent_span_context[1]
     else:
-        trace_id = _sha256_trace_id(f"{session_id}:trace")
+        # Derive trace_id from the base session_id so that continuation
+        # trajectories (session_id ending in -cont-N) share one trace.
+        trace_id = _sha256_trace_id(f"{_base_session_id(session_id)}:trace")
     root_span_id = _sha256_span_id(f"{session_id}:root")
 
-    spans: List[v1.Span] = []
-
-    # --- Compute trajectory time bounds ---
-    # Find the first available timestamp; fall back to now.
+    # --- Compute step timings upfront ---
     fallback_now = datetime.now(tz=timezone.utc)
     first_start: Optional[datetime] = None
     for s in steps:
@@ -450,24 +545,12 @@ def _convert_atif_trajectory_to_spans(
         prev_end = step_end
     last_end = step_timings[-1][1]
 
-    # --- Shared attributes for all spans ---
-    # Tool definitions from agent config (v1.5+), mapped to llm.tools
+    # --- Shared attributes ---
     tool_definitions = agent.get("tool_definitions")
     llm_tool_attrs: Dict[str, str] = {}
     if tool_definitions:
         llm_tool_attrs = _build_llm_tools_attributes(tool_definitions)
 
-    # --- Root AGENT span ---
-    root_attrs: Dict[str, Any] = {
-        "openinference.span.kind": "AGENT",
-        "session.id": session_id,
-        "input.value": _get_trajectory_input(steps),
-        "input.mime_type": "text/plain",
-        "output.value": _get_trajectory_output(steps),
-        "output.mime_type": "text/plain",
-    }
-
-    # Add agent metadata
     agent_meta: Dict[str, Any] = {
         "agent_name": agent.get("name"),
         "agent_version": agent.get("version"),
@@ -476,9 +559,20 @@ def _convert_atif_trajectory_to_spans(
         agent_meta["model_name"] = agent["model_name"]
     if agent.get("extra"):
         agent_meta.update(agent["extra"])
-    root_attrs["metadata"] = agent_meta
 
-    # Add final metrics if present
+    all_spans: List[v1.Span] = []
+
+    # --- Root AGENT span (trajectory-level) ---
+    root_attrs: Dict[str, Any] = {
+        "openinference.span.kind": "AGENT",
+        "session.id": session_id,
+        "input.value": _get_trajectory_input(steps),
+        "input.mime_type": "text/plain",
+        "output.value": _get_trajectory_output(steps),
+        "output.mime_type": "text/plain",
+        "metadata": dict(agent_meta),
+    }
+
     final_metrics = trajectory.get("final_metrics")
     if final_metrics:
         total_prompt = final_metrics.get("total_prompt_tokens")
@@ -507,68 +601,80 @@ def _convert_atif_trajectory_to_spans(
     }
     if parent_span_context is not None:
         root_span["parent_id"] = parent_span_context[0]
-    spans.append(root_span)
+    all_spans.append(root_span)
 
-    # --- Per-step spans ---
-    for i, step in enumerate(steps):
-        source = step.get("source", "agent")
-        step_id = step.get("step_id", i + 1)
-        step_span_id = _sha256_span_id(f"{session_id}:step:{step_id}")
-        step_start, step_end = step_timings[i]
+    # --- Split into turns ---
+    turns = _split_into_turns(steps)
+    multi_turn = len(turns) > 1
 
-        if source in ("user", "system"):
-            # CHAIN span for user/system messages
-            step_attrs: Dict[str, Any] = {
-                "openinference.span.kind": "CHAIN",
+    for turn_idx, step_indices in enumerate(turns):
+        # For multi-turn: create a nested AGENT span per turn.
+        # For single-turn: LLM spans parent directly to the root.
+        if multi_turn:
+            turn_span_id = _sha256_span_id(f"{session_id}:turn:{turn_idx}")
+            turn_start = step_timings[step_indices[0]][0]
+            turn_end = step_timings[step_indices[-1]][1]
+            turn_attrs: Dict[str, Any] = {
+                "openinference.span.kind": "AGENT",
                 "session.id": session_id,
-                "input.value": _stringify_message(step.get("message")),
+                "input.value": _get_turn_input(steps, step_indices),
                 "input.mime_type": "text/plain",
+                "output.value": _get_turn_output(steps, step_indices),
+                "output.mime_type": "text/plain",
             }
-            if step.get("is_copied_context"):
-                step_attrs["metadata"] = {"is_copied_context": True}
-            step_span: v1.Span = {
-                "name": f"{source}_message",
+            turn_span: v1.Span = {
+                "name": f"turn_{turn_idx + 1}",
                 "context": {
                     "trace_id": trace_id,
-                    "span_id": step_span_id,
+                    "span_id": turn_span_id,
                 },
                 "parent_id": root_span_id,
-                "span_kind": "CHAIN",
-                "start_time": _format_timestamp(step_start),
-                "end_time": _format_timestamp(step_end),
+                "span_kind": "AGENT",
+                "start_time": _format_timestamp(turn_start),
+                "end_time": _format_timestamp(turn_end),
                 "status_code": "OK",
-                "attributes": step_attrs,
+                "attributes": turn_attrs,
             }
-            spans.append(step_span)
+            all_spans.append(turn_span)
+            llm_parent_id = turn_span_id
+        else:
+            llm_parent_id = root_span_id
 
-        elif source == "agent":
-            # LLM span for agent steps
+        # --- LLM + TOOL spans for agent steps ---
+        for i in step_indices:
+            step = steps[i]
+            if step.get("source") != "agent":
+                continue
+
+            step_id = step.get("step_id", i + 1)
+            step_span_id = _sha256_span_id(f"{session_id}:step:{step_id}")
+            step_start, step_end = step_timings[i]
+
             llm_attrs = _build_llm_attributes(step, agent)
             llm_attrs["openinference.span.kind"] = "LLM"
             llm_attrs["session.id"] = session_id
             llm_attrs.update(_build_message_attributes(steps, i))
             llm_attrs.update(llm_tool_attrs)
 
-            step_span = {
+            step_span: v1.Span = {
                 "name": "LLM",
                 "context": {
                     "trace_id": trace_id,
                     "span_id": step_span_id,
                 },
-                "parent_id": root_span_id,
+                "parent_id": llm_parent_id,
                 "span_kind": "LLM",
                 "start_time": _format_timestamp(step_start),
                 "end_time": _format_timestamp(step_end),
                 "status_code": "OK",
                 "attributes": llm_attrs,
             }
-            spans.append(step_span)
+            all_spans.append(step_span)
 
-            # TOOL child spans for each tool_call
+            # TOOL child spans
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
             results: List[Any] = observation.get("results", []) if observation else []
-            # Build lookup: source_call_id → content string
             obs_map: Dict[str, str] = {}
             for r in results:
                 if not isinstance(r, dict):
@@ -601,9 +707,9 @@ def _convert_atif_trajectory_to_spans(
                     "status_code": "OK",
                     "attributes": tool_attrs,
                 }
-                spans.append(tool_span)
+                all_spans.append(tool_span)
 
-    return spans
+    return all_spans
 
 
 def _get_trajectory_input(

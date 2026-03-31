@@ -34,8 +34,9 @@ def upload_atif_trajectories_as_spans(
 
     Validates each trajectory, resolves subagent cross-references between
     trajectories in the batch, converts them to hierarchical span trees
-    (root AGENT → step CHAIN/LLM spans → tool TOOL spans), and logs
+    (root AGENT → per-turn AGENT → LLM spans → TOOL spans), and logs
     all spans via a single ``client.spans.log_spans()`` call.
+    Single-turn trajectories are flat (root AGENT → LLM → TOOL).
 
     Args:
         client: A Phoenix ``Client`` instance.

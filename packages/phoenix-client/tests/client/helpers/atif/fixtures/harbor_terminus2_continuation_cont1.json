@@ -1,6 +1,6 @@
 {
   "schema_version": "ATIF-v1.6",
-  "session_id": "harbor-terminus2-continuation-cont1",
+  "session_id": "harbor-terminus2-continuation-cont-1",
   "agent": {
     "name": "terminus-2",
     "version": "2.0.0",

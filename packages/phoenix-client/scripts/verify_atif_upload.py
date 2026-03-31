@@ -19,7 +19,7 @@ from typing import Any, Dict, Sequence
 
 from phoenix.client import Client
 from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
-from phoenix.client.helpers.atif._convert import _sha256_trace_id
+from phoenix.client.helpers.atif._convert import _base_session_id, _sha256_trace_id
 
 PHOENIX_URL = "http://localhost:6006"
 # Append a timestamp suffix so re-runs don't hit duplicate span errors
@@ -293,7 +293,7 @@ def _upload_batch(
         # Compute trace IDs for display
         trace_ids = set()
         for t in trajectories:
-            trace_ids.add(_sha256_trace_id(f"{t['session_id']}:trace")[:12])
+            trace_ids.add(_sha256_trace_id(f"{_base_session_id(t['session_id'])}:trace")[:12])
         trace_str = ", ".join(sorted(trace_ids))
         print(
             f"  ✓ {label:<45} | trajs={n_trajs} steps={total_steps:>3} "
