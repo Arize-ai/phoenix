@@ -194,51 +194,6 @@ jobs:
         shell: bash
         run: make test-jcs
 
-  test-json-canonicalization-schema:
-    name: JSON Canonicalization Schema (${{ matrix.py }}, ${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    needs: changes
-    if: ${{ needs.changes.outputs.json_canonicalization_schema == 'true' }}
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - py: "3.10"
-            os: ubuntu-latest
-          - py: "3.11"
-            os: macos-latest
-          - py: "3.12"
-            os: ubuntu-latest
-          - py: "3.13"
-            os: windows-latest
-          - py: "3.14"
-            os: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            Makefile
-            scripts/ci/json-canonicalization-schema/
-            src/phoenix/
-            packages/
-            .jcs-test-data/
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.18"
-      - name: Install make (Windows)
-        if: runner.os == 'Windows'
-        run: choco install make --no-progress -y
-      - name: Cache test data
-        uses: actions/cache@v4
-        with:
-          path: .jcs-test-data
-          key: jcs-test-data
-      - name: Run JSON canonicalization schema tests
-        shell: bash
-        run: make test-jcs
-
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
     needs: changes
