@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 
 import strawberry
 from sqlalchemy import and_, desc, func, nulls_last, select
@@ -9,12 +9,10 @@ from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
 from typing_extensions import assert_never
 
-import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.db.helpers import truncate_name
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace.schemas import SpanID
 
 
 @strawberry.enum
@@ -149,10 +147,6 @@ class EvalAttr(Enum):
 class EvalResultKey:
     name: str
     attr: EvalAttr
-
-
-class SupportsGetSpanEvaluation(Protocol):
-    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]: ...
 
 
 @dataclass(frozen=True)
