@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b1c4ab21273a7899016b88ebd5549c1c>>
+ * @generated SignedSource<<84d111be9d663fdc918b98a955a69f84>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ExamplesTableFragment$data = {
           readonly id: string;
           readonly name: string;
         }>;
+        readonly externalId: string | null;
         readonly id: string;
         readonly revision: {
           readonly input: any;
@@ -152,6 +153,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "externalId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "DatasetSplit",
                   "kind": "LinkedField",
                   "name": "datasetSplits",
@@ -273,6 +281,6 @@ return {
 };
 })();
 
-(node as any).hash = "ebe08bedf9904f2cb003b0ebc5d3f682";
+(node as any).hash = "dd9f3e4db3c8392059ec821c221b5bb9";
 
 export default node;

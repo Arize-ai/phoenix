@@ -851,6 +851,7 @@ input DatasetEvaluatorSort {
 type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+  externalId: String
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
