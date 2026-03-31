@@ -25,7 +25,6 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
-import phoenix.trace.v1 as pb
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -339,14 +338,14 @@ class TestBulkInserter(BulkInserter):
     ) -> tuple[
         Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
-        Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
+        if self._spans:
+            await self._insert_spans(len(self._spans))
         # Return the overridden methods
         return (
             self._enqueue_annotations_immediate,
             self._queue_span_immediate,
-            self._queue_evaluation_immediate,
             self._enqueue_operation_immediate,
         )
 
@@ -366,10 +365,6 @@ class TestBulkInserter(BulkInserter):
     async def _queue_span_immediate(self, span: Span, project_name: str) -> None:
         self._spans.append((span, project_name))
         await self._insert_spans(1)
-
-    async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
-        self._evaluations.append(evaluation)
-        await self._insert_evaluations(1)
 
 
 @contextlib.asynccontextmanager
