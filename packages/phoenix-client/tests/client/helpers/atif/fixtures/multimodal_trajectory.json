@@ -9,25 +9,25 @@
       "source": "user",
       "message": [
         { "type": "text", "text": "What is in this image?" },
-        { "type": "image", "source": { "media_type": "image/png", "path": "images/screenshot.png" } }
+        { "type": "image", "source": { "media_type": "image/png", "path": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" } }
       ]
     },
     {
       "step_id": 2,
       "timestamp": "2025-06-01T10:00:03Z",
       "source": "agent",
-      "message": "The image shows a dashboard with three charts...",
+      "message": "The image shows two dice on a transparent background. They appear to be standard six-sided dice, one showing a 5 and the other showing a 2.",
       "model_name": "gpt-4o",
       "tool_calls": [
-        { "tool_call_id": "call_ocr", "function_name": "extract_text", "arguments": { "image_path": "images/screenshot.png" } }
+        { "tool_call_id": "call_ocr", "function_name": "extract_text", "arguments": { "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" } }
       ],
       "observation": {
         "results": [
           {
             "source_call_id": "call_ocr",
             "content": [
-              { "type": "text", "text": "Extracted text: Revenue $1.2M, Users 45K" },
-              { "type": "image", "source": { "media_type": "image/png", "path": "images/annotated.png" } }
+              { "type": "text", "text": "No readable text detected in the image. The image contains two dice on a checkered transparency background." },
+              { "type": "image", "source": { "media_type": "image/jpeg", "path": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/800px-Tsunami_by_hokusai_19th_century.jpg" } }
             ]
           }
         ]
@@ -38,7 +38,7 @@
       "step_id": 3,
       "timestamp": "2025-06-01T10:00:06Z",
       "source": "agent",
-      "message": "The dashboard shows revenue of $1.2M and 45K users.",
+      "message": "The image contains two dice on a transparent background. No readable text was found. The dice show faces with 5 and 2 dots respectively.",
       "model_name": "gpt-4o",
       "metrics": { "prompt_tokens": 1400, "completion_tokens": 40, "cost_usd": 0.005 }
     }

@@ -410,10 +410,9 @@ class TestMultimodalContent:
             == "What is in this image?"
         )
         assert attrs.get(f"{prefix}.message.contents.1.message_content.type") == "image"
-        assert (
-            attrs.get(f"{prefix}.message.contents.1.message_content.image.image.url")
-            == "images/screenshot.png"
-        )
+        image_url = attrs.get(f"{prefix}.message.contents.1.message_content.image.image.url")
+        assert image_url is not None
+        assert "PNG_transparency_demonstration" in image_url
 
     def test_multimodal_span_count(self, multimodal_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
