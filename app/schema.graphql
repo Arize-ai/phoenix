@@ -689,7 +689,7 @@ input CreatePromptVersionTagInput {
 }
 
 input CreateSandboxConfigInput {
-  sandboxProviderId: Int!
+  sandboxProviderId: ID!
   name: String!
   description: String = null
   config: JSON = null
@@ -2068,6 +2068,7 @@ type Mutation {
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(id: ID!): DeleteSandboxConfigPayload!
   setSandboxProviderEnabled(providerId: Int!, enabled: Boolean!): SetSandboxProviderEnabledPayload!
+  updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -2837,6 +2838,7 @@ type Query {
   promptCount: Int!
   evaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
+  sandboxProviders: [SandboxProvider!]!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2862,6 +2864,7 @@ type SandboxBackendInfo {
   displayName: String!
   supportedLanguages: [Language!]!
   status: SandboxBackendStatus!
+  dependencyHints: [String!]!
 }
 
 enum SandboxBackendStatus {
@@ -2892,6 +2895,7 @@ type SandboxProvider implements Node {
   enabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
+  configs: [SandboxConfig!]!
 }
 
 type Secret implements Node {
@@ -3679,7 +3683,7 @@ type UpdateModelMutationPayload {
 }
 
 input UpdateSandboxConfigInput {
-  id: Int!
+  id: ID!
   description: String
   config: JSON
   timeout: Int
@@ -3688,6 +3692,17 @@ input UpdateSandboxConfigInput {
 
 type UpdateSandboxConfigPayload {
   sandboxConfig: SandboxConfig!
+  query: Query!
+}
+
+input UpdateSandboxProviderInput {
+  id: ID!
+  config: JSON
+  enabled: Boolean
+}
+
+type UpdateSandboxProviderPayload {
+  sandboxProvider: SandboxProvider!
   query: Query!
 }
 
