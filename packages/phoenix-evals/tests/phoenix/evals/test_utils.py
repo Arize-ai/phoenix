@@ -1296,7 +1296,7 @@ class TestFormatAsAnnotationDataframe:
 
 PCM_ENC_STR = (
     "cvhy+AT7BPsP/w//VgJWAhoBGgHyAPIAOgE6AdAA0ACA/4D/Nvs2+739vfkC+AL4EfYR9izy"
-    "LPLZ9dn1AvoC+vn3+fdy+XL5K/cr"
+    "LPLZ9dn1AvoC+vn3+fdy+XL5K/crAA=="
 )
 PCM_BYTES = base64.b64decode(PCM_ENC_STR)
 SAMPLE_RATE = 44100
