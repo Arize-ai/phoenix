@@ -90,7 +90,11 @@ export function AgentChatPanel() {
               gap="size-50"
               minWidth={0}
             >
-              <Text weight="heavy" css={sessionHeadingCSS}>
+              <Text
+                weight="heavy"
+                css={sessionHeadingCSS}
+                title={sessionDisplayName}
+              >
                 {sessionDisplayName}
               </Text>
             </Flex>
