@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import os
 from asyncio import AbstractEventLoop
@@ -19,8 +18,6 @@ from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
 from fastapi import FastAPI
-from httpx import AsyncByteStream, Request, Response
-from phoenix.client import Client
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
@@ -43,7 +40,6 @@ from phoenix.db.insertion.helpers import DataManipulation
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
-from phoenix.session.client import Client as LegacyClient
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.transport import ASGIWebSocketTransport
@@ -309,72 +305,16 @@ async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
 
 
 @pytest.fixture
-def httpx_clients(
-    asgi_app: ASGIApp,
-) -> tuple[httpx.Client, httpx.AsyncClient]:
-    class Transport(httpx.BaseTransport):
-        def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
-            import nest_asyncio
-
-            nest_asyncio.apply()
-
-            self.asgi_transport = asgi_transport
-
-        def handle_request(self, request: Request) -> Response:
-            response = asyncio.run(self.asgi_transport.handle_async_request(request))
-
-            async def read_stream() -> bytes:
-                content = b""
-                assert isinstance(stream := response.stream, AsyncByteStream)
-                async for chunk in stream:
-                    content += chunk
-                return content
-
-            content = asyncio.run(read_stream())
-            return Response(
-                status_code=response.status_code,
-                headers=response.headers,
-                content=content,
-                request=request,
-            )
-
-    asgi_transport = ASGIWebSocketTransport(app=asgi_app)
-    transport = Transport(asgi_transport=asgi_transport)
-    base_url = "http://test"
-    return (
-        httpx.Client(transport=transport, base_url=base_url),
-        httpx.AsyncClient(transport=asgi_transport, base_url=base_url),
-    )
-
-
-@pytest.fixture
 def httpx_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
+    asgi_app: ASGIApp,
 ) -> httpx.AsyncClient:
-    return httpx_clients[1]
+    asgi_transport = ASGIWebSocketTransport(app=asgi_app)
+    return httpx.AsyncClient(transport=asgi_transport, base_url="http://test")
 
 
 @pytest.fixture
 def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
     yield AsyncGraphQLClient(httpx_client)
-
-
-@pytest.fixture
-def legacy_px_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> LegacyClient:
-    sync_client, _ = httpx_clients
-    client = LegacyClient(warn_if_server_not_running=False)
-    client._client = sync_client  # type: ignore[assignment]
-    return client
-
-
-@pytest.fixture
-def px_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> Client:
-    sync_client, _ = httpx_clients
-    return Client(http_client=sync_client)
 
 
 @pytest.fixture

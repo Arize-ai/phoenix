@@ -85,7 +85,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: ["3.10", "3.12"]
+        py: ["3.10", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -108,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.12"]
+        py: ["3.10", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -151,7 +151,7 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: ["3.13"]
+        py: ["3.14"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -175,7 +175,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.10"]
+        py: ["3.14"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -199,8 +199,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.10"]
-        os: [oss-4-core-runner]
+        py: ["3.14"]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -223,7 +223,7 @@ jobs:
     if: ${{ needs.changes.outputs.prompts == 'true' }}
     strategy:
       matrix:
-        py: ["3.10"]
+        py: ["3.14"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -250,7 +250,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -272,7 +272,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.13"]
+        py: ["3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -299,7 +299,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.14"]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -451,10 +451,10 @@ jobs:
         ports:
           - 5432:5432
     steps:
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
-          python-version: 3.13
+          python-version: 3.14
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:

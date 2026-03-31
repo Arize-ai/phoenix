@@ -3,6 +3,7 @@ import os
 import platform
 import queue
 import signal
+import sys
 import threading
 import time
 from typing import Any, Iterator, Sequence, Union, overload
@@ -419,6 +420,10 @@ async def test_executor_factory_returns_sync_in_async_context() -> None:
     assert isinstance(executor, SyncExecutor)
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_async_in_patched_async_context() -> None:
     nest_asyncio.apply()  # pyright: ignore
 
@@ -495,6 +500,10 @@ def test_executor_factory_returns_sync_in_threads() -> None:
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_sync_in_threads_even_if_async_context() -> None:
     def sync_fn(x: Any) -> Any:
         return x
@@ -529,6 +538,10 @@ async def test_executor_factory_returns_sync_in_threads_even_if_async_context() 
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 def test_executor_factory_returns_async_not_in_thread_if_async_context() -> None:
     def sync_fn(x: Any) -> Any:
         return x
