@@ -13,13 +13,14 @@ from typing import Any, Dict, Literal
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, MetaData, text
+from sqlalchemy import Connection, MetaData, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 
-def test_experiments_dataset_examples_backfill_migration(
-    _engine: Engine,
+async def test_experiments_dataset_examples_backfill_migration(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
     _schema: str,
@@ -43,37 +44,37 @@ def test_experiments_dataset_examples_backfill_migration(
 
     # Verify clean state
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
     # Migrate to the revision before our target migration
-    _up(_engine, _alembic_config, "58228d933c91", _schema)
+    await _up(_engine, _alembic_config, "58228d933c91", _schema)
 
     # Set up test data before migration
-    test_data = _setup_test_data(_engine)
+    test_data = await _setup_test_data(_engine)
 
     # Verify pre-migration state
-    _verify_pre_migration_state(_engine, test_data)
+    await _verify_pre_migration_state(_engine, test_data)
 
     # Run the target migration
-    _up(_engine, _alembic_config, "e76cbd66ffc3", _schema)
+    await _up(_engine, _alembic_config, "e76cbd66ffc3", _schema)
 
     # Verify post-migration state
-    _verify_post_migration_state(_engine, test_data)
+    await _verify_post_migration_state(_engine, test_data)
 
     # Test downgrade
-    _down(_engine, _alembic_config, "58228d933c91", _schema)
+    await _down(_engine, _alembic_config, "58228d933c91", _schema)
 
     # Verify table is dropped
-    _verify_downgrade_state(_engine)
+    await _verify_downgrade_state(_engine)
 
 
-def _setup_test_data(_engine: Engine) -> Dict[str, Any]:
+async def _setup_test_data(_engine: AsyncEngine) -> Dict[str, Any]:
     """Set up test data before migration."""
 
     # Use current timestamp for cross-database compatibility
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
 
-    with _engine.connect() as conn:
+    def _do(conn: Connection) -> Dict[str, Any]:
         # Create test datasets
         dataset1_id = conn.execute(
             text("""
@@ -249,12 +250,14 @@ def _setup_test_data(_engine: Engine) -> Dict[str, Any]:
             "experiments": [experiment1_id, experiment2_id, experiment3_id],
         }
 
+    return await _run_async(_engine, _do)
 
-def _verify_pre_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> None:
+
+async def _verify_pre_migration_state(_engine: AsyncEngine, test_data: Dict[str, Any]) -> None:
     """Verify state before migration."""
 
     # Check junction table doesn't exist (use separate transaction for PostgreSQL)
-    with _engine.connect() as conn:
+    def _check_no_junction(conn: Connection) -> None:
         try:
             conn.execute(text("SELECT 1 FROM experiments_dataset_examples LIMIT 1"))
             assert False, "Junction table should not exist before migration"
@@ -262,8 +265,10 @@ def _verify_pre_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> N
             # Expected - table doesn't exist (different backends raise different exceptions)
             pass
 
+    await _run_async(_engine, _check_no_junction)
+
     # Verify other tables exist (separate transaction)
-    with _engine.connect() as conn:
+    def _check_tables(conn: Connection) -> None:
         # Verify experiments exist
         result = conn.execute(text("SELECT COUNT(*) FROM experiments"))
         assert result.scalar() == 3, "Should have 3 experiments"
@@ -275,14 +280,16 @@ def _verify_pre_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> N
         result = conn.execute(text("SELECT COUNT(*) FROM dataset_example_revisions"))
         assert result.scalar() == 5, "Should have 5 revisions (including DELETE)"
 
+    await _run_async(_engine, _check_tables)
 
-def _verify_post_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> None:
+
+async def _verify_post_migration_state(_engine: AsyncEngine, test_data: Dict[str, Any]) -> None:
     """Verify state after migration and backfill."""
 
-    with _engine.connect() as conn:
+    def _do(conn: Connection) -> None:
         # Verify junction table exists with correct schema
         metadata = MetaData()
-        metadata.reflect(bind=_engine)
+        metadata.reflect(bind=conn)
 
         assert "experiments_dataset_examples" in metadata.tables, "Junction table should exist"
 
@@ -349,12 +356,14 @@ def _verify_post_migration_state(_engine: Engine, test_data: Dict[str, Any]) -> 
         )
         assert result.scalar() == 0, "No DELETE revisions should be in junction table"
 
+    await _run_async(_engine, _do)
 
-def _verify_downgrade_state(_engine: Engine) -> None:
+
+async def _verify_downgrade_state(_engine: AsyncEngine) -> None:
     """Verify state after downgrade."""
 
     # Check junction table is dropped (use separate transaction for PostgreSQL)
-    with _engine.connect() as conn:
+    def _check_no_junction(conn: Connection) -> None:
         try:
             conn.execute(text("SELECT 1 FROM experiments_dataset_examples LIMIT 1"))
             assert False, "Junction table should be dropped after downgrade"
@@ -362,7 +371,11 @@ def _verify_downgrade_state(_engine: Engine) -> None:
             # Expected - table doesn't exist (different backends raise different exceptions)
             pass
 
+    await _run_async(_engine, _check_no_junction)
+
     # Verify other tables still exist (separate transaction)
-    with _engine.connect() as conn:
+    def _check_experiments(conn: Connection) -> None:
         result = conn.execute(text("SELECT COUNT(*) FROM experiments"))
         assert result.scalar() == 3, "Experiments should still exist after downgrade"
+
+    await _run_async(_engine, _check_experiments)

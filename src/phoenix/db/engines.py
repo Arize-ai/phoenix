@@ -2,21 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any, Optional
+from typing import Any
 
 import aiosqlite
 import numpy as np
 import orjson
-import sqlalchemy
 import sqlean
-from sqlalchemy import URL, StaticPool, event, make_url
+from sqlalchemy import URL, NullPool, StaticPool, event, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing_extensions import assert_never
 
-from phoenix.config import get_env_database_schema
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
@@ -138,23 +135,15 @@ def aio_sqlite_engine(
         else:
             asyncio.create_task(init_models(engine))
     else:
-        sync_engine = sqlalchemy.create_engine(
-            url=url.set(drivername="sqlite"),
-            echo=log_migrations,
+        migration_engine = create_async_engine(
+            url=url,
             json_serializer=_dumps,
-            creator=lambda: sqlean.connect(f"file:{database}", uri=True),
+            async_creator=async_creator,
+            poolclass=NullPool,
+            echo=log_migrations,
         )
-        migrate_in_thread(sync_engine, log_migrations=log_migrations)
+        migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
-
-
-def set_postgresql_search_path(schema: str) -> Callable[[Connection, Any], None]:
-    def _(connection: Connection, _: Any) -> None:
-        cursor = connection.cursor()
-        cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {schema};")
-        cursor.execute(f"SET search_path TO {schema};")
-
-    return _
 
 
 def aio_postgresql_engine(
@@ -169,46 +158,37 @@ def aio_postgresql_engine(
     )
 
     use_iam_auth = get_env_postgres_use_iam_auth()
+    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_iam_auth)
 
-    asyncpg_url, asyncpg_args = get_pg_config(url, "asyncpg", enforce_ssl=use_iam_auth)
-
-    iam_config: Optional[dict[str, Any]] = None
-    token_lifetime: int = 0
     if use_iam_auth:
-        iam_config = _extract_iam_config_from_url(url)
-        token_lifetime = get_env_postgres_iam_token_lifetime()
+        if not (host := url.host):
+            raise ValueError("Database host is required for IAM authentication")
+        if not (user := url.username):
+            raise ValueError("Database user is required for IAM authentication")
+        port = url.port or 5432
+        database = url.database or "postgres"
 
         async def iam_async_creator() -> Any:
             import asyncpg  # type: ignore
 
             from phoenix.db.iam_auth import generate_aws_rds_token
 
-            assert iam_config is not None
-            token = generate_aws_rds_token(
-                host=iam_config["host"],
-                port=iam_config["port"],
-                user=iam_config["user"],
+            token = generate_aws_rds_token(host=host, port=port, user=user)
+            return await asyncpg.connect(
+                host=host,
+                port=port,
+                user=user,
+                password=token,
+                database=database,
+                **asyncpg_args,
             )
-
-            conn_kwargs = {
-                "host": iam_config["host"],
-                "port": iam_config["port"],
-                "user": iam_config["user"],
-                "password": token,
-                "database": iam_config["database"],
-            }
-
-            if asyncpg_args:
-                conn_kwargs.update(asyncpg_args)
-
-            return await asyncpg.connect(**conn_kwargs)
 
         engine = create_async_engine(
             url=asyncpg_url,
             async_creator=iam_async_creator,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            pool_recycle=token_lifetime,
+            pool_recycle=get_env_postgres_iam_token_lifetime(),
         )
     else:
         engine = create_async_engine(
@@ -221,82 +201,25 @@ def aio_postgresql_engine(
     if not migrate:
         return engine
 
-    psycopg_url, psycopg_args = get_pg_config(url, "psycopg", enforce_ssl=use_iam_auth)
-
     if use_iam_auth:
-        assert iam_config is not None
-
-        def iam_sync_creator() -> Any:
-            import psycopg
-
-            from phoenix.db.iam_auth import generate_aws_rds_token
-
-            token = generate_aws_rds_token(
-                host=iam_config["host"],
-                port=iam_config["port"],
-                user=iam_config["user"],
-            )
-
-            conn_kwargs = {
-                "host": iam_config["host"],
-                "port": iam_config["port"],
-                "user": iam_config["user"],
-                "password": token,
-                "dbname": iam_config["database"],
-            }
-
-            if psycopg_args:
-                conn_kwargs.update(psycopg_args)
-
-            return psycopg.connect(**conn_kwargs)
-
-        sync_engine = sqlalchemy.create_engine(
-            url=psycopg_url,
-            creator=iam_sync_creator,
+        migration_engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=iam_async_creator,
             echo=log_migrations,
             json_serializer=_dumps,
-            pool_recycle=token_lifetime,
+            poolclass=NullPool,
+            pool_recycle=get_env_postgres_iam_token_lifetime(),
         )
     else:
-        sync_engine = sqlalchemy.create_engine(
-            url=psycopg_url,
-            connect_args=psycopg_args,
+        migration_engine = create_async_engine(
+            url=asyncpg_url,
+            connect_args=asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            poolclass=NullPool,
         )
-
-    if schema := get_env_database_schema():
-        event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
-    migrate_in_thread(sync_engine, log_migrations=log_migrations)
+    migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
-
-
-def _extract_iam_config_from_url(url: URL) -> dict[str, Any]:
-    """Extract connection parameters needed for IAM authentication from a SQLAlchemy URL.
-
-    Args:
-        url: SQLAlchemy database URL
-
-    Returns:
-        Dictionary with host, port, user, and database
-    """
-    host = url.host
-    if not host:
-        raise ValueError("Database host is required for IAM authentication")
-
-    port = url.port or 5432
-    user = url.username
-    if not user:
-        raise ValueError("Database user is required for IAM authentication")
-
-    database = url.database or "postgres"
-
-    return {
-        "host": host,
-        "port": port,
-        "user": user,
-        "database": database,
-    }
 
 
 def _dumps(obj: Any) -> str:

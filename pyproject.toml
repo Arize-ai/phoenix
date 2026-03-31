@@ -125,7 +125,6 @@ dev = [
   "portpicker",
   "prometheus_client",
   "psutil",
-  "psycopg[binary,pool]",
   "py-grpc-prometheus",
   "pyarrow-stubs",
   "pydantic>=1.0,!=2.0.*,<3",
@@ -180,7 +179,6 @@ evals = []
 experimental = []
 pg = [
   "asyncpg",
-  "psycopg[binary,pool]",
 ]
 aws = [
   "aioboto3",
