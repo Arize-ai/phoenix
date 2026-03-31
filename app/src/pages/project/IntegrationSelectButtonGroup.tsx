@@ -3,6 +3,7 @@ import type { Key } from "react";
 import { useMemo, useState } from "react";
 
 import {
+  Button,
   Icon,
   Icons,
   ToggleButton,
@@ -42,16 +43,6 @@ const integrationSelectorCSS = css`
   .integration-selector__toggle:not([data-selected="true"]) {
     border-left: 1px solid var(--button-border-color) !important;
   }
-
-  .integration-selector__show-more {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-50);
-    align-self: center;
-    cursor: pointer;
-    color: var(--ac-global-text-color-700);
-    font-size: var(--global-font-size-s);
-  }
 `;
 
 function getSelectedKey(selection: Set<Key> | "all"): string | null {
@@ -87,6 +78,19 @@ export function IntegrationSelectButtonGroup({
     : filteredIntegrations.slice(0, COLLAPSED_INTEGRATION_COUNT);
   const hasMore = filteredIntegrations.length > COLLAPSED_INTEGRATION_COUNT;
 
+  const handleSelectionChange = (selection: Set<Key> | "all") => {
+    const nextKey = getSelectedKey(selection);
+    if (nextKey == null) {
+      return;
+    }
+    const nextIntegration = ONBOARDING_INTEGRATIONS.find(
+      (i) => i.id === nextKey
+    );
+    if (nextIntegration) {
+      onSelectionChange(nextIntegration);
+    }
+  };
+
   return (
     <div css={integrationSelectorCSS}>
       <DebouncedSearch
@@ -102,18 +106,7 @@ export function IntegrationSelectButtonGroup({
         selectionMode="single"
         size="M"
         className="integration-selector__group"
-        onSelectionChange={(selection) => {
-          const nextKey = getSelectedKey(selection);
-          if (nextKey == null) {
-            return;
-          }
-          const nextIntegration = ONBOARDING_INTEGRATIONS.find(
-            (i) => i.id === nextKey
-          );
-          if (nextIntegration) {
-            onSelectionChange(nextIntegration);
-          }
-        }}
+        onSelectionChange={handleSelectionChange}
       >
         {visibleIntegrations.map((i) => (
           <ToggleButton
@@ -128,16 +121,22 @@ export function IntegrationSelectButtonGroup({
         ))}
       </ToggleButtonGroup>
       {hasMore && !isSearching && (
-        <button
-          className="button--reset integration-selector__show-more"
-          onClick={() => setIsExpanded((prev) => !prev)}
+        <Button
+          variant="quiet"
+          size="S"
+          trailingVisual={
+            <Icon
+              svg={isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            />
+          }
+          onPress={() => setIsExpanded((prev) => !prev)}
           aria-expanded={isExpanded}
+          css={css`
+            align-self: center;
+          `}
         >
-          <span>{isExpanded ? "Show less" : "Show more"}</span>
-          <Icon
-            svg={isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
-          />
-        </button>
+          {isExpanded ? "Show less" : "Show more"}
+        </Button>
       )}
     </div>
   );
