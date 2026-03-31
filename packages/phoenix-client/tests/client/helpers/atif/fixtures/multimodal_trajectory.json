@@ -1,0 +1,52 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "sess-multimodal-test",
+  "agent": { "name": "vision-agent", "version": "1.0.0", "model_name": "gpt-4o" },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2025-06-01T10:00:00Z",
+      "source": "user",
+      "message": [
+        { "type": "text", "text": "What is in this image?" },
+        { "type": "image", "source": { "media_type": "image/png", "path": "images/screenshot.png" } }
+      ]
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2025-06-01T10:00:03Z",
+      "source": "agent",
+      "message": "The image shows a dashboard with three charts...",
+      "model_name": "gpt-4o",
+      "tool_calls": [
+        { "tool_call_id": "call_ocr", "function_name": "extract_text", "arguments": { "image_path": "images/screenshot.png" } }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ocr",
+            "content": [
+              { "type": "text", "text": "Extracted text: Revenue $1.2M, Users 45K" },
+              { "type": "image", "source": { "media_type": "image/png", "path": "images/annotated.png" } }
+            ]
+          }
+        ]
+      },
+      "metrics": { "prompt_tokens": 1200, "completion_tokens": 85, "cost_usd": 0.008 }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2025-06-01T10:00:06Z",
+      "source": "agent",
+      "message": "The dashboard shows revenue of $1.2M and 45K users.",
+      "model_name": "gpt-4o",
+      "metrics": { "prompt_tokens": 1400, "completion_tokens": 40, "cost_usd": 0.005 }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 2600,
+    "total_completion_tokens": 125,
+    "total_cost_usd": 0.013,
+    "total_steps": 3
+  }
+}

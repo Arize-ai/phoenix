@@ -3,18 +3,21 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, List, Mapping, Set
 
+logger = logging.getLogger(__name__)
+
+_MAX_SUPPORTED_MINOR = 6
+
 _VALID_SOURCES = {"user", "agent", "system"}
-# Fields that may ONLY appear on agent steps, per Harbor's Step.validate_agent_only_fields.
-# Note: observation is NOT in this list — it's allowed on any source.
+# Fields that may ONLY appear on agent steps.
+# Note: tool_calls, metrics, and observation are allowed on any source since v1.2.
 _AGENT_ONLY_FIELDS = {
     "model_name",
     "reasoning_content",
     "reasoning_effort",
-    "tool_calls",
-    "metrics",
 }
 _SCHEMA_VERSION_PATTERN = re.compile(r"^ATIF-v\d+\.\d+$")
 
@@ -24,13 +27,17 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
 
     Checks:
     - Required root fields: schema_version, session_id, agent, steps
-    - schema_version format (ATIF-vX.Y)
+    - schema_version format (ATIF-vX.Y); hard reject on major >= 2,
+      warning on minor > 6 (latest supported)
     - Agent required fields: name, version (model_name is optional)
     - Steps are non-empty with sequential step_ids starting at 1
     - Step source is one of: user, agent, system
     - message is required for user/system steps
-    - Agent-only fields (model_name, reasoning_content) only on agent steps
-    - Tool call observations with source_call_id reference valid tool_call_ids
+    - Agent-only fields (model_name, reasoning_content, reasoning_effort)
+      only on agent steps
+    - Tool call structure validation
+    - Observation validation (independent of tool_calls); source_call_id
+      cross-referenced against tool_call_ids when both are present
     """
     errors: List[str] = []
 
@@ -46,6 +53,24 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
     schema_version = trajectory["schema_version"]
     if not isinstance(schema_version, str) or not _SCHEMA_VERSION_PATTERN.match(schema_version):
         errors.append(f"Invalid schema_version '{schema_version}': expected format 'ATIF-vX.Y'")
+    else:
+        # Parse and check version numbers
+        version_part = schema_version.split("-v")[1]
+        major_str, minor_str = version_part.split(".")
+        major, minor = int(major_str), int(minor_str)
+        if major >= 2:
+            errors.append(
+                f"Unsupported ATIF major version {major} in '{schema_version}': "
+                f"only ATIF v1.x is supported"
+            )
+        elif minor > _MAX_SUPPORTED_MINOR:
+            logger.warning(
+                "ATIF minor version %d in '%s' is newer than the latest supported "
+                "version (v1.%d); some fields may not be validated or converted",
+                minor,
+                schema_version,
+                _MAX_SUPPORTED_MINOR,
+            )
 
     # Session ID
     session_id = trajectory["session_id"]
@@ -111,14 +136,14 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
                 if field in step_dict:
                     errors.append(f"{prefix}: '{field}' is not allowed on {source} steps")
 
-        # Tool call / observation cross-reference (allowed on any source)
+        # Tool call validation
+        tool_call_ids: Set[str] = set()
         if "tool_calls" in step_dict:
             tool_calls: object = step_dict["tool_calls"]
             if not isinstance(tool_calls, list):
                 errors.append(f"{prefix}: tool_calls must be a list")
             else:
                 tc_list: List[Any] = tool_calls
-                tool_call_ids: Set[str] = set()
                 for j, tc in enumerate(tc_list):
                     tc_prefix = f"{prefix}.tool_calls[{j}]"
                     if not isinstance(tc, dict):
@@ -136,32 +161,33 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
                     if isinstance(tc_id, str):
                         tool_call_ids.add(tc_id)
 
-                # Validate observations reference valid tool_call_ids
-                observation: object = step_dict.get("observation")
-                if observation is not None:
-                    if not isinstance(observation, dict) or "results" not in observation:
-                        errors.append(f"{prefix}.observation: must be a dict with 'results'")
-                    else:
-                        obs_dict: dict[str, Any] = observation
-                        for k, result in enumerate(obs_dict["results"]):
-                            r_prefix = f"{prefix}.observation.results[{k}]"
-                            if not isinstance(result, dict):
-                                errors.append(f"{r_prefix}: must be a dict")
-                                continue
-                            result_dict: dict[str, Any] = result
-                            # source_call_id is optional per spec,
-                            # but if present must match a tool_call_id
-                            source_call_id: object = result_dict.get("source_call_id")
-                            if (
-                                isinstance(source_call_id, str)
-                                and source_call_id not in tool_call_ids
-                            ):
-                                errors.append(
-                                    f"{r_prefix}: source_call_id "
-                                    f"'{source_call_id}' does not "
-                                    f"match any tool_call_id in "
-                                    f"this step"
-                                )
+        # Observation validation (independent of tool_calls)
+        observation: object = step_dict.get("observation")
+        if observation is not None:
+            if not isinstance(observation, dict) or "results" not in observation:
+                errors.append(f"{prefix}.observation: must be a dict with 'results'")
+            else:
+                obs_dict: dict[str, Any] = observation
+                for k, result in enumerate(obs_dict["results"]):
+                    r_prefix = f"{prefix}.observation.results[{k}]"
+                    if not isinstance(result, dict):
+                        errors.append(f"{r_prefix}: must be a dict")
+                        continue
+                    result_dict: dict[str, Any] = result
+                    # source_call_id is optional per spec,
+                    # but if present must match a tool_call_id (when tool_calls exist)
+                    source_call_id: object = result_dict.get("source_call_id")
+                    if (
+                        isinstance(source_call_id, str)
+                        and tool_call_ids  # only cross-ref if tool_calls exist
+                        and source_call_id not in tool_call_ids
+                    ):
+                        errors.append(
+                            f"{r_prefix}: source_call_id "
+                            f"'{source_call_id}' does not "
+                            f"match any tool_call_id in "
+                            f"this step"
+                        )
 
     if errors:
         raise ValueError("Invalid ATIF trajectory:\n" + "\n".join(f"  - {e}" for e in errors))

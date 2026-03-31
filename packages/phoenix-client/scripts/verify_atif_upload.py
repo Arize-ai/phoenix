@@ -5,27 +5,31 @@ Usage:
     uv run python packages/phoenix-client/scripts/verify_atif_upload.py
 
 Requires Phoenix running at http://localhost:6006.
-Uploads multiple ATIF trajectories into a project called "atif-verification"
-so you can inspect the resulting traces in the Phoenix UI.
+Uploads multiple ATIF trajectories into projects so you can inspect
+the resulting traces in the Phoenix UI.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Sequence
 
 from phoenix.client import Client
-from phoenix.client.helpers.atif import upload_atif_trajectory_as_spans
+from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+from phoenix.client.helpers.atif._convert import _sha256_trace_id
 
 PHOENIX_URL = "http://localhost:6006"
-PROJECT_NAME = "atif-verification"
+# Append a timestamp suffix so re-runs don't hit duplicate span errors
+# from deterministic IDs. Override with ATIF_PROJECT_SUFFIX env var.
+_SUFFIX = os.environ.get("ATIF_PROJECT_SUFFIX", str(int(time.time())))
+PROJECT_NAME = f"atif-verify-{_SUFFIX}"
 
 FIXTURES_DIR = (
     Path(__file__).resolve().parent.parent / "tests" / "client" / "helpers" / "atif" / "fixtures"
 )
-
-HARBOR_JOBS_DIR = Path.home() / "Projects" / "phoenix" / "jobs"
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +37,7 @@ HARBOR_JOBS_DIR = Path.home() / "Projects" / "phoenix" / "jobs"
 # with multi-turn conversation, parallel tool calls, a system reminder,
 # and a follow-up investigation.
 # ---------------------------------------------------------------------------
-DEBUGGING_TRAJECTORY = {
+DEBUGGING_TRAJECTORY: Dict[str, Any] = {
     "schema_version": "ATIF-v1.4",
     "session_id": "verify-debug-session-001",
     "agent": {
@@ -269,31 +273,36 @@ DEBUGGING_TRAJECTORY = {
 }
 
 
-def _upload_one(
+def _upload_batch(
     client: Client,
-    trajectory: dict[str, Any],
+    trajectories: Sequence[Dict[str, Any]],
     label: str,
-) -> None:
-    """Upload a single trajectory and print results."""
-    session_id = trajectory.get("session_id", "?")
-    agent_name = trajectory.get("agent", {}).get("name", "?")
-    n_steps = len(trajectory.get("steps", []))
-
+    project: str = PROJECT_NAME,
+) -> int:
+    """Upload a batch and print results. Returns span count."""
+    n_trajs = len(trajectories)
+    total_steps = sum(len(t.get("steps", [])) for t in trajectories)
     try:
-        result = upload_atif_trajectory_as_spans(
+        result = upload_atif_trajectories_as_spans(
             client,
-            trajectory,
-            project_name=PROJECT_NAME,
+            trajectories,
+            project_name=project,
         )
+        received = result["total_received"]
+        queued = result["total_queued"]
+        # Compute trace IDs for display
+        trace_ids = set()
+        for t in trajectories:
+            trace_ids.add(_sha256_trace_id(f"{t['session_id']}:trace")[:12])
+        trace_str = ", ".join(sorted(trace_ids))
         print(
-            f"  ✓ {label}\n"
-            f"    agent={agent_name}  steps={n_steps}  "
-            f"session={session_id[:24]}...\n"
-            f"    → received={result['total_received']}  "
-            f"queued={result['total_queued']}"
+            f"  ✓ {label:<45} | trajs={n_trajs} steps={total_steps:>3} "
+            f"| spans={received:>3} queued={queued:>3} | traces={trace_str}"
         )
+        return int(received)
     except Exception as e:
         print(f"  ✗ {label}: {e}")
+        return 0
 
 
 def main() -> None:
@@ -301,34 +310,84 @@ def main() -> None:
     client = Client(base_url=PHOENIX_URL)
     print(f"Uploading trajectories to project '{PROJECT_NAME}'\n")
 
-    # ── 1. Test fixtures ──────────────────────────────────────────────
-    print("── Test Fixtures ──")
+    total_spans = 0
+
+    # ── 1. All test fixtures (individual uploads) ────────────────────
+    print("── Test Fixtures (individual) ──")
     for fixture_file in sorted(FIXTURES_DIR.glob("*.json")):
         with open(fixture_file) as f:
-            trajectory = json.load(f)
-        _upload_one(client, trajectory, f"fixture: {fixture_file.name}")
+            data = json.load(f)
+        # subagent_trajectories.json has a different structure (parent/child)
+        if fixture_file.name == "subagent_trajectories.json":
+            continue
+        total_spans += _upload_batch(client, [data], f"fixture: {fixture_file.name}")
 
-    # ── 2. Real Harbor ATIF files ─────────────────────────────────────
-    print("\n── Real Harbor Agent Trajectories ──")
-    harbor_files = sorted(HARBOR_JOBS_DIR.rglob("trajectory.json"))
-    if not harbor_files:
-        print("  (no Harbor trajectory files found — skipping)")
-    for traj_file in harbor_files[:5]:  # upload up to 5
-        task_name = traj_file.parent.parent.name.split("__")[0]
-        with open(traj_file) as f:
-            trajectory = json.load(f)
-        _upload_one(client, trajectory, f"harbor: {task_name}")
+    # ── 2. Synthetic subagent linking demo ──────────────────────────
+    print("\n── Synthetic Subagent Linking (batch) ──")
+    subagent_path = FIXTURES_DIR / "subagent_trajectories.json"
+    if subagent_path.exists():
+        with open(subagent_path) as f:
+            subagent_data = json.load(f)
+        parent = subagent_data["parent"]
+        child = subagent_data["child"]
+        total_spans += _upload_batch(
+            client,
+            [parent, child],
+            "batch: synthetic parent + child",
+            project=f"atif-subagent-{_SUFFIX}",
+        )
 
-    # ── 3. Rich hand-crafted trajectory ───────────────────────────────
+    # ── 3. Harbor Terminus-2 subagent batch ──────────────────────────
+    print("\n── Harbor Terminus-2 Subagent Batch ──")
+    harbor_parent_path = FIXTURES_DIR / "harbor_terminus2_summarization.json"
+    harbor_sub_paths = [
+        FIXTURES_DIR / "harbor_terminus2_sub_summary.json",
+        FIXTURES_DIR / "harbor_terminus2_sub_answers.json",
+        FIXTURES_DIR / "harbor_terminus2_sub_questions.json",
+    ]
+    if harbor_parent_path.exists() and all(p.exists() for p in harbor_sub_paths):
+        with open(harbor_parent_path) as f:
+            harbor_parent = json.load(f)
+        harbor_children = []
+        for p in harbor_sub_paths:
+            with open(p) as f:
+                harbor_children.append(json.load(f))
+        total_spans += _upload_batch(
+            client,
+            [harbor_parent] + harbor_children,
+            "batch: terminus-2 + 3 subagents (real)",
+            project=f"atif-subagent-{_SUFFIX}",
+        )
+
+    # ── 4. Harbor continuation pair ──────────────────────────────────
+    print("\n── Harbor Terminus-2 Continuation Pair ──")
+    cont_path = FIXTURES_DIR / "harbor_terminus2_continuation.json"
+    cont1_path = FIXTURES_DIR / "harbor_terminus2_continuation_cont1.json"
+    if cont_path.exists() and cont1_path.exists():
+        with open(cont_path) as f:
+            cont_traj = json.load(f)
+        with open(cont1_path) as f:
+            cont1_traj = json.load(f)
+        total_spans += _upload_batch(
+            client,
+            [cont_traj, cont1_traj],
+            "batch: continuation + cont-1",
+            project=f"atif-continuation-{_SUFFIX}",
+        )
+
+    # ── 5. Rich hand-crafted trajectory ──────────────────────────────
     print("\n── Hand-Crafted Debugging Trajectory ──")
-    _upload_one(client, DEBUGGING_TRAJECTORY, "inline: debug-assistant")
+    total_spans += _upload_batch(client, [DEBUGGING_TRAJECTORY], "inline: debug-assistant")
 
-    # ── Summary ───────────────────────────────────────────────────────
+    # ── Summary ──────────────────────────────────────────────────────
     print(
-        f"\n{'=' * 60}\n"
-        f"Done! Open Phoenix to inspect the traces:\n"
+        f"\n{'=' * 70}\n"
+        f"Done! Total spans uploaded: {total_spans}\n"
+        f"Open Phoenix to inspect the traces:\n"
         f"  {PHOENIX_URL}/projects/{PROJECT_NAME}/traces\n"
-        f"{'=' * 60}"
+        f"  {PHOENIX_URL}/projects/atif-subagent-{_SUFFIX}/traces\n"
+        f"  {PHOENIX_URL}/projects/atif-continuation-{_SUFFIX}/traces\n"
+        f"{'=' * 70}"
     )
 
 

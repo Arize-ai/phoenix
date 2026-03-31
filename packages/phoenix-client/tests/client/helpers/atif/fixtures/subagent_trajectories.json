@@ -1,0 +1,76 @@
+{
+  "parent": {
+    "schema_version": "ATIF-v1.6",
+    "session_id": "sess-parent-001",
+    "agent": { "name": "orchestrator", "version": "1.0.0", "model_name": "gpt-4" },
+    "steps": [
+      {
+        "step_id": 1,
+        "timestamp": "2025-02-01T10:00:00Z",
+        "source": "user",
+        "message": "Summarize and analyze this document."
+      },
+      {
+        "step_id": 2,
+        "timestamp": "2025-02-01T10:00:02Z",
+        "source": "agent",
+        "message": "I will delegate summarization to a sub-agent.",
+        "model_name": "gpt-4",
+        "tool_calls": [
+          { "tool_call_id": "call_summarize", "function_name": "delegate_summary", "arguments": { "doc_id": "doc-123" } }
+        ],
+        "observation": {
+          "results": [
+            {
+              "source_call_id": "call_summarize",
+              "content": "Summarization delegated to sub-agent.",
+              "subagent_trajectory_ref": [
+                { "session_id": "sess-child-summary-001" }
+              ]
+            }
+          ]
+        },
+        "metrics": { "prompt_tokens": 800, "completion_tokens": 50 }
+      },
+      {
+        "step_id": 3,
+        "timestamp": "2025-02-01T10:00:10Z",
+        "source": "agent",
+        "message": "The document discusses key trends in AI adoption across industries.",
+        "model_name": "gpt-4",
+        "metrics": { "prompt_tokens": 1200, "completion_tokens": 80 }
+      }
+    ],
+    "final_metrics": {
+      "total_prompt_tokens": 2000,
+      "total_completion_tokens": 130,
+      "total_steps": 3
+    }
+  },
+  "child": {
+    "schema_version": "ATIF-v1.6",
+    "session_id": "sess-child-summary-001",
+    "agent": { "name": "summarizer", "version": "1.0.0", "model_name": "gpt-4o-mini" },
+    "steps": [
+      {
+        "step_id": 1,
+        "timestamp": "2025-02-01T10:00:03Z",
+        "source": "user",
+        "message": "Summarize document doc-123."
+      },
+      {
+        "step_id": 2,
+        "timestamp": "2025-02-01T10:00:05Z",
+        "source": "agent",
+        "message": "The document covers three main topics: AI in healthcare, autonomous vehicles, and generative AI in content creation.",
+        "model_name": "gpt-4o-mini",
+        "metrics": { "prompt_tokens": 600, "completion_tokens": 40 }
+      }
+    ],
+    "final_metrics": {
+      "total_prompt_tokens": 600,
+      "total_completion_tokens": 40,
+      "total_steps": 2
+    }
+  }
+}

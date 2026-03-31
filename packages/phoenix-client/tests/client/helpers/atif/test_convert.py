@@ -5,14 +5,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytest
 
 from phoenix.client.helpers.atif._convert import (
+    _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
+    _has_multimodal_content,
     _sha256_span_id,
     _sha256_trace_id,
+    _stringify_message,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -31,6 +34,21 @@ def simple_trajectory() -> Dict[str, Any]:
 @pytest.fixture()
 def multi_tool_trajectory() -> Dict[str, Any]:
     return _load_fixture("multi_tool_trajectory.json")
+
+
+@pytest.fixture()
+def multimodal_trajectory() -> Dict[str, Any]:
+    return _load_fixture("multimodal_trajectory.json")
+
+
+@pytest.fixture()
+def parallel_mixed_trajectory() -> Dict[str, Any]:
+    return _load_fixture("parallel_tools_mixed_results.json")
+
+
+@pytest.fixture()
+def subagent_fixture() -> Dict[str, Any]:
+    return _load_fixture("subagent_trajectories.json")
 
 
 class TestDeterministicIds:
@@ -122,6 +140,18 @@ class TestSimpleTrajectoryConversion:
         attrs = root.get("attributes", {})
         assert "GOOGL" in attrs.get("input.value", "")
         assert "185.35" in attrs.get("output.value", "")
+
+    def test_cost_usd_on_llm_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        assert attrs.get("llm.cost.total") == 0.00045
+
+    def test_total_cost_usd_on_root_span(self, simple_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        root = spans[0]
+        attrs = root.get("attributes", {})
+        assert attrs.get("llm.cost.total") == 0.00078
 
 
 class TestMultiToolTrajectoryConversion:
@@ -326,6 +356,377 @@ class TestMessageAttributes:
         attrs = llm_span.get("attributes", {})
         assert "llm.tools" not in attrs
         assert "llm.tools.0.tool.json_schema" in attrs
+
+
+class TestMultimodalContent:
+    """Tests for multimodal (v1.6+) content part handling."""
+
+    def test_stringify_message_with_image_parts(self) -> None:
+        message: List[Any] = [
+            {"type": "text", "text": "What is in this image?"},
+            {
+                "type": "image",
+                "source": {"media_type": "image/png", "path": "images/screenshot.png"},
+            },
+        ]
+        result = _stringify_message(message)
+        assert "What is in this image?" in result
+        assert "[image: images/screenshot.png]" in result
+
+    def test_has_multimodal_content_with_image(self) -> None:
+        message: List[Any] = [
+            {"type": "text", "text": "hello"},
+            {"type": "image", "source": {"path": "img.png"}},
+        ]
+        assert _has_multimodal_content(message) is True
+
+    def test_has_multimodal_content_text_only_list(self) -> None:
+        message: List[Any] = [
+            {"type": "text", "text": "hello"},
+            {"type": "text", "text": "world"},
+        ]
+        assert _has_multimodal_content(message) is False
+
+    def test_has_multimodal_content_plain_string(self) -> None:
+        assert _has_multimodal_content("hello") is False
+
+    def test_has_multimodal_content_none(self) -> None:
+        assert _has_multimodal_content(None) is False
+
+    def test_multimodal_input_uses_message_contents(
+        self, multimodal_trajectory: Dict[str, Any]
+    ) -> None:
+        """User message with image parts should produce message.contents attributes."""
+        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
+        # spans[2] is the first LLM span (step 2), which should have input from step 1 (user)
+        llm_span = spans[2]
+        attrs = llm_span.get("attributes", {})
+        # Should have content parts, not plain message.content
+        prefix = "llm.input_messages.0"
+        assert attrs.get(f"{prefix}.message.role") == "user"
+        assert attrs.get(f"{prefix}.message.contents.0.message_content.type") == "text"
+        assert (
+            attrs.get(f"{prefix}.message.contents.0.message_content.text")
+            == "What is in this image?"
+        )
+        assert attrs.get(f"{prefix}.message.contents.1.message_content.type") == "image"
+        assert (
+            attrs.get(f"{prefix}.message.contents.1.message_content.image.image.url")
+            == "images/screenshot.png"
+        )
+
+    def test_multimodal_span_count(self, multimodal_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
+        # 1 root + 1 user CHAIN + 1 agent LLM + 1 TOOL + 1 agent LLM = 5
+        assert len(spans) == 5
+
+    def test_multimodal_flag_not_set_on_text_only(self, simple_trajectory: Dict[str, Any]) -> None:
+        """Text-only messages should not have the multimodal flag."""
+        spans = _convert_atif_trajectory_to_spans(simple_trajectory)
+        for span in spans:
+            attrs = span.get("attributes", {})
+            meta = attrs.get("metadata", {})
+            assert "has_multimodal_content" not in meta
+
+
+class TestParallelToolsMixedResults:
+    """Tests for parallel tool calls with success, error, and empty results."""
+
+    def test_all_three_tool_spans_created(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
+        tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
+        assert len(tool_spans) == 3
+        names = {s["name"] for s in tool_spans}
+        assert names == {"get_weather", "get_stock", "get_news"}
+
+    def test_successful_tool_has_output(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
+        weather_span = [s for s in spans if s["name"] == "get_weather"][0]
+        attrs = weather_span.get("attributes", {})
+        assert "42°F" in attrs.get("output.value", "")
+
+    def test_error_tool_has_error_string_as_output(
+        self, parallel_mixed_trajectory: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
+        stock_span = [s for s in spans if s["name"] == "get_stock"][0]
+        attrs = stock_span.get("attributes", {})
+        assert "rate limit" in attrs.get("output.value", "").lower()
+
+    def test_empty_tool_has_no_output(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
+        news_span = [s for s in spans if s["name"] == "get_news"][0]
+        attrs = news_span.get("attributes", {})
+        assert "output.value" not in attrs
+
+    def test_span_count(self, parallel_mixed_trajectory: Dict[str, Any]) -> None:
+        spans = _convert_atif_trajectory_to_spans(parallel_mixed_trajectory)
+        # 1 root + 1 user CHAIN + 1 agent LLM + 3 TOOL + 1 agent LLM = 7
+        assert len(spans) == 7
+
+
+class TestSubagentLinking:
+    """Tests for cross-trajectory subagent linking."""
+
+    def test_build_subagent_ref_map(self, subagent_fixture: Dict[str, Any]) -> None:
+        parent = subagent_fixture["parent"]
+        ref_map = _build_subagent_ref_map([parent])
+        assert "sess-child-summary-001" in ref_map
+        parent_tool_span_id, parent_trace_id = ref_map["sess-child-summary-001"]
+        # Should match the deterministic ID for the parent's tool span
+        expected_tool_span_id = _sha256_span_id("sess-parent-001:step:2:tool:call_summarize")
+        expected_trace_id = _sha256_trace_id("sess-parent-001:trace")
+        assert parent_tool_span_id == expected_tool_span_id
+        assert parent_trace_id == expected_trace_id
+
+    def test_child_uses_parent_trace_id(self, subagent_fixture: Dict[str, Any]) -> None:
+        parent = subagent_fixture["parent"]
+        child = subagent_fixture["child"]
+        ref_map = _build_subagent_ref_map([parent, child])
+        parent_ctx = ref_map.get(child["session_id"])
+        assert parent_ctx is not None
+        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
+        parent_trace_id = _sha256_trace_id("sess-parent-001:trace")
+        for span in child_spans:
+            assert span["context"]["trace_id"] == parent_trace_id
+
+    def test_child_root_has_parent_id(self, subagent_fixture: Dict[str, Any]) -> None:
+        parent = subagent_fixture["parent"]
+        child = subagent_fixture["child"]
+        ref_map = _build_subagent_ref_map([parent, child])
+        parent_ctx = ref_map.get(child["session_id"])
+        assert parent_ctx is not None
+        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
+        child_root = child_spans[0]
+        expected_parent_tool_id = _sha256_span_id("sess-parent-001:step:2:tool:call_summarize")
+        assert child_root.get("parent_id") == expected_parent_tool_id
+
+    def test_independent_trajectories_get_own_trace_ids(self) -> None:
+        """Multiple trajectories without subagent refs should each get their own trace_id."""
+        traj_a: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "independent-a",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        traj_b: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "independent-b",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hey"},
+                {"step_id": 2, "source": "agent", "message": "yo"},
+            ],
+        }
+        ref_map = _build_subagent_ref_map([traj_a, traj_b])
+        assert len(ref_map) == 0
+        spans_a = _convert_atif_trajectory_to_spans(traj_a)
+        spans_b = _convert_atif_trajectory_to_spans(traj_b)
+        trace_a = spans_a[0]["context"]["trace_id"]
+        trace_b = spans_b[0]["context"]["trace_id"]
+        assert trace_a != trace_b
+
+    def test_unlinked_trajectory_has_no_parent_id_on_root(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "no-parent",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert "parent_id" not in root
+
+
+class TestSystemStepWithObservation:
+    """Tests for system steps that have observations but no tool_calls."""
+
+    def test_system_step_observation_converts_without_error(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "sys-obs",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "system",
+                    "message": "Context injection.",
+                    "observation": {
+                        "results": [{"content": "Injected context data"}],
+                    },
+                },
+                {"step_id": 2, "source": "agent", "message": "Got it."},
+            ],
+        }
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        # 1 root + 1 system CHAIN + 1 agent LLM = 3
+        assert len(spans) == 3
+        system_span = spans[1]
+        assert system_span["span_kind"] == "CHAIN"
+        assert system_span["name"] == "system_message"
+
+
+class TestHarborGoldenFiles:
+    """Tests against real Harbor golden trajectory files from the harbor-framework/harbor repo."""
+
+    # -- OpenHands v1.5 --
+
+    def test_openhands_converts_without_error(self) -> None:
+        trajectory = _load_fixture("harbor_openhands.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        # 6 steps: 3 system, 1 user → CHAIN; 2 agent → LLM; 2 tool calls → TOOL
+        assert len(spans) == 9
+        kinds = _span_kind_counts(spans)
+        assert kinds["AGENT"] == 1
+        assert kinds["CHAIN"] == 4
+        assert kinds["LLM"] == 2
+        assert kinds["TOOL"] == 2
+
+    def test_openhands_has_tool_definitions(self) -> None:
+        trajectory = _load_fixture("harbor_openhands.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        assert len(llm_spans) > 0
+        attrs = llm_spans[0].get("attributes", {})
+        # Should have flattened tool definitions from agent.tool_definitions
+        tool_def_keys = [k for k in attrs if k.startswith("llm.tools.")]
+        assert len(tool_def_keys) > 0
+
+    def test_openhands_root_is_agent(self) -> None:
+        trajectory = _load_fixture("harbor_openhands.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        root = spans[0]
+        assert root["span_kind"] == "AGENT"
+        assert root["name"] == "openhands"
+        assert "parent_id" not in root
+
+    # -- Terminus-2: summarization (10 steps, subagent refs) --
+
+    def test_terminus2_summarization_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_summarization.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 18
+        kinds = _span_kind_counts(spans)
+        assert kinds["AGENT"] == 1
+        assert kinds["LLM"] == 7
+        assert kinds["TOOL"] == 7
+        assert kinds["CHAIN"] == 3
+
+    def test_terminus2_summarization_subagent_refs_detected(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_summarization.json")
+        ref_map = _build_subagent_ref_map([trajectory])
+        # Should detect child session IDs from subagent_trajectory_ref
+        assert len(ref_map) > 0
+
+    def test_terminus2_summarization_batch_links_subagents(self) -> None:
+        """Batch convert parent + 3 subagent trajectories; children should link."""
+        parent = _load_fixture("harbor_terminus2_summarization.json")
+        children = [
+            _load_fixture("harbor_terminus2_sub_summary.json"),
+            _load_fixture("harbor_terminus2_sub_answers.json"),
+            _load_fixture("harbor_terminus2_sub_questions.json"),
+        ]
+        all_trajs = [parent] + children
+        ref_map = _build_subagent_ref_map(all_trajs)
+
+        parent_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
+        for child in children:
+            child_sid = child["session_id"]
+            if child_sid in ref_map:
+                ctx = ref_map[child_sid]
+                child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=ctx)
+                # All child spans should use parent's trace_id
+                for span in child_spans:
+                    assert span["context"]["trace_id"] == parent_trace_id
+                # Child root should have parent_id
+                assert "parent_id" in child_spans[0]
+
+    # -- Terminus-2: continuation (continued_trajectory_ref + is_copied_context) --
+
+    def test_terminus2_continuation_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_continuation.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 6
+        kinds = _span_kind_counts(spans)
+        assert kinds["AGENT"] == 1
+
+    def test_terminus2_continuation_has_continued_ref(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_continuation.json")
+        assert "continued_trajectory_ref" in trajectory
+
+    def test_terminus2_cont1_is_copied_context_flagged(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_continuation_cont1.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        chain_spans = [s for s in spans if s["span_kind"] == "CHAIN"]
+        # Some CHAIN spans should have is_copied_context metadata
+        flagged = [
+            s
+            for s in chain_spans
+            if s.get("attributes", {}).get("metadata", {}).get("is_copied_context")
+        ]
+        assert len(flagged) > 0
+
+    # -- Terminus-2: invalid JSON (error recovery, reasoning_content) --
+
+    def test_terminus2_invalid_json_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 9
+        kinds = _span_kind_counts(spans)
+        assert kinds["TOOL"] == 3
+
+    def test_terminus2_invalid_json_has_reasoning(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_invalid_json.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        # At least some LLM spans should have reasoning_content in metadata
+        reasoning_spans = [
+            s
+            for s in llm_spans
+            if s.get("attributes", {}).get("metadata", {}).get("reasoning_content")
+        ]
+        assert len(reasoning_spans) > 0
+
+    # -- Terminus-2: timeout --
+
+    def test_terminus2_timeout_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_timeout.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 8
+        kinds = _span_kind_counts(spans)
+        assert kinds["TOOL"] == 3
+
+    # -- Subagent child trajectories --
+
+    def test_terminus2_sub_summary_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_sub_summary.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 8
+
+    def test_terminus2_sub_answers_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_sub_answers.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 10
+
+    def test_terminus2_sub_questions_converts(self) -> None:
+        trajectory = _load_fixture("harbor_terminus2_sub_questions.json")
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        assert len(spans) == 3
+
+
+def _span_kind_counts(spans: List[Any]) -> Dict[str, int]:
+    """Count spans by span_kind."""
+    counts: Dict[str, int] = {}
+    for s in spans:
+        k = s["span_kind"]
+        counts[k] = counts.get(k, 0) + 1
+    return counts
 
 
 class TestRealWorldTrajectories:

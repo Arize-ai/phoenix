@@ -5,7 +5,7 @@ Based on the Harbor reference implementation at laude-institute/harbor.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from typing_extensions import TypedDict
 
@@ -18,12 +18,19 @@ class ATIFToolCall(TypedDict):
     arguments: Dict[str, Any]
 
 
+class ATIFContentPartSource(TypedDict, total=False):
+    """Source object for image content parts (ATIF v1.6+)."""
+
+    media_type: str  # e.g. "image/png"
+    path: str  # URL or file path
+
+
 class ATIFContentPart(TypedDict, total=False):
     """A multimodal content part (v1.6+). All fields optional by convention."""
 
-    type: str  # "text", "image_url", etc.
+    type: str  # "text" | "image"
     text: str
-    image_url: str
+    source: ATIFContentPartSource
 
 
 class ATIFObservationResult(TypedDict, total=False):
@@ -92,7 +99,7 @@ class ATIFAgent(TypedDict, total=False):
 
     name: str  # required
     version: str  # required
-    model_name: str  # optional
+    model_name: Optional[str]  # optional
     tool_definitions: List[Dict[str, Any]]
     extra: Dict[str, Any]
 

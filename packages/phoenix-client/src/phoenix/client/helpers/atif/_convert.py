@@ -1,6 +1,18 @@
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 """Convert an ATIF trajectory dict into a list of Phoenix/OTel-compatible spans."""
 
+# Intentionally not mapped to OpenInference span attributes:
+# - continued_trajectory_ref: trajectory continuation linking handled via batch upload
+# - subagent_trajectory_ref: resolved to cross-trace parent_id links in batch upload
+# - notes: free-form annotation with no OpenInference equivalent
+# - reasoning_effort (on agent steps): configuration hint, not observable output
+# - step-level extra: arbitrary vendor extensions, no standard mapping
+#   (agent-level extra IS merged into root span metadata)
+# - prompt_token_ids, completion_token_ids (in step metrics): RL training data,
+#   no OpenInference attribute; arrays can be very large
+# - logprobs (in step metrics): RL training data, no OpenInference attribute
+# - cost_usd is mapped to llm.cost.total
+
 from __future__ import annotations
 
 import hashlib
@@ -50,7 +62,7 @@ def _stringify_message(
         return ""
     if isinstance(message, str):
         return message
-    # list[ContentPart] — concatenate text parts
+    # list[ContentPart] — concatenate text parts, placeholder for images
     parts: list[str] = []
     for part in message:
         if isinstance(part, str):
@@ -59,6 +71,9 @@ def _stringify_message(
             text: object = part.get("text")
             if text:
                 parts.append(str(text))
+            elif part.get("type") == "image" and isinstance(part.get("source"), dict):
+                path = part["source"].get("path", "unknown")
+                parts.append(f"[image: {path}]")
     return "\n".join(parts) if parts else ""
 
 
@@ -74,6 +89,42 @@ def _stringify_content(
     if isinstance(content, str):
         return content
     return _stringify_message(content)
+
+
+def _has_multimodal_content(message: Union[str, list[Any], None]) -> bool:
+    """Check whether a message contains non-text content parts."""
+    if not isinstance(message, list):
+        return False
+    return any(isinstance(part, dict) and part.get("type") != "text" for part in message)
+
+
+def _build_content_part_attributes(prefix: str, parts: list[Any]) -> Dict[str, Any]:
+    """Build OpenInference ``message.contents`` attributes for multimodal parts.
+
+    Writes the standard attribute pattern::
+
+        {prefix}.message.contents.{j}.message_content.type = "text" | "image"
+        {prefix}.message.contents.{j}.message_content.text = "..."
+        {prefix}.message.contents.{j}.message_content.image.image.url = "..."
+    """
+    attrs: Dict[str, Any] = {}
+    for j, part in enumerate(parts):
+        cp = f"{prefix}.message.contents.{j}.message_content"
+        if isinstance(part, str):
+            attrs[f"{cp}.type"] = "text"
+            attrs[f"{cp}.text"] = part
+        elif isinstance(part, dict):
+            part_type = part.get("type", "text")
+            attrs[f"{cp}.type"] = part_type
+            if part_type == "text":
+                text = part.get("text")
+                if text:
+                    attrs[f"{cp}.text"] = str(text)
+            elif part_type == "image" and isinstance(part.get("source"), dict):
+                path = part["source"].get("path", "")
+                if path:
+                    attrs[f"{cp}.image.image.url"] = path
+    return attrs
 
 
 def _build_llm_attributes(
@@ -112,6 +163,14 @@ def _build_llm_attributes(
     # Cache token details
     if metrics.get("cached_tokens") is not None:
         attrs["llm.token_count.prompt_details.cache_read"] = metrics["cached_tokens"]
+
+    # Cost
+    if metrics.get("cost_usd") is not None:
+        attrs["llm.cost.total"] = metrics["cost_usd"]
+
+    # Multimodal flag
+    if _has_multimodal_content(step.get("message")):
+        attrs.setdefault("metadata", {})["has_multimodal_content"] = True
 
     return attrs
 
@@ -197,10 +256,14 @@ def _build_message_attributes(
     for i in range(step_index):
         prev = steps[i]
         src = prev.get("source")
-        msg = _stringify_message(prev.get("message"))
+        raw_msg = prev.get("message")
+        msg = _stringify_message(raw_msg)
 
         if src == "user" and msg:
-            input_messages.append({"role": "user", "content": msg})
+            entry: Dict[str, Any] = {"role": "user", "content": msg}
+            if isinstance(raw_msg, list):
+                entry["_raw_parts"] = raw_msg
+            input_messages.append(entry)
         elif src == "system" and msg:
             input_messages.append({"role": "system", "content": msg})
         elif src == "agent":
@@ -251,7 +314,10 @@ def _build_message_attributes(
     for idx, msg_dict in enumerate(input_messages):
         prefix = f"llm.input_messages.{idx}"
         attrs[f"{prefix}.message.role"] = msg_dict["role"]
-        if "content" in msg_dict:
+        if "_raw_parts" in msg_dict:
+            # Multimodal content — write message.contents array
+            attrs.update(_build_content_part_attributes(prefix, msg_dict["_raw_parts"]))
+        elif "content" in msg_dict:
             attrs[f"{prefix}.message.content"] = msg_dict["content"]
         if "tool_call_id" in msg_dict:
             attrs[f"{prefix}.message.tool_call_id"] = msg_dict["tool_call_id"]
@@ -274,10 +340,14 @@ def _build_message_attributes(
         attrs["input.mime_type"] = "application/json"
 
     # Output message
-    agent_message = _stringify_message(step.get("message"))
+    raw_output = step.get("message")
+    agent_message = _stringify_message(raw_output)
     if agent_message:
         attrs["llm.output_messages.0.message.role"] = "assistant"
-        attrs["llm.output_messages.0.message.content"] = agent_message
+        if isinstance(raw_output, list):
+            attrs.update(_build_content_part_attributes("llm.output_messages.0", raw_output))
+        else:
+            attrs["llm.output_messages.0.message.content"] = agent_message
 
     # Tool calls in output message
     tool_calls = step.get("tool_calls", [])
@@ -294,8 +364,42 @@ def _build_message_attributes(
     return attrs
 
 
+def _build_subagent_ref_map(
+    trajectories: Sequence[Mapping[str, Any]],
+) -> Dict[str, tuple[str, str]]:
+    """Scan trajectories for subagent_trajectory_ref entries.
+
+    Returns:
+        Dict mapping child_session_id -> (parent_tool_span_id, parent_trace_id)
+    """
+    ref_map: Dict[str, tuple[str, str]] = {}
+    for trajectory in trajectories:
+        session_id = trajectory["session_id"]
+        trace_id = _sha256_trace_id(f"{session_id}:trace")
+        for step in trajectory.get("steps", []):
+            step_id = step.get("step_id")
+            observation = step.get("observation")
+            if not observation:
+                continue
+            for result in observation.get("results", []):
+                if not isinstance(result, dict):
+                    continue
+                refs = result.get("subagent_trajectory_ref", [])
+                for ref in refs:
+                    child_session_id = ref.get("session_id")
+                    if not child_session_id:
+                        continue
+                    tc_id = result.get("source_call_id", "")
+                    parent_tool_span_id = _sha256_span_id(
+                        f"{session_id}:step:{step_id}:tool:{tc_id}"
+                    )
+                    ref_map[child_session_id] = (parent_tool_span_id, trace_id)
+    return ref_map
+
+
 def _convert_atif_trajectory_to_spans(
     trajectory: Mapping[str, Any],
+    parent_span_context: Optional[tuple[str, str]] = None,
 ) -> List[v1.Span]:
     """Convert a validated ATIF trajectory into a flat list of spans.
 
@@ -304,14 +408,24 @@ def _convert_atif_trajectory_to_spans(
         - Per-step CHAIN spans (user/system) or LLM spans (agent)
           - TOOL spans (one per tool_call in agent steps)
 
-    IDs are deterministic, derived from session_id via MD5 so that
+    IDs are deterministic, derived from session_id via SHA-256 so that
     re-uploading the same trajectory produces the same trace.
+
+    Args:
+        trajectory: A validated ATIF trajectory dict.
+        parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
+            for linking child trajectories to a parent's tool span. When
+            provided, the child uses the parent's trace_id and sets parent_id
+            on the root span.
     """
     session_id: str = trajectory["session_id"]
     agent: Mapping[str, Any] = trajectory["agent"]
     steps: List[Mapping[str, Any]] = trajectory["steps"]
 
-    trace_id = _sha256_trace_id(f"{session_id}:trace")
+    if parent_span_context is not None:
+        trace_id = parent_span_context[1]
+    else:
+        trace_id = _sha256_trace_id(f"{session_id}:trace")
     root_span_id = _sha256_span_id(f"{session_id}:root")
 
     spans: List[v1.Span] = []
@@ -375,6 +489,9 @@ def _convert_atif_trajectory_to_spans(
             root_attrs["llm.token_count.completion"] = total_completion
         if total_prompt is not None or total_completion is not None:
             root_attrs["llm.token_count.total"] = (total_prompt or 0) + (total_completion or 0)
+        total_cost = final_metrics.get("total_cost_usd")
+        if total_cost is not None:
+            root_attrs["llm.cost.total"] = total_cost
 
     root_span: v1.Span = {
         "name": agent.get("name", "agent"),
@@ -388,6 +505,8 @@ def _convert_atif_trajectory_to_spans(
         "status_code": "OK",
         "attributes": root_attrs,
     }
+    if parent_span_context is not None:
+        root_span["parent_id"] = parent_span_context[0]
     spans.append(root_span)
 
     # --- Per-step spans ---
@@ -405,6 +524,8 @@ def _convert_atif_trajectory_to_spans(
                 "input.value": _stringify_message(step.get("message")),
                 "input.mime_type": "text/plain",
             }
+            if step.get("is_copied_context"):
+                step_attrs["metadata"] = {"is_copied_context": True}
             step_span: v1.Span = {
                 "name": f"{source}_message",
                 "context": {

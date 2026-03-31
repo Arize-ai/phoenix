@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict
 
@@ -84,6 +85,28 @@ class TestValidTrajectories:
         _validate_atif_trajectory(trajectory)
 
 
+class TestHarborGoldenFilesValidation:
+    """Validate all Harbor golden trajectory files pass validation."""
+
+    @pytest.mark.parametrize(
+        "fixture_name",
+        [
+            "harbor_openhands.json",
+            "harbor_terminus2_summarization.json",
+            "harbor_terminus2_continuation.json",
+            "harbor_terminus2_continuation_cont1.json",
+            "harbor_terminus2_invalid_json.json",
+            "harbor_terminus2_timeout.json",
+            "harbor_terminus2_sub_summary.json",
+            "harbor_terminus2_sub_answers.json",
+            "harbor_terminus2_sub_questions.json",
+        ],
+    )
+    def test_harbor_golden_file_passes_validation(self, fixture_name: str) -> None:
+        trajectory = _load_fixture(fixture_name)
+        _validate_atif_trajectory(trajectory)  # should not raise
+
+
 class TestMissingRootFields:
     @pytest.mark.parametrize(
         "field",
@@ -105,6 +128,30 @@ class TestSchemaVersion:
         simple_trajectory["schema_version"] = ""
         with pytest.raises(ValueError, match="Invalid schema_version"):
             _validate_atif_trajectory(simple_trajectory)
+
+    def test_v2_hard_rejected(self, simple_trajectory: Dict[str, Any]) -> None:
+        """ATIF v2.0 should be hard rejected."""
+        simple_trajectory["schema_version"] = "ATIF-v2.0"
+        with pytest.raises(ValueError, match="Unsupported ATIF major version 2"):
+            _validate_atif_trajectory(simple_trajectory)
+
+    def test_v1_7_warns(
+        self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """ATIF v1.7 should pass validation but emit a warning."""
+        simple_trajectory["schema_version"] = "ATIF-v1.7"
+        with caplog.at_level(logging.WARNING):
+            _validate_atif_trajectory(simple_trajectory)
+        assert "newer than the latest supported version" in caplog.text
+
+    def test_v1_6_no_warning(
+        self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """ATIF v1.6 should pass without any warning."""
+        simple_trajectory["schema_version"] = "ATIF-v1.6"
+        with caplog.at_level(logging.WARNING):
+            _validate_atif_trajectory(simple_trajectory)
+        assert caplog.text == ""
 
 
 class TestAgentValidation:
@@ -172,6 +219,71 @@ class TestStepValidation:
             },
         }
         _validate_atif_trajectory(simple_trajectory)  # should not raise
+
+    def test_system_step_with_tool_calls_and_metrics_allowed(self) -> None:
+        """System steps can have tool_calls and metrics since v1.2."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "sys-tools",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "system",
+                    "message": "Running diagnostics.",
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "tc_diag",
+                            "function_name": "run_diagnostics",
+                            "arguments": {},
+                        }
+                    ],
+                    "metrics": {"prompt_tokens": 100, "completion_tokens": 20},
+                    "observation": {
+                        "results": [{"source_call_id": "tc_diag", "content": "All OK"}],
+                    },
+                },
+            ],
+        }
+        _validate_atif_trajectory(trajectory)  # should not raise
+
+    def test_system_step_observation_without_tool_calls_validated(self) -> None:
+        """System step with observation but no tool_calls should validate structure."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "sys-obs-only",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "system",
+                    "message": "Context update.",
+                    "observation": {
+                        "results": [{"source_call_id": "ref-123", "content": "Some context data"}],
+                    },
+                },
+            ],
+        }
+        # source_call_id present but no tool_calls — should NOT error
+        _validate_atif_trajectory(trajectory)
+
+    def test_system_step_bad_observation_structure_rejected(self) -> None:
+        """Observation with missing 'results' should be rejected even on system steps."""
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.4",
+            "session_id": "sys-bad-obs",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {
+                    "step_id": 1,
+                    "source": "system",
+                    "message": "Bad observation.",
+                    "observation": {"bad_key": "no results"},
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="observation.*must be a dict with 'results'"):
+            _validate_atif_trajectory(trajectory)
 
 
 class TestToolCallObservationValidation:
