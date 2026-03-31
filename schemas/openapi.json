@@ -3538,22 +3538,6 @@
               ],
               "title": "Content-Type"
             }
-          },
-          {
-            "name": "content-encoding",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Content-Encoding"
-            }
           }
         ],
         "responses": {
@@ -3578,7 +3562,7 @@
                 }
               }
             },
-            "description": "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
+            "description": "Unsupported content type, only pandas-arrow is supported"
           },
           "422": {
             "content": {
@@ -3594,12 +3578,6 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/x-protobuf": {
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            },
             "application/x-pandas-arrow": {
               "schema": {
                 "type": "string",
