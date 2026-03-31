@@ -2,7 +2,10 @@ from itertools import chain
 from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
+from graphql.language import ListValueNode, NameNode, ObjectFieldNode, ObjectValueNode, ValueNode
 from strawberry.extensions import SchemaExtension
+from strawberry.printer import ast_from_value as strawberry_ast_from_value
+from strawberry.schema.config import StrawberryConfig
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
 from phoenix.server.api.exceptions import get_mask_errors_extension
@@ -17,6 +20,43 @@ from phoenix.server.api.types.Evaluator import (
 )
 
 
+def _patch_strawberry_schema_printer() -> None:
+    """
+    Fix Strawberry's schema printer for graphql-core 3.3.
+
+    Strawberry currently builds object/list AST nodes for custom scalar defaults using
+    Python lists. graphql-core 3.3 tightened AST validation and now expects tuples,
+    which breaks schema export for JSON defaults like {} and [].
+    """
+    if getattr(strawberry_ast_from_value, "_phoenix_patch_applied", False):
+        return
+
+    original_ast_from_leaf_type = strawberry_ast_from_value.ast_from_leaf_type
+
+    def patched_ast_from_leaf_type(serialized: object, type_: object | None) -> ValueNode:
+        if isinstance(serialized, dict):
+            return ObjectValueNode(  # type: ignore[call-arg]
+                fields=tuple(
+                    ObjectFieldNode(  # type: ignore[call-arg]
+                        name=NameNode(value=str(key)),  # type: ignore[call-arg]
+                        value=patched_ast_from_leaf_type(value, None),
+                    )
+                    for key, value in serialized.items()
+                )
+            )
+        if isinstance(serialized, (list, tuple)):
+            return ListValueNode(  # type: ignore[call-arg]
+                values=tuple(patched_ast_from_leaf_type(value, None) for value in serialized)
+            )
+        return original_ast_from_leaf_type(serialized, type_)  # type: ignore[arg-type]
+
+    strawberry_ast_from_value.ast_from_leaf_type = patched_ast_from_leaf_type
+    strawberry_ast_from_value._phoenix_patch_applied = True  # type: ignore[attr-defined]
+
+
+_patch_strawberry_schema_printer()
+
+
 def build_graphql_schema(
     extensions: Optional[Iterable[Union[type[SchemaExtension], SchemaExtension]]] = None,
 ) -> strawberry.Schema:
@@ -28,6 +68,7 @@ def build_graphql_schema(
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
+        config=StrawberryConfig(enable_experimental_incremental_execution=True),
         types=list(
             chain(
                 _implementing_types(ChatCompletionSubscriptionPayload),
