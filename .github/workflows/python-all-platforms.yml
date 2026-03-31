@@ -67,6 +67,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            packages/phoenix-evals/
             tests/unit/
             tests/conftest.py
             tests/__generated__/
@@ -140,6 +141,7 @@ jobs:
             requirements/
             src/phoenix/
             packages/phoenix-client/
+            packages/phoenix-evals/
             tests/integration/
             tests/__generated__/
             tests/__init__.py
@@ -172,6 +174,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-client/
+            packages/phoenix-evals/
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
