@@ -147,6 +147,12 @@ The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`
 - `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
 - `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
 
+### Protobuf Evaluation Format Removed
+
+The `POST /v1/evaluations` endpoint no longer accepts `application/x-protobuf` content type. Evaluations must be sent as `application/x-pandas-arrow` (Apache Arrow IPC format via pandas).
+
+**Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
+
 ## v12.x to v13.0.0
 
 ### DB Index for Session ID
