@@ -9,6 +9,9 @@ import anyio
 import pytest
 
 from phoenix.db import models
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
+    ChatCompletionSubscriptionError,
+)
 from phoenix.server.daemons.experiment_runner import (
     CircuitBreaker,
     EvaluatorRunSpec,
@@ -489,3 +492,106 @@ class TestGracefulShutdown:
 
         stop1.assert_called_once()
         stop2.assert_called_once()
+
+
+# ===========================================================================
+# Group 6: Error persistence
+# ===========================================================================
+
+
+class TestTaskWorkItemPersistsErrorRun:
+    @pytest.mark.anyio
+    async def test_non_retryable_llm_error_persists_error_run(self) -> None:
+        """A non-retryable LLM error (e.g. 400) should persist an ExperimentRun with error
+        and call on_failure."""
+        exp = _make_running_experiment()
+        task = _make_task_work_item(exp, dataset_example_id=42)
+
+        error = RuntimeError("Bad request (injected)")
+
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 701
+
+        mock_persist = AsyncMock(return_value=persisted_run)
+        mock_on_failure = AsyncMock()
+        mock_broadcast = MagicMock()
+
+        with (
+            patch.object(task, "_build_messages", return_value=[]),
+            patch.object(
+                task._llm_client, "chat_completion_create", side_effect=error, create=True
+            ),
+            patch(
+                "phoenix.server.daemons.experiment_runner.get_raw_invocation_parameters",
+                return_value={},
+            ),
+            patch.object(exp, "on_failure", mock_on_failure),
+            patch.object(exp, "_broadcast", mock_broadcast),
+            patch.object(task, "_persist_run", mock_persist),
+        ):
+            await task.execute()
+
+        # Verify error run was persisted with correct fields
+        mock_persist.assert_awaited_once()
+        persist_call = mock_persist.await_args
+        assert persist_call is not None
+        db_run_arg = persist_call.args[0]
+        assert isinstance(db_run_arg, models.ExperimentRun)
+        assert db_run_arg.error == "Bad request (injected)"
+        assert db_run_arg.experiment_id == exp._experiment.id
+        assert db_run_arg.dataset_example_id == 42
+        assert db_run_arg.output == {}
+        assert db_run_arg.start_time is not None
+        assert db_run_arg.end_time is not None
+
+        # Verify on_failure was called with the original error
+        mock_on_failure.assert_awaited_once()
+        failure_args = mock_on_failure.await_args
+        assert failure_args is not None
+        assert failure_args.args[0] is task
+        assert failure_args.args[1] is error
+
+        # Verify only error was broadcast (not result, to avoid double-counting)
+        assert mock_broadcast.call_count == 1
+        error_broadcast = mock_broadcast.call_args_list[0].args[0]
+        assert isinstance(error_broadcast, ChatCompletionSubscriptionError)
+
+
+class TestEvalWorkItemPersistsErrorAnnotation:
+    @pytest.mark.anyio
+    async def test_non_retryable_eval_error_persists_error_annotation(self) -> None:
+        """A non-retryable eval error should persist error annotations and traces,
+        and call on_failure."""
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+
+        error = RuntimeError("Bad request (injected)")
+        mock_on_failure = AsyncMock()
+        mock_persist = AsyncMock()
+
+        with (
+            patch.object(eval_item._evaluator, "evaluate", side_effect=error),
+            patch.object(exp, "on_failure", mock_on_failure),
+            patch.object(eval_item, "_persist_eval_results", mock_persist),
+        ):
+            await eval_item.execute()
+
+        # Verify _persist_eval_results was called with error annotations
+        mock_persist.assert_awaited_once()
+        persist_call = mock_persist.await_args
+        assert persist_call is not None
+        annotations_arg = persist_call.args[0]
+        assert len(annotations_arg) == 1
+        annotation = annotations_arg[0]
+        assert isinstance(annotation, models.ExperimentRunAnnotation)
+        assert annotation.error == "Bad request (injected)"
+        assert annotation.name == "test-output"
+        assert annotation.score is None
+        assert annotation.label is None
+
+        # Verify on_failure was called with the original error
+        mock_on_failure.assert_awaited_once()
+        failure_args = mock_on_failure.await_args
+        assert failure_args is not None
+        assert failure_args.args[0] is eval_item
+        assert failure_args.args[1] is error
