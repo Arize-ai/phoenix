@@ -16,4 +16,4 @@ Two new REST endpoints let you delete prompts and remove tags from prompt versio
 
 - **`DELETE /v1/prompts/{prompt_identifier}`** — permanently deletes the prompt and every version, tag, and label associated with it
 - **`DELETE /v1/prompt_versions/{prompt_version_id}/tags/{tag_name}`** — removes a tag from a prompt version without affecting other tags or the version itself
-- Both endpoints return **204 No Content** on success; deleting a non-existent tag succeeds silently
+- Both endpoints return **204 No Content** on success; attempting to delete a non-existent tag returns **404 Not Found**
