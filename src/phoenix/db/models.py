@@ -180,6 +180,8 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
+ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
+ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 
 
 class JSONB(JSON):
@@ -1854,13 +1856,13 @@ class ExperimentLog(HasId):
         ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    category: Mapped[str] = mapped_column(
+    category: Mapped[ExperimentLogCategory] = mapped_column(
         CheckConstraint(
             "category IN ('TASK', 'EVAL', 'EXPERIMENT')",
             name="valid_event_category",
         ),
     )
-    level: Mapped[str] = mapped_column(
+    level: Mapped[ExperimentLogLevel] = mapped_column(
         CheckConstraint(
             "level IN ('ERROR', 'WARN', 'INFO')",
             name="valid_event_level",
@@ -1881,9 +1883,11 @@ class ExperimentLog(HasId):
     __table_args__ = (
         UniqueConstraint("category", "id"),
         Index(
-            "ix_experiment_logs_experiment_id_occurred_at",
+            "ix_experiment_logs_experiment_id_occurred_at_errors",
             "experiment_id",
             occurred_at.desc(),
+            postgresql_where=text("level = 'ERROR'"),
+            sqlite_where=text("level = 'ERROR'"),
         ),
     )
 
@@ -1891,7 +1895,7 @@ class ExperimentLog(HasId):
 class ExperimentTaskLog(ExperimentLog):
     """Log row tied to a specific task job (dataset_example + repetition)."""
 
-    __tablename__ = "experiment_task_events"
+    __tablename__ = "experiment_task_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[Literal["TASK"]] = mapped_column(
         CheckConstraint("category = 'TASK'", name="valid_category"),
@@ -1918,7 +1922,7 @@ class ExperimentTaskLog(ExperimentLog):
 class ExperimentEvalLog(ExperimentLog):
     """Log row tied to a specific eval job (experiment_run + evaluator)."""
 
-    __tablename__ = "experiment_eval_events"
+    __tablename__ = "experiment_eval_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[Literal["EVAL"]] = mapped_column(
         CheckConstraint("category = 'EVAL'", name="valid_category"),
