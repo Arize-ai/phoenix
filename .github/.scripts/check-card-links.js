@@ -183,6 +183,14 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "Arize NPM package"];
   }
 
+  if (href === "https://arconia.io/docs/arconia/latest/observability/generative-ai/") {
+    return [true, "Arconia returns 404 from actions, but is valid"];
+  }
+
+  if (href === "https://openai.comi") {
+    return [true, "OpenAI returns 404 from actions, but is valid"];
+  }
+
   const headers = {
     "User-Agent": "Mozilla/5.0 (compatible; LinkChecker/1.0; +https://github.com/)",
     Accept: "*/*",

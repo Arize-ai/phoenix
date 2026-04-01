@@ -1468,7 +1468,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/trace-a-deployed-app",
-      "destination": "/docs/phoenix/tracing/llm-traces-1"
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/filtering-spans",

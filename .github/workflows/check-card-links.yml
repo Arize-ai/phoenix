@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  link-check:
+  card-link-check:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -40,13 +40,45 @@ jobs:
           name: card-links-summary
           path: ${{ steps.run-check.outputs.summary_path }}
 
+      - name: Delete previous card links comment
+        if: ${{ github.event_name == 'pull_request' && always() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const marker = '<!-- card-links-check -->';
+            for (const comment of comments) {
+              if (comment.body.includes(marker)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
       - name: Comment on PR with summary
         if: ${{ github.event_name == 'pull_request' && always() }}
-        uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 #v3
+        uses: actions/github-script@v7
         with:
-          header: Card Links Check
-          recreate: false
-          path: ${{ steps.run-check.outputs.summary_path }}
+          script: |
+            const fs = require('fs');
+            const summaryPath = '${{ steps.run-check.outputs.summary_path }}';
+            const body = '<!-- card-links-check -->\n' + fs.readFileSync(summaryPath, 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+      - name: Write to Job Summary
+        if: always()
+        run: cat ${{ steps.run-check.outputs.summary_path }} >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if errors detected
         if: ${{ steps.run-check.outputs.exit_code != '' }}
