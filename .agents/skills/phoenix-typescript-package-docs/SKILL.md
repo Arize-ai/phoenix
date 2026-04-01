@@ -1,0 +1,217 @@
+---
+name: phoenix-typescript-package-docs
+description: >
+  Maintain the bundled TypeScript package docs that ship inside Phoenix npm packages.
+  Use this skill whenever adding or updating docs for `@arizeai/phoenix-client`,
+  `@arizeai/phoenix-evals`, or `@arizeai/phoenix-otel`, when changing the Mintlify
+  package-doc pages, when keeping `node_modules/.../docs` content aligned with actual
+  exports and examples, or when modifying the sync and publish flow for packaged docs.
+license: Apache-2.0
+metadata:
+  author: oss@arize.com
+  version: "1.0.0"
+  languages: TypeScript
+  internal: true
+---
+
+# Phoenix TypeScript Package Docs
+
+Keep the curated TypeScript package docs aligned with the real npm package surface area and with the publish-time sync flow.
+
+## Quick Reference
+
+| Task | What to inspect | What to update |
+| ----- | ----- | ----- |
+| Fix a stale example | `js/packages/<pkg>/src/` exports and function signatures | Canonical MDX under `docs/phoenix/sdk-api-reference/typescript/packages/<pkg>/` |
+| Add or remove a page | Existing package-doc folder and `docs.json` nav | Canonical MDX, `docs.json`, and any landing-page links |
+| Add a new package to the bundled-docs system | `js/scripts/sync-package-docs.mjs` and package `package.json` | Sync map, package `files`, package `prepack`, and Mintlify nav |
+| Verify publish output | `node js/scripts/sync-package-docs.mjs` and `npm pack --dry-run` | Generated `js/packages/<pkg>/docs/` contents and tarball entries |
+
+## Source Of Truth
+
+The canonical authored docs live in Mintlify pages:
+
+```text
+docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/
+docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/
+docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/
+```
+
+The published npm docs are synced copies:
+
+```text
+js/packages/phoenix-client/docs/
+js/packages/phoenix-evals/docs/
+js/packages/phoenix-otel/docs/
+```
+
+Do not hand-edit `js/packages/*/docs/`. Treat those folders as generated publish artifacts.
+
+## Current Packaging Flow
+
+These files define the bundled-docs workflow:
+
+- `js/scripts/sync-package-docs.mjs`
+- `js/packages/phoenix-client/package.json`
+- `js/packages/phoenix-evals/package.json`
+- `js/packages/phoenix-otel/package.json`
+- `docs.json`
+- `docs/phoenix/sdk-api-reference/typescript/overview.mdx`
+- `docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client.mdx`
+- `docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals.mdx`
+- `docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel.mdx`
+
+Each supported package must have:
+
+- a canonical Mintlify package-doc folder
+- a `docs` entry in `files`
+- a `prepack` hook that runs the sync script for that package
+- visible navigation in `docs.json`
+
+## Authoring Rules
+
+### 1. Read code before editing docs
+
+Always ground docs in the actual exported surface:
+
+- root exports: `js/packages/<pkg>/src/index.ts`
+- submodule exports: `js/packages/<pkg>/src/<module>/index.ts`
+- implementation and parameter shapes: matching files in `src/**`
+
+Do not infer argument names or object shapes from older docs. Confirm them from code first.
+
+### 2. Document exported entrypoints, not internals
+
+Prefer pages and examples that match package entrypoints a developer imports:
+
+- `@arizeai/phoenix-client`
+- `@arizeai/phoenix-client/prompts`
+- `@arizeai/phoenix-client/spans`
+- `@arizeai/phoenix-client/sessions`
+- `@arizeai/phoenix-client/experiments`
+- `@arizeai/phoenix-evals`
+- `@arizeai/phoenix-evals/llm`
+- `@arizeai/phoenix-otel`
+
+Do not center docs around private helpers or internal-only module paths.
+
+### 3. Keep the packaged docs flat
+
+Inside each package `docs/` folder, prefer a flat page layout such as:
+
+```text
+overview.mdx
+configuration.mdx
+experiments.mdx
+```
+
+Do not create nested package-doc trees unless there is a strong reason and the sync/nav flow is updated to match.
+
+### 4. Keep website docs and packaged docs aligned
+
+If you add, remove, or rename a package-doc page:
+
+1. update the canonical MDX file
+2. update `docs.json`
+3. update any package landing page links that point into the package-doc section
+4. rerun the sync script
+
+### 5. Prefer examples that prove real shapes
+
+When a function takes a wrapped object such as `spanAnnotation`, `documentAnnotation`, `sessionAnnotation`, `spanNote`, `project`, or `dataset`, the example must use the real wrapper shape from code.
+
+Common failure mode: docs drift toward simplified pseudo-APIs that do not match actual exported parameter names.
+
+## Workflow
+
+### Step 1: Determine the affected package and modules
+
+Inspect the code change or user request and map it to one or more packages:
+
+- `phoenix-client`
+- `phoenix-evals`
+- `phoenix-otel`
+
+Then inspect the corresponding `src/` exports before writing docs.
+
+### Step 2: Update canonical Mintlify docs
+
+Edit only the canonical pages:
+
+```text
+docs/phoenix/sdk-api-reference/typescript/packages/<pkg>/*.mdx
+```
+
+If the change affects high-level discovery, also update:
+
+- `docs/phoenix/sdk-api-reference/typescript/overview.mdx`
+- `docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-<pkg>.mdx`
+
+### Step 3: Sync generated package docs
+
+Run:
+
+```bash
+node js/scripts/sync-package-docs.mjs
+```
+
+Or for one package:
+
+```bash
+node js/scripts/sync-package-docs.mjs phoenix-client
+node js/scripts/sync-package-docs.mjs phoenix-evals
+node js/scripts/sync-package-docs.mjs phoenix-otel
+```
+
+### Step 4: Verify the npm artifact
+
+From each affected package:
+
+```bash
+cd js/packages/phoenix-client && npm pack --dry-run
+cd js/packages/phoenix-evals && npm pack --dry-run
+cd js/packages/phoenix-otel && npm pack --dry-run
+```
+
+Confirm the tarball includes:
+
+- `docs/*.mdx`
+- `src/**`
+
+### Step 5: Check for nav and path regressions
+
+If you changed page names or package coverage:
+
+- confirm `docs.json` still parses
+- confirm every referenced package-doc page exists
+- confirm the package landing pages link to the correct section
+
+## When Adding A New Bundled-Docs Package
+
+If Phoenix starts shipping package docs for another TypeScript package, update all of:
+
+1. `docs/phoenix/sdk-api-reference/typescript/packages/<new-package>/`
+2. `docs.json`
+3. `js/scripts/sync-package-docs.mjs`
+4. `js/packages/<new-package>/package.json`
+
+Required package manifest changes:
+
+- include `docs` in `files`
+- add a `prepack` hook that syncs the package docs
+
+## Validation Checklist
+
+- [ ] Examples match actual exported argument shapes
+- [ ] Canonical docs were edited instead of generated package docs
+- [ ] `node js/scripts/sync-package-docs.mjs` succeeds
+- [ ] `npm pack --dry-run` includes `docs/*.mdx`
+- [ ] `docs.json` paths still resolve
+
+## Anti-Patterns
+
+- Editing `js/packages/*/docs/` directly
+- Updating examples without checking `src/**`
+- Documenting internal helpers instead of importable entrypoints
+- Adding a package-doc page without wiring it into `docs.json`
+- Updating Mintlify docs but forgetting to verify the packed npm artifact
