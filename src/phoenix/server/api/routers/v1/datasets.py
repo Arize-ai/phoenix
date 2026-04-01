@@ -1292,6 +1292,87 @@ async def get_dataset_csv(
 
 
 @router.get(
+    "/datasets/{id}/jsonl",
+    operation_id="getDatasetJSONL",
+    summary="Download dataset examples as JSONL file",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 422,
+                "description": "Invalid dataset or version ID",
+            }
+        ]
+    ),
+)
+async def get_dataset_jsonl(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset"),
+    version_id: Optional[str] = Query(
+        default=None,
+        description=(
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
+        ),
+    ),
+) -> bytes:
+    try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
+        async with request.app.state.db() as session:
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            examples = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
+            )
+            example_ids = [ex.dataset_example_id for ex in examples]
+            # Fetch external IDs
+            external_ids: dict[int, Optional[str]] = {}
+            if example_ids:
+                ext_id_stmt = select(
+                    models.DatasetExample.id, models.DatasetExample.external_id
+                ).where(models.DatasetExample.id.in_(example_ids))
+                async for eid, ext_id in await session.stream(ext_id_stmt):
+                    external_ids[eid] = ext_id
+            # Fetch splits
+            splits: dict[int, list[str]] = {}
+            if example_ids:
+                splits_stmt = (
+                    select(
+                        models.DatasetSplitDatasetExample.dataset_example_id,
+                        models.DatasetSplit.name,
+                    )
+                    .join(
+                        models.DatasetSplit,
+                        models.DatasetSplitDatasetExample.dataset_split_id
+                        == models.DatasetSplit.id,
+                    )
+                    .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
+                )
+                async for example_id, split_name in await session.stream(splits_stmt):
+                    splits.setdefault(example_id, []).append(split_name)
+    except ValueError as e:
+        raise HTTPException(detail=str(e), status_code=422)
+    content = await run_in_threadpool(_get_content_jsonl, examples, external_ids, splits)
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
+    return content
+
+
+@router.get(
     "/datasets/{id}/jsonl/openai_ft",
     operation_id="getDatasetJSONLOpenAIFineTuning",
     summary="Download dataset examples as OpenAI fine-tuning JSONL file",
@@ -1415,6 +1496,36 @@ def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
         for example in examples
     ]
     return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
+
+
+def _get_content_jsonl(
+    examples: list[models.DatasetExampleRevision],
+    external_ids: dict[int, Optional[str]],
+    splits: dict[int, list[str]],
+) -> bytes:
+    records = io.BytesIO()
+    for example in examples:
+        ext_id = external_ids.get(example.dataset_example_id)
+        example_id: str = (
+            ext_id
+            if ext_id is not None
+            else str(
+                GlobalID(
+                    type_name=DatasetExampleNodeType.__name__,
+                    node_id=str(example.dataset_example_id),
+                )
+            )
+        )
+        record = {
+            "id": example_id,
+            "input": example.input,
+            "output": example.output,
+            "metadata": example.metadata_,
+            "splits": splits.get(example.dataset_example_id, []),
+        }
+        records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
+    records.seek(0)
+    return records.read()
 
 
 def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:

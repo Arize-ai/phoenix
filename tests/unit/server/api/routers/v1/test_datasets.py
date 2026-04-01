@@ -440,6 +440,85 @@ async def test_get_dataset_jsonl_openai_evals(
     }
 
 
+async def test_get_dataset_jsonl_empty_dataset(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(1))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''empty%20dataset.jsonl"
+    )
+    assert response.text.strip() == ""
+
+
+async def test_get_dataset_jsonl_latest_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''revised%20dataset.jsonl"
+    )
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 3
+    for line in json_lines:
+        assert set(line.keys()) == {"id", "input", "output", "metadata", "splits"}
+    assert json_lines[0]["input"] == {"in": "foo"}
+    assert json_lines[0]["output"] == {"out": "bar"}
+    assert json_lines[0]["metadata"] == {"info": "first revision"}
+    assert json_lines[0]["splits"] == []
+    assert json_lines[1]["input"] == {"in": "updated foofoo"}
+    assert json_lines[2]["input"] == {"in": "look at me"}
+
+
+async def test_get_dataset_jsonl_specific_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(2))
+    dataset_version_global_id = GlobalID("DatasetVersion", str(8))
+    response = await httpx_client.get(
+        f"/v1/datasets/{dataset_global_id}/jsonl?version_id={dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 4
+
+
+async def test_get_dataset_jsonl_with_splits(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_splits: tuple[int, int],
+) -> None:
+    dataset_id, _ = dataset_with_splits
+    dataset_global_id = GlobalID("Dataset", str(dataset_id))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 3
+    by_id = {line["id"]: line for line in json_lines}
+    # Example 100 has external_id "ext-1" and is in train split
+    assert by_id["ext-1"]["splits"] == ["train"]
+    assert by_id["ext-1"]["input"] == {"question": "hello"}
+    assert by_id["ext-1"]["output"] == {"answer": "world"}
+    assert by_id["ext-1"]["metadata"] == {"source": "test"}
+    # Example 101 has no external_id (uses GlobalID) and is in train+test splits
+    example_101_gid = str(GlobalID("DatasetExample", str(101)))
+    assert sorted(by_id[example_101_gid]["splits"]) == ["test", "train"]
+    # Example 102 has no splits
+    example_102_gid = str(GlobalID("DatasetExample", str(102)))
+    assert by_id[example_102_gid]["splits"] == []
+    assert by_id[example_102_gid]["metadata"] == {"note": "no splits"}
+
+
 async def test_post_dataset_upload_json_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

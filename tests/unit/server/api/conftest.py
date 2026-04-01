@@ -685,6 +685,83 @@ async def dataset_with_messages(
 
 
 @pytest.fixture
+async def dataset_with_splits(
+    db: DbSessionFactory,
+) -> tuple[int, int]:
+    """
+    A dataset with 3 examples and 2 splits for testing JSONL download.
+    - Example 100: external_id="ext-1", in train split
+    - Example 101: no external_id, in both train and test splits
+    - Example 102: no external_id, no splits
+    """
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset).returning(models.Dataset.id),
+            [{"id": 100, "name": "splits dataset", "metadata_": {}}],
+        )
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion).returning(models.DatasetVersion.id),
+            [{"id": 100, "dataset_id": dataset_id, "metadata_": {}}],
+        )
+        await session.execute(
+            insert(models.DatasetExample),
+            [
+                {"id": 100, "dataset_id": dataset_id, "external_id": "ext-1"},
+                {"id": 101, "dataset_id": dataset_id},
+                {"id": 102, "dataset_id": dataset_id},
+            ],
+        )
+        await session.execute(
+            insert(models.DatasetExampleRevision),
+            [
+                {
+                    "revision_kind": "CREATE",
+                    "dataset_example_id": 100,
+                    "dataset_version_id": dataset_version_id,
+                    "input": {"question": "hello"},
+                    "output": {"answer": "world"},
+                    "metadata_": {"source": "test"},
+                },
+                {
+                    "revision_kind": "CREATE",
+                    "dataset_example_id": 101,
+                    "dataset_version_id": dataset_version_id,
+                    "input": {"question": "foo"},
+                    "output": {"answer": "bar"},
+                    "metadata_": {},
+                },
+                {
+                    "revision_kind": "CREATE",
+                    "dataset_example_id": 102,
+                    "dataset_version_id": dataset_version_id,
+                    "input": {"question": "baz"},
+                    "output": {"answer": "qux"},
+                    "metadata_": {"note": "no splits"},
+                },
+            ],
+        )
+        train_split_id = await session.scalar(
+            insert(models.DatasetSplit).returning(models.DatasetSplit.id),
+            [{"id": 100, "name": "train", "color": "#0000FF", "metadata_": {}}],
+        )
+        test_split_id = await session.scalar(
+            insert(models.DatasetSplit).returning(models.DatasetSplit.id),
+            [{"id": 101, "name": "test", "color": "#FF0000", "metadata_": {}}],
+        )
+        await session.execute(
+            insert(models.DatasetSplitDatasetExample),
+            [
+                {"dataset_split_id": train_split_id, "dataset_example_id": 100},
+                {"dataset_split_id": train_split_id, "dataset_example_id": 101},
+                {"dataset_split_id": test_split_id, "dataset_example_id": 101},
+            ],
+        )
+        assert dataset_id is not None
+        assert dataset_version_id is not None
+        return dataset_id, dataset_version_id
+
+
+@pytest.fixture
 async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
     """
     A dataset with a single example and two versions. In the first version, the
