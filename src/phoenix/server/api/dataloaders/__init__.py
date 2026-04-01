@@ -42,6 +42,7 @@ from .experiment_runs_by_experiment_and_example import (
     ExperimentRunsByExperimentAndExampleDataLoader,
 )
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
+from .language_by_id import LanguageByIdDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
@@ -52,6 +53,7 @@ from .project_by_name import ProjectByNameDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
+from .sandbox_configs_by_provider import SandboxConfigsByProviderDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
@@ -120,6 +122,7 @@ __all__ = [
     "ExperimentRunCountsDataLoader",
     "ExperimentRunsByExperimentAndExampleDataLoader",
     "ExperimentSequenceNumberDataLoader",
+    "LanguageByIdDataLoader",
     "LastUsedTimesByGenerativeModelIdDataLoader",
     "LatestPromptVersionIdDataLoader",
     "LatencyMsQuantileDataLoader",
@@ -130,6 +133,7 @@ __all__ = [
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
+    "SandboxConfigsByProviderDataLoader",
     "SecretsDataLoader",
     "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",

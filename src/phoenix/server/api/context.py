@@ -38,6 +38,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunCountsDataLoader,
     ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LanguageByIdDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
     LatestPromptVersionIdDataLoader,
@@ -48,6 +49,7 @@ from phoenix.server.api.dataloaders import (
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SandboxConfigsByProviderDataLoader,
     SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
@@ -148,6 +150,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
     generative_model_custom_provider_fields: TableFieldsDataLoader
+    language_by_id: LanguageByIdDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -166,6 +169,7 @@ class DataLoaders:
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
+    sandbox_configs_by_provider: SandboxConfigsByProviderDataLoader
     secret_fields: TableFieldsDataLoader
     secrets: SecretsDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader

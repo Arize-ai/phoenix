@@ -145,6 +145,10 @@ function ProviderStatusText({ backend }: { backend: BackendInfo }) {
     return <Text color="success">{label}</Text>;
   }
 
+  if (backend.dependencyHints.length === 0) {
+    return <Text color="text-700">{label}</Text>;
+  }
+
   return (
     <TooltipTrigger delay={100}>
       <TriggerWrap>
@@ -264,7 +268,6 @@ function ProviderSettingsDialogContent({
   const [error, setError] = useState<string | null>(null);
   const form = useForm<ProviderSettingsFormValues>({
     defaultValues: {
-      enabled: provider.enabled,
       configText: toPrettyJSONObject(provider.config),
     },
   });
@@ -292,7 +295,6 @@ function ProviderSettingsDialogContent({
       variables: {
         input: {
           id: provider.id,
-          enabled: values.enabled,
           config: parsedConfig.config,
         },
       },
