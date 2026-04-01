@@ -142,6 +142,15 @@ class Project(Node):
         _, end_time = right_open_time_range(None, end_time)
         return end_time
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Whether the project has any trace data.",
+    )
+    async def has_traces(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        return await info.context.data_loaders.project_has_traces.load(self.id)
+
     @strawberry.field
     async def record_count(
         self,

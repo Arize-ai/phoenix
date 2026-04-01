@@ -2216,6 +2216,9 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
+
+  """Whether the project has any trace data."""
+  hasTraces: Boolean!
   recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
