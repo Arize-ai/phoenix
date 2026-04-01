@@ -1508,15 +1508,15 @@ async def test_post_dataset_upload_append_with_splits(
 
 
 # =============================================================================
-# Tests for id_key (stable external IDs via file upload)
+# Tests for example_id_key (stable external IDs via file upload)
 # =============================================================================
 
 
-async def test_post_dataset_upload_csv_with_id_key(
+async def test_post_dataset_upload_csv_with_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """CSV upload with id_key populates external_id on DatasetExample."""
+    """CSV upload with example_id_key populates external_id on DatasetExample."""
     name = inspect.stack()[0][3]
     file = gzip.compress(b"question,answer,my_id\nQ1,A1,ext-1\nQ2,A2,ext-2\n")
     response = await httpx_client.post(
@@ -1527,7 +1527,7 @@ async def test_post_dataset_upload_csv_with_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "my_id",
+            "example_id_key": "my_id",
         },
     )
     assert response.status_code == 200
@@ -1548,11 +1548,11 @@ async def test_post_dataset_upload_csv_with_id_key(
     assert examples[1].external_id == "ext-2"
 
 
-async def test_post_dataset_upload_jsonl_with_id_key(
+async def test_post_dataset_upload_jsonl_with_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """JSONL upload with id_key populates external_id on DatasetExample."""
+    """JSONL upload with example_id_key populates external_id on DatasetExample."""
     name = inspect.stack()[0][3]
     jsonl_content = (
         b'{"question": "Q1", "answer": "A1", "my_id": "ext-1"}\n'
@@ -1567,7 +1567,7 @@ async def test_post_dataset_upload_jsonl_with_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "my_id",
+            "example_id_key": "my_id",
         },
     )
     assert response.status_code == 200
@@ -1588,11 +1588,11 @@ async def test_post_dataset_upload_jsonl_with_id_key(
     assert examples[1].external_id == "ext-2"
 
 
-async def test_post_dataset_upload_pyarrow_with_id_key(
+async def test_post_dataset_upload_pyarrow_with_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """PyArrow upload with id_key populates external_id on DatasetExample."""
+    """PyArrow upload with example_id_key populates external_id on DatasetExample."""
     name = inspect.stack()[0][3]
     df = pd.read_csv(StringIO("question,answer,my_id\nQ1,A1,ext-1\nQ2,A2,ext-2\n"))
     table = pa.Table.from_pandas(df)
@@ -1609,7 +1609,7 @@ async def test_post_dataset_upload_pyarrow_with_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "my_id",
+            "example_id_key": "my_id",
         },
     )
     assert response.status_code == 200
@@ -1630,10 +1630,10 @@ async def test_post_dataset_upload_pyarrow_with_id_key(
     assert examples[1].external_id == "ext-2"
 
 
-async def test_post_dataset_upload_id_key_not_found_in_columns(
+async def test_post_dataset_upload_example_id_key_not_found_in_columns(
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    """Upload with id_key that doesn't exist in the file returns 422."""
+    """Upload with example_id_key that doesn't exist in the file returns 422."""
     name = inspect.stack()[0][3]
     file = gzip.compress(b"question,answer\nQ1,A1\n")
     response = await httpx_client.post(
@@ -1644,18 +1644,18 @@ async def test_post_dataset_upload_id_key_not_found_in_columns(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "nonexistent_id",
+            "example_id_key": "nonexistent_id",
         },
     )
     assert response.status_code == 422
     assert "nonexistent_id" in response.text
 
 
-async def test_post_dataset_upload_csv_with_mixed_id_key(
+async def test_post_dataset_upload_csv_with_mixed_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """CSV rows with a blank id_key column get external_id=None; filled rows get the value."""
+    """CSV rows with a blank example_id_key column get external_id=None; filled rows get the value."""
     name = inspect.stack()[0][3]
     # Row 1: has id, Row 2: blank id, Row 3: has id, Row 4: blank id
     file = gzip.compress(
@@ -1669,7 +1669,7 @@ async def test_post_dataset_upload_csv_with_mixed_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "task_id",
+            "example_id_key": "task_id",
         },
     )
     assert response.status_code == 200
@@ -1692,11 +1692,11 @@ async def test_post_dataset_upload_csv_with_mixed_id_key(
     assert examples[3].external_id is None
 
 
-async def test_post_dataset_upload_jsonl_with_mixed_id_key(
+async def test_post_dataset_upload_jsonl_with_mixed_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """JSONL rows with a blank/missing id_key field get external_id=None."""
+    """JSONL rows with a blank/missing example_id_key field get external_id=None."""
     name = inspect.stack()[0][3]
     jsonl_content = (
         b'{"task_id": "task-101", "question": "Q1", "answer": "A1"}\n'
@@ -1713,7 +1713,7 @@ async def test_post_dataset_upload_jsonl_with_mixed_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "task_id",
+            "example_id_key": "task_id",
         },
     )
     assert response.status_code == 200
@@ -1736,11 +1736,11 @@ async def test_post_dataset_upload_jsonl_with_mixed_id_key(
     assert examples[3].external_id is None
 
 
-async def test_post_dataset_upload_pyarrow_with_mixed_id_key(
+async def test_post_dataset_upload_pyarrow_with_mixed_example_id_key(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """PyArrow rows with NaN in the id_key column get external_id=None."""
+    """PyArrow rows with NaN in the example_id_key column get external_id=None."""
     name = inspect.stack()[0][3]
     # pandas represents missing string values as NaN; _get_external_id must treat these as None
     df = pd.read_csv(
@@ -1760,7 +1760,7 @@ async def test_post_dataset_upload_pyarrow_with_mixed_id_key(
             "name": name,
             "input_keys[]": ["question"],
             "output_keys[]": ["answer"],
-            "id_key": "task_id",
+            "example_id_key": "task_id",
         },
     )
     assert response.status_code == 200

@@ -266,7 +266,7 @@ Capital of Germany?,Berlin,geography,validation
         assert dataset[2]["metadata"]["rating"] == "5"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_from_dataframe_with_id_key(
+    async def test_create_dataset_from_dataframe_with_example_id_key(
         self,
         is_async: bool,
         _app: _AppInfo,
@@ -291,7 +291,7 @@ Capital of Germany?,Berlin,geography,validation
                 dataframe=df,
                 input_keys=["prompt"],
                 output_keys=["response"],
-                id_key="example_id",
+                example_id_key="example_id",
             )
         )
 
@@ -300,7 +300,7 @@ Capital of Germany?,Berlin,geography,validation
         assert example_ids == {"poem-1", "joke-1", "gravity-1"}
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_upsert_dataset_from_dataframe_with_id_key(
+    async def test_upsert_dataset_from_dataframe_with_example_id_key(
         self,
         is_async: bool,
         _app: _AppInfo,
@@ -326,7 +326,7 @@ Capital of Germany?,Berlin,geography,validation
                 dataframe=v1_df,
                 input_keys=["prompt"],
                 output_keys=["response"],
-                id_key="row_id",
+                example_id_key="row_id",
             )
         )
 
@@ -348,7 +348,7 @@ Capital of Germany?,Berlin,geography,validation
                 dataframe=v2_df,
                 input_keys=["prompt"],
                 output_keys=["response"],
-                id_key="row_id",
+                example_id_key="row_id",
             )
         )
 

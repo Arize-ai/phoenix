@@ -4145,7 +4145,7 @@ export interface operations {
                     /** @description Column name for span IDs to link examples back to spans */
                     span_id_key?: string;
                     /** @description Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes. */
-                    id_key?: string;
+                    example_id_key?: string;
                     /** Format: binary */
                     file: string;
                 };

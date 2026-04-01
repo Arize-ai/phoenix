@@ -328,14 +328,14 @@ class DatasetKeys:
         metadata_keys: frozenset[str],
         split_keys: frozenset[str] = frozenset(),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
     ):
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
         self.split = split_keys
         self.span_id = span_id_key
-        self.example_id = id_key
+        self.example_id = example_id_key
 
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
@@ -362,17 +362,17 @@ class DatasetKeys:
             if self.split & span_id_set:
                 raise ValueError(f"span_id_key '{self.span_id}' overlaps with split keys")
 
-        # Validate id_key doesn't overlap with other keys
+        # Validate example_id_key doesn't overlap with other keys
         if self.example_id:
             example_id_set = frozenset([self.example_id])
             if self.input & example_id_set:
-                raise ValueError(f"id_key '{self.example_id}' overlaps with input keys")
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with input keys")
             if self.output & example_id_set:
-                raise ValueError(f"id_key '{self.example_id}' overlaps with output keys")
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with output keys")
             if self.metadata & example_id_set:
-                raise ValueError(f"id_key '{self.example_id}' overlaps with metadata keys")
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with metadata keys")
             if self.split & example_id_set:
-                raise ValueError(f"id_key '{self.example_id}' overlaps with split keys")
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with split keys")
 
     def check_differences(self, available_keys: frozenset[str]) -> None:
         """Check that all specified keys exist in available keys."""
@@ -784,7 +784,7 @@ class Datasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -808,7 +808,7 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
-            id_key: Optional column name containing stable IDs for examples.
+            example_id_key: Optional column name containing stable IDs for examples.
                 If not provided, the server will generate an ID for new examples.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
@@ -897,7 +897,7 @@ class Datasets:
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
                 span_id_key=span_id_key,
-                id_key=id_key,
+                example_id_key=example_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -928,7 +928,7 @@ class Datasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -952,7 +952,7 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
-            id_key: Optional column name containing user-provided IDs for examples.
+            example_id_key: Optional column name containing user-provided IDs for examples.
                 If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
@@ -1033,7 +1033,7 @@ class Datasets:
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
                 span_id_key=span_id_key,
-                id_key=id_key,
+                example_id_key=example_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1097,7 +1097,7 @@ class Datasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1123,7 +1123,7 @@ class Datasets:
             metadata_keys_set,
             split_keys_set,
             span_id_key,
-            id_key,
+            example_id_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1155,11 +1155,11 @@ class Datasets:
         if keys.span_id:
             data_dict["span_id_key"] = keys.span_id
 
-        # Add id_key if present
+        # Add example_id_key if present
         if keys.example_id:
             # todo: uncomment before releasing
             # self._guard.require(DATASET_UPLOAD_ID_KEY)
-            data_dict["id_key"] = keys.example_id
+            data_dict["example_id_key"] = keys.example_id
 
         response = self._client.post(
             url="v1/datasets/upload",
@@ -1639,7 +1639,7 @@ class AsyncDatasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1660,7 +1660,7 @@ class AsyncDatasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
-            id_key: Optional column name containing stable IDs for examples.
+            example_id_key: Optional column name containing stable IDs for examples.
                 If not provided, the server will generate an ID for new examples.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
@@ -1727,7 +1727,7 @@ class AsyncDatasets:
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
                 span_id_key=span_id_key,
-                id_key=id_key,
+                example_id_key=example_id_key,
                 dataset_description=dataset_description,
                 action="create",
                 timeout=timeout,
@@ -1758,7 +1758,7 @@ class AsyncDatasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1779,7 +1779,7 @@ class AsyncDatasets:
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
             split_keys: List of column names used for automatically assigning examples to splits.
-            id_key: Optional column name containing user-provided IDs for examples.
+            example_id_key: Optional column name containing user-provided IDs for examples.
                 If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
@@ -1860,7 +1860,7 @@ class AsyncDatasets:
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
                 span_id_key=span_id_key,
-                id_key=id_key,
+                example_id_key=example_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1911,7 +1911,7 @@ class AsyncDatasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
-        id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1935,7 +1935,7 @@ class AsyncDatasets:
             metadata_keys_set,
             split_keys_set,
             span_id_key,
-            id_key,
+            example_id_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1967,11 +1967,11 @@ class AsyncDatasets:
         if keys.span_id:
             data_dict["span_id_key"] = keys.span_id
 
-        # Add id_key if present
+        # Add example_id_key if present
         if keys.example_id:
             # todo: uncomment before releasing
             # await self._guard.require(DATASET_UPLOAD_ID_KEY)
-            data_dict["id_key"] = keys.example_id
+            data_dict["example_id_key"] = keys.example_id
 
         response = await self._client.post(
             url="v1/datasets/upload",

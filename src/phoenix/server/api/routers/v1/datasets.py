@@ -447,7 +447,7 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "type": "string",
                                 "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
                             },
-                            "id_key": {
+                            "example_id_key": {
                                 "type": "string",
                                 "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes.",  # noqa: E501
                             },
@@ -495,7 +495,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
-                    id_key,
+                    example_id_key,
                     flatten_keys,
                     file,
                 ) = await _parse_form_data(form)
@@ -517,7 +517,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
-                    id_key,
+                    example_id_key,
                     flatten_keys,
                 )
             elif file_content_type is FileContentType.PYARROW:
@@ -528,7 +528,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
-                    id_key,
+                    example_id_key,
                 )
             elif file_content_type is FileContentType.JSONL:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
@@ -540,7 +540,7 @@ async def upload_dataset(
                     metadata_keys,
                     split_keys,
                     span_id_key,
-                    id_key,
+                    example_id_key,
                     flatten_keys,
                 )
             else:
@@ -828,7 +828,7 @@ async def _process_csv(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
-    id_key: ExampleIdKey = None,
+    example_id_key: ExampleIdKey = None,
     flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
@@ -851,7 +851,7 @@ async def _process_csv(
         metadata_keys,
         split_keys,
         span_id_key,
-        id_key,
+        example_id_key,
     )
 
     def process_rows() -> list[ExampleContent]:
@@ -894,7 +894,7 @@ async def _process_csv(
                         str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                     ),
                     span_id=_get_span_id(row, span_id_key),
-                    external_id=_get_external_id(row, id_key),
+                    external_id=_get_external_id(row, example_id_key),
                 )
             )
         return examples
@@ -910,7 +910,7 @@ async def _process_pyarrow(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
-    id_key: ExampleIdKey = None,
+    example_id_key: ExampleIdKey = None,
 ) -> Examples:
     try:
         reader = pa.ipc.open_stream(content)
@@ -924,7 +924,7 @@ async def _process_pyarrow(
         metadata_keys,
         split_keys,
         span_id_key,
-        id_key,
+        example_id_key,
     )
 
     def get_examples() -> Iterator[ExampleContent]:
@@ -937,7 +937,7 @@ async def _process_pyarrow(
                     str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
                 ),  # Only include non-empty, non-whitespace split values
                 span_id=_get_span_id(row, span_id_key),
-                external_id=_get_external_id(row, id_key),
+                external_id=_get_external_id(row, example_id_key),
             )
 
     return await run_in_threadpool(get_examples)
@@ -951,7 +951,7 @@ async def _process_jsonl(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
-    id_key: ExampleIdKey = None,
+    example_id_key: ExampleIdKey = None,
     flatten_keys: FlattenKeys = frozenset(),
 ) -> Examples:
     if encoding is FileContentEncoding.GZIP:
@@ -982,7 +982,7 @@ async def _process_jsonl(
                     str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
                 ),
                 span_id=_get_span_id(obj, span_id_key),
-                external_id=_get_external_id(obj, id_key),
+                external_id=_get_external_id(obj, example_id_key),
             )
             examples.append(example)
         return examples
@@ -998,7 +998,7 @@ def _check_keys_exist(
     metadata_keys: MetadataKeys,
     split_keys: SplitKeys,
     span_id_key: SpanIdKey = None,
-    id_key: ExampleIdKey = None,
+    example_id_key: ExampleIdKey = None,
 ) -> None:
     for desc, keys in (
         ("input", input_keys),
@@ -1010,8 +1010,8 @@ def _check_keys_exist(
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
     if span_id_key and span_id_key not in column_headers:
         raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
-    if id_key and id_key not in column_headers:
-        raise ValueError(f"id_key '{id_key}' not found in column headers")
+    if example_id_key and example_id_key not in column_headers:
+        raise ValueError(f"example_id_key '{example_id_key}' not found in column headers")
 
 
 def _get_span_id(row: Mapping[Any, Any], span_id_key: SpanIdKey) -> Optional[str]:
@@ -1027,11 +1027,11 @@ def _get_span_id(row: Mapping[Any, Any], span_id_key: SpanIdKey) -> Optional[str
     return str_value
 
 
-def _get_external_id(row: Mapping[Any, Any], id_key: ExampleIdKey) -> Optional[str]:
+def _get_external_id(row: Mapping[Any, Any], example_id_key: ExampleIdKey) -> Optional[str]:
     """Extract external_id from a row, returning None if not present or empty."""
-    if not id_key:
+    if not example_id_key:
         return None
-    value = row.get(id_key)
+    value = row.get(example_id_key)
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
     str_value = str(value)
@@ -1068,7 +1068,7 @@ async def _parse_form_data(
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
     span_id_key = cast(Optional[str], form.get("span_id_key")) or None
-    id_key = cast(Optional[str], form.get("id_key")) or None
+    example_id_key = cast(Optional[str], form.get("example_id_key")) or None
     flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
     return (
         action,
@@ -1079,7 +1079,7 @@ async def _parse_form_data(
         metadata_keys,
         split_keys,
         span_id_key,
-        id_key,
+        example_id_key,
         flatten_keys,
         file,
     )
