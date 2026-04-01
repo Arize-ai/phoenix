@@ -1,5 +1,17 @@
 # Changelog
 
+## [13.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.21.0...arize-phoenix-v13.22.0) (2026-04-01)
+
+
+### Features
+
+* **ui:** updated provider and integration icons, logo icon agent skill ([#12470](https://github.com/Arize-ai/phoenix/issues/12470)) ([8668c43](https://github.com/Arize-ai/phoenix/commit/8668c437d44969b6b52f67d3d4c9f0afce270ba7))
+
+
+### Bug Fixes
+
+* fail loudly on Windows + Python 3.14 install ([#12480](https://github.com/Arize-ai/phoenix/issues/12480)) ([50d66a3](https://github.com/Arize-ai/phoenix/commit/50d66a3569be4eb5f4efda49890cdd4e30b3de42))
+
 ## [13.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.20.0...arize-phoenix-v13.21.0) (2026-04-01)
 
 
