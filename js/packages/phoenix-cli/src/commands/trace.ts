@@ -11,9 +11,15 @@ import {
 } from "../config";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { confirmDestructive } from "../prompts";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
-import { formatTraceOutput, type OutputFormat } from "./formatTraces";
-import { formatTracesOutput } from "./formatTraces";
+import {
+  buildTraceDeletionReceipt,
+  formatTraceDeletionOutput,
+  formatTraceOutput,
+  formatTracesOutput,
+  type OutputFormat,
+} from "./formatTraces";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
@@ -39,6 +45,13 @@ interface TraceListOptions {
   since?: string;
   maxConcurrent?: number;
   includeAnnotations?: boolean;
+}
+
+interface TraceDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: OutputFormat;
+  input?: boolean;
 }
 
 /**
@@ -524,6 +537,77 @@ async function traceListHandler(
   }
 }
 
+/**
+ * Handler for `trace delete`
+ */
+async function traceDeleteHandler(
+  traceId: string,
+  options: TraceDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: { endpoint: options.endpoint, apiKey: options.apiKey },
+    });
+
+    if (!config.endpoint) {
+      writeError({
+        message:
+          "Phoenix endpoint not configured. Set PHOENIX_HOST or use --endpoint.",
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    const confirmation = await confirmDestructive({
+      message: `Delete trace ${traceId}? This action cannot be undone.`,
+      noInput: !options.input,
+    });
+
+    if (confirmation.outcome === "cancelled") {
+      writeError({ message: "Aborted." });
+      process.exit(ExitCode.CANCELLED);
+    }
+    if (confirmation.outcome === "declined") {
+      writeError({ message: "Deletion cancelled." });
+      process.exit(ExitCode.CANCELLED);
+    }
+
+    await client.DELETE("/v1/traces/{trace_identifier}", {
+      params: { path: { trace_identifier: traceId } },
+    });
+
+    const receipt = buildTraceDeletionReceipt({ traceId });
+    writeOutput({
+      message: formatTraceDeletionOutput({ receipt, format: options.format }),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(": 404 ")) {
+      writeError({ message: `Trace not found: ${traceId}` });
+      process.exit(ExitCode.FAILURE);
+    }
+    writeError({
+      message: `Error deleting trace: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete a trace by ID")
+    .argument("<trace-id>", "Trace identifier (hex string or Relay global ID)")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-input", "Skip interactive confirmation (for scripting)")
+    .action(traceDeleteHandler);
+}
+
 export function createTraceGetCommand(): Command {
   return new Command("get")
     .description("Fetch a specific trace by ID")
@@ -591,5 +675,6 @@ export function createTraceCommand(): Command {
   command.description("Manage Phoenix traces");
   command.addCommand(createTraceListCommand());
   command.addCommand(createTraceGetCommand());
+  command.addCommand(createTraceDeleteCommand());
   return command;
 }

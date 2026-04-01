@@ -207,6 +207,33 @@ function formatDurationMs(startTime: string, endTime: string): string {
   return `${Math.max(0, endMs - startMs)}ms`;
 }
 
+export interface TraceDeletionReceipt {
+  traceId: string;
+  deleted: true;
+  deletedAt: string;
+}
+
+export function buildTraceDeletionReceipt({
+  traceId,
+}: {
+  traceId: string;
+}): TraceDeletionReceipt {
+  return { traceId, deleted: true, deletedAt: new Date().toISOString() };
+}
+
+export function formatTraceDeletionOutput({
+  receipt,
+  format,
+}: {
+  receipt: TraceDeletionReceipt;
+  format?: OutputFormat;
+}): string {
+  const selected = format || "pretty";
+  if (selected === "raw") return JSON.stringify(receipt);
+  if (selected === "json") return JSON.stringify(receipt, null, 2);
+  return `Deleted trace ${receipt.traceId}`;
+}
+
 function previewAttributeValue(value: unknown): string | undefined {
   if (value === undefined || value === null) {
     return undefined;

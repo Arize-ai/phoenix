@@ -46,7 +46,7 @@ describe("Phoenix CLI", () => {
     ).toBeUndefined();
   });
 
-  it("should register trace list and trace get as the primary trace commands", () => {
+  it("should register trace list, trace get, and trace delete as the primary trace commands", () => {
     const program = createProgram();
     const traceCommand = program.commands.find(
       (command) => command.name() === "trace"
@@ -54,7 +54,7 @@ describe("Phoenix CLI", () => {
 
     expect(traceCommand).toBeDefined();
     expect(traceCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get"])
+      expect.arrayContaining(["list", "get", "delete"])
     );
     expect(
       program.commands.find((command) => command.name() === "traces")
