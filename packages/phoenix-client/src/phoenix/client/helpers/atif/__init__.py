@@ -32,11 +32,90 @@ def upload_atif_trajectories_as_spans(
 ) -> v1.CreateSpansResponseBody:
     """Upload one or more ATIF trajectories as spans to Phoenix.
 
-    Validates each trajectory, resolves subagent cross-references between
-    trajectories in the batch, converts them to hierarchical span trees
-    (root AGENT → per-turn AGENT → LLM spans → TOOL spans), and logs
-    all spans via a single ``client.spans.log_spans()`` call.
-    Single-turn trajectories are flat (root AGENT → LLM → TOOL).
+    Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
+    into Phoenix/OpenTelemetry-compatible span trees and uploads them.
+    Supports ATIF schema versions v1.0 through v1.6.
+
+    **Trace structure**
+
+    Each trajectory produces one trace. Only agent steps become spans;
+    user and system messages appear as ``llm.input_messages`` on the LLM
+    spans that follow them (matching how real instrumented traces work).
+
+    - Single-turn trajectories are flat::
+
+        AGENT (root — input=user message, output=final agent reply)
+          LLM
+            TOOL
+          LLM
+
+    - Multi-turn trajectories (multiple user messages) get nested AGENT
+      spans, one per turn. A new turn starts at each follow-up user
+      message::
+
+        AGENT (root — input=first user message, output=final agent reply)
+          AGENT turn_1 (input=user msg 1, output=agent reply 1)
+            LLM
+              TOOL
+          AGENT turn_2 (input=user msg 2, output=agent reply 2)
+            LLM
+
+    **Multi-agent / subagent handoffs**
+
+    When trajectories in the batch reference each other via
+    ``subagent_trajectory_ref``, the child trajectory's spans are nested
+    under the parent's tool span within a single trace. Upload the parent
+    and child trajectories together in one call for linking to work::
+
+        AGENT (parent)
+          LLM
+            TOOL (delegate_task)
+              AGENT (child agent)
+                LLM
+                  TOOL
+
+    **Continuation trajectories**
+
+    When an agent's context window is exhausted, Harbor splits the
+    session across files using ``continued_trajectory_ref``. The
+    continuation trajectory gets a ``session_id`` ending in
+    ``-cont-{N}``. These are automatically detected and merged into the
+    same trace as the original, so the full agent session appears as one
+    trace. The continuation's root span is annotated with
+    ``metadata.is_continuation = True``.
+
+    **Multimodal content (v1.6+)**
+
+    Messages containing image content parts (``type: "image"`` with a
+    ``source.path`` URL) are written using the OpenInference
+    ``message.contents`` array format, with image URLs stored in
+    ``message_content.image.image.url``. Text-only messages use the
+    standard ``message.content`` string attribute.
+
+    **Copied context**
+
+    Steps marked ``is_copied_context: true`` (replayed conversation
+    history from a continuation handoff) are included in
+    ``llm.input_messages`` as normal messages. LLM spans whose input
+    includes any copied context steps are annotated with
+    ``metadata.has_copied_context = True``.
+
+    **Attribute mapping**
+
+    - ``metrics.prompt_tokens`` / ``completion_tokens`` →
+      ``llm.token_count.prompt`` / ``completion`` / ``total``
+    - ``metrics.cached_tokens`` →
+      ``llm.token_count.prompt_details.cache_read``
+    - ``metrics.cost_usd`` → ``llm.cost.total``
+    - ``agent.model_name`` or step ``model_name`` → ``llm.model_name``
+    - ``agent.tool_definitions`` → ``llm.tools.{i}.tool.json_schema``
+    - ``reasoning_content`` → ``metadata.reasoning_content``
+    - ``session_id`` → ``session.id`` on all spans
+
+    **Deterministic IDs**
+
+    Trace and span IDs are derived from ``session_id`` via SHA-256, so
+    re-uploading the same trajectory produces the same trace (idempotent).
 
     Args:
         client: A Phoenix ``Client`` instance.
