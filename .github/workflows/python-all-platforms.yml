@@ -40,11 +40,17 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.13", "3.14"]
         os: [windows-latest, macos-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
             db: postgresql
+          - os: windows-latest
+            py: "3.14"  # sqlean.py has no Windows wheels for 3.14
+          - os: macos-latest
+            py: "3.13"
+          - os: ubuntu-latest
+            py: "3.13"
           - os: macos-latest
             db: postgresql
           - os: ubuntu-latest
@@ -95,11 +101,15 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
         db: [sqlite, postgresql]
-        py: ["3.10", "3.13"]
+        py: ["3.10", "3.13", "3.14"]
         os: [windows-latest, ubuntu-latest]
         exclude:
           - os: windows-latest
             db: postgresql
+          - os: windows-latest
+            py: "3.14"  # sqlean.py has no Windows wheels for 3.14
+          - os: ubuntu-latest
+            py: "3.13"
           - os: ubuntu-latest
             py: "3.10"
             db: sqlite
@@ -153,7 +163,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: ["3.10", "3.12"]
+        py: ["3.10", "3.13", "3.14"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -178,7 +188,7 @@ jobs:
       fail-fast: false
       matrix:
         branch: ${{ fromJson(needs.discover-branches.outputs.branches) }}
-        py: ["3.10", "3.12"]
+        py: ["3.10", "3.13", "3.14"]
         os: [windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

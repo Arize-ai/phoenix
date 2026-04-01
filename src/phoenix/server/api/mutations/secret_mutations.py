@@ -25,6 +25,7 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.secrets import normalize_secret_key
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.bearer_auth import PhoenixUser
@@ -36,7 +37,8 @@ class SecretKeyValueInput:
     Input type for a single secret key-value pair.
 
     Attributes:
-        key: The unique identifier for the secret. Must be non-empty ASCII after trimming.
+        key: The unique identifier for the secret. Must match env-var style naming
+             after trimming.
         value: The secret value. If None, the secret with this key will be deleted.
                If provided, must be non-empty after trimming.
 
@@ -55,11 +57,10 @@ class SecretKeyValueInput:
 
     def __post_init__(self) -> None:
         """Validate and normalize the key and value fields."""
-        self.key = self.key.strip()
-        if not self.key:
-            raise BadRequest("Key cannot be empty")
-        if not self.key.isascii():
-            raise BadRequest("Key must be ASCII")
+        try:
+            self.key = normalize_secret_key(self.key)
+        except ValueError as exc:
+            raise BadRequest(str(exc)) from exc
         if self.value is None:
             return
         self.value = self.value.strip()

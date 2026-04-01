@@ -470,6 +470,11 @@ class PromptXAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
 
 
+class SecretKeyValue(TypedDict):
+    key: str
+    value: Optional[str]
+
+
 class SessionAnnotation(TypedDict):
     id: str
     created_at: str
@@ -640,6 +645,15 @@ class UpsertExperimentEvaluationRequestBody(TypedDict):
 
 class UpsertExperimentEvaluationResponseBodyData(TypedDict):
     id: str
+
+
+class UpsertOrDeleteSecretsRequest(TypedDict):
+    secrets: Sequence[SecretKeyValue]
+
+
+class UpsertOrDeleteSecretsResult(TypedDict):
+    upserted_keys: Sequence[str]
+    deleted_keys: Sequence[str]
 
 
 class ValidationError(TypedDict):
@@ -905,6 +919,10 @@ class PromptTools(TypedDict):
 class PromptXAIInvocationParameters(TypedDict):
     type: Literal["xai"]
     xai: PromptXAIInvocationParametersContent
+
+
+class ResponseBodyUpsertOrDeleteSecretsResult(TypedDict):
+    data: UpsertOrDeleteSecretsResult
 
 
 class SessionData(TypedDict):

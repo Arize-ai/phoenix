@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 
@@ -62,8 +62,15 @@ export function ProjectPageHeader(props: {
     props.project
   );
 
-  // Refetch the count of traces if the fetchKey changes
+  // Refetch the count of traces if the fetchKey changes.
+  // Skip the initial mount — the parent useLazyLoadQuery with
+  // store-and-network already fetches fresh data.
+  const hasMounted = useRef<boolean>(false);
   useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });

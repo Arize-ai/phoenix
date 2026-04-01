@@ -23,8 +23,8 @@ const panelHeaderCSS = css`
 `;
 
 const panelHeaderActionsCSS = css`
-  /* Allow the session summary label to truncate instead of overflowing */
-  min-width: 0;
+  // prevent the actions from giving up their space to the heading
+  flex-shrink: 0;
 `;
 
 const sessionHeadingCSS = css`
@@ -32,6 +32,8 @@ const sessionHeadingCSS = css`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  // prevent the session heading from pushing actions off screen
+  flex-shrink: 1;
 `;
 
 const panelContentCSS = css`
@@ -88,7 +90,11 @@ export function AgentChatPanel() {
               gap="size-50"
               minWidth={0}
             >
-              <Text weight="heavy" css={sessionHeadingCSS}>
+              <Text
+                weight="heavy"
+                css={sessionHeadingCSS}
+                title={sessionDisplayName}
+              >
                 {sessionDisplayName}
               </Text>
             </Flex>

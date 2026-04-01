@@ -26,7 +26,7 @@ const TracesTabContent = ({
     tracesQueryReference
   );
 
-  if (data.project.traceCount === 0) {
+  if (!data.project.hasTraces) {
     return (
       <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
     );

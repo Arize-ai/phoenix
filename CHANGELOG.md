@@ -1,5 +1,69 @@
 # Changelog
 
+## [13.22.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.1...arize-phoenix-v13.22.2) (2026-04-01)
+
+
+### Bug Fixes
+
+* use DISTINCT instead of GROUP BY in ProjectHasTracesDataLoader ([#12495](https://github.com/Arize-ai/phoenix/issues/12495)) ([77bf1a3](https://github.com/Arize-ai/phoenix/commit/77bf1a3e0e287b561e430b74f74bc0fa082ed7f9))
+
+## [13.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.0...arize-phoenix-v13.22.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* replace expensive count queries with hasTraces existence check ([#12490](https://github.com/Arize-ai/phoenix/issues/12490)) ([2d064fc](https://github.com/Arize-ai/phoenix/commit/2d064fc263a70cc5705a535d0070632200d6d922))
+* skip redundant header stats refetch on initial mount ([#12491](https://github.com/Arize-ai/phoenix/issues/12491)) ([a10d8ed](https://github.com/Arize-ai/phoenix/commit/a10d8ed5664221aef53588ad7ec0c8c9b669e808))
+
+## [13.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.21.0...arize-phoenix-v13.22.0) (2026-04-01)
+
+
+### Features
+
+* **ui:** updated provider and integration icons, logo icon agent skill ([#12470](https://github.com/Arize-ai/phoenix/issues/12470)) ([8668c43](https://github.com/Arize-ai/phoenix/commit/8668c437d44969b6b52f67d3d4c9f0afce270ba7))
+
+
+### Bug Fixes
+
+* fail loudly on Windows + Python 3.14 install ([#12480](https://github.com/Arize-ai/phoenix/issues/12480)) ([50d66a3](https://github.com/Arize-ai/phoenix/commit/50d66a3569be4eb5f4efda49890cdd4e30b3de42))
+
+## [13.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.20.0...arize-phoenix-v13.21.0) (2026-04-01)
+
+
+### Features
+
+* add Python 3.14 support (except Windows) ([#12475](https://github.com/Arize-ai/phoenix/issues/12475)) ([50c08e3](https://github.com/Arize-ai/phoenix/commit/50c08e3ff4e41c0693e92b7d3de7dbc41384fad1))
+* **agent:** Improve session summaries ([#12471](https://github.com/Arize-ai/phoenix/issues/12471)) ([f1750a9](https://github.com/Arize-ai/phoenix/commit/f1750a920a0d650314e30c7bf4ce5571163a9bd4))
+* **server:** REST endpoint for secrets management ([#12429](https://github.com/Arize-ai/phoenix/issues/12429)) ([39f68cf](https://github.com/Arize-ai/phoenix/commit/39f68cf5449a5df04e4b8901975c01bbf76e93fc))
+
+## [13.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.2...arize-phoenix-v13.20.0) (2026-03-29)
+
+
+### Features
+
+* **rest-api:** DELETE /prompt_versions/{id}/tags/{tag_name} ([#12427](https://github.com/Arize-ai/phoenix/issues/12427)) ([0c61d16](https://github.com/Arize-ai/phoenix/commit/0c61d1629c683a8736df893e296fc9d7c9d5a45f))
+* **rest-api:** DELETE /prompts/{prompt_identifier} ([#12426](https://github.com/Arize-ai/phoenix/issues/12426)) ([ac9ffbe](https://github.com/Arize-ai/phoenix/commit/ac9ffbe4e74a19ed7b1a9a5972cd2b41f3475b17))
+* **ui:** add CopyField component and clean up settings layout ([#12435](https://github.com/Arize-ai/phoenix/issues/12435)) ([3c7bd2b](https://github.com/Arize-ai/phoenix/commit/3c7bd2bbf6dabcab25a293ee98692470126c1593))
+
+## [13.19.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.1...arize-phoenix-v13.19.2) (2026-03-28)
+
+
+### Bug Fixes
+
+* **ui:** fix model menu search losing focus on first keystroke ([#12417](https://github.com/Arize-ai/phoenix/issues/12417)) ([f5b2cc2](https://github.com/Arize-ai/phoenix/commit/f5b2cc2eb49a2d64cea1208bcba397adccc117c8))
+
+## [13.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.19.0...arize-phoenix-v13.19.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* **TracesTable:** update interface for additional spans row and adjust GraphQL fragments ([#12385](https://github.com/Arize-ai/phoenix/issues/12385)) ([0f38e06](https://github.com/Arize-ai/phoenix/commit/0f38e06638c5e18fcb349514649b44574474343f))
+
+
+### Documentation
+
+* **cli:** update phoenix CLI skill and docs for noun-verb commands ([#12393](https://github.com/Arize-ai/phoenix/issues/12393)) ([a195055](https://github.com/Arize-ai/phoenix/commit/a195055d03379c9e7d3587cc56a37592eba30e22))
+
 ## [13.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.18.2...arize-phoenix-v13.19.0) (2026-03-26)
 
 

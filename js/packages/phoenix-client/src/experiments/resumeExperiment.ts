@@ -3,8 +3,13 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
-import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
+import type {
+  GlobalTracerProviderRegistration,
+  NodeTracerProvider,
+  Tracer,
+} from "@arizeai/phoenix-otel";
 import {
+  attachGlobalTracerProvider,
   type DiagLogLevel,
   objectAsAttributes,
   register,
@@ -33,6 +38,7 @@ import {
   PROGRESS_PREFIX,
 } from "./logging";
 import { resumeEvaluation } from "./resumeEvaluation";
+import { cleanupOwnedTracerProvider } from "./tracing";
 
 /**
  * Error thrown when task is aborted due to a failure in stopOnFirstError mode.
@@ -190,7 +196,11 @@ function setupTracer({
   useBatchSpanProcessor: boolean;
   diagLogLevel?: DiagLogLevel;
   setGlobalTracerProvider: boolean;
-}): { provider: NodeTracerProvider; tracer: Tracer } | null {
+}): {
+  provider: NodeTracerProvider;
+  tracer: Tracer;
+  globalRegistration: GlobalTracerProviderRegistration | null;
+} | null {
   if (!projectName) {
     return null;
   }
@@ -201,11 +211,14 @@ function setupTracer({
     headers,
     batch: useBatchSpanProcessor,
     diagLogLevel,
-    global: setGlobalTracerProvider,
+    global: false,
   });
+  const globalRegistration = setGlobalTracerProvider
+    ? attachGlobalTracerProvider(provider)
+    : null;
 
   const tracer = provider.getTracer(projectName);
-  return { provider, tracer };
+  return { provider, tracer, globalRegistration };
 }
 
 /**
@@ -313,256 +326,267 @@ export async function resumeExperiment({
     setGlobalTracerProvider,
   });
 
-  const provider = tracerSetup?.provider ?? null;
+  let provider = tracerSetup?.provider ?? null;
+  let globalRegistration = tracerSetup?.globalRegistration ?? null;
   const taskTracer = tracerSetup?.tracer ?? null;
 
-  // Display URLs
-  const datasetExperimentsUrl = getDatasetExperimentsUrl({
-    baseUrl,
-    datasetId: experiment.datasetId,
-  });
-  const experimentUrl = getExperimentUrl({
-    baseUrl,
-    datasetId: experiment.datasetId,
-    experimentId: experiment.id,
-  });
+  try {
+    // Display URLs
+    const datasetExperimentsUrl = getDatasetExperimentsUrl({
+      baseUrl,
+      datasetId: experiment.datasetId,
+    });
+    const experimentUrl = getExperimentUrl({
+      baseUrl,
+      datasetId: experiment.datasetId,
+      experimentId: experiment.id,
+    });
 
-  // Create a CSP-style bounded buffer for task distribution
-  const taskChannel = new Channel<TaskItem>(
-    pageSize * CHANNEL_CAPACITY_MULTIPLIER
-  );
+    // Create a CSP-style bounded buffer for task distribution
+    const taskChannel = new Channel<TaskItem>(
+      pageSize * CHANNEL_CAPACITY_MULTIPLIER
+    );
 
-  // Abort controller for stopOnFirstError coordination
-  const abortController = new AbortController();
-  const { signal } = abortController;
+    // Abort controller for stopOnFirstError coordination
+    const abortController = new AbortController();
+    const { signal } = abortController;
 
-  let totalProcessed = 0;
-  let totalCompleted = 0;
-  let totalFailed = 0;
+    let totalProcessed = 0;
+    let totalCompleted = 0;
+    let totalFailed = 0;
 
-  // Producer: Fetch incomplete runs and send to channel
-  async function fetchIncompleteRuns(): Promise<void> {
-    let cursor: string | null = null;
+    // Producer: Fetch incomplete runs and send to channel
+    async function fetchIncompleteRuns(): Promise<void> {
+      let cursor: string | null = null;
 
-    try {
-      do {
-        // Stop fetching if abort signal received
-        if (signal.aborted) {
-          logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
-          break;
-        }
-
-        let res: {
-          data?: components["schemas"]["GetIncompleteExperimentRunsResponseBody"];
-        };
-
-        try {
-          res = await client.GET(
-            "/v1/experiments/{experiment_id}/incomplete-runs",
-            {
-              params: {
-                path: {
-                  experiment_id: experimentId,
-                },
-                query: {
-                  cursor,
-                  limit: pageSize,
-                },
-              },
-            }
-          );
-        } catch (error: unknown) {
-          // Check for version compatibility issues and throw helpful error
-          try {
-            await handleFetchError(error, client, "resume_experiment");
-            // TypeScript: handleFetchError never returns, but add throw for safety
-            throw new Error("handleFetchError should never return");
-          } catch (handledError) {
-            // Wrap the error (from handleFetchError or original) in semantic error type
-            throw new TaskFetchError(
-              "Failed to fetch incomplete runs from server",
-              handledError instanceof Error ? handledError : undefined
-            );
-          }
-        }
-
-        cursor = res.data?.next_cursor ?? null;
-        const batchIncomplete = res.data?.data;
-        invariant(batchIncomplete, "Failed to fetch incomplete runs");
-
-        if (batchIncomplete.length === 0) {
-          break;
-        }
-
-        // Send tasks to channel (blocks if channel is full - natural backpressure!)
-        let batchCount = 0;
-        for (const incomplete of batchIncomplete) {
-          // Stop sending items if abort signal received
+      try {
+        do {
+          // Stop fetching if abort signal received
           if (signal.aborted) {
+            logger.debug(`${PROGRESS_PREFIX.progress}Stopping fetch.`);
             break;
           }
 
-          const example = buildExampleFromApiResponse(
-            incomplete.dataset_example
-          );
-          for (const repNum of incomplete.repetition_numbers) {
+          let res: {
+            data?: components["schemas"]["GetIncompleteExperimentRunsResponseBody"];
+          };
+
+          try {
+            res = await client.GET(
+              "/v1/experiments/{experiment_id}/incomplete-runs",
+              {
+                params: {
+                  path: {
+                    experiment_id: experimentId,
+                  },
+                  query: {
+                    cursor,
+                    limit: pageSize,
+                  },
+                },
+              }
+            );
+          } catch (error: unknown) {
+            // Check for version compatibility issues and throw helpful error
+            try {
+              await handleFetchError(error, client, "resume_experiment");
+              // TypeScript: handleFetchError never returns, but add throw for safety
+              throw new Error("handleFetchError should never return");
+            } catch (handledError) {
+              // Wrap the error (from handleFetchError or original) in semantic error type
+              throw new TaskFetchError(
+                "Failed to fetch incomplete runs from server",
+                handledError instanceof Error ? handledError : undefined
+              );
+            }
+          }
+
+          cursor = res.data?.next_cursor ?? null;
+          const batchIncomplete = res.data?.data;
+          invariant(batchIncomplete, "Failed to fetch incomplete runs");
+
+          if (batchIncomplete.length === 0) {
+            break;
+          }
+
+          // Send tasks to channel (blocks if channel is full - natural backpressure!)
+          let batchCount = 0;
+          for (const incomplete of batchIncomplete) {
             // Stop sending items if abort signal received
             if (signal.aborted) {
               break;
             }
 
-            await taskChannel.send({ example, repetitionNumber: repNum });
-            batchCount++;
-            totalProcessed++;
+            const example = buildExampleFromApiResponse(
+              incomplete.dataset_example
+            );
+            for (const repNum of incomplete.repetition_numbers) {
+              // Stop sending items if abort signal received
+              if (signal.aborted) {
+                break;
+              }
+
+              await taskChannel.send({ example, repetitionNumber: repNum });
+              batchCount++;
+              totalProcessed++;
+            }
           }
-        }
 
-        logger.debug(
-          `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} incomplete runs.`
-        );
-      } while (cursor !== null && !signal.aborted);
-    } catch (error) {
-      // Re-throw with context preservation
-      if (error instanceof TaskFetchError) {
-        throw error;
-      }
-      // ChannelError from blocked send() should bubble up naturally
-      // (happens when channel closes while producer is blocked)
-      if (error instanceof ChannelError) {
-        throw error;
-      }
-      // Wrap any unexpected errors from channel operations
-      throw new TaskFetchError(
-        "Unexpected error during task fetch",
-        error instanceof Error ? error : undefined
-      );
-    } finally {
-      taskChannel.close(); // Signal workers we're done
-    }
-  }
-
-  // Worker: Process tasks from channel
-  async function processTasksFromChannel(): Promise<void> {
-    for await (const item of taskChannel) {
-      // Stop processing if abort signal received
-      if (signal.aborted) {
-        break;
-      }
-
-      try {
-        await runSingleTask({
-          client,
-          experimentId,
-          task,
-          example: item.example,
-          repetitionNumber: item.repetitionNumber,
-          tracer: taskTracer,
-        });
-        totalCompleted++;
+          logger.debug(
+            `${PROGRESS_PREFIX.progress}Fetched batch of ${batchCount} incomplete runs.`
+          );
+        } while (cursor !== null && !signal.aborted);
       } catch (error) {
-        totalFailed++;
-        logger.error(
-          `Failed to run task for example ${item.example.id}, repetition ${item.repetitionNumber}: ${error}`
-        );
-
-        // If stopOnFirstError is enabled, abort and re-throw
-        if (stopOnFirstError) {
-          logger.warn("Stopping on first error");
-          abortController.abort();
+        // Re-throw with context preservation
+        if (error instanceof TaskFetchError) {
           throw error;
         }
+        // ChannelError from blocked send() should bubble up naturally
+        // (happens when channel closes while producer is blocked)
+        if (error instanceof ChannelError) {
+          throw error;
+        }
+        // Wrap any unexpected errors from channel operations
+        throw new TaskFetchError(
+          "Unexpected error during task fetch",
+          error instanceof Error ? error : undefined
+        );
+      } finally {
+        taskChannel.close(); // Signal workers we're done
       }
     }
-  }
 
-  // Start concurrent execution
-  // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
-  let executionError: Error | null = null;
-  try {
-    const producerTask = fetchIncompleteRuns();
-    const workerTasks = Array.from({ length: concurrency }, () =>
-      processTasksFromChannel()
-    );
+    // Worker: Process tasks from channel
+    async function processTasksFromChannel(): Promise<void> {
+      for await (const item of taskChannel) {
+        // Stop processing if abort signal received
+        if (signal.aborted) {
+          break;
+        }
 
-    // Wait for producer and all workers to finish
-    await Promise.all([producerTask, ...workerTasks]);
-  } catch (error) {
-    // Classify and handle errors based on their nature
-    const err = error instanceof Error ? error : new Error(String(error));
+        try {
+          await runSingleTask({
+            client,
+            experimentId,
+            task,
+            example: item.example,
+            repetitionNumber: item.repetitionNumber,
+            tracer: taskTracer,
+          });
+          totalCompleted++;
+        } catch (error) {
+          totalFailed++;
+          logger.error(
+            `Failed to run task for example ${item.example.id}, repetition ${item.repetitionNumber}: ${error}`
+          );
 
-    // Always surface producer/infrastructure errors
-    if (error instanceof TaskFetchError) {
-      // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
-      logger.error(`Critical: Failed to fetch incomplete runs from server`);
-      executionError = err;
-    } else if (error instanceof ChannelError && signal.aborted) {
-      // Channel closed due to intentional abort - wrap in semantic error
-      executionError = new TaskAbortedError(
-        "Task execution stopped due to error in concurrent worker",
-        err
+          // If stopOnFirstError is enabled, abort and re-throw
+          if (stopOnFirstError) {
+            logger.warn("Stopping on first error");
+            abortController.abort();
+            throw error;
+          }
+        }
+      }
+    }
+
+    // Start concurrent execution
+    // Wrap in try-finally to ensure channel is always closed, even if Promise.all throws
+    let executionError: Error | null = null;
+    try {
+      const producerTask = fetchIncompleteRuns();
+      const workerTasks = Array.from({ length: concurrency }, () =>
+        processTasksFromChannel()
       );
-    } else if (stopOnFirstError) {
-      // Worker error in stopOnFirstError mode - already logged by worker
-      executionError = err;
-    } else {
-      // Unexpected error (not from worker, not from producer fetch)
-      // This could be a bug in our code or infrastructure failure
-      logger.error(`Unexpected error during task execution: ${err.message}`);
-      executionError = err;
+
+      // Wait for producer and all workers to finish
+      await Promise.all([producerTask, ...workerTasks]);
+    } catch (error) {
+      // Classify and handle errors based on their nature
+      const err = error instanceof Error ? error : new Error(String(error));
+
+      // Always surface producer/infrastructure errors
+      if (error instanceof TaskFetchError) {
+        // Producer failed - this is ALWAYS critical regardless of stopOnFirstError
+        logger.error(`Critical: Failed to fetch incomplete runs from server`);
+        executionError = err;
+      } else if (error instanceof ChannelError && signal.aborted) {
+        // Channel closed due to intentional abort - wrap in semantic error
+        executionError = new TaskAbortedError(
+          "Task execution stopped due to error in concurrent worker",
+          err
+        );
+      } else if (stopOnFirstError) {
+        // Worker error in stopOnFirstError mode - already logged by worker
+        executionError = err;
+      } else {
+        // Unexpected error (not from worker, not from producer fetch)
+        // This could be a bug in our code or infrastructure failure
+        logger.error(`Unexpected error during task execution: ${err.message}`);
+        executionError = err;
+      }
+    } finally {
+      // Ensure channel is closed even if there are unexpected errors
+      // This is a safety net in case producer's finally block didn't execute
+      if (!taskChannel.isClosed) {
+        taskChannel.close();
+      }
+    }
+
+    // Only show completion message if we didn't stop on error
+    if (!executionError) {
+      logger.info(`${PROGRESS_PREFIX.completed}Task runs completed.`);
+    }
+
+    if (totalFailed > 0 && !executionError) {
+      logger.warn(`${totalFailed} out of ${totalProcessed} runs failed.`);
+    }
+
+    if (evaluators && evaluators.length > 0 && !executionError) {
+      await cleanupOwnedTracerProvider({
+        provider,
+        globalRegistration,
+      });
+      provider = null;
+      globalRegistration = null;
+
+      logger.info(`${PROGRESS_PREFIX.start}Running evaluators.`);
+      await resumeEvaluation({
+        experimentId,
+        evaluators: [...evaluators],
+        client,
+        logger,
+        concurrency,
+        setGlobalTracerProvider,
+        useBatchSpanProcessor,
+        diagLogLevel,
+        stopOnFirstError,
+      });
+    }
+
+    logExperimentResumeSummary(logger, {
+      experimentId: experiment.id,
+      processed: totalProcessed,
+      completed: totalCompleted,
+      failed: totalFailed,
+    });
+    logLinks(logger, [
+      { label: "Experiments", url: datasetExperimentsUrl },
+      { label: "Experiment", url: experimentUrl },
+    ]);
+
+    // Re-throw error if stopOnFirstError was triggered
+    if (executionError) {
+      throw executionError;
     }
   } finally {
-    // Ensure channel is closed even if there are unexpected errors
-    // This is a safety net in case producer's finally block didn't execute
-    if (!taskChannel.isClosed) {
-      taskChannel.close();
-    }
-  }
-
-  // Only show completion message if we didn't stop on error
-  if (!executionError) {
-    logger.info(`${PROGRESS_PREFIX.completed}Task runs completed.`);
-  }
-
-  if (totalFailed > 0 && !executionError) {
-    logger.warn(`${totalFailed} out of ${totalProcessed} runs failed.`);
-  }
-
-  // Run evaluators if provided (only on runs missing evaluations)
-  // Skip evaluators if we stopped on error
-  if (evaluators && evaluators.length > 0 && !executionError) {
-    logger.info(`${PROGRESS_PREFIX.start}Running evaluators.`);
-    await resumeEvaluation({
-      experimentId,
-      evaluators: [...evaluators],
-      client,
-      logger,
-      concurrency,
-      setGlobalTracerProvider,
-      useBatchSpanProcessor,
-      diagLogLevel,
-      stopOnFirstError,
+    // Safety net: on error paths the happy-path cleanup above is skipped,
+    // so ensure the provider is always cleaned up. On the happy path
+    // provider is already null (no-op).
+    await cleanupOwnedTracerProvider({
+      provider,
+      globalRegistration,
     });
-  }
-
-  logExperimentResumeSummary(logger, {
-    experimentId: experiment.id,
-    processed: totalProcessed,
-    completed: totalCompleted,
-    failed: totalFailed,
-  });
-  logLinks(logger, [
-    { label: "Experiments", url: datasetExperimentsUrl },
-    { label: "Experiment", url: experimentUrl },
-  ]);
-
-  // Flush spans (if tracer was initialized)
-  if (provider) {
-    await provider.forceFlush();
-  }
-
-  // Re-throw error if stopOnFirstError was triggered
-  if (executionError) {
-    throw executionError;
   }
 }
 

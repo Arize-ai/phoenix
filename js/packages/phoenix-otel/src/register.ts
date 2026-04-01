@@ -4,7 +4,22 @@ import {
   OpenInferenceSimpleSpanProcessor,
 } from "@arizeai/openinference-vercel";
 import type { DiagLogLevel } from "@opentelemetry/api";
-import { diag, DiagConsoleLogger } from "@opentelemetry/api";
+import {
+  context,
+  type ContextManager,
+  diag,
+  DiagConsoleLogger,
+  propagation,
+  type TextMapPropagator,
+  trace,
+  type TracerProvider,
+} from "@opentelemetry/api";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import {
+  CompositePropagator,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from "@opentelemetry/core";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import type { Instrumentation } from "@opentelemetry/instrumentation";
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
@@ -153,6 +168,214 @@ export type RegisterParams = {
   diagLogLevel?: DiagLogLevel;
 };
 
+export type GlobalTracerProviderRegistration = {
+  /**
+   * Detach the global tracer provider and reset global tracing APIs to no-op state.
+   *
+   * This clears the OpenTelemetry tracer provider, context manager, and propagator
+   * so a different provider can be attached later in the same process.
+   */
+  detach: () => void;
+};
+
+type GlobalTelemetrySnapshot = {
+  contextManager?: ContextManager;
+  propagator?: TextMapPropagator;
+  tracerProvider?: TracerProvider;
+};
+
+type OpenTelemetryGlobalState = {
+  context?: ContextManager;
+  propagation?: TextMapPropagator;
+  trace?: TracerProvider;
+  version?: string;
+};
+
+type GlobalTracerProviderMount = {
+  id: number;
+  provider: NodeTracerProvider;
+};
+
+let nextGlobalTracerProviderMountId = 0;
+let managedGlobalBaseSnapshot: GlobalTelemetrySnapshot | null = null;
+const managedGlobalTracerProviderMounts: GlobalTracerProviderMount[] = [];
+// OpenTelemetry v1 stores globals on this well-known symbol.
+const OTEL_GLOBAL_SYMBOL = Symbol.for("opentelemetry.js.api.1");
+
+function getOpenTelemetryGlobalState(): OpenTelemetryGlobalState | undefined {
+  return (
+    globalThis as typeof globalThis & {
+      [OTEL_GLOBAL_SYMBOL]?: OpenTelemetryGlobalState;
+    }
+  )[OTEL_GLOBAL_SYMBOL];
+}
+
+function getGlobalTelemetrySnapshot(): GlobalTelemetrySnapshot {
+  const globalState = getOpenTelemetryGlobalState();
+
+  return {
+    tracerProvider: globalState?.trace,
+    contextManager: globalState?.context,
+    propagator: globalState?.propagation,
+  };
+}
+
+function clearGlobalTelemetry(): void {
+  trace.disable();
+  context.disable();
+  propagation.disable();
+}
+
+function restoreGlobalTelemetrySnapshot(
+  snapshot: GlobalTelemetrySnapshot | null
+): void {
+  clearGlobalTelemetry();
+
+  if (!snapshot) {
+    return;
+  }
+
+  if (snapshot.tracerProvider) {
+    trace.setGlobalTracerProvider(snapshot.tracerProvider);
+  }
+
+  if (snapshot.contextManager) {
+    context.setGlobalContextManager(snapshot.contextManager);
+  }
+
+  if (snapshot.propagator) {
+    propagation.setGlobalPropagator(snapshot.propagator);
+  }
+}
+
+/**
+ * Sets the given provider as the global OpenTelemetry provider using this
+ * module's own imports of `trace`, `context`, and `propagation`.
+ *
+ * We deliberately avoid calling `provider.register()` because the SDK's
+ * internal import of `@opentelemetry/api` may resolve to a different module
+ * instance in pnpm workspaces (different symlink paths → different module
+ * identity). By routing all global-state mutations through **our** copy of
+ * the OTEL API, snapshot/restore stays consistent.
+ */
+function setGlobalProvider(provider: NodeTracerProvider): void {
+  trace.setGlobalTracerProvider(provider);
+
+  const contextManager = new AsyncLocalStorageContextManager();
+  contextManager.enable();
+  context.setGlobalContextManager(contextManager);
+
+  propagation.setGlobalPropagator(
+    new CompositePropagator({
+      propagators: [
+        new W3CTraceContextPropagator(),
+        new W3CBaggagePropagator(),
+      ],
+    })
+  );
+}
+
+function restorePreviousManagedGlobalTracerProvider(): void {
+  const previousMount =
+    managedGlobalTracerProviderMounts[
+      managedGlobalTracerProviderMounts.length - 1
+    ];
+
+  if (previousMount) {
+    clearGlobalTelemetry();
+    setGlobalProvider(previousMount.provider);
+    return;
+  }
+
+  restoreGlobalTelemetrySnapshot(managedGlobalBaseSnapshot);
+  managedGlobalBaseSnapshot = null;
+}
+
+function detachManagedGlobalTracerProvider(mountId?: number): void {
+  if (managedGlobalTracerProviderMounts.length === 0) {
+    clearGlobalTelemetry();
+    return;
+  }
+
+  const mountIndex =
+    mountId == null
+      ? managedGlobalTracerProviderMounts.length - 1
+      : managedGlobalTracerProviderMounts.findIndex(
+          (mount) => mount.id === mountId
+        );
+
+  if (mountIndex === -1) {
+    return;
+  }
+
+  const isTopMount =
+    mountIndex === managedGlobalTracerProviderMounts.length - 1;
+  managedGlobalTracerProviderMounts.splice(mountIndex, 1);
+
+  if (!isTopMount) {
+    return;
+  }
+
+  restorePreviousManagedGlobalTracerProvider();
+}
+
+/**
+ * Detaches the current global OpenTelemetry tracer provider and resets the
+ * global trace, context, and propagation APIs.
+ */
+export function detachGlobalTracerProvider(): void {
+  detachManagedGlobalTracerProvider();
+}
+
+/**
+ * Attaches an existing tracer provider as the global OpenTelemetry provider.
+ *
+ * Returns a handle that can be used to detach it later so another provider can
+ * be attached in the same process.
+ */
+export function attachGlobalTracerProvider(
+  provider: NodeTracerProvider
+): GlobalTracerProviderRegistration {
+  if (managedGlobalTracerProviderMounts.length === 0) {
+    managedGlobalBaseSnapshot = getGlobalTelemetrySnapshot();
+  }
+
+  const mountId = nextGlobalTracerProviderMountId++;
+  managedGlobalTracerProviderMounts.push({
+    id: mountId,
+    provider,
+  });
+
+  clearGlobalTelemetry();
+  setGlobalProvider(provider);
+
+  return {
+    detach: () => {
+      detachManagedGlobalTracerProvider(mountId);
+    },
+  };
+}
+
+function bindGlobalTracerProviderRegistrationToShutdown({
+  provider,
+  registration,
+}: {
+  provider: NodeTracerProvider;
+  registration: GlobalTracerProviderRegistration;
+}): void {
+  const shutdown = provider.shutdown.bind(provider);
+  let hasDetachedRegistration = false;
+
+  provider.shutdown = async (): Promise<void> => {
+    if (!hasDetachedRegistration) {
+      hasDetachedRegistration = true;
+      registration.detach();
+    }
+
+    await shutdown();
+  };
+}
+
 /**
  * Registers Phoenix OpenTelemetry tracing with the specified configuration.
  *
@@ -261,7 +484,11 @@ export function register(params: RegisterParams): NodeTracerProvider {
     });
   }
   if (global) {
-    provider.register();
+    const registration = attachGlobalTracerProvider(provider);
+    bindGlobalTracerProviderRegistrationToShutdown({
+      provider,
+      registration,
+    });
   }
   return provider;
 }

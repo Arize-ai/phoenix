@@ -17,6 +17,7 @@ Read the relevant file(s) based on the task:
 | `rules/components.md` | Creating, composing, or refactoring components |
 | `rules/relay.md` | Using Relay |
 | `rules/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
+| `rules/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 
 ## Verification
 

@@ -3,14 +3,18 @@ import {
   OpenInferenceSpanKind,
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
-import type { NodeTracerProvider, Tracer } from "@arizeai/phoenix-otel";
+import type {
+  GlobalTracerProviderRegistration,
+  NodeTracerProvider,
+  Tracer,
+} from "@arizeai/phoenix-otel";
 import {
+  attachGlobalTracerProvider,
   createNoOpProvider,
   type DiagLogLevel,
   objectAsAttributes,
   register,
   SpanStatusCode,
-  trace,
 } from "@arizeai/phoenix-otel";
 import { queue } from "async";
 import invariant from "tiny-invariant";
@@ -53,6 +57,7 @@ import {
   logTaskSummary,
   PROGRESS_PREFIX,
 } from "./logging";
+import { cleanupOwnedTracerProvider } from "./tracing";
 
 /**
  * Validate that a repetition is valid
@@ -187,7 +192,8 @@ export async function runExperiment({
     isValidRepetitionParam(repetitions),
     "repetitions must be an integer greater than 0"
   );
-  let provider: NodeTracerProvider | undefined;
+  let taskProvider: NodeTracerProvider | undefined;
+  let taskGlobalRegistration: GlobalTracerProviderRegistration | null = null;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const dataset = await getDataset({
@@ -272,7 +278,7 @@ export async function runExperiment({
       "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
     );
 
-    provider = register({
+    taskProvider = register({
       projectName,
       url: baseUrl,
       headers: client.config.headers
@@ -280,122 +286,145 @@ export async function runExperiment({
         : undefined,
       batch: useBatchSpanProcessor,
       diagLogLevel,
-      global: setGlobalTracerProvider,
+      global: false,
     });
+    taskGlobalRegistration = setGlobalTracerProvider
+      ? attachGlobalTracerProvider(taskProvider)
+      : null;
 
-    taskTracer = provider.getTracer(projectName);
+    taskTracer = taskProvider.getTracer(projectName);
   }
-  if (!record) {
+  try {
+    if (!record) {
+      logger.info(
+        `Running experiment in readonly mode. Results will not be recorded.`
+      );
+    }
+
+    const links: Array<{ label: string; url: string }> = [];
+    if (!isDryRun && client.config.baseUrl) {
+      links.push({
+        label: "Dataset",
+        url: getDatasetUrl({
+          baseUrl: client.config.baseUrl,
+          datasetId: dataset.id,
+        }),
+      });
+      links.push({
+        label: "Experiments",
+        url: getDatasetExperimentsUrl({
+          baseUrl: client.config.baseUrl,
+          datasetId: dataset.id,
+        }),
+      });
+      links.push({
+        label: "Experiment",
+        url: getExperimentUrl({
+          baseUrl: client.config.baseUrl,
+          datasetId: dataset.id,
+          experimentId: experiment.id,
+        }),
+      });
+    }
+
+    const evCount = evaluators?.length ?? 0;
     logger.info(
-      `Running experiment in readonly mode. Results will not be recorded.`
+      `${PROGRESS_PREFIX.start}Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
     );
-  }
 
-  const links: Array<{ label: string; url: string }> = [];
-  if (!isDryRun && client.config.baseUrl) {
-    links.push({
-      label: "Dataset",
-      url: getDatasetUrl({
-        baseUrl: client.config.baseUrl,
-        datasetId: dataset.id,
-      }),
-    });
-    links.push({
-      label: "Experiments",
-      url: getDatasetExperimentsUrl({
-        baseUrl: client.config.baseUrl,
-        datasetId: dataset.id,
-      }),
-    });
-    links.push({
-      label: "Experiment",
-      url: getExperimentUrl({
-        baseUrl: client.config.baseUrl,
-        datasetId: dataset.id,
-        experimentId: experiment.id,
-      }),
-    });
-  }
-
-  const evCount = evaluators?.length ?? 0;
-  logger.info(
-    `${PROGRESS_PREFIX.start}Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
-  );
-
-  const runs: Record<ExperimentRunID, ExperimentRun> = {};
-  await runTaskWithExamples({
-    client,
-    experimentId: experiment.id,
-    task,
-    dataset,
-    logger,
-    onComplete: (run) => {
-      runs[run.id] = run;
-    },
-    concurrency,
-    isDryRun,
-    nExamples,
-    tracer: taskTracer,
-    repetitions,
-  });
-  const taskRuns = Object.values(runs);
-  const taskErrors = taskRuns.filter((run) => run.error != null).length;
-  const taskTotal = nExamples * repetitions;
-  const taskOkStr =
-    taskErrors > 0
-      ? `${taskRuns.length - taskErrors}/${taskTotal} ok  (${taskErrors} failed)`
-      : `${taskRuns.length}/${taskTotal} ok`;
-  logger.info(`${PROGRESS_PREFIX.completed}Tasks ${taskOkStr}`);
-
-  const ranExperiment: RanExperiment = {
-    ...experiment,
-    runs,
-  };
-
-  if (evaluators && evaluators.length > 0) {
-    const evNames = getExperimentEvaluators(evaluators)
-      .map((evaluator) => evaluator.name)
-      .join(", ");
-    logger.info(`${PROGRESS_PREFIX.start}Evaluations (${evNames})`);
-  }
-
-  const { evaluationRuns } = await evaluateExperiment({
-    experiment: ranExperiment,
-    evaluators: evaluators ?? [],
-    client,
-    logger,
-    concurrency,
-    dryRun,
-    tracerProvider: provider,
-    diagLogLevel,
-    useBatchSpanProcessor,
-  });
-  ranExperiment.evaluationRuns = evaluationRuns;
-
-  // Refresh experiment info from server to get updated counts (non-dry-run only)
-  if (!isDryRun) {
-    const updatedExperiment = await getExperimentInfo({
+    const runs: Record<ExperimentRunID, ExperimentRun> = {};
+    await runTaskWithExamples({
       client,
       experimentId: experiment.id,
+      task,
+      dataset,
+      logger,
+      onComplete: (run) => {
+        runs[run.id] = run;
+      },
+      concurrency,
+      isDryRun,
+      nExamples,
+      tracer: taskTracer,
+      repetitions,
     });
-    // Update the experiment info with the latest from the server
-    Object.assign(ranExperiment, updatedExperiment);
+    const taskRuns = Object.values(runs);
+    const taskErrors = taskRuns.filter((run) => run.error != null).length;
+    const taskTotal = nExamples * repetitions;
+    const taskOkStr =
+      taskErrors > 0
+        ? `${taskRuns.length - taskErrors}/${taskTotal} ok  (${taskErrors} failed)`
+        : `${taskRuns.length}/${taskTotal} ok`;
+    logger.info(`${PROGRESS_PREFIX.completed}Tasks ${taskOkStr}`);
+
+    const ranExperiment: RanExperiment = {
+      ...experiment,
+      runs,
+    };
+
+    await cleanupOwnedTracerProvider({
+      provider: taskProvider,
+      globalRegistration: taskGlobalRegistration,
+    });
+    taskProvider = undefined;
+    taskGlobalRegistration = null;
+
+    if (evaluators && evaluators.length > 0) {
+      const evNames = getExperimentEvaluators(evaluators)
+        .map((evaluator) => evaluator.name)
+        .join(", ");
+      logger.info(`${PROGRESS_PREFIX.start}Evaluations (${evNames})`);
+    }
+
+    const { evaluationRuns } = await evaluateExperiment({
+      experiment: ranExperiment,
+      evaluators: evaluators ?? [],
+      client,
+      logger,
+      concurrency,
+      dryRun,
+      diagLogLevel,
+      useBatchSpanProcessor,
+      setGlobalTracerProvider,
+    });
+    ranExperiment.evaluationRuns = evaluationRuns;
+
+    // Refresh experiment info from server to get updated counts (non-dry-run only)
+    if (!isDryRun) {
+      const updatedExperiment = await getExperimentInfo({
+        client,
+        experimentId: experiment.id,
+      });
+      // Update the experiment info with the latest from the server
+      Object.assign(ranExperiment, updatedExperiment);
+    }
+
+    logTaskSummary(logger, {
+      nExamples,
+      repetitions,
+      nRuns: taskRuns.length,
+      nErrors: taskErrors,
+    });
+
+    if (
+      ranExperiment.evaluationRuns &&
+      ranExperiment.evaluationRuns.length > 0
+    ) {
+      logEvalSummary(logger, ranExperiment.evaluationRuns);
+    }
+
+    logLinks(logger, links);
+
+    return ranExperiment;
+  } finally {
+    // Safety net: on error paths the happy-path cleanup above is skipped,
+    // so ensure the task provider is always cleaned up. On the happy path
+    // taskProvider is already undefined (no-op).
+    await cleanupOwnedTracerProvider({
+      provider: taskProvider,
+      globalRegistration: taskGlobalRegistration,
+    });
   }
-
-  logTaskSummary(logger, {
-    nExamples,
-    repetitions,
-    nRuns: taskRuns.length,
-    nErrors: taskErrors,
-  });
-
-  if (ranExperiment.evaluationRuns && ranExperiment.evaluationRuns.length > 0) {
-    logEvalSummary(logger, ranExperiment.evaluationRuns);
-  }
-
-  logLinks(logger, links);
-
-  return ranExperiment;
 }
 
 /**
@@ -600,6 +629,8 @@ export async function evaluateExperiment({
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
   let provider: NodeTracerProvider;
+  let globalRegistration: GlobalTracerProviderRegistration | null = null;
+  const ownsProvider = !paramsTracerProvider;
 
   // Always allow changing of tracer providers
   if (paramsTracerProvider) {
@@ -613,165 +644,172 @@ export async function evaluateExperiment({
         : undefined,
       batch: useBatchSpanProcessor,
       diagLogLevel,
-      global: setGlobalTracerProvider,
+      global: false,
     });
+    globalRegistration = setGlobalTracerProvider
+      ? attachGlobalTracerProvider(provider)
+      : null;
   } else {
     provider = createNoOpProvider();
   }
   const tracer = isDryRun
     ? provider.getTracer("no-op")
     : provider.getTracer("evaluators");
-  const nRuns =
-    typeof dryRun === "number"
-      ? Math.min(dryRun, Object.keys(experiment.runs).length)
-      : Object.keys(experiment.runs).length;
-  const dataset = await getDataset({
-    dataset: {
-      datasetId: experiment.datasetId,
-      versionId: experiment.datasetVersionId,
-      splits: experiment.datasetSplits,
-    },
-    client,
-  });
-  invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
-  invariant(
-    dataset.examples.length > 0,
-    `Dataset "${experiment.datasetId}" has no examples`
-  );
-  invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
+  try {
+    const nRuns =
+      typeof dryRun === "number"
+        ? Math.min(dryRun, Object.keys(experiment.runs).length)
+        : Object.keys(experiment.runs).length;
+    const dataset = await getDataset({
+      dataset: {
+        datasetId: experiment.datasetId,
+        versionId: experiment.datasetVersionId,
+        splits: experiment.datasetSplits,
+      },
+      client,
+    });
+    invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
+    invariant(
+      dataset.examples.length > 0,
+      `Dataset "${experiment.datasetId}" has no examples`
+    );
+    invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
 
-  const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
-  if (evaluators?.length === 0) {
-    return {
-      ...experiment,
-      evaluationRuns: [],
+    const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
+    if (evaluators?.length === 0) {
+      return {
+        ...experiment,
+        evaluationRuns: [],
+      };
+    }
+    type EvaluationId = string;
+    const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
+
+    const examplesById: Record<string, Example> = {};
+    for (const example of dataset.examples) {
+      examplesById[example.id] = example;
+    }
+
+    const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
+      evaluationRuns[run.id] = run;
     };
-  }
-  type EvaluationId = string;
-  const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
-  const examplesById: Record<string, Example> = {};
-  for (const example of dataset.examples) {
-    examplesById[example.id] = example;
-  }
-
-  const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
-    evaluationRuns[run.id] = run;
-  };
-
-  // Run evaluators against all runs
-  // Flat list of evaluator + run tuples
-  const normalizedEvaluators = getExperimentEvaluators(evaluators);
-  const evaluatorsAndRuns = normalizedEvaluators.flatMap((evaluator) =>
-    runsToEvaluate.map((run) => ({
-      evaluator,
-      run,
-    }))
-  );
-  const evaluatorsQueue = queue(
-    async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
-      return tracer.startActiveSpan(
-        `Evaluation: ${evaluatorAndRun.evaluator.name}`,
-        async (span) => {
-          const evalResult = await runEvaluator({
-            evaluator: evaluatorAndRun.evaluator,
-            run: evaluatorAndRun.run,
-            exampleCache: examplesById,
-            onComplete: onEvaluationComplete,
-            logger,
-          });
-          span.setAttributes({
-            [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-              OpenInferenceSpanKind.EVALUATOR,
-            [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.INPUT_VALUE]: ensureString({
-              input: examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
-              output: evaluatorAndRun.run.output,
-              expected:
-                examplesById[evaluatorAndRun.run.datasetExampleId]?.output,
-              metadata:
-                examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
-            }),
-            [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.OUTPUT_VALUE]: ensureString(evalResult.result),
-          });
-          if (evalResult.error) {
-            span.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: evalResult.error,
+    // Run evaluators against all runs
+    // Flat list of evaluator + run tuples
+    const normalizedEvaluators = getExperimentEvaluators(evaluators);
+    const evaluatorsAndRuns = normalizedEvaluators.flatMap((evaluator) =>
+      runsToEvaluate.map((run) => ({
+        evaluator,
+        run,
+      }))
+    );
+    const evaluatorsQueue = queue(
+      async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
+        return tracer.startActiveSpan(
+          `Evaluation: ${evaluatorAndRun.evaluator.name}`,
+          async (span) => {
+            const evalResult = await runEvaluator({
+              evaluator: evaluatorAndRun.evaluator,
+              run: evaluatorAndRun.run,
+              exampleCache: examplesById,
+              onComplete: onEvaluationComplete,
+              logger,
             });
-          } else {
-            span.setStatus({ code: SpanStatusCode.OK });
-          }
-          if (evalResult.result) {
-            span.setAttributes(objectAsAttributes(evalResult.result));
-          }
-          evalResult.traceId = span.spanContext().traceId;
-          if (!isDryRun) {
-            // Log the evaluation to the server
-            // We log this without awaiting (e.g. best effort)
-            client.POST("/v1/experiment_evaluations", {
-              body: {
-                experiment_run_id: evaluatorAndRun.run.id,
-                name: evaluatorAndRun.evaluator.name,
-                annotator_kind: evaluatorAndRun.evaluator.kind,
-                start_time: evalResult.startTime.toISOString(),
-                end_time: evalResult.endTime.toISOString(),
-                result: {
-                  ...evalResult.result,
+            span.setAttributes({
+              [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+                OpenInferenceSpanKind.EVALUATOR,
+              [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+              [SemanticConventions.INPUT_VALUE]: ensureString({
+                input:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
+                output: evaluatorAndRun.run.output,
+                expected:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.output,
+                metadata:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
+              }),
+              [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
+              [SemanticConventions.OUTPUT_VALUE]: ensureString(
+                evalResult.result
+              ),
+            });
+            if (evalResult.error) {
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: evalResult.error,
+              });
+            } else {
+              span.setStatus({ code: SpanStatusCode.OK });
+            }
+            if (evalResult.result) {
+              span.setAttributes(objectAsAttributes(evalResult.result));
+            }
+            evalResult.traceId = span.spanContext().traceId;
+            if (!isDryRun) {
+              // Log the evaluation to the server
+              // We log this without awaiting (e.g. best effort)
+              client.POST("/v1/experiment_evaluations", {
+                body: {
+                  experiment_run_id: evaluatorAndRun.run.id,
+                  name: evaluatorAndRun.evaluator.name,
+                  annotator_kind: evaluatorAndRun.evaluator.kind,
+                  start_time: evalResult.startTime.toISOString(),
+                  end_time: evalResult.endTime.toISOString(),
+                  result: {
+                    ...evalResult.result,
+                  },
+                  error: evalResult.error,
+                  trace_id: evalResult.traceId,
                 },
-                error: evalResult.error,
-                trace_id: evalResult.traceId,
-              },
-            });
+              });
+            }
+            span.end();
+            return evalResult;
           }
-          span.end();
-          return evalResult;
+        );
+      },
+      concurrency
+    );
+    if (!evaluatorsAndRuns.length) {
+      logger.warn(`No evaluators to run`);
+      return {
+        ...experiment,
+        evaluationRuns: [],
+      };
+    }
+    evaluatorsAndRuns.forEach((evaluatorAndRun) =>
+      evaluatorsQueue.push(evaluatorAndRun, (err) => {
+        if (err) {
+          logger.error(
+            `Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
+          );
         }
-      );
-    },
-    concurrency
-  );
-  if (!evaluatorsAndRuns.length) {
-    logger.warn(`No evaluators to run`);
+      })
+    );
+    await evaluatorsQueue.drain();
+    const evalTotal = Object.values(evaluationRuns).length;
+    const evalErrors = Object.values(evaluationRuns).filter(
+      (ev) => ev.error != null
+    ).length;
+    const evalExpected = runsToEvaluate.length * normalizedEvaluators.length;
+    const evalOkStr =
+      evalErrors > 0
+        ? `${evalTotal - evalErrors}/${evalExpected} ok  (${evalErrors} failed)`
+        : `${evalTotal}/${evalExpected} ok`;
+    logger.info(`${PROGRESS_PREFIX.completed}Evaluations ${evalOkStr}`);
+
     return {
       ...experiment,
-      evaluationRuns: [],
+      evaluationRuns: Object.values(evaluationRuns),
     };
-  }
-  evaluatorsAndRuns.forEach((evaluatorAndRun) =>
-    evaluatorsQueue.push(evaluatorAndRun, (err) => {
-      if (err) {
-        logger.error(
-          `Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
-        );
-      }
-    })
-  );
-  await evaluatorsQueue.drain();
-  const evalTotal = Object.values(evaluationRuns).length;
-  const evalErrors = Object.values(evaluationRuns).filter(
-    (ev) => ev.error != null
-  ).length;
-  const evalExpected = runsToEvaluate.length * normalizedEvaluators.length;
-  const evalOkStr =
-    evalErrors > 0
-      ? `${evalTotal - evalErrors}/${evalExpected} ok  (${evalErrors} failed)`
-      : `${evalTotal}/${evalExpected} ok`;
-  logger.info(`${PROGRESS_PREFIX.completed}Evaluations ${evalOkStr}`);
-
-  if (provider) {
-    await provider.shutdown();
-    // Make sure it's not set globally anymore
-    if (setGlobalTracerProvider) {
-      trace.disable();
+  } finally {
+    if (ownsProvider) {
+      await cleanupOwnedTracerProvider({
+        provider,
+        globalRegistration,
+      });
     }
   }
-
-  return {
-    ...experiment,
-    evaluationRuns: Object.values(evaluationRuns),
-  };
 }
 
 /**

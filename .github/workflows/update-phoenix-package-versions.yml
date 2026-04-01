@@ -1,9 +1,5 @@
 name: Update Phoenix Package Versions
 
-permissions:
-  contents: write
-  pull-requests: write
-
 on:
   workflow_dispatch:
     inputs:
@@ -24,6 +20,9 @@ jobs:
   update-package-version:
     name: Update Phoenix Package Version in pyproject.toml
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       PACKAGE_NAME: ${{ inputs.package }}
       PACKAGE_VERSION: ${{ inputs.version }}
@@ -113,4 +112,3 @@ jobs:
           branch: update-phoenix-${{ env.PACKAGE_NAME }}-${{ env.PACKAGE_VERSION }}
           base: main
           delete-branch: true
-

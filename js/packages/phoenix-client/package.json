@@ -92,6 +92,8 @@
     "@ai-sdk/openai": "^3.0.29",
     "@anthropic-ai/sdk": "^0.35.0",
     "@arizeai/phoenix-evals": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.5.1",
     "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
     "ai": "^6.0.90",

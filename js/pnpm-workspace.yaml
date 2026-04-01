@@ -5,3 +5,4 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - protobufjs
+minimumReleaseAge: 4320

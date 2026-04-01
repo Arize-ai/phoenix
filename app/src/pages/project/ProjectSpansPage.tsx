@@ -23,7 +23,7 @@ function SpansTabContent({
 }) {
   const data = usePreloadedQuery(ProjectPageQueriesSpansQuery, queryReference);
 
-  if (data.project.spanCount === 0) {
+  if (!data.project.hasTraces) {
     return (
       <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
     );

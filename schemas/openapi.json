@@ -4266,6 +4266,133 @@
         }
       }
     },
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+      "delete": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Delete a tag from a prompt version",
+        "description": "Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.",
+        "operationId": "deletePromptVersionTag",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the tag to delete.",
+              "title": "Tag Name"
+            },
+            "description": "The name of the tag to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag deletion"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompts/{prompt_identifier}": {
+      "delete": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Delete a prompt",
+        "description": "Delete a prompt and all its versions, tags, and labels by identifier.",
+        "operationId": "deletePrompt",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/projects": {
       "get": {
         "tags": [
@@ -5269,6 +5396,68 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/secrets": {
+      "put": {
+        "tags": [
+          "secrets"
+        ],
+        "summary": "Upsert or delete secrets",
+        "description": "Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. The `value` field is required for every entry, and omitting it returns 422. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.",
+        "operationId": "upsertOrDeleteSecrets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertOrDeleteSecretsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_UpsertOrDeleteSecretsResult_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -9927,6 +10116,45 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "ResponseBody_UpsertOrDeleteSecretsResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertOrDeleteSecretsResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseBody[UpsertOrDeleteSecretsResult]"
+      },
+      "SecretKeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422."
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "SecretKeyValue",
+        "description": "A single secret entry specifying a key and a required nullable value."
+      },
       "SessionAnnotation": {
         "properties": {
           "id": {
@@ -11254,6 +11482,48 @@
           "id"
         ],
         "title": "UpsertExperimentEvaluationResponseBodyData"
+      },
+      "UpsertOrDeleteSecretsRequest": {
+        "properties": {
+          "secrets": {
+            "items": {
+              "$ref": "#/components/schemas/SecretKeyValue"
+            },
+            "type": "array",
+            "title": "Secrets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "title": "UpsertOrDeleteSecretsRequest",
+        "description": "Request body for the PUT /secrets endpoint."
+      },
+      "UpsertOrDeleteSecretsResult": {
+        "properties": {
+          "upserted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upserted Keys"
+          },
+          "deleted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Keys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upserted_keys",
+          "deleted_keys"
+        ],
+        "title": "UpsertOrDeleteSecretsResult",
+        "description": "Result payload listing which keys were upserted and which were deleted."
       },
       "ValidationError": {
         "properties": {

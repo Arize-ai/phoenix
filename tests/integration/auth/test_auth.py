@@ -1669,7 +1669,7 @@ class TestSecretsCRUDAndValueVisibility:
         logged_in_viewer = viewer.log_in(_app)
 
         # Create a secret (admin-only operation)
-        secret_key = f"test-secret-{token_hex(8)}"
+        secret_key = f"test_secret_{token_hex(8)}"
         secret_value = f"super-secret-value-{token_hex(8)}"
 
         # Member and Viewer should not be able to upsert the secret

@@ -30,6 +30,8 @@ _FINISH_REASON_MAP: dict[
 
 
 class FrontendTool(BaseModel):
+    """Tool descriptor sent by the frontend alongside chat requests."""
+
     name: str
     description: str
     parameters: dict[str, Any] = {}
@@ -177,6 +179,15 @@ async def stream_text(request: Request, model: "Model") -> StreamingResponse:
 
     class _VercelRequest(SubmitMessage):
         tools: list[FrontendTool] | None = None
+        """Optional function tools the model *may* call."""
+        output_tools: list[FrontendTool] | None = None
+        """Optional output tools the model is *forced* to call.
+
+        When present, the request is sent with ``output_mode='tool'`` and
+        ``allow_text_output=False`` so pydantic-ai sets ``tool_choice``
+        to ``required`` (or the provider-specific equivalent), preventing
+        the model from responding with free text.
+        """
         system: str | None = None
 
     body = _VercelRequest.model_validate_json(await request.body())
@@ -187,15 +198,22 @@ async def stream_text(request: Request, model: "Model") -> StreamingResponse:
     if body.system:
         messages = [ModelRequest(parts=[SystemPromptPart(content=body.system)]), *messages]
 
-    params = ModelRequestParameters(
-        function_tools=[
+    def _to_tool_defs(tools: list[FrontendTool]) -> list[ToolDefinition]:
+        return [
             ToolDefinition(
                 name=t.name,
                 description=t.description,
                 parameters_json_schema=t.parameters,
             )
-            for t in (body.tools or [])
+            for t in tools
         ]
+
+    output_tool_defs = _to_tool_defs(body.output_tools or [])
+    params = ModelRequestParameters(
+        function_tools=_to_tool_defs(body.tools or []),
+        output_tools=output_tool_defs,
+        output_mode="tool" if output_tool_defs else "text",
+        allow_text_output=not output_tool_defs,
     )
 
     chunk_types = dict(

@@ -3,16 +3,15 @@ on:
     branches:
       - main
 
-permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-
 name: release
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
     steps:
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         with:

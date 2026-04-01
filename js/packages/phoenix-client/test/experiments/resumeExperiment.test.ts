@@ -7,6 +7,9 @@ import type { Example } from "../../src/types/datasets";
 
 vi.mock("../../src/client");
 vi.mock("@arizeai/phoenix-otel", () => ({
+  attachGlobalTracerProvider: vi.fn(() => ({
+    detach: vi.fn(),
+  })),
   register: vi.fn(() => ({
     getTracer: vi.fn(() => ({
       startSpan: vi.fn(() => ({
@@ -31,6 +34,7 @@ vi.mock("@arizeai/phoenix-otel", () => ({
       }),
     })),
     forceFlush: vi.fn(() => Promise.resolve()),
+    shutdown: vi.fn(() => Promise.resolve()),
   })),
   trace: {
     getTracer: vi.fn(() => ({

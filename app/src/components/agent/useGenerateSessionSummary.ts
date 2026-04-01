@@ -6,6 +6,7 @@ import {
 } from "ai";
 import { useCallback, useRef } from "react";
 
+import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
@@ -15,14 +16,42 @@ import {
 } from "./sessionSummaryUtils";
 
 const SUMMARY_SYSTEM_PROMPT =
-  "You are a concise summarizer. Respond with ONLY a 5-10 word summary of the conversation topic for presentation to the user. No quotes, no punctuation at the end, no preamble.";
+  "You are a concise summarizer. You MUST call the `summary` tool with a 5-10 word summary of the conversation topic. No quotes, no punctuation at the end.";
+
+/**
+ * Output tool that the model is *forced* to call (via `tool_choice: required`)
+ * to produce a structured summary. Sent as an `output_tool` rather than a
+ * regular `tool` so the server sets `allow_text_output=false` on the
+ * pydantic-ai request, preventing the model from responding with free text.
+ */
+const summaryOutputTool: FrontendToolDefinition = {
+  name: "summary",
+  description: "Provide the conversation summary",
+  parameters: {
+    type: "object",
+    properties: {
+      summary: {
+        type: "string",
+        description: "A 5-10 word summary of the conversation topic",
+      },
+    },
+    required: ["summary"],
+    additionalProperties: false,
+  },
+};
 
 /**
  * Sends a lightweight summarization request through a {@link DefaultChatTransport}
- * and reads the full response text using {@link readUIMessageStream}.
+ * and extracts the result from the forced tool call.
  *
- * This reuses the same stream parsing that `useChat` relies on internally,
- * so we don't need to hand-roll any protocol-specific logic.
+ * The summary tool is sent as an `output_tool` (not a regular `tool`), which
+ * tells the server to set `tool_choice: required` on the LLM request. This
+ * guarantees the model produces structured output via the tool schema rather
+ * than free-form text — critical for lesser models that tend to ignore prompt
+ * instructions.
+ *
+ * Stream parsing is delegated to the AI SDK's {@link readUIMessageStream},
+ * the same pipeline that powers `useChat`.
  */
 async function fetchSummary({
   chatApiUrl,
@@ -48,6 +77,9 @@ async function fetchSummary({
     trigger: "submit-message",
     chatId: crypto.randomUUID(),
     messageId: undefined,
+    body: {
+      output_tools: [summaryOutputTool],
+    },
     messages: [
       {
         id: crypto.randomUUID(),
@@ -63,8 +95,6 @@ async function fetchSummary({
     abortSignal: undefined,
   });
 
-  // Iterate the stream to completion; each yielded value is the progressively
-  // updated assistant message. We only care about the final state.
   let finalMessage: UIMessage | undefined;
   for await (const message of readUIMessageStream({ stream: chunkStream })) {
     finalMessage = message;
@@ -72,9 +102,20 @@ async function fetchSummary({
 
   if (!finalMessage) return "";
 
+  // The model is forced to call the summary output tool via tool_choice.
+  // Extract the summary from the tool invocation's input.
+  for (const part of finalMessage.parts) {
+    if (part.type === "dynamic-tool" && part.toolName === "summary") {
+      const input = part.input as { summary?: string } | undefined;
+      if (input?.summary) return input.summary.trim();
+    }
+  }
+
+  // Fallback: extract from text if the model responded with text despite
+  // the forced tool_choice (shouldn't happen, but defensive).
   return finalMessage.parts
     .filter(isTextUIPart)
-    .map((part) => part.text)
+    .map((p) => p.text)
     .join("")
     .trim();
 }

@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from starlette.requests import Request
@@ -684,6 +684,98 @@ async def create_prompt_version_tag(
             )
         )
     return None
+
+
+@router.delete(
+    "/prompt_versions/{prompt_version_id}/tags/{tag_name}",
+    operation_id="deletePromptVersionTag",
+    summary="Delete a tag from a prompt version",
+    description="Delete a tag from a specific prompt version by tag name. The tag is resolved "
+    "within the scope of the prompt linked to the version.",
+    response_description="No content returned on successful tag deletion",
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            404,
+            422,
+        ]
+    ),
+)
+async def delete_prompt_version_tag(
+    request: Request,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+    tag_name: str = Path(description="The name of the tag to delete."),
+) -> None:
+    """
+    Delete a tag from a specific prompt version by tag name.
+
+    Resolves the tag within the scope of the prompt linked to the given prompt version.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_version_id (str): The ID of the prompt version.
+        tag_name (str): The name of the tag to delete.
+
+    Returns:
+        None: Returns a 204 No Content response on success.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid, the tag name is invalid,
+            the prompt version is not found, or the tag is not found.
+    """
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(422, "Invalid prompt version ID")
+    try:
+        name = Identifier.model_validate(tag_name)
+    except ValidationError:
+        raise HTTPException(422, "Invalid tag name")
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
+        if prompt_id is None:
+            raise HTTPException(404)
+        tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == name,
+            )
+        )
+        if tag is None:
+            raise HTTPException(404)
+        await session.delete(tag)
+    return None
+
+
+@router.delete(
+    "/prompts/{prompt_identifier}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="deletePrompt",
+    summary="Delete a prompt",
+    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    status_code=204,
+    responses=add_errors_to_responses([404, 422]),
+)
+async def delete_prompt(
+    request: Request,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> None:
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(
+            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
+        )
+    if prompt_id is None:
+        raise HTTPException(status_code=404, detail="Prompt not found")
 
 
 class _PromptId(int): ...

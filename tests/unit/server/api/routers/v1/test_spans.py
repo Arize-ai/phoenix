@@ -1,18 +1,13 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
-from random import getrandbits
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional
 
 import httpx
-import pandas as pd
 import pytest
 from faker import Faker
-from phoenix.client import Client
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
-from phoenix import Client as LegacyClient
-from phoenix import TraceDataset
 from phoenix.db import models
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
@@ -21,40 +16,6 @@ from phoenix.server.api.routers.v1.spans import (
     Span,
 )
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl import SpanQuery
-
-
-async def test_span_round_tripping_with_docs(
-    legacy_px_client: LegacyClient,
-    dialect: str,
-    span_data_with_documents: Any,
-) -> None:
-    df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
-    new_ids = {span_id: getrandbits(64).to_bytes(8, "big").hex() for span_id in df.index}
-    for span_id_col_name in ("context.span_id", "parent_id"):
-        df.loc[:, span_id_col_name] = df.loc[:, span_id_col_name].map(new_ids.get)
-    df = df.set_index("context.span_id", drop=False)
-    doc_query = SpanQuery().explode("retrieval.documents", content="document.content")
-    orig_docs = cast(pd.DataFrame, legacy_px_client.query_spans(doc_query))
-    orig_count = len(orig_docs)
-    assert orig_count
-    legacy_px_client.log_traces(TraceDataset(df))
-    await sleep(1)  # Wait for the spans to be inserted
-    docs = cast(pd.DataFrame, legacy_px_client.query_spans(doc_query))
-    new_count = len(docs)
-    assert new_count
-    assert new_count == orig_count * 2
-
-
-async def test_querying_spans_with_new_client(
-    legacy_px_client: LegacyClient,
-    px_client: Client,
-    dialect: str,
-    span_data_with_documents: Any,
-) -> None:
-    legacy_df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
-    df = cast(pd.DataFrame, px_client.spans.get_spans_dataframe())  # type: ignore
-    assert legacy_df.equals(df)
 
 
 @pytest.mark.parametrize("sync", [False, True])
