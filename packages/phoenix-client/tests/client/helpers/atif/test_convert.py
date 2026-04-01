@@ -738,6 +738,33 @@ class TestContinuationMerging:
         timeout_spans = _convert_atif_trajectory_to_spans(timeout)
         assert original_spans[0]["context"]["trace_id"] != timeout_spans[0]["context"]["trace_id"]
 
+    def test_continuation_root_has_is_continuation_metadata(self) -> None:
+        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
+        spans = _convert_atif_trajectory_to_spans(cont1)
+        root = spans[0]
+        assert root["attributes"]["metadata"]["is_continuation"] is True
+
+    def test_original_root_does_not_have_is_continuation(self) -> None:
+        original = _load_fixture("harbor_terminus2_continuation.json")
+        spans = _convert_atif_trajectory_to_spans(original)
+        root = spans[0]
+        assert "is_continuation" not in root["attributes"]["metadata"]
+
+    def test_continuation_llm_spans_have_copied_context_flag(self) -> None:
+        cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
+        spans = _convert_atif_trajectory_to_spans(cont1)
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        # All LLM spans in cont-1 follow is_copied_context steps
+        for llm in llm_spans:
+            assert llm["attributes"].get("metadata", {}).get("has_copied_context") is True
+
+    def test_original_llm_spans_no_copied_context_flag(self) -> None:
+        original = _load_fixture("harbor_terminus2_continuation.json")
+        spans = _convert_atif_trajectory_to_spans(original)
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        for llm in llm_spans:
+            assert "has_copied_context" not in llm["attributes"].get("metadata", {})
+
 
 class TestHarborGoldenFiles:
     """Tests against real Harbor golden trajectory files from the harbor-framework/harbor repo."""

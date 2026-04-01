@@ -563,6 +563,10 @@ def _convert_atif_trajectory_to_spans(
     all_spans: List[v1.Span] = []
 
     # --- Root AGENT span (trajectory-level) ---
+    is_continuation = session_id != _base_session_id(session_id)
+    root_meta = dict(agent_meta)
+    if is_continuation:
+        root_meta["is_continuation"] = True
     root_attrs: Dict[str, Any] = {
         "openinference.span.kind": "AGENT",
         "session.id": session_id,
@@ -570,7 +574,7 @@ def _convert_atif_trajectory_to_spans(
         "input.mime_type": "text/plain",
         "output.value": _get_trajectory_output(steps),
         "output.mime_type": "text/plain",
-        "metadata": dict(agent_meta),
+        "metadata": root_meta,
     }
 
     final_metrics = trajectory.get("final_metrics")
@@ -655,6 +659,11 @@ def _convert_atif_trajectory_to_spans(
             llm_attrs["session.id"] = session_id
             llm_attrs.update(_build_message_attributes(steps, i))
             llm_attrs.update(llm_tool_attrs)
+
+            # Flag LLM spans whose input includes copied context
+            has_copied = any(steps[j].get("is_copied_context") for j in range(i))
+            if has_copied:
+                llm_attrs.setdefault("metadata", {})["has_copied_context"] = True
 
             step_span: v1.Span = {
                 "name": "LLM",
