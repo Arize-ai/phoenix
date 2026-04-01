@@ -13,10 +13,9 @@ npm install @arizeai/phoenix-otel
 ```
 
 <Note>
-`@arizeai/phoenix-otel` ships local docs, mirrored examples, and source code inside `node_modules/@arizeai/phoenix-otel/`.
+`@arizeai/phoenix-otel` ships local docs and source code inside `node_modules/@arizeai/phoenix-otel/`.
 
 - `docs/overview.mdx`
-- `docs/examples/`
 - `src/`
 
 Browse the website version under [@arizeai/phoenix-otel Docs](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview).
@@ -25,7 +24,6 @@ Browse the website version under [@arizeai/phoenix-otel Docs](/docs/phoenix/sdk-
 ## Start Here
 
 - [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview)
-- [Example index](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/examples)
 - [Installation](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/installation)
 - [Configuration](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/configuration)
 - [Register](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/register)
@@ -40,16 +38,18 @@ After install, a coding agent can inspect:
 
 ```text
 node_modules/@arizeai/phoenix-otel/docs/
-node_modules/@arizeai/phoenix-otel/docs/examples/
 node_modules/@arizeai/phoenix-otel/src/
 ```
 
-## Recommended Starting Files
+That gives the agent version-matched prose plus the exact implementation that shipped with your project.
 
-- `docs/examples/register_example.ts` for the minimal setup path
-- `docs/examples/manual_spans_example.ts` for custom spans
-- `docs/examples/global_provider_lifecycle_example.ts` for `global: false` plus manual attach/detach
-- `docs/examples/instrumentation_example.ts` for CommonJS auto-instrumentation
+## Recommended Starting Pages
+
+- `docs/overview.mdx` for the package layout and module map
+- `docs/installation.mdx` and `docs/configuration.mdx` for setup and environment variables
+- `docs/register.mdx` for the core provider lifecycle
+- `docs/instrumentation.mdx` and `docs/manual-spans.mdx` for automatic and manual tracing
+- `docs/projects-and-auth.mdx` and `docs/troubleshooting.mdx` for deployment details and debugging
 
 ## API Reference
 

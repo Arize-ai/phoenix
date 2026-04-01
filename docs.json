@@ -789,7 +789,6 @@
                 "group": "@arizeai/phoenix-client Docs",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/examples",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/configuration",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans",
@@ -806,7 +805,6 @@
                 "group": "@arizeai/phoenix-evals Docs",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/examples",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/installation",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
@@ -822,7 +820,6 @@
                 "group": "@arizeai/phoenix-otel Docs",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/examples",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/installation",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/configuration",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/register",

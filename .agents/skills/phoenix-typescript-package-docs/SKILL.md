@@ -5,7 +5,7 @@ description: >
   Use this skill whenever adding or updating docs for `@arizeai/phoenix-client`,
   `@arizeai/phoenix-evals`, or `@arizeai/phoenix-otel`, when changing the Mintlify
   package-doc pages, when keeping `node_modules/.../docs` content aligned with actual
-  exports and examples, or when modifying the sync and publish flow for packaged docs.
+  exports, or when modifying the sync and publish flow for packaged docs.
 license: Apache-2.0
 metadata:
   author: oss@arize.com
@@ -54,7 +54,7 @@ js/packages/phoenix-otel/docs/
 ```
 
 Do not hand-edit `js/packages/*/docs/`. Treat those folders as generated publish artifacts.
-Ground doc examples in the real package `examples/` directories and let the sync script mirror them into `docs/examples/`.
+Ground doc content in the real package `src/` and `examples/` directories, but keep the published package docs focused on curated MDX pages.
 
 ## Current Packaging Flow
 
@@ -73,7 +73,6 @@ These files define the bundled-docs workflow:
 Each supported package must have:
 
 - a canonical Mintlify package-doc folder
-- example files under `js/packages/<pkg>/examples/`
 - a `docs` entry in `files`
 - a `prepack` hook that runs the sync script for that package
 - a `postpack` hook that removes staged package docs
@@ -115,10 +114,9 @@ Inside each package `docs/` folder, prefer a flat page layout such as:
 overview.mdx
 configuration.mdx
 experiments.mdx
-examples/
 ```
 
-Top-level authored MDX pages should stay flat. A `docs/examples/` subdirectory is allowed for mirrored runnable source examples.
+Top-level authored MDX pages should stay flat.
 
 ### 4. Keep website docs and packaged docs aligned
 
@@ -179,7 +177,6 @@ node js/scripts/sync-package-docs.mjs phoenix-otel
 This stages:
 
 - canonical MDX pages into `js/packages/<pkg>/docs/`
-- package example files into `js/packages/<pkg>/docs/examples/`
 
 To remove staged docs manually:
 
@@ -200,7 +197,6 @@ cd js/packages/phoenix-otel && npm pack --dry-run
 Confirm the tarball includes:
 
 - `docs/*.mdx`
-- `docs/examples/*`
 - `src/**`
 
 ### Step 5: Check for nav and path regressions
@@ -228,7 +224,6 @@ Required package manifest changes:
 ## Validation Checklist
 
 - [ ] Examples match actual exported argument shapes
-- [ ] Installed example paths under `docs/examples/` are present and useful
 - [ ] Canonical docs were edited instead of generated package docs
 - [ ] `node js/scripts/sync-package-docs.mjs` succeeds
 - [ ] `npm pack --dry-run` includes `docs/*.mdx`

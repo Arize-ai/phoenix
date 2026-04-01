@@ -11,21 +11,19 @@ description: "Bundled docs for @arizeai/phoenix-otel"
 npm install @arizeai/phoenix-otel
 ```
 
-## Docs, Examples, And Source In `node_modules`
+## Docs And Source In `node_modules`
 
 After install, a coding agent can inspect the installed package directly:
 
 ```text
 node_modules/@arizeai/phoenix-otel/docs/
-node_modules/@arizeai/phoenix-otel/docs/examples/
 node_modules/@arizeai/phoenix-otel/src/
 ```
 
-The bundled docs keep the authored pages flat and mirror runnable example files under `docs/examples/`:
+The bundled docs keep the authored pages flat:
 
 ```text
 overview.mdx
-examples.mdx
 installation.mdx
 configuration.mdx
 register.mdx
@@ -35,12 +33,12 @@ projects-and-auth.mdx
 troubleshooting.mdx
 ```
 
-## Best Starting Files
+## Best Starting Pages
 
-- `docs/examples/register_example.ts` for the smallest setup path
-- `docs/examples/manual_spans_example.ts` for custom spans
-- `docs/examples/global_provider_lifecycle_example.ts` for manual global-provider control
-- `docs/examples/instrumentation_example.ts` for CommonJS auto-instrumentation
+- `docs/installation.mdx` and `docs/configuration.mdx` for setup and environment variables
+- `docs/register.mdx` for the core provider lifecycle
+- `docs/instrumentation.mdx` and `docs/manual-spans.mdx` for automatic and manual tracing
+- `docs/projects-and-auth.mdx` and `docs/troubleshooting.mdx` for deployment details and debugging
 
 ## Module Map
 

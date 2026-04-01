@@ -11,23 +11,21 @@ description: "Bundled docs for @arizeai/phoenix-client"
 npm install @arizeai/phoenix-client
 ```
 
-## Docs, Examples, And Source In `node_modules`
+## Docs And Source In `node_modules`
 
 After install, a coding agent can inspect the installed package directly:
 
 ```text
 node_modules/@arizeai/phoenix-client/docs/
-node_modules/@arizeai/phoenix-client/docs/examples/
 node_modules/@arizeai/phoenix-client/src/
 ```
 
-That gives you version-matched docs, runnable examples, and the exact implementation that shipped with the current project. No network access is required.
+That gives you version-matched docs and the exact implementation that shipped with the current project. No network access is required.
 
-The bundled docs keep the authored pages flat and mirror real examples under `docs/examples/`:
+The bundled docs keep the authored pages flat:
 
 ```text
 overview.mdx
-examples.mdx
 configuration.mdx
 traces.mdx
 spans.mdx
@@ -39,13 +37,12 @@ experiments.mdx
 api-client.mdx
 ```
 
-## Best Starting Files
+## Best Starting Pages
 
 - `docs/configuration.mdx` for client setup and environment variables
-- `docs/examples/list_datasets.ts` for raw typed REST access
-- `docs/examples/create_prompt_openai.ts` and `docs/examples/apply_prompt_vercel.ts` for prompt workflows
-- `docs/examples/run_experiment.ts` and `docs/examples/run_experiment_with_evals.ts` for experiments
-- `docs/examples/get_spans.ts`, `docs/examples/get_traces.ts`, and `docs/examples/get_session_turns.ts` for retrieval workflows
+- `docs/prompts.mdx`, `docs/datasets.mdx`, and `docs/experiments.mdx` for higher-level workflows
+- `docs/spans.mdx`, `docs/sessions.mdx`, and `docs/traces.mdx` for retrieval and maintenance flows
+- `docs/api-client.mdx` for raw typed REST access
 
 ## Module Map
 

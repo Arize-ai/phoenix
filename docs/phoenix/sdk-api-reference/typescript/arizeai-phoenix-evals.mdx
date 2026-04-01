@@ -15,10 +15,9 @@ npm install @arizeai/phoenix-evals
 ```
 
 <Note>
-`@arizeai/phoenix-evals` ships local docs, mirrored examples, and source code inside `node_modules/@arizeai/phoenix-evals/`.
+`@arizeai/phoenix-evals` ships local docs and source code inside `node_modules/@arizeai/phoenix-evals/`.
 
 - `docs/overview.mdx`
-- `docs/examples/`
 - `src/`
 
 Browse the website version under [@arizeai/phoenix-evals Docs](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview).
@@ -27,10 +26,11 @@ Browse the website version under [@arizeai/phoenix-evals Docs](/docs/phoenix/sdk
 ## Start Here
 
 - [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview)
-- [Example index](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/examples)
 - [Installation](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/installation)
 - [Create evaluator](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator)
+- [Code evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/code-evaluators)
 - [LLM evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators)
+- [Built-in metrics](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/built-in-metrics)
 - [Classification](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification)
 - [Templates](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates)
 - [Phoenix integration](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration)
@@ -41,17 +41,18 @@ After install, a coding agent can inspect:
 
 ```text
 node_modules/@arizeai/phoenix-evals/docs/
-node_modules/@arizeai/phoenix-evals/docs/examples/
 node_modules/@arizeai/phoenix-evals/src/
 ```
 
-## Recommended Starting Files
+That gives the agent version-matched prose plus the exact implementation and types that shipped with your project.
 
-- `docs/examples/create_evaluator_example.ts` for deterministic code evaluators
-- `docs/examples/faithfulness_example.ts` for a built-in LLM evaluator
-- `docs/examples/classifier_example.ts` and `docs/examples/classification_example.ts` for classification flows
-- `docs/examples/format_template_example.ts` for templating
-- `docs/examples/phoenix_integration_example.ts` for `@arizeai/phoenix-client` integration
+## Recommended Starting Pages
+
+- `docs/overview.mdx` for the package layout and module map
+- `docs/installation.mdx` for provider requirements and install combinations
+- `docs/create-evaluator.mdx` and `docs/code-evaluators.mdx` for deterministic evaluator flows
+- `docs/llm-evaluators.mdx`, `docs/built-in-metrics.mdx`, and `docs/classification.mdx` for model-backed evaluation
+- `docs/templates.mdx` and `docs/phoenix-integration.mdx` for prompt helpers and experiment wiring
 
 ## API Reference
 

@@ -11,10 +11,9 @@ npm install @arizeai/phoenix-client
 ```
 
 <Note>
-`@arizeai/phoenix-client` ships local docs, mirrored examples, and source code inside `node_modules/@arizeai/phoenix-client/`.
+`@arizeai/phoenix-client` ships local docs and source code inside `node_modules/@arizeai/phoenix-client/`.
 
 - `docs/overview.mdx`
-- `docs/examples/`
 - `src/`
 
 Browse the website version under [@arizeai/phoenix-client Docs](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview).
@@ -23,7 +22,6 @@ Browse the website version under [@arizeai/phoenix-client Docs](/docs/phoenix/sd
 ## Start Here
 
 - [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview)
-- [Example index](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/examples)
 - [Configuration](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/configuration)
 - [Prompts](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts)
 - [Datasets](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets)
@@ -38,19 +36,18 @@ After install, a coding agent can inspect:
 
 ```text
 node_modules/@arizeai/phoenix-client/docs/
-node_modules/@arizeai/phoenix-client/docs/examples/
 node_modules/@arizeai/phoenix-client/src/
 ```
 
-That gives the agent version-matched prose, runnable example code, and the exact implementation and type definitions that shipped with your project.
+That gives the agent version-matched prose plus the exact implementation and type definitions that shipped with your project.
 
-## Recommended Starting Files
+## Recommended Starting Pages
 
+- `docs/overview.mdx` for the package layout and module map
 - `docs/configuration.mdx` for `PHOENIX_HOST`, `PHOENIX_API_KEY`, and client creation
-- `docs/examples/list_datasets.ts` for raw typed REST access
-- `docs/examples/create_prompt_openai.ts` and `docs/examples/apply_prompt_vercel.ts` for prompt workflows
-- `docs/examples/run_experiment.ts` and `docs/examples/run_experiment_with_evals.ts` for experiments
-- `docs/examples/get_spans.ts`, `docs/examples/get_traces.ts`, and `docs/examples/get_session_turns.ts` for retrieval flows
+- `docs/prompts.mdx`, `docs/datasets.mdx`, and `docs/experiments.mdx` for higher-level workflows
+- `docs/spans.mdx`, `docs/sessions.mdx`, and `docs/traces.mdx` for retrieval and maintenance flows
+- `docs/api-client.mdx` for raw typed REST access
 
 ## API Reference
 

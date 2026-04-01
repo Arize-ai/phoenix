@@ -11,21 +11,19 @@ description: "Bundled docs for @arizeai/phoenix-evals"
 npm install @arizeai/phoenix-evals
 ```
 
-## Docs, Examples, And Source In `node_modules`
+## Docs And Source In `node_modules`
 
 After install, a coding agent can inspect the installed package directly:
 
 ```text
 node_modules/@arizeai/phoenix-evals/docs/
-node_modules/@arizeai/phoenix-evals/docs/examples/
 node_modules/@arizeai/phoenix-evals/src/
 ```
 
-The bundled docs keep the authored pages flat and mirror runnable example files under `docs/examples/`:
+The bundled docs keep the authored pages flat:
 
 ```text
 overview.mdx
-examples.mdx
 installation.mdx
 create-evaluator.mdx
 llm-evaluators.mdx
@@ -36,13 +34,12 @@ classification.mdx
 phoenix-integration.mdx
 ```
 
-## Best Starting Files
+## Best Starting Pages
 
-- `docs/examples/create_evaluator_example.ts` for code evaluators
-- `docs/examples/faithfulness_example.ts` for a built-in LLM evaluator
-- `docs/examples/classifier_example.ts` and `docs/examples/classification_example.ts` for classification flows
-- `docs/examples/format_template_example.ts` for templating
-- `docs/examples/phoenix_integration_example.ts` for `@arizeai/phoenix-client` integration
+- `docs/installation.mdx` for provider requirements and install combinations
+- `docs/create-evaluator.mdx` and `docs/code-evaluators.mdx` for deterministic evaluator flows
+- `docs/llm-evaluators.mdx`, `docs/built-in-metrics.mdx`, and `docs/classification.mdx` for model-backed evaluation
+- `docs/templates.mdx` and `docs/phoenix-integration.mdx` for prompt helpers and experiment wiring
 
 ## Module Map
 

@@ -13,27 +13,22 @@ const packageDocMap = {
   "phoenix-client": {
     sourceDir:
       "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client",
-    examplesDir: "js/packages/phoenix-client/examples",
     targetDir: "js/packages/phoenix-client/docs",
   },
   "phoenix-evals": {
     sourceDir:
       "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals",
-    examplesDir: "js/packages/phoenix-evals/examples",
     targetDir: "js/packages/phoenix-evals/docs",
   },
   "phoenix-otel": {
     sourceDir:
       "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel",
-    examplesDir: "js/packages/phoenix-otel/examples",
     targetDir: "js/packages/phoenix-otel/docs",
   },
 };
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "../..");
-const EXAMPLE_FILE_EXTENSIONS = new Set([".js", ".jsx", ".md", ".mdx", ".ts"]);
-const EXAMPLE_FILE_NAMES_TO_SKIP = new Set(["tsconfig.examples.json"]);
 
 function copyDirectory(sourceDir, targetDir) {
   mkdirSync(targetDir, { recursive: true });
@@ -45,32 +40,6 @@ function copyDirectory(sourceDir, targetDir) {
 
     if (entryStats.isDirectory()) {
       copyDirectory(sourcePath, targetPath);
-      continue;
-    }
-
-    mkdirSync(path.dirname(targetPath), { recursive: true });
-    copyFileSync(sourcePath, targetPath);
-  }
-}
-
-function copyPackageExamples(sourceDir, targetDir) {
-  mkdirSync(targetDir, { recursive: true });
-
-  for (const entryName of readdirSync(sourceDir)) {
-    if (EXAMPLE_FILE_NAMES_TO_SKIP.has(entryName)) {
-      continue;
-    }
-
-    const sourcePath = path.join(sourceDir, entryName);
-    const targetPath = path.join(targetDir, entryName);
-    const entryStats = statSync(sourcePath);
-
-    if (entryStats.isDirectory()) {
-      copyPackageExamples(sourcePath, targetPath);
-      continue;
-    }
-
-    if (!EXAMPLE_FILE_EXTENSIONS.has(path.extname(entryName))) {
       continue;
     }
 
@@ -106,22 +75,14 @@ function syncPackageDocs(packageName) {
   }
 
   const sourceDir = path.join(repoRoot, packageConfig.sourceDir);
-  const examplesDir = path.join(repoRoot, packageConfig.examplesDir);
   const targetDir = path.join(repoRoot, packageConfig.targetDir);
-  const targetExamplesDir = path.join(targetDir, "examples");
 
   if (!existsSync(sourceDir) || !statSync(sourceDir).isDirectory()) {
     throw new Error(`Missing package docs source directory: ${sourceDir}`);
   }
-  if (!existsSync(examplesDir) || !statSync(examplesDir).isDirectory()) {
-    throw new Error(
-      `Missing package examples source directory: ${examplesDir}`
-    );
-  }
 
   rmSync(targetDir, { recursive: true, force: true });
   copyDirectory(sourceDir, targetDir);
-  copyPackageExamples(examplesDir, targetExamplesDir);
 
   const overviewPath = path.join(targetDir, "overview.mdx");
   if (!existsSync(overviewPath)) {
@@ -129,15 +90,9 @@ function syncPackageDocs(packageName) {
       `Expected overview.mdx in generated docs for ${packageName}`
     );
   }
-  const examplesPath = path.join(targetDir, "examples.mdx");
-  if (!existsSync(examplesPath)) {
-    throw new Error(
-      `Expected examples.mdx in generated docs for ${packageName}`
-    );
-  }
 
   console.log(
-    `Synced ${packageName} docs and examples from ${packageConfig.sourceDir} and ${packageConfig.examplesDir} to ${packageConfig.targetDir}`
+    `Synced ${packageName} docs from ${packageConfig.sourceDir} to ${packageConfig.targetDir}`
   );
 }
 
