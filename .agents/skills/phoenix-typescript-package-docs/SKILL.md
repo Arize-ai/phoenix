@@ -133,6 +133,25 @@ When a function takes a wrapped object such as `spanAnnotation`, `documentAnnota
 
 Common failure mode: docs drift toward simplified pseudo-APIs that do not match actual exported parameter names.
 
+### 6. Hide agent-only source breadcrumbs
+
+When a page benefits from implementation breadcrumbs like internal `src/**` paths, do not render them as visible headings or bullet lists in Mintlify.
+
+Wrap short agent-only hints in a hidden MDX block:
+
+```mdx
+<div className="hidden" data-agent-context="relevant-source-files">
+  <p>Relevant Source Files</p>
+  <ul>
+    <li><code>src/example.ts</code> for the canonical implementation</li>
+  </ul>
+</div>
+```
+
+Use standard HTML elements inside the hidden block rather than Markdown bullets so the MDX stays predictable.
+Reserve this pattern for brief implementation breadcrumbs only. Keep user-facing docs focused on API behavior, workflows, and examples.
+Do not treat hidden blocks as access control. If content should be hidden from navigation as a whole, use a hidden page instead.
+
 ## Workflow
 
 ### Step 1: Determine the affected package and modules
