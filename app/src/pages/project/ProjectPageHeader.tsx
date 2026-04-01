@@ -65,10 +65,10 @@ export function ProjectPageHeader(props: {
   // Refetch the count of traces if the fetchKey changes.
   // Skip the initial mount — the parent useLazyLoadQuery with
   // store-and-network already fetches fresh data.
-  const isFirstRender = useRef<boolean>(true);
+  const hasMounted = useRef<boolean>(false);
   useEffect(() => {
-    if (isFirstRender.current === true) {
-      isFirstRender.current = false;
+    if (!hasMounted.current) {
+      hasMounted.current = true;
       return;
     }
     startTransition(() => {
