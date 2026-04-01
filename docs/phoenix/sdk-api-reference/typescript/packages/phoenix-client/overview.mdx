@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "Bundled docs for @arizeai/phoenix-client"
+description: "Typed TypeScript client for Phoenix platform APIs"
 ---
 
 `@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
@@ -11,52 +11,34 @@ description: "Bundled docs for @arizeai/phoenix-client"
 npm install @arizeai/phoenix-client
 ```
 
-## Docs And Source In `node_modules`
-
-After install, a coding agent can inspect the installed package directly:
-
-```text
-node_modules/@arizeai/phoenix-client/docs/
-node_modules/@arizeai/phoenix-client/src/
-```
-
-That gives you version-matched docs and the exact implementation that shipped with the current project. No network access is required.
-
-The bundled docs keep the authored pages flat:
-
-```text
-overview.mdx
-configuration.mdx
-traces.mdx
-spans.mdx
-annotations.mdx
-span-annotations.mdx
-document-annotations.mdx
-session-annotations.mdx
-sessions.mdx
-prompts.mdx
-datasets.mdx
-experiments.mdx
-api-client.mdx
-```
-
-## Best Starting Pages
-
-- `docs/configuration.mdx` for client setup and environment variables
-- `docs/prompts.mdx`, `docs/datasets.mdx`, and `docs/experiments.mdx` for higher-level workflows
-- `docs/annotations.mdx` for annotation concepts, then `docs/span-annotations.mdx`, `docs/document-annotations.mdx`, and `docs/session-annotations.mdx` for detailed usage
-- `docs/spans.mdx`, `docs/sessions.mdx`, and `docs/traces.mdx` for retrieval and maintenance flows
-- `docs/api-client.mdx` for raw typed REST access
-
 ## Module Map
 
-- Root export: `createClient`, generated OpenAPI types, and config helpers
-- `@arizeai/phoenix-client/prompts`: prompt CRUD plus `toSDK`
-- `@arizeai/phoenix-client/datasets`: dataset creation and retrieval helpers
-- `@arizeai/phoenix-client/experiments`: experiment execution and lifecycle helpers
-- `@arizeai/phoenix-client/spans`: span search, notes, and annotations
-- `@arizeai/phoenix-client/sessions`: session listing, retrieval, and annotations
-- `@arizeai/phoenix-client/traces`: project trace retrieval
+| Import | Purpose |
+|--------|---------|
+| `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config helpers |
+| `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
+| `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
+| `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
+| `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
+| `@arizeai/phoenix-client/sessions` | Session listing, retrieval, and session annotations |
+| `@arizeai/phoenix-client/traces` | Project trace retrieval |
+
+## Where To Start
+
+- [Configuration](./configuration) — client setup, `PHOENIX_HOST`, `PHOENIX_API_KEY`
+- [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
+- [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
+- [Spans](./spans), [Sessions](./sessions), [Traces](./traces) — retrieval and maintenance
+- [API Client](./api-client) — raw typed REST access
+
+<section className="hidden" data-agent-context="bundled-docs" aria-label="Bundled docs">
+  <h2>Bundled Docs</h2>
+  <p>
+    This package ships docs and source inside <code>node_modules/@arizeai/phoenix-client/</code>.
+    A coding agent can read <code>docs/</code> and <code>src/</code> directly for version-matched
+    reference without network access.
+  </p>
+</section>
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
