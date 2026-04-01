@@ -380,10 +380,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination</loc>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex</loc>
   </url>
 

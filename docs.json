@@ -209,7 +209,6 @@
                       {
                         "group": "Legacy",
                         "pages": [
-                          "docs/phoenix/evaluation/pre-built-metrics/hallucination",
                           "docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data",
                           "docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance",
                           "docs/phoenix/evaluation/pre-built-metrics/summarization-eval",
@@ -1920,6 +1919,10 @@
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
     },
     {
+      "source": "/docs/phoenix/evaluation/pre-built-metrics/hallucination",
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
+    },
+    {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data",
       "destination": "/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data"
     },
@@ -1945,7 +1948,7 @@
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/hallucinations",
-      "destination": "/docs/phoenix/evaluation/pre-built-metrics/hallucination"
+      "destination": "/docs/phoenix/evaluation/pre-built-metrics/faithfulness"
     },
     {
       "source": "/docs/phoenix/evaluation/running-pre-tested-evals/code-metrics",
