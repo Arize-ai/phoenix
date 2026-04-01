@@ -17,10 +17,17 @@ from phoenix.server.bearer_auth import PhoenixUser
 
 
 @strawberry.enum
-class ExperimentErrorCategory(Enum):
+class ExperimentLogCategory(Enum):
     TASK = "TASK"
     EVAL = "EVAL"
     EXPERIMENT = "EXPERIMENT"
+
+
+@strawberry.enum
+class ExperimentLogLevel(Enum):
+    ERROR = "ERROR"
+    WARN = "WARN"
+    INFO = "INFO"
 
 
 # =============================================================================
@@ -54,13 +61,13 @@ class EvalWorkItemId:
         )
 
 
-ExperimentErrorWorkItemId = Annotated[
+ExperimentLogWorkItemId = Annotated[
     Union[TaskWorkItemId, EvalWorkItemId],
-    strawberry.union(name="ExperimentErrorWorkItemId"),
+    strawberry.union(name="ExperimentLogWorkItemId"),
 ]
 
 
-def _work_item_id_from_orm(row: models.ExperimentLog) -> ExperimentErrorWorkItemId | None:
+def _work_item_id_from_orm(row: models.ExperimentLog) -> ExperimentLogWorkItemId | None:
     if isinstance(row, models.ExperimentTaskLog):
         return TaskWorkItemId.from_orm(row)
     if isinstance(row, models.ExperimentEvalLog):
@@ -81,7 +88,7 @@ def _is_admin(info: Info[Context, None]) -> bool:
 
 @strawberry.type
 class FailureDetail:
-    work_item: ExperimentErrorWorkItemId | None
+    work_item: ExperimentLogWorkItemId | None
     error_type: str
     _stack_trace: Private[str | None] = None
 
@@ -104,7 +111,7 @@ class FailureDetail:
 
 @strawberry.type
 class RetriesExhaustedDetail:
-    work_item: ExperimentErrorWorkItemId | None
+    work_item: ExperimentLogWorkItemId | None
     retry_count: int
     reason: str
     _stack_trace: Private[str | None] = None
@@ -127,15 +134,15 @@ class RetriesExhaustedDetail:
         )
 
 
-ExperimentErrorDetail = Annotated[
+ExperimentLogDetail = Annotated[
     Union[FailureDetail, RetriesExhaustedDetail],
-    strawberry.union(name="ExperimentErrorDetail"),
+    strawberry.union(name="ExperimentLogDetail"),
 ]
 
 
 def _detail_from_orm(
     obj: log_types.ExperimentLogDetail, row: models.ExperimentLog
-) -> ExperimentErrorDetail:
+) -> ExperimentLogDetail:
     if obj.type == "failure":
         return FailureDetail.from_orm(obj, row)
     if obj.type == "retries_exhausted":
@@ -144,19 +151,21 @@ def _detail_from_orm(
 
 
 @strawberry.type
-class ExperimentError(Node):
+class ExperimentLog(Node):
     id: NodeID[int]
     occurred_at: datetime
-    category: ExperimentErrorCategory
+    category: ExperimentLogCategory
+    level: ExperimentLogLevel
     message: str
-    detail: ExperimentErrorDetail | None = None
+    detail: ExperimentLogDetail | None = None
 
     @classmethod
-    def from_orm(cls, row: models.ExperimentLog) -> ExperimentError:
+    def from_orm(cls, row: models.ExperimentLog) -> ExperimentLog:
         return cls(
             id=row.id,
             occurred_at=row.occurred_at,
-            category=ExperimentErrorCategory(row.category),
+            category=ExperimentLogCategory(row.category),
+            level=ExperimentLogLevel(row.level),
             message=row.message,
             detail=_detail_from_orm(row.detail, row) if row.detail else None,
         )

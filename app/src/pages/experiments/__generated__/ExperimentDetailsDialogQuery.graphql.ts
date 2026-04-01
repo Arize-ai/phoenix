@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1a59d0e9641e6a13c090aff7606ab86>>
+ * @generated SignedSource<<90db79410ceca10f7aac1accd23b6e01>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentErrorCategory = "EVAL" | "EXPERIMENT" | "TASK";
 export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
+export type ExperimentLogCategory = "EVAL" | "EXPERIMENT" | "TASK";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
@@ -45,7 +45,7 @@ export type ExperimentDetailsDialogQuery$data = {
       readonly errors: {
         readonly edges: ReadonlyArray<{
           readonly node: {
-            readonly category: ExperimentErrorCategory;
+            readonly category: ExperimentLogCategory;
             readonly detail: {
               readonly errorType?: string;
               readonly reason?: string;
@@ -59,7 +59,7 @@ export type ExperimentDetailsDialogQuery$data = {
         }>;
       };
       readonly lastError: {
-        readonly category: ExperimentErrorCategory;
+        readonly category: ExperimentLogCategory;
         readonly detail: {
           readonly errorType?: string;
           readonly reason?: string;
@@ -595,7 +595,7 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentError",
+                    "concreteType": "ExperimentLog",
                     "kind": "LinkedField",
                     "name": "lastError",
                     "plural": false,
@@ -605,7 +605,7 @@ return {
                   {
                     "alias": null,
                     "args": (v28/*: any*/),
-                    "concreteType": "ExperimentErrorConnection",
+                    "concreteType": "ExperimentLogConnection",
                     "kind": "LinkedField",
                     "name": "errors",
                     "plural": false,
@@ -613,7 +613,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "ExperimentErrorEdge",
+                        "concreteType": "ExperimentLogEdge",
                         "kind": "LinkedField",
                         "name": "edges",
                         "plural": true,
@@ -621,7 +621,7 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "ExperimentError",
+                            "concreteType": "ExperimentLog",
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
@@ -775,7 +775,7 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "concreteType": "ExperimentError",
+                    "concreteType": "ExperimentLog",
                     "kind": "LinkedField",
                     "name": "lastError",
                     "plural": false,
@@ -785,7 +785,7 @@ return {
                   {
                     "alias": null,
                     "args": (v28/*: any*/),
-                    "concreteType": "ExperimentErrorConnection",
+                    "concreteType": "ExperimentLogConnection",
                     "kind": "LinkedField",
                     "name": "errors",
                     "plural": false,
@@ -793,7 +793,7 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": "ExperimentErrorEdge",
+                        "concreteType": "ExperimentLogEdge",
                         "kind": "LinkedField",
                         "name": "edges",
                         "plural": true,
@@ -801,7 +801,7 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "ExperimentError",
+                            "concreteType": "ExperimentLog",
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
