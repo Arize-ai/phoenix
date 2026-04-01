@@ -565,7 +565,11 @@ async def upload_dataset(
             for example in examples
         ]
 
-    hashed_examples = await to_thread.run_sync(lambda: _compute_hashes(examples))
+    hashed_examples = await to_thread.run_sync(
+        _compute_hashes,
+        examples,
+        abandon_on_cancel=True,
+    )
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
