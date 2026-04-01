@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.22.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.1...arize-phoenix-v13.22.2) (2026-04-01)
+
+
+### Bug Fixes
+
+* use DISTINCT instead of GROUP BY in ProjectHasTracesDataLoader ([#12495](https://github.com/Arize-ai/phoenix/issues/12495)) ([77bf1a3](https://github.com/Arize-ai/phoenix/commit/77bf1a3e0e287b561e430b74f74bc0fa082ed7f9))
+
 ## [13.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.0...arize-phoenix-v13.22.1) (2026-04-01)
 
 
