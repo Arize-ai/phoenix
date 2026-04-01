@@ -374,6 +374,53 @@ Capital of Germany?,Berlin,geography,validation
         assert v2_by_id["id-4"]["output"]["response"] == "A4"
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_examples_to_dataset_preserves_example_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_add_ex_ids_{token_hex(4)}"
+
+        # Create a dataset with one example (no user-provided ID)
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "Q1"}],
+                outputs=[{"a": "A1"}],
+            )
+        )
+
+        assert len(v1) == 1
+
+        # Append examples with user-provided IDs
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=name,
+                examples=[
+                    {"input": {"q": "Q2"}, "output": {"a": "A2"}, "id": "ex-2"},
+                    {"input": {"q": "Q3"}, "output": {"a": "A3"}, "id": "ex-3"},
+                ],
+            )
+        )
+
+        assert len(v2) == 3
+
+        v2_by_id = {ex["id"]: ex for ex in v2.examples}
+
+        # The appended examples should have the user-provided IDs
+        assert "ex-2" in v2_by_id
+        assert v2_by_id["ex-2"]["input"]["q"] == "Q2"
+        assert v2_by_id["ex-2"]["output"]["a"] == "A2"
+
+        assert "ex-3" in v2_by_id
+        assert v2_by_id["ex-3"]["input"]["q"] == "Q3"
+        assert v2_by_id["ex-3"]["output"]["a"] == "A3"
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_dataset_to_dataframe_round_trip(
         self,
         is_async: bool,

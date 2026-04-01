@@ -1002,6 +1002,7 @@ class Datasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             if not isinstance(examples, Mapping):
                 examples = list(examples)
@@ -1021,6 +1022,7 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [example.get("id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1046,6 +1048,7 @@ class Datasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1829,6 +1832,7 @@ class AsyncDatasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
             if not isinstance(examples, Mapping):
                 examples = list(examples)
@@ -1848,6 +1852,7 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [example.get("id", None) for example in examples_list]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1873,6 +1878,7 @@ class AsyncDatasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
