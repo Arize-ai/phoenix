@@ -640,6 +640,7 @@ SpanIdKey: TypeAlias = Optional[str]
 FlattenKeys: TypeAlias = frozenset[str]
 SplitsProvided: TypeAlias = bool
 DatasetId: TypeAlias = int
+DatasetName: TypeAlias = str
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
@@ -1258,9 +1259,24 @@ async def get_dataset_csv(
     ),
 ) -> Response:
     try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
         async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            examples = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
@@ -1301,9 +1317,24 @@ async def get_dataset_jsonl_openai_ft(
     ),
 ) -> bytes:
     try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
         async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            examples = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
@@ -1341,9 +1372,24 @@ async def get_dataset_jsonl_openai_evals(
     ),
 ) -> bytes:
     try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
         async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            examples = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
@@ -1422,28 +1468,18 @@ def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision
     return records.read()
 
 
-async def _get_db_examples(
-    *, session: Any, id: str, version_id: Optional[str]
-) -> tuple[str, list[models.DatasetExampleRevision]]:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {id}",
-            status_code=422,
-        ) from e
+async def _get_dataset_name(*, session: Any, dataset_id: int) -> DatasetName:
+    dataset_name: Optional[str] = await session.scalar(
+        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+    )
+    if not dataset_name:
+        raise ValueError("Dataset does not exist.")
+    return dataset_name
 
-    dataset_version_id: Optional[int] = None
-    if version_id:
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
-            )
-        except Exception as e:
-            raise HTTPException(
-                detail=f"Invalid dataset version ID format: {version_id}",
-                status_code=422,
-            ) from e
+
+async def _get_dataset_example_revisions(
+    *, session: Any, dataset_id: int, dataset_version_id: Optional[int]
+) -> list[models.DatasetExampleRevision]:
     latest_version = (
         select(
             models.DatasetExampleRevision.dataset_example_id,
@@ -1475,13 +1511,7 @@ async def _get_db_examples(
         .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         .order_by(models.DatasetExampleRevision.dataset_example_id)
     )
-    dataset_name: Optional[str] = await session.scalar(
-        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-    )
-    if not dataset_name:
-        raise ValueError("Dataset does not exist.")
-    examples = [r async for r in await session.stream_scalars(stmt)]
-    return dataset_name, examples
+    return [r async for r in await session.stream_scalars(stmt)]
 
 
 def _is_all_dict(seq: Sequence[Any]) -> bool:
