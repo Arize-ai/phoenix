@@ -3,7 +3,7 @@ title: "Overview"
 description: "Bundled docs for @arizeai/phoenix-client"
 ---
 
-`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. The package is organized around a small root client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
 
 ## Install
 
@@ -11,19 +11,23 @@ description: "Bundled docs for @arizeai/phoenix-client"
 npm install @arizeai/phoenix-client
 ```
 
-## Local Package Docs
+## Docs, Examples, And Source In `node_modules`
 
-After install, the same docs in this section are available inside your project:
+After install, a coding agent can inspect the installed package directly:
 
 ```text
 node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/docs/examples/
 node_modules/@arizeai/phoenix-client/src/
 ```
 
-The bundled `docs/` folder uses a flat layout:
+That gives you version-matched docs, runnable examples, and the exact implementation that shipped with the current project. No network access is required.
+
+The bundled docs keep the authored pages flat and mirror real examples under `docs/examples/`:
 
 ```text
 overview.mdx
+examples.mdx
 configuration.mdx
 traces.mdx
 spans.mdx
@@ -35,7 +39,15 @@ experiments.mdx
 api-client.mdx
 ```
 
-## Package Map
+## Best Starting Files
+
+- `docs/configuration.mdx` for client setup and environment variables
+- `docs/examples/list_datasets.ts` for raw typed REST access
+- `docs/examples/create_prompt_openai.ts` and `docs/examples/apply_prompt_vercel.ts` for prompt workflows
+- `docs/examples/run_experiment.ts` and `docs/examples/run_experiment_with_evals.ts` for experiments
+- `docs/examples/get_spans.ts`, `docs/examples/get_traces.ts`, and `docs/examples/get_session_turns.ts` for retrieval workflows
+
+## Module Map
 
 - Root export: `createClient`, generated OpenAPI types, and config helpers
 - `@arizeai/phoenix-client/prompts`: prompt CRUD plus `toSDK`
@@ -57,10 +69,3 @@ src/sessions/
 src/traces/
 src/types/
 ```
-
-## Common Starting Points
-
-- Read `configuration.mdx` before wiring credentials or headers
-- Read `api-client.mdx` if you want raw typed REST access
-- Read `prompts.mdx`, `datasets.mdx`, or `experiments.mdx` if you are using high-level SDK helpers
-- Read `traces.mdx`, `spans.mdx`, `annotations.mdx`, or `sessions.mdx` for retrieval and feedback workflows

@@ -5,6 +5,12 @@ description: "Use the raw typed API client in @arizeai/phoenix-client"
 
 `createClient()` returns an `openapi-fetch` client that is typed against Phoenix's generated OpenAPI schema. Use this layer when you need an endpoint that does not yet have a high-level helper.
 
+## Start With These Installed Files
+
+- `docs/examples/list_datasets.ts` for a minimal raw `GET()` flow with generated types
+- `docs/examples/delete_experiment_project.ts` for a more involved raw REST workflow
+- `src/client.ts` for `Types`, `pathsV1`, `componentsV1`, and `operationsV1`
+
 ## Basic Usage
 
 ```ts
@@ -31,6 +37,7 @@ The root export exposes generated API types:
 - `componentsV1`
 - `operationsV1`
 - `Types`
+- `PhoenixClient`
 
 ## When To Prefer This Layer
 

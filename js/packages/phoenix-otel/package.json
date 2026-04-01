@@ -19,6 +19,9 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
     "docs",
@@ -38,6 +41,7 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-otel",
     "prebuild": "pnpm run clean",
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-otel",
     "test": "vitest run",

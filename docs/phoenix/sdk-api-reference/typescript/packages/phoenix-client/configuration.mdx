@@ -3,7 +3,7 @@ title: "Configuration"
 description: "Configure @arizeai/phoenix-client"
 ---
 
-The Phoenix client reads defaults from the environment and lets explicit options override them.
+`createClient()` reads defaults from the environment and lets explicit options override them.
 
 ## Environment Variables
 
@@ -18,7 +18,7 @@ import { createClient } from "@arizeai/phoenix-client";
 
 const client = createClient({
   options: {
-    baseUrl: "https://app.phoenix.arize.com",
+    baseUrl: "http://localhost:6006",
     headers: {
       Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
       "x-team": "agents",
@@ -36,6 +36,13 @@ library defaults < environment variables < explicit options
 ```
 
 Headers are replaced by explicit options rather than deep-merged.
+
+## Start With These Installed Files
+
+- `docs/examples/list_datasets.ts` for a minimal `createClient()` plus raw `GET()` flow
+- `docs/examples/get_spans.ts` for a high-level helper using an explicit client
+- `src/client.ts` for the exact option-merging behavior
+- `src/config.ts` for environment-variable resolution
 
 ## Server Compatibility
 

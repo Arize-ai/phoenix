@@ -22,6 +22,9 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
     "docs",
@@ -74,6 +77,7 @@
     "clean": "rimraf dist",
     "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-client",
     "prebuild": "pnpm run clean && pnpm run generate",
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",

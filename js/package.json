@@ -27,11 +27,11 @@
     "clean:node_modules": "rimraf --glob '**/node_modules/**'",
     "docs:generate": "typedoc",
     "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
-    "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
     "test": "pnpm run -r test",
     "typecheck": "pnpm run -r typecheck"
   },

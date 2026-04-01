@@ -37,7 +37,15 @@ docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/
 docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/
 ```
 
-The published npm docs are synced copies:
+The package examples remain in the package source trees:
+
+```text
+js/packages/phoenix-client/examples/
+js/packages/phoenix-evals/examples/
+js/packages/phoenix-otel/examples/
+```
+
+The published npm docs are staged copies:
 
 ```text
 js/packages/phoenix-client/docs/
@@ -46,6 +54,7 @@ js/packages/phoenix-otel/docs/
 ```
 
 Do not hand-edit `js/packages/*/docs/`. Treat those folders as generated publish artifacts.
+Ground doc examples in the real package `examples/` directories and let the sync script mirror them into `docs/examples/`.
 
 ## Current Packaging Flow
 
@@ -64,8 +73,10 @@ These files define the bundled-docs workflow:
 Each supported package must have:
 
 - a canonical Mintlify package-doc folder
+- example files under `js/packages/<pkg>/examples/`
 - a `docs` entry in `files`
 - a `prepack` hook that runs the sync script for that package
+- a `postpack` hook that removes staged package docs
 - visible navigation in `docs.json`
 
 ## Authoring Rules
@@ -77,6 +88,7 @@ Always ground docs in the actual exported surface:
 - root exports: `js/packages/<pkg>/src/index.ts`
 - submodule exports: `js/packages/<pkg>/src/<module>/index.ts`
 - implementation and parameter shapes: matching files in `src/**`
+- real usage patterns: `js/packages/<pkg>/examples/**`
 
 Do not infer argument names or object shapes from older docs. Confirm them from code first.
 
@@ -103,9 +115,10 @@ Inside each package `docs/` folder, prefer a flat page layout such as:
 overview.mdx
 configuration.mdx
 experiments.mdx
+examples/
 ```
 
-Do not create nested package-doc trees unless there is a strong reason and the sync/nav flow is updated to match.
+Top-level authored MDX pages should stay flat. A `docs/examples/` subdirectory is allowed for mirrored runnable source examples.
 
 ### 4. Keep website docs and packaged docs aligned
 
@@ -163,6 +176,17 @@ node js/scripts/sync-package-docs.mjs phoenix-evals
 node js/scripts/sync-package-docs.mjs phoenix-otel
 ```
 
+This stages:
+
+- canonical MDX pages into `js/packages/<pkg>/docs/`
+- package example files into `js/packages/<pkg>/docs/examples/`
+
+To remove staged docs manually:
+
+```bash
+node js/scripts/sync-package-docs.mjs clean phoenix-client
+```
+
 ### Step 4: Verify the npm artifact
 
 From each affected package:
@@ -176,6 +200,7 @@ cd js/packages/phoenix-otel && npm pack --dry-run
 Confirm the tarball includes:
 
 - `docs/*.mdx`
+- `docs/examples/*`
 - `src/**`
 
 ### Step 5: Check for nav and path regressions
@@ -203,6 +228,7 @@ Required package manifest changes:
 ## Validation Checklist
 
 - [ ] Examples match actual exported argument shapes
+- [ ] Installed example paths under `docs/examples/` are present and useful
 - [ ] Canonical docs were edited instead of generated package docs
 - [ ] `node js/scripts/sync-package-docs.mjs` succeeds
 - [ ] `npm pack --dry-run` includes `docs/*.mdx`

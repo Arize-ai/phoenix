@@ -3,7 +3,13 @@ title: "Traces"
 description: "Retrieve traces with @arizeai/phoenix-client"
 ---
 
-Use `getTraces` to page through traces in a Phoenix project with time filters, cursor pagination, and optional inline spans.
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+
+## Start With These Installed Files
+
+- `docs/examples/get_traces.ts` for the common listing flow
+- `docs/examples/get_session_turns.ts` for a session-oriented trace workflow
+- `src/traces/getTraces.ts` for the exact query shape and server requirement
 
 ## Example
 
@@ -42,6 +48,7 @@ console.log(result.nextCursor);
 - `getTraces` requires a Phoenix server that supports project trace listing
 - Use the returned `nextCursor` to continue pagination
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
+- `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
 
 ## Source Map
 

@@ -19,6 +19,9 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
     "docs",
@@ -60,6 +63,7 @@
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-evals",
     "prebuild": "pnpm run clean",
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-evals",
     "test": "vitest run",

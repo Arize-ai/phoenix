@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 
 /* eslint-disable no-console */
-import { bindEvaluator, createHallucinationEvaluator } from "../src";
+import { bindEvaluator, createFaithfulnessEvaluator } from "../src";
 
 const model = openai("gpt-4o-mini");
 
@@ -26,7 +26,7 @@ const examples: ExampleType[] = [
 ];
 async function main() {
   const evaluator = bindEvaluator<ExampleType>(
-    createHallucinationEvaluator({
+    createFaithfulnessEvaluator({
       model,
     }),
     {

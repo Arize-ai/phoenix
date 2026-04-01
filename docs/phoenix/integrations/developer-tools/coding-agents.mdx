@@ -5,6 +5,28 @@ description: Integrate Phoenix with AI coding assistants using CLI, MCP, and ski
 
 Use this guide to connect coding agents (Claude Code, Cursor, VS Code, Windsurf, and others) to Phoenix for debugging, observability, and evaluation workflows.
 
+## Local Docs In `node_modules`
+
+Phoenix's TypeScript packages follow the same local-install pattern used by the AI SDK: once installed, coding agents can inspect version-matched docs, examples, and source code directly under `node_modules`, without relying on the public website.
+
+Common paths:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/docs/examples/
+node_modules/@arizeai/phoenix-client/src/
+
+node_modules/@arizeai/phoenix-evals/docs/
+node_modules/@arizeai/phoenix-evals/docs/examples/
+node_modules/@arizeai/phoenix-evals/src/
+
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/docs/examples/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+Use those local files when you want the exact API surface, example code, and docs for the version that is actually installed in the project.
+
 ## Recommended Setup
 
 Most users should set up all three:

@@ -5,13 +5,20 @@ description: "Work with sessions in @arizeai/phoenix-client"
 
 The sessions module groups multi-turn activity under a project and supports retrieval, annotations, and cleanup.
 
+## Start With These Installed Files
+
+- `docs/examples/get_session_turns.ts` for ordered root-span inputs and outputs
+- `docs/examples/add_session_annotation.ts` for single and batched annotations
+- `src/sessions/listSessions.ts` for the exact project selector shape
+- `src/sessions/getSessionTurns.ts` for how turns are derived from root spans
+
 ## List Sessions
 
 ```ts
 import { listSessions } from "@arizeai/phoenix-client/sessions";
 
 const sessions = await listSessions({
-  project: "support-bot",
+  projectName: "support-bot",
 });
 
 for (const session of sessions) {
@@ -35,6 +42,8 @@ const turns = await getSessionTurns({
   sessionId: "cst_123",
 });
 ```
+
+`getSession()` and `getSessionTurns()` only need `sessionId`. They do not take a `project` selector.
 
 ## Annotate Sessions
 

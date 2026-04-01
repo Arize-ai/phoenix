@@ -5,6 +5,14 @@ description: "Run experiments with @arizeai/phoenix-client"
 
 The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and supports follow-up lifecycle operations.
 
+## Start With These Installed Files
+
+- `docs/examples/run_experiment.ts` for the smallest supported experiment flow
+- `docs/examples/run_experiment_with_evals.ts` for `phoenix-client` plus `phoenix-evals`
+- `docs/examples/resume_experiment.ts` for retrying failed or missing task runs
+- `docs/examples/resume_evaluation.ts` for adding evaluators after an experiment already exists
+- `src/experiments/helpers/asExperimentEvaluator.ts` for the canonical evaluator wrapper
+
 ## Run An Experiment
 
 ```ts
@@ -43,7 +51,7 @@ Use these exports for follow-up workflows:
 
 ## Tracing Behavior
 
-`runExperiment` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment.
+`runExperiment` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment. This is why examples that call the AI SDK inside a task can still produce spans in Phoenix when global tracing is enabled.
 
 ## Source Map
 
