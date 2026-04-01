@@ -5,7 +5,7 @@
 
 ### Features
 
-* add Python 3.14 support (except Windows) ([#12475](https://github.com/Arize-ai/phoenix/issues/12475)) ([50c08e3](https://github.com/Arize-ai/phoenix/commit/50c08e3ff4e41c0693e92b7d3de7dbc41384fad1))
+* add Python 3.14 support ([#12475](https://github.com/Arize-ai/phoenix/issues/12475)) ([50c08e3](https://github.com/Arize-ai/phoenix/commit/50c08e3ff4e41c0693e92b7d3de7dbc41384fad1))
 
 ## [2.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.11.0...arize-phoenix-evals-v2.12.0) (2026-03-24)
 
