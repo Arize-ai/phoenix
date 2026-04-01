@@ -1,0 +1,44 @@
+---
+title: "Register"
+description: "Register a Phoenix tracer provider"
+---
+
+`register()` is the package entrypoint most applications start with. It creates a `NodeTracerProvider`, configures an OTLP exporter for Phoenix, and optionally attaches the provider globally.
+
+## Minimal Setup
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+});
+```
+
+## Explicit Global Attachment
+
+If you already created a provider and want to manage the global lifecycle yourself, use `attachGlobalTracerProvider()` and `detachGlobalTracerProvider()`.
+
+```ts
+import {
+  attachGlobalTracerProvider,
+  detachGlobalTracerProvider,
+  register,
+} from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  global: false,
+});
+
+const registration = attachGlobalTracerProvider(provider);
+registration.detach();
+detachGlobalTracerProvider();
+```
+
+## Source Map
+
+```text
+src/register.ts
+src/createNoOpProvider.ts
+```

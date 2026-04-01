@@ -1,0 +1,43 @@
+---
+title: "Built-In Metrics"
+description: "Built-in evaluator factories in @arizeai/phoenix-evals"
+---
+
+`@arizeai/phoenix-evals` ships ready-to-use LLM evaluator factories for common evaluation tasks.
+
+## Current Built-Ins
+
+- `createConcisenessEvaluator`
+- `createCorrectnessEvaluator`
+- `createDocumentRelevanceEvaluator`
+- `createFaithfulnessEvaluator`
+- `createRefusalEvaluator`
+- `createToolSelectionEvaluator`
+- `createToolInvocationEvaluator`
+- `createToolResponseHandlingEvaluator`
+
+## Legacy Alias
+
+`createHallucinationEvaluator` is still exported, but the code marks it as deprecated in favor of `createFaithfulnessEvaluator`.
+
+## Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import {
+  createCorrectnessEvaluator,
+  createRefusalEvaluator,
+} from "@arizeai/phoenix-evals";
+
+const model = openai("gpt-4o-mini");
+
+const correctness = createCorrectnessEvaluator({ model });
+const refusal = createRefusalEvaluator({ model });
+```
+
+## Source Map
+
+```text
+src/llm/
+src/types/evals.ts
+```

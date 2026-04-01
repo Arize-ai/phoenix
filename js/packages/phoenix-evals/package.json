@@ -21,6 +21,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -60,6 +61,7 @@
     "docs:preview": "pnpx http-server ./docs -p 8080 -o",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-evals",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

@@ -1,0 +1,51 @@
+---
+title: "Traces"
+description: "Retrieve traces with @arizeai/phoenix-client"
+---
+
+Use `getTraces` to page through traces in a Phoenix project with time filters, cursor pagination, and optional inline spans.
+
+## Example
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await getTraces({
+  project: { projectName: "support-bot" },
+  startTime: new Date("2026-03-01T00:00:00Z"),
+  endTime: new Date("2026-03-02T00:00:00Z"),
+  includeSpans: true,
+  limit: 50,
+});
+
+for (const trace of result.traces) {
+  console.log(trace.trace_id);
+}
+
+console.log(result.nextCursor);
+```
+
+## Supported Filters
+
+- `project`
+- `startTime`
+- `endTime`
+- `sort`
+- `order`
+- `limit`
+- `cursor`
+- `includeSpans`
+- `sessionId`
+
+## Notes
+
+- `getTraces` requires a Phoenix server that supports project trace listing
+- Use the returned `nextCursor` to continue pagination
+- Set `includeSpans` when you need a trace-centric fetch that also contains span details
+
+## Source Map
+
+```text
+src/traces/getTraces.ts
+src/types/projects.ts
+```

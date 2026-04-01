@@ -1,0 +1,56 @@
+---
+title: "Configuration"
+description: "Configure @arizeai/phoenix-client"
+---
+
+The Phoenix client reads defaults from the environment and lets explicit options override them.
+
+## Environment Variables
+
+- `PHOENIX_HOST`: base Phoenix URL, for example `http://localhost:6006`
+- `PHOENIX_API_KEY`: bearer token for authenticated environments
+- `PHOENIX_CLIENT_HEADERS`: JSON object of extra headers to send on every request
+
+## Create A Client
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient({
+  options: {
+    baseUrl: "https://app.phoenix.arize.com",
+    headers: {
+      Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+      "x-team": "agents",
+    },
+  },
+});
+```
+
+## Merge Rules
+
+Configuration is resolved in this order:
+
+```text
+library defaults < environment variables < explicit options
+```
+
+Headers are replaced by explicit options rather than deep-merged.
+
+## Server Compatibility
+
+The root client exposes `getServerVersion()` and several helpers in this package enforce minimum server requirements before calling newer routes.
+
+```ts
+const version = await client.getServerVersion();
+console.log(version);
+```
+
+## Source Map
+
+```text
+src/client.ts
+src/config.ts
+src/constants/serverRequirements.ts
+src/utils/serverVersionUtils.ts
+```

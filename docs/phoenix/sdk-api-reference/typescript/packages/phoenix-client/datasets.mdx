@@ -1,0 +1,64 @@
+---
+title: "Datasets"
+description: "Create and inspect datasets with @arizeai/phoenix-client"
+---
+
+Datasets are the foundation for experiment runs. The dataset helpers cover creation, idempotent creation, record inspection, and example appends.
+
+## Create A Dataset
+
+```ts
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+const { datasetId } = await createDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [
+    {
+      input: { question: "Where is my order?" },
+      output: { answer: "Use the tracking page in your account." },
+      metadata: { channel: "chat" },
+    },
+  ],
+});
+```
+
+## Reuse Or Append
+
+```ts
+import {
+  appendDatasetExamples,
+  createOrGetDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = await createOrGetDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [],
+});
+
+await appendDatasetExamples({
+  dataset: { datasetId: dataset.datasetId },
+  examples: [
+    {
+      input: { question: "How do I reset my password?" },
+      output: { answer: "Use the forgot password flow." },
+    },
+  ],
+});
+```
+
+## Read Back Dataset State
+
+Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets after creation.
+
+## Source Map
+
+```text
+src/datasets/createDataset.ts
+src/datasets/createOrGetDataset.ts
+src/datasets/appendDatasetExamples.ts
+src/datasets/getDataset.ts
+src/datasets/getDatasetExamples.ts
+src/datasets/getDatasetInfo.ts
+```

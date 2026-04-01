@@ -1,0 +1,56 @@
+---
+title: "Experiments"
+description: "Run experiments with @arizeai/phoenix-client"
+---
+
+The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and supports follow-up lifecycle operations.
+
+## Run An Experiment
+
+```ts
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
+
+const experiment = await runExperiment({
+  dataset: { datasetName: "support-eval" },
+  task: async ({ question }) => {
+    return `Draft answer for: ${question}`;
+  },
+  evaluators: [
+    asExperimentEvaluator({
+      name: "contains-answer",
+      kind: "CODE",
+      evaluate: async ({ output }) => ({
+        score: output.includes("answer") ? 1 : 0,
+      }),
+    }),
+  ],
+});
+```
+
+## Lifecycle Helpers
+
+Use these exports for follow-up workflows:
+
+- `createExperiment`
+- `getExperiment`
+- `getExperimentInfo`
+- `getExperimentRuns`
+- `listExperiments`
+- `resumeExperiment`
+- `resumeEvaluation`
+- `deleteExperiment`
+
+## Tracing Behavior
+
+`runExperiment` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment.
+
+## Source Map
+
+```text
+src/experiments/runExperiment.ts
+src/experiments/createExperiment.ts
+src/experiments/getExperiment.ts
+src/experiments/getExperimentRuns.ts
+src/experiments/helpers/asExperimentEvaluator.ts
+```

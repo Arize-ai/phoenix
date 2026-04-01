@@ -1,0 +1,54 @@
+---
+title: "Overview"
+description: "Bundled docs for @arizeai/phoenix-evals"
+---
+
+`@arizeai/phoenix-evals` provides evaluator building blocks for TypeScript workflows. It includes LLM-based evaluators, code-based evaluators, prompt templating helpers, and compatibility points for Phoenix experiments.
+
+## Install
+
+```bash
+npm install @arizeai/phoenix-evals
+```
+
+## Local Package Docs
+
+After install, these docs and the package source are available locally:
+
+```text
+node_modules/@arizeai/phoenix-evals/docs/
+node_modules/@arizeai/phoenix-evals/src/
+```
+
+The bundled `docs/` folder uses a flat layout:
+
+```text
+overview.mdx
+installation.mdx
+create-evaluator.mdx
+llm-evaluators.mdx
+code-evaluators.mdx
+built-in-metrics.mdx
+templates.mdx
+classification.mdx
+phoenix-integration.mdx
+```
+
+## Module Map
+
+- Root export: all supported helper modules
+- `@arizeai/phoenix-evals/llm`: classification and built-in LLM evaluators
+- `@arizeai/phoenix-evals/template`: prompt templating helpers
+- `@arizeai/phoenix-evals/helpers`: evaluator construction helpers
+- `@arizeai/phoenix-evals/types`: shared evaluator types
+
+## Source Map
+
+```text
+src/index.ts
+src/llm/
+src/helpers/
+src/template/
+src/core/
+src/types/
+```

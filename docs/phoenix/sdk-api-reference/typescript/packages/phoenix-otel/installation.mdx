@@ -1,0 +1,34 @@
+---
+title: "Installation"
+description: "Install @arizeai/phoenix-otel"
+---
+
+Install the package and any OpenTelemetry instrumentations you want to use with it.
+
+## Base Install
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+## Add Instrumentations
+
+```bash
+npm install \
+  @arizeai/phoenix-otel \
+  @opentelemetry/instrumentation-http \
+  @opentelemetry/instrumentation-express
+```
+
+## Typical Pairings
+
+- `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations
+- `@arizeai/phoenix-otel` plus `@arizeai/phoenix-client` for experiment workflows
+- `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors
+
+## Source Map
+
+```text
+package.json
+src/register.ts
+```

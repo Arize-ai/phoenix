@@ -1,0 +1,43 @@
+---
+title: "Projects And Auth"
+description: "Project names, endpoints, and auth in @arizeai/phoenix-otel"
+---
+
+Two settings determine where spans land and how they authenticate:
+
+- `projectName` controls which Phoenix project receives the spans
+- `url`, `apiKey`, and `headers` control how the exporter connects to Phoenix
+
+## Cloud Example
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+
+register({
+  projectName: "support-bot",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+});
+```
+
+## Local Development Example
+
+```ts
+register({
+  projectName: "support-bot-dev",
+  url: "http://localhost:6006",
+  batch: false,
+});
+```
+
+## Utility Helper
+
+Use `objectAsAttributes()` to convert JSON-like objects into OpenTelemetry attribute maps before attaching them to spans.
+
+## Source Map
+
+```text
+src/register.ts
+src/utils.ts
+src/config.ts
+```

@@ -1,0 +1,43 @@
+---
+title: "Templates"
+description: "Template helpers in @arizeai/phoenix-evals"
+---
+
+The template helpers make it easier to manage Mustache-style prompt templates separately from evaluator execution.
+
+## Render A Template
+
+```ts
+import { formatTemplate } from "@arizeai/phoenix-evals";
+
+const prompt = formatTemplate({
+  template: [
+    {
+      role: "user",
+      content: "Rate the answer to {{question}}",
+    },
+  ],
+  variables: {
+    question: "What is retrieval-augmented generation?",
+  },
+});
+```
+
+## Discover Variables
+
+```ts
+import { getTemplateVariables } from "@arizeai/phoenix-evals";
+
+const variables = getTemplateVariables({
+  template: "Answer {{question}} using {{context}}",
+});
+```
+
+## Source Map
+
+```text
+src/template/applyTemplate.ts
+src/template/getTemplateVariables.ts
+src/template/createTemplateVariablesProxy.ts
+src/types/templating.ts
+```

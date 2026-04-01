@@ -1,0 +1,51 @@
+---
+title: "Overview"
+description: "Bundled docs for @arizeai/phoenix-otel"
+---
+
+`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It wraps provider setup, span export, instrumentation registration, and a few convenience utilities for Phoenix-specific tracing workflows.
+
+## Install
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+## Local Package Docs
+
+After install, the same docs in this section are available locally:
+
+```text
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+The bundled `docs/` folder uses a flat layout:
+
+```text
+overview.mdx
+installation.mdx
+configuration.mdx
+register.mdx
+instrumentation.mdx
+manual-spans.mdx
+projects-and-auth.mdx
+troubleshooting.mdx
+```
+
+## Module Map
+
+- root export: `register`, OpenTelemetry re-exports, and utility helpers
+- `register.ts`: provider setup plus attach and detach helpers
+- `config.ts`: environment-variable lookup
+- `utils.ts`: attribute helpers
+
+## Source Map
+
+```text
+src/index.ts
+src/register.ts
+src/config.ts
+src/utils.ts
+src/createNoOpProvider.ts
+```

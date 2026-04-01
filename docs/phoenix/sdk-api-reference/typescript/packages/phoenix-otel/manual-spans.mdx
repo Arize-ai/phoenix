@@ -1,0 +1,40 @@
+---
+title: "Manual Spans"
+description: "Create manual spans with @arizeai/phoenix-otel"
+---
+
+The package re-exports `trace`, `context`, and `SpanStatusCode` from OpenTelemetry so you can create custom spans after registration without pulling them from another package.
+
+## Example
+
+```ts
+import {
+  SpanStatusCode,
+  register,
+  trace,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const tracer = trace.getTracer("support-bot");
+
+await tracer.startActiveSpan("lookup-customer", async (span) => {
+  try {
+    span.setAttribute("customer.id", "cust_123");
+    await Promise.resolve();
+  } catch (error) {
+    span.recordException(error as Error);
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    throw error;
+  } finally {
+    span.end();
+  }
+});
+```
+
+## Source Map
+
+```text
+src/index.ts
+src/register.ts
+```

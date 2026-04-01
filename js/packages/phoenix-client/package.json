@@ -24,6 +24,7 @@
   },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -74,6 +75,7 @@
     "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
     "prebuild": "pnpm run clean && pnpm run generate",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

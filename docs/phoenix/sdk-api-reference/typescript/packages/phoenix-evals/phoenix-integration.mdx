@@ -1,0 +1,51 @@
+---
+title: "Phoenix Integration"
+description: "Use @arizeai/phoenix-evals with Phoenix experiments"
+---
+
+`@arizeai/phoenix-evals` works well with `@arizeai/phoenix-client` experiments when you want to log evaluator results back into Phoenix.
+
+## Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+
+const faithfulness = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+await runExperiment({
+  dataset: { datasetName: "support-eval" },
+  task: async ({ question }) => `Answer for ${question}`,
+  evaluators: [
+    asExperimentEvaluator({
+      name: "faithfulness",
+      kind: "LLM",
+      evaluate: async ({ input, output }) =>
+        faithfulness.evaluate({
+          input: input.question,
+          context: input.context,
+          output,
+        }),
+    }),
+  ],
+});
+```
+
+## Why Use Both Packages
+
+- `@arizeai/phoenix-evals` builds evaluator logic
+- `@arizeai/phoenix-client` handles experiment execution and persistence
+- combined usage produces evaluator traces and experiment results in Phoenix
+
+## Source Map
+
+```text
+src/
+companion package: @arizeai/phoenix-client/experiments
+```

@@ -1,0 +1,60 @@
+---
+title: "Spans"
+description: "Search and manage spans with @arizeai/phoenix-client"
+---
+
+Use the spans module to search project spans and perform span-level maintenance such as deleting spans or adding notes.
+
+## Search Spans
+
+```ts
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await getSpans({
+  project: { projectName: "support-bot" },
+  limit: 100,
+  spanKind: ["LLM", "TOOL"],
+  statusCode: "ERROR",
+});
+
+for (const span of result.spans) {
+  console.log(span.name, span.context.trace_id);
+}
+```
+
+## Root Span Queries
+
+Use `parentId: null` to limit results to root spans only.
+
+```ts
+const rootSpans = await getSpans({
+  project: { projectName: "support-bot" },
+  parentId: null,
+});
+```
+
+## Span Maintenance
+
+```ts
+import { addSpanNote, deleteSpan } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  spanNote: {
+    spanId: "abc123def456",
+    note: "Escalated due to failed retrieval",
+  },
+});
+
+await deleteSpan({
+  spanIdentifier: "abc123def456",
+});
+```
+
+## Source Map
+
+```text
+src/spans/getSpans.ts
+src/spans/addSpanNote.ts
+src/spans/deleteSpan.ts
+src/types/spans.ts
+```

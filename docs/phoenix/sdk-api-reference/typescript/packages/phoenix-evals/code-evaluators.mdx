@@ -1,0 +1,42 @@
+---
+title: "Code Evaluators"
+description: "Implement code-based evaluators in @arizeai/phoenix-evals"
+---
+
+Code evaluators are the right fit when the scoring logic should stay deterministic, cheap, and fully under your control.
+
+## Example
+
+```ts
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const lengthCheck = createEvaluator(
+  ({ output }) => {
+    const score = typeof output === "string" && output.length < 280 ? 1 : 0;
+    return {
+      score,
+      label: score ? "fits-limit" : "too-long",
+    };
+  },
+  {
+    name: "response-length",
+    kind: "CODE",
+  }
+);
+```
+
+## When To Use Code Evaluators
+
+- regex or exact-match checks
+- JSON structure validation
+- latency and cost thresholds
+- post-processing checks on existing model output
+
+## Source Map
+
+```text
+src/helpers/createEvaluator.ts
+src/core/EvaluatorBase.ts
+src/core/FunctionEvaluator.ts
+src/types/evals.ts
+```

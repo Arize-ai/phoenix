@@ -1,0 +1,46 @@
+---
+title: "Configuration"
+description: "Configure @arizeai/phoenix-otel"
+---
+
+`register()` accepts explicit options and also reads Phoenix configuration from environment variables.
+
+## Environment Variables
+
+- `PHOENIX_COLLECTOR_ENDPOINT`
+- `PHOENIX_API_KEY`
+
+## Register Parameters
+
+The main options on `RegisterParams` are:
+
+- `projectName`
+- `url`
+- `apiKey`
+- `headers`
+- `batch`
+- `instrumentations`
+- `spanProcessors`
+- `global`
+- `diagLogLevel`
+
+## Example
+
+```ts
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  batch: true,
+  diagLogLevel: DiagLogLevel.INFO,
+});
+```
+
+## Source Map
+
+```text
+src/register.ts
+src/config.ts
+```

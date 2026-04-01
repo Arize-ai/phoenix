@@ -1,0 +1,66 @@
+---
+title: "Overview"
+description: "Bundled docs for @arizeai/phoenix-client"
+---
+
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. The package is organized around a small root client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
+
+## Install
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+## Local Package Docs
+
+After install, the same docs in this section are available inside your project:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/src/
+```
+
+The bundled `docs/` folder uses a flat layout:
+
+```text
+overview.mdx
+configuration.mdx
+traces.mdx
+spans.mdx
+annotations.mdx
+sessions.mdx
+prompts.mdx
+datasets.mdx
+experiments.mdx
+api-client.mdx
+```
+
+## Package Map
+
+- Root export: `createClient`, generated OpenAPI types, and config helpers
+- `@arizeai/phoenix-client/prompts`: prompt CRUD plus `toSDK`
+- `@arizeai/phoenix-client/datasets`: dataset creation and retrieval helpers
+- `@arizeai/phoenix-client/experiments`: experiment execution and lifecycle helpers
+- `@arizeai/phoenix-client/spans`: span search, notes, and annotations
+- `@arizeai/phoenix-client/sessions`: session listing, retrieval, and annotations
+- `@arizeai/phoenix-client/traces`: project trace retrieval
+
+## Source Map
+
+```text
+src/client.ts
+src/prompts/
+src/datasets/
+src/experiments/
+src/spans/
+src/sessions/
+src/traces/
+src/types/
+```
+
+## Common Starting Points
+
+- Read `configuration.mdx` before wiring credentials or headers
+- Read `api-client.mdx` if you want raw typed REST access
+- Read `prompts.mdx`, `datasets.mdx`, or `experiments.mdx` if you are using high-level SDK helpers
+- Read `traces.mdx`, `spans.mdx`, `annotations.mdx`, or `sessions.mdx` for retrieval and feedback workflows

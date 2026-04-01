@@ -1,0 +1,68 @@
+---
+title: "Sessions"
+description: "Work with sessions in @arizeai/phoenix-client"
+---
+
+The sessions module groups multi-turn activity under a project and supports retrieval, annotations, and cleanup.
+
+## List Sessions
+
+```ts
+import { listSessions } from "@arizeai/phoenix-client/sessions";
+
+const sessions = await listSessions({
+  project: "support-bot",
+});
+
+for (const session of sessions) {
+  console.log(session.sessionId);
+}
+```
+
+## Retrieve A Session And Its Turns
+
+```ts
+import {
+  getSession,
+  getSessionTurns,
+} from "@arizeai/phoenix-client/sessions";
+
+const session = await getSession({
+  sessionId: "cst_123",
+});
+
+const turns = await getSessionTurns({
+  sessionId: "cst_123",
+});
+```
+
+## Annotate Sessions
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: "cst_123",
+    name: "handoff-required",
+    annotatorKind: "CODE",
+    score: 1,
+    label: "yes",
+  },
+});
+```
+
+## Cleanup
+
+Use `deleteSession` or `deleteSessions` when you need to remove session records by identifier.
+
+## Source Map
+
+```text
+src/sessions/listSessions.ts
+src/sessions/getSession.ts
+src/sessions/getSessionTurns.ts
+src/sessions/addSessionAnnotation.ts
+src/sessions/deleteSession.ts
+src/sessions/deleteSessions.ts
+```

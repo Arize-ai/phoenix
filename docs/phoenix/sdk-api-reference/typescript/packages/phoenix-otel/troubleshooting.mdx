@@ -1,0 +1,35 @@
+---
+title: "Troubleshooting"
+description: "Troubleshoot @arizeai/phoenix-otel setups"
+---
+
+When traces do not show up in Phoenix, the common issues are usually configuration or lifecycle related.
+
+## Checklist
+
+- confirm `projectName` is the project you are inspecting
+- confirm `url` or `PHOENIX_COLLECTOR_ENDPOINT` points at the collector
+- confirm `PHOENIX_API_KEY` is present for authenticated environments
+- confirm registration happens before the instrumented work starts
+- call `await provider.shutdown()` before process exit when using batched export
+
+## Enable Diagnostic Logging
+
+```ts
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  batch: false,
+  diagLogLevel: DiagLogLevel.DEBUG,
+});
+
+await provider.shutdown();
+```
+
+## Source Map
+
+```text
+src/register.ts
+src/config.ts
+```

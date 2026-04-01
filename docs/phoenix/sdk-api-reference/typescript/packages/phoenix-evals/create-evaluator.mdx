@@ -1,0 +1,49 @@
+---
+title: "Create Evaluator"
+description: "Build custom evaluators with @arizeai/phoenix-evals"
+---
+
+Use `createEvaluator` when your evaluation logic is plain TypeScript and you want a reusable evaluator object with consistent metadata and telemetry.
+
+## Example
+
+```ts
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const exactMatch = createEvaluator(
+  ({ output, expected }) => ({
+    score: output === expected ? 1 : 0,
+    label: output === expected ? "match" : "mismatch",
+  }),
+  {
+    name: "exact-match",
+    kind: "CODE",
+  }
+);
+
+const result = await exactMatch.evaluate({
+  output: "Paris",
+  expected: "Paris",
+});
+```
+
+## What You Get
+
+- an evaluator name
+- evaluator kind such as `CODE` or `LLM`
+- optimization direction metadata
+- optional OpenTelemetry spans around execution
+
+## Related Helpers
+
+- `asEvaluatorFn`
+- `toEvaluationResult`
+
+## Source Map
+
+```text
+src/helpers/createEvaluator.ts
+src/helpers/asEvaluatorFn.ts
+src/helpers/toEvaluationResult.ts
+src/core/FunctionEvaluator.ts
+```

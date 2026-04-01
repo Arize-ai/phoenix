@@ -1,0 +1,82 @@
+---
+title: "Annotations"
+description: "Log and retrieve annotations with @arizeai/phoenix-client"
+---
+
+The annotations helpers cover span-level feedback, document annotations attached to spans, and batched logging flows.
+
+## Log Span Annotations
+
+```ts
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+await logSpanAnnotations({
+  spanAnnotations: [
+    {
+      spanId: "abc123def456",
+      name: "helpfulness",
+      annotatorKind: "CODE",
+      score: 0.2,
+      label: "poor",
+    },
+  ],
+});
+```
+
+## Add A Single Span Annotation
+
+```ts
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "groundedness",
+    annotatorKind: "LLM",
+    score: 1,
+    label: "grounded",
+    explanation: "Answer stayed within retrieved context.",
+  },
+});
+```
+
+## Document Annotations
+
+```ts
+import { addDocumentAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addDocumentAnnotation({
+  documentAnnotation: {
+    spanId: "abc123def456",
+    documentPosition: 0,
+    name: "relevance",
+    annotatorKind: "CODE",
+    score: 1,
+    label: "relevant",
+  },
+});
+```
+
+## Read Back Existing Annotations
+
+```ts
+import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const result = await getSpanAnnotations({
+  project: { projectName: "support-bot" },
+  spanIds: ["abc123def456"],
+});
+
+console.log(result.annotations);
+```
+
+## Source Map
+
+```text
+src/spans/addSpanAnnotation.ts
+src/spans/logSpanAnnotations.ts
+src/spans/addDocumentAnnotation.ts
+src/spans/logDocumentAnnotations.ts
+src/spans/getSpanAnnotations.ts
+src/types/annotations.ts
+```

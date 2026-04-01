@@ -1,0 +1,47 @@
+---
+title: "API Client"
+description: "Use the raw typed API client in @arizeai/phoenix-client"
+---
+
+`createClient()` returns an `openapi-fetch` client that is typed against Phoenix's generated OpenAPI schema. Use this layer when you need an endpoint that does not yet have a high-level helper.
+
+## Basic Usage
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient();
+
+const datasets = await client.GET("/v1/datasets");
+
+const prompt = await client.GET("/v1/prompts/{prompt_identifier}/latest", {
+  params: {
+    path: {
+      prompt_identifier: "support-response",
+    },
+  },
+});
+```
+
+## Types
+
+The root export exposes generated API types:
+
+- `pathsV1`
+- `componentsV1`
+- `operationsV1`
+- `Types`
+
+## When To Prefer This Layer
+
+- you need a newly added endpoint before a helper exists
+- you want direct control over route, body, and query params
+- you are building thin wrappers around Phoenix routes in your own codebase
+
+## Source Map
+
+```text
+src/client.ts
+src/__generated__/api/v1.ts
+src/types/core.ts
+```

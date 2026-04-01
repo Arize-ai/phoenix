@@ -1,0 +1,44 @@
+---
+title: "LLM Evaluators"
+description: "Use LLM-backed evaluators in @arizeai/phoenix-evals"
+---
+
+The `llm` entrypoint provides reusable evaluator factories that call an AI SDK model and return structured evaluation results.
+
+## Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+
+const faithfulness = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await faithfulness.evaluate({
+  input: "What is the capital of France?",
+  context: "France is a country in Europe. Paris is its capital city.",
+  output: "The capital of France is Paris.",
+});
+```
+
+## Available Entry Points
+
+- `createClassificationEvaluator`
+- `createConcisenessEvaluator`
+- `createCorrectnessEvaluator`
+- `createDocumentRelevanceEvaluator`
+- `createFaithfulnessEvaluator`
+- `createRefusalEvaluator`
+- `createToolSelectionEvaluator`
+- `createToolInvocationEvaluator`
+- `createToolResponseHandlingEvaluator`
+
+## Source Map
+
+```text
+src/llm/createClassificationEvaluator.ts
+src/llm/ClassificationEvaluator.ts
+src/llm/LLMEvaluator.ts
+src/llm/createFaithfulnessEvaluator.ts
+```
