@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.1.0...arize-phoenix-client-v2.2.0) (2026-04-01)
+
+
+### Features
+
+* add GET /v1/user endpoint and phoenix-rest-api skill ([#12274](https://github.com/Arize-ai/phoenix/issues/12274)) ([b5188ea](https://github.com/Arize-ai/phoenix/commit/b5188ea92eeb76ed0155e999b8fa0fc00519f32c))
+* add Python 3.14 support (except Windows) ([#12475](https://github.com/Arize-ai/phoenix/issues/12475)) ([50c08e3](https://github.com/Arize-ai/phoenix/commit/50c08e3ff4e41c0693e92b7d3de7dbc41384fad1))
+* **client:** add get_traces method to Python and TypeScript clients ([#12245](https://github.com/Arize-ai/phoenix/issues/12245)) ([7d3f4ac](https://github.com/Arize-ai/phoenix/commit/7d3f4aca8d5bc3e6df3e5a4f69332fa8ffcc274d))
+* **server:** REST endpoint for secrets management ([#12429](https://github.com/Arize-ai/phoenix/issues/12429)) ([39f68cf](https://github.com/Arize-ai/phoenix/commit/39f68cf5449a5df04e4b8901975c01bbf76e93fc))
+
+
+### Documentation
+
+* **evals:** deprecate evals 1.0 docs ([#12123](https://github.com/Arize-ai/phoenix/issues/12123)) ([b0dc90f](https://github.com/Arize-ai/phoenix/commit/b0dc90f445a25ba74ddc86e0cc8bcdf721260344))
+* update all package READMEs with latest capabilities ([#12315](https://github.com/Arize-ai/phoenix/issues/12315)) ([b4ded15](https://github.com/Arize-ai/phoenix/commit/b4ded157987e0ce6fcbf749bf48225d9408313c2))
+* update package READMEs for recent features ([#12259](https://github.com/Arize-ai/phoenix/issues/12259)) ([d204898](https://github.com/Arize-ai/phoenix/commit/d204898cf63b48604e82403c1c6056fbb72fb860))
+
 ## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.1...arize-phoenix-client-v2.1.0) (2026-03-18)
 
 
