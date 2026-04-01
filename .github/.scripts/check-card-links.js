@@ -187,7 +187,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "Arconia returns 404 from actions, but is valid"];
   }
 
-  if (href === "https://openai.comi") {
+  if (href === "https://openai.com/") {
     return [true, "OpenAI returns 404 from actions, but is valid"];
   }
 
