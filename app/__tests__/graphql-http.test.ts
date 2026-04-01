@@ -1,16 +1,10 @@
-import {
-  consumeMultipartBody,
-  readMultipartBody,
-} from "@phoenix/graphql/http";
+import { consumeMultipartBody, readMultipartBody } from "@phoenix/graphql/http";
 
 /**
  * Create a Response with a ReadableStream body from a raw string, simulating
  * a multipart/mixed HTTP response.
  */
-function createMultipartResponse(
-  body: string,
-  boundary = "graphql"
-): Response {
+function createMultipartResponse(body: string, boundary = "graphql"): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
@@ -29,10 +23,7 @@ function createMultipartResponse(
  * Create a Response whose body is delivered one byte at a time, to test
  * that boundary detection works when boundaries span multiple chunks.
  */
-function createChunkedResponse(
-  body: string,
-  boundary = "graphql"
-): Response {
+function createChunkedResponse(body: string, boundary = "graphql"): Response {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(body);
   const stream = new ReadableStream({
@@ -100,8 +91,7 @@ describe("consumeMultipartBody", () => {
     });
     const response = new Response(stream, {
       headers: {
-        "Content-Type":
-          "multipart/mixed; boundary=graphql; deferSpec=20220824",
+        "Content-Type": "multipart/mixed; boundary=graphql; deferSpec=20220824",
       },
     });
 
@@ -221,8 +211,6 @@ describe("readMultipartBody", () => {
       "\r\n--graphql--\r\n";
 
     const response = createMultipartResponse(body);
-    await expect(
-      readMultipartBody(response, () => {})
-    ).rejects.toThrow();
+    await expect(readMultipartBody(response, () => {})).rejects.toThrow();
   });
 });
