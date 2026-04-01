@@ -136,9 +136,16 @@ describe("RelayEnvironment", () => {
     const { results, isCompleted } = execute();
 
     await vi.waitFor(() => expect(isCompleted()).toBe(true));
+    // readMultipartBody unwraps the `incremental` array into individual
+    // payloads with top-level `data`, `path`, and `label` for Relay.
     expect(results).toHaveLength(2);
     expect(results[0]).toEqual(initialPayload);
-    expect(results[1]).toEqual(incrementalPayload);
+    expect(results[1]).toEqual({
+      data: { name: "test" },
+      path: ["viewer"],
+      label: "Deferred",
+      hasNext: false,
+    });
   });
 
   it("sends the correct Accept header for defer support", async () => {

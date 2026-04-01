@@ -55,9 +55,8 @@ function fetchGraphQLObservable<T>(
         invariant(response instanceof Response, "response must be a Response");
         const contentType = response.headers.get("Content-Type");
         if (isMultipartMixed(contentType)) {
-          // For @defer/@stream multipart responses, use Apollo's multipart
-          // body parser — the same utility used by createFetchMultipartSubscription
-          // for subscriptions. Each parsed chunk is emitted to Relay individually.
+          // For @defer/@stream multipart responses, parse each part and
+          // emit it to Relay individually.
           await readMultipartBody<T & object>(response, sink.next.bind(sink));
         } else {
           // Standard single JSON response
