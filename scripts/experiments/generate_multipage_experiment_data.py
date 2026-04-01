@@ -4,9 +4,9 @@ import uuid
 from typing import Any
 
 import pandas as pd
+
 from phoenix.client import Client
 from phoenix.client.experiments import create_evaluator
-from phoenix.client.resources.experiments.types import ExampleInput
 
 phoenix_client = Client()
 
@@ -35,7 +35,7 @@ dataset = phoenix_client.datasets.create_dataset(
 )
 
 
-def dummy_task(input: ExampleInput) -> str:
+def dummy_task(input: dict[str, Any]) -> str:
     question = input["question"]
     time.sleep(random.uniform(0, 0.1))  # random latency
     return f"Dummy response to: {question}"
