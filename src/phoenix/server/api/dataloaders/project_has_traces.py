@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import distinct, select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -16,7 +16,7 @@ class ProjectHasTracesDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         pid = models.Trace.project_rowid
-        stmt = select(pid).where(pid.in_(keys)).group_by(pid)
+        stmt = select(distinct(pid)).where(pid.in_(keys))
         async with self._db() as session:
             result = set(await session.scalars(stmt))
         return [key in result for key in keys]
