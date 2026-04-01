@@ -1,11 +1,16 @@
 import { Icon, Icons } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import {
   AgnoSVG,
   AnthropicSVG,
+  AutogenSVG,
+  BasetenSVG,
   BedrockSVG,
   BeeAISVG,
   ClaudeSVG,
+  CloudflareSVG,
   CrewAISVG,
+  DifySVG,
   DSPYSVG,
   GeminiSVG,
   GoogleADKSVG,
@@ -19,9 +24,11 @@ import {
   MastraSVG,
   MistralAISVG,
   OpenAISVG,
+  OpenRouterSVG,
   PortkeySVG,
   PydanticAISVG,
   StrandsAgentsSVG,
+  TraceLoopSVG,
   VercelSVG,
   VertexAISVG,
 } from "@phoenix/components/project/IntegrationIcons";
@@ -585,7 +592,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "autogen",
     name: "AutoGen",
-    icon: <OpenAISVG />, // TODO: add icons
+    icon: <AutogenSVG />,
     configs: {
       Python: {
         docsHref: "https://arize.com/docs/phoenix/integrations/python/autogen",
@@ -597,7 +604,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "openrouter",
     name: "OpenRouter",
-    icon: <OpenAISVG />,
+    icon: <OpenRouterSVG />,
     configs: {
       Python: {
         packages: [
@@ -630,7 +637,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "cerebras",
     name: "Cerebras",
-    icon: <OpenAISVG />,
+    icon: <GenerativeProviderIcon provider="CEREBRAS" height={32} />,
     configs: {
       Python: {
         packages: [
@@ -663,7 +670,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "fireworks",
     name: "Fireworks",
-    icon: <OpenAISVG />,
+    icon: <GenerativeProviderIcon provider="FIREWORKS" height={32} />,
     configs: {
       Python: {
         packages: [
@@ -696,7 +703,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "perplexity",
     name: "Perplexity",
-    icon: <OpenAISVG />,
+    icon: <GenerativeProviderIcon provider="PERPLEXITY" height={32} />,
     configs: {
       Python: {
         packages: [
@@ -729,7 +736,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "together",
     name: "Together",
-    icon: <OpenAISVG />,
+    icon: <GenerativeProviderIcon provider="TOGETHER" height={32} />,
     configs: {
       Python: {
         packages: [
@@ -762,7 +769,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "xai",
     name: "xAI",
-    icon: <OpenAISVG />,
+    icon: <GenerativeProviderIcon provider="XAI" height={32} />,
     configs: {
       Python: {
         packages: [
@@ -795,7 +802,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "baseten",
     name: "Baseten",
-    icon: <OpenAISVG />,
+    icon: <BasetenSVG />,
     configs: {
       Python: {
         packages: [
@@ -828,7 +835,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "cloudflare",
     name: "Cloudflare",
-    icon: <OpenAISVG />,
+    icon: <CloudflareSVG />,
     configs: {
       Python: {
         packages: [
@@ -861,7 +868,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "dify",
     name: "Dify",
-    icon: <OpenAISVG />,
+    icon: <DifySVG />,
     configs: {
       Python: {
         docsHref:
@@ -878,7 +885,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   {
     id: "openllmetry",
     name: "OpenLLMetry",
-    icon: <OpenAISVG />,
+    icon: <TraceLoopSVG />,
     configs: {
       Python: {
         packages: [

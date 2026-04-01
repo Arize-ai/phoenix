@@ -98,7 +98,7 @@ const DeepSeekSVG = ({ height }: { height: number }) => (
 
 const XAISVG = ({ height }: { height: number }) => (
   <svg
-    fill="var(--global-text-color-900)"
+    fill="currentColor"
     fillRule="evenodd"
     viewBox="0 0 24 24"
     width={height}
