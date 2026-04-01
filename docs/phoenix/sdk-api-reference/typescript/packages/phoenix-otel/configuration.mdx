@@ -3,7 +3,7 @@ title: "Configuration"
 description: "Configure @arizeai/phoenix-otel"
 ---
 
-`register()` accepts explicit options and also reads Phoenix configuration from environment variables.
+`register()` can use explicit options, environment variables, or both. If you pass a Phoenix base URL, the package normalizes it to the OTLP collector endpoint at `/v1/traces`.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -13,26 +13,22 @@ description: "Configure @arizeai/phoenix-otel"
   </ul>
 </section>
 
-## Environment Variables
+## Environment-Driven Setup
 
-- `PHOENIX_COLLECTOR_ENDPOINT`
-- `PHOENIX_API_KEY`
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=phx_your_api_key
+```
 
-## Register Parameters
+```ts
+import { register } from "@arizeai/phoenix-otel";
 
-The main options on `RegisterParams` are:
+const provider = register({
+  projectName: "support-bot",
+});
+```
 
-- `projectName`
-- `url`
-- `apiKey`
-- `headers`
-- `batch`
-- `instrumentations`
-- `spanProcessors`
-- `global`
-- `diagLogLevel`
-
-## Example
+## Explicit Setup
 
 ```ts
 import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
@@ -41,10 +37,34 @@ const provider = register({
   projectName: "support-bot",
   url: "https://app.phoenix.arize.com",
   apiKey: process.env.PHOENIX_API_KEY,
+  headers: {
+    "x-team": "agents",
+  },
   batch: true,
   diagLogLevel: DiagLogLevel.INFO,
 });
 ```
+
+## Key Options
+
+| Option | Description |
+|--------|-------------|
+| `projectName` | Phoenix project name attached to exported spans. Defaults to `default`. |
+| `url` | Phoenix base URL or full collector endpoint. The package appends `/v1/traces` when needed. |
+| `apiKey` | API key sent as a bearer token. Falls back to `PHOENIX_API_KEY`. |
+| `headers` | Additional OTLP headers merged with the auth header. |
+| `batch` | `true` for batched export, `false` for immediate export during debugging. |
+| `instrumentations` | OpenTelemetry instrumentations to register with the provider. |
+| `spanProcessors` | Custom span processors. When provided, these replace the default Phoenix exporter setup. |
+| `global` | Whether to attach the provider to the global OpenTelemetry APIs automatically. |
+| `diagLogLevel` | OpenTelemetry diagnostic logging level. |
+
+## Environment Variables
+
+| Variable | Use |
+|--------|-----|
+| `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
+| `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

@@ -3,15 +3,17 @@ title: "Configuration"
 description: "Configure @arizeai/phoenix-client"
 ---
 
-`createClient()` reads defaults from the environment and lets explicit options override them.
+`createClient()` resolves Phoenix client options in this order: library defaults, environment variables, then explicit options. Explicit `headers` replace environment-derived headers rather than deep-merging.
 
-## Environment Variables
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/client.ts</code> for the createClient config shape and merge order</li>
+    <li><code>src/config.ts</code> for environment-variable resolution</li>
+  </ul>
+</section>
 
-- `PHOENIX_HOST`: base Phoenix URL, for example `http://localhost:6006`
-- `PHOENIX_API_KEY`: bearer token for authenticated environments
-- `PHOENIX_CLIENT_HEADERS`: JSON object of extra headers to send on every request
-
-## Create A Client
+## Quick Start
 
 ```ts
 import { createClient } from "@arizeai/phoenix-client";
@@ -25,41 +27,52 @@ const client = createClient({
     },
   },
 });
+
+const datasets = await client.GET("/v1/datasets");
 ```
 
-## Merge Rules
+## Environment-Driven Setup
 
-Configuration is resolved in this order:
-
-```text
-library defaults < environment variables < explicit options
+```bash
+export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_API_KEY=phx_your_api_key
+export PHOENIX_CLIENT_HEADERS='{"x-team":"agents"}'
 ```
-
-Headers are replaced by explicit options rather than deep-merged.
-
-<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
-  <h2>Relevant Source Files</h2>
-  <ul>
-    <li><code>src/client.ts</code> for the exact option-merging behavior</li>
-    <li><code>src/config.ts</code> for environment-variable resolution</li>
-  </ul>
-</section>
-
-## Server Compatibility
-
-The root client exposes `getServerVersion()` and several helpers in this package enforce minimum server requirements before calling newer routes.
 
 ```ts
-const version = await client.getServerVersion();
-console.log(version);
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient();
 ```
+
+## createClient Parameters
+
+| Field | Type | Description |
+|--------|------|-------------|
+| `options` | `Partial<ClientOptions>` | Explicit options passed to the underlying `openapi-fetch` client. |
+| `getEnvironmentOptions` | `() => Partial<ClientOptions>` | Optional resolver for environment-derived options. The default implementation reads `process.env` when available. |
+
+## Resolved Phoenix Options
+
+These are the Phoenix-specific options this package resolves before creating the underlying OpenAPI client:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `baseUrl` | `string` | Base Phoenix URL. Defaults to `http://localhost:6006`, or `PHOENIX_HOST` when that environment variable is set. |
+| `headers` | `ClientOptions["headers"]` | Headers sent on every request. This is where Phoenix authentication and custom request headers are configured. Explicit `headers` replace environment-derived headers. |
+
+## Environment Variables
+
+| Variable | Maps to | Description |
+|--------|---------|-------------|
+| `PHOENIX_HOST` | `options.baseUrl` | Base Phoenix URL, for example `http://localhost:6006`. |
+| `PHOENIX_API_KEY` | `options.headers.Authorization` | Bearer token for authenticated environments. |
+| `PHOENIX_CLIENT_HEADERS` | `options.headers` | JSON-encoded object of additional headers to send on every request. |
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
     <li><code>src/client.ts</code></li>
     <li><code>src/config.ts</code></li>
-    <li><code>src/constants/serverRequirements.ts</code></li>
-    <li><code>src/utils/serverVersionUtils.ts</code></li>
   </ul>
 </section>

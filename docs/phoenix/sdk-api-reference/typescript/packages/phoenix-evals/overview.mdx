@@ -7,8 +7,49 @@ description: "Bundled docs for @arizeai/phoenix-evals"
 
 ## Install
 
+`@arizeai/phoenix-evals` depends on model adapters from the AI SDK ecosystem. Install the package plus at least one provider adapter for the models you plan to use.
+
 ```bash
 npm install @arizeai/phoenix-evals
+```
+
+### Common Setups
+
+```bash
+npm install @arizeai/phoenix-evals @ai-sdk/openai
+```
+
+```bash
+npm install @arizeai/phoenix-evals @ai-sdk/google
+```
+
+You can also pair it with Phoenix experiments:
+
+```bash
+npm install @arizeai/phoenix-evals @arizeai/phoenix-client @ai-sdk/openai
+```
+
+### Runtime Expectations
+
+- Node.js 18+
+- an AI SDK provider package such as `@ai-sdk/openai`
+- credentials required by your chosen provider
+
+## Minimal Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+
+const faithfulness = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await faithfulness.evaluate({
+  input: "What is Phoenix?",
+  context: "Phoenix is an open-source AI observability platform from Arize.",
+  output: "Phoenix is an open-source AI observability platform from Arize.",
+});
 ```
 
 ## Docs And Source In `node_modules`
@@ -20,34 +61,21 @@ node_modules/@arizeai/phoenix-evals/docs/
 node_modules/@arizeai/phoenix-evals/src/
 ```
 
-The bundled docs keep the authored pages flat:
+The bundled docs cover evaluator creation, LLM evaluators, code evaluators, templates, classification, and Phoenix integration.
 
-```text
-overview.mdx
-installation.mdx
-create-evaluator.mdx
-llm-evaluators.mdx
-code-evaluators.mdx
-built-in-metrics.mdx
-templates.mdx
-classification.mdx
-phoenix-integration.mdx
-```
+## Where To Start
 
-## Best Starting Pages
+- [Create evaluator](./create-evaluator) and [Code evaluators](./code-evaluators) for deterministic evaluator flows
+- [LLM evaluators](./llm-evaluators), [Built-in metrics](./built-in-metrics), and [Classification](./classification) for model-backed evaluation
+- [Templates](./templates) and [Phoenix integration](./phoenix-integration) for prompt helpers and experiment wiring
 
-- `docs/installation.mdx` for provider requirements and install combinations
-- `docs/create-evaluator.mdx` and `docs/code-evaluators.mdx` for deterministic evaluator flows
-- `docs/llm-evaluators.mdx`, `docs/built-in-metrics.mdx`, and `docs/classification.mdx` for model-backed evaluation
-- `docs/templates.mdx` and `docs/phoenix-integration.mdx` for prompt helpers and experiment wiring
+## Source Layout
 
-## Module Map
-
-- Root export: all supported helper modules
-- `@arizeai/phoenix-evals/llm`: classification and built-in LLM evaluators
-- `@arizeai/phoenix-evals/template`: prompt templating helpers
-- `@arizeai/phoenix-evals/helpers`: evaluator construction helpers
-- `@arizeai/phoenix-evals/types`: shared evaluator types
+- `src/index.ts` re-exports the package surface you usually import from `@arizeai/phoenix-evals`
+- `src/llm/` contains classification helpers and built-in LLM evaluator factories
+- `src/helpers/` contains `createEvaluator` and evaluation-result helpers
+- `src/template/` contains `formatTemplate` and `getTemplateVariables`
+- `src/types/` contains shared evaluator and prompt types
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

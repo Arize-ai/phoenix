@@ -807,7 +807,6 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/installation",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/code-evaluators",
@@ -822,7 +821,6 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/installation",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/configuration",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/register",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/instrumentation",
@@ -1418,6 +1416,14 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/installation",
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview"
+    },
+    {
+      "source": "/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/installation",
+      "destination": "/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview"
+    },
     {
       "source": "/docs/phoenix/phoenix-deployment-options",
       "destination": "/docs/phoenix/self-hosting/architecture"

@@ -7,8 +7,42 @@ description: "Bundled docs for @arizeai/phoenix-otel"
 
 ## Install
 
+Install the package and any OpenTelemetry instrumentations you want to use with it.
+
 ```bash
 npm install @arizeai/phoenix-otel
+```
+
+### Add Instrumentations
+
+```bash
+npm install \
+  @arizeai/phoenix-otel \
+  @opentelemetry/instrumentation-http \
+  @opentelemetry/instrumentation-express
+```
+
+### Typical Pairings
+
+- `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations
+- `@arizeai/phoenix-otel` plus `@arizeai/phoenix-client` for experiment workflows
+- `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors
+
+## Minimal Setup
+
+```ts
+import { register, trace } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  batch: false,
+});
+
+trace.getTracer("support-bot").startActiveSpan("healthcheck", (span) => {
+  span.end();
+});
+
+await provider.shutdown();
 ```
 
 ## Docs And Source In `node_modules`
@@ -20,32 +54,21 @@ node_modules/@arizeai/phoenix-otel/docs/
 node_modules/@arizeai/phoenix-otel/src/
 ```
 
-The bundled docs keep the authored pages flat:
+The bundled docs cover configuration, provider registration, instrumentation, manual spans, project/auth setup, and troubleshooting.
 
-```text
-overview.mdx
-installation.mdx
-configuration.mdx
-register.mdx
-instrumentation.mdx
-manual-spans.mdx
-projects-and-auth.mdx
-troubleshooting.mdx
-```
+## Where To Start
 
-## Best Starting Pages
+- [Configuration](./configuration) for setup and environment variables
+- [Register](./register) for the core provider lifecycle
+- [Instrumentation](./instrumentation) and [Manual spans](./manual-spans) for automatic and manual tracing
+- [Projects and auth](./projects-and-auth) and [Troubleshooting](./troubleshooting) for deployment details and debugging
 
-- `docs/installation.mdx` and `docs/configuration.mdx` for setup and environment variables
-- `docs/register.mdx` for the core provider lifecycle
-- `docs/instrumentation.mdx` and `docs/manual-spans.mdx` for automatic and manual tracing
-- `docs/projects-and-auth.mdx` and `docs/troubleshooting.mdx` for deployment details and debugging
+## Package Surface
 
-## Module Map
-
-- root export: `register`, OpenTelemetry re-exports, and utility helpers
-- `register.ts`: provider setup plus attach and detach helpers
-- `config.ts`: environment-variable lookup
-- `utils.ts`: attribute helpers
+- `register()` creates a `NodeTracerProvider` and Phoenix exporter setup
+- `attachGlobalTracerProvider()` and `detachGlobalTracerProvider()` let you manage global tracer state manually
+- `trace`, `SpanStatusCode`, and other OpenTelemetry re-exports support manual tracing
+- `registerInstrumentations()` wires automatic instrumentation into the same provider
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

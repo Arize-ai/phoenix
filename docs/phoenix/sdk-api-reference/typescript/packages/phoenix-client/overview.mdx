@@ -11,6 +11,27 @@ description: "Typed TypeScript client for Phoenix platform APIs"
 npm install @arizeai/phoenix-client
 ```
 
+## Minimal Example
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import { listDatasets } from "@arizeai/phoenix-client/datasets";
+
+const client = createClient();
+const datasets = await listDatasets({ client });
+```
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/src/
+```
+
+That gives the agent version-matched docs plus the exact implementation and generated API types that shipped with your project.
+
 ## Module Map
 
 | Import | Purpose |
@@ -30,15 +51,6 @@ npm install @arizeai/phoenix-client
 - [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
 - [Spans](./spans), [Sessions](./sessions), [Traces](./traces) — retrieval and maintenance
 - [API Client](./api-client) — raw typed REST access
-
-<section className="hidden" data-agent-context="bundled-docs" aria-label="Bundled docs">
-  <h2>Bundled Docs</h2>
-  <p>
-    This package ships docs and source inside <code>node_modules/@arizeai/phoenix-client/</code>.
-    A coding agent can read <code>docs/</code> and <code>src/</code> directly for version-matched
-    reference without network access.
-  </p>
-</section>
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
