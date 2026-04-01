@@ -784,9 +784,9 @@
             "icon": "js",
             "pages": [
               "docs/phoenix/sdk-api-reference/typescript/overview",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
               {
-                "group": "@arizeai/phoenix-client Docs",
+                "group": "@arizeai/phoenix-client",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/configuration",
@@ -803,9 +803,9 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/api-client"
                 ]
               },
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
               {
-                "group": "@arizeai/phoenix-evals Docs",
+                "group": "@arizeai/phoenix-evals",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/installation",
@@ -818,9 +818,9 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
                 ]
               },
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
               {
-                "group": "@arizeai/phoenix-otel Docs",
+                "group": "@arizeai/phoenix-otel",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/installation",
