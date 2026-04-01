@@ -45,6 +45,13 @@ jobs:
           EOF
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Ensure .changeset directory exists
+        working-directory: ./js
+        run: |
+          if [ ! -d ".changeset" ]; then
+            mkdir -p .changeset
+            echo '{"$schema":"https://unpkg.com/@changesets/config@3.0.4/schema.json","changelog":"@changesets/cli/changelog","commit":false,"fixed":[],"linked":[],"access":"restricted","baseBranch":"main","updateInternalDependencies":"patch","ignore":["phoenix-experiment-runner","demo-document-relevancy-experiment"],"privatePackages":{"version":false,"tag":false}}' > .changeset/config.json
+          fi
       - name: create and publish versions
         # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
         # can trigger subsequent workflows (like publish) when merged
