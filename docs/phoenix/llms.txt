@@ -107,7 +107,18 @@
 
 ### Pre-Built Metrics
 
-- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling, and more
+- [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators index
+- [Conciseness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/conciseness): Evaluate whether responses avoid unnecessary content
+- [Correctness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/correctness): Evaluate factual accuracy and completeness of responses
+- [Document Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/document-relevance): Evaluate retrieved document relevance to user queries
+- [Exact Match](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/exact-match): Code evaluator for strict string equality checks
+- [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Detect hallucinations by checking context grounding
+- [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Code evaluator for regex pattern matching in output
+- [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores
+- [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses to answer
+- [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Evaluate correctness of tool call arguments and format
+- [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate agent processing of tool results
+- [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether correct tools are chosen for tasks
 
 ### Server-Side Evaluations
 
@@ -115,7 +126,15 @@
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
 - [Built-in Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/builtin-evaluators): Pre-built server-side evaluators
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
-- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool selection/invocation
+- [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics index
+- [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether text contains specified words
+- [Correctness (Server)](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Server-side LLM judge for response correctness
+- [Exact Match (Server)](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match): Server-side strict string equality check
+- [JSON Distance](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/json-distance): Measure structural differences between JSON values
+- [Levenshtein Distance](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/levenshtein-distance): Measure edit distance between two strings
+- [Regex Match (Server)](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex): Check whether text matches a regex pattern
+- [Tool Invocation (Server)](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation): Server-side tool call argument validation
+- [Tool Selection (Server)](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection): Server-side tool choice validation
 
 ## Datasets & Experiments
 
@@ -176,7 +195,15 @@
 ### Developer Tools
 
 - [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Claude Code, Cursor, and AI coding assistant integration
+- [Model Context Protocol](https://arize.com/docs/phoenix/integrations/model-context-protocol): Overview of MCP integrations with Phoenix
 - [Phoenix MCP Server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server): Connect AI assistants to Phoenix via Model Context Protocol
+
+### Evaluation Integrations
+
+- [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Integrate Cleanlab TLM for LLM trustworthiness scoring
+- [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers
+- [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents with Ragas metrics in Phoenix
+- [UQLM](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Uncertainty quantification for LLM confidence scoring
 
 ### LLM Providers
 
