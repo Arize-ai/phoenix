@@ -364,7 +364,7 @@ async def stream_text(
                     session_id=body.session_id,
                     trace_name_suffix=body.trace_name_suffix,
                 )
-                completed_step_count = replay_history_spans(
+                completed_llm_steps, next_step_index = replay_history_spans(
                     tracer,
                     parent_span=agent_span,
                     messages=messages,
@@ -376,17 +376,21 @@ async def stream_text(
                     input_messages=messages,
                     tools=body.raw_tools or None,
                     trace_name_suffix=(
-                        f"Step {completed_step_count + 1}"
-                        if completed_step_count
+                        f"Step {completed_llm_steps + 1}"
+                        if completed_llm_steps
                         else body.trace_name_suffix
                     ),
+                    step_index=next_step_index,
                 )
+                # Tool-call spans created during finalization start one past
+                # the current LLM span's index.
                 tracing_ctx = TracingContext(
                     tracer,
                     agent_span=agent_span,
                     llm_span=llm_span,
                     accumulator=accumulator,
                     tools=body.raw_tools or None,
+                    tool_call_step_index=next_step_index + 1,
                 )
             except Exception:
                 logger.exception("Failed to set up chat tracing")

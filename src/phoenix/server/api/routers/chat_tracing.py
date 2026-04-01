@@ -1,14 +1,28 @@
 """Custom OpenInference-compliant instrumentation for the /chat endpoint.
 
 Captures each chat turn as a single trace and persists it to the configured PXI
-project. The trace is rooted at an AGENT span and may include completed LLM/
+project.  The trace is rooted at an AGENT span and may include completed LLM /
 TOOL steps reconstructed from the request history plus the current in-flight
-LLM step:
+LLM step::
 
     AGENT ("pxiAgent Turn")
-      ├─ LLM ("pxiCompletion Step 1")
-      ├─ TOOL ("search")
-      └─ LLM ("pxiCompletion Step 2")
+      ├─ LLM  ("pxiCompletion Step 1")   metadata.step_index = 0
+      ├─ TOOL ("search")                  metadata.step_index = 1
+      └─ LLM  ("pxiCompletion Step 2")   metadata.step_index = 2  ← in-flight
+
+Every sibling span carries a ``metadata.step_index`` attribute (zero-based,
+monotonically increasing) so consumers can reconstruct the LLM → TOOL → LLM
+trajectory by sorting on that value rather than relying on wall-clock
+timestamps (which may be identical for replayed history spans).
+
+Individual LLM spans record only a *bounded, step-local message window*
+rather than the full accumulated conversation.  The complete history is encoded
+in the trace tree itself — each prior step is its own span — so there is no
+information loss.  This avoids exceeding OTel's default span-attribute budget
+on long multi-step conversations.
+
+All traces within the same chat session share a ``session.id`` attribute on the
+root AGENT span, enabling cross-trace joins for session-level analysis.
 
 This module is intentionally isolated so it can be replaced by
 ``openinference-instrumentation-pydantic-ai`` or another approach in the future.
@@ -80,12 +94,14 @@ class TracingContext:
         llm_span: Span,
         accumulator: StreamAccumulator,
         tools: Sequence[Mapping[str, Any]] | None = None,
+        tool_call_step_index: int | None = None,
     ) -> None:
         self.tracer = tracer
         self.agent_span = agent_span
         self.llm_span = llm_span
         self.accumulator = accumulator
         self.tools = tools
+        self._tool_call_step_index = tool_call_step_index
         self._finalized = False
 
     def finalize(
@@ -116,6 +132,7 @@ class TracingContext:
             parent_span=self.agent_span,
             tool_calls=accumulated_tool_calls,
             tools=self.tools,
+            step_index=self._tool_call_step_index,
         )
         finalize_agent_span(
             self.agent_span,
@@ -143,6 +160,7 @@ class TracingContext:
             tool_calls=accumulated_tool_calls,
             tools=self.tools,
             error=error,
+            step_index=self._tool_call_step_index,
         )
         finalize_agent_span(
             self.agent_span,
@@ -229,6 +247,7 @@ _TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 _TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 _TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 _TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+_METADATA = SpanAttributes.METADATA
 
 
 async def ensure_project_exists(db: DbSessionFactory) -> int:
@@ -302,24 +321,41 @@ def create_llm_span(
     input_messages: Sequence[Any],
     tools: Sequence[Mapping[str, Any]] | None = None,
     trace_name_suffix: str = "Turn",
+    step_index: int | None = None,
 ) -> Span:
     """Create and start a child LLM span under the AGENT parent.
 
     Per the OpenInference spec, the LLM span carries input/output messages,
     tool definitions, token counts, and model identification.
-    """
-    attributes: dict[str, Any] = {
-        _SPAN_KIND: _LLM,
-    }
 
-    # Intentionally include the full conversation history on every LLM step so
-    # trajectory evals can judge the step with its complete prior context.
-    attributes.update(_flatten_input_messages(input_messages))
+    Args:
+        tracer: The tracer instance used to create spans.
+        parent_span: The AGENT span that serves as the parent.
+        input_messages: Full conversation history (pydantic-ai ``ModelMessage``
+            objects).  Internally windowed by :func:`_select_llm_step_messages`
+            so the span only records the bounded, step-local context — the full
+            trajectory is encoded in the trace tree, not duplicated on each span.
+        tools: OpenInference-shaped tool definitions (``{"type": "function", …}``).
+        trace_name_suffix: Label appended to the span name (e.g. ``"Step 3"``).
+        step_index: Zero-based ordinal of this step within the agent turn.
+            Enables deterministic ordering of sibling spans without relying on
+            wall-clock timestamps, which may be identical for replayed history
+            spans.  ``None`` omits the attribute (single-step turns).
+    """
+    step_messages = _select_llm_step_messages(input_messages)
+    attributes = _flatten_input_messages(step_messages)
 
     # Flatten tool definitions.
     if tools:
         for i, tool in enumerate(tools):
             attributes[f"llm.tools.{i}.{_TOOL_JSON_SCHEMA}"] = json.dumps(tool)
+
+    # Keep the span kind after bulk message flattening so it survives SDK
+    # attribute limits even on long multi-step conversations.
+    attributes[_SPAN_KIND] = _LLM
+
+    if step_index is not None:
+        attributes[_METADATA] = json.dumps({"step_index": step_index})
 
     # Create a context with the agent span as parent so the LLM span becomes
     # a child (same trace_id, parent_id set to agent's span_id).
@@ -342,8 +378,26 @@ def create_tool_span(
     tool_parameters: str | None = None,
     tool_output: str | None = None,
     tool_description: str | None = None,
+    step_index: int | None = None,
 ) -> Span:
-    """Create and start a TOOL span as a child of the AGENT root."""
+    """Create and start a TOOL span as a child of the AGENT root.
+
+    Records the tool invocation as a first-class OpenInference ``TOOL`` span
+    with ``tool.name``, ``tool.description``, ``tool.parameters``, and
+    ``input``/``output`` attributes.
+
+    Args:
+        tracer: The tracer instance used to create spans.
+        parent_span: The AGENT span that serves as the parent.
+        tool_name: Name of the tool being invoked.
+        tool_parameters: JSON-serialized arguments passed to the tool.
+        tool_output: JSON-serialized return value from the tool.
+        tool_description: Human-readable description of the tool's purpose.
+        step_index: Zero-based ordinal of this step within the agent turn.
+            Shares the same sequence space as sibling LLM spans so the full
+            LLM → TOOL → LLM trajectory can be reconstructed by sorting on
+            this attribute.
+    """
     attributes: dict[str, Any] = {
         _SPAN_KIND: _TOOL,
     }
@@ -358,6 +412,9 @@ def create_tool_span(
     if tool_output:
         attributes[_OUTPUT_VALUE] = tool_output
         attributes[_OUTPUT_MIME_TYPE] = _JSON
+
+    if step_index is not None:
+        attributes[_METADATA] = json.dumps({"step_index": step_index})
 
     parent_context = set_span_in_context(parent_span, context=OtelContext())
     span = tracer.start_span(
@@ -459,6 +516,12 @@ def finalize_tool_span(
     *,
     error: BaseException | None = None,
 ) -> None:
+    """Set status on a TOOL span and end it.
+
+    Tool spans have their content attributes set at creation time (via
+    :func:`create_tool_span`) since tool input/output is known upfront for
+    replayed history steps.  This function only handles status and ending.
+    """
     if error is not None:
         span.set_status(Status(StatusCode.ERROR, str(error)))
         span.record_exception(error)
@@ -542,23 +605,79 @@ def _extract_last_user_content(messages: Sequence[Any]) -> str | None:
     return None
 
 
+def _select_llm_step_messages(messages: Sequence[Any]) -> list[Any]:
+    """Return a bounded, step-local message window for one LLM span.
+
+    Rather than duplicating the full conversation history on every LLM span
+    (which exceeds OTel's default 128-attribute budget around turn 16), this
+    function selects only the messages relevant to the current step:
+
+    1. **Initial context** — everything before the first ``ModelResponse``
+       (system prompt, first user message).
+    2. **Latest exchange** — the most recent assistant → tool-return → …
+       sequence that explains why this LLM call is happening.
+
+    The full trajectory is already encoded in the trace tree (each prior step
+    has its own LLM and TOOL span with ``metadata.step_index``), so there is
+    no information loss.
+
+    Returns:
+        A list of ``ModelMessage`` objects forming the bounded window.
+        For single-step conversations the full message list is returned as-is.
+    """
+    from pydantic_ai.messages import ModelResponse
+
+    if not messages:
+        return []
+
+    response_indices = [i for i, msg in enumerate(messages) if isinstance(msg, ModelResponse)]
+    if len(response_indices) <= 1:
+        return list(messages)
+
+    first_response_index = response_indices[0]
+    initial_messages = list(messages[:first_response_index])
+    last_message_is_response = isinstance(messages[-1], ModelResponse)
+    tail_start = response_indices[-2] if last_message_is_response else response_indices[-1]
+    tail_messages = list(messages[tail_start:])
+
+    if tail_start <= first_response_index:
+        return list(messages)
+
+    return [*initial_messages, *tail_messages]
+
+
 def replay_history_spans(
     tracer: Tracer,
     *,
     parent_span: Span,
     messages: Sequence[Any],
     tools: Sequence[Mapping[str, Any]] | None = None,
-) -> int:
-    """Reconstruct completed LLM and TOOL steps already present in the turn history."""
+) -> tuple[int, int]:
+    """Reconstruct completed LLM and TOOL steps from the conversation history.
+
+    Each completed ``ModelResponse`` in *messages* produces a replayed ``LLM``
+    span, and each ``ToolReturnPart`` produces a replayed ``TOOL`` span.  Both
+    span types receive a ``metadata.step_index`` attribute drawn from a shared
+    counter so the full LLM → TOOL → LLM trajectory can be reconstructed by
+    sorting on that value.
+
+    Returns:
+        A ``(completed_llm_step_count, next_step_index)`` tuple.
+        ``completed_llm_step_count`` is the number of ``LLM`` spans emitted
+        (used for naming the next in-flight LLM span, e.g. ``"Step 3"``).
+        ``next_step_index`` is the next available ``step_index`` value for the
+        caller to assign to the current in-flight span.
+    """
     from pydantic_ai.messages import ModelRequest, ModelResponse, ToolReturnPart
 
     tool_definitions = _tool_definitions_by_name(tools)
     tool_calls_by_id: dict[str, dict[str, str]] = {}
-    completed_step_count = 0
+    completed_llm_step_count = 0
+    step_index = 0
 
     for idx, msg in enumerate(messages):
         if isinstance(msg, ModelResponse):
-            completed_step_count += 1
+            completed_llm_step_count += 1
             output_content, tool_calls = _extract_response_content_and_tool_calls(msg)
             finalize_llm_span(
                 create_llm_span(
@@ -566,11 +685,13 @@ def replay_history_spans(
                     parent_span=parent_span,
                     input_messages=messages[:idx],
                     tools=tools,
-                    trace_name_suffix=f"Step {completed_step_count}",
+                    trace_name_suffix=f"Step {completed_llm_step_count}",
+                    step_index=step_index,
                 ),
                 output_content=output_content,
                 tool_calls=tool_calls,
             )
+            step_index += 1
             for tool_call in tool_calls or ():
                 tool_call_id = tool_call.get("id")
                 if tool_call_id:
@@ -591,10 +712,12 @@ def replay_history_spans(
                     tool_parameters=tool_parameters,
                     tool_output=tool_output,
                     tool_description=_tool_description(tool_definitions, part.tool_name),
+                    step_index=step_index,
                 )
                 finalize_tool_span(tool_span)
+                step_index += 1
 
-    return completed_step_count
+    return completed_llm_step_count, step_index
 
 
 def finalize_tool_call_spans(
@@ -604,21 +727,40 @@ def finalize_tool_call_spans(
     tool_calls: Sequence[dict[str, Any]] | None,
     tools: Sequence[Mapping[str, Any]] | None = None,
     error: BaseException | None = None,
+    step_index: int | None = None,
 ) -> None:
+    """Create and immediately finalize ``TOOL`` spans for the current step's tool calls.
+
+    Called after the in-flight LLM span completes with tool-call output.  Each
+    tool call gets its own ``TOOL`` span as a sibling of the LLM span under the
+    AGENT root.
+
+    Args:
+        tracer: The tracer instance used to create spans.
+        parent_span: The AGENT span that serves as the parent.
+        tool_calls: List of tool-call dicts with ``id``, ``name``, and
+            ``arguments`` keys, as accumulated from the streaming response.
+        tools: OpenInference-shaped tool definitions for description lookup.
+        error: If set, marks each tool span with ``ERROR`` status.
+        step_index: Starting ``step_index`` for the first tool-call span.
+            Incremented for each subsequent tool call so ordering is preserved.
+    """
     if not tool_calls:
         return
 
     tool_definitions = _tool_definitions_by_name(tools)
-    for tool_call in tool_calls:
+    for i, tool_call in enumerate(tool_calls):
         tool_name = tool_call.get("name")
         arguments = tool_call.get("arguments")
         tool_parameters = arguments if isinstance(arguments, str) else json.dumps(arguments)
+        tc_step_index = (step_index + i) if step_index is not None else None
         tool_span = create_tool_span(
             tracer,
             parent_span=parent_span,
             tool_name=tool_name,
             tool_parameters=tool_parameters,
             tool_description=_tool_description(tool_definitions, tool_name),
+            step_index=tc_step_index,
         )
         finalize_tool_span(tool_span, error=error)
 

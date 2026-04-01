@@ -8,6 +8,7 @@ from sqlalchemy import select
 from phoenix.config import get_env_phoenix_pxi_project_name
 from phoenix.db import models
 from phoenix.server.api.routers.chat_tracing import (
+    _select_llm_step_messages,
     create_agent_span,
     create_llm_span,
     ensure_project_exists,
@@ -249,7 +250,7 @@ class TestSpanHierarchy:
         ]
 
         agent_span = create_agent_span(tracer, input_messages=messages)
-        completed_step_count = replay_history_spans(
+        completed_llm_steps, next_step_index = replay_history_spans(
             tracer,
             parent_span=agent_span,
             messages=messages,
@@ -260,7 +261,8 @@ class TestSpanHierarchy:
             parent_span=agent_span,
             input_messages=messages,
             tools=tools,
-            trace_name_suffix=f"Step {completed_step_count + 1}",
+            trace_name_suffix=f"Step {completed_llm_steps + 1}",
+            step_index=next_step_index,
         )
 
         finalize_llm_span(llm_span, output_content="The answer is 4.")
@@ -278,6 +280,203 @@ class TestSpanHierarchy:
         assert tool_attrs["tool"]["description"] == "Evaluates arithmetic expressions"
         assert tool_attrs["tool"]["parameters"] == '{"expr": "2+2"}'
         assert tool_attrs["output"]["value"] == '{"result": 4}'
+
+        # Verify step_index ordering: LLM(0) → TOOL(1) → LLM(2).
+        # The metadata attribute is a JSON string at this layer; OTLP ingestion
+        # parses it via load_json_strings, but the in-process Tracer does not.
+        assert json.loads(llm_spans[0].attributes["metadata"])["step_index"] == 0
+        assert json.loads(tool_spans[0].attributes["metadata"])["step_index"] == 1
+        assert json.loads(llm_spans[1].attributes["metadata"])["step_index"] == 2
+
+    def test_step_index_covers_multi_tool_multi_step_trajectory(self, db: DbSessionFactory) -> None:
+        """Verify step_index is contiguous across a LLM → TOOL → TOOL → LLM trajectory."""
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        tracer = _make_tracer(db)
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="Summarize the logs")]),
+            # Step 1: LLM calls two tools.
+            ModelResponse(
+                parts=[
+                    TextPart(content="I'll check two sources."),
+                    ToolCallPart(tool_name="fetch_logs", args='{"hours": 12}', tool_call_id="tc-1"),
+                    ToolCallPart(
+                        tool_name="fetch_metrics", args='{"hours": 12}', tool_call_id="tc-2"
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(tool_name="fetch_logs", content="log data", tool_call_id="tc-1"),
+                    ToolReturnPart(
+                        tool_name="fetch_metrics", content="metric data", tool_call_id="tc-2"
+                    ),
+                ]
+            ),
+        ]
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        completed_llm_steps, next_step_index = replay_history_spans(
+            tracer, parent_span=agent_span, messages=messages
+        )
+
+        # Current in-flight LLM span.
+        llm_span = create_llm_span(
+            tracer,
+            parent_span=agent_span,
+            input_messages=messages,
+            trace_name_suffix=f"Step {completed_llm_steps + 1}",
+            step_index=next_step_index,
+        )
+        finalize_llm_span(llm_span, output_content="Here is the summary.")
+        finalize_agent_span(agent_span, output_content="Here is the summary.")
+
+        spans = tracer.get_db_traces(project_id=1)[0].spans
+        # Collect non-AGENT spans sorted by step_index.
+        child_spans = [s for s in spans if s.span_kind != OpenInferenceSpanKindValues.AGENT.value]
+        child_spans.sort(key=lambda s: json.loads(s.attributes["metadata"])["step_index"])
+
+        assert len(child_spans) == 4
+        kinds = [s.span_kind for s in child_spans]
+        indices = [json.loads(s.attributes["metadata"])["step_index"] for s in child_spans]
+
+        assert kinds == ["LLM", "TOOL", "TOOL", "LLM"]
+        assert indices == [0, 1, 2, 3]
+
+    def test_select_llm_step_messages_keeps_initial_prompt_and_latest_exchange(self) -> None:
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="Analyze traces")]),
+            ModelResponse(
+                parts=[
+                    TextPart(content="I'll inspect the docs first."),
+                    ToolCallPart(
+                        tool_name="bash",
+                        args=json.dumps({"command": "cat agent-start.md"}),
+                        tool_call_id="tc-1",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="bash",
+                        content={"stdout": "docs"},
+                        tool_call_id="tc-1",
+                    )
+                ]
+            ),
+            ModelResponse(
+                parts=[
+                    TextPart(content="Now I'll inspect traces."),
+                    ToolCallPart(
+                        tool_name="bash",
+                        args=json.dumps({"command": "phoenix-gql query"}),
+                        tool_call_id="tc-2",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="bash",
+                        content={"stdout": "results"},
+                        tool_call_id="tc-2",
+                    )
+                ]
+            ),
+        ]
+
+        step_messages = _select_llm_step_messages(messages)
+
+        assert len(step_messages) == 3
+        assert step_messages[0] is messages[0]
+        assert step_messages[1] is messages[3]
+        assert step_messages[2] is messages[4]
+
+    def test_current_llm_span_preserves_kind_and_token_counts_for_long_conversations(
+        self, db: DbSessionFactory
+    ) -> None:
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        tracer = _make_tracer(db)
+        messages = [ModelRequest(parts=[UserPromptPart(content="Analyze the last 12 hours")])]
+        for i in range(1, 18):
+            messages.append(
+                ModelResponse(
+                    parts=[
+                        TextPart(content=f"Step {i}"),
+                        ToolCallPart(
+                            tool_name="bash",
+                            args=json.dumps({"command": f"run-{i}"}),
+                            tool_call_id=f"tc-{i}",
+                        ),
+                    ]
+                )
+            )
+            messages.append(
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            tool_name="bash",
+                            content={"stdout": f"done-{i}"},
+                            tool_call_id=f"tc-{i}",
+                        )
+                    ]
+                )
+            )
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        llm_span = create_llm_span(tracer, parent_span=agent_span, input_messages=messages)
+
+        finalize_llm_span(
+            llm_span,
+            output_content="Final answer",
+            usage=_FakeUsage(input_tokens=321, output_tokens=123),
+            model_name="gpt-4o",
+            provider="openai",
+        )
+        finalize_agent_span(agent_span, output_content="Final answer")
+
+        spans = tracer.get_db_traces(project_id=1)[0].spans
+        llm_db = next(s for s in spans if s.name == "pxiCompletion Turn")
+        attrs = llm_db.attributes
+
+        assert llm_db.span_kind == OpenInferenceSpanKindValues.LLM.value
+        assert attrs["openinference"]["span"]["kind"] == "LLM"
+        assert attrs["llm"]["token_count"]["prompt"] == 321
+        assert attrs["llm"]["token_count"]["completion"] == 123
+        assert attrs["llm"]["token_count"]["total"] == 444
+
+        input_msgs = attrs["llm"]["input_messages"]
+        assert len(input_msgs) == 3
+        assert input_msgs[0]["message"]["role"] == "user"
+        assert input_msgs[1]["message"]["role"] == "assistant"
+        assert input_msgs[1]["message"]["tool_calls"][0]["tool_call"]["id"] == "tc-17"
+        assert input_msgs[2]["message"]["role"] == "tool"
+        assert input_msgs[2]["message"]["tool_call_id"] == "tc-17"
 
     def test_llm_span_with_tool_calls(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import ModelRequest, UserPromptPart
