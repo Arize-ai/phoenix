@@ -5,7 +5,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -59,6 +66,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { usePersistedState } from "@phoenix/hooks";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
@@ -79,6 +87,11 @@ import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
+
+/**
+ * Poll interval for refetching experiment data when experiments are running
+ */
+const RUNNING_EXPERIMENTS_POLL_INTERVAL_MS = 3000;
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -272,6 +285,20 @@ export function ExperimentsTable({
         };
       }),
     [data.experiments.edges]
+  );
+
+  const hasRunningExperiments = useMemo(
+    () => tableData.some((row) => row.job?.status === "RUNNING"),
+    [tableData]
+  );
+
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
+    },
+    hasRunningExperiments ? RUNNING_EXPERIMENTS_POLL_INTERVAL_MS : null
   );
 
   type TableRow = (typeof tableData)[number];
