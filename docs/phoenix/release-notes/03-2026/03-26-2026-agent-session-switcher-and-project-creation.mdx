@@ -1,0 +1,28 @@
+---
+title: "Release Notes"
+---
+
+# Agent Session Switcher and Delete Controls
+
+March 26, 2026
+
+**Available in arize-phoenix 13.19.0+**
+
+The Phoenix agent interface now includes a session switcher that lets you navigate between chat sessions, delete sessions you no longer need, and see AI-generated session summaries loaded asynchronously. Tool call messages are now collapsed into an expandable pool by default, reducing visual noise during long agent runs while preserving full detail on demand.
+
+- **Session switcher** lets you jump between previous conversations without leaving the agent view
+- **Delete controls** remove individual sessions directly from the switcher
+- **Async session summaries** load in the background so the UI stays responsive
+- **Collapsible tool call pool** groups consecutive tool calls into a single expandable block, improving readability for tool-heavy traces
+- **Streaming performance improvements** reduce UI jitter during live agent runs
+
+# Project Creation with Color and Description
+
+March 26, 2026
+
+**Available in arize-phoenix 13.19.0+**
+
+The new project creation flow lets you assign a color and a description to a project at creation time, making it easier to distinguish projects at a glance in the project list.
+
+- **Color picker** assigns a visual accent to the project for quick identification
+- **Description field** captures the purpose of the project alongside its name

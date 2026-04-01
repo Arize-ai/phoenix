@@ -1094,8 +1094,16 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "04.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
+                ]
+              },
+              {
                 "group": "03.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api",
+                  "docs/phoenix/release-notes/03-2026/03-26-2026-agent-session-switcher-and-project-creation",
                   "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
                   "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
                   "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",
