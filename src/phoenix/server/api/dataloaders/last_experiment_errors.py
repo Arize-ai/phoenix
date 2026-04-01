@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import with_polymorphic
 from strawberry.dataloader import DataLoader
 
@@ -20,16 +20,21 @@ class LastExperimentErrorsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         poly = with_polymorphic(models.ExperimentLog, "*")
-        # Correlated subquery: latest occurred_at per experiment_id
-        latest_subq = (
-            select(models.ExperimentLog.id)
-            .where(models.ExperimentLog.experiment_id == poly.experiment_id)
-            .order_by(models.ExperimentLog.occurred_at.desc())
-            .limit(1)
-            .correlate(poly)
-            .scalar_subquery()
+        # Rank logs per experiment by recency, then keep only the latest.
+        ranked = (
+            select(
+                models.ExperimentLog.id,
+                func.row_number()
+                .over(
+                    partition_by=models.ExperimentLog.experiment_id,
+                    order_by=models.ExperimentLog.occurred_at.desc(),
+                )
+                .label("rn"),
+            )
+            .where(models.ExperimentLog.experiment_id.in_(keys))
+            .subquery()
         )
-        stmt = select(poly).where(poly.experiment_id.in_(keys)).where(poly.id == latest_subq)
+        stmt = select(poly).join(ranked, poly.id == ranked.c.id).where(ranked.c.rn == 1)
         by_experiment_id: dict[int, models.ExperimentLog] = {}
         async with self._db() as session:
             for row in await session.scalars(stmt):
