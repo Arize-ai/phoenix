@@ -3,7 +3,7 @@
 and positional attributes to native values at the target size.
 
 Usage:
-    uvx --with svgpathtools python scale-svg.py <input> <target_size> <output>
+    uvx --with svgpathtools python scale-svg.py <target_size> <input> <output>
     uvx --with svgpathtools python scale-svg.py --batch <target_size> <input_dir> <output_dir>
 
 Produces output equivalent to resizing in Figma — coordinates are
