@@ -1,5 +1,13 @@
 # Changelog
 
+## [13.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.0...arize-phoenix-v13.22.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* replace expensive count queries with hasTraces existence check ([#12490](https://github.com/Arize-ai/phoenix/issues/12490)) ([2d064fc](https://github.com/Arize-ai/phoenix/commit/2d064fc263a70cc5705a535d0070632200d6d922))
+* skip redundant header stats refetch on initial mount ([#12491](https://github.com/Arize-ai/phoenix/issues/12491)) ([a10d8ed](https://github.com/Arize-ai/phoenix/commit/a10d8ed5664221aef53588ad7ec0c8c9b669e808))
+
 ## [13.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.21.0...arize-phoenix-v13.22.0) (2026-04-01)
 
 
