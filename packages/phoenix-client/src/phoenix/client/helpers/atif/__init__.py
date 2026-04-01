@@ -117,6 +117,15 @@ def upload_atif_trajectories_as_spans(
     Trace and span IDs are derived from ``session_id`` via SHA-256, so
     re-uploading the same trajectory produces the same trace (idempotent).
 
+    **Known limitation: long conversations**
+
+    Each LLM span includes the full conversation history up to that
+    point as ``llm.input_messages`` attributes. For long multi-turn
+    sessions (roughly 16+ turns with dense tool calls), this can exceed
+    OpenTelemetry attribute size limits, causing spans to be truncated
+    or rejected. This matches the behavior of real-time instrumentors
+    and is a known platform-wide issue, not specific to ATIF conversion.
+
     Args:
         client: A Phoenix ``Client`` instance.
         trajectories: A sequence of ATIF trajectory dicts conforming to
