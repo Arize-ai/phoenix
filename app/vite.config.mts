@@ -60,12 +60,6 @@ export default defineConfig(() => {
           __dirname,
           "./node_modules/@codemirror/state/dist/index.cjs"
         ),
-        // Apollo Client does not publicly export readMultipartBody from its
-        // package.json exports map. This alias lets Vite resolve the module.
-        "@apollo/client/link/http/parseAndCheckHttpResponse": resolve(
-          __dirname,
-          "./node_modules/@apollo/client/link/http/parseAndCheckHttpResponse.js"
-        ),
       },
     },
     test: {

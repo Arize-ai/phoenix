@@ -7,15 +7,3 @@
  * module declaration.
  */
 declare module "vite/modulepreload-polyfill" {}
-
-/**
- * Apollo Client does not publicly export readMultipartBody from its package.json
- * exports map, but the .js and .d.ts files exist on disk and Vite resolves them
- * at bundle time. This ambient declaration lets TypeScript see the type.
- */
-declare module "@apollo/client/link/http/parseAndCheckHttpResponse" {
-  export function readMultipartBody<T extends object = Record<string, unknown>>(
-    response: Response,
-    nextValue: (value: T) => void
-  ): Promise<void>;
-}
