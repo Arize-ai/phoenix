@@ -5,12 +5,12 @@ description: "Built-in evaluator factories in @arizeai/phoenix-evals"
 
 `@arizeai/phoenix-evals` ships ready-to-use LLM evaluator factories for common evaluation tasks.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/llm/index.ts</code> for the current exported metric list</li>
   </ul>
-</div>
+</section>
 
 ## Current Built-Ins
 
@@ -42,9 +42,10 @@ const correctness = createCorrectnessEvaluator({ model });
 const refusal = createRefusalEvaluator({ model });
 ```
 
-## Source Map
-
-```text
-src/llm/
-src/types/evals.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/llm/</code></li>
+    <li><code>src/types/evals.ts</code></li>
+  </ul>
+</section>

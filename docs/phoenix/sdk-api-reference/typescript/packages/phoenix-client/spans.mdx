@@ -5,15 +5,15 @@ description: "Search and manage spans with @arizeai/phoenix-client"
 
 Use the spans module to search project spans and perform span-level maintenance such as deleting spans or adding notes.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/spans/getSpans.ts</code> for the exact filter names and query
       behavior
     </li>
   </ul>
-</div>
+</section>
 
 ## Search Spans
 
@@ -62,12 +62,13 @@ await deleteSpan({
 
 `deleteSpan` accepts either the OpenTelemetry `span_id` or Phoenix's global span ID.
 
-## Source Map
-
-```text
-src/spans/getSpans.ts
-src/spans/addSpanNote.ts
-src/spans/deleteSpan.ts
-src/spans/getSpanAnnotations.ts
-src/types/spans.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/spans/getSpans.ts</code></li>
+    <li><code>src/spans/addSpanNote.ts</code></li>
+    <li><code>src/spans/deleteSpan.ts</code></li>
+    <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/types/spans.ts</code></li>
+  </ul>
+</section>

@@ -5,12 +5,12 @@ description: "Implement code-based evaluators in @arizeai/phoenix-evals"
 
 Code evaluators are the right fit when the scoring logic should stay deterministic, cheap, and fully under your control.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/helpers/createEvaluator.ts</code></li>
   </ul>
-</div>
+</section>
 
 ## Example
 
@@ -39,11 +39,12 @@ const lengthCheck = createEvaluator(
 - latency and cost thresholds
 - post-processing checks on existing model output
 
-## Source Map
-
-```text
-src/helpers/createEvaluator.ts
-src/core/EvaluatorBase.ts
-src/core/FunctionEvaluator.ts
-src/types/evals.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/helpers/createEvaluator.ts</code></li>
+    <li><code>src/core/EvaluatorBase.ts</code></li>
+    <li><code>src/core/FunctionEvaluator.ts</code></li>
+    <li><code>src/types/evals.ts</code></li>
+  </ul>
+</section>

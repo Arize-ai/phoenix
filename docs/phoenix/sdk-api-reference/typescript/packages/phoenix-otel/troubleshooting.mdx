@@ -5,12 +5,12 @@ description: "Troubleshoot @arizeai/phoenix-otel setups"
 
 When traces do not show up in Phoenix, the common issues are usually configuration or lifecycle related.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/register.ts</code></li>
   </ul>
-</div>
+</section>
 
 ## Checklist
 
@@ -34,9 +34,10 @@ const provider = register({
 await provider.shutdown();
 ```
 
-## Source Map
-
-```text
-src/register.ts
-src/config.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/register.ts</code></li>
+    <li><code>src/config.ts</code></li>
+  </ul>
+</section>

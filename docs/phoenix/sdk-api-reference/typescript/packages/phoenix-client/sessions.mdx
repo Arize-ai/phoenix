@@ -5,8 +5,8 @@ description: "Work with sessions in @arizeai/phoenix-client"
 
 The sessions module groups multi-turn activity under a project and supports retrieval, annotations, and cleanup.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/sessions/listSessions.ts</code> for the exact project selector
@@ -17,7 +17,7 @@ The sessions module groups multi-turn activity under a project and supports retr
       from root spans
     </li>
   </ul>
-</div>
+</section>
 
 ## List Sessions
 
@@ -72,13 +72,14 @@ await addSessionAnnotation({
 
 Use `deleteSession` or `deleteSessions` when you need to remove session records by identifier.
 
-## Source Map
-
-```text
-src/sessions/listSessions.ts
-src/sessions/getSession.ts
-src/sessions/getSessionTurns.ts
-src/sessions/addSessionAnnotation.ts
-src/sessions/deleteSession.ts
-src/sessions/deleteSessions.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/sessions/listSessions.ts</code></li>
+    <li><code>src/sessions/getSession.ts</code></li>
+    <li><code>src/sessions/getSessionTurns.ts</code></li>
+    <li><code>src/sessions/addSessionAnnotation.ts</code></li>
+    <li><code>src/sessions/deleteSession.ts</code></li>
+    <li><code>src/sessions/deleteSessions.ts</code></li>
+  </ul>
+</section>

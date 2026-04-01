@@ -5,8 +5,8 @@ description: "Log and retrieve annotations with @arizeai/phoenix-client"
 
 The annotations helpers cover span-level feedback, document annotations attached to spans, and batched logging flows. Session annotations live in the `sessions` module.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/spans/addDocumentAnnotation.ts</code> and{" "}
@@ -14,7 +14,7 @@ The annotations helpers cover span-level feedback, document annotations attached
       payload shapes
     </li>
   </ul>
-</div>
+</section>
 
 ## Log Span Annotations
 
@@ -81,13 +81,14 @@ const result = await getSpanAnnotations({
 console.log(result.annotations);
 ```
 
-## Source Map
-
-```text
-src/spans/addSpanAnnotation.ts
-src/spans/logSpanAnnotations.ts
-src/spans/addDocumentAnnotation.ts
-src/spans/logDocumentAnnotations.ts
-src/spans/getSpanAnnotations.ts
-src/types/annotations.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/spans/addSpanAnnotation.ts</code></li>
+    <li><code>src/spans/logSpanAnnotations.ts</code></li>
+    <li><code>src/spans/addDocumentAnnotation.ts</code></li>
+    <li><code>src/spans/logDocumentAnnotations.ts</code></li>
+    <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/types/annotations.ts</code></li>
+  </ul>
+</section>

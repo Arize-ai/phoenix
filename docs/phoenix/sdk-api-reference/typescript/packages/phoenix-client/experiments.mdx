@@ -5,15 +5,15 @@ description: "Run experiments with @arizeai/phoenix-client"
 
 The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and supports follow-up lifecycle operations.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/experiments/helpers/asExperimentEvaluator.ts</code> for the
       canonical evaluator wrapper
     </li>
   </ul>
-</div>
+</section>
 
 ## Run An Experiment
 
@@ -55,12 +55,13 @@ Use these exports for follow-up workflows:
 
 `runExperiment` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment. This is why examples that call the AI SDK inside a task can still produce spans in Phoenix when global tracing is enabled.
 
-## Source Map
-
-```text
-src/experiments/runExperiment.ts
-src/experiments/createExperiment.ts
-src/experiments/getExperiment.ts
-src/experiments/getExperimentRuns.ts
-src/experiments/helpers/asExperimentEvaluator.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/experiments/runExperiment.ts</code></li>
+    <li><code>src/experiments/createExperiment.ts</code></li>
+    <li><code>src/experiments/getExperiment.ts</code></li>
+    <li><code>src/experiments/getExperimentRuns.ts</code></li>
+    <li><code>src/experiments/helpers/asExperimentEvaluator.ts</code></li>
+  </ul>
+</section>

@@ -133,23 +133,39 @@ When a function takes a wrapped object such as `spanAnnotation`, `documentAnnota
 
 Common failure mode: docs drift toward simplified pseudo-APIs that do not match actual exported parameter names.
 
-### 6. Hide agent-only source breadcrumbs
+### 6. Hide agent-only implementation context
 
-When a page benefits from implementation breadcrumbs like internal `src/**` paths, do not render them as visible headings or bullet lists in Mintlify.
+When a page benefits from implementation breadcrumbs like internal `src/**` paths or a full source map, do not render them as visible Markdown headings, bullet lists, or fenced code blocks in Mintlify.
 
-Wrap short agent-only hints in a hidden MDX block:
+Use hidden semantic HTML instead:
 
 ```mdx
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section
+  className="hidden"
+  data-agent-context="relevant-source-files"
+  aria-label="Relevant source files"
+>
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/example.ts</code> for the canonical implementation</li>
   </ul>
-</div>
+</section>
+
+<section
+  className="hidden"
+  data-agent-context="source-map"
+  aria-label="Source map"
+>
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/index.ts</code></li>
+    <li><code>src/helpers.ts</code></li>
+  </ul>
+</section>
 ```
 
-Use standard HTML elements inside the hidden block rather than Markdown bullets so the MDX stays predictable.
-Reserve this pattern for brief implementation breadcrumbs only. Keep user-facing docs focused on API behavior, workflows, and examples.
+Use semantic HTML elements like `<section>`, `<h2>`, `<ul>`, and `<li>` inside these hidden blocks rather than generic `<div>` wrappers, Markdown bullets, or fenced text blocks.
+Reserve this pattern for brief agent-only implementation context. Keep user-facing docs focused on API behavior, workflows, and runnable examples.
 Do not treat hidden blocks as access control. If content should be hidden from navigation as a whole, use a hidden page instead.
 
 ## Workflow

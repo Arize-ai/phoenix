@@ -5,13 +5,13 @@ description: "Project names, endpoints, and auth in @arizeai/phoenix-otel"
 
 Two settings determine where spans land and how they authenticate:
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/register.ts</code></li>
     <li><code>src/config.ts</code></li>
   </ul>
-</div>
+</section>
 
 ## Key Settings
 
@@ -44,10 +44,11 @@ register({
 
 Use `objectAsAttributes()` to convert JSON-like objects into OpenTelemetry attribute maps before attaching them to spans.
 
-## Source Map
-
-```text
-src/register.ts
-src/utils.ts
-src/config.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/register.ts</code></li>
+    <li><code>src/utils.ts</code></li>
+    <li><code>src/config.ts</code></li>
+  </ul>
+</section>

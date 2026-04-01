@@ -5,15 +5,15 @@ description: "Create and inspect datasets with @arizeai/phoenix-client"
 
 Datasets are the foundation for experiment runs. The dataset helpers cover creation, idempotent creation, record inspection, and example appends.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/datasets/createOrGetDataset.ts</code> for the exact return
       shape of the idempotent helper
     </li>
   </ul>
-</div>
+</section>
 
 ## Create A Dataset
 
@@ -64,13 +64,14 @@ await appendDatasetExamples({
 
 Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets after creation.
 
-## Source Map
-
-```text
-src/datasets/createDataset.ts
-src/datasets/createOrGetDataset.ts
-src/datasets/appendDatasetExamples.ts
-src/datasets/getDataset.ts
-src/datasets/getDatasetExamples.ts
-src/datasets/getDatasetInfo.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/datasets/createDataset.ts</code></li>
+    <li><code>src/datasets/createOrGetDataset.ts</code></li>
+    <li><code>src/datasets/appendDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDataset.ts</code></li>
+    <li><code>src/datasets/getDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDatasetInfo.ts</code></li>
+  </ul>
+</section>

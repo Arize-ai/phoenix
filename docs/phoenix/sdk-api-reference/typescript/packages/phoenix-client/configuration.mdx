@@ -37,13 +37,13 @@ library defaults < environment variables < explicit options
 
 Headers are replaced by explicit options rather than deep-merged.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/client.ts</code> for the exact option-merging behavior</li>
     <li><code>src/config.ts</code> for environment-variable resolution</li>
   </ul>
-</div>
+</section>
 
 ## Server Compatibility
 
@@ -54,11 +54,12 @@ const version = await client.getServerVersion();
 console.log(version);
 ```
 
-## Source Map
-
-```text
-src/client.ts
-src/config.ts
-src/constants/serverRequirements.ts
-src/utils/serverVersionUtils.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/client.ts</code></li>
+    <li><code>src/config.ts</code></li>
+    <li><code>src/constants/serverRequirements.ts</code></li>
+    <li><code>src/utils/serverVersionUtils.ts</code></li>
+  </ul>
+</section>

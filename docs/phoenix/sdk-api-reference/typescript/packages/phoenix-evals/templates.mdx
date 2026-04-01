@@ -5,13 +5,13 @@ description: "Template helpers in @arizeai/phoenix-evals"
 
 The template helpers make it easier to manage Mustache-style prompt templates separately from evaluator execution.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/template/applyTemplate.ts</code></li>
     <li><code>src/template/getTemplateVariables.ts</code></li>
   </ul>
-</div>
+</section>
 
 ## Render A Template
 
@@ -41,11 +41,12 @@ const variables = getTemplateVariables({
 });
 ```
 
-## Source Map
-
-```text
-src/template/applyTemplate.ts
-src/template/getTemplateVariables.ts
-src/template/createTemplateVariablesProxy.ts
-src/types/templating.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/template/applyTemplate.ts</code></li>
+    <li><code>src/template/getTemplateVariables.ts</code></li>
+    <li><code>src/template/createTemplateVariablesProxy.ts</code></li>
+    <li><code>src/types/templating.ts</code></li>
+  </ul>
+</section>

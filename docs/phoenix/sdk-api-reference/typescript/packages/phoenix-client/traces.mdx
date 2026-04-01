@@ -5,15 +5,15 @@ description: "Retrieve traces with @arizeai/phoenix-client"
 
 Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
 
-<div className="hidden" data-agent-context="relevant-source-files">
-  <p>Relevant Source Files</p>
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
   <ul>
     <li>
       <code>src/traces/getTraces.ts</code> for the exact query shape and server
       requirement
     </li>
   </ul>
-</div>
+</section>
 
 ## Example
 
@@ -54,9 +54,10 @@ console.log(result.nextCursor);
 - Set `includeSpans` when you need a trace-centric fetch that also contains span details
 - `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
 
-## Source Map
-
-```text
-src/traces/getTraces.ts
-src/types/projects.ts
-```
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/traces/getTraces.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>
