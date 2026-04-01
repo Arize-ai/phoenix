@@ -20,7 +20,7 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 
 if TYPE_CHECKING:
     from .Experiment import Experiment
-    from .ExperimentError import ExperimentError
+    from .ExperimentLog import ExperimentLog
 
 
 @strawberry.enum
@@ -66,13 +66,13 @@ class ExperimentJob(Node):
     @strawberry.field(description="Most recent error from this experiment, or null if no errors.")  # type: ignore[untyped-decorator]
     async def last_error(
         self, info: Info[Context, None]
-    ) -> Annotated["ExperimentError", strawberry.lazy(".ExperimentError")] | None:
-        from .ExperimentError import ExperimentError
+    ) -> Annotated["ExperimentLog", strawberry.lazy(".ExperimentLog")] | None:
+        from .ExperimentLog import ExperimentLog
 
         row = await info.context.data_loaders.last_experiment_errors.load(self.id)
         if row is None:
             return None
-        return ExperimentError.from_orm(row)
+        return ExperimentLog.from_orm(row)
 
     @strawberry.field(description="Errors recorded during experiment execution, most recent first.")  # type: ignore[untyped-decorator]
     async def errors(
@@ -82,8 +82,8 @@ class ExperimentJob(Node):
         last: int | None = UNSET,
         after: CursorString | None = UNSET,
         before: CursorString | None = UNSET,
-    ) -> Connection[Annotated["ExperimentError", strawberry.lazy(".ExperimentError")]]:
-        from .ExperimentError import ExperimentError
+    ) -> Connection[Annotated["ExperimentLog", strawberry.lazy(".ExperimentLog")]]:
+        from .ExperimentLog import ExperimentLog
 
         args = ConnectionArgs(
             first=first,
@@ -94,9 +94,12 @@ class ExperimentJob(Node):
         poly = with_polymorphic(models.ExperimentLog, "*")
         async with info.context.db() as session:
             result = await session.scalars(
-                select(poly).where(poly.experiment_id == self.id).order_by(poly.occurred_at.desc())
+                select(poly)
+                .where(poly.experiment_id == self.id)
+                .where(poly.level == "ERROR")
+                .order_by(poly.occurred_at.desc())
             )
-            data = [ExperimentError.from_orm(row) for row in result.all()]
+            data = [ExperimentLog.from_orm(row) for row in result.all()]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

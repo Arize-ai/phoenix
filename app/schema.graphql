@@ -1505,43 +1505,6 @@ type ExperimentEdge {
   node: Experiment!
 }
 
-type ExperimentError implements Node {
-  """The Globally Unique ID of this object"""
-  id: ID!
-  occurredAt: DateTime!
-  category: ExperimentErrorCategory!
-  message: String!
-  detail: ExperimentErrorDetail
-}
-
-enum ExperimentErrorCategory {
-  TASK
-  EVAL
-  EXPERIMENT
-}
-
-"""A connection to a list of items."""
-type ExperimentErrorConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExperimentErrorEdge!]!
-}
-
-union ExperimentErrorDetail = FailureDetail | RetriesExhaustedDetail
-
-"""An edge in a connection."""
-type ExperimentErrorEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: ExperimentError!
-}
-
-union ExperimentErrorWorkItemId = TaskWorkItemId | EvalWorkItemId
-
 type ExperimentJob implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1550,10 +1513,10 @@ type ExperimentJob implements Node {
   createdAt: DateTime!
 
   """Most recent error from this experiment, or null if no errors."""
-  lastError: ExperimentError
+  lastError: ExperimentLog
 
   """Errors recorded during experiment execution, most recent first."""
-  errors(first: Int = 50, last: Int, after: String, before: String): ExperimentErrorConnection!
+  errors(first: Int = 50, last: Int, after: String, before: String): ExperimentLogConnection!
   maxConcurrency: Int!
 
   """
@@ -1589,6 +1552,50 @@ enum ExperimentJobStatus {
   STOPPED
   ERROR
 }
+
+type ExperimentLog implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  occurredAt: DateTime!
+  category: ExperimentLogCategory!
+  level: ExperimentLogLevel!
+  message: String!
+  detail: ExperimentLogDetail
+}
+
+enum ExperimentLogCategory {
+  TASK
+  EVAL
+  EXPERIMENT
+}
+
+"""A connection to a list of items."""
+type ExperimentLogConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentLogEdge!]!
+}
+
+union ExperimentLogDetail = FailureDetail | RetriesExhaustedDetail
+
+"""An edge in a connection."""
+type ExperimentLogEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentLog!
+}
+
+enum ExperimentLogLevel {
+  ERROR
+  WARN
+  INFO
+}
+
+union ExperimentLogWorkItemId = TaskWorkItemId | EvalWorkItemId
 
 type ExperimentMutationPayload {
   experiments: [Experiment!]!
@@ -1760,7 +1767,7 @@ input ExperimentRunSort {
 }
 
 type FailureDetail {
-  workItem: ExperimentErrorWorkItemId
+  workItem: ExperimentLogWorkItemId
   errorType: String!
   stackTrace: String
 }
@@ -2988,7 +2995,7 @@ type ResumeExperimentPayload {
 }
 
 type RetriesExhaustedDetail {
-  workItem: ExperimentErrorWorkItemId
+  workItem: ExperimentLogWorkItemId
   retryCount: Int!
   reason: String!
   stackTrace: String

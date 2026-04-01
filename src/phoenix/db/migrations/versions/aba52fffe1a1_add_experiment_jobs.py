@@ -223,13 +223,15 @@ def upgrade() -> None:
             nullable=True,
         ),
         sa.Index(
-            "ix_experiment_logs_experiment_id_occurred_at",
+            "ix_experiment_logs_experiment_id_occurred_at_errors",
             "experiment_id",
             sa.text("occurred_at DESC"),
+            postgresql_where=sa.text("level = 'ERROR'"),
+            sqlite_where=sa.text("level = 'ERROR'"),
         ),
     )
     op.create_table(
-        "experiment_task_events",
+        "experiment_task_logs",
         sa.Column(
             "id",
             _Integer,
@@ -260,7 +262,7 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "experiment_eval_events",
+        "experiment_eval_logs",
         sa.Column(
             "id",
             _Integer,
@@ -316,8 +318,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("experiment_dataset_evaluators")
-    op.drop_table("experiment_eval_events")
-    op.drop_table("experiment_task_events")
+    op.drop_table("experiment_eval_logs")
+    op.drop_table("experiment_task_logs")
     op.drop_table("experiment_logs")
     op.drop_table("experiment_prompt_tasks")
     op.drop_table("experiment_jobs")
