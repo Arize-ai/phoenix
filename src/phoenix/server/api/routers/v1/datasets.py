@@ -21,6 +21,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Qu
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
@@ -1322,12 +1323,12 @@ async def get_dataset_csv(
     try:
         async with request.app.state.db() as session:
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
-            examples = await _get_dataset_example_revisions(
+            revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_csv, examples)
+    content = await run_in_threadpool(_get_content_csv, revisions)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
@@ -1380,18 +1381,10 @@ async def get_dataset_jsonl(
     try:
         async with request.app.state.db() as session:
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
-            examples = await _get_dataset_example_revisions(
+            revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
-            example_ids = [ex.dataset_example_id for ex in examples]
-            # Fetch external IDs
-            external_ids: dict[int, Optional[str]] = {}
-            if example_ids:
-                ext_id_stmt = select(
-                    models.DatasetExample.id, models.DatasetExample.external_id
-                ).where(models.DatasetExample.id.in_(example_ids))
-                async for eid, ext_id in await session.stream(ext_id_stmt):
-                    external_ids[eid] = ext_id
+            example_ids = [rev.dataset_example_id for rev in revisions]
             # Fetch splits
             splits: dict[int, list[str]] = {}
             if example_ids:
@@ -1411,7 +1404,7 @@ async def get_dataset_jsonl(
                     splits.setdefault(example_id, []).append(split_name)
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl, examples, external_ids, splits)
+    content = await run_in_threadpool(_get_content_jsonl, revisions, splits)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -1461,12 +1454,12 @@ async def get_dataset_jsonl_openai_ft(
     try:
         async with request.app.state.db() as session:
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
-            examples = await _get_dataset_example_revisions(
+            revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
+    content = await run_in_threadpool(_get_content_jsonl_openai_ft, revisions)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -1516,12 +1509,12 @@ async def get_dataset_jsonl_openai_evals(
     try:
         async with request.app.state.db() as session:
             dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
-            examples = await _get_dataset_example_revisions(
+            revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
+    content = await run_in_threadpool(_get_content_jsonl_openai_evals, revisions)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -1529,59 +1522,56 @@ async def get_dataset_jsonl_openai_evals(
     return content
 
 
-def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_csv(revisions: list[models.DatasetExampleRevision]) -> bytes:
     records = [
         {
-            "example_id": GlobalID(
-                type_name=DatasetExampleNodeType.__name__,
-                node_id=str(example.dataset_example_id),
+            "example_id": revision.dataset_example.external_id
+            or str(
+                GlobalID(
+                    type_name=DatasetExampleNodeType.__name__,
+                    node_id=str(revision.dataset_example_id),
+                )
             ),
-            **{f"input_{k}": v for k, v in example.input.items()},
-            **{f"output_{k}": v for k, v in example.output.items()},
-            **{f"metadata_{k}": v for k, v in example.metadata_.items()},
+            **{f"input_{k}": v for k, v in revision.input.items()},
+            **{f"output_{k}": v for k, v in revision.output.items()},
+            **{f"metadata_{k}": v for k, v in revision.metadata_.items()},
         }
-        for example in examples
+        for revision in revisions
     ]
     return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
 
 
 def _get_content_jsonl(
-    examples: list[models.DatasetExampleRevision],
-    external_ids: dict[int, Optional[str]],
+    revisions: list[models.DatasetExampleRevision],
     splits: dict[int, list[str]],
 ) -> bytes:
     records = io.BytesIO()
-    for example in examples:
-        ext_id = external_ids.get(example.dataset_example_id)
-        example_id: str = (
-            ext_id
-            if ext_id is not None
-            else str(
-                GlobalID(
-                    type_name=DatasetExampleNodeType.__name__,
-                    node_id=str(example.dataset_example_id),
-                )
+    for revision in revisions:
+        example_id: str = revision.dataset_example.external_id or str(
+            GlobalID(
+                type_name=DatasetExampleNodeType.__name__,
+                node_id=str(revision.dataset_example_id),
             )
         )
         record = {
             "id": example_id,
-            "input": example.input,
-            "output": example.output,
-            "metadata": example.metadata_,
-            "splits": splits.get(example.dataset_example_id, []),
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
+            "splits": splits.get(revision.dataset_example_id, []),
         }
         records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
     records.seek(0)
     return records.read()
 
 
-def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_ft(revisions: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
-    for example in examples:
-        input_messages = example.input.get("messages", [])
+    for revision in revisions:
+        input_messages = revision.input.get("messages", [])
         if not isinstance(input_messages, list):
             input_messages = []
-        output_messages = example.output.get("messages", [])
+        output_messages = revision.output.get("messages", [])
         if not isinstance(output_messages, list):
             output_messages = []
 
@@ -1589,7 +1579,7 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
             "messages": input_messages + output_messages,
         }
 
-        tools = example.input.get("tools", [])
+        tools = revision.input.get("tools", [])
         if tools:
             record_dict["tools"] = tools
 
@@ -1599,20 +1589,20 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
     return records.read()
 
 
-def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_evals(revisions: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
-    for example in examples:
+    for revision in revisions:
         records.write(
             (
                 json.dumps(
                     {
                         "messages": ims
-                        if isinstance(ims := example.input.get("messages"), list)
+                        if isinstance(ims := revision.input.get("messages"), list)
                         else [],
                         "ideal": (
                             ideal if isinstance(ideal := last_message.get("content"), str) else ""
                         )
-                        if isinstance(oms := example.output.get("messages"), list)
+                        if isinstance(oms := revision.output.get("messages"), list)
                         and oms
                         and hasattr(last_message := oms[-1], "get")
                         else "",
@@ -1668,6 +1658,7 @@ async def _get_dataset_example_revisions(
         )
         .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         .order_by(models.DatasetExampleRevision.dataset_example_id)
+        .options(joinedload(models.DatasetExampleRevision.dataset_example))
     )
     return [r async for r in await session.stream_scalars(stmt)]
 

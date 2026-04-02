@@ -1431,6 +1431,7 @@ class DatasetExampleRevision(HasId):
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
+    dataset_example: Mapped["DatasetExample"] = relationship("DatasetExample")
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example_revision",
