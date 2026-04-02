@@ -2,8 +2,7 @@
 GraphQL mutations for managing sandbox backend configuration.
 
 Provides CRUD for SandboxConfig rows (named per-provider configs that
-CodeEvaluators point to) and admin operations for enabling/disabling
-SandboxProvider rows.
+CodeEvaluators point to) and update operations for SandboxProvider rows.
 """
 
 import strawberry
@@ -53,12 +52,6 @@ class DeleteSandboxConfigPayload:
 
 
 @strawberry.type
-class SetSandboxProviderEnabledPayload:
-    sandbox_provider: SandboxProviderType
-    query: Query
-
-
-@strawberry.type
 class UpdateSandboxProviderPayload:
     sandbox_provider: SandboxProviderType
     query: Query
@@ -93,7 +86,7 @@ class SandboxConfigMutationMixin:
             if provider is None:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
-            values = sandbox_config_from_input(input)
+            values = sandbox_config_from_input(input, provider_id=provider_id)
             row = models.SandboxConfig(**values)
             session.add(row)
             await session.flush()
@@ -126,8 +119,8 @@ class SandboxConfigMutationMixin:
 
             if input.description is not strawberry.UNSET:
                 row.description = input.description
-            if input.config is not strawberry.UNSET and input.config is not None:
-                row.config = dict(input.config)
+            if input.config is not strawberry.UNSET:
+                row.config = dict(input.config) if input.config is not None else {}
             if input.timeout is not strawberry.UNSET:
                 row.timeout = input.timeout if input.timeout is not None else 30
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
@@ -148,7 +141,10 @@ class SandboxConfigMutationMixin:
         id: GlobalID,
     ) -> DeleteSandboxConfigPayload:
         """Delete a SandboxConfig by GlobalID."""
-        config_id = int(id.node_id)
+        config_id = from_global_id_with_expected_type(
+            id,
+            expected_type_name=SandboxConfig.__name__,
+        )
         async with info.context.db() as session:
             row = await session.get(models.SandboxConfig, config_id)
             if row is None:
@@ -156,31 +152,6 @@ class SandboxConfigMutationMixin:
             await session.delete(row)
 
         return DeleteSandboxConfigPayload(deleted_id=id, query=Query())
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def set_sandbox_provider_enabled(
-        self,
-        info: Info[Context, None],
-        provider_id: int,
-        enabled: bool,
-    ) -> SetSandboxProviderEnabledPayload:
-        """Enable or disable a SandboxProvider (admin operation)."""
-        from sqlalchemy import select
-
-        async with info.context.db() as session:
-            row = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.id == provider_id)
-            )
-            if row is None:
-                raise NotFound(f"SandboxProvider not found: {provider_id}")
-            row.enabled = enabled
-            await session.flush()
-            await session.refresh(row)
-
-        return SetSandboxProviderEnabledPayload(
-            sandbox_provider=to_gql_sandbox_provider(row),
-            query=Query(),
-        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def update_sandbox_provider(
@@ -202,8 +173,8 @@ class SandboxConfigMutationMixin:
             if row is None:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
-            if input.config is not strawberry.UNSET and input.config is not None:
-                row.config = dict(input.config)
+            if input.config is not strawberry.UNSET:
+                row.config = dict(input.config) if input.config is not None else {}
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 
