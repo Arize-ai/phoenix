@@ -263,6 +263,22 @@ def upgrade() -> None:
         ),
     )
 
+    # Start PostgreSQL sequences at the smallest 32-bit integer value to maximize
+    # the available ID space for new deployments (~4.3B instead of ~2.1B). CYCLE
+    # allows the sequence to wrap around if it reaches the max. The projects table
+    # is excluded to preserve the default project's Node ID across deployments.
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        for table in (
+            "traces",
+            "spans",
+            "span_annotations",
+            "trace_annotations",
+            "document_annotations",
+        ):
+            op.execute(sa.text(f"ALTER SEQUENCE {table}_id_seq MINVALUE -2147483648 CYCLE"))
+            op.execute(sa.text(f"SELECT setval('{table}_id_seq', -2147483648, false)"))
+
     op.bulk_insert(
         projects_table,
         [
