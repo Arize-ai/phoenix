@@ -788,7 +788,6 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/configuration",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations",
@@ -798,8 +797,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/api-client"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
                 ]
               },
               {
@@ -809,8 +807,6 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/code-evaluators",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/built-in-metrics",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
@@ -821,12 +817,7 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/configuration",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/register",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/instrumentation",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/projects-and-auth",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/troubleshooting"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
                 ]
               },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",

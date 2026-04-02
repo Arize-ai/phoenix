@@ -41,6 +41,33 @@ const result = await exactMatch.evaluate({
 - optimization direction metadata
 - optional OpenTelemetry spans around execution
 
+## When To Use Code Evaluators
+
+Code evaluators are the right fit when the scoring logic should stay deterministic, cheap, and fully under your control:
+
+- regex or exact-match checks
+- JSON structure validation
+- latency and cost thresholds
+- post-processing checks on existing model output
+
+```ts
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const lengthCheck = createEvaluator(
+  ({ output }) => {
+    const score = typeof output === "string" && output.length < 280 ? 1 : 0;
+    return {
+      score,
+      label: score ? "fits-limit" : "too-long",
+    };
+  },
+  {
+    name: "response-length",
+    kind: "CODE",
+  }
+);
+```
+
 ## Related Helpers
 
 - `asEvaluatorFn`
@@ -53,5 +80,7 @@ const result = await exactMatch.evaluate({
     <li><code>src/helpers/asEvaluatorFn.ts</code></li>
     <li><code>src/helpers/toEvaluationResult.ts</code></li>
     <li><code>src/core/FunctionEvaluator.ts</code></li>
+    <li><code>src/core/EvaluatorBase.ts</code></li>
+    <li><code>src/types/evals.ts</code></li>
   </ul>
 </section>

@@ -29,17 +29,30 @@ const result = await faithfulness.evaluate({
 });
 ```
 
-## Available Entry Points
+## Built-In Evaluator Factories
 
-- `createClassificationEvaluator`
 - `createConcisenessEvaluator`
 - `createCorrectnessEvaluator`
 - `createDocumentRelevanceEvaluator`
 - `createFaithfulnessEvaluator`
 - `createRefusalEvaluator`
+- `createClassificationEvaluator`
 - `createToolSelectionEvaluator`
 - `createToolInvocationEvaluator`
 - `createToolResponseHandlingEvaluator`
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import {
+  createCorrectnessEvaluator,
+  createRefusalEvaluator,
+} from "@arizeai/phoenix-evals";
+
+const model = openai("gpt-4o-mini");
+
+const correctness = createCorrectnessEvaluator({ model });
+const refusal = createRefusalEvaluator({ model });
+```
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
@@ -48,5 +61,6 @@ const result = await faithfulness.evaluate({
     <li><code>src/llm/ClassificationEvaluator.ts</code></li>
     <li><code>src/llm/LLMEvaluator.ts</code></li>
     <li><code>src/llm/createFaithfulnessEvaluator.ts</code></li>
+    <li><code>src/types/evals.ts</code></li>
   </ul>
 </section>
