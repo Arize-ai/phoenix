@@ -226,7 +226,9 @@ do {
 
 ## Span Notes
 
-`addSpanNote` creates a special annotation for free-text comments. Unlike regular annotations, multiple notes can exist on the same span — each gets a unique timestamp-based identifier.
+`addSpanNote` attaches a free-text comment to a span. Unlike structured annotations (which are keyed by `name` + `identifier`), notes are append-only — each call creates a new note with a unique timestamp-based identifier, so multiple notes naturally accumulate on the same span.
+
+This makes notes a good mechanism for **open coding**: reviewers can leave qualitative observations on spans during exploratory analysis without needing to define annotation names or scoring rubrics up front. The accumulated notes can later inform what structured annotations to create.
 
 ```ts
 import { addSpanNote } from "@arizeai/phoenix-client/spans";
