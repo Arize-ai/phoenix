@@ -98,12 +98,22 @@ class TestGetSpansFilters:
         )
         assert len(spans) == 1
 
+    def test_parent_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"parent_span_id": ["abc123"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            parent_span_id="abc123",
+        )
+        assert len(spans) == 1
+
     def test_no_filters_omits_params(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             query_string = parse_qs(urlparse(str(request.url)).query)
             assert "name" not in query_string
             assert "span_kind" not in query_string
             assert "status_code" not in query_string
+            assert "parent_span_id" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
@@ -122,6 +132,16 @@ class TestAsyncGetSpansFilters:
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
             name="my-span",
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_parent_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"parent_span_id": ["abc123"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            parent_span_id="abc123",
         )
         assert len(spans) == 1
 

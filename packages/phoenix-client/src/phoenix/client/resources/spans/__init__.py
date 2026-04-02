@@ -439,6 +439,7 @@ class Spans:
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
@@ -458,6 +459,8 @@ class Spans:
                 Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
+            parent_span_id (Optional[str]): Optional parent span ID to filter by.
+                Filters spans whose parent has the given span ID.
             name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
                 Requires Phoenix server >= 13.15.0.
             span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
@@ -497,6 +500,8 @@ class Spans:
                 params["trace_id"] = list(trace_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
+            if parent_span_id is not None:
+                params["parent_span_id"] = parent_span_id
             if name:
                 params["name"] = [name] if isinstance(name, str) else list(name)
             if span_kind:
@@ -1701,6 +1706,7 @@ class AsyncSpans:
         end_time: Optional[datetime] = None,
         trace_ids: Optional[Sequence[str]] = None,
         parent_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
@@ -1720,6 +1726,8 @@ class AsyncSpans:
                 Requires Phoenix server >= 13.9.0.
             parent_id (Optional[str]): Optional parent span ID to filter by.
                 Use "null" to get root spans only.
+            parent_span_id (Optional[str]): Optional parent span ID to filter by.
+                Filters spans whose parent has the given span ID.
             name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
                 Requires Phoenix server >= 13.15.0.
             span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
@@ -1759,6 +1767,8 @@ class AsyncSpans:
                 params["trace_id"] = list(trace_ids)
             if parent_id is not None:
                 params["parent_id"] = parent_id
+            if parent_span_id is not None:
+                params["parent_span_id"] = parent_span_id
             if name:
                 params["name"] = [name] if isinstance(name, str) else list(name)
             if span_kind:
