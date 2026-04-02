@@ -13,9 +13,56 @@ All functions are imported from `@arizeai/phoenix-client/spans`. See [Annotation
     <li><code>src/spans/addSpanAnnotation.ts</code> for the single-annotation API</li>
     <li><code>src/spans/logSpanAnnotations.ts</code> for batch logging</li>
     <li><code>src/spans/getSpanAnnotations.ts</code> for reading annotations back</li>
+    <li><code>src/spans/getSpans.ts</code> for fetching span IDs from Phoenix</li>
     <li><code>src/spans/types.ts</code> for the <code>SpanAnnotation</code> interface</li>
   </ul>
 </section>
+
+## Getting The `spanId`
+
+`spanId` is the OpenTelemetry span ID for the operation you want to annotate. In practice, you usually get it one of two ways:
+
+### From Running Code With `@arizeai/phoenix-otel`
+
+If you are already tracing the operation at runtime, capture the span ID from the active span and keep it with the application response, evaluation job, or feedback event that will log the annotation later.
+
+```ts
+import { register, trace } from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const tracer = trace.getTracer("support-bot");
+
+const result = await tracer.startActiveSpan("answer-question", async (span) => {
+  const spanId = span.spanContext().spanId;
+
+  return {
+    answer: "Phoenix is open source.",
+    spanId,
+  };
+});
+```
+
+If you are already inside traced code and just need the current span, `trace.getActiveSpan()?.spanContext().spanId` gives you the same OpenTelemetry ID.
+
+### From Retrieved Spans During Evaluation
+
+If you are annotating spans after the fact, fetch the spans from Phoenix first and read the OpenTelemetry span ID from `span.context.span_id`.
+
+```ts
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const { spans } = await getSpans({
+  project: { projectName: "support-bot" },
+  spanKind: "LLM",
+  limit: 10,
+});
+
+for (const span of spans) {
+  const spanId = span.context.span_id;
+  console.log(span.name, spanId);
+}
+```
 
 ## Add A Single Span Annotation
 
@@ -209,6 +256,7 @@ await addSpanNote({
     <li><code>src/spans/addSpanAnnotation.ts</code></li>
     <li><code>src/spans/logSpanAnnotations.ts</code></li>
     <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/spans/getSpans.ts</code></li>
     <li><code>src/spans/addSpanNote.ts</code></li>
     <li><code>src/spans/types.ts</code></li>
     <li><code>src/types/annotations.ts</code></li>

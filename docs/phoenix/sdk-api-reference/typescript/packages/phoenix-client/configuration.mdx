@@ -3,7 +3,7 @@ title: "Configuration"
 description: "Configure @arizeai/phoenix-client"
 ---
 
-`createClient()` resolves Phoenix client options in this order: library defaults, environment variables, then explicit options. Explicit `headers` replace environment-derived headers rather than deep-merging.
+`createClient()` resolves Phoenix client options in this order: library defaults, environment variables, then explicit options. In most applications, the normal setup is to set `PHOENIX_HOST` and `PHOENIX_API_KEY` in the environment and call `createClient()` with no overrides.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
@@ -13,37 +13,43 @@ description: "Configure @arizeai/phoenix-client"
   </ul>
 </section>
 
-## Quick Start
+## Recommended Setup
+
+Use the environment-driven path unless you have a specific reason to override client options in code.
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_API_KEY=phx_your_api_key
+```
+
+If you're using Phoenix Cloud, `PHOENIX_HOST` may look like `https://app.phoenix.arize.com/s/my-space`.
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient();
+
+const datasets = await client.GET("/v1/datasets");
+```
+
+`PHOENIX_API_KEY` is converted into `Authorization: Bearer <key>` automatically. You do not need to build that header yourself unless you are explicitly overriding `headers`.
+
+## Explicit Overrides
 
 ```ts
 import { createClient } from "@arizeai/phoenix-client";
 
 const client = createClient({
   options: {
-    baseUrl: "http://localhost:6006",
+    baseUrl: "https://phoenix.example.com",
     headers: {
       Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
-      "x-team": "agents",
     },
   },
 });
-
-const datasets = await client.GET("/v1/datasets");
 ```
 
-## Environment-Driven Setup
-
-```bash
-export PHOENIX_HOST=http://localhost:6006
-export PHOENIX_API_KEY=phx_your_api_key
-export PHOENIX_CLIENT_HEADERS='{"x-team":"agents"}'
-```
-
-```ts
-import { createClient } from "@arizeai/phoenix-client";
-
-const client = createClient();
-```
+Use explicit options when you want configuration to live in code or when you need to override the environment for a specific client instance.
 
 ## createClient Parameters
 
@@ -59,7 +65,21 @@ These are the Phoenix-specific options this package resolves before creating the
 | Option | Type | Description |
 |--------|------|-------------|
 | `baseUrl` | `string` | Base Phoenix URL. Defaults to `http://localhost:6006`, or `PHOENIX_HOST` when that environment variable is set. |
-| `headers` | `ClientOptions["headers"]` | Headers sent on every request. This is where Phoenix authentication and custom request headers are configured. Explicit `headers` replace environment-derived headers. |
+| `headers` | `ClientOptions["headers"]` | Headers sent on every request. `PHOENIX_API_KEY` populates `Authorization` automatically. Explicit `headers` replace environment-derived headers. |
+
+## Header Override Rule
+
+If you pass `options.headers`, they replace the environment-derived header object rather than deep-merging with it. That means if you override `headers` and still want API key authentication, include `Authorization` yourself:
+
+```ts
+const client = createClient({
+  options: {
+    headers: {
+      Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+    },
+  },
+});
+```
 
 ## Environment Variables
 
@@ -67,7 +87,7 @@ These are the Phoenix-specific options this package resolves before creating the
 |--------|---------|-------------|
 | `PHOENIX_HOST` | `options.baseUrl` | Base Phoenix URL, for example `http://localhost:6006`. |
 | `PHOENIX_API_KEY` | `options.headers.Authorization` | Bearer token for authenticated environments. |
-| `PHOENIX_CLIENT_HEADERS` | `options.headers` | JSON-encoded object of additional headers to send on every request. |
+| `PHOENIX_CLIENT_HEADERS` | `options.headers` | Optional JSON-encoded object of additional headers to send on every request. Most setups do not need this. |
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
