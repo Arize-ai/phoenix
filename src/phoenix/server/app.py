@@ -1280,6 +1280,9 @@ def create_app(
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
         shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
+    from phoenix.server.sandbox import close_all_backends
+
+    shutdown_callbacks_list.append(close_all_backends)
     if allowed_origins:
         app.add_middleware(
             CORSMiddleware,

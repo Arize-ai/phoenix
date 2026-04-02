@@ -68,7 +68,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "VERCEL": AdapterMetadata(
         display_name="Vercel Sandbox",
-        supported_languages=["TYPESCRIPT"],
+        supported_languages=["PYTHON", "TYPESCRIPT"],
         dependency_hints=[
             "Install Phoenix with the `vercel-sandbox` extra.",
             "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
@@ -79,6 +79,14 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         supported_languages=["TYPESCRIPT"],
         dependency_hints=[
             "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
+        ],
+    ),
+    "MODAL": AdapterMetadata(
+        display_name="Modal",
+        supported_languages=["PYTHON"],
+        dependency_hints=[
+            "Install Phoenix with the `modal` extra.",
+            "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
         ],
     ),
 }
@@ -106,6 +114,16 @@ def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
     _SANDBOX_ADAPTERS[adapter.key] = adapter
     logger.debug(f"Registered sandbox adapter: {adapter.key!r}")
     return adapter
+
+
+async def close_all_backends() -> None:
+    """Close all cached SandboxBackend instances and clear the cache."""
+    for key, backend in list(_BACKEND_CACHE.items()):
+        try:
+            await backend.close()
+        except Exception:
+            logger.warning(f"Error closing sandbox backend {key!r}", exc_info=True)
+    _BACKEND_CACHE.clear()
 
 
 def get_or_create_backend(
@@ -182,5 +200,12 @@ try:
     from phoenix.server.sandbox.deno_backend import DenoAdapter
 
     register_sandbox_adapter(DenoAdapter())
+except ImportError:
+    pass
+
+try:
+    from phoenix.server.sandbox.modal_backend import ModalAdapter
+
+    register_sandbox_adapter(ModalAdapter())
 except ImportError:
     pass

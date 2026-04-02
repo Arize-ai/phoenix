@@ -188,6 +188,10 @@ daytona = [
 ]
 vercel-sandbox = [
   "vercel>=0.5.1",
+  "websockets>=14.0",
+]
+modal = [
+  "modal>=0.70.0",
 ]
 pg = [
   "asyncpg",

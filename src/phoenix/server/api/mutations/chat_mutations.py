@@ -231,7 +231,11 @@ class ChatCompletionMutationMixin:
                                         "Sandbox provider language does not match "
                                         "code evaluator language"
                                     )
-                                merged_config = {**provider.config, **sandbox_cfg.config}
+                                merged_config = {
+                                    **provider.config,
+                                    **sandbox_cfg.config,
+                                    "language": language,
+                                }
 
                     # Eagerly capture scalar fields before session closes
                     evaluator_name = str(code_evaluator_record.name)

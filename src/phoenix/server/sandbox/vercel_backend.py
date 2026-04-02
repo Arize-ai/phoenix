@@ -1,9 +1,19 @@
 """
 Vercel sandbox backend.
 
-Stateless (BaseNoSessionBackend) — each execute() call is independent.
-Requires the ``vercel_sandbox`` package (optional extra).
+Stateless (BaseNoSessionBackend) — each execute() call creates a fresh
+AsyncSandbox and tears it down on completion.
+
+Requires the ``vercel-sandbox`` extra (``vercel>=0.5.1``).
 Import is deferred to avoid top-level failures when the extra is absent.
+
+Language routing
+----------------
+- PYTHON  → runtime="python3.13", run_command("python3", ["-c", code])
+- TYPESCRIPT → runtime="node24", run_command("node", ["--input-type=module", "-e", code])
+
+The language key is read from the config dict (key ``"language"``).
+Defaults to TYPESCRIPT for backwards compatibility.
 """
 
 from __future__ import annotations
@@ -23,17 +33,31 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Language → runtime + command mapping
+# ---------------------------------------------------------------------------
+
+_LANGUAGE_CONFIGS: dict[str, dict[str, Any]] = {
+    "PYTHON": {
+        "runtime": "python3.13",
+        "cmd": "python3",
+        "args_prefix": ["-c"],
+    },
+    "TYPESCRIPT": {
+        "runtime": "node24",
+        "cmd": "node",
+        "args_prefix": ["--input-type=module", "-e"],
+    },
+}
+_DEFAULT_LANGUAGE = "TYPESCRIPT"
+
 
 class VercelSandboxBackend(BaseNoSessionBackend):
-    """Sandbox backend executing TypeScript code via Vercel Sandbox."""
+    """Sandbox backend executing code via Vercel Sandbox (vercel >= 0.5.1)."""
 
-    def __init__(self, api_key: str) -> None:
-        self._api_key = api_key
-
-    def _get_client(self) -> Any:
-        from vercel_sandbox import Sandbox  # type: ignore[import-not-found]
-
-        return Sandbox(api_key=self._api_key)
+    def __init__(self, token: str, language: str = _DEFAULT_LANGUAGE) -> None:
+        self._token = token
+        self._language = language.upper() if language else _DEFAULT_LANGUAGE
 
     async def execute(
         self,
@@ -42,17 +66,27 @@ class VercelSandboxBackend(BaseNoSessionBackend):
         env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        from vercel.sandbox import AsyncSandbox  # type: ignore[import-not-found]
+
+        lang_cfg = _LANGUAGE_CONFIGS.get(self._language, _LANGUAGE_CONFIGS[_DEFAULT_LANGUAGE])
+        runtime: str = lang_cfg["runtime"]
+        cmd: str = lang_cfg["cmd"]
+        args: list[str] = lang_cfg["args_prefix"] + [code]
+
+        create_kwargs: dict[str, Any] = {"runtime": runtime, "token": self._token}
+        if env:
+            create_kwargs["env"] = env
+        if timeout is not None:
+            create_kwargs["timeout"] = timeout
+
         try:
-            client = self._get_client()
-            run_kwargs: dict[str, Any] = {"env": env or {}}
-            if timeout is not None:
-                run_kwargs["timeout"] = timeout
-            result = await client.run(code, **run_kwargs)
-            return ExecutionResult(
-                stdout=result.stdout or "",
-                stderr=result.stderr or "",
-                error=result.error or None,
-            )
+            async with await AsyncSandbox.create(**create_kwargs) as sandbox:
+                result = await sandbox.run_command(cmd, args)
+                stdout = await result.stdout() or ""
+                stderr = await result.stderr() or ""
+                exit_code = result.exit_code
+                error = stderr if exit_code != 0 else None
+                return ExecutionResult(stdout=stdout, stderr=stderr, error=error)
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
@@ -63,13 +97,14 @@ class VercelSandboxBackend(BaseNoSessionBackend):
 class VercelAdapter(SandboxAdapter):
     key = "VERCEL"
     display_name = "Vercel Sandbox"
-    supported_languages = ["TYPESCRIPT"]
+    supported_languages = ["PYTHON", "TYPESCRIPT"]
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        api_key: str = (
+        token: str = (
             config.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
             or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
             or ""
         )
-        return VercelSandboxBackend(api_key=api_key)
+        language: str = config.get("language", _DEFAULT_LANGUAGE)
+        return VercelSandboxBackend(token=token, language=language)
