@@ -50,6 +50,13 @@ GET_SPANS_FILTERS = ParameterRequirement(
     min_server_version=Version(13, 15, 0),
 )
 
+GET_SPANS_ATTRIBUTE_FILTERS = ParameterRequirement(
+    parameter_name="attribute_filter",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(13, 24, 0),
+)
+
 LIST_PROJECT_TRACES = RouteRequirement(
     method="GET",
     path="/v1/projects/{project_identifier}/traces",

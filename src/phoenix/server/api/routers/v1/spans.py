@@ -57,6 +57,37 @@ from .utils import (
 
 DEFAULT_SPAN_LIMIT = 1000
 
+
+def _parse_attribute_filter(filter_str: str) -> sa.ColumnElement[bool]:
+    """Parse an ``attribute_filter`` query-param value into a SQLAlchemy
+    filter clause.
+
+    The expected format is ``key:value`` where *key* is a dot-separated
+    attribute path (e.g. ``llm.model_name``) and *value* is the exact string
+    to match.  The split is performed on the **first** ``:`` only, so values
+    may contain additional colons.
+
+    Returns ``models.Span.attributes[key_parts].as_string() == value``.
+
+    Raises :class:`HTTPException` (422) when the separator is missing or
+    the key portion is empty.
+    """
+    if ":" not in filter_str:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid attribute_filter '{filter_str}': expected format 'key:value'",
+        )
+    key, value = filter_str.split(":", 1)
+    if not key:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid attribute_filter: key must not be empty",
+        )
+    key_parts = key.split(".")
+    clause: sa.ColumnElement[bool] = models.Span.attributes[key_parts].as_string() == value
+    return clause
+
+
 router = APIRouter(tags=["spans"])
 
 
@@ -672,6 +703,13 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    attribute_filter: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Filter by attribute key:value pairs (dot-separated keys, "
+            "e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
+        ),
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -712,6 +750,9 @@ async def span_search_otlpv1(
                 )
             )
         )
+    if attribute_filter:
+        for af in attribute_filter:
+            stmt = stmt.where(_parse_attribute_filter(af))
 
     if cursor:
         try:
@@ -849,6 +890,13 @@ async def span_search(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    attribute_filter: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Filter by attribute key:value pairs (dot-separated keys, "
+            "e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
+        ),
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -895,6 +943,9 @@ async def span_search(
                 )
             )
         )
+    if attribute_filter:
+        for af in attribute_filter:
+            stmt = stmt.where(_parse_attribute_filter(af))
 
     if cursor:
         try:

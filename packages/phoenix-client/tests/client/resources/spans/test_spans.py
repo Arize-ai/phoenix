@@ -114,6 +114,56 @@ class TestGetSpansFilters:
         assert len(spans) == 1
 
 
+class TestGetSpansAttributeFilters:
+    def test_single_attribute_filter(self) -> None:
+        transport = _make_handler(expected_params={"attribute_filter": ["llm.model:gpt-4"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute_filters={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    def test_multiple_attribute_filters(self) -> None:
+        transport = _make_handler(
+            expected_params={"attribute_filter": ["llm.model:gpt-4", "user.id:abc"]}
+        )
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute_filters={"llm.model": "gpt-4", "user.id": "abc"},
+        )
+        assert len(spans) == 1
+
+    def test_no_attribute_filters_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            query_string = parse_qs(urlparse(str(request.url)).query)
+            assert "attribute_filter" not in query_string
+            return httpx.Response(
+                200,
+                json={"data": [_make_span()], "next_cursor": None},
+            )
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+    def test_attribute_filters_combined_with_other_filters(self) -> None:
+        transport = _make_handler(
+            expected_params={
+                "span_kind": ["LLM"],
+                "attribute_filter": ["llm.model:gpt-4"],
+            }
+        )
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_kind="LLM",
+            attribute_filters={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+
 class TestAsyncGetSpansFilters:
     @pytest.mark.anyio
     async def test_single_name_filter(self) -> None:
@@ -140,5 +190,29 @@ class TestAsyncGetSpansFilters:
             name="my-span",
             span_kind="LLM",
             status_code="OK",
+        )
+        assert len(spans) == 1
+
+
+class TestAsyncGetSpansAttributeFilters:
+    @pytest.mark.anyio
+    async def test_single_attribute_filter(self) -> None:
+        transport = _make_handler(expected_params={"attribute_filter": ["llm.model:gpt-4"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            attribute_filters={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_multiple_attribute_filters(self) -> None:
+        transport = _make_handler(
+            expected_params={"attribute_filter": ["llm.model:gpt-4", "user.id:abc"]}
+        )
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            attribute_filters={"llm.model": "gpt-4", "user.id": "abc"},
         )
         assert len(spans) == 1

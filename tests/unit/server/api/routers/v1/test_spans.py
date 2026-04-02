@@ -1471,3 +1471,172 @@ async def test_otlp_span_search_filter_by_status_code(
     assert resp.is_success
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 2
+
+
+# ---------------------------------------------------------------------------
+# Attribute filter tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def project_with_attributed_spans(db: DbSessionFactory) -> None:
+    """Insert spans with known attributes for attribute_filter tests."""
+    async with db() as session:
+        project = models.Project(name="attr-filter-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="traceattr0000000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_attrs: list[tuple[str, dict[str, Any]]] = [
+            (
+                "span-gpt4",
+                {
+                    "llm": {"model_name": "gpt-4"},
+                    "openinference": {"span": {"kind": "LLM"}},
+                },
+            ),
+            (
+                "span-gpt35",
+                {
+                    "llm": {"model_name": "gpt-3.5-turbo"},
+                    "openinference": {"span": {"kind": "LLM"}},
+                },
+            ),
+            (
+                "span-no-model",
+                {
+                    "openinference": {"span": {"kind": "CHAIN"}},
+                },
+            ),
+            (
+                "span-nested-doc",
+                {
+                    "retrieval": {
+                        "source": {"document": {"id": "doc-42"}},
+                    },
+                },
+            ),
+        ]
+        for i, (name, attrs) in enumerate(spans_attrs):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"attr{i:05d}",
+                    parent_id=None,
+                    name=name,
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes=attrs,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_span_search_filter_by_attribute(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": "llm.model_name:gpt-4"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-gpt4"
+
+
+async def test_otlp_span_search_filter_by_attribute(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans/otlpv1",
+        params={"attribute_filter": "llm.model_name:gpt-4"},
+    )
+    assert resp.is_success
+    spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-gpt4"
+
+
+async def test_span_search_filter_by_multiple_attributes(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Multiple attribute_filter params are ANDed."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params=[
+            ("attribute_filter", "llm.model_name:gpt-4"),
+            ("attribute_filter", "openinference.span.kind:LLM"),
+        ],
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-gpt4"
+
+
+async def test_span_search_filter_by_attribute_malformed(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Missing colon separator should return 422."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": "no-colon-here"},
+    )
+    assert resp.status_code == 422
+    assert "expected format" in resp.text
+
+
+async def test_span_search_filter_by_attribute_empty_key(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Empty key (leading colon) should return 422."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": ":some-value"},
+    )
+    assert resp.status_code == 422
+    assert "key must not be empty" in resp.text
+
+
+async def test_span_search_filter_by_attribute_no_match(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Non-matching attribute filter returns empty result set."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": "llm.model_name:nonexistent-model"},
+    )
+    assert resp.is_success
+    spans = resp.json()["data"]
+    assert len(spans) == 0
+
+
+async def test_span_search_filter_by_nested_attribute_path(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Verify filtering with a deeply nested attribute path (D6)."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": "retrieval.source.document.id:doc-42"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-nested-doc"

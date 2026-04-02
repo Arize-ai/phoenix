@@ -5149,6 +5149,8 @@ export interface operations {
                 name?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
+                /** @description Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. */
+                attribute_filter?: string[] | null;
             };
             header?: never;
             path: {
@@ -5218,6 +5220,8 @@ export interface operations {
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
+                /** @description Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. */
+                attribute_filter?: string[] | null;
             };
             header?: never;
             path: {

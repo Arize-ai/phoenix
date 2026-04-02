@@ -2954,6 +2954,27 @@
               "title": "Status Code"
             },
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
+          },
+          {
+            "name": "attribute_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed.",
+              "title": "Attribute Filter"
+            },
+            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
           }
         ],
         "responses": {
@@ -3191,6 +3212,27 @@
               "title": "Status Code"
             },
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
+          },
+          {
+            "name": "attribute_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed.",
+              "title": "Attribute Filter"
+            },
+            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
           }
         ],
         "responses": {

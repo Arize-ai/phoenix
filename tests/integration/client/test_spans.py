@@ -9,9 +9,10 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
-from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
+
+from phoenix.client.__generated__ import v1
 
 from .._helpers import (
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
@@ -847,6 +848,7 @@ class TestClientForSpansRetrieval:
         api_key = _app.admin_secret
 
         import httpx
+
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2175,6 +2177,7 @@ class TestClientForSpanDeletion:
         api_key = _app.admin_secret
 
         import httpx
+
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2255,3 +2258,67 @@ class TestClientForSpanDeletion:
         )
         span_ids_after = {s["context"]["span_id"] for s in spans_after}
         assert span_id not in span_ids_after, "Test span should be deleted"
+
+
+class TestClientGetSpansAttributeFilters:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_attribute_filter_returns_matching_spans(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that attribute_filters returns only spans with matching attributes."""
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        unique_val = token_hex(8)
+        trace_id = f"trace_attr_{token_hex(16)}"
+
+        matching_span = v1.Span(
+            name="matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_match_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": unique_val, "other.attr": "foo"},
+        )
+        non_matching_span = v1.Span(
+            name="non_matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_nomatch_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": token_hex(8), "other.attr": "bar"},
+        )
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[matching_span, non_matching_span],
+            )
+        )
+        assert create_result["total_queued"] == 2
+
+        await _until_spans_exist(
+            _app,
+            [matching_span["context"]["span_id"], non_matching_span["context"]["span_id"]],
+        )
+
+        filtered_spans = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                attribute_filters={"session.id": unique_val},
+                limit=100,
+            )
+        )
+        filtered_span_ids = {s["context"]["span_id"] for s in filtered_spans}
+        assert matching_span["context"]["span_id"] in filtered_span_ids
+        assert non_matching_span["context"]["span_id"] not in filtered_span_ids
