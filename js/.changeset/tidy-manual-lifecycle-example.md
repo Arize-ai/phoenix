@@ -1,5 +1,7 @@
 ---
+"@arizeai/phoenix-client": patch
+"@arizeai/phoenix-evals": patch
 "@arizeai/phoenix-otel": patch
 ---
 
-Remove the manual global tracer provider lifecycle example from the package examples.
+Bundle curated package docs and examples into npm packages under `docs/`.

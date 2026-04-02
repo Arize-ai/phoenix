@@ -67,6 +67,61 @@ const provider = register({
 | `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
 | `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
 
+## Production
+
+### Enable Batch Processing
+
+Always set `batch: true` (the default) in production. The batch span processor groups spans before export, improving compression and reducing the number of outgoing network requests. Disable batching only during local debugging when you need spans to appear immediately.
+
+```ts
+const provider = register({
+  projectName: "support-bot",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  batch: true, // default — groups spans for efficient export
+});
+```
+
+### Provider Lifecycle
+
+In production you must flush and shut down the provider before your process exits, otherwise in-flight batches are lost.
+
+```ts
+// Graceful shutdown — flush buffered spans, then tear down
+process.on("SIGTERM", async () => {
+  await provider.forceFlush();
+  await provider.shutdown();
+  process.exit(0);
+});
+```
+
+For short-lived processes (scripts, serverless functions, CLI tools) call `shutdown()` at the end of your work:
+
+```ts
+await doWork();
+await provider.shutdown(); // ensures the final batch is exported
+```
+
+### Custom Span Processors
+
+If you need full control over export (for example, sending spans to a secondary backend), pass your own `spanProcessors`. This replaces the default Phoenix exporter setup entirely.
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+
+const exporter = new OTLPTraceExporter({
+  url: "https://app.phoenix.arize.com/v1/traces",
+  headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+});
+
+const provider = register({
+  projectName: "support-bot",
+  spanProcessors: [new BatchSpanProcessor(exporter)],
+});
+```
+
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
