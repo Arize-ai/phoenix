@@ -293,6 +293,10 @@
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/hallucination</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data</loc>
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
@@ -1077,12 +1081,88 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core</loc>
@@ -1555,6 +1635,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api</loc>
+    <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates</loc>
