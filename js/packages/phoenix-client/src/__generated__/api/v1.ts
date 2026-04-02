@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/{id}/jsonl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download dataset examples as JSONL file */
+        get: operations["getDatasetJSONL"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{id}/jsonl/openai_ft": {
         parameters: {
             query?: never;
@@ -4283,6 +4300,50 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetJSONL: {
+        parameters: {
+            query?: {
+                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+                version_id?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset or version ID */
             422: {
                 headers: {
                     [name: string]: unknown;
