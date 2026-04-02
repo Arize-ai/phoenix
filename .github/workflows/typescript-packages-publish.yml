@@ -45,21 +45,18 @@ jobs:
           EOF
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      # Workaround for changesets/action#501: v1.7.0 ignores `cwd` for
-      # readChangesetState() and runVersion(). Symlink lets the action find
-      # .changeset from the repo root; `cd js &&` runs commands in the right dir.
-      - name: symlink .changeset to repo root
-        run: ln -s js/.changeset .changeset
       - name: create and publish versions
         # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
         # can trigger subsequent workflows (like publish) when merged
-        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        # Pinned to v1.5.2 because v1.5.3+ broke cwd support (changesets/action#501)
+        uses: changesets/action@d183df40791e90508058cd180e6435cdd9ba16a4 # v1.5.2
         with:
-          version: cd js && pnpm ci:version
+          version: pnpm ci:version
           commit: "chore(js): update versions"
           title: "chore(js): update versions"
-          publish: cd js && pnpm ci:publish
+          publish: pnpm ci:publish
           createGithubReleases: true
+          cwd: "./js"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
