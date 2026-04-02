@@ -297,37 +297,41 @@ export function AddExampleFromScratchForm(
         </Flex>
       </div>
       <View
+        paddingX="size-400"
         paddingY="size-200"
-        paddingX="size-900"
         borderTopColor="default"
         borderTopWidth="thin"
         flexShrink={0}
       >
-        <Flex direction="row" justifyContent="space-between" gap="size-100">
-          <Checkbox isSelected={createMore} onChange={setCreateMore}>
-            Create more
-          </Checkbox>
-          <Button
-            variant="primary"
-            size="M"
-            isDisabled={!isValid || isCommitting}
-            leadingVisual={
-              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
-            }
-            trailingVisual={
-              <Keyboard>
-                <VisuallyHidden>{modifierKey}</VisuallyHidden>
-                <span aria-hidden="true">
-                  {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
-                </span>
-                <VisuallyHidden>enter</VisuallyHidden>
-                <span aria-hidden="true">⏎</span>
-              </Keyboard>
-            }
-            onPress={() => handleSubmit(onSubmit)()}
-          >
-            {isCommitting ? "Adding Example..." : "Add Example"}
-          </Button>
+        <Flex direction="row" justifyContent="center">
+          <View width="900px" paddingStart="auto" paddingEnd="auto">
+            <Flex direction="row" justifyContent="space-between" gap="size-100">
+              <Checkbox isSelected={createMore} onChange={setCreateMore}>
+                Create more
+              </Checkbox>
+              <Button
+                variant="primary"
+                size="M"
+                isDisabled={!isValid || isCommitting}
+                leadingVisual={
+                  isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+                }
+                trailingVisual={
+                  <Keyboard>
+                    <VisuallyHidden>{modifierKey}</VisuallyHidden>
+                    <span aria-hidden="true">
+                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
+                    </span>
+                    <VisuallyHidden>enter</VisuallyHidden>
+                    <span aria-hidden="true">⏎</span>
+                  </Keyboard>
+                }
+                onPress={() => handleSubmit(onSubmit)()}
+              >
+                {isCommitting ? "Adding Example..." : "Add Example"}
+              </Button>
+            </Flex>
+          </View>
         </Flex>
       </View>
     </>
