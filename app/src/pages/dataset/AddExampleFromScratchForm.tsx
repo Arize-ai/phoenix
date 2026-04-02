@@ -163,6 +163,8 @@ export function AddExampleFromScratchForm(
     <>
       <div
         css={css`
+          flex: 1 1 auto;
+          min-height: 0;
           overflow-y: auto;
           padding: var(--global-dimension-size-400);
         `}
@@ -294,7 +296,12 @@ export function AddExampleFromScratchForm(
           </View>
         </Flex>
       </div>
-      <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
+      <View
+        padding="size-200"
+        borderTopColor="default"
+        borderTopWidth="thin"
+        flexShrink={0}
+      >
         <Flex direction="row" justifyContent="space-between" gap="size-100">
           <Checkbox isSelected={createMore} onChange={setCreateMore}>
             Create more
