@@ -48,7 +48,8 @@ jobs:
       - name: create and publish versions
         # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
         # can trigger subsequent workflows (like publish) when merged
-        uses: changesets/action@2ae596f3dd74aaee4f346b31fda33a58528d3d40 # v1.7.0+cwd-fix (changesets/action#501)
+        # Pinned to v1.5.2 because v1.5.3+ broke cwd support (changesets/action#501)
+        uses: changesets/action@d183df40791e90508058cd180e6435cdd9ba16a4 # v1.5.2
         with:
           version: pnpm ci:version
           commit: "chore(js): update versions"
