@@ -110,7 +110,9 @@ await addSessionAnnotation({
 
 ## Idempotent Upserts With `identifier`
 
-When a re-evaluation pipeline may run against the same session more than once, use `identifier` to update rather than duplicate:
+Session annotations are unique by `(name, sessionId, identifier)`. The `identifier` field controls whether a write creates a new annotation or updates an existing one.
+
+Without `identifier`, a session can only have one annotation per name. Adding an `identifier` lets you store **multiple annotations with the same name** on the same session, each keyed by a different identifier. Re-sending the same tuple updates that specific annotation in place.
 
 ```ts
 import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
@@ -124,8 +126,8 @@ await addSessionAnnotation({
     identifier: "goal-eval-v3",
   },
 });
-// Running this again with the same name + sessionId + identifier
-// updates the existing annotation rather than creating a second one.
+// Running this again updates the existing annotation.
+// Using identifier: "goal-eval-v4" would create a second annotation.
 ```
 
 ## Parameter Reference

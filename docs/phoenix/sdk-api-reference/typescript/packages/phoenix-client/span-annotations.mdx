@@ -132,26 +132,43 @@ await addSpanAnnotation({
 
 ## Idempotent Upserts With `identifier`
 
-When an evaluation pipeline may run more than once against the same span, use `identifier` to update the existing annotation rather than creating a duplicate:
+Annotations are unique by `(name, spanId, identifier)`. The `identifier` field controls whether a write creates a new annotation or updates an existing one.
+
+Without `identifier`, a span can only have one annotation per name — writing again overwrites it. Adding an `identifier` lets you store **multiple annotations with the same name** on the same span, each keyed by a different identifier. Re-sending the same `(name, spanId, identifier)` tuple updates that specific annotation in place.
+
+Common patterns:
+
+- **One annotation per user** — use a user ID as the identifier so each user's feedback is stored separately and re-submitting updates their previous rating.
+- **One annotation per evaluator version** — use the evaluator version string so pipeline reruns update in place rather than duplicating.
+- **One annotation per reviewer** — use the reviewer's name or ID so multiple reviewers can each annotate the same span independently.
 
 ```ts
 import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
 
+// Two different users can each leave a "helpfulness" rating on the same span
 await addSpanAnnotation({
   spanAnnotation: {
     spanId: "abc123def456",
-    name: "toxicity",
-    annotatorKind: "CODE",
-    score: 0.01,
-    label: "safe",
-    identifier: "toxicity-v2",
+    name: "helpfulness",
+    annotatorKind: "HUMAN",
+    score: 1,
+    label: "helpful",
+    identifier: "user-alice",
   },
 });
-// Running this again with the same name + spanId + identifier
-// updates the existing annotation rather than creating a second one.
-```
 
-Without `identifier` (or with an empty string), annotations are unique by `(name, spanId)`. Adding an `identifier` lets you store multiple annotations with the same name on the same span — for example, results from different evaluator versions.
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "helpfulness",
+    annotatorKind: "HUMAN",
+    score: 0,
+    label: "not-helpful",
+    identifier: "user-bob",
+  },
+});
+// Both annotations coexist. If Alice re-submits, her annotation is updated.
+```
 
 ## Read Back Span Annotations
 
