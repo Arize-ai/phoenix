@@ -297,7 +297,8 @@ export function AddExampleFromScratchForm(
         </Flex>
       </div>
       <View
-        padding="size-200"
+        paddingY="size-200"
+        paddingX="size-900"
         borderTopColor="default"
         borderTopWidth="thin"
         flexShrink={0}
