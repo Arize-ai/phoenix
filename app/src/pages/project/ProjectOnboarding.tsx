@@ -10,11 +10,8 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
-import {
-  PythonSVG,
-  Server,
-  TypeScriptSVG,
-} from "@phoenix/components/core/icon/Icons";
+import { Icon } from "@phoenix/components/core/icon/Icon";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
@@ -125,7 +122,12 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
               {"Platform" in integration.configs && (
                 <Tab id="Platform">
                   <span css={languageTabCSS}>
-                    <Server width={16} height={16} />
+                    <Icon
+                      svgKey="Server"
+                      css={css`
+                        font-size: 16px;
+                      `}
+                    />
                     Platform
                   </span>
                 </Tab>
