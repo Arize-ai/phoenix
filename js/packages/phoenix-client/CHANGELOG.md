@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 6.5.5
+
+### Patch Changes
+
+- 1028be5: Bundle curated package docs and examples into npm packages under `docs/`.
+- Updated dependencies [1028be5]
+  - @arizeai/phoenix-otel@0.4.3
+
 ## 6.5.4
 
 ### Patch Changes
