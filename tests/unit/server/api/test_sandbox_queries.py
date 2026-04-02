@@ -91,7 +91,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
     assert backends["WASM"]["dependencyHints"] == [
-        "Install Phoenix with the `sandbox` extra so `wasmtime` is available.",
+        "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
         "Allow Phoenix to download the CPython WASM binary on first use, "
         "or pre-populate the local WASM cache.",
     ]
@@ -104,7 +104,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
         "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
     ]
     assert backends["VERCEL"]["dependencyHints"] == [
-        "Install Phoenix with the `vercel-sandbox` extra.",
+        "Install Phoenix with the `vercel` extra.",
         "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
     ]
     assert backends["DENO"]["dependencyHints"] == [

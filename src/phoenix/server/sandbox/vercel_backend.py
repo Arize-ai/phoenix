@@ -4,7 +4,7 @@ Vercel sandbox backend.
 Stateless (BaseNoSessionBackend) — each execute() call creates a fresh
 AsyncSandbox and tears it down on completion.
 
-Requires the ``vercel-sandbox`` extra (``vercel>=0.5.1``).
+Requires the ``vercel`` extra (``vercel>=0.5.1``).
 Import is deferred to avoid top-level failures when the extra is absent.
 
 Language routing

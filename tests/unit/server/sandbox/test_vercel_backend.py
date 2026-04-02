@@ -4,7 +4,7 @@ Tests verify that build_backend() and execute() route correctly for both
 PYTHON and TYPESCRIPT languages without importing the real vercel SDK.
 
 The vercel SDK is mocked at the module level via unittest.mock.patch, so
-these tests run even without the vercel-sandbox extra installed.
+these tests run even without the vercel extra installed.
 """
 
 from __future__ import annotations
