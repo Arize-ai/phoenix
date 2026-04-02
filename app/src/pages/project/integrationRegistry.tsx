@@ -870,12 +870,6 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
     name: "Dify",
     icon: <DifySVG />,
     configs: {
-      Python: {
-        docsHref:
-          "https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing",
-        githubHref:
-          "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai",
-      },
       Platform: {
         docsHref:
           "https://arize.com/docs/phoenix/integrations/platforms/dify/dify-tracing",
