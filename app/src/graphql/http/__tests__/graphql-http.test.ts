@@ -173,20 +173,54 @@ describe("readMultipartBody", () => {
   it("calls nextValue for each parsed JSON result", async () => {
     const body =
       '\r\n--graphql\r\nContent-Type: application/json\r\n\r\n{"data":{"viewer":{"id":"1"}},"hasNext":true}' +
-      '\r\n--graphql\r\nContent-Type: application/json\r\n\r\n{"incremental":[{"data":{"name":"test"}}],"hasNext":false}' +
+      '\r\n--graphql\r\nContent-Type: application/json\r\n\r\n{"incremental":[{"data":{"name":"test"},"path":["viewer"],"label":"Deferred"}],"hasNext":false}' +
       "\r\n--graphql--\r\n";
 
     const response = createMultipartResponse(body);
     const results: unknown[] = [];
     await readMultipartBody(response, (value) => results.push(value));
 
+    // The incremental envelope is unwrapped into flat payloads for Relay
     expect(results).toHaveLength(2);
     expect(results[0]).toEqual({
       data: { viewer: { id: "1" } },
       hasNext: true,
     });
     expect(results[1]).toEqual({
-      incremental: [{ data: { name: "test" } }],
+      data: { name: "test" },
+      path: ["viewer"],
+      label: "Deferred",
+      hasNext: false,
+    });
+  });
+
+  it("unwraps multiple items in a single incremental array", async () => {
+    const body =
+      '\r\n--graphql\r\nContent-Type: application/json\r\n\r\n{"data":{"node":{"id":"1"}},"hasNext":true}' +
+      '\r\n--graphql\r\nContent-Type: application/json\r\n\r\n{"incremental":[{"data":{"a":1},"path":["node"],"label":"A"},{"data":{"b":2},"path":["node"],"label":"B"}],"hasNext":false}' +
+      "\r\n--graphql--\r\n";
+
+    const response = createMultipartResponse(body);
+    const results: unknown[] = [];
+    await readMultipartBody(response, (value) => results.push(value));
+
+    expect(results).toHaveLength(3);
+    expect(results[0]).toEqual({
+      data: { node: { id: "1" } },
+      hasNext: true,
+    });
+    // First item in incremental array: hasNext is true (more items follow)
+    expect(results[1]).toEqual({
+      data: { a: 1 },
+      path: ["node"],
+      label: "A",
+      hasNext: true,
+    });
+    // Last item inherits hasNext from the envelope
+    expect(results[2]).toEqual({
+      data: { b: 2 },
+      path: ["node"],
+      label: "B",
       hasNext: false,
     });
   });

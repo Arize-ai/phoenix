@@ -24,7 +24,7 @@ export async function readMultipartBody<T>(
   nextValue: (value: T) => void
 ): Promise<void> {
   for await (const body of consumeMultipartBody(response)) {
-    const result: T = JSON.parse(body);
+    const result: Record<string, unknown> = JSON.parse(body);
     if (
       typeof result === "object" &&
       result !== null &&
@@ -32,6 +32,20 @@ export async function readMultipartBody<T>(
     ) {
       continue;
     }
-    nextValue(result);
+    // The GraphQL-over-HTTP incremental delivery spec (deferSpec=20220824)
+    // wraps deferred payloads in an `incremental` array. Relay expects each
+    // deferred payload as a flat object with top-level `data`, `path`, and
+    // `label`. Unwrap the array so Relay can normalize each payload.
+    if (Array.isArray(result.incremental)) {
+      const items = result.incremental as Record<string, unknown>[];
+      for (let i = 0; i < items.length; i++) {
+        nextValue({
+          ...items[i],
+          hasNext: i < items.length - 1 ? true : (result.hasNext ?? false),
+        } as T);
+      }
+    } else {
+      nextValue(result as T);
+    }
   }
 }

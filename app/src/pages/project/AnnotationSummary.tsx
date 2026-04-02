@@ -163,7 +163,14 @@ export function Summary({
       <Text elementType="h3" size="S" color="text-700">
         <Truncate maxWidth="120px">{name}</Truncate>
       </Text>
-      <Suspense fallback={<Skeleton width={60} height="1.4em" />}>
+      <Suspense
+        fallback={
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Skeleton width={24} height={24} borderRadius="circle" />
+            <Skeleton width={50} height="1.2em" />
+          </Flex>
+        }
+      >
         {children}
       </Suspense>
     </Flex>
