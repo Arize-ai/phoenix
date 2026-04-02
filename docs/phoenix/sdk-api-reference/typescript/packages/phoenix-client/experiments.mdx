@@ -3,42 +3,244 @@ title: "Experiments"
 description: "Run experiments with @arizeai/phoenix-client"
 ---
 
-The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and supports follow-up lifecycle operations.
+The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and can evaluate each run with either plain experiment evaluators or `@arizeai/phoenix-evals` evaluators.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
-    <li>
-      <code>src/experiments/helpers/asExperimentEvaluator.ts</code> for the
-      canonical evaluator wrapper
-    </li>
+    <li><code>src/experiments/runExperiment.ts</code> for the task execution flow and return shape</li>
+    <li><code>src/experiments/helpers/getExperimentEvaluators.ts</code> for evaluator normalization</li>
+    <li><code>src/experiments/helpers/fromPhoenixLLMEvaluator.ts</code> for the phoenix-evals bridge</li>
+    <li><code>src/experiments/getExperimentRuns.ts</code> for reading runs back after execution</li>
   </ul>
 </section>
 
-## Run An Experiment
+## Two Common Patterns
+
+Use `asExperimentEvaluator()` when your evaluation logic is plain TypeScript.
+
+Use `@arizeai/phoenix-evals` evaluators directly when you want model-backed judging.
+
+## Code-Based Example
+
+If you just want to compare task output against a reference answer or apply deterministic checks, use `asExperimentEvaluator()`:
 
 ```ts
-import { runExperiment } from "@arizeai/phoenix-client/experiments";
-import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
+/* eslint-disable no-console */
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
 
-const experiment = await runExperiment({
-  dataset: { datasetName: "support-eval" },
-  task: async ({ question }) => {
-    return `Draft answer for: ${question}`;
-  },
-  evaluators: [
-    asExperimentEvaluator({
-      name: "contains-answer",
-      kind: "CODE",
-      evaluate: async ({ output }) => ({
-        score: output.includes("answer") ? 1 : 0,
+async function main() {
+  const { datasetId } = await createDataset({
+    name: `simple-dataset-${Date.now()}`,
+    description: "a simple dataset",
+    examples: [
+      {
+        input: { name: "John" },
+        output: { text: "Hello, John!" },
+        metadata: {},
+      },
+      {
+        input: { name: "Jane" },
+        output: { text: "Hello, Jane!" },
+        metadata: {},
+      },
+      {
+        input: { name: "Bill" },
+        output: { text: "Hello, Bill!" },
+        metadata: {},
+      },
+    ],
+  });
+
+  const experiment = await runExperiment({
+    dataset: { datasetId },
+    task: async (example) => `hello ${example.input.name}`,
+    evaluators: [
+      asExperimentEvaluator({
+        name: "matches",
+        kind: "CODE",
+        evaluate: async ({ output, expected }) => {
+          const matches = output === expected?.text;
+          return {
+            label: matches ? "matches" : "does not match",
+            score: matches ? 1 : 0,
+            explanation: matches
+              ? "output matches expected"
+              : "output does not match expected",
+            metadata: {},
+          };
+        },
       }),
-    }),
-  ],
-});
+      asExperimentEvaluator({
+        name: "contains-hello",
+        kind: "CODE",
+        evaluate: async ({ output }) => {
+          const matches =
+            typeof output === "string" && output.includes("hello");
+          return {
+            label: matches ? "contains hello" : "does not contain hello",
+            score: matches ? 1 : 0,
+            explanation: matches
+              ? "output contains hello"
+              : "output does not contain hello",
+            metadata: {},
+          };
+        },
+      }),
+    ],
+  });
+
+  console.table(experiment.runs);
+  console.table(experiment.evaluationRuns);
+}
+
+main().catch(console.error);
 ```
 
-## Lifecycle Helpers
+This pattern is useful when:
+
+- you already know the exact correctness rule
+- you want fast, deterministic evaluation
+- you do not want to call another model during evaluation
+
+## Model-Backed Example
+
+If you want a model-backed experiment with automatic tracing and an LLM-as-a-judge evaluator, this is the core pattern:
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { generateText } from "ai";
+
+const model = openai("gpt-4o-mini");
+
+const main = async () => {
+  const answersQuestion = createClassificationEvaluator({
+    name: "answersQuestion",
+    model,
+    promptTemplate:
+      "Does the following answer the user's question: <question>{{input.question}}</question><answer>{{output}}</answer>",
+    choices: {
+      correct: 1,
+      incorrect: 0,
+    },
+  });
+
+  const dataset = await createOrGetDataset({
+    name: "correctness-eval",
+    description: "Evaluate the correctness of the model",
+    examples: [
+      {
+        input: {
+          question: "Is ArizeAI Phoenix Open-Source?",
+          context: "ArizeAI Phoenix is Open-Source.",
+        },
+      },
+      // ... more examples
+    ],
+  });
+
+  const task: ExperimentTask = async (example) => {
+    if (typeof example.input.question !== "string") {
+      throw new Error("Invalid input: question must be a string");
+    }
+    if (typeof example.input.context !== "string") {
+      throw new Error("Invalid input: context must be a string");
+    }
+
+    return generateText({
+      model,
+      experimental_telemetry: {
+        isEnabled: true,
+      },
+      prompt: [
+        {
+          role: "system",
+          content: `You answer questions based on this context: ${example.input.context}`,
+        },
+        {
+          role: "user",
+          content: example.input.question,
+        },
+      ],
+    }).then((response) => {
+      if (response.text) {
+        return response.text;
+      }
+      throw new Error("Invalid response: text is required");
+    });
+  };
+
+  const experiment = await runExperiment({
+    experimentName: "answers-question-eval",
+    experimentDescription:
+      "Evaluate the ability of the model to answer questions based on the context",
+    dataset,
+    task,
+    evaluators: [answersQuestion],
+    repetitions: 3,
+  });
+
+  console.log(experiment.id);
+  console.log(Object.values(experiment.runs).length);
+  console.log(experiment.evaluationRuns?.length ?? 0);
+};
+
+main().catch(console.error);
+```
+
+## What This Example Shows
+
+- `createOrGetDataset()` creates or reuses the dataset the experiment will run against
+- `task` receives the full dataset example object
+- `generateText()` emits traces that Phoenix can attach to the experiment when telemetry is enabled
+- `createClassificationEvaluator()` from `@arizeai/phoenix-evals` can be passed directly to `runExperiment()`
+- `runExperiment()` records both task runs and evaluation runs in Phoenix
+
+## Task Inputs
+
+`runExperiment()` calls your task with the full dataset example, not just `example.input`.
+
+That means your task should usually read:
+
+- `example.input` for the task inputs
+- `example.output` for any reference answer
+- `example.metadata` for additional context
+
+In the example above, the task validates `example.input.question` and `example.input.context` before generating a response.
+
+## Evaluator Inputs
+
+When an evaluator runs, it receives a normalized object with these fields:
+
+| Field | Description |
+|--------|-------------|
+| `input` | The dataset example's `input` object |
+| `output` | The task output for that run |
+| `expected` | The dataset example's `output` object |
+| `metadata` | The dataset example's `metadata` object |
+
+This is why the `createClassificationEvaluator()` prompt can reference `{{input.question}}` and `{{output}}`.
+
+For code-based evaluators created with `asExperimentEvaluator()`, those same fields are available inside `evaluate({ input, output, expected, metadata })`.
+
+## What `runExperiment()` Returns
+
+The returned object includes the experiment metadata plus the task and evaluation results from the run.
+
+- `experiment.id` is the experiment ID in Phoenix
+- `experiment.projectName` is the Phoenix project that received the task traces
+- `experiment.runs` is a map of run IDs to task run objects
+- `experiment.evaluationRuns` contains evaluator results when evaluators are provided
+
+## Follow-Up Helpers
 
 Use these exports for follow-up workflows:
 
@@ -53,7 +255,7 @@ Use these exports for follow-up workflows:
 
 ## Tracing Behavior
 
-`runExperiment` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment. This is why examples that call the AI SDK inside a task can still produce spans in Phoenix when global tracing is enabled.
+`runExperiment()` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment. This is why tasks that call the AI SDK can still emit traces to Phoenix when global tracing is enabled.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
@@ -62,6 +264,8 @@ Use these exports for follow-up workflows:
     <li><code>src/experiments/createExperiment.ts</code></li>
     <li><code>src/experiments/getExperiment.ts</code></li>
     <li><code>src/experiments/getExperimentRuns.ts</code></li>
+    <li><code>src/experiments/helpers/getExperimentEvaluators.ts</code></li>
+    <li><code>src/experiments/helpers/fromPhoenixLLMEvaluator.ts</code></li>
     <li><code>src/experiments/helpers/asExperimentEvaluator.ts</code></li>
   </ul>
 </section>
