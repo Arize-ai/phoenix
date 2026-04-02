@@ -123,9 +123,9 @@ class TestSimpleTrajectoryConversion:
         tool_spans = [s for s in spans if s["span_kind"] == "TOOL"]
         assert len(tool_spans) == 1
         assert tool_spans[0]["name"] == "financial_search"
-        # Tool is child of the LLM step, not the root
-        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
-        assert tool_spans[0].get("parent_id") == llm_spans[0]["context"]["span_id"]
+        # Tool is a sibling of the LLM span (both children of the AGENT)
+        root_id = spans[0]["context"]["span_id"]
+        assert tool_spans[0].get("parent_id") == root_id
 
     def test_tool_span_has_observation(self, simple_trajectory: Dict[str, Any]) -> None:
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)
@@ -742,13 +742,17 @@ class TestContinuationMerging:
         cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
         spans = _convert_atif_trajectory_to_spans(cont1)
         root = spans[0]
-        assert root["attributes"]["metadata"]["is_continuation"] is True
+        attrs = root.get("attributes") or {}
+        metadata = attrs.get("metadata", {})
+        assert metadata["is_continuation"] is True
 
     def test_original_root_does_not_have_is_continuation(self) -> None:
         original = _load_fixture("harbor_terminus2_continuation.json")
         spans = _convert_atif_trajectory_to_spans(original)
         root = spans[0]
-        assert "is_continuation" not in root["attributes"]["metadata"]
+        attrs = root.get("attributes") or {}
+        metadata = attrs.get("metadata", {})
+        assert "is_continuation" not in metadata
 
     def test_continuation_llm_spans_have_copied_context_flag(self) -> None:
         cont1 = _load_fixture("harbor_terminus2_continuation_cont1.json")
@@ -756,14 +760,16 @@ class TestContinuationMerging:
         llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
         # All LLM spans in cont-1 follow is_copied_context steps
         for llm in llm_spans:
-            assert llm["attributes"].get("metadata", {}).get("has_copied_context") is True
+            attrs = llm.get("attributes") or {}
+            assert attrs.get("metadata", {}).get("has_copied_context") is True
 
     def test_original_llm_spans_no_copied_context_flag(self) -> None:
         original = _load_fixture("harbor_terminus2_continuation.json")
         spans = _convert_atif_trajectory_to_spans(original)
         llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
         for llm in llm_spans:
-            assert "has_copied_context" not in llm["attributes"].get("metadata", {})
+            attrs = llm.get("attributes") or {}
+            assert "has_copied_context" not in attrs.get("metadata", {})
 
 
 class TestHarborGoldenFiles:

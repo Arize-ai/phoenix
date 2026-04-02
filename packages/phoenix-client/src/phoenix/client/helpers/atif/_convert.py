@@ -680,7 +680,7 @@ def _convert_atif_trajectory_to_spans(
             }
             all_spans.append(step_span)
 
-            # TOOL child spans
+            # TOOL sibling spans (peers of LLM, both children of the AGENT)
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
             results: List[Any] = observation.get("results", []) if observation else []
@@ -703,15 +703,19 @@ def _convert_atif_trajectory_to_spans(
                 tool_attrs["openinference.span.kind"] = "TOOL"
                 tool_attrs["session.id"] = session_id
 
+                # Offset tool start times by 1ms per tool so the waterfall
+                # sorts them after the LLM span that requested them.
+                tool_start = step_start + timedelta(milliseconds=j + 1)
+
                 tool_span: v1.Span = {
                     "name": tc.get("function_name", "tool_call"),
                     "context": {
                         "trace_id": trace_id,
                         "span_id": tool_span_id,
                     },
-                    "parent_id": step_span_id,
+                    "parent_id": llm_parent_id,
                     "span_kind": "TOOL",
-                    "start_time": _format_timestamp(step_start),
+                    "start_time": _format_timestamp(tool_start),
                     "end_time": _format_timestamp(step_end),
                     "status_code": "OK",
                     "attributes": tool_attrs,

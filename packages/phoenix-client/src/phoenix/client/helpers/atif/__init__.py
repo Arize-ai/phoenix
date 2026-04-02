@@ -42,11 +42,13 @@ def upload_atif_trajectories_as_spans(
     user and system messages appear as ``llm.input_messages`` on the LLM
     spans that follow them (matching how real instrumented traces work).
 
-    - Single-turn trajectories are flat::
+    - Single-turn trajectories are flat. LLM and TOOL spans are
+      siblings under the AGENT — the agent runtime executes tools,
+      not the LLM::
 
         AGENT (root — input=user message, output=final agent reply)
           LLM
-            TOOL
+          TOOL
           LLM
 
     - Multi-turn trajectories (multiple user messages) get nested AGENT
@@ -56,7 +58,7 @@ def upload_atif_trajectories_as_spans(
         AGENT (root — input=first user message, output=final agent reply)
           AGENT turn_1 (input=user msg 1, output=agent reply 1)
             LLM
-              TOOL
+            TOOL
           AGENT turn_2 (input=user msg 2, output=agent reply 2)
             LLM
 
@@ -69,10 +71,10 @@ def upload_atif_trajectories_as_spans(
 
         AGENT (parent)
           LLM
-            TOOL (delegate_task)
-              AGENT (child agent)
-                LLM
-                  TOOL
+          TOOL (delegate_task)
+            AGENT (child agent)
+              LLM
+              TOOL
 
     **Continuation trajectories**
 

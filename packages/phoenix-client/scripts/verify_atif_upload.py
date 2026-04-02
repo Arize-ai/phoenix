@@ -21,7 +21,7 @@ from phoenix.client import Client
 from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
 from phoenix.client.helpers.atif._convert import _base_session_id, _sha256_trace_id
 
-PHOENIX_URL = "http://localhost:6006"
+PHOENIX_URL = os.environ.get("PHOENIX_URL", "http://localhost:6006")
 # Append a timestamp suffix so re-runs don't hit duplicate span errors
 # from deterministic IDs. Override with ATIF_PROJECT_SUFFIX env var.
 _SUFFIX = os.environ.get("ATIF_PROJECT_SUFFIX", str(int(time.time())))
