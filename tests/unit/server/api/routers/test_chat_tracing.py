@@ -362,7 +362,9 @@ class TestSpanHierarchy:
         )
 
         tracer = _make_tracer(db)
-        messages = [ModelRequest(parts=[UserPromptPart(content="Analyze the last 12 hours")])]
+        messages: list[ModelRequest | ModelResponse] = [
+            ModelRequest(parts=[UserPromptPart(content="Analyze the last 12 hours")])
+        ]
         for i in range(1, 18):
             messages.append(
                 ModelResponse(
