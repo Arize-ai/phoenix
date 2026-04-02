@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9dc85492d02bdd15c481af96cd29d88>>
+ * @generated SignedSource<<cd73776acfd58b841e143050f5e9730f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,17 +22,17 @@ export type DatasetExampleInput = {
   output: any;
   spanId?: string | null;
 };
-export type AddDatasetExampleDialogMutation$variables = {
+export type AddExampleFromScratchFormMutation$variables = {
   input: AddExamplesToDatasetInput;
 };
-export type AddDatasetExampleDialogMutation$data = {
+export type AddExampleFromScratchFormMutation$data = {
   readonly addExamplesToDataset: {
     readonly __typename: "DatasetMutationPayload";
   };
 };
-export type AddDatasetExampleDialogMutation = {
-  response: AddDatasetExampleDialogMutation$data;
-  variables: AddDatasetExampleDialogMutation$variables;
+export type AddExampleFromScratchFormMutation = {
+  response: AddExampleFromScratchFormMutation$data;
+  variables: AddExampleFromScratchFormMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -74,7 +74,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "AddDatasetExampleDialogMutation",
+    "name": "AddExampleFromScratchFormMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -83,20 +83,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "AddDatasetExampleDialogMutation",
+    "name": "AddExampleFromScratchFormMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "718cf02ccb39b279132822bf503e51e6",
+    "cacheID": "240d1881906e55bc48b2940ec829f7fd",
     "id": null,
     "metadata": {},
-    "name": "AddDatasetExampleDialogMutation",
+    "name": "AddExampleFromScratchFormMutation",
     "operationKind": "mutation",
-    "text": "mutation AddDatasetExampleDialogMutation(\n  $input: AddExamplesToDatasetInput!\n) {\n  addExamplesToDataset(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation AddExampleFromScratchFormMutation(\n  $input: AddExamplesToDatasetInput!\n) {\n  addExamplesToDataset(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8d99470f590cd5d28701fa6e3c0330e6";
+(node as any).hash = "b75bd1ec414ce943900b0f3a8469f333";
 
 export default node;

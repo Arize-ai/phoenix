@@ -13,6 +13,7 @@ export const ExamplesFilterBar = () => {
     useExamplesFilterContext();
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
+  const datasetName = useDatasetContext((state) => state.datasetName);
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
@@ -45,6 +46,7 @@ export const ExamplesFilterBar = () => {
         />
         <AddDatasetExampleButton
           datasetId={datasetId}
+          datasetName={datasetName}
           onAddExampleCompleted={() => {
             notifySuccess({
               title: "Example added",

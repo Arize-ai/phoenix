@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { useCallback, useState } from "react";
-import type { Control, UseFormHandleSubmit } from "react-hook-form";
 import { Controller, useForm } from "react-hook-form";
 import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useMutation } from "react-relay";
@@ -11,7 +10,6 @@ import {
   Button,
   Card,
   Checkbox,
-  Dialog,
   FieldError,
   Flex,
   Icon,
@@ -26,13 +24,6 @@ import {
   VisuallyHidden,
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
@@ -40,7 +31,7 @@ import {
   isJSONObjectString,
 } from "@phoenix/utils/jsonUtils";
 
-import type { AddDatasetExampleDialogMutation } from "./__generated__/AddDatasetExampleDialogMutation.graphql";
+import type { AddExampleFromScratchFormMutation } from "./__generated__/AddExampleFromScratchFormMutation.graphql";
 
 type DatasetExamplePatch = {
   input: string;
@@ -50,23 +41,26 @@ type DatasetExamplePatch = {
   externalId?: string;
 };
 
-export type AddDatasetExampleDialogProps = {
+export type AddExampleFromScratchFormProps = {
   datasetId: string;
-  onCompleted: () => void;
+  onExampleAdded: () => void;
+  close: () => void;
 };
 
 const defaultCardProps: Partial<CardProps> = {
   collapsible: true,
 };
 
-export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
-  const { datasetId, onCompleted } = props;
+export function AddExampleFromScratchForm(
+  props: AddExampleFromScratchFormProps
+) {
+  const { datasetId, onExampleAdded, close } = props;
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createMore, setCreateMore] = useState(true);
   const modifierKey = useModifierKey();
-  const [commit, isCommitting] = useMutation<AddDatasetExampleDialogMutation>(
+  const [commit, isCommitting] = useMutation<AddExampleFromScratchFormMutation>(
     graphql`
-      mutation AddDatasetExampleDialogMutation($input: AddExamplesToDatasetInput!) {
+      mutation AddExampleFromScratchFormMutation($input: AddExamplesToDatasetInput!) {
         addExamplesToDataset(input: $input) {
           __typename
         }
@@ -89,7 +83,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
   });
 
   const onSubmit = useCallback(
-    (newExample: DatasetExamplePatch, close: () => void) => {
+    (newExample: DatasetExamplePatch) => {
       setSubmitError(null);
       if (!isJSONObjectString(newExample?.input)) {
         return setError("input", {
@@ -125,11 +119,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
           },
         },
         onCompleted: () => {
-          onCompleted();
+          onExampleAdded();
 
           if (createMore) {
-            // Clear all form fields and keep dialog open
-            // Preserve structure but clear values from previous example
             reset({
               input: createEmptyJSONStructure(newExample.input),
               output: createEmptyJSONStructure(newExample.output),
@@ -138,7 +130,6 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
               externalId: "",
             });
           } else {
-            // Close dialog (existing behavior)
             close();
           }
         },
@@ -148,64 +139,16 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
         },
       });
     },
-    [commit, datasetId, setError, onCompleted, createMore, reset]
+    [commit, datasetId, setError, onExampleAdded, createMore, reset, close]
   );
 
-  return (
-    <Dialog>
-      {({ close }) => (
-        <AddExampleDialogContent
-          close={close}
-          control={control}
-          submitError={submitError}
-          isValid={isValid}
-          isCommitting={isCommitting}
-          createMore={createMore}
-          setCreateMore={setCreateMore}
-          modifierKey={modifierKey}
-          onSubmit={onSubmit}
-          handleSubmit={handleSubmit}
-        />
-      )}
-    </Dialog>
-  );
-}
-
-type AddExampleDialogContentProps = {
-  close: () => void;
-  control: Control<DatasetExamplePatch>;
-  submitError: string | null;
-  isValid: boolean;
-  isCommitting: boolean;
-  createMore: boolean;
-  setCreateMore: (value: boolean) => void;
-  modifierKey: string;
-  onSubmit: (data: DatasetExamplePatch, close: () => void) => void;
-  handleSubmit: UseFormHandleSubmit<DatasetExamplePatch>;
-};
-
-function AddExampleDialogContent(props: AddExampleDialogContentProps) {
-  const {
-    close,
-    control,
-    submitError,
-    isValid,
-    isCommitting,
-    createMore,
-    setCreateMore,
-    modifierKey,
-    onSubmit,
-    handleSubmit,
-  } = props;
-
-  // Add hotkey handler with access to close function
   useHotkeys(
     "mod+enter",
     (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (isValid && !isCommitting) {
-        handleSubmit((data: DatasetExamplePatch) => onSubmit(data, close))();
+        handleSubmit(onSubmit)();
       }
     },
     {
@@ -213,17 +156,11 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
       enableOnContentEditable: true,
       preventDefault: true,
     },
-    [isValid, isCommitting, handleSubmit, onSubmit, close]
+    [isValid, isCommitting, handleSubmit, onSubmit]
   );
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Add Example</DialogTitle>
-        <DialogTitleExtra>
-          <DialogCloseButton slot="close" />
-        </DialogTitleExtra>
-      </DialogHeader>
+    <>
       <div
         css={css`
           overflow-y: auto;
@@ -379,16 +316,12 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
                 <span aria-hidden="true">⏎</span>
               </Keyboard>
             }
-            onPress={() =>
-              handleSubmit((data: DatasetExamplePatch) =>
-                onSubmit(data, close)
-              )()
-            }
+            onPress={() => handleSubmit(onSubmit)()}
           >
             {isCommitting ? "Adding Example..." : "Add Example"}
           </Button>
         </Flex>
       </View>
-    </DialogContent>
+    </>
   );
 }

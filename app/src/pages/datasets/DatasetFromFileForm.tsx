@@ -84,10 +84,20 @@ type CreateDatasetFromFileParams = {
   metadata: Record<string, unknown>;
 };
 
-export type DatasetFromFileFormProps = {
-  onDatasetCreated: (dataset: { id: string; name: string }) => void;
+type CreateModeProps = {
+  mode: "create";
   onCancel: () => void;
+  onDatasetCreated: (dataset: { id: string; name: string }) => void;
 };
+
+type AppendModeProps = {
+  mode: "append";
+  onCancel: () => void;
+  datasetName: string;
+  onExamplesAdded: () => void;
+};
+
+export type DatasetFromFileFormProps = CreateModeProps | AppendModeProps;
 
 function detectFileType(fileName: string): DatasetFileType {
   const lowerName = fileName.toLowerCase();
@@ -202,10 +212,9 @@ const rowCountCSS = css`
  * Shows a large dropzone when no file is selected, then reveals
  * the full form with file preview and column assignment.
  */
-export function DatasetFromFileForm({
-  onDatasetCreated,
-  onCancel,
-}: DatasetFromFileFormProps) {
+export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
+  const { onCancel, mode } = props;
+  const isAppendMode = mode === "append";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
@@ -230,7 +239,7 @@ export function DatasetFromFileForm({
     mode: "onChange",
     defaultValues: {
       file: null,
-      name: "",
+      name: isAppendMode ? props.datasetName : "",
       input_keys: [],
       output_keys: [],
       metadata_keys: [],
@@ -361,8 +370,10 @@ export function DatasetFromFileForm({
 
       setValue("file", file, { shouldValidate: true, shouldDirty: true });
 
-      const name = file.name.replace(/\.(csv|jsonl)$/i, "");
-      setValue("name", name, { shouldValidate: true });
+      if (!isAppendMode) {
+        const name = file.name.replace(/\.(csv|jsonl)$/i, "");
+        setValue("name", name, { shouldValidate: true });
+      }
 
       const generation = ++parseGeneration.current;
       const parseFile = async () => {
@@ -436,7 +447,7 @@ export function DatasetFromFileForm({
       };
       parseFile();
     },
-    [resetField, setValue]
+    [resetField, setValue, isAppendMode]
   );
 
   const handleFileSelect = useCallback(
@@ -527,9 +538,14 @@ export function DatasetFromFileForm({
           invariant(false, `Invalid file type: ${fileType}`);
       }
 
-      formData.append("name", data.name);
-      formData.append("description", data.description);
-      formData.append("metadata", JSON.stringify(data.metadata));
+      if (isAppendMode) {
+        formData.append("name", props.datasetName);
+        formData.append("action", "append");
+      } else {
+        formData.append("name", data.name);
+        formData.append("description", data.description);
+        formData.append("metadata", JSON.stringify(data.metadata));
+      }
       data.input_keys.forEach((key) => {
         formData.append("input_keys[]", key);
       });
@@ -576,21 +592,26 @@ export function DatasetFromFileForm({
           return response.json();
         })
         .then((res) => {
-          onDatasetCreated({
-            name: data.name,
-            id: res["data"]["dataset_id"],
-          });
+          if (props.mode === "append") {
+            props.onExamplesAdded();
+          } else {
+            props.onDatasetCreated({
+              name: data.name,
+              id: res["data"]["dataset_id"],
+            });
+          }
         })
         .catch((error) => {
-          setErrorMessage(
-            error instanceof Error ? error.message : "Failed to create dataset"
-          );
+          const fallback = isAppendMode
+            ? "Failed to add examples"
+            : "Failed to create dataset";
+          setErrorMessage(error instanceof Error ? error.message : fallback);
         })
         .finally(() => {
           setIsSubmitting(false);
         });
     },
-    [fileType, onDatasetCreated, collapseKeys, keysToCollapse]
+    [fileType, collapseKeys, keysToCollapse, isAppendMode, props]
   );
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
@@ -640,53 +661,55 @@ export function DatasetFromFileForm({
           isDisabled={isSubmitting}
         />
 
-        <div css={formGridCSS}>
-          <Controller
-            name="name"
-            control={control}
-            rules={{
-              required: "Dataset name is required",
-            }}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={onChange}
-                onBlur={onBlur}
-                value={value.toString()}
-                isDisabled={isSubmitting || isParsing}
-              >
-                <Label>Name</Label>
-                <Input placeholder="e.g. Golden Dataset" />
-                {error?.message && <FieldError>{error.message}</FieldError>}
-              </TextField>
-            )}
-          />
-          <Controller
-            name="description"
-            control={control}
-            render={({
-              field: { onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={onChange}
-                onBlur={onBlur}
-                isDisabled={isSubmitting || isParsing}
-                value={value.toString()}
-              >
-                <Label>Description (optional)</Label>
-                <Input placeholder="e.g. For sentiment analysis" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : null}
-              </TextField>
-            )}
-          />
-        </div>
+        {!isAppendMode && (
+          <div css={formGridCSS}>
+            <Controller
+              name="name"
+              control={control}
+              rules={{
+                required: "Dataset name is required",
+              }}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  value={value.toString()}
+                  isDisabled={isSubmitting || isParsing}
+                >
+                  <Label>Name</Label>
+                  <Input placeholder="e.g. Golden Dataset" />
+                  {error?.message && <FieldError>{error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+            <Controller
+              name="description"
+              control={control}
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  isDisabled={isSubmitting || isParsing}
+                  value={value.toString()}
+                >
+                  <Label>Description (optional)</Label>
+                  <Input placeholder="e.g. For sentiment analysis" />
+                  {error?.message ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : null}
+                </TextField>
+              )}
+            />
+          </div>
+        )}
 
         {hasPreviewData && (
           <div css={sectionCSS}>
@@ -820,7 +843,13 @@ export function DatasetFromFileForm({
             isSubmitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
           }
         >
-          {isSubmitting ? "Creating..." : "Create Dataset"}
+          {isSubmitting
+            ? isAppendMode
+              ? "Adding..."
+              : "Creating..."
+            : isAppendMode
+              ? "Add Examples"
+              : "Create Dataset"}
         </Button>
       </DialogFooter>
     </Form>

@@ -103,6 +103,7 @@ export function CreateDatasetButton({
                   `}
                 >
                   <DatasetFromFileForm
+                    mode="create"
                     onDatasetCreated={handleCreated}
                     onCancel={handleCancel}
                   />
