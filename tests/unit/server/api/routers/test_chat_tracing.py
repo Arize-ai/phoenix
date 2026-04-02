@@ -8,7 +8,6 @@ from sqlalchemy import select
 from phoenix.config import get_env_phoenix_pxi_project_name
 from phoenix.db import models
 from phoenix.server.api.routers.chat_tracing import (
-    _select_llm_step_messages,
     create_agent_span,
     create_llm_span,
     ensure_project_exists,
@@ -350,65 +349,6 @@ class TestSpanHierarchy:
         assert kinds == ["LLM", "TOOL", "TOOL", "LLM"]
         assert indices == [0, 1, 2, 3]
 
-    def test_select_llm_step_messages_keeps_initial_prompt_and_latest_exchange(self) -> None:
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
-
-        messages = [
-            ModelRequest(parts=[UserPromptPart(content="Analyze traces")]),
-            ModelResponse(
-                parts=[
-                    TextPart(content="I'll inspect the docs first."),
-                    ToolCallPart(
-                        tool_name="bash",
-                        args=json.dumps({"command": "cat agent-start.md"}),
-                        tool_call_id="tc-1",
-                    ),
-                ]
-            ),
-            ModelRequest(
-                parts=[
-                    ToolReturnPart(
-                        tool_name="bash",
-                        content={"stdout": "docs"},
-                        tool_call_id="tc-1",
-                    )
-                ]
-            ),
-            ModelResponse(
-                parts=[
-                    TextPart(content="Now I'll inspect traces."),
-                    ToolCallPart(
-                        tool_name="bash",
-                        args=json.dumps({"command": "phoenix-gql query"}),
-                        tool_call_id="tc-2",
-                    ),
-                ]
-            ),
-            ModelRequest(
-                parts=[
-                    ToolReturnPart(
-                        tool_name="bash",
-                        content={"stdout": "results"},
-                        tool_call_id="tc-2",
-                    )
-                ]
-            ),
-        ]
-
-        step_messages = _select_llm_step_messages(messages)
-
-        assert len(step_messages) == 3
-        assert step_messages[0] is messages[0]
-        assert step_messages[1] is messages[3]
-        assert step_messages[2] is messages[4]
-
     def test_current_llm_span_preserves_kind_and_token_counts_for_long_conversations(
         self, db: DbSessionFactory
     ) -> None:
@@ -470,13 +410,16 @@ class TestSpanHierarchy:
         assert attrs["llm"]["token_count"]["completion"] == 123
         assert attrs["llm"]["token_count"]["total"] == 444
 
+        # Full history: 1 user + 17 assistant + 17 tool = 35 input messages.
         input_msgs = attrs["llm"]["input_messages"]
-        assert len(input_msgs) == 3
+        assert len(input_msgs) == 35
         assert input_msgs[0]["message"]["role"] == "user"
-        assert input_msgs[1]["message"]["role"] == "assistant"
-        assert input_msgs[1]["message"]["tool_calls"][0]["tool_call"]["id"] == "tc-17"
-        assert input_msgs[2]["message"]["role"] == "tool"
-        assert input_msgs[2]["message"]["tool_call_id"] == "tc-17"
+        # Last assistant message (index 33) should be step 17.
+        assert input_msgs[33]["message"]["role"] == "assistant"
+        assert input_msgs[33]["message"]["tool_calls"][0]["tool_call"]["id"] == "tc-17"
+        # Last tool message (index 34) should be the return for tc-17.
+        assert input_msgs[34]["message"]["role"] == "tool"
+        assert input_msgs[34]["message"]["tool_call_id"] == "tc-17"
 
     def test_llm_span_with_tool_calls(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import ModelRequest, UserPromptPart

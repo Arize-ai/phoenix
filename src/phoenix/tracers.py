@@ -9,7 +9,7 @@ import wrapt
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
 from opentelemetry.sdk.trace.export import (
     BatchSpanProcessor,
     SimpleSpanProcessor,
@@ -114,7 +114,11 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         resource = Resource.create(
             {ResourceAttributes.PROJECT_NAME: project_name} if project_name else {}
         )
-        provider = TracerProvider(resource=resource)
+        # Raise the default span-attribute limit (128) so that long multi-step
+        # chat conversations can record the full message history on each LLM
+        # span without attribute eviction.
+        span_limits = SpanLimits(max_span_attributes=100_000)
+        provider = TracerProvider(resource=resource, span_limits=span_limits)
         provider.add_span_processor(SimpleSpanProcessor(self._self_exporter))
 
         self._self_remote_exporter: Optional[SpanExporter] = None

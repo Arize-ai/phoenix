@@ -15,11 +15,9 @@ monotonically increasing) so consumers can reconstruct the LLM → TOOL → LLM
 trajectory by sorting on that value rather than relying on wall-clock
 timestamps (which may be identical for replayed history spans).
 
-Individual LLM spans record only a *bounded, step-local message window*
-rather than the full accumulated conversation.  The complete history is encoded
-in the trace tree itself — each prior step is its own span — so there is no
-information loss.  This avoids exceeding OTel's default span-attribute budget
-on long multi-step conversations.
+Each LLM span records the full conversation history visible to the model at
+that step as ``llm.input_messages.*`` attributes.  The span attribute limit is
+configured high enough to accommodate long multi-step conversations.
 
 All traces within the same chat session share a ``session.id`` attribute on the
 root AGENT span, enabling cross-trace joins for session-level analysis.
@@ -331,10 +329,9 @@ def create_llm_span(
     Args:
         tracer: The tracer instance used to create spans.
         parent_span: The AGENT span that serves as the parent.
-        input_messages: Full conversation history (pydantic-ai ``ModelMessage``
-            objects).  Internally windowed by :func:`_select_llm_step_messages`
-            so the span only records the bounded, step-local context — the full
-            trajectory is encoded in the trace tree, not duplicated on each span.
+        input_messages: Conversation history (pydantic-ai ``ModelMessage``
+            objects) representing the messages the model receives for this
+            step.  Flattened as ``llm.input_messages.*`` attributes.
         tools: OpenInference-shaped tool definitions (``{"type": "function", …}``).
         trace_name_suffix: Label appended to the span name (e.g. ``"Step 3"``).
         step_index: Zero-based ordinal of this step within the agent turn.
@@ -342,16 +339,13 @@ def create_llm_span(
             wall-clock timestamps, which may be identical for replayed history
             spans.  ``None`` omits the attribute (single-step turns).
     """
-    step_messages = _select_llm_step_messages(input_messages)
-    attributes = _flatten_input_messages(step_messages)
+    attributes = _flatten_input_messages(input_messages)
 
     # Flatten tool definitions.
     if tools:
         for i, tool in enumerate(tools):
             attributes[f"llm.tools.{i}.{_TOOL_JSON_SCHEMA}"] = json.dumps(tool)
 
-    # Keep the span kind after bulk message flattening so it survives SDK
-    # attribute limits even on long multi-step conversations.
     attributes[_SPAN_KIND] = _LLM
 
     if step_index is not None:
@@ -603,47 +597,6 @@ def _extract_last_user_content(messages: Sequence[Any]) -> str | None:
                     if isinstance(content, str):
                         return content
     return None
-
-
-def _select_llm_step_messages(messages: Sequence[Any]) -> list[Any]:
-    """Return a bounded, step-local message window for one LLM span.
-
-    Rather than duplicating the full conversation history on every LLM span
-    (which exceeds OTel's default 128-attribute budget around turn 16), this
-    function selects only the messages relevant to the current step:
-
-    1. **Initial context** — everything before the first ``ModelResponse``
-       (system prompt, first user message).
-    2. **Latest exchange** — the most recent assistant → tool-return → …
-       sequence that explains why this LLM call is happening.
-
-    The full trajectory is already encoded in the trace tree (each prior step
-    has its own LLM and TOOL span with ``metadata.step_index``), so there is
-    no information loss.
-
-    Returns:
-        A list of ``ModelMessage`` objects forming the bounded window.
-        For single-step conversations the full message list is returned as-is.
-    """
-    from pydantic_ai.messages import ModelResponse
-
-    if not messages:
-        return []
-
-    response_indices = [i for i, msg in enumerate(messages) if isinstance(msg, ModelResponse)]
-    if len(response_indices) <= 1:
-        return list(messages)
-
-    first_response_index = response_indices[0]
-    initial_messages = list(messages[:first_response_index])
-    last_message_is_response = isinstance(messages[-1], ModelResponse)
-    tail_start = response_indices[-2] if last_message_is_response else response_indices[-1]
-    tail_messages = list(messages[tail_start:])
-
-    if tail_start <= first_response_index:
-        return list(messages)
-
-    return [*initial_messages, *tail_messages]
 
 
 def replay_history_spans(
