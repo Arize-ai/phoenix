@@ -1586,6 +1586,253 @@ async def test_post_dataset_upload_append_with_splits(
         assert ex3_splits[0].name == "test"
 
 
+async def test_append_upserts_existing_example_by_external_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending with a matching external_id should PATCH the existing example, not create a duplicate."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with an example that has an external_id
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "original"}],
+            "outputs": [{"a": "original"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+
+    # Append with the same external_id but different content
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "updated"}],
+            "outputs": [{"a": "updated"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(response.json()["data"]["dataset_id"]).node_id)
+        # Should still have only 1 example (not 2)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample).where(
+                    models.DatasetExample.dataset_id == dataset_db_id
+                )
+            )
+        )
+        assert len(examples) == 1
+
+        # The latest revision should have the updated content
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[0].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions) == 2  # CREATE + PATCH
+        assert revisions[0].input == {"q": "original"}
+        assert revisions[1].input == {"q": "updated"}
+
+
+async def test_append_never_deletes_existing_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending a subset of examples should NOT delete examples not in the upload."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with 2 examples
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}, {"q": "Q2"}],
+            "outputs": [{"a": "A1"}, {"a": "A2"}],
+            "example_ids": ["ext-1", "ext-2"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append only 1 new example
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q3"}],
+            "outputs": [{"a": "A3"}],
+            "example_ids": ["ext-3"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        # All 3 examples should exist (no deletes)
+        assert len(examples) == 3
+
+
+async def test_append_mixed_upsert_and_create(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending a batch with some matching IDs and some new should handle both correctly."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append: one matching ext-1 (update) + one new ext-2 (create)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q1-updated"}, {"q": "Q2-new"}],
+            "outputs": [{"a": "A1-updated"}, {"a": "A2-new"}],
+            "example_ids": ["ext-1", "ext-2"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        # Should have 2 examples: ext-1 (updated) + ext-2 (new)
+        assert len(examples) == 2
+        assert examples[0].external_id == "ext-1"
+        assert examples[1].external_id == "ext-2"
+
+        # ext-1 should have 2 revisions (CREATE + PATCH)
+        revisions_1 = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[0].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions_1) == 2
+        assert revisions_1[0].input == {"q": "Q1"}
+        assert revisions_1[1].input == {"q": "Q1-updated"}
+
+        # ext-2 should have 1 revision (CREATE)
+        revisions_2 = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[1].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions_2) == 1
+        assert revisions_2[0].input == {"q": "Q2-new"}
+
+
+async def test_append_preserves_splits_of_untouched_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending new examples should not disturb the splits of existing untouched examples."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with a "train" split
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "example_ids": ["ext-1"],
+            "splits": ["train"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append a new example with a "test" split
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": ["ext-2"],
+            "splits": ["test"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        # ext-1 should still be in "train" (untouched)
+        ex1_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[0].id)
+            )
+        )
+        assert len(ex1_splits) == 1
+        assert ex1_splits[0].name == "train"
+
+        # ext-2 should be in "test"
+        ex2_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[1].id)
+            )
+        )
+        assert len(ex2_splits) == 1
+        assert ex2_splits[0].name == "test"
+
+
 # =============================================================================
 # Tests for flatten_keys (collapse top-level keys feature)
 # =============================================================================

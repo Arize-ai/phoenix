@@ -9,7 +9,7 @@ from typing import Any, Optional, cast
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
@@ -516,107 +516,15 @@ async def add_dataset_examples(
             logger.exception(f"Failed to insert dataset: {name=}")
             raise
 
-    if action is DatasetAction.CREATE:
-        return await _upsert_dataset_examples(
-            session=session,
-            dataset_id=dataset_id,
-            examples=examples,
-            user_id=user_id,
-            created_at=created_at,
-            splits_provided=splits_provided,
-        )
-
-    try:
-        dataset_version_id = await insert_dataset_version(
-            session=session,
-            dataset_id=dataset_id,
-            created_at=created_at,
-            user_id=user_id,
-        )
-    except Exception:
-        logger.exception(f"Failed to insert dataset version for {dataset_id=}")
-        raise
-
-    if not examples:
-        return DatasetExampleAdditionEvent(
-            dataset_id=dataset_id, dataset_version_id=dataset_version_id
-        )
-
-    # Batch resolve span IDs to row IDs
-    span_ids_to_resolve = [example.content.span_id for example in examples]
-    span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
-
-    # Prepare span_rowids and external_ids lists for bulk insert (preserving order)
-    span_rowids: list[Optional[SpanRowId]] = [
-        span_id_to_rowid.get(example.content.span_id) if example.content.span_id else None
-        for example in examples
-    ]
-    external_ids: list[Optional[str]] = [example.content.external_id for example in examples]
-
-    # Bulk insert all examples at once
-    try:
-        example_ids = await bulk_insert_dataset_examples(
-            session=session,
-            dataset_id=dataset_id,
-            span_rowids=span_rowids,
-            external_ids=external_ids,
-            created_at=created_at,
-        )
-    except Exception:
-        logger.exception(f"Failed to bulk insert dataset examples for {dataset_id=}")
-        raise
-
-    # Bulk insert all revisions at once
-    try:
-        await bulk_insert_dataset_example_revisions(
-            session=session,
-            dataset_version_id=dataset_version_id,
-            example_ids=example_ids,
-            examples=examples,
-            created_at=created_at,
-        )
-    except Exception:
-        logger.exception(
-            f"Failed to bulk insert dataset example revisions for {dataset_version_id=}"
-        )
-        raise
-
-    # Collect split assignments by name for bulk insert
-    split_assignments: list[tuple[DatasetExampleId, SplitName]] = []
-    for example_id, example in zip(example_ids, examples):
-        for split_name in example.content.splits:
-            split_assignments.append((example_id, split_name))
-
-    # Bulk create splits and assign examples after iteration
-    if split_assignments:
-        # Collect all unique split names
-        all_split_names = {name for _, name in split_assignments}
-        try:
-            split_name_to_id = await bulk_create_dataset_splits(
-                session=session,
-                split_names=all_split_names,
-                user_id=user_id,
-            )
-        except Exception:
-            logger.exception(f"Failed to bulk create dataset splits: {all_split_names}")
-            raise
-
-        # Convert name-based assignments to ID-based assignments
-        id_assignments = [
-            (example_id, split_name_to_id[split_name])
-            for example_id, split_name in split_assignments
-        ]
-
-        try:
-            await bulk_assign_examples_to_splits(
-                session=session,
-                assignments=id_assignments,
-            )
-        except Exception:
-            logger.exception("Failed to bulk assign examples to splits")
-            raise
-
-    return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
+    return await _upsert_dataset_examples(
+        session=session,
+        dataset_id=dataset_id,
+        examples=examples,
+        user_id=user_id,
+        created_at=created_at,
+        splits_provided=splits_provided,
+        action=action,
+    )
 
 
 @dataclass(frozen=True)
@@ -679,8 +587,10 @@ class _ExampleMatcher:
 
 
 def _diff_examples(
+    *,
     incoming_examples: list[ExampleWithHash],
     previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]],
+    skip_deletes: bool = False,
 ) -> UpsertDiff:
     """Diff incoming examples against the previous version to classify as CREATE, PATCH, or DELETE.
 
@@ -693,7 +603,7 @@ def _diff_examples(
       - Matched + same content_hash  → unchanged (carried forward implicitly, no revision needed)
       - Matched + different hash     → PATCH
       - Unmatched incoming           → CREATE
-      - Unmatched previous           → DELETE
+      - Unmatched previous           → DELETE (skipped when skip_deletes=True)
     """
     matcher = _ExampleMatcher(previous)
     examples_to_create: list[ExampleWithHash] = []
@@ -723,10 +633,15 @@ def _diff_examples(
                 )
             )
 
-    all_previous_ids = {example_id for example_id, _, _ in previous}
-    delete_ids = [
-        example_id for example_id in all_previous_ids if example_id not in matcher._already_matched
-    ]
+    if skip_deletes:
+        delete_ids: list[DatasetExampleId] = []
+    else:
+        all_previous_ids = {example_id for example_id, _, _ in previous}
+        delete_ids = [
+            example_id
+            for example_id in all_previous_ids
+            if example_id not in matcher._already_matched
+        ]
 
     return UpsertDiff(
         create_examples=examples_to_create,
@@ -808,10 +723,51 @@ async def _rebuild_dataset_splits(
     await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
 
 
+async def _update_splits_for_touched_examples(
+    session: AsyncSession,
+    touched_examples: list[ExampleWithExternalID],
+    splits_provided: bool = True,
+    user_id: Optional[int] = None,
+) -> None:
+    """Update split assignments only for the given examples, leaving other examples untouched.
+
+    Used by the APPEND action so that examples not in the upload keep their splits.
+    """
+    if not splits_provided or not touched_examples:
+        return
+
+    touched_example_ids = [e.example_id for e in touched_examples]
+
+    # Delete existing split assignments only for touched examples
+    await session.execute(
+        delete(models.DatasetSplitDatasetExample).where(
+            models.DatasetSplitDatasetExample.dataset_example_id.in_(touched_example_ids)
+        )
+    )
+
+    example_id_split_name_pairs = [
+        (example.example_id, name)
+        for example in touched_examples
+        for name in example.content.splits
+    ]
+    if not example_id_split_name_pairs:
+        return
+
+    all_split_names = {name for _, name in example_id_split_name_pairs}
+    split_name_to_id = await bulk_create_dataset_splits(
+        session=session, split_names=all_split_names, user_id=user_id
+    )
+    split_assignments = [
+        (example_id, split_name_to_id[name]) for example_id, name in example_id_split_name_pairs
+    ]
+    await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
+
+
 async def _upsert_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
     examples: Sequence[ExampleWithHash],
+    action: DatasetAction,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
     splits_provided: bool = True,
@@ -826,7 +782,11 @@ async def _upsert_dataset_examples(
     )
 
     # Diff incoming vs previous → creates, patches, deletes
-    diff = _diff_examples(incoming_examples, previous)
+    diff = _diff_examples(
+        incoming_examples=incoming_examples,
+        previous=previous,
+        skip_deletes=action is DatasetAction.APPEND,
+    )
 
     # Write revisions if content changed, otherwise reuse latest version
     created_examples: list[ExampleWithExternalID] = []
@@ -947,15 +907,25 @@ async def _upsert_dataset_examples(
                 user_id=user_id,
             )
 
-    # Delete all split assignments for the dataset and reassign
-    await _rebuild_dataset_splits(
-        session=session,
-        dataset_id=dataset_id,
-        diff=diff,
-        created_examples=created_examples,
-        splits_provided=splits_provided,
-        user_id=user_id,
-    )
+    if action is DatasetAction.APPEND:
+        touched_examples = diff.unchanged_examples + diff.patch_examples + created_examples
+        await _update_splits_for_touched_examples(
+            session=session,
+            touched_examples=touched_examples,
+            splits_provided=splits_provided,
+            user_id=user_id,
+        )
+    elif action is DatasetAction.CREATE:
+        await _rebuild_dataset_splits(
+            session=session,
+            dataset_id=dataset_id,
+            diff=diff,
+            created_examples=created_examples,
+            splits_provided=splits_provided,
+            user_id=user_id,
+        )
+    else:
+        assert_never(action)
 
     return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
 
