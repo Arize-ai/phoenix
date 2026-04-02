@@ -11,7 +11,9 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from sqlalchemy import and_, delete, distinct, func, insert, select, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import contains_eager
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -20,7 +22,7 @@ from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_input,
     get_dataset_example_output,
@@ -300,23 +302,39 @@ class DatasetMutationMixin:
                 }
 
             DatasetExample = models.DatasetExample
-            dataset_example_rowids = (
-                await session.scalars(
-                    insert(DatasetExample).returning(DatasetExample.id),
-                    [
-                        {
-                            DatasetExample.dataset_id.key: dataset_rowid,
-                            DatasetExample.span_rowid.key: from_global_id_with_expected_type(
-                                global_id=example.span_id,
-                                expected_type_name=Span.__name__,
-                            )
-                            if example.span_id
-                            else None,
-                        }
-                        for example in input.examples
-                    ],
+            try:
+                dataset_example_rowids = (
+                    await session.scalars(
+                        insert(DatasetExample).returning(DatasetExample.id),
+                        [
+                            {
+                                DatasetExample.dataset_id.key: dataset_rowid,
+                                DatasetExample.span_rowid.key: from_global_id_with_expected_type(
+                                    global_id=example.span_id,
+                                    expected_type_name=Span.__name__,
+                                )
+                                if example.span_id
+                                else None,
+                                DatasetExample.external_id.key: example.external_id
+                                if example.external_id
+                                else None,
+                            }
+                            for example in input.examples
+                        ],
+                    )
+                ).all()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+                error_message = str(error)
+                has_external_id_conflict = (
+                    "dataset_id" in error_message and "external_id" in error_message
                 )
-            ).all()
+                if has_external_id_conflict:
+                    duplicate_ids = [e.external_id for e in input.examples if e.external_id]
+                    raise Conflict(
+                        f"An example with custom ID {duplicate_ids[0]!r} already exists "
+                        f"in this dataset."
+                    )
+                raise
             assert len(dataset_example_rowids) == len(input.examples)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision

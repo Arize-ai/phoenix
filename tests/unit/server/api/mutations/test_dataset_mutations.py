@@ -510,6 +510,38 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     assert f"Unknown dataset: {dataset_id}" in errors[0].message
 
 
+async def test_add_example_with_duplicate_external_id_returns_conflict_error(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
+    mutation = """
+      mutation ($input: AddExamplesToDatasetInput!) {
+        addExamplesToDataset(input: $input) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    variables = {
+        "input": {
+            "datasetId": dataset_id,
+            "examples": [
+                {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "abc"},
+            ],
+        }
+    }
+    # First call should succeed
+    response = await gql_client.execute(query=mutation, variables=variables)
+    assert not response.errors
+    # Second call with the same externalId should return a conflict error
+    response = await gql_client.execute(query=mutation, variables=variables)
+    assert (errors := response.errors)
+    assert len(errors) == 1
+    assert errors[0].message == ("An example with custom ID 'abc' already exists in this dataset.")
+
+
 @pytest.fixture
 async def empty_dataset(db: DbSessionFactory) -> None:
     """

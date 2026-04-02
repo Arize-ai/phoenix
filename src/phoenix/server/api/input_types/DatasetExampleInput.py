@@ -12,3 +12,4 @@ class DatasetExampleInput:
     output: JSON
     metadata: JSON
     span_id: Optional[GlobalID] = UNSET
+    external_id: Optional[str] = UNSET

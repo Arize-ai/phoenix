@@ -16,6 +16,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Input,
   Keyboard,
   Label,
   Text,
@@ -46,6 +47,7 @@ type DatasetExamplePatch = {
   output: string;
   metadata: string;
   description?: string;
+  externalId?: string;
 };
 
 export type AddDatasetExampleDialogProps = {
@@ -82,6 +84,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
       input: "{\n  \n}",
       output: "{\n  \n}",
       metadata: "{\n  \n}",
+      externalId: "",
     },
   });
 
@@ -113,6 +116,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
                 input: JSON.parse(newExample.input),
                 output: JSON.parse(newExample.output),
                 metadata: JSON.parse(newExample.metadata),
+                ...(newExample.externalId?.trim()
+                  ? { externalId: newExample.externalId.trim() }
+                  : {}),
               },
             ],
             datasetVersionDescription: newExample.description,
@@ -129,6 +135,7 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
               output: createEmptyJSONStructure(newExample.output),
               metadata: createEmptyJSONStructure(newExample.metadata),
               description: "",
+              externalId: "",
             });
           } else {
             // Close dialog (existing behavior)
@@ -304,6 +311,20 @@ function AddExampleDialogContent(props: AddExampleDialogContentProps) {
                       onBlur={onBlur}
                     />
                   </Card>
+                )}
+              />
+              <Controller
+                control={control}
+                name={"externalId"}
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextField value={value} onChange={onChange} onBlur={onBlur}>
+                    <Label>Custom ID</Label>
+                    <Input placeholder="e.g. example-001" />
+                    <Text slot="description">
+                      An optional identifier for this example. Must be unique
+                      within the dataset.
+                    </Text>
+                  </TextField>
                 )}
               />
               <Controller
