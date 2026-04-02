@@ -13,6 +13,14 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 npm install @arizeai/phoenix-otel
 ```
 
+### Recommended — Add OpenInference Core
+
+`@arizeai/openinference-core` provides tracing helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`), decorators (`@observe`), and context setters (`setSession`, `setUser`, `setMetadata`, `setTag`) that work on top of the provider registered by phoenix-otel. Install it alongside phoenix-otel for the best tracing experience.
+
+```bash
+npm install @arizeai/phoenix-otel @arizeai/openinference-core
+```
+
 ### Add Instrumentations
 
 ```bash
@@ -24,24 +32,28 @@ npm install \
 
 ### Typical Pairings
 
-- `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations
+- `@arizeai/phoenix-otel` plus `@arizeai/openinference-core` for manual tracing with span-kind helpers and context propagation
+- `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations for automatic framework tracing
 - `@arizeai/phoenix-otel` plus `@arizeai/phoenix-client` for experiment workflows
-- `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors
+- `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors (e.g. `@arizeai/openinference-instrumentation-openai`)
 
-## Minimal Setup
+## Quick Start
 
 ```ts
-import { register, trace } from "@arizeai/phoenix-otel";
+import { register } from "@arizeai/phoenix-otel";
+import { withSpan } from "@arizeai/openinference-core";
+import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
 
-const provider = register({
-  projectName: "support-bot",
-  batch: false,
-});
+const provider = register({ projectName: "support-bot" });
 
-trace.getTracer("support-bot").startActiveSpan("healthcheck", (span) => {
-  span.end();
-});
+const handleQuery = withSpan(
+  async (query: string) => {
+    return `Handled: ${query}`;
+  },
+  { name: "handle-query", kind: OpenInferenceSpanKind.CHAIN }
+);
 
+await handleQuery("Hello");
 await provider.shutdown();
 ```
 
@@ -58,10 +70,11 @@ The bundled docs cover configuration, provider registration, instrumentation, ma
 
 ## Where To Start
 
-- [Configuration](./configuration) for setup and environment variables
+- [Configuration](./configuration) for setup, environment variables, and production best practices
 - [Register](./register) for the core provider lifecycle
-- [Instrumentation](./instrumentation) and [Manual spans](./manual-spans) for automatic and manual tracing
-- [Projects and auth](./projects-and-auth) and [Troubleshooting](./troubleshooting) for deployment details and debugging
+- [Manual spans](./manual-spans) for tracing with `@arizeai/openinference-core` helpers and raw OTel spans
+- [Instrumentation](./instrumentation) for automatic framework tracing
+- [Projects and auth](./projects-and-auth) and [Troubleshooting](./troubleshooting) for deployment and debugging
 
 ## Package Surface
 

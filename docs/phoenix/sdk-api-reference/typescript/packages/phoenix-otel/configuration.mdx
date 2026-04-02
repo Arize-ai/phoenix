@@ -87,10 +87,8 @@ const provider = register({
 In production you must flush and shut down the provider before your process exits, otherwise in-flight batches are lost.
 
 ```ts
-// Graceful shutdown — flush buffered spans, then tear down
 process.on("SIGTERM", async () => {
-  await provider.forceFlush();
-  await provider.shutdown();
+  await provider.shutdown(); // flushes buffered spans, then tears down
   process.exit(0);
 });
 ```

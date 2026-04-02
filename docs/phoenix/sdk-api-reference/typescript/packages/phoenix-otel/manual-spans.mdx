@@ -21,7 +21,7 @@ npm install @arizeai/openinference-core @arizeai/openinference-semantic-conventi
 ```
 
 ```ts
-import { withSpan, setSession } from "@arizeai/openinference-core";
+import { withSpan, setSession, setMetadata } from "@arizeai/openinference-core";
 import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
 import { context } from "@opentelemetry/api";
 import { register } from "@arizeai/phoenix-otel";
@@ -53,7 +53,10 @@ const ragPipeline = withSpan(
 
 // Session and metadata propagate to all child spans
 await context.with(
-  setSession(context.active(), { sessionId: "session-abc-123" }),
+  setMetadata(
+    setSession(context.active(), { sessionId: "session-abc-123" }),
+    { environment: "production" }
+  ),
   () => ragPipeline("What is Phoenix?")
 );
 ```
