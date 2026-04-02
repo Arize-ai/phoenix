@@ -43,22 +43,18 @@ import type {
 } from "./types";
 import { languageLabel, parseConfigText, toPrettyJSONObject } from "./utils";
 
-export function SandboxConfigDialogTrigger({
-  mode,
-  provider,
-  providers,
-  config,
-}: {
-  mode: "create" | "edit";
-  provider?: SandboxProvider;
-  providers?: ProviderRow[];
-  config?: SandboxConfig;
-}) {
+type SandboxConfigDialogTriggerProps =
+  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig };
+
+export function SandboxConfigDialogTrigger(
+  props: SandboxConfigDialogTriggerProps
+) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-      {mode === "create" ? (
+      {props.mode === "create" ? (
         <Button
           size="S"
           variant="primary"
@@ -69,7 +65,7 @@ export function SandboxConfigDialogTrigger({
       ) : (
         <Button
           size="S"
-          aria-label={`Edit ${config?.name}`}
+          aria-label={`Edit ${props.config.name}`}
           leadingVisual={<Icon svg={<Icons.EditOutline />} />}
         />
       )}
@@ -79,21 +75,28 @@ export function SandboxConfigDialogTrigger({
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {mode === "create"
+                  {props.mode === "create"
                     ? "New Sandbox Config"
-                    : `Edit "${config?.name}" config`}
+                    : `Edit "${props.config.name}" config`}
                 </DialogTitle>
                 <DialogTitleExtra>
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              <SandboxConfigDialogContent
-                mode={mode}
-                provider={provider}
-                providers={providers}
-                config={config}
-                onClose={() => setIsOpen(false)}
-              />
+              {props.mode === "create" ? (
+                <SandboxConfigDialogContent
+                  mode="create"
+                  providers={props.providers}
+                  onClose={() => setIsOpen(false)}
+                />
+              ) : (
+                <SandboxConfigDialogContent
+                  mode="edit"
+                  provider={props.provider}
+                  config={props.config}
+                  onClose={() => setIsOpen(false)}
+                />
+              )}
             </DialogContent>
           </Dialog>
         </Modal>
@@ -102,30 +105,33 @@ export function SandboxConfigDialogTrigger({
   );
 }
 
-function SandboxConfigDialogContent({
-  mode,
-  provider,
-  providers,
-  config,
-  onClose,
-}: {
-  mode: "create" | "edit";
-  provider?: SandboxProvider;
-  providers?: ProviderRow[];
-  config?: SandboxConfig;
-  onClose: () => void;
-}) {
+type SandboxConfigDialogContentProps = (
+  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig }
+) & { onClose: () => void };
+
+function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
+  const { mode, onClose } = props;
+  const providers = mode === "create" ? props.providers : [];
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<SandboxConfigFormValues>({
-    defaultValues: {
-      sandboxProviderId: provider?.id ?? "",
-      name: config?.name ?? "",
-      description: config?.description ?? "",
-      timeout: config?.timeout ?? 30,
-      enabled: config?.enabled ?? true,
-      configText: toPrettyJSONObject(config?.config ?? {}),
-    },
+    defaultValues:
+      mode === "edit"
+        ? {
+            sandboxProviderId: props.provider.id,
+            name: props.config.name,
+            description: props.config.description ?? "",
+            timeout: props.config.timeout,
+            configText: toPrettyJSONObject(props.config.config),
+          }
+        : {
+            sandboxProviderId: "",
+            name: "",
+            description: "",
+            timeout: 30,
+            configText: toPrettyJSONObject({}),
+          },
   });
   const [commitCreate, isCreating] =
     useMutation<SandboxConfigDialogCreateSandboxConfigMutation>(graphql`
@@ -169,7 +175,7 @@ function SandboxConfigDialogContent({
         message:
           mode === "create"
             ? `${values.name} is ready to use.`
-            : `${config?.name ?? values.name} was updated.`,
+            : `${props.config.name} was updated.`,
       });
     };
     const onError = (mutationError: Error) => {
@@ -187,7 +193,6 @@ function SandboxConfigDialogContent({
             name: values.name,
             description: values.description || null,
             timeout: values.timeout,
-            enabled: values.enabled,
             config: parsedConfig.config,
           },
         },
@@ -197,18 +202,12 @@ function SandboxConfigDialogContent({
       return;
     }
 
-    if (!config) {
-      setError("Config details are missing");
-      return;
-    }
-
     commitUpdate({
       variables: {
         input: {
-          id: config.id,
+          id: props.config.id,
           description: values.description || null,
           timeout: values.timeout,
-          enabled: values.enabled,
           config: parsedConfig.config,
         },
       },
