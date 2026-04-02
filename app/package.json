@@ -75,6 +75,7 @@
     "date-fns": "^4.1.0",
     "just-bash": "^2.14.0",
     "lodash": "^4.17.23",
+    "motion": "^12.38.0",
     "mustache": "^4.2.0",
     "normalize.css": "^8.0.1",
     "polished": "^4.3.1",

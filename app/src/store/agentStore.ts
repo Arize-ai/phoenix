@@ -3,6 +3,8 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+
 import type { ModelConfig } from "./playground/types";
 
 /**
@@ -87,6 +89,19 @@ export interface AgentState extends AgentProps {
   setSessionMessages: (sessionId: string, messages: UIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   clearAllSessions: () => void;
+
+  // -- Elicitation (ephemeral, not persisted) --
+
+  /**
+   * Pending elicitations keyed by session ID. Each session can have at most
+   * one pending elicitation at a time. Set by the ask_user tool handler and
+   * cleared when the user submits answers or dismisses the carousel.
+   */
+  pendingElicitationBySessionId: Record<string, PendingElicitation>;
+  setPendingElicitation: (
+    sessionId: string,
+    elicitation: PendingElicitation | null
+  ) => void;
 }
 
 /**
@@ -274,6 +289,25 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "clearAllSessions" }
       );
     },
+
+    // -- Elicitation (ephemeral) --
+    pendingElicitationBySessionId: {},
+    setPendingElicitation: (sessionId, elicitation) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingElicitationBySessionId };
+          if (elicitation) {
+            next[sessionId] = elicitation;
+          } else {
+            delete next[sessionId];
+          }
+          return { pendingElicitationBySessionId: next };
+        },
+        false,
+        { type: "setPendingElicitation" }
+      );
+    },
+
     ...initialProps,
   });
 

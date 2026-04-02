@@ -5,12 +5,14 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import type { ElicitToolOutput } from "@phoenix/agent/tools/elicit";
 import { authFetch } from "@phoenix/authFetch";
 import { Icon, Icons, View } from "@phoenix/components";
+import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import {
   PromptInput,
   PromptInputActions,
@@ -23,7 +25,7 @@ import {
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
-import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
@@ -112,6 +114,11 @@ export function Chat({
   const store = useAgentStore();
   const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
 
+  // Pending elicitation for this session (ephemeral, not persisted)
+  const pendingElicitation = useAgentContext((s) =>
+    sessionId ? (s.pendingElicitationBySessionId[sessionId] ?? null) : null
+  );
+
   // read stored messages for this session
   const initialMessages = sessionId
     ? store.getState().sessionMap[sessionId]?.messages
@@ -149,7 +156,12 @@ export function Chat({
       // See: ai/docs/04-ai-sdk-ui/03-chatbot-tool-usage.mdx and
       // ai/docs/08-migration-guides/26-migration-guide-5-0.mdx in this repo's
       // installed AI SDK package.
-      void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
+      void handleAgentToolCall({
+        toolCall,
+        sessionId,
+        addToolOutput,
+        agentStore: store,
+      });
     },
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onFinish: ({ messages: finalMessages }) => {
@@ -183,21 +195,31 @@ export function Chat({
 
   // Coalesce auto-scroll requests into a single rAF so rapid streaming
   // updates don't queue overlapping smooth-scroll animations.
-  const scrollToBottom = useCallback(() => {
+  useEffect(() => {
     cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
     scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, status, scrollToBottom]);
+  }, [messages, status]);
 
   // Cancel any pending rAF on unmount
   useEffect(() => {
     return () => cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
   }, []);
+
+  /**
+   * Called when the user submits answers in the elicitation carousel.
+   * Provides the tool output back to the AI SDK and clears the pending state.
+   */
+  const handleElicitationSubmit = (output: ElicitToolOutput) => {
+    if (!pendingElicitation || !sessionId) return;
+    void addToolOutput({
+      tool: "ask_user",
+      toolCallId: pendingElicitation.toolCallId,
+      output,
+    });
+    store.getState().setPendingElicitation(sessionId, null);
+  };
 
   return (
     <div css={chatCSS}>
@@ -218,28 +240,37 @@ export function Chat({
       </div>
       <div className="chat__input">
         <View paddingX="size-200">
-          <PromptInput
-            onSubmit={(text) => sendMessage({ text })}
-            status={status}
-          >
-            <PromptInputBody>
-              <PromptInputTextarea placeholder="Send a message…" />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <ModelMenu
-                  value={modelMenuValue}
-                  onChange={onModelChange}
-                  placement="top start"
-                  shouldFlip
-                  variant="quiet"
-                />
-              </PromptInputTools>
-              <PromptInputActions>
-                <PromptInputSubmit />
-              </PromptInputActions>
-            </PromptInputFooter>
-          </PromptInput>
+          {pendingElicitation ? (
+            <PromptInput status={status} isDisabled>
+              <ElicitationCarousel
+                questions={pendingElicitation.questions}
+                onSubmit={handleElicitationSubmit}
+              />
+            </PromptInput>
+          ) : (
+            <PromptInput
+              onSubmit={(text) => sendMessage({ text })}
+              status={status}
+            >
+              <PromptInputBody>
+                <PromptInputTextarea placeholder="Send a message…" />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <ModelMenu
+                    value={modelMenuValue}
+                    onChange={onModelChange}
+                    placement="top start"
+                    shouldFlip
+                    variant="quiet"
+                  />
+                </PromptInputTools>
+                <PromptInputActions>
+                  <PromptInputSubmit />
+                </PromptInputActions>
+              </PromptInputFooter>
+            </PromptInput>
+          )}
         </View>
       </div>
     </div>

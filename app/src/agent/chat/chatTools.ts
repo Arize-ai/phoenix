@@ -1,4 +1,5 @@
 import { bashToolDefinition } from "@phoenix/agent/tools/bash";
+import { elicitToolDefinition } from "@phoenix/agent/tools/elicit";
 
 /**
  * Client-side tool definitions sent alongside every chat request so the
@@ -8,4 +9,4 @@ import { bashToolDefinition } from "@phoenix/agent/tools/bash";
  * and append it to this array. The corresponding handler must also be
  * registered in {@link handleAgentToolCall}.
  */
-export const agentToolDefinitions = [bashToolDefinition];
+export const agentToolDefinitions = [bashToolDefinition, elicitToolDefinition];

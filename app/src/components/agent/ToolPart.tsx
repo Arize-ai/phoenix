@@ -1,60 +1,21 @@
 import { css } from "@emotion/react";
-import { getToolName, isToolUIPart, type UIMessage } from "ai";
+import { getToolName } from "ai";
 
-import {
-  getBashToolCommandDisplayResult,
-  getBashToolInput,
-} from "@phoenix/agent/tools/bash";
 import { Icon, Icons } from "@phoenix/components";
 
-export type ToolPartType = Extract<
-  UIMessage["parts"][number],
-  { type: string }
->;
+import {
+  AskUserToolDetails,
+  formatAskUserState,
+  getAskUserToolPreview,
+} from "./AskUserToolDetails";
+import { BashToolDetails, getBashToolPreview } from "./BashToolDetails";
+import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
+import { formatToolState, isToolUIPart } from "./toolPartTypes";
 
-type ToolState =
-  | "input-streaming"
-  | "input-available"
-  | "approval-requested"
-  | "approval-responded"
-  | "output-available"
-  | "output-error"
-  | "output-denied";
-
-function formatToolState(state: ToolState) {
-  switch (state) {
-    case "input-streaming":
-      return "Preparing command";
-    case "input-available":
-      return "Running";
-    case "approval-requested":
-      return "Awaiting approval";
-    case "approval-responded":
-      return "Approval received";
-    case "output-available":
-      return "Completed";
-    case "output-error":
-      return "Failed";
-    case "output-denied":
-      return "Denied";
-  }
-}
-
-function stringifyToolValue(value: unknown) {
-  if (value == null) {
-    return "";
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
+/**
+ * Re-export the message part type for consumers that need it for grouping.
+ */
+export type ToolPartType = MessagePart;
 
 export const toolPartCSS = css`
   margin-top: var(--global-dimension-size-150);
@@ -171,29 +132,17 @@ export const toolPartCSS = css`
 
 /**
  * Collapsible detail view for a single tool invocation within an assistant
- * message. For bash tool calls it shows the command, exit code, duration,
- * and stdout/stderr using typed helpers from the bash tool barrel.
- * Falls back to generic JSON rendering for unknown tools.
+ * message. Dispatches to tool-specific sub-components for the preview text,
+ * state label, and expanded body.
  */
-export function ToolPart({
-  part,
-}: {
-  part: Extract<UIMessage["parts"][number], { type: string }>;
-}) {
+export function ToolPart({ part }: { part: MessagePart }) {
   if (!isToolUIPart(part)) {
     return null;
   }
 
   const toolName = getToolName(part);
-  const bashInput = toolName === "bash" ? getBashToolInput(part.input) : null;
-  const bashResult =
-    toolName === "bash" ? getBashToolCommandDisplayResult(part.output) : null;
-  const command = bashInput?.command ?? stringifyToolValue(part.input);
+  const { preview, stateLabel, details } = getToolPresentation(toolName, part);
   const isError = part.state === "output-error";
-
-  // Extract a short preview of the command for the collapsed summary.
-  // Use the first line only, since multi-line commands are common.
-  const preview = command ? command.split("\n")[0] : "";
 
   return (
     <details className="tool-part" css={toolPartCSS}>
@@ -216,46 +165,67 @@ export function ToolPart({
             className="tool-part__status"
             data-tone={isError ? "error" : undefined}
           >
-            {formatToolState(part.state)}
+            {stateLabel}
           </span>
         </div>
       </summary>
-      <div>
-        <span className="tool-part__label">Command</span>
-        <pre>{command || "(empty)"}</pre>
-        {part.state === "output-available" ? (
-          <>
-            <span className="tool-part__label">Exit code</span>
-            <pre>{bashResult?.exitCode ?? "0"}</pre>
-            {bashResult?.durationText ? (
-              <>
-                <span className="tool-part__label">Duration</span>
-                <pre>{bashResult.durationText}</pre>
-              </>
-            ) : null}
-            <span className="tool-part__label">Stdout</span>
-            <pre>
-              {bashResult?.stdout || "(no output)"}
-              {bashResult?.stdoutBytesText
-                ? `\n\n[${bashResult.stdoutBytesText}]`
-                : ""}
-            </pre>
-            <span className="tool-part__label">Stderr</span>
-            <pre>
-              {bashResult?.stderr || "(no output)"}
-              {bashResult?.stderrBytesText
-                ? `\n\n[${bashResult.stderrBytesText}]`
-                : ""}
-            </pre>
-          </>
-        ) : null}
-        {part.state === "output-error" ? (
-          <>
-            <span className="tool-part__label">Error</span>
-            <pre>{part.errorText}</pre>
-          </>
-        ) : null}
-      </div>
+      <div>{details}</div>
     </details>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Tool dispatcher
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the presentation elements for a given tool: the collapsed preview
+ * string, the status label, and the expanded detail JSX. New tools are
+ * added as additional cases here.
+ */
+function getToolPresentation(
+  toolName: string,
+  part: ToolInvocationPart
+): {
+  preview: string;
+  stateLabel: string;
+  details: React.ReactNode;
+} {
+  switch (toolName) {
+    case "bash":
+      return {
+        preview: getBashToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        details: <BashToolDetails part={part} />,
+      };
+    case "ask_user":
+      return {
+        preview: getAskUserToolPreview(part),
+        stateLabel: formatAskUserState(part.state),
+        details: <AskUserToolDetails part={part} />,
+      };
+    default:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        details: (
+          <>
+            <span className="tool-part__label">Input</span>
+            <pre>{JSON.stringify(part.input, null, 2)}</pre>
+            {part.state === "output-available" ? (
+              <>
+                <span className="tool-part__label">Output</span>
+                <pre>{JSON.stringify(part.output, null, 2)}</pre>
+              </>
+            ) : null}
+            {part.state === "output-error" ? (
+              <>
+                <span className="tool-part__label">Error</span>
+                <pre>{part.errorText}</pre>
+              </>
+            ) : null}
+          </>
+        ),
+      };
+  }
 }
