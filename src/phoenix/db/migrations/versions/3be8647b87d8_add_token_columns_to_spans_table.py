@@ -10,7 +10,6 @@ from typing import Any, Optional, Sequence, TypedDict, Union
 
 import sqlalchemy as sa
 from alembic import op
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import (
     JSON,
     Dialect,
@@ -106,8 +105,8 @@ down_revision: Union[str, None] = "10460e46d750"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
+LLM_TOKEN_COUNT_PROMPT = "llm.token_count.prompt".split(".")
+LLM_TOKEN_COUNT_COMPLETION = "llm.token_count.completion".split(".")
 
 
 def upgrade() -> None:
