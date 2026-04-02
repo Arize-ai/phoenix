@@ -16,7 +16,7 @@ async function main() {
 
   // withSpan wraps any function with an OpenInference-typed span
   const retrieveDocuments = withSpan(
-    async (query: string) => {
+    async (_query: string) => {
       // simulate retrieval latency
       await new Promise((resolve) => setTimeout(resolve, 100));
       return [
