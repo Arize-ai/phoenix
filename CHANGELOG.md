@@ -1,5 +1,23 @@
 # Changelog
 
+## [13.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.2...arize-phoenix-v13.23.0) (2026-04-02)
+
+
+### Features
+
+* bundle TypeScript SDK docs into npm packages ([#12487](https://github.com/Arize-ai/phoenix/issues/12487)) ([1028be5](https://github.com/Arize-ai/phoenix/commit/1028be5ea7400886a2abf64b2c227f66edb791e0))
+
+
+### Bug Fixes
+
+* **app:** fix broken Playground button in prompts table ([#12511](https://github.com/Arize-ai/phoenix/issues/12511)) ([4a4ddb3](https://github.com/Arize-ai/phoenix/commit/4a4ddb3f80038578553760de2dab3561a7bf805d))
+* remove openinference dependency from migration ([#12510](https://github.com/Arize-ai/phoenix/issues/12510)) ([1059492](https://github.com/Arize-ai/phoenix/commit/1059492a4bd90e6b98c96998e995794940168de3))
+
+
+### Documentation
+
+* Add Phoenix release notes for 03-26-2026 through 04-01-2026 ([#12489](https://github.com/Arize-ai/phoenix/issues/12489)) ([c414afc](https://github.com/Arize-ai/phoenix/commit/c414afc1d9008e55a60943cc37035a72c0fad613))
+
 ## [13.22.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.1...arize-phoenix-v13.22.2) (2026-04-01)
 
 
