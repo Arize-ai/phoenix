@@ -21,6 +21,7 @@ import {
   View,
 } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { Skeleton } from "@phoenix/components/core/loading";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -326,7 +327,7 @@ function DeferredMetricFallback({ label }: { label: string }) {
       <Text elementType="h3" size="S" color="text-700">
         {label}
       </Text>
-      <Text size="L">--</Text>
+      <Skeleton width={60} height="1.4em" />
     </Flex>
   );
 }
