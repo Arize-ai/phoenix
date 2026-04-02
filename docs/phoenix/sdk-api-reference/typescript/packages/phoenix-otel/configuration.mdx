@@ -38,7 +38,8 @@ const provider = register({
   url: "https://app.phoenix.arize.com",
   apiKey: process.env.PHOENIX_API_KEY,
   headers: {
-    "x-team": "agents",
+    "x-client-name": "support-bot-api",
+    "x-client-version": "1.4.2",
   },
   batch: true,
   diagLogLevel: DiagLogLevel.INFO,

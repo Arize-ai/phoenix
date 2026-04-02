@@ -22,27 +22,6 @@ const provider = register({
 });
 ```
 
-## Explicit Global Attachment
-
-If you already created a provider and want to manage the global lifecycle yourself, use `attachGlobalTracerProvider()` and `detachGlobalTracerProvider()`.
-
-```ts
-import {
-  attachGlobalTracerProvider,
-  detachGlobalTracerProvider,
-  register,
-} from "@arizeai/phoenix-otel";
-
-const provider = register({
-  projectName: "support-bot",
-  global: false,
-});
-
-const registration = attachGlobalTracerProvider(provider);
-registration.detach();
-detachGlobalTracerProvider();
-```
-
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
