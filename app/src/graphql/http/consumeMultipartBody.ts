@@ -15,10 +15,9 @@ import { parseMultipartHeaders } from "./parseMultipartHeaders";
 /**
  * Regex to extract the boundary parameter from a Content-Type header.
  *
- * Supports three formats per RFC 9110 §5.6.6:
- *   - Single-quoted:  boundary='value'
- *   - Double-quoted:  boundary="value"
- *   - Unquoted:       boundary=value
+ * Parses the boundary value and ignores any subsequent name/value pairs after `;`.
+ * e.g. `multipart/mixed;boundary="graphql";deferSpec=20220824`
+ * If no boundary is specified, the caller defaults to "-".
  *
  * @see https://www.rfc-editor.org/rfc/rfc9110.html#name-parameters
  */
@@ -51,8 +50,9 @@ export async function* consumeMultipartBody(
   let done = false;
   let encounteredBoundary = false;
 
-  // The final boundary is a normal boundary immediately followed by "--"
-  // as described in RFC 2046 §5.1.1.
+  // Check to see if we received the final boundary, which is a normal
+  // boundary followed by "--" as described in RFC 2046 §5.1.1.
+  // @see https://www.rfc-editor.org/rfc/rfc2046#section-5.1.1
   const passedFinalBoundary = () =>
     encounteredBoundary && buffer[0] === "-" && buffer[1] === "-";
 
@@ -67,31 +67,28 @@ export async function* consumeMultipartBody(
       const searchFrom = buffer.length - boundary.length + 1;
       buffer += chunk;
 
-      let bi = buffer.indexOf(boundary, searchFrom);
-      while (bi > -1 && !passedFinalBoundary()) {
+      let boundaryIndex = buffer.indexOf(boundary, searchFrom);
+      while (boundaryIndex > -1 && !passedFinalBoundary()) {
         encounteredBoundary = true;
 
-        let message: string;
-        [message, buffer] = [
-          buffer.slice(0, bi),
-          buffer.slice(bi + boundary.length),
-        ];
+        const message = buffer.slice(0, boundaryIndex);
+        buffer = buffer.slice(boundaryIndex + boundary.length);
 
         // Each MIME part has headers separated from the body by a blank line.
         // Content before the first boundary (preamble per RFC 2046 §5.1.1) has
         // no header/body separator — skip it.
-        const i = message.indexOf("\r\n\r\n");
-        if (i === -1) {
-          bi = buffer.indexOf(boundary);
+        const headerEnd = message.indexOf("\r\n\r\n");
+        if (headerEnd === -1) {
+          boundaryIndex = buffer.indexOf(boundary);
           continue;
         }
 
-        const headers = parseMultipartHeaders(message.slice(0, i));
+        const headers = parseMultipartHeaders(message.slice(0, headerEnd));
         const partContentType = headers["content-type"];
 
         if (
           partContentType &&
-          partContentType.toLowerCase().indexOf("application/json") === -1
+          !partContentType.toLowerCase().includes("application/json")
         ) {
           throw new Error(
             "Unsupported patch content type: application/json is required."
@@ -100,12 +97,12 @@ export async function* consumeMultipartBody(
 
         // The body starts after the \r\n\r\n separator. The leading \r\n is
         // harmless since JSON.parse ignores leading whitespace.
-        const body = message.slice(i);
+        const body = message.slice(headerEnd);
         if (body) {
           yield body;
         }
 
-        bi = buffer.indexOf(boundary);
+        boundaryIndex = buffer.indexOf(boundary);
       }
 
       if (passedFinalBoundary()) {
