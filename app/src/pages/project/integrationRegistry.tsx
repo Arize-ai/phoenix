@@ -834,7 +834,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
   },
   {
     id: "cloudflare",
-    name: "Cloudflare",
+    name: "Cloudflare Workers AI",
     icon: <CloudflareSVG />,
     configs: {
       Python: {
