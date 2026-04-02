@@ -853,6 +853,7 @@ async function runEvaluator({
         output: run.output ?? null,
         expected: example.output,
         metadata: example?.metadata,
+        traceId: run.traceId,
       });
       thisEval.result = result;
     } catch (error) {

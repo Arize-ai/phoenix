@@ -692,6 +692,7 @@ async function runSingleEvaluation({
           output: taskOutput,
           expected: expectedOutput,
           metadata: datasetExample.metadata,
+          traceId: experimentRun.traceId,
         })
       );
       results = Array.isArray(result) ? result : [result];
@@ -746,6 +747,7 @@ async function runSingleEvaluation({
             output: taskOutput,
             expected: expectedOutput,
             metadata: datasetExample.metadata,
+            traceId: experimentRun.traceId,
           })
         );
 
