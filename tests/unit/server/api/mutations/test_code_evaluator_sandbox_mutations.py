@@ -1,5 +1,5 @@
 """Tests for sandbox GQL mutations: createSandboxConfig, updateSandboxConfig,
-updateSandboxProvider, deleteSandboxConfig, setSandboxProviderEnabled.
+updateSandboxProvider, deleteSandboxConfig.
 
 Uses the gql_client fixture to send real GQL mutations against the in-memory
 test app, backed by seed_sandbox_providers DB fixtures.
@@ -55,17 +55,6 @@ mutation DeleteSandboxConfig($id: ID!) {
 }
 """
 
-_SET_PROVIDER_ENABLED = """
-mutation SetSandboxProviderEnabled($providerId: Int!, $enabled: Boolean!) {
-    setSandboxProviderEnabled(providerId: $providerId, enabled: $enabled) {
-        sandboxProvider {
-            id
-            enabled
-        }
-    }
-}
-"""
-
 _UPDATE_PROVIDER = """
 mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
     updateSandboxProvider(input: $input) {
@@ -73,6 +62,19 @@ mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
             id
             enabled
             config
+        }
+    }
+}
+"""
+
+_SANDBOX_PROVIDERS = """
+query SandboxProviders {
+    sandboxProviders {
+        id
+        backendType
+        configs {
+            id
+            name
         }
     }
 }
@@ -166,6 +168,84 @@ class TestUpdateSandboxConfig:
         assert cfg["description"] == "updated description"
         assert cfg["enabled"] is False
 
+    async def test_update_only_description_leaves_others_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={
+                "input": {
+                    "id": _config_global_id(sandbox_config.id),
+                    "description": "new desc",
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["description"] == "new desc"
+        assert cfg["timeout"] == sandbox_config.timeout
+        assert cfg["enabled"] is True
+
+    async def test_update_only_timeout_leaves_others_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={
+                "input": {
+                    "id": _config_global_id(sandbox_config.id),
+                    "timeout": 120,
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["timeout"] == 120
+        assert cfg["description"] == sandbox_config.description
+
+    async def test_update_only_enabled_leaves_others_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={
+                "input": {
+                    "id": _config_global_id(sandbox_config.id),
+                    "enabled": False,
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["enabled"] is False
+        assert cfg["timeout"] == sandbox_config.timeout
+        assert cfg["description"] == sandbox_config.description
+
+    async def test_update_no_fields_is_noop(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={
+                "input": {
+                    "id": _config_global_id(sandbox_config.id),
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["timeout"] == sandbox_config.timeout
+        assert cfg["description"] == sandbox_config.description
+        assert cfg["enabled"] is True
+
     async def test_update_not_found_returns_error(
         self,
         gql_client: AsyncGraphQLClient,
@@ -206,66 +286,6 @@ class TestDeleteSandboxConfig:
         assert result.errors
 
 
-class TestSetSandboxProviderEnabled:
-    async def test_disables_provider(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
-            )
-        assert provider is not None
-
-        result = await gql_client.execute(
-            _SET_PROVIDER_ENABLED,
-            variables={"providerId": provider.id, "enabled": False},
-        )
-        assert result.data and not result.errors
-        assert result.data["setSandboxProviderEnabled"]["sandboxProvider"]["enabled"] is False
-
-    async def test_enables_provider_after_disable(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
-            )
-        assert provider is not None
-
-        # First disable
-        result = await gql_client.execute(
-            _SET_PROVIDER_ENABLED,
-            variables={"providerId": provider.id, "enabled": False},
-        )
-        assert result.data and not result.errors
-        assert result.data["setSandboxProviderEnabled"]["sandboxProvider"]["enabled"] is False
-
-        # Then re-enable
-        result = await gql_client.execute(
-            _SET_PROVIDER_ENABLED,
-            variables={"providerId": provider.id, "enabled": True},
-        )
-        assert result.data and not result.errors
-        assert result.data["setSandboxProviderEnabled"]["sandboxProvider"]["enabled"] is True
-
-    async def test_not_found_provider_returns_error(
-        self,
-        gql_client: AsyncGraphQLClient,
-        seed_sandbox_providers: None,
-    ) -> None:
-        result = await gql_client.execute(
-            _SET_PROVIDER_ENABLED,
-            variables={"providerId": 99999, "enabled": True},
-        )
-        assert result.errors
-
-
 class TestUpdateSandboxProvider:
     async def test_updates_provider_config_and_enabled(
         self,
@@ -293,6 +313,87 @@ class TestUpdateSandboxProvider:
         sandbox_provider = result.data["updateSandboxProvider"]["sandboxProvider"]
         assert sandbox_provider["enabled"] is False
         assert sandbox_provider["config"] == {"template": "custom-template"}
+
+    async def test_update_provider_only_enabled_leaves_config_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+        assert provider is not None
+        original_config = provider.config
+
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id(provider.id),
+                    "enabled": False,
+                }
+            },
+        )
+        assert result.data and not result.errors
+        sp = result.data["updateSandboxProvider"]["sandboxProvider"]
+        assert sp["enabled"] is False
+        assert sp["config"] == original_config
+
+    async def test_update_provider_only_config_leaves_enabled_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+        assert provider is not None
+        original_enabled = provider.enabled
+
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id(provider.id),
+                    "config": {"new_key": "new_value"},
+                }
+            },
+        )
+        assert result.data and not result.errors
+        sp = result.data["updateSandboxProvider"]["sandboxProvider"]
+        assert sp["config"] == {"new_key": "new_value"}
+        assert sp["enabled"] is original_enabled
+
+    async def test_update_provider_no_fields_is_noop(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+        assert provider is not None
+        original_config = provider.config
+        original_enabled = provider.enabled
+
+        result = await gql_client.execute(
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id(provider.id),
+                }
+            },
+        )
+        assert result.data and not result.errors
+        sp = result.data["updateSandboxProvider"]["sandboxProvider"]
+        assert sp["config"] == original_config
+        assert sp["enabled"] is original_enabled
 
     async def test_update_provider_not_found_returns_error(
         self,
@@ -346,13 +447,18 @@ class TestDisabledProviderAndConfigGuards:
         evaluator_db_id = await self._create_code_evaluator_with_config(db, sandbox_config)
         evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
 
-        # Disable the provider via the mutation
+        # Disable the provider via the updateSandboxProvider mutation
         async with db() as session:
             provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
         assert provider is not None
         result = await gql_client.execute(
-            _SET_PROVIDER_ENABLED,
-            variables={"providerId": provider.id, "enabled": False},
+            _UPDATE_PROVIDER,
+            variables={
+                "input": {
+                    "id": _provider_global_id(provider.id),
+                    "enabled": False,
+                }
+            },
         )
         assert result.data and not result.errors
 
@@ -406,3 +512,96 @@ class TestDisabledProviderAndConfigGuards:
             },
         )
         assert result.errors
+
+
+class TestMultiConfigOrdering:
+    async def test_configs_returned_in_name_asc_order(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Seed 3 configs with different names, assert configs() returns name ASC."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+        assert provider is not None
+
+        names = ["zebra-config", "alpha-config", "middle-config"]
+        for name in names:
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": name,
+                    }
+                },
+            )
+            assert result.data and not result.errors
+
+        result = await gql_client.execute(_SANDBOX_PROVIDERS)
+        assert result.data and not result.errors
+        providers = result.data["sandboxProviders"]
+
+        # Find the WASM provider by matching its ID
+        wasm_provider = next(p for p in providers if p["id"] == _provider_global_id(provider.id))
+        config_names = [c["name"] for c in wasm_provider["configs"]]
+        assert config_names == sorted(config_names)
+
+
+class TestCrossProviderIsolation:
+    async def test_configs_isolated_per_provider(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Configs under provider A must not appear under provider B."""
+        async with db() as session:
+            wasm = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            e2b = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert wasm is not None and e2b is not None
+
+        # Create configs under each provider
+        wasm_names = ["wasm-cfg-1", "wasm-cfg-2"]
+        e2b_names = ["e2b-cfg-1"]
+        for name in wasm_names:
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(wasm.id),
+                        "name": name,
+                    }
+                },
+            )
+            assert result.data and not result.errors
+        for name in e2b_names:
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(e2b.id),
+                        "name": name,
+                    }
+                },
+            )
+            assert result.data and not result.errors
+
+        result = await gql_client.execute(_SANDBOX_PROVIDERS)
+        assert result.data and not result.errors
+        providers = {p["id"]: p for p in result.data["sandboxProviders"]}
+
+        wasm_config_names = [c["name"] for c in providers[_provider_global_id(wasm.id)]["configs"]]
+        e2b_config_names = [c["name"] for c in providers[_provider_global_id(e2b.id)]["configs"]]
+
+        assert set(wasm_config_names) == set(wasm_names)
+        assert set(e2b_config_names) == set(e2b_names)
+        # No overlap
+        assert not set(wasm_config_names) & set(e2b_config_names)
