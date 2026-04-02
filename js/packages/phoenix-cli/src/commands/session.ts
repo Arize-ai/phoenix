@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { deleteSession } from "@arizeai/phoenix-client/sessions";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -8,6 +9,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -365,6 +367,71 @@ export function createSessionListCommand(): Command {
     .action(sessionListHandler);
 }
 
+interface SessionDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
+}
+
+/**
+ * Handler for `session delete`
+ */
+async function sessionDeleteHandler(
+  sessionId: string,
+  options: SessionDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    if (!config.endpoint) {
+      const errors = [
+        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
+      ];
+      writeError({ message: getConfigErrorMessage({ errors }) });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    await confirmOrExit({
+      message: `Delete session ${sessionId}? This will also delete all traces, spans, and annotations. This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    await deleteSession({ client, sessionId });
+
+    writeProgress({
+      message: `Deleted session ${sessionId}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting session: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSessionDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete a session by ID")
+    .argument(
+      "<session-id>",
+      "Session identifier (GlobalID or user-provided session_id)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(sessionDeleteHandler);
+}
+
 /**
  * Create the `session` command with subcommands
  */
@@ -373,5 +440,6 @@ export function createSessionCommand(): Command {
   command.description("Manage Phoenix sessions");
   command.addCommand(createSessionListCommand());
   command.addCommand(createSessionGetCommand());
+  command.addCommand(createSessionDeleteCommand());
   return command;
 }

@@ -1,10 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { deleteExperiment } from "@arizeai/phoenix-client/experiments";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -365,6 +367,68 @@ export function createExperimentListCommand(): Command {
     .action(experimentListHandler);
 }
 
+interface ExperimentDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
+}
+
+/**
+ * Handler for `experiment delete`
+ */
+async function experimentDeleteHandler(
+  experimentId: string,
+  options: ExperimentDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    if (!config.endpoint) {
+      const errors = [
+        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
+      ];
+      writeError({ message: getConfigErrorMessage({ errors }) });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    await confirmOrExit({
+      message: `Delete experiment ${experimentId}? This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    await deleteExperiment({ client, experimentId });
+
+    writeProgress({
+      message: `Deleted experiment ${experimentId}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting experiment: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createExperimentDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete an experiment by ID")
+    .argument("<experiment-id>", "Experiment identifier")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(experimentDeleteHandler);
+}
+
 /**
  * Create the `experiment` command with subcommands
  */
@@ -373,5 +437,6 @@ export function createExperimentCommand(): Command {
   command.description("Manage Phoenix experiments");
   command.addCommand(createExperimentListCommand());
   command.addCommand(createExperimentGetCommand());
+  command.addCommand(createExperimentDeleteCommand());
   return command;
 }

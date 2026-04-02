@@ -4,6 +4,7 @@ import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
 import { getConfigErrorMessage, resolveConfig } from "../config";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -31,6 +32,13 @@ interface DatasetListOptions {
   format?: OutputFormat;
   progress?: boolean;
   limit?: number;
+}
+
+interface DatasetDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
 }
 
 /**
@@ -272,6 +280,67 @@ async function datasetListHandler(options: DatasetListOptions): Promise<void> {
 }
 
 /**
+ * Handler for `dataset delete`
+ */
+async function datasetDeleteHandler(
+  datasetIdentifier: string,
+  options: DatasetDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    if (!config.endpoint) {
+      const errors = [
+        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
+      ];
+      writeError({ message: getConfigErrorMessage({ errors }) });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving dataset: ${datasetIdentifier}`,
+      noProgress: !options.progress,
+    });
+
+    const datasetId = await resolveDatasetId({ client, datasetIdentifier });
+
+    await confirmOrExit({
+      message: `Delete dataset ${datasetIdentifier}? This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    const response = await client.DELETE("/v1/datasets/{id}", {
+      params: {
+        path: {
+          id: datasetId,
+        },
+      },
+    });
+
+    if (response.error) {
+      throw new Error(`Failed to delete dataset: ${response.error}`);
+    }
+
+    writeProgress({
+      message: `Deleted dataset ${datasetIdentifier}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting dataset: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
  * Collect multiple --split options into an array
  */
 function collectSplits(value: string, previous: string[]): string[] {
@@ -320,6 +389,20 @@ export function createDatasetListCommand(): Command {
 }
 
 /**
+ * Create the `dataset delete` command
+ */
+export function createDatasetDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete a dataset")
+    .argument("<dataset-identifier>", "Dataset name or ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(datasetDeleteHandler);
+}
+
+/**
  * Create the `dataset` command with subcommands
  */
 export function createDatasetCommand(): Command {
@@ -327,5 +410,6 @@ export function createDatasetCommand(): Command {
   command.description("Manage Phoenix datasets");
   command.addCommand(createDatasetListCommand());
   command.addCommand(createDatasetGetCommand());
+  command.addCommand(createDatasetDeleteCommand());
   return command;
 }

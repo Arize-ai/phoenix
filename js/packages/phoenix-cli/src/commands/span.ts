@@ -8,6 +8,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import type { SpanWithAnnotations } from "../trace";
@@ -296,6 +297,86 @@ export function createSpanListCommand(): Command {
     .action(spanListHandler);
 }
 
+interface SpanDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
+}
+
+/**
+ * Handler for `span delete`
+ */
+async function spanDeleteHandler(
+  spanIdentifier: string,
+  options: SpanDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    await confirmOrExit({
+      message: `Delete span ${spanIdentifier}? Child spans will NOT be deleted. This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    writeProgress({
+      message: `Deleting span ${spanIdentifier}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE("/v1/spans/{span_identifier}", {
+      params: {
+        path: {
+          span_identifier: spanIdentifier,
+        },
+      },
+    });
+
+    if (response.error) {
+      throw new Error(`Failed to delete span: ${response.error}`);
+    }
+
+    writeProgress({
+      message: `Deleted span ${spanIdentifier}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting span: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSpanDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete a span by identifier")
+    .argument(
+      "<span-identifier>",
+      "Span identifier (OTel span_id or GlobalID)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(spanDeleteHandler);
+}
+
 /**
  * Create the `span` command with subcommands
  */
@@ -303,5 +384,6 @@ export function createSpanCommand(): Command {
   const command = new Command("span");
   command.description("Manage Phoenix spans");
   command.addCommand(createSpanListCommand());
+  command.addCommand(createSpanDeleteCommand());
   return command;
 }

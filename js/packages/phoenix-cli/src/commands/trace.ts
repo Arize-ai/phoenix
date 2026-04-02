@@ -9,6 +9,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
@@ -583,6 +584,86 @@ export function createTraceListCommand(): Command {
     .action(traceListHandler);
 }
 
+interface TraceDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
+}
+
+/**
+ * Handler for `trace delete`
+ */
+async function traceDeleteHandler(
+  traceIdentifier: string,
+  options: TraceDeleteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    await confirmOrExit({
+      message: `Delete trace ${traceIdentifier}? This will also delete all spans. This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    writeProgress({
+      message: `Deleting trace ${traceIdentifier}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE("/v1/traces/{trace_identifier}", {
+      params: {
+        path: {
+          trace_identifier: traceIdentifier,
+        },
+      },
+    });
+
+    if (response.error) {
+      throw new Error(`Failed to delete trace: ${response.error}`);
+    }
+
+    writeProgress({
+      message: `Deleted trace ${traceIdentifier}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting trace: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete a trace by identifier")
+    .argument(
+      "<trace-identifier>",
+      "Trace identifier (OTel trace ID or GlobalID)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(traceDeleteHandler);
+}
+
 /**
  * Create the `trace` command with subcommands
  */
@@ -591,5 +672,6 @@ export function createTraceCommand(): Command {
   command.description("Manage Phoenix traces");
   command.addCommand(createTraceListCommand());
   command.addCommand(createTraceGetCommand());
+  command.addCommand(createTraceDeleteCommand());
   return command;
 }
