@@ -82,8 +82,8 @@ class SandboxProvider(Node):
     @strawberry.field
     async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
-        async with info.context.db() as session:
-            lang = await session.get(models.Language, record.language_id)
+        lang = await info.context.data_loaders.language_by_id.load(record.language_id)
+        # Defense-in-depth: language_id is NOT NULL FK with RESTRICT, so lang always resolves.
         if lang is None:
             return Language.PYTHON
         return Language(lang.name)
@@ -111,16 +111,7 @@ class SandboxProvider(Node):
     @strawberry.field
     async def configs(self, info: Info[Context, None]) -> list["SandboxConfig"]:
         record = await self._get_record(info)
-        from sqlalchemy import select
-
-        async with info.context.db() as session:
-            rows = (
-                await session.scalars(
-                    select(models.SandboxConfig)
-                    .where(models.SandboxConfig.sandbox_provider_id == record.id)
-                    .order_by(models.SandboxConfig.name.asc(), models.SandboxConfig.id.asc())
-                )
-            ).all()
+        rows = await info.context.data_loaders.sandbox_configs_by_provider.load(record.id)
         return [SandboxConfig(id=row.id, db_record=row) for row in rows]
 
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxProvider:
@@ -292,10 +283,11 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
 
 def sandbox_config_from_input(
     input_: CreateSandboxConfigInput,
+    provider_id: int,
 ) -> dict[str, Any]:
     """Convert CreateSandboxConfigInput to a dict of column values."""
     values: dict[str, Any] = {
-        "sandbox_provider_id": int(input_.sandbox_provider_id.node_id),
+        "sandbox_provider_id": provider_id,
         "name": input_.name,
         "description": input_.description,
         "config": input_.config if input_.config is not None else {},

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5262969074df8a50ece798603968b330>>
+ * @generated SignedSource<<d2bb746f7e0ba261110590774c98627a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,19 +17,19 @@ export type UpdateSandboxConfigInput = {
   id: string;
   timeout?: number | null;
 };
-export type SandboxConfigsCardProviderEnabledSwitchMutation$variables = {
+export type SandboxConfigsCardConfigEnabledSwitchMutation$variables = {
   input: UpdateSandboxConfigInput;
 };
-export type SandboxConfigsCardProviderEnabledSwitchMutation$data = {
+export type SandboxConfigsCardConfigEnabledSwitchMutation$data = {
   readonly updateSandboxConfig: {
     readonly query: {
       readonly " $fragmentSpreads": FragmentRefs<"SettingsSandboxesPageFragment">;
     };
   };
 };
-export type SandboxConfigsCardProviderEnabledSwitchMutation = {
-  response: SandboxConfigsCardProviderEnabledSwitchMutation$data;
-  variables: SandboxConfigsCardProviderEnabledSwitchMutation$variables;
+export type SandboxConfigsCardConfigEnabledSwitchMutation = {
+  response: SandboxConfigsCardConfigEnabledSwitchMutation$data;
+  variables: SandboxConfigsCardConfigEnabledSwitchMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -87,7 +87,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SandboxConfigsCardProviderEnabledSwitchMutation",
+    "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "selections": [
       {
         "alias": null,
@@ -124,7 +124,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SandboxConfigsCardProviderEnabledSwitchMutation",
+    "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "selections": [
       {
         "alias": null,
@@ -250,16 +250,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "25fd9d7d5e5504391c2936c5da08dfc8",
+    "cacheID": "d96bdb62685f8db90116eac59f27558f",
     "id": null,
     "metadata": {},
-    "name": "SandboxConfigsCardProviderEnabledSwitchMutation",
+    "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardProviderEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e73f76844e021edf79a68450b9740635";
+(node as any).hash = "b0aeb96886207d6229f0a2dc3f35cacb";
 
 export default node;

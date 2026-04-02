@@ -23,7 +23,6 @@ export type ConfigRow = {
 };
 
 export type ProviderSettingsFormValues = {
-  enabled: boolean;
   configText: string;
 };
 
@@ -32,6 +31,5 @@ export type SandboxConfigFormValues = {
   name: string;
   description: string;
   timeout: number;
-  enabled: boolean;
   configText: string;
 };

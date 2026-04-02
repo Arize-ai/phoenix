@@ -75,8 +75,12 @@ function SettingsSandboxesPageContent({
     return data.sandboxProviders
       .map((provider: SandboxProvider) => ({
         provider,
-        backend: backendByType.get(provider.backendType) as BackendInfo,
+        backend: backendByType.get(provider.backendType),
       }))
+      .filter(
+        (row): row is { provider: SandboxProvider; backend: BackendInfo } =>
+          row.backend != null
+      )
       .sort((a, b) => {
         // any provider with (local) in the name should be first
         if (

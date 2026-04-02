@@ -111,6 +111,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunCountsDataLoader,
     ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LanguageByIdDataLoader,
     LastExperimentErrorsDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -124,6 +125,7 @@ from phoenix.server.api.dataloaders import (
     PromptVersionDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SandboxConfigsByProviderDataLoader,
     SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
@@ -826,6 +828,7 @@ def create_graphql_router(
                 generative_model_custom_provider_fields=TableFieldsDataLoader(
                     db, models.GenerativeModelCustomProvider
                 ),
+                language_by_id=LanguageByIdDataLoader(db),
                 last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
                     db
                 ),
@@ -864,6 +867,7 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
                 secret_fields=TableFieldsDataLoader(db, models.Secret),
                 secrets=SecretsDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),

@@ -88,11 +88,26 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     assert not response.errors
     assert response.data is not None
     assert len(response.data["sandboxBackends"]) >= 1
-    wasm_backend = next(
-        item for item in response.data["sandboxBackends"] if item["backendType"] == "WASM"
-    )
-    assert wasm_backend["dependencyHints"] == [
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+
+    assert backends["WASM"]["dependencyHints"] == [
         "Install Phoenix with the `sandbox` extra so `wasmtime` is available.",
-        "Allow Phoenix to download the CPython WASM binary on first use, or pre-populate the local WASM cache.",
+        "Allow Phoenix to download the CPython WASM binary on first use, "
+        "or pre-populate the local WASM cache.",
+    ]
+    assert backends["E2B"]["dependencyHints"] == [
+        "Install Phoenix with the `e2b` extra.",
+        "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+    ]
+    assert backends["DAYTONA"]["dependencyHints"] == [
+        "Install Phoenix with the `daytona` extra.",
+        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
+    ]
+    assert backends["VERCEL"]["dependencyHints"] == [
+        "Install Phoenix with the `vercel-sandbox` extra.",
+        "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+    ]
+    assert backends["DENO"]["dependencyHints"] == [
+        "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
     ]
     assert len(response.data["sandboxProviders"]) == provider_count
