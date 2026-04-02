@@ -54,7 +54,6 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
-from phoenix.server.api.types.node import from_global_id
 from phoenix.server.sandbox.types import SandboxBackend
 
 logger = logging.getLogger(__name__)
@@ -744,6 +743,7 @@ async def get_evaluators(
             llm_orm_by_id[ev.id] = ev
 
     # Batch query to get evaluator kinds
+    evaluator_db_ids = {ev.id for _, ev in dataset_evaluators_result}
     evaluator_kinds_by_id: dict[int, str] = {}
     if evaluator_db_ids:
         evaluators_result = await session.scalars(
@@ -873,13 +873,13 @@ async def get_evaluators(
             if builtin_evaluator_cls is None:
                 raise NotFound(f"Built-in evaluator with key '{ev.key}' not found in registry")
             evaluators.append(builtin_evaluator_cls())
-        elif evaluator_kind == "CODE":
-            code_runner = code_evaluators_by_id.get(evaluator_id)
+        elif isinstance(ev, models.CodeEvaluator):
+            code_runner = code_evaluators_by_id.get(ev.id)
             if code_runner is None:
-                evaluator_lang = code_evaluator_languages_by_id.get(evaluator_id, "")
+                evaluator_lang = code_evaluator_languages_by_id.get(ev.id, "")
                 lang_hint = f" for language '{evaluator_lang}'" if evaluator_lang else ""
                 raise NotFound(
-                    f"CODE evaluator with ID '{evaluator_id}' could not be resolved{lang_hint}. "
+                    f"CODE evaluator with ID '{ev.id}' could not be resolved{lang_hint}. "
                     "Please configure a sandbox provider for this evaluator."
                 )
             evaluators.append(code_runner)
