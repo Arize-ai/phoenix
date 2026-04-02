@@ -112,7 +112,6 @@ Inside each package `docs/` folder, prefer a flat page layout such as:
 
 ```text
 overview.mdx
-configuration.mdx
 experiments.mdx
 ```
 
