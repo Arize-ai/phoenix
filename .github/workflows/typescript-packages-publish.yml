@@ -48,7 +48,8 @@ jobs:
       - name: create and publish versions
         # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
         # can trigger subsequent workflows (like publish) when merged
-        # Pinned to v1.5.2 because v1.5.3+ broke cwd support (changesets/action#501)
+        # Pinned to v1.5.2 because released versions after that still break monorepo
+        # cwd handling; the upstream fix merged after v1.7.0 but is not released yet.
         uses: changesets/action@d183df40791e90508058cd180e6435cdd9ba16a4 # v1.5.2
         with:
           version: pnpm ci:version
@@ -56,7 +57,8 @@ jobs:
           title: "chore(js): update versions"
           publish: pnpm ci:publish
           createGithubReleases: true
-          cwd: "./js"
+          # v1.5.2 resolves cwd relative to the action runtime, not github.workspace.
+          cwd: "${{ github.workspace }}/js"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
