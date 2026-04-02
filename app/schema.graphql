@@ -2217,7 +2217,6 @@ type Mutation {
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(id: ID!): DeleteSandboxConfigPayload!
-  setSandboxProviderEnabled(providerId: Int!, enabled: Boolean!): SetSandboxProviderEnabledPayload!
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -3177,11 +3176,6 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
-}
-
-type SetSandboxProviderEnabledPayload {
-  sandboxProvider: SandboxProvider!
-  query: Query!
 }
 
 enum SortDir {

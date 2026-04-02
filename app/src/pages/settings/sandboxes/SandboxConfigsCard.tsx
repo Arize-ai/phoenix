@@ -5,7 +5,7 @@ import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-import type { SandboxConfigsCardProviderEnabledSwitchMutation } from "./__generated__/SandboxConfigsCardProviderEnabledSwitchMutation.graphql";
+import type { SandboxConfigsCardConfigEnabledSwitchMutation } from "./__generated__/SandboxConfigsCardConfigEnabledSwitchMutation.graphql";
 import { DeleteSandboxConfigButton } from "./DeleteSandboxConfigButton";
 import { SandboxConfigDialogTrigger } from "./SandboxConfigDialog";
 import {
@@ -105,7 +105,7 @@ export function SandboxConfigsCard({
                       alignItems="center"
                       justifyContent="space-between"
                     >
-                      <ProviderEnabledSwitch
+                      <ConfigEnabledSwitch
                         config={config}
                         canEnable={provider.enabled}
                       />
@@ -135,7 +135,7 @@ export function SandboxConfigsCard({
   );
 }
 
-function ProviderEnabledSwitch({
+function ConfigEnabledSwitch({
   config,
   canEnable,
 }: {
@@ -144,8 +144,8 @@ function ProviderEnabledSwitch({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [commitUpdate, isSubmitting] =
-    useMutation<SandboxConfigsCardProviderEnabledSwitchMutation>(graphql`
-      mutation SandboxConfigsCardProviderEnabledSwitchMutation(
+    useMutation<SandboxConfigsCardConfigEnabledSwitchMutation>(graphql`
+      mutation SandboxConfigsCardConfigEnabledSwitchMutation(
         $input: UpdateSandboxConfigInput!
       ) {
         updateSandboxConfig(input: $input) {
