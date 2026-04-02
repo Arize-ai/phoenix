@@ -63,7 +63,7 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, get_raw_invocation_parameters
-from phoenix.evals.models.rate_limiters import AdaptiveTokenBucket, UnavailableTokensError
+from phoenix.evals.rate_limiters import AdaptiveTokenBucket, UnavailableTokensError
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     LLMEvaluator,

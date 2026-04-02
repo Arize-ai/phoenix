@@ -87,7 +87,7 @@ class _BlockingTokenBucket:
         pass
 
     def make_request_if_ready(self) -> None:
-        from phoenix.evals.models.rate_limiters import UnavailableTokensError
+        from phoenix.evals.rate_limiters import UnavailableTokensError
 
         raise UnavailableTokensError
 

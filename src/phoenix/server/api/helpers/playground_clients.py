@@ -101,7 +101,6 @@ from phoenix.server.api.types.GenerativeProvider import (
     GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
     GenerativeProviderKey,
 )
-from phoenix.server.rate_limiters import RateLimiter
 from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
