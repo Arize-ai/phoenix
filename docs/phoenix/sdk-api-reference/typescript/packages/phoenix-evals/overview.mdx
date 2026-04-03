@@ -1,0 +1,90 @@
+---
+title: "Overview"
+description: "Bundled docs for @arizeai/phoenix-evals"
+---
+
+`@arizeai/phoenix-evals` provides evaluator building blocks for TypeScript workflows. It includes LLM-based evaluators, code-based evaluators, prompt templating helpers, and compatibility points for Phoenix experiments.
+
+## Install
+
+`@arizeai/phoenix-evals` depends on model adapters from the AI SDK ecosystem. Install the package plus at least one provider adapter for the models you plan to use.
+
+```bash
+npm install @arizeai/phoenix-evals
+```
+
+### Common Setups
+
+```bash
+npm install @arizeai/phoenix-evals @ai-sdk/openai
+```
+
+```bash
+npm install @arizeai/phoenix-evals @ai-sdk/google
+```
+
+You can also pair it with Phoenix experiments:
+
+```bash
+npm install @arizeai/phoenix-evals @arizeai/phoenix-client @ai-sdk/openai
+```
+
+### Runtime Expectations
+
+- Node.js 18+
+- an AI SDK provider package such as `@ai-sdk/openai`
+- credentials required by your chosen provider
+
+## Minimal Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+
+const faithfulness = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await faithfulness.evaluate({
+  input: "What is Phoenix?",
+  context: "Phoenix is an open-source AI observability platform from Arize.",
+  output: "Phoenix is an open-source AI observability platform from Arize.",
+});
+```
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-evals/docs/
+node_modules/@arizeai/phoenix-evals/src/
+```
+
+The bundled docs cover evaluator creation, LLM evaluators, templates, classification, and Phoenix integration.
+
+## Where To Start
+
+- [Create evaluator](./create-evaluator) for custom and code-based evaluator flows
+- [LLM evaluators](./llm-evaluators) and [Classification](./classification) for model-backed evaluation
+- [Templates](./templates) and [Phoenix integration](./phoenix-integration) for prompt helpers and experiment wiring
+
+## Source Layout
+
+- `src/index.ts` re-exports the package surface you usually import from `@arizeai/phoenix-evals`
+- `src/llm/` contains classification helpers and built-in LLM evaluator factories
+- `src/helpers/` contains `createEvaluator` and evaluation-result helpers
+- `src/template/` contains `formatTemplate` and `getTemplateVariables`
+- `src/types/` contains shared evaluator and prompt types
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/index.ts</code></li>
+    <li><code>src/llm/</code></li>
+    <li><code>src/helpers/</code></li>
+    <li><code>src/template/</code></li>
+    <li><code>src/core/</code></li>
+    <li><code>src/types/</code></li>
+  </ul>
+</section>

@@ -91,7 +91,7 @@ const mockIncompleteEvaluations = [
       start_time: new Date().toISOString(),
       end_time: new Date().toISOString(),
       error: null,
-      trace_id: null,
+      trace_id: "task-trace-id-1",
     },
     dataset_example: {
       id: "ex-1",
@@ -206,6 +206,14 @@ describe("resumeEvaluation", () => {
     // relevance: 1 time (only run-1 needs it)
     expect(correctnessFn).toHaveBeenCalledTimes(2);
     expect(relevanceFn).toHaveBeenCalledTimes(1);
+
+    // Verify traceId is passed through to evaluators
+    expect(correctnessFn).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: "task-trace-id-1" })
+    );
+    expect(relevanceFn).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: "task-trace-id-1" })
+    );
 
     // Should fetch experiment info
     expect(getExperimentInfoModule.getExperimentInfo).toHaveBeenCalledWith({

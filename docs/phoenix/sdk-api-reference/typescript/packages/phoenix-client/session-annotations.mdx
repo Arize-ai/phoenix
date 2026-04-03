@@ -1,0 +1,158 @@
+---
+title: "Session Annotations"
+description: "Log session-level annotations for conversation evaluation with @arizeai/phoenix-client"
+---
+
+Session annotations attach feedback to multi-turn conversations or threads. Use them for conversation-level quality signals: whether the session achieved its goal, whether a human handoff was needed, overall satisfaction scores.
+
+All functions are imported from `@arizeai/phoenix-client/sessions`. See [Annotations](./annotations) for the shared annotation model and concepts.
+
+<Note>
+  Requires **Phoenix Server &ge; 12.0.0**. The client will throw an error with the minimum required version if the server is too old.
+</Note>
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/sessions/addSessionAnnotation.ts</code> for the single-annotation API</li>
+    <li><code>src/sessions/logSessionAnnotations.ts</code> for batch logging</li>
+    <li><code>src/sessions/types.ts</code> for the <code>SessionAnnotation</code> interface</li>
+  </ul>
+</section>
+
+## Add A Single Session Annotation
+
+Mark a support session as resolved after human review:
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: "cst_abc123",
+    name: "resolution",
+    annotatorKind: "HUMAN",
+    label: "resolved",
+    score: 1,
+    explanation: "User confirmed their issue was resolved.",
+  },
+});
+```
+
+## Batch Log Session Annotations
+
+Use `logSessionAnnotations` to annotate multiple sessions in a single request. This example scores a batch of support sessions for handoff detection:
+
+```ts
+import { logSessionAnnotations } from "@arizeai/phoenix-client/sessions";
+
+await logSessionAnnotations({
+  sessionAnnotations: [
+    {
+      sessionId: "cst_abc123",
+      name: "handoff-required",
+      annotatorKind: "CODE",
+      score: 0,
+      label: "no",
+    },
+    {
+      sessionId: "cst_def456",
+      name: "handoff-required",
+      annotatorKind: "CODE",
+      score: 1,
+      label: "yes",
+      explanation: "Sentiment dropped below threshold at turn 4.",
+    },
+  ],
+});
+```
+
+## Conversation Quality Scoring
+
+After a multi-turn conversation ends, use an LLM to evaluate overall coherence and goal completion:
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+// evaluationResult comes from your LLM judge pipeline
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: sessionId,
+    name: "conversation-quality",
+    annotatorKind: "LLM",
+    score: evaluationResult.score,
+    label: evaluationResult.score > 0.7 ? "good" : "needs-improvement",
+    explanation: evaluationResult.reasoning,
+    metadata: { model: "gpt-4o", evaluatorVersion: "v2" },
+  },
+});
+```
+
+## End-User Satisfaction (CSAT)
+
+Log customer satisfaction at the end of a chat session. Normalize the raw rating to a 0–1 scale for consistent scoring:
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+// User submitted a 1-5 star rating at end of chat
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: sessionId,
+    name: "csat",
+    annotatorKind: "HUMAN",
+    score: userRating / 5,
+    label: userRating >= 4 ? "satisfied" : "unsatisfied",
+    metadata: { rawRating: userRating, channel: "mobile-app" },
+  },
+});
+```
+
+## Idempotent Upserts With `identifier`
+
+Session annotations are unique by `(name, sessionId, identifier)`. The `identifier` field controls whether a write creates a new annotation or updates an existing one.
+
+Without `identifier`, a session can only have one annotation per name. Adding an `identifier` lets you store **multiple annotations with the same name** on the same session, each keyed by a different identifier. Re-sending the same tuple updates that specific annotation in place.
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: sessionId,
+    name: "goal-completion",
+    annotatorKind: "LLM",
+    score: 0.85,
+    identifier: "goal-eval-v3",
+  },
+});
+// Running this again updates the existing annotation.
+// Using identifier: "goal-eval-v4" would create a second annotation.
+```
+
+## Parameter Reference
+
+### `SessionAnnotation`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `sessionId` | `string` | Yes | Session / conversation / thread identifier |
+| `name` | `string` | Yes | Annotation name (e.g. `"csat"`) |
+| `annotatorKind` | `"HUMAN" \| "LLM" \| "CODE"` | No | Defaults to `"HUMAN"` |
+| `label` | `string` | No* | Categorical label |
+| `score` | `number` | No* | Numeric score |
+| `explanation` | `string` | No* | Free-text explanation |
+| `identifier` | `string` | No | For idempotent upserts |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary metadata |
+
+\*At least one of `label`, `score`, or `explanation` is required.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/sessions/addSessionAnnotation.ts</code></li>
+    <li><code>src/sessions/logSessionAnnotations.ts</code></li>
+    <li><code>src/sessions/types.ts</code></li>
+    <li><code>src/types/annotations.ts</code></li>
+  </ul>
+</section>

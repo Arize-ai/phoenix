@@ -1,0 +1,76 @@
+---
+title: "Spans"
+description: "Search and manage spans with @arizeai/phoenix-client"
+---
+
+Use the spans module to search project spans and perform span-level maintenance such as deleting spans or adding notes.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/spans/getSpans.ts</code> for the exact filter names and query
+      behavior
+    </li>
+  </ul>
+</section>
+
+## Search Spans
+
+```ts
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await getSpans({
+  project: { projectName: "support-bot" },
+  limit: 100,
+  spanKind: ["LLM", "TOOL"],
+  statusCode: "ERROR",
+});
+
+for (const span of result.spans) {
+  console.log(span.name, span.context.trace_id);
+}
+```
+
+## Root Span Queries
+
+Use `parentId: null` to limit results to root spans only.
+
+```ts
+const rootSpans = await getSpans({
+  project: { projectName: "support-bot" },
+  parentId: null,
+});
+```
+
+## Span Maintenance
+
+```ts
+import { addSpanNote, deleteSpan } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  spanNote: {
+    spanId: "abc123def456",
+    note: "Escalated due to failed retrieval",
+  },
+});
+
+await deleteSpan({
+  spanIdentifier: "abc123def456",
+});
+```
+
+`deleteSpan` accepts either the OpenTelemetry `span_id` or Phoenix's global span ID.
+
+For span-level annotations (labels, scores, evaluations), see [Span Annotations](./span-annotations) and [Document Annotations](./document-annotations).
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/spans/getSpans.ts</code></li>
+    <li><code>src/spans/addSpanNote.ts</code></li>
+    <li><code>src/spans/deleteSpan.ts</code></li>
+    <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/types/spans.ts</code></li>
+  </ul>
+</section>

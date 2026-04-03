@@ -204,6 +204,34 @@ describe("runExperiment (dryRun)", () => {
       ),
     });
   });
+  it("passes traceId to evaluators", async () => {
+    const task = async (example: Example) => `Hello, ${example.input.name}!`;
+    const evaluateFn = vi.fn(async () => ({
+      label: "ok",
+      score: 1,
+      explanation: "",
+      metadata: {},
+    }));
+    const evaluator = asEvaluator({
+      name: "trace-check",
+      kind: "CODE",
+      evaluate: evaluateFn,
+    });
+
+    await runExperiment({
+      dataset: { datasetId: mockDataset.id },
+      task,
+      evaluators: [evaluator],
+      dryRun: true,
+    });
+
+    expect(evaluateFn).toHaveBeenCalledTimes(2);
+    for (const call of evaluateFn.mock.calls) {
+      expect(call[0]).toHaveProperty("traceId");
+      expect(typeof call[0].traceId).toBe("string");
+    }
+  });
+
   it("should work with phoenix-evals evaluators", async () => {
     const task = (example: Example) => `Hi, ${example.input.name}`;
     const correctnessEvaluator = createClassificationEvaluator({

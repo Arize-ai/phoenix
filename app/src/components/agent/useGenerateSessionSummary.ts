@@ -65,6 +65,22 @@ async function fetchSummary({
   const transport = new DefaultChatTransport({
     api: chatApiUrl,
     fetch: authFetch,
+    prepareSendMessagesRequest: ({
+      body,
+      id,
+      messages,
+      trigger,
+      messageId,
+    }) => ({
+      body: {
+        ...body,
+        id,
+        messages,
+        trigger,
+        messageId,
+        traceNameSuffix: "Summary",
+      },
+    }),
   });
 
   const summarizePrompt = [

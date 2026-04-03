@@ -1,0 +1,83 @@
+---
+title: "Annotations"
+description: "Attach structured feedback to spans, documents, and sessions with @arizeai/phoenix-client"
+---
+
+Annotations are structured feedback records — labels, scores, and explanations — attached to observability artifacts in Phoenix. They are the primary mechanism for recording quality signals, whether those signals come from end-users, LLM judges, or programmatic checks.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/types/annotations.ts</code> for the shared <code>Annotation</code> base interface</li>
+    <li><code>src/spans/types.ts</code> for <code>SpanAnnotation</code> and <code>DocumentAnnotation</code></li>
+    <li><code>src/sessions/types.ts</code> for <code>SessionAnnotation</code></li>
+  </ul>
+</section>
+
+## Why Annotations Matter
+
+Annotations close the feedback loop on your LLM application:
+
+- **Human feedback** — Thumbs-up/down from end-users, QA reviews from teammates, or labeling tasks for dataset curation.
+- **LLM-as-judge evaluations** — Automated quality scoring using a second LLM (groundedness, helpfulness, safety).
+- **Code-based metrics** — Programmatic checks like regex validation, threshold comparisons, or retrieval precision calculations.
+
+Once attached, annotations appear in the Phoenix UI alongside traces and can be used to filter spans, build datasets, and track improvements during experimentation.
+
+## Annotation Targets
+
+Phoenix supports three annotation targets, each focused on a different level of your application:
+
+- **[Span Annotations](./span-annotations)** — Feedback on individual traced operations: an LLM call, a tool invocation, a retrieval step. The most common annotation target.
+- **[Document Annotations](./document-annotations)** — Feedback on specific retrieved documents within a retriever span, indexed by position. Essential for evaluating RAG pipeline quality.
+- **[Session Annotations](./session-annotations)** — Feedback on multi-turn conversations or threads as a whole. Use for conversation-level quality signals like resolution rate or customer satisfaction.
+
+## Annotator Kinds
+
+Every annotation records _who or what_ produced the feedback:
+
+| Kind | Default | Use case |
+|------|---------|----------|
+| `"HUMAN"` | Yes | Manual review, end-user thumbs-up/down, labeling tasks |
+| `"LLM"` | — | LLM-as-judge evaluations, automated quality scoring |
+| `"CODE"` | — | Programmatic rules, regex checks, threshold-based metrics |
+
+## Shared Annotation Shape
+
+All annotation types share this base interface:
+
+```ts
+interface Annotation {
+  name: string;                        // What is being measured (e.g. "groundedness")
+  label?: string;                      // Categorical result (e.g. "grounded")
+  score?: number;                      // Numeric result (e.g. 0.95)
+  explanation?: string;                // Free-text justification
+  identifier?: string;                 // For idempotent upserts
+  metadata?: Record<string, unknown>;  // Arbitrary context
+}
+```
+
+At least one of `label`, `score`, or `explanation` must be provided.
+
+Each target adds its own identifier field — `spanId` for spans, `spanId` + `documentPosition` for documents, and `sessionId` for sessions.
+
+## Sync vs. Async
+
+All annotation write functions accept an optional `sync` parameter:
+
+- **`sync: false`** (default) — The server acknowledges receipt and processes the annotation asynchronously. Higher throughput, but the response does not include the annotation ID.
+- **`sync: true`** — The server processes the annotation synchronously and returns its ID. Useful in tests or workflows that need to read the annotation back immediately.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/types/annotations.ts</code></li>
+    <li><code>src/spans/addSpanAnnotation.ts</code></li>
+    <li><code>src/spans/logSpanAnnotations.ts</code></li>
+    <li><code>src/spans/addDocumentAnnotation.ts</code></li>
+    <li><code>src/spans/logDocumentAnnotations.ts</code></li>
+    <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/sessions/addSessionAnnotation.ts</code></li>
+    <li><code>src/sessions/logSessionAnnotations.ts</code></li>
+  </ul>
+</section>

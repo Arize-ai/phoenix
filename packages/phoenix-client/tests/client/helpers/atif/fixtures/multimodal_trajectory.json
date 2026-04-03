@@ -1,0 +1,52 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "sess-multimodal-test",
+  "agent": { "name": "vision-agent", "version": "1.0.0", "model_name": "gpt-4o" },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2025-06-01T10:00:00Z",
+      "source": "user",
+      "message": [
+        { "type": "text", "text": "What is in this image?" },
+        { "type": "image", "source": { "media_type": "image/png", "path": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" } }
+      ]
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2025-06-01T10:00:03Z",
+      "source": "agent",
+      "message": "The image shows two dice on a transparent background. They appear to be standard six-sided dice, one showing a 5 and the other showing a 2.",
+      "model_name": "gpt-4o",
+      "tool_calls": [
+        { "tool_call_id": "call_ocr", "function_name": "extract_text", "arguments": { "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png" } }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_ocr",
+            "content": [
+              { "type": "text", "text": "No readable text detected in the image. The image contains two dice on a checkered transparency background." },
+              { "type": "image", "source": { "media_type": "image/jpeg", "path": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/800px-Tsunami_by_hokusai_19th_century.jpg" } }
+            ]
+          }
+        ]
+      },
+      "metrics": { "prompt_tokens": 1200, "completion_tokens": 85, "cost_usd": 0.008 }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2025-06-01T10:00:06Z",
+      "source": "agent",
+      "message": "The image contains two dice on a transparent background. No readable text was found. The dice show faces with 5 and 2 dots respectively.",
+      "model_name": "gpt-4o",
+      "metrics": { "prompt_tokens": 1400, "completion_tokens": 40, "cost_usd": 0.005 }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 2600,
+    "total_completion_tokens": 125,
+    "total_cost_usd": 0.013,
+    "total_steps": 3
+  }
+}

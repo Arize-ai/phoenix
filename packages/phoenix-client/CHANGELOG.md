@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.2.0...arize-phoenix-client-v2.3.0) (2026-04-03)
+
+
+### Features
+
+* atif to trace trajectory conversion utility ([#12414](https://github.com/Arize-ai/phoenix/issues/12414)) ([28ecfe0](https://github.com/Arize-ai/phoenix/commit/28ecfe023f3d94f97afa36b7161f80e1d316cc39))
+
 ## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.1.0...arize-phoenix-client-v2.2.0) (2026-04-01)
 
 

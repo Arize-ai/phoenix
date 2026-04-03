@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Otel registration and convenience methods",
   "keywords": [
     "arize",
@@ -19,8 +19,12 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -37,7 +41,9 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-otel",
     "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-otel",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

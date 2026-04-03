@@ -1,19 +1,74 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Sequence
+from threading import Lock
+from typing import Callable, Optional, Sequence
 
 import wrapt
+from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 from opentelemetry.trace import format_span_id, format_trace_id
 
+from phoenix.config import (
+    get_env_phoenix_pxi_collector_api_key,
+    get_env_phoenix_pxi_collector_endpoint,
+)
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import get_attribute_value, unflatten
+
+logger = logging.getLogger(__name__)
+
+_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS = 1_000
+
+
+class _BufferedSpanExporter(SpanExporter):
+    def __init__(self) -> None:
+        self._finished_spans: list[ReadableSpan] = []
+        self._lock = Lock()
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        with self._lock:
+            self._finished_spans.extend(spans)
+        return SpanExportResult.SUCCESS
+
+    def get_finished_spans(self) -> list[ReadableSpan]:
+        with self._lock:
+            return list(self._finished_spans)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._finished_spans.clear()
+
+    def shutdown(self) -> None:
+        return None
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return True
+
+
+def _build_remote_http_span_exporter(endpoint: str) -> SpanExporter:
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    headers = {}
+    if api_key := get_env_phoenix_pxi_collector_api_key():
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    return OTLPSpanExporter(
+        endpoint=normalize_http_collector_endpoint(endpoint) + "/v1/traces",
+        headers=headers,
+    )
 
 
 class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
@@ -45,12 +100,37 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         db_span_cost_details = db_span_costs[0].span_cost_details
     """
 
-    def __init__(self, *, span_cost_calculator: SpanCostCalculator) -> None:
+    def __init__(
+        self,
+        *,
+        span_cost_calculator: SpanCostCalculator,
+        enable_remote_export: bool = False,
+        project_name: str | None = None,
+        remote_collector_endpoint: str | None = None,
+        remote_span_exporter_factory: Callable[[str], SpanExporter] | None = None,
+    ) -> None:
         self._self_span_cost_calculator = span_cost_calculator
-        self._self_exporter = InMemorySpanExporter()
-        span_processor = SimpleSpanProcessor(self._self_exporter)
-        provider = TracerProvider()
-        provider.add_span_processor(span_processor)
+        self._self_exporter = _BufferedSpanExporter()
+        resource = Resource.create(
+            {ResourceAttributes.PROJECT_NAME: project_name} if project_name else {}
+        )
+        # Raise the default span-attribute limit (128) so that long multi-step
+        # chat conversations can record the full message history on each LLM
+        # span without attribute eviction.
+        span_limits = SpanLimits(max_span_attributes=100_000)
+        provider = TracerProvider(resource=resource, span_limits=span_limits)
+        provider.add_span_processor(SimpleSpanProcessor(self._self_exporter))
+
+        self._self_remote_exporter: Optional[SpanExporter] = None
+        remote_collector_endpoint = (
+            remote_collector_endpoint or get_env_phoenix_pxi_collector_endpoint()
+        )
+        if enable_remote_export and remote_collector_endpoint:
+            exporter_factory = remote_span_exporter_factory or _build_remote_http_span_exporter
+            self._self_remote_exporter = exporter_factory(remote_collector_endpoint)
+            provider.add_span_processor(BatchSpanProcessor(self._self_remote_exporter))
+
+        self._self_provider = provider
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
@@ -77,6 +157,8 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             A list of models.Trace instances, or an empty list if no
             spans have been captured.
         """
+        if not self.force_flush(timeout_millis=_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS):
+            logger.debug("Tracer force_flush timed out before building DB traces")
         otel_spans = self._self_exporter.get_finished_spans()
         if not otel_spans:
             return []
@@ -120,6 +202,12 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         Clear all captured spans from the in-memory buffer.
         """
         self._self_exporter.clear()
+
+    def force_flush(self, timeout_millis: int = 30_000) -> bool:
+        return self._self_provider.force_flush(timeout_millis)
+
+    def shutdown(self) -> None:
+        self._self_provider.shutdown()
 
 
 def _get_db_trace(

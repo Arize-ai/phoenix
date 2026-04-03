@@ -1,0 +1,55 @@
+{
+  "schema_version": "ATIF-v1.4",
+  "session_id": "sess-parallel-mixed",
+  "agent": { "name": "multi-tool-agent", "version": "1.0.0", "model_name": "gpt-4" },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2025-01-20T10:00:00Z",
+      "source": "user",
+      "message": "Get weather, stock price, and news for NYC"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2025-01-20T10:00:02Z",
+      "source": "agent",
+      "message": "Let me fetch all three at once.",
+      "model_name": "gpt-4",
+      "tool_calls": [
+        { "tool_call_id": "call_weather", "function_name": "get_weather", "arguments": { "city": "NYC" } },
+        { "tool_call_id": "call_stock", "function_name": "get_stock", "arguments": { "ticker": "SPY" } },
+        { "tool_call_id": "call_news", "function_name": "get_news", "arguments": { "topic": "NYC" } }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_weather",
+            "content": "NYC: 42°F, cloudy, wind 15mph NW"
+          },
+          {
+            "source_call_id": "call_stock",
+            "content": "Error: API rate limit exceeded"
+          },
+          {
+            "source_call_id": "call_news"
+          }
+        ]
+      },
+      "metrics": { "prompt_tokens": 500, "completion_tokens": 60, "cost_usd": 0.003 }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2025-01-20T10:00:05Z",
+      "source": "agent",
+      "message": "Here is what I found: NYC is 42°F and cloudy. I could not get the stock price due to a rate limit, and no news was returned.",
+      "model_name": "gpt-4",
+      "metrics": { "prompt_tokens": 700, "completion_tokens": 45, "cost_usd": 0.002 }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 1200,
+    "total_completion_tokens": 105,
+    "total_cost_usd": 0.005,
+    "total_steps": 3
+  }
+}

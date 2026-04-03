@@ -1,0 +1,376 @@
+---
+title: "Experiments"
+description: "Run experiments with @arizeai/phoenix-client"
+---
+
+The experiments module runs tasks over dataset examples, records experiment runs in Phoenix, and can evaluate each run with either plain experiment evaluators or `@arizeai/phoenix-evals` evaluators.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/experiments/runExperiment.ts</code> for the task execution flow and return shape</li>
+    <li><code>src/experiments/helpers/getExperimentEvaluators.ts</code> for evaluator normalization</li>
+    <li><code>src/experiments/helpers/fromPhoenixLLMEvaluator.ts</code> for the phoenix-evals bridge</li>
+    <li><code>src/experiments/getExperimentRuns.ts</code> for reading runs back after execution</li>
+    <li><code>src/types/experiments.ts</code> for <code>EvaluatorParams</code> including <code>traceId</code></li>
+    <li><code>src/spans/getSpans.ts</code> for fetching spans by trace ID and span kind</li>
+  </ul>
+</section>
+
+## Two Common Patterns
+
+Use `asExperimentEvaluator()` when your evaluation logic is plain TypeScript.
+
+Use `@arizeai/phoenix-evals` evaluators directly when you want model-backed judging.
+
+## Code-Based Example
+
+If you just want to compare task output against a reference answer or apply deterministic checks, use `asExperimentEvaluator()`:
+
+```ts
+/* eslint-disable no-console */
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+
+async function main() {
+  const { datasetId } = await createDataset({
+    name: `simple-dataset-${Date.now()}`,
+    description: "a simple dataset",
+    examples: [
+      {
+        input: { name: "John" },
+        output: { text: "Hello, John!" },
+        metadata: {},
+      },
+      {
+        input: { name: "Jane" },
+        output: { text: "Hello, Jane!" },
+        metadata: {},
+      },
+      {
+        input: { name: "Bill" },
+        output: { text: "Hello, Bill!" },
+        metadata: {},
+      },
+    ],
+  });
+
+  const experiment = await runExperiment({
+    dataset: { datasetId },
+    task: async (example) => `hello ${example.input.name}`,
+    evaluators: [
+      asExperimentEvaluator({
+        name: "matches",
+        kind: "CODE",
+        evaluate: async ({ output, expected }) => {
+          const matches = output === expected?.text;
+          return {
+            label: matches ? "matches" : "does not match",
+            score: matches ? 1 : 0,
+            explanation: matches
+              ? "output matches expected"
+              : "output does not match expected",
+            metadata: {},
+          };
+        },
+      }),
+      asExperimentEvaluator({
+        name: "contains-hello",
+        kind: "CODE",
+        evaluate: async ({ output }) => {
+          const matches =
+            typeof output === "string" && output.includes("hello");
+          return {
+            label: matches ? "contains hello" : "does not contain hello",
+            score: matches ? 1 : 0,
+            explanation: matches
+              ? "output contains hello"
+              : "output does not contain hello",
+            metadata: {},
+          };
+        },
+      }),
+    ],
+  });
+
+  console.table(experiment.runs);
+  console.table(experiment.evaluationRuns);
+}
+
+main().catch(console.error);
+```
+
+This pattern is useful when:
+
+- you already know the exact correctness rule
+- you want fast, deterministic evaluation
+- you do not want to call another model during evaluation
+
+## Model-Backed Example
+
+If you want a model-backed experiment with automatic tracing and an LLM-as-a-judge evaluator, this is the core pattern:
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
+import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { generateText } from "ai";
+
+const model = openai("gpt-4o-mini");
+
+const main = async () => {
+  const answersQuestion = createClassificationEvaluator({
+    name: "answersQuestion",
+    model,
+    promptTemplate:
+      "Does the following answer the user's question: <question>{{input.question}}</question><answer>{{output}}</answer>",
+    choices: {
+      correct: 1,
+      incorrect: 0,
+    },
+  });
+
+  const dataset = await createOrGetDataset({
+    name: "correctness-eval",
+    description: "Evaluate the correctness of the model",
+    examples: [
+      {
+        input: {
+          question: "Is ArizeAI Phoenix Open-Source?",
+          context: "ArizeAI Phoenix is Open-Source.",
+        },
+      },
+      // ... more examples
+    ],
+  });
+
+  const task: ExperimentTask = async (example) => {
+    if (typeof example.input.question !== "string") {
+      throw new Error("Invalid input: question must be a string");
+    }
+    if (typeof example.input.context !== "string") {
+      throw new Error("Invalid input: context must be a string");
+    }
+
+    return generateText({
+      model,
+      experimental_telemetry: {
+        isEnabled: true,
+      },
+      prompt: [
+        {
+          role: "system",
+          content: `You answer questions based on this context: ${example.input.context}`,
+        },
+        {
+          role: "user",
+          content: example.input.question,
+        },
+      ],
+    }).then((response) => {
+      if (response.text) {
+        return response.text;
+      }
+      throw new Error("Invalid response: text is required");
+    });
+  };
+
+  const experiment = await runExperiment({
+    experimentName: "answers-question-eval",
+    experimentDescription:
+      "Evaluate the ability of the model to answer questions based on the context",
+    dataset,
+    task,
+    evaluators: [answersQuestion],
+    repetitions: 3,
+  });
+
+  console.log(experiment.id);
+  console.log(Object.values(experiment.runs).length);
+  console.log(experiment.evaluationRuns?.length ?? 0);
+};
+
+main().catch(console.error);
+```
+
+## What This Example Shows
+
+- `createOrGetDataset()` creates or reuses the dataset the experiment will run against
+- `task` receives the full dataset example object
+- `generateText()` emits traces that Phoenix can attach to the experiment when telemetry is enabled
+- `createClassificationEvaluator()` from `@arizeai/phoenix-evals` can be passed directly to `runExperiment()`
+- `runExperiment()` records both task runs and evaluation runs in Phoenix
+
+## Task Inputs
+
+`runExperiment()` calls your task with the full dataset example, not just `example.input`.
+
+That means your task should usually read:
+
+- `example.input` for the task inputs
+- `example.output` for any reference answer
+- `example.metadata` for additional context
+
+In the example above, the task validates `example.input.question` and `example.input.context` before generating a response.
+
+## Evaluator Inputs
+
+When an evaluator runs, it receives a normalized object with these fields:
+
+| Field | Description |
+|--------|-------------|
+| `input` | The dataset example's `input` object |
+| `output` | The task output for that run |
+| `expected` | The dataset example's `output` object |
+| `metadata` | The dataset example's `metadata` object |
+| `traceId` | The OpenTelemetry trace ID of the task run (optional, `string \| null`) |
+
+This is why the `createClassificationEvaluator()` prompt can reference `{{input.question}}` and `{{output}}`.
+
+For code-based evaluators created with `asExperimentEvaluator()`, those same fields are available inside `evaluate({ input, output, expected, metadata, traceId })`.
+
+## Trace-Based Evaluation
+
+Each task run captures an OpenTelemetry trace ID. Evaluators can use `traceId` to fetch the task's spans from Phoenix and evaluate the execution trajectory — for example, verifying that specific tool calls were made or inspecting intermediate steps.
+
+This pattern works best with `evaluateExperiment()` as a separate step after `runExperiment()`, so that all task spans are ingested into Phoenix before the evaluator queries them.
+
+```ts
+import { traceTool } from "@arizeai/openinference-core";
+import { createClient } from "@arizeai/phoenix-client";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  evaluateExperiment,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+const { datasetId } = await createDataset({
+  client,
+  name: "tool-call-dataset",
+  description: "Questions that require tool use",
+  examples: [
+    {
+      input: { question: "What is the weather in San Francisco?" },
+      output: { expectedTool: "getWeather" },
+      metadata: {},
+    },
+  ],
+});
+
+// Step 1: Run the experiment with traced tool calls
+const experiment = await runExperiment({
+  client,
+  dataset: { datasetId },
+  setGlobalTracerProvider: true,
+  task: async (example) => {
+    // traceTool wraps a function with a TOOL span
+    const getWeather = traceTool(
+      ({ location }: { location: string }) => ({
+        location,
+        temperature: 72,
+        condition: "sunny",
+      }),
+      { name: "getWeather" }
+    );
+
+    const city = (example.input.question as string).match(/in (.+)\?/)?.[1];
+    const result = getWeather({ location: city ?? "Unknown" });
+    return `The weather in ${result.location} is ${result.temperature}F.`;
+  },
+});
+
+const projectName = experiment.projectName!;
+
+// Step 2: Evaluate using traceId to inspect the task's spans
+const evaluated = await evaluateExperiment({
+  client,
+  experiment,
+  evaluators: [
+    asExperimentEvaluator({
+      name: "has-expected-tool-call",
+      kind: "CODE",
+      evaluate: async ({ traceId, expected }) => {
+        if (!traceId) {
+          return { label: "no trace", score: 0 };
+        }
+
+        // Fetch TOOL spans from this task's trace
+        const { spans: toolSpans } = await getSpans({
+          client,
+          project: { projectName },
+          traceIds: [traceId],
+          spanKind: "TOOL",
+        });
+
+        const expectedTool = (expected as { expectedTool?: string })
+          ?.expectedTool;
+        const toolNames = toolSpans.map((s) => s.name);
+        const found = toolNames.some((name) => name.includes(expectedTool!));
+
+        return {
+          label: found ? "tool called" : "no tool call",
+          score: found ? 1 : 0,
+          explanation: found
+            ? `Found: ${toolNames.join(", ")}`
+            : `Expected "${expectedTool}" but found none`,
+        };
+      },
+    }),
+  ],
+});
+```
+
+Key points:
+
+- Use `setGlobalTracerProvider: true` on `runExperiment()` so that child spans from `traceTool` or other OTel instrumentation land in the same trace as the task
+- Use `evaluateExperiment()` as a separate step so spans are ingested before querying
+- Use `getSpans()` with `traceIds` and `spanKind` filters to fetch specific spans from the task trace
+- `traceId` is `null` in dry-run mode since no real traces are recorded
+
+## What `runExperiment()` Returns
+
+The returned object includes the experiment metadata plus the task and evaluation results from the run.
+
+- `experiment.id` is the experiment ID in Phoenix
+- `experiment.projectName` is the Phoenix project that received the task traces
+- `experiment.runs` is a map of run IDs to task run objects
+- `experiment.evaluationRuns` contains evaluator results when evaluators are provided
+
+## Follow-Up Helpers
+
+Use these exports for follow-up workflows:
+
+- `createExperiment`
+- `getExperiment`
+- `getExperimentInfo`
+- `getExperimentRuns`
+- `listExperiments`
+- `resumeExperiment`
+- `resumeEvaluation`
+- `deleteExperiment`
+
+## Tracing Behavior
+
+`runExperiment()` can register a tracer provider for the task run so that task spans and evaluator spans show up in Phoenix during the experiment. This is why tasks that call the AI SDK can still emit traces to Phoenix when global tracing is enabled.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/experiments/runExperiment.ts</code></li>
+    <li><code>src/experiments/createExperiment.ts</code></li>
+    <li><code>src/experiments/getExperiment.ts</code></li>
+    <li><code>src/experiments/getExperimentRuns.ts</code></li>
+    <li><code>src/experiments/helpers/getExperimentEvaluators.ts</code></li>
+    <li><code>src/experiments/helpers/fromPhoenixLLMEvaluator.ts</code></li>
+    <li><code>src/experiments/helpers/asExperimentEvaluator.ts</code></li>
+  </ul>
+</section>

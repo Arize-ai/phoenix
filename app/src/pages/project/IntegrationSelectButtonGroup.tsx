@@ -2,11 +2,19 @@ import { css } from "@emotion/react";
 import type { Key } from "react";
 import { useMemo, useState } from "react";
 
-import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 import { DebouncedSearch } from "@phoenix/components/core/field";
 
 import type { OnboardingIntegration } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
+
+const COLLAPSED_INTEGRATION_COUNT = 15;
 
 const integrationSelectorCSS = css`
   display: flex;
@@ -52,6 +60,7 @@ export function IntegrationSelectButtonGroup({
   onSelectionChange: (integration: OnboardingIntegration) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const filteredIntegrations = useMemo(() => {
     if (!searchQuery) return ONBOARDING_INTEGRATIONS;
@@ -61,6 +70,26 @@ export function IntegrationSelectButtonGroup({
         i.id === selectedIntegration.id || i.name.toLowerCase().includes(query)
     );
   }, [searchQuery, selectedIntegration.id]);
+
+  const isSearching = searchQuery.length > 0;
+  const showAll = isExpanded || isSearching;
+  const visibleIntegrations = showAll
+    ? filteredIntegrations
+    : filteredIntegrations.slice(0, COLLAPSED_INTEGRATION_COUNT);
+  const hasMore = filteredIntegrations.length > COLLAPSED_INTEGRATION_COUNT;
+
+  const handleSelectionChange = (selection: Set<Key> | "all") => {
+    const nextKey = getSelectedKey(selection);
+    if (nextKey == null) {
+      return;
+    }
+    const nextIntegration = ONBOARDING_INTEGRATIONS.find(
+      (i) => i.id === nextKey
+    );
+    if (nextIntegration) {
+      onSelectionChange(nextIntegration);
+    }
+  };
 
   return (
     <div css={integrationSelectorCSS}>
@@ -77,20 +106,9 @@ export function IntegrationSelectButtonGroup({
         selectionMode="single"
         size="M"
         className="integration-selector__group"
-        onSelectionChange={(selection) => {
-          const nextKey = getSelectedKey(selection);
-          if (nextKey == null) {
-            return;
-          }
-          const nextIntegration = ONBOARDING_INTEGRATIONS.find(
-            (i) => i.id === nextKey
-          );
-          if (nextIntegration) {
-            onSelectionChange(nextIntegration);
-          }
-        }}
+        onSelectionChange={handleSelectionChange}
       >
-        {filteredIntegrations.map((i) => (
+        {visibleIntegrations.map((i) => (
           <ToggleButton
             key={i.id}
             id={i.id}
@@ -102,6 +120,24 @@ export function IntegrationSelectButtonGroup({
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
+      {hasMore && !isSearching && (
+        <Button
+          variant="quiet"
+          size="S"
+          trailingVisual={
+            <Icon
+              svg={isExpanded ? <Icons.ChevronUp /> : <Icons.ChevronDown />}
+            />
+          }
+          onPress={() => setIsExpanded((prev) => !prev)}
+          aria-expanded={isExpanded}
+          css={css`
+            align-self: center;
+          `}
+        >
+          {isExpanded ? "Show less" : "Show more"}
+        </Button>
+      )}
     </div>
   );
 }

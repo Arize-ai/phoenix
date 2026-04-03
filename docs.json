@@ -676,6 +676,13 @@
                   "docs/phoenix/integrations/python/pydantic/pydantic-tracing",
                   "docs/phoenix/integrations/python/pydantic/pydantic-evals"
                 ]
+              },
+              {
+                "group": "Strands Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/strands-agents",
+                  "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
+                ]
               }
             ]
           },
@@ -784,9 +791,43 @@
             "icon": "js",
             "pages": [
               "docs/phoenix/sdk-api-reference/typescript/overview",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+              {
+                "group": "@arizeai/phoenix-client",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                ]
+              },
+              {
+                "group": "@arizeai/phoenix-evals",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
+                ]
+              },
+              {
+                "group": "@arizeai/phoenix-otel",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
+                ]
+              },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
               "docs/phoenix/sdk-api-reference/typescript/mcp-server",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
@@ -1094,8 +1135,15 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "04.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
+                ]
+              },
+              {
                 "group": "03.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api",
                   "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
                   "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
                   "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",

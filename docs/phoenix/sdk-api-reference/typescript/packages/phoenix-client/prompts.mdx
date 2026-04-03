@@ -1,0 +1,73 @@
+---
+title: "Prompts"
+description: "Manage prompts with @arizeai/phoenix-client"
+---
+
+The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, list prompts, and adapt prompt versions to supported provider SDKs.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/prompts/getPrompt.ts</code> for the exact selector shape</li>
+  </ul>
+</section>
+
+## Create A Prompt
+
+```ts
+import {
+  createPrompt,
+  promptVersion,
+} from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "support-response",
+  description: "Customer support reply prompt",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    template: [{ role: "user", content: "Reply to {{question}}" }],
+  }),
+});
+```
+
+## Fetch By Selector
+
+```ts
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({
+  prompt: { name: "support-response", tag: "production" },
+});
+```
+
+`prompt` can be selected by `{ name }`, `{ name, tag }`, or `{ versionId }`.
+
+## Convert To Another SDK
+
+```ts
+import { toSDK } from "@arizeai/phoenix-client/prompts";
+
+const promptAsAI = toSDK({
+  sdk: "ai",
+  prompt,
+  variables: { question: "Where is my order?" },
+});
+```
+
+Supported `sdk` targets:
+
+- `ai`
+- `openai`
+- `anthropic`
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/prompts/createPrompt.ts</code></li>
+    <li><code>src/prompts/getPrompt.ts</code></li>
+    <li><code>src/prompts/listPrompts.ts</code></li>
+    <li><code>src/prompts/sdks/toSDK.ts</code></li>
+    <li><code>src/types/prompts.ts</code></li>
+  </ul>
+</section>

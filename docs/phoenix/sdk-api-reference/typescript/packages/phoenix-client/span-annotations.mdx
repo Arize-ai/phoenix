@@ -1,0 +1,283 @@
+---
+title: "Span Annotations"
+description: "Log and retrieve span-level annotations with @arizeai/phoenix-client"
+---
+
+Span annotations attach structured feedback to individual traced operations — an LLM call, a tool invocation, a retrieval step. Use them to record quality scores, human labels, or LLM-as-judge verdicts against any span in your project.
+
+All functions are imported from `@arizeai/phoenix-client/spans`. See [Annotations](./annotations) for the shared annotation model and concepts.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/spans/addSpanAnnotation.ts</code> for the single-annotation API</li>
+    <li><code>src/spans/logSpanAnnotations.ts</code> for batch logging</li>
+    <li><code>src/spans/getSpanAnnotations.ts</code> for reading annotations back</li>
+    <li><code>src/spans/getSpans.ts</code> for fetching span IDs from Phoenix</li>
+    <li><code>src/spans/types.ts</code> for the <code>SpanAnnotation</code> interface</li>
+  </ul>
+</section>
+
+## Getting The `spanId`
+
+`spanId` is the OpenTelemetry span ID for the operation you want to annotate. In practice, you usually get it one of two ways:
+
+### From Running Code With `@arizeai/phoenix-otel`
+
+If you are already tracing the operation at runtime, capture the span ID from the active span and keep it with the application response, evaluation job, or feedback event that will log the annotation later.
+
+```ts
+import { register, trace } from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const tracer = trace.getTracer("support-bot");
+
+const result = await tracer.startActiveSpan("answer-question", async (span) => {
+  const spanId = span.spanContext().spanId;
+
+  return {
+    answer: "Phoenix is open source.",
+    spanId,
+  };
+});
+```
+
+If you are already inside traced code and just need the current span, `trace.getActiveSpan()?.spanContext().spanId` gives you the same OpenTelemetry ID.
+
+### From Retrieved Spans During Evaluation
+
+If you are annotating spans after the fact, fetch the spans from Phoenix first and read the OpenTelemetry span ID from `span.context.span_id`.
+
+```ts
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const { spans } = await getSpans({
+  project: { projectName: "support-bot" },
+  spanKind: "LLM",
+  limit: 10,
+});
+
+for (const span of spans) {
+  const spanId = span.context.span_id;
+  console.log(span.name, spanId);
+}
+```
+
+## Add A Single Span Annotation
+
+Use `addSpanAnnotation` to attach one annotation to a span. This example records an LLM-as-judge groundedness evaluation:
+
+```ts
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "groundedness",
+    annotatorKind: "LLM",
+    score: 1,
+    label: "grounded",
+    explanation: "Answer stayed within retrieved context.",
+  },
+});
+```
+
+## Batch Log Span Annotations
+
+Use `logSpanAnnotations` to send multiple annotations in a single request. This is ideal for nightly evaluation pipelines that score many spans at once:
+
+```ts
+import { logSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+await logSpanAnnotations({
+  spanAnnotations: [
+    {
+      spanId: "abc123def456",
+      name: "helpfulness",
+      annotatorKind: "CODE",
+      score: 0.2,
+      label: "poor",
+    },
+    {
+      spanId: "789ghi012jkl",
+      name: "helpfulness",
+      annotatorKind: "CODE",
+      score: 0.9,
+      label: "excellent",
+    },
+  ],
+});
+```
+
+## Human Feedback (Thumbs Up/Down)
+
+The most common annotation pattern: capture end-user reactions and log them as `HUMAN` annotations. Include metadata to correlate feedback with your application's user model:
+
+```ts
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+// User clicked thumbs-up on an LLM response
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: responseSpanId,
+    name: "user-feedback",
+    annotatorKind: "HUMAN",
+    label: "positive",
+    score: 1,
+    metadata: { userId: "u_42", channel: "web-chat" },
+  },
+});
+```
+
+## Idempotent Upserts With `identifier`
+
+Annotations are unique by `(name, spanId, identifier)`. The `identifier` field controls whether a write creates a new annotation or updates an existing one.
+
+Without `identifier`, a span can only have one annotation per name — writing again overwrites it. Adding an `identifier` lets you store **multiple annotations with the same name** on the same span, each keyed by a different identifier. Re-sending the same `(name, spanId, identifier)` tuple updates that specific annotation in place.
+
+Common patterns:
+
+- **One annotation per user** — use a user ID as the identifier so each user's feedback is stored separately and re-submitting updates their previous rating.
+- **One annotation per evaluator version** — use the evaluator version string so pipeline reruns update in place rather than duplicating.
+- **One annotation per reviewer** — use the reviewer's name or ID so multiple reviewers can each annotate the same span independently.
+
+```ts
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+
+// Two different users can each leave a "helpfulness" rating on the same span
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "helpfulness",
+    annotatorKind: "HUMAN",
+    score: 1,
+    label: "helpful",
+    identifier: "user-alice",
+  },
+});
+
+await addSpanAnnotation({
+  spanAnnotation: {
+    spanId: "abc123def456",
+    name: "helpfulness",
+    annotatorKind: "HUMAN",
+    score: 0,
+    label: "not-helpful",
+    identifier: "user-bob",
+  },
+});
+// Both annotations coexist. If Alice re-submits, her annotation is updated.
+```
+
+## Read Back Span Annotations
+
+Use `getSpanAnnotations` to retrieve annotations for one or more spans.
+
+### Basic Read
+
+```ts
+import { getSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const result = await getSpanAnnotations({
+  project: { projectName: "support-bot" },
+  spanIds: ["abc123def456"],
+});
+
+for (const annotation of result.annotations) {
+  console.log(annotation.name, annotation.result?.label);
+}
+```
+
+### Filtered Read
+
+Fetch only specific annotation names across multiple spans:
+
+```ts
+const result = await getSpanAnnotations({
+  project: { projectName: "support-bot" },
+  spanIds: ["abc123def456", "789ghi012jkl"],
+  includeAnnotationNames: ["groundedness", "helpfulness"],
+  limit: 50,
+});
+```
+
+Use `excludeAnnotationNames` to omit specific names instead — for example, to skip `"note"` annotations.
+
+### Pagination
+
+For large result sets, use cursor-based pagination:
+
+```ts
+let cursor: string | undefined;
+do {
+  const page = await getSpanAnnotations({
+    project: { projectName: "support-bot" },
+    spanIds: spanIdBatch,
+    cursor,
+    limit: 100,
+  });
+  for (const annotation of page.annotations) {
+    // process each annotation
+  }
+  cursor = page.nextCursor ?? undefined;
+} while (cursor);
+```
+
+## Span Notes
+
+`addSpanNote` attaches a free-text comment to a span. Unlike structured annotations (which are keyed by `name` + `identifier`), notes are append-only — each call creates a new note with a unique timestamp-based identifier, so multiple notes naturally accumulate on the same span.
+
+This makes notes a good mechanism for **open coding**: reviewers can leave qualitative observations on spans during exploratory analysis without needing to define annotation names or scoring rubrics up front. The accumulated notes can later inform what structured annotations to create.
+
+```ts
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  spanNote: {
+    spanId: "abc123def456",
+    note: "Escalated: retrieval returned empty docs.",
+  },
+});
+```
+
+## Parameter Reference
+
+### `SpanAnnotation`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `spanId` | `string` | Yes | OpenTelemetry span ID (hex, no `0x` prefix) |
+| `name` | `string` | Yes | Annotation name (e.g. `"groundedness"`) |
+| `annotatorKind` | `"HUMAN" \| "LLM" \| "CODE"` | No | Defaults to `"HUMAN"` |
+| `label` | `string` | No* | Categorical label |
+| `score` | `number` | No* | Numeric score |
+| `explanation` | `string` | No* | Free-text explanation |
+| `identifier` | `string` | No | For idempotent upserts |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary metadata |
+
+\*At least one of `label`, `score`, or `explanation` is required.
+
+### `getSpanAnnotations` Options
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `project` | `{ projectName } \| { projectId }` | Yes | Project selector |
+| `spanIds` | `string[]` | Yes | Span IDs to fetch annotations for |
+| `includeAnnotationNames` | `string[]` | No | Only return these annotation names |
+| `excludeAnnotationNames` | `string[]` | No | Exclude these annotation names |
+| `cursor` | `string` | No | Pagination cursor |
+| `limit` | `number` | No | Max results per page (default 100) |
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/spans/addSpanAnnotation.ts</code></li>
+    <li><code>src/spans/logSpanAnnotations.ts</code></li>
+    <li><code>src/spans/getSpanAnnotations.ts</code></li>
+    <li><code>src/spans/getSpans.ts</code></li>
+    <li><code>src/spans/addSpanNote.ts</code></li>
+    <li><code>src/spans/types.ts</code></li>
+    <li><code>src/types/annotations.ts</code></li>
+  </ul>
+</section>

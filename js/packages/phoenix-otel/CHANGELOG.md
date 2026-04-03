@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 0.4.3
+
+### Patch Changes
+
+- 1028be5: Bundle curated package docs and examples into npm packages under `docs/`.
+
 ## 0.4.2
 
 ### Patch Changes

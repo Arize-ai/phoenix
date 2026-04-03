@@ -1,0 +1,87 @@
+---
+title: "Sessions"
+description: "Work with sessions in @arizeai/phoenix-client"
+---
+
+The sessions module groups multi-turn activity under a project and supports retrieval, annotations, and cleanup.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/sessions/listSessions.ts</code> for the exact project selector
+      shape
+    </li>
+    <li>
+      <code>src/sessions/getSessionTurns.ts</code> for how turns are derived
+      from root spans
+    </li>
+  </ul>
+</section>
+
+## List Sessions
+
+```ts
+import { listSessions } from "@arizeai/phoenix-client/sessions";
+
+const sessions = await listSessions({
+  projectName: "support-bot",
+});
+
+for (const session of sessions) {
+  console.log(session.sessionId);
+}
+```
+
+## Retrieve A Session And Its Turns
+
+```ts
+import {
+  getSession,
+  getSessionTurns,
+} from "@arizeai/phoenix-client/sessions";
+
+const session = await getSession({
+  sessionId: "cst_123",
+});
+
+const turns = await getSessionTurns({
+  sessionId: "cst_123",
+});
+```
+
+`getSession()` and `getSessionTurns()` only need `sessionId`. They do not take a `project` selector.
+
+## Annotate Sessions
+
+Session annotations are covered in depth in [Session Annotations](./session-annotations). Quick example:
+
+```ts
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
+
+await addSessionAnnotation({
+  sessionAnnotation: {
+    sessionId: "cst_123",
+    name: "handoff-required",
+    annotatorKind: "CODE",
+    score: 1,
+    label: "yes",
+  },
+});
+```
+
+## Cleanup
+
+Use `deleteSession` or `deleteSessions` when you need to remove session records by identifier.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/sessions/listSessions.ts</code></li>
+    <li><code>src/sessions/getSession.ts</code></li>
+    <li><code>src/sessions/getSessionTurns.ts</code></li>
+    <li><code>src/sessions/addSessionAnnotation.ts</code></li>
+    <li><code>src/sessions/deleteSession.ts</code></li>
+    <li><code>src/sessions/deleteSessions.ts</code></li>
+  </ul>
+</section>

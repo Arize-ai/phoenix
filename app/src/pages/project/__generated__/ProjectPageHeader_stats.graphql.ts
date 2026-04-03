@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4bea7f8a65afbb69183c6c8c1f36bb16>>
+ * @generated SignedSource<<fcb6e0e6f3c677124c6e53ed7461ac77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,22 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectPageHeader_stats$data = {
-  readonly costSummary: {
-    readonly completion: {
-      readonly cost: number | null;
-    };
-    readonly prompt: {
-      readonly cost: number | null;
-    };
-    readonly total: {
-      readonly cost: number | null;
-    };
-  };
-  readonly documentEvaluationNames: ReadonlyArray<string>;
   readonly id: string;
-  readonly latencyMsP50: number | null;
-  readonly latencyMsP99: number | null;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly timeRangeTraceCount: number;
   readonly " $fragmentType": "ProjectPageHeader_stats";
 };
@@ -37,25 +22,7 @@ export type ProjectPageHeader_stats$key = {
 
 import ProjectPageHeaderQuery_graphql from './ProjectPageHeaderQuery.graphql';
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v1 = [
-  (v0/*: any*/)
-],
-v2 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-];
-return {
+const node: ReaderFragment = {
   "argumentDefinitions": [
     {
       "kind": "RootArgument",
@@ -80,92 +47,15 @@ return {
   "selections": [
     {
       "alias": "timeRangeTraceCount",
-      "args": (v1/*: any*/),
-      "kind": "ScalarField",
-      "name": "traceCount",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": (v1/*: any*/),
-      "concreteType": "SpanCostSummary",
-      "kind": "LinkedField",
-      "name": "costSummary",
-      "plural": false,
-      "selections": [
+      "args": [
         {
-          "alias": null,
-          "args": null,
-          "concreteType": "CostBreakdown",
-          "kind": "LinkedField",
-          "name": "total",
-          "plural": false,
-          "selections": (v2/*: any*/),
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "CostBreakdown",
-          "kind": "LinkedField",
-          "name": "prompt",
-          "plural": false,
-          "selections": (v2/*: any*/),
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "CostBreakdown",
-          "kind": "LinkedField",
-          "name": "completion",
-          "plural": false,
-          "selections": (v2/*: any*/),
-          "storageKey": null
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
         }
       ],
-      "storageKey": null
-    },
-    {
-      "alias": "latencyMsP50",
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "probability",
-          "value": 0.5
-        },
-        (v0/*: any*/)
-      ],
       "kind": "ScalarField",
-      "name": "latencyMsQuantile",
-      "storageKey": null
-    },
-    {
-      "alias": "latencyMsP99",
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "probability",
-          "value": 0.99
-        },
-        (v0/*: any*/)
-      ],
-      "kind": "ScalarField",
-      "name": "latencyMsQuantile",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "documentEvaluationNames",
+      "name": "traceCount",
       "storageKey": null
     },
     {
@@ -179,8 +69,7 @@ return {
   "type": "Project",
   "abstractKey": null
 };
-})();
 
-(node as any).hash = "042b76a71b57987b50febe61073a6b21";
+(node as any).hash = "8473ec2fcc4619d765d17723f8eec2ef";
 
 export default node;

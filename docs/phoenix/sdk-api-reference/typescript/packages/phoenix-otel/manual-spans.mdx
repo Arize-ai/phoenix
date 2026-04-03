@@ -1,0 +1,99 @@
+---
+title: "Manual Spans"
+description: "Create manual spans with @arizeai/phoenix-otel"
+---
+
+The package re-exports `trace`, `context`, and `SpanStatusCode` from OpenTelemetry so you can create custom spans after registration without pulling them from another package.
+
+For most use cases, prefer the `@arizeai/openinference-core` helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`) over raw `startActiveSpan`. They automatically set the correct OpenInference span kind, handle errors, and close the span for you.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/index.ts</code></li>
+  </ul>
+</section>
+
+## Recommended — OpenInference Helpers
+
+```bash
+npm install @arizeai/openinference-core @arizeai/openinference-semantic-conventions
+```
+
+```ts
+import { withSpan, setSession, setMetadata } from "@arizeai/openinference-core";
+import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
+import { context } from "@opentelemetry/api";
+import { register } from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const retrieveDocs = withSpan(
+  async (query: string) => {
+    const response = await fetch(`/api/search?q=${query}`);
+    return response.json();
+  },
+  { name: "retrieve-docs", kind: OpenInferenceSpanKind.RETRIEVER }
+);
+
+const generateAnswer = withSpan(
+  async (query: string, docs: string[]) => {
+    return `Answer based on ${docs.length} documents`;
+  },
+  { name: "generate-answer", kind: OpenInferenceSpanKind.LLM }
+);
+
+const ragPipeline = withSpan(
+  async (query: string) => {
+    const docs = await retrieveDocs(query);
+    return generateAnswer(query, docs);
+  },
+  { name: "rag-pipeline", kind: OpenInferenceSpanKind.CHAIN }
+);
+
+// Session and metadata propagate to all child spans
+await context.with(
+  setMetadata(
+    setSession(context.active(), { sessionId: "session-abc-123" }),
+    { environment: "production" }
+  ),
+  () => ragPipeline("What is Phoenix?")
+);
+```
+
+## Raw OpenTelemetry Spans
+
+Use raw spans when you need full control over attributes and timing:
+
+```ts
+import {
+  SpanStatusCode,
+  register,
+  trace,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const tracer = trace.getTracer("support-bot");
+
+await tracer.startActiveSpan("lookup-customer", async (span) => {
+  try {
+    span.setAttribute("customer.id", "cust_123");
+    await Promise.resolve();
+  } catch (error) {
+    span.recordException(error as Error);
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    throw error;
+  } finally {
+    span.end();
+  }
+});
+```
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/index.ts</code></li>
+    <li><code>src/register.ts</code></li>
+  </ul>
+</section>

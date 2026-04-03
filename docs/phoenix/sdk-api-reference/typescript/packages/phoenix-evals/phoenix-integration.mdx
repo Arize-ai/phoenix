@@ -1,0 +1,80 @@
+---
+title: "Phoenix Integration"
+description: "Use @arizeai/phoenix-evals with Phoenix experiments"
+---
+
+`@arizeai/phoenix-evals` pairs with `@arizeai/phoenix-client` when you want to run evaluator-backed experiments and store both task traces and evaluation results in Phoenix.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/index.ts</code> for the root evaluator exports</li>
+    <li><code>companion package: @arizeai/phoenix-client/datasets</code></li>
+    <li><code>companion package: @arizeai/phoenix-client/experiments</code></li>
+  </ul>
+</section>
+
+## Example
+
+```ts
+import { openai } from "@ai-sdk/openai";
+import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+
+await createOrGetDataset({
+  name: "support-eval",
+  examples: [
+    {
+      input: {
+        question: "Is Phoenix open source?",
+        context: "Phoenix is open source.",
+      },
+      output: {
+        answer: "Phoenix is open source.",
+      },
+    },
+  ],
+});
+
+const faithfulness = createFaithfulnessEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+await runExperiment({
+  dataset: { datasetName: "support-eval" },
+  task: async ({ question, context }) =>
+    `${question} Answer using only this context: ${context}`,
+  evaluators: [
+    asExperimentEvaluator({
+      name: "faithfulness",
+      kind: "LLM",
+      evaluate: async ({ input, output }) =>
+        faithfulness.evaluate({
+          input: String(input.question ?? ""),
+          context: String(input.context ?? ""),
+          output: String(output ?? ""),
+        }),
+    }),
+  ],
+});
+```
+
+## What Each Package Does
+
+- `@arizeai/phoenix-evals` builds evaluator logic
+- `@arizeai/phoenix-client` handles experiment execution and persistence
+- combined usage produces evaluator traces and experiment results in Phoenix
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/index.ts</code></li>
+    <li><code>src/llm/</code></li>
+    <li><code>companion package: @arizeai/phoenix-client/datasets</code></li>
+    <li><code>companion package: @arizeai/phoenix-client/experiments</code></li>
+  </ul>
+</section>

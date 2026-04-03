@@ -7,7 +7,43 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.01.2026">
+## [04.01.2026: Python 3.14 Support](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.21.0+, arize-phoenix-client 2.2.0+, arize-phoenix-evals 2.13.0+**
 
+Phoenix server, Python client SDK, and evals library now support Python 3.14 on Linux and macOS.
+</Update>
+
+<Update label="04.01.2026">
+## [04.01.2026: Secrets Management REST API](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.21.0+**
+
+Admin users can store encrypted LLM provider API keys in Phoenix via `PUT /v1/secrets`. Atomically upsert or delete multiple secrets in one request; values are AES-encrypted at rest and never returned in responses.
+
+- **`PUT /v1/secrets`** — batch upsert/delete with `value: null` to remove a key
+- **Admin-only**, atomic, silent no-op for deleting non-existent keys
+</Update>
+
+<Update label="04.01.2026">
+## [04.01.2026: `get_traces` — Retrieve Traces via Python SDK](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.15.0+ (server), arize-phoenix-client 2.2.0+ (Python)**
+
+`client.traces.get_traces()` fetches traces for a project with time range filtering, session filtering, sort control, and automatic cursor-based pagination.
+
+- **`include_spans=True`** to embed full span detail in each trace
+- **`session_id`** to filter to one or more sessions
+- Async variant available on `AsyncClient`
+</Update>
+
+<Update label="03.30.2026">
+## [03.30.2026: Delete Prompts and Prompt Version Tags](/docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api)
+**Available in arize-phoenix 13.20.0+**
+
+Two new REST endpoints let you delete prompts and remove tags from prompt versions programmatically.
+
+- **`DELETE /v1/prompts/{prompt_identifier}`** — permanently deletes a prompt and all its versions, tags, and labels
+- **`DELETE /v1/prompt_versions/{id}/tags/{tag_name}`** — removes a single tag from a specific prompt version
+</Update>
 
 
 <Update label="03.24.2026">

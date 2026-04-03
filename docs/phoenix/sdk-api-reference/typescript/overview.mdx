@@ -44,6 +44,16 @@ npm install @arizeai/openinference-core  # Instrumentation core
 npm install -g @arizeai/phoenix-cli   # Command-line interface
 ```
 
+<Note>
+Each Phoenix SDK package now ships curated docs and source code directly in `node_modules`, following the same local-install pattern used by the AI SDK.
+
+- `node_modules/@arizeai/phoenix-client/docs/` and `src/`
+- `node_modules/@arizeai/phoenix-evals/docs/` and `src/`
+- `node_modules/@arizeai/phoenix-otel/docs/` and `src/`
+
+These bundled docs are version-matched to the package you installed, require no network access, and mirror the package-doc sections in this navigation tree.
+</Note>
+
 ## Environment Variables
 
 All packages respect common Phoenix environment variables for seamless configuration:

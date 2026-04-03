@@ -199,7 +199,7 @@ export function PromptsTable(props: PromptsTableProps) {
                   leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
                   size="S"
                   aria-label="Open in playground"
-                  to={`${row.original.id}/playground`}
+                  to={`/playground?promptId=${encodeURIComponent(row.original.id)}`}
                 >
                   Playground
                 </LinkButton>
