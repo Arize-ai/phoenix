@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.6.0
+
+### Minor Changes
+
+- c70eca6: Add optional `traceId` to evaluator params so evaluators can fetch and analyze task traces for trajectory evaluation
+
 ## 6.5.5
 
 ### Patch Changes
