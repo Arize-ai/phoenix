@@ -28,11 +28,20 @@ Example agent implementations instrumented with [OpenInference](https://github.c
 
 ```bash
 cd examples/agents
+
+# Option 1: pip
 pip install -r requirements.txt
+
+# Option 2: uv (recommended)
+uv venv --python 3.10
+source .venv/bin/activate
+uv pip install -r requirements.txt
 
 # Start Phoenix
 phoenix serve
 ```
+
+> **Note**: The tau-bench dependency installs from GitHub (`tau-bench @ git+https://...`). The TRAJECT-Bench dataset downloads from HuggingFace on first run (~small, cached afterward).
 
 ## Running the Examples
 
@@ -50,6 +59,7 @@ python -m run_scaled --no-phoenix
 ```
 
 Results are saved to `results/scaled/` as JSON files. Traces are exported to Phoenix at http://localhost:6006.
+
 
 ### Run a single implementation directly
 
@@ -94,3 +104,22 @@ The TRAJECT-Bench agent handles single-turn tool-calling tasks from the [TRAJECT
 - **Sequential**: Tool calls with dependencies where output from one feeds into the next
 
 Tools are dynamically created per task from the dataset's tool definitions, returning pre-recorded outputs when parameters match ground truth.
+
+## Exploring Traces in Phoenix
+
+After running the examples, open Phoenix at http://localhost:6006. Each implementation sends traces to its own project:
+
+| Project name | Implementation |
+|---|---|
+| `tau-bench-openai` | tau-bench + OpenAI Agents SDK |
+| `tau-bench-langgraph` | tau-bench + LangGraph |
+| `traject-bench-langgraph` | TRAJECT-Bench + LangGraph |
+
+Things to look at:
+
+- **Traces view** — each trace is one task execution. Expand the span tree to see the LLM → tool call → LLM loop. Compare span nesting between the OpenAI Agents SDK and LangGraph projects.
+- **Sessions** — tau-bench traces are grouped by session (one session per task). Each session shows the multi-turn HUMAN/AI conversation timeline.
+- **Span details** — click any LLM span to see the full message history, token counts, and model parameters. Click TOOL spans to see the arguments passed and return values.
+- **Parallel vs sequential** — in the TRAJECT-Bench project, compare parallel tasks (sibling TOOL spans) with sequential tasks (chained TOOL spans where output feeds into the next call).
+
+<!-- Screenshots: TODO -->

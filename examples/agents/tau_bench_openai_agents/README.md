@@ -60,7 +60,7 @@ pip install openai-agents openinference-instrumentation-openai-agents arize-phoe
 
 ## Usage
 
-From the `examples/agent-trajectory-evals/` directory:
+From the `examples/agents/` directory:
 
 ```bash
 # Run all 10 selected tasks
@@ -80,7 +80,7 @@ By default results are saved to `results/tau_bench_openai_agents_<timestamp>.jso
 
 ## Selected Tasks
 
-Tasks are drawn from the **dev** and **train** splits (not test, which is held out). All splits have full ground truth tool sequences (`actions` with `name` and `kwargs`). See the [tau-bench summary](../exploration/tau_bench_summary.md) for split details.
+Tasks are drawn from the **dev** and **train** splits (not test, which is held out). All splits have full ground truth tool sequences (`actions` with `name` and `kwargs`).
 
 | Task ID | Category | Summary | Expected Actions |
 |---------|----------|---------|-----------------|
