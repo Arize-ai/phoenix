@@ -127,7 +127,8 @@ export function ElicitationCarousel({
     ? currentAnswers.length > 0
     : !!currentAnswers;
 
-  const canSkip = question.allow_skip || currentIndex < total - 1;
+  const canSkip = question.allow_skip === true;
+  const canAdvance = hasAnswer || canSkip;
 
   return (
     <FocusScope autoFocus contain restoreFocus>
@@ -314,16 +315,22 @@ export function ElicitationCarousel({
           </div>
 
           {currentIndex === total - 1 ? (
-            <Button size="S" variant="primary" onPress={handleSubmit}>
+            <Button
+              size="S"
+              variant="primary"
+              isDisabled={!canAdvance}
+              onPress={handleSubmit}
+            >
               Submit
             </Button>
           ) : (
             <Button
               size="S"
               variant={hasAnswer ? "primary" : "default"}
+              isDisabled={!canAdvance}
               onPress={() => goTo(currentIndex + 1)}
             >
-              {hasAnswer ? "Next" : canSkip ? "Skip" : "Next"}
+              {hasAnswer ? "Next" : "Skip"}
             </Button>
           )}
         </motion.div>
