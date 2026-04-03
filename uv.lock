@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-29T18:14:35.26481Z"
+exclude-newer = "2026-03-31T00:11:57.227375Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -794,7 +794,7 @@ requires-dist = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "3.0.0"
+version = "2.11.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },

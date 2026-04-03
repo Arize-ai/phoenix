@@ -16,7 +16,7 @@ from .evaluators import (
     evaluate_dataframe,
 )
 from .llm import LLM, phoenix_prompt_to_prompt_template
-from .utils import compute_precisions_at_k, download_benchmark_dataset
+from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
 
@@ -41,6 +41,5 @@ __all__ = [
     "bind_evaluator",
     "tracing",
     "utils",
-    "compute_precisions_at_k",
     "download_benchmark_dataset",
 ]
