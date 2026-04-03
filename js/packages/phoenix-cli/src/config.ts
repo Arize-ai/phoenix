@@ -108,12 +108,19 @@ export interface ValidateConfigOptions {
    * Resolved Phoenix CLI configuration.
    */
   config: PhoenixConfig;
+  /**
+   * Whether a project is required for this command. Defaults to true.
+   */
+  projectRequired?: boolean;
 }
 
 /**
  * Validate that required configuration is present.
  */
-export function validateConfig({ config }: ValidateConfigOptions): {
+export function validateConfig({
+  config,
+  projectRequired = true,
+}: ValidateConfigOptions): {
   valid: boolean;
   errors: string[];
 } {
@@ -124,7 +131,7 @@ export function validateConfig({ config }: ValidateConfigOptions): {
     );
   }
 
-  if (!config.project) {
+  if (projectRequired && !config.project) {
     errors.push(
       "Project not configured. Set PHOENIX_PROJECT environment variable or use --project flag."
     );

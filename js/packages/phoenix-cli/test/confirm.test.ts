@@ -13,6 +13,7 @@ vi.mock("readline", () => ({
 }));
 
 import * as readline from "readline";
+
 import { confirmAction, confirmOrExit } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 

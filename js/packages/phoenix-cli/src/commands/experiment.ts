@@ -5,7 +5,11 @@ import { deleteExperiment } from "@arizeai/phoenix-client/experiments";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveDatasetId } from "../client";
-import { getConfigErrorMessage, resolveConfig } from "../config";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
 import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
@@ -165,11 +169,11 @@ async function experimentGetHandler(
     });
 
     // Validate that we have endpoint
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
@@ -242,11 +246,11 @@ async function experimentListHandler(
       },
     });
 
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
@@ -389,11 +393,11 @@ async function experimentDeleteHandler(
       },
     });
 
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 

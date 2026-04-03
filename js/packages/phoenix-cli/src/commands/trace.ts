@@ -606,7 +606,7 @@ async function traceDeleteHandler(
       },
     });
 
-    const validation = validateConfig({ config });
+    const validation = validateConfig({ config, projectRequired: false });
     if (!validation.valid) {
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
@@ -617,7 +617,7 @@ async function traceDeleteHandler(
     const client = createPhoenixClient({ config });
 
     await confirmOrExit({
-      message: `Delete trace ${traceIdentifier}? This will also delete all spans. This cannot be undone.`,
+      message: `Delete trace ${traceIdentifier}? This will also delete all child spans. This cannot be undone.`,
       yes: options.yes,
     });
 

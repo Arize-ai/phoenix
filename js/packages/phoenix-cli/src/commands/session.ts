@@ -168,11 +168,11 @@ async function sessionGetHandler(
     });
 
     // Validate that we have endpoint
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
@@ -389,11 +389,11 @@ async function sessionDeleteHandler(
       },
     });
 
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 

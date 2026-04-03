@@ -319,7 +319,7 @@ async function spanDeleteHandler(
       },
     });
 
-    const validation = validateConfig({ config });
+    const validation = validateConfig({ config, projectRequired: false });
     if (!validation.valid) {
       writeError({
         message: getConfigErrorMessage({ errors: validation.errors }),
@@ -366,10 +366,7 @@ async function spanDeleteHandler(
 export function createSpanDeleteCommand(): Command {
   return new Command("delete")
     .description("Delete a span by identifier")
-    .argument(
-      "<span-identifier>",
-      "Span identifier (OTel span_id or GlobalID)"
-    )
+    .argument("<span-identifier>", "Span identifier (OTel span_id or GlobalID)")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("-y, --yes", "Skip confirmation prompt")

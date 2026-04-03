@@ -16,14 +16,15 @@ vi.mock("@arizeai/phoenix-client/sessions", () => ({
 
 import * as deleteExperimentModule from "@arizeai/phoenix-client/experiments";
 import * as deleteSessionModule from "@arizeai/phoenix-client/sessions";
+
+import { createAnnotationConfigCommand } from "../src/commands/annotationConfig";
 import { createDatasetCommand } from "../src/commands/dataset";
 import { createExperimentCommand } from "../src/commands/experiment";
 import { createProjectCommand } from "../src/commands/project";
+import { createPromptCommand } from "../src/commands/prompt";
 import { createSessionCommand } from "../src/commands/session";
 import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";
-import { createAnnotationConfigCommand } from "../src/commands/annotationConfig";
-import { createPromptCommand } from "../src/commands/prompt";
 import { confirmOrExit } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 
@@ -131,9 +132,12 @@ describe("dataset delete", () => {
     }) as never);
 
     await expect(
-      createDatasetCommand().parseAsync(["delete", "my-dataset", ...BASE_ARGS], {
-        from: "user",
-      })
+      createDatasetCommand().parseAsync(
+        ["delete", "my-dataset", ...BASE_ARGS],
+        {
+          from: "user",
+        }
+      )
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
@@ -155,8 +159,7 @@ describe("dataset delete", () => {
 
     expect(vi.mocked(confirmOrExit)).toHaveBeenCalledWith(
       expect.objectContaining({
-        message:
-          "Delete dataset my-dataset? This cannot be undone.",
+        message: "Delete dataset my-dataset? This cannot be undone.",
       })
     );
   });
@@ -329,9 +332,12 @@ describe("experiment delete", () => {
     }) as never);
 
     await expect(
-      createExperimentCommand().parseAsync(["delete", "exp-999", ...BASE_ARGS], {
-        from: "user",
-      })
+      createExperimentCommand().parseAsync(
+        ["delete", "exp-999", ...BASE_ARGS],
+        {
+          from: "user",
+        }
+      )
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
@@ -542,8 +548,6 @@ describe("span delete", () => {
       from: "user",
     });
 
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining("span-abc")
-    );
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("span-abc"));
   });
 });

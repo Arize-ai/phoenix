@@ -1,4 +1,5 @@
 import * as readline from "readline";
+
 import { ExitCode } from "./exitCodes.js";
 
 /**
