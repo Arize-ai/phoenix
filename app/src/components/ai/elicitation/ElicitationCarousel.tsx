@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { FocusScope } from "react-aria";
 
 import type {
   ElicitationAnswers,
@@ -128,195 +129,197 @@ export function ElicitationCarousel({
   const canSkip = question.allow_skip || currentIndex < total - 1;
 
   return (
-    <div css={elicitationCarouselCSS}>
-      {/* Header with step indicator and dots */}
-      <motion.div
-        className="elicitation__header"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{
-          ...entrySpring,
-          delay: headerDelay,
-          opacity: { duration: 0.12, delay: headerDelay },
-        }}
-      >
-        <span className="elicitation__step-label">
-          Question {currentIndex + 1} of {total}
-        </span>
-        <div className="elicitation__dots">
-          {questions.map((_, i) => (
-            <button
-              key={i}
-              className={`elicitation__dot ${
-                i === currentIndex
-                  ? "elicitation__dot--active"
-                  : "elicitation__dot--inactive"
-              }`}
-              onClick={() => goTo(i)}
-              aria-label={`Go to question ${i + 1}`}
-            />
-          ))}
-        </div>
-      </motion.div>
+    <FocusScope autoFocus contain restoreFocus>
+      <div css={elicitationCarouselCSS}>
+        {/* Header with step indicator and dots */}
+        <motion.div
+          className="elicitation__header"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            ...entrySpring,
+            delay: headerDelay,
+            opacity: { duration: 0.12, delay: headerDelay },
+          }}
+        >
+          <span className="elicitation__step-label">
+            Question {currentIndex + 1} of {total}
+          </span>
+          <div className="elicitation__dots">
+            {questions.map((_, i) => (
+              <button
+                key={i}
+                className={`elicitation__dot ${
+                  i === currentIndex
+                    ? "elicitation__dot--active"
+                    : "elicitation__dot--inactive"
+                }`}
+                onClick={() => goTo(i)}
+                aria-label={`Go to question ${i + 1}`}
+              />
+            ))}
+          </div>
+        </motion.div>
 
-      {/* Question carousel */}
-      <div className="elicitation__body">
-        <AnimatePresence custom={direction} mode="popLayout">
-          <motion.div
-            key={question.id}
-            custom={direction}
-            variants={slideVariants}
-            initial={isInitialMount.current ? false : "enter"}
-            animate="center"
-            exit="exit"
-            transition={springTransition}
-            className="elicitation__question-content"
-          >
-            {/* Question prompt */}
+        {/* Question carousel */}
+        <div className="elicitation__body">
+          <AnimatePresence custom={direction} mode="popLayout">
             <motion.div
-              className="elicitation__prompt"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                ...entrySpring,
-                delay: promptDelay,
-                opacity: { duration: 0.12, delay: promptDelay },
-              }}
+              key={question.id}
+              custom={direction}
+              variants={slideVariants}
+              initial={isInitialMount.current ? false : "enter"}
+              animate="center"
+              exit="exit"
+              transition={springTransition}
+              className="elicitation__question-content"
             >
-              {question.prompt}
-            </motion.div>
-
-            {/* Freeform textarea */}
-            {question.type === "freeform" ? (
+              {/* Question prompt */}
               <motion.div
+                className="elicitation__prompt"
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   ...entrySpring,
-                  delay: freeformDelay,
-                  opacity: { duration: 0.12, delay: freeformDelay },
+                  delay: promptDelay,
+                  opacity: { duration: 0.12, delay: promptDelay },
                 }}
               >
-                <textarea
-                  className="elicitation__freeform"
-                  value={(answers[question.id] as string) || ""}
-                  onChange={(e) =>
-                    setFreeformAnswer(question.id, e.target.value)
-                  }
-                  placeholder="Type your response…"
-                  aria-label={question.prompt}
-                />
+                {question.prompt}
               </motion.div>
-            ) : (
-              /* Options list */
-              <div className="elicitation__options">
-                {question.options?.map((opt, i) => (
-                  <motion.div
-                    key={opt.id}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      ...entrySpring,
-                      delay: optionDelay(i),
-                      opacity: { duration: 0.12, delay: optionDelay(i) },
-                    }}
-                  >
-                    <ElicitationOptionButton
-                      selected={(
-                        (answers[question.id] as string[]) || []
-                      ).includes(opt.id)}
-                      type={question.type as "single" | "multi"}
-                      label={opt.label}
-                      description={opt.description}
-                      onToggle={() =>
-                        toggleOption(
-                          question.id,
-                          opt.id,
-                          question.type as "single" | "multi"
-                        )
-                      }
-                    />
-                  </motion.div>
-                ))}
-                {/* Auto-generated freeform entry option */}
-                {question.allow_freeform ? (
-                  <motion.div
-                    key={FREEFORM_OPTION_ID}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      ...entrySpring,
-                      delay: optionDelay(question.options?.length ?? 0),
-                      opacity: {
-                        duration: 0.12,
+
+              {/* Freeform textarea */}
+              {question.type === "freeform" ? (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    ...entrySpring,
+                    delay: freeformDelay,
+                    opacity: { duration: 0.12, delay: freeformDelay },
+                  }}
+                >
+                  <textarea
+                    className="elicitation__freeform"
+                    value={(answers[question.id] as string) || ""}
+                    onChange={(e) =>
+                      setFreeformAnswer(question.id, e.target.value)
+                    }
+                    placeholder="Type your response…"
+                    aria-label={question.prompt}
+                  />
+                </motion.div>
+              ) : (
+                /* Options list */
+                <div className="elicitation__options">
+                  {question.options?.map((opt, i) => (
+                    <motion.div
+                      key={opt.id}
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        ...entrySpring,
+                        delay: optionDelay(i),
+                        opacity: { duration: 0.12, delay: optionDelay(i) },
+                      }}
+                    >
+                      <ElicitationOptionButton
+                        selected={(
+                          (answers[question.id] as string[]) || []
+                        ).includes(opt.id)}
+                        type={question.type as "single" | "multi"}
+                        label={opt.label}
+                        description={opt.description}
+                        onToggle={() =>
+                          toggleOption(
+                            question.id,
+                            opt.id,
+                            question.type as "single" | "multi"
+                          )
+                        }
+                      />
+                    </motion.div>
+                  ))}
+                  {/* Auto-generated freeform entry option */}
+                  {question.allow_freeform ? (
+                    <motion.div
+                      key={FREEFORM_OPTION_ID}
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        ...entrySpring,
                         delay: optionDelay(question.options?.length ?? 0),
-                      },
-                    }}
-                  >
-                    <ElicitationOptionButton
-                      selected={(
-                        (answers[question.id] as string[]) || []
-                      ).includes(FREEFORM_OPTION_ID)}
-                      type={question.type as "single" | "multi"}
-                      label="Type your own answer"
-                      isFreeformEntry
-                      textValue={freeformTexts[question.id]}
-                      onToggle={() =>
-                        toggleOption(
-                          question.id,
-                          FREEFORM_OPTION_ID,
-                          question.type as "single" | "multi"
-                        )
-                      }
-                      onTextChange={(v) =>
-                        setFreeformTexts((prev) => ({
-                          ...prev,
-                          [question.id]: v,
-                        }))
-                      }
-                    />
-                  </motion.div>
-                ) : null}
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+                        opacity: {
+                          duration: 0.12,
+                          delay: optionDelay(question.options?.length ?? 0),
+                        },
+                      }}
+                    >
+                      <ElicitationOptionButton
+                        selected={(
+                          (answers[question.id] as string[]) || []
+                        ).includes(FREEFORM_OPTION_ID)}
+                        type={question.type as "single" | "multi"}
+                        label="Type your own answer"
+                        isFreeformEntry
+                        textValue={freeformTexts[question.id]}
+                        onToggle={() =>
+                          toggleOption(
+                            question.id,
+                            FREEFORM_OPTION_ID,
+                            question.type as "single" | "multi"
+                          )
+                        }
+                        onTextChange={(v) =>
+                          setFreeformTexts((prev) => ({
+                            ...prev,
+                            [question.id]: v,
+                          }))
+                        }
+                      />
+                    </motion.div>
+                  ) : null}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-      {/* Navigation */}
-      <motion.div
-        className="elicitation__nav"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{
-          ...entrySpring,
-          delay: navDelay,
-          opacity: { duration: 0.12, delay: navDelay },
-        }}
-      >
-        <Button
-          size="S"
-          variant="default"
-          isDisabled={currentIndex === 0}
-          onPress={() => goTo(currentIndex - 1)}
+        {/* Navigation */}
+        <motion.div
+          className="elicitation__nav"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            ...entrySpring,
+            delay: navDelay,
+            opacity: { duration: 0.12, delay: navDelay },
+          }}
         >
-          Back
-        </Button>
-
-        {currentIndex === total - 1 ? (
-          <Button size="S" variant="primary" onPress={handleSubmit}>
-            Submit
-          </Button>
-        ) : (
           <Button
             size="S"
-            variant={hasAnswer ? "primary" : "default"}
-            onPress={() => goTo(currentIndex + 1)}
+            variant="default"
+            isDisabled={currentIndex === 0}
+            onPress={() => goTo(currentIndex - 1)}
           >
-            {hasAnswer ? "Next" : canSkip ? "Skip" : "Next"}
+            Back
           </Button>
-        )}
-      </motion.div>
-    </div>
+
+          {currentIndex === total - 1 ? (
+            <Button size="S" variant="primary" onPress={handleSubmit}>
+              Submit
+            </Button>
+          ) : (
+            <Button
+              size="S"
+              variant={hasAnswer ? "primary" : "default"}
+              onPress={() => goTo(currentIndex + 1)}
+            >
+              {hasAnswer ? "Next" : canSkip ? "Skip" : "Next"}
+            </Button>
+          )}
+        </motion.div>
+      </div>
+    </FocusScope>
   );
 }
