@@ -12,6 +12,8 @@ The experiments module runs tasks over dataset examples, records experiment runs
     <li><code>src/experiments/helpers/getExperimentEvaluators.ts</code> for evaluator normalization</li>
     <li><code>src/experiments/helpers/fromPhoenixLLMEvaluator.ts</code> for the phoenix-evals bridge</li>
     <li><code>src/experiments/getExperimentRuns.ts</code> for reading runs back after execution</li>
+    <li><code>src/types/experiments.ts</code> for <code>EvaluatorParams</code> including <code>traceId</code></li>
+    <li><code>src/spans/getSpans.ts</code> for fetching spans by trace ID and span kind</li>
   </ul>
 </section>
 
@@ -226,10 +228,113 @@ When an evaluator runs, it receives a normalized object with these fields:
 | `output` | The task output for that run |
 | `expected` | The dataset example's `output` object |
 | `metadata` | The dataset example's `metadata` object |
+| `traceId` | The OpenTelemetry trace ID of the task run (optional, `string \| null`) |
 
 This is why the `createClassificationEvaluator()` prompt can reference `{{input.question}}` and `{{output}}`.
 
-For code-based evaluators created with `asExperimentEvaluator()`, those same fields are available inside `evaluate({ input, output, expected, metadata })`.
+For code-based evaluators created with `asExperimentEvaluator()`, those same fields are available inside `evaluate({ input, output, expected, metadata, traceId })`.
+
+## Trace-Based Evaluation
+
+Each task run captures an OpenTelemetry trace ID. Evaluators can use `traceId` to fetch the task's spans from Phoenix and evaluate the execution trajectory — for example, verifying that specific tool calls were made or inspecting intermediate steps.
+
+This pattern works best with `evaluateExperiment()` as a separate step after `runExperiment()`, so that all task spans are ingested into Phoenix before the evaluator queries them.
+
+```ts
+import { traceTool } from "@arizeai/openinference-core";
+import { createClient } from "@arizeai/phoenix-client";
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+import {
+  asExperimentEvaluator,
+  evaluateExperiment,
+  runExperiment,
+} from "@arizeai/phoenix-client/experiments";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+const { datasetId } = await createDataset({
+  client,
+  name: "tool-call-dataset",
+  description: "Questions that require tool use",
+  examples: [
+    {
+      input: { question: "What is the weather in San Francisco?" },
+      output: { expectedTool: "getWeather" },
+      metadata: {},
+    },
+  ],
+});
+
+// Step 1: Run the experiment with traced tool calls
+const experiment = await runExperiment({
+  client,
+  dataset: { datasetId },
+  setGlobalTracerProvider: true,
+  task: async (example) => {
+    // traceTool wraps a function with a TOOL span
+    const getWeather = traceTool(
+      ({ location }: { location: string }) => ({
+        location,
+        temperature: 72,
+        condition: "sunny",
+      }),
+      { name: "getWeather" }
+    );
+
+    const city = (example.input.question as string).match(/in (.+)\?/)?.[1];
+    const result = getWeather({ location: city ?? "Unknown" });
+    return `The weather in ${result.location} is ${result.temperature}F.`;
+  },
+});
+
+const projectName = experiment.projectName!;
+
+// Step 2: Evaluate using traceId to inspect the task's spans
+const evaluated = await evaluateExperiment({
+  client,
+  experiment,
+  evaluators: [
+    asExperimentEvaluator({
+      name: "has-expected-tool-call",
+      kind: "CODE",
+      evaluate: async ({ traceId, expected }) => {
+        if (!traceId) {
+          return { label: "no trace", score: 0 };
+        }
+
+        // Fetch TOOL spans from this task's trace
+        const { spans: toolSpans } = await getSpans({
+          client,
+          project: { projectName },
+          traceIds: [traceId],
+          spanKind: "TOOL",
+        });
+
+        const expectedTool = (expected as { expectedTool?: string })
+          ?.expectedTool;
+        const toolNames = toolSpans.map((s) => s.name);
+        const found = toolNames.some((name) => name.includes(expectedTool!));
+
+        return {
+          label: found ? "tool called" : "no tool call",
+          score: found ? 1 : 0,
+          explanation: found
+            ? `Found: ${toolNames.join(", ")}`
+            : `Expected "${expectedTool}" but found none`,
+        };
+      },
+    }),
+  ],
+});
+```
+
+Key points:
+
+- Use `setGlobalTracerProvider: true` on `runExperiment()` so that child spans from `traceTool` or other OTel instrumentation land in the same trace as the task
+- Use `evaluateExperiment()` as a separate step so spans are ingested before querying
+- Use `getSpans()` with `traceIds` and `spanKind` filters to fetch specific spans from the task trace
+- `traceId` is `null` in dry-run mode since no real traces are recorded
 
 ## What `runExperiment()` Returns
 
