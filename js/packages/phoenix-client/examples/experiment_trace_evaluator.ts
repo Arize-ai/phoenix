@@ -10,8 +10,7 @@
  * Prerequisites:
  * - Phoenix server running on http://localhost:6006
  */
-import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
-import { trace } from "@opentelemetry/api";
+import { traceTool } from "@arizeai/openinference-core";
 
 import { createClient } from "../src/client";
 import { createDataset } from "../src/datasets";
@@ -28,34 +27,24 @@ const client = createClient({
   },
 });
 
-// Simulated tools that the task can call
-const tools: Record<string, (args: Record<string, string>) => object> = {
-  getWeather: ({ location }) => ({
+// Wrap tool functions with traceTool — this automatically creates
+// TOOL spans with OpenInference attributes (input, output, span kind).
+const getWeather = traceTool(
+  ({ location }: { location: string }) => ({
     location,
     temperature: Math.round(50 + Math.random() * 40),
     condition: "sunny",
   }),
-  getTime: ({ timezone }) => ({
+  { name: "getWeather" }
+);
+
+const getTime = traceTool(
+  ({ timezone }: { timezone: string }) => ({
     timezone,
     time: new Date().toLocaleTimeString("en-US", { timeZone: timezone }),
   }),
-};
-
-// Simulate a tool call by creating an OpenTelemetry TOOL span
-function callTool(name: string, args: Record<string, string>): object {
-  const tracer = trace.getTracer("tool-call-example");
-  let result: object = {};
-  tracer.startActiveSpan(name, (span) => {
-    span.setAttribute(SemanticConventions.OPENINFERENCE_SPAN_KIND, "TOOL");
-    span.setAttribute(SemanticConventions.INPUT_VALUE, JSON.stringify(args));
-    const toolFn = tools[name];
-    if (!toolFn) throw new Error(`Unknown tool: ${name}`);
-    result = toolFn(args);
-    span.setAttribute(SemanticConventions.OUTPUT_VALUE, JSON.stringify(result));
-    span.end();
-  });
-  return result;
-}
+  { name: "getTime" }
+);
 
 async function main() {
   const { datasetId } = await createDataset({
@@ -93,15 +82,15 @@ async function main() {
 
       if (question.toLowerCase().includes("weather")) {
         const city = question.match(/in (.+)\?/)?.[1] ?? "Unknown";
-        const result = callTool("getWeather", { location: city });
-        return `The weather in ${(result as { location: string }).location} is ${(result as { temperature: number }).temperature}F and ${(result as { condition: string }).condition}.`;
+        const result = getWeather({ location: city });
+        return `The weather in ${result.location} is ${result.temperature}F and ${result.condition}.`;
       }
       if (question.toLowerCase().includes("time")) {
         const tz = question.toLowerCase().includes("tokyo")
           ? "Asia/Tokyo"
           : "UTC";
-        const result = callTool("getTime", { timezone: tz });
-        return `The time in ${(result as { timezone: string }).timezone} is ${(result as { time: string }).time}.`;
+        const result = getTime({ timezone: tz });
+        return `The time in ${result.timezone} is ${result.time}.`;
       }
       return "I don't know how to answer that.";
     },
