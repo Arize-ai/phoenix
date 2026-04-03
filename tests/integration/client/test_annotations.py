@@ -2927,7 +2927,7 @@ class TestSendingAnnotationsBeforeSpan:
                             session {
                                 id
                             }
-                            spans {
+                            spans(first: 1000) {
                                 edges {
                                     node {
                                         id

@@ -847,7 +847,7 @@ def _get_gql_spans(
     /,
     *fields: str,
 ) -> dict[_ProjectName, list[dict[str, Any]]]:
-    out = "name spans{edges{node{" + " ".join(fields) + "}}}"
+    out = "name spans(first:1000){edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert not resp_dict.get("errors")

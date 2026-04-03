@@ -118,7 +118,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
-      query SessionDetailsQuery($id: ID!, $first: Int) {
+      query SessionDetailsQuery($id: ID!, $first: Int!) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces

@@ -19,6 +19,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, date_trunc
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
@@ -328,12 +329,12 @@ class Project(Node):
                 return None
         return Trace(id=trace.id, db_record=trace)
 
-    @strawberry.field
+    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = DEFAULT_PAGE_SIZE,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,

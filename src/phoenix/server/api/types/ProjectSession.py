@@ -1,3 +1,4 @@
+import operator
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -5,18 +6,27 @@ from typing import TYPE_CHECKING, Annotated, Optional
 
 import pandas as pd
 import strawberry
+from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
+from sqlalchemy.sql.expression import tuple_
 from strawberry import UNSET, Info, lazy
 from strawberry.relay import Connection, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+    CursorString,
+    connection_from_cursors_and_nodes,
+)
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.SpanIOValue import SpanIOValue
@@ -142,32 +152,56 @@ class ProjectSession(Node):
             completion=usage.completion,
         )
 
-    @strawberry.field
+    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
     async def traces(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
         from phoenix.server.api.types.Trace import Trace
 
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-        stmt = (
-            select(models.Trace)
-            .filter_by(project_session_rowid=self.id)
-            .order_by(models.Trace.start_time)
-        )
+        assert isinstance(first, int)
+        stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
+        if after:
+            cursor = Cursor.from_string(after)
+            if cursor.sort_column:
+                stmt = stmt.where(
+                    operator.gt(
+                        tuple_(models.Trace.start_time, models.Trace.id),
+                        (cursor.sort_column.value, cursor.rowid),
+                    )
+                )
+            else:
+                stmt = stmt.where(models.Trace.id > cursor.rowid)
+        stmt = stmt.order_by(
+            models.Trace.start_time.asc(),
+            models.Trace.id.asc(),
+        ).limit(first + 1)
+        cursors_and_nodes = []
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)
-            data = [Trace(id=trace.id, db_record=trace) async for trace in traces]
-        return connection_from_list(data=data, args=args)
+            async for trace in islice(traces, first):
+                cursor = Cursor(
+                    rowid=trace.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=trace.start_time,
+                    ),
+                )
+                cursors_and_nodes.append((cursor, Trace(id=trace.id, db_record=trace)))
+            has_next_page = True
+            try:
+                await traces.__anext__()
+            except StopAsyncIteration:
+                has_next_page = False
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def trace_latency_ms_quantile(

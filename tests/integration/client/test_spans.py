@@ -1673,7 +1673,7 @@ class TestClientForSpanCreation:
             node(id: $projectId) {
                 ... on Project {
                     trace(traceId: $traceId) {
-                        spans {
+                        spans(first: 1000) {
                             edges {
                                 node {
                                     id
