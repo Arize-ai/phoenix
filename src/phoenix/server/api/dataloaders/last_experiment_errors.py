@@ -21,7 +21,7 @@ class LastExperimentErrorsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         poly = with_polymorphic(models.ExperimentLog, "*")
-        async with self._db() as session:
+        async with self._db.read() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             if dialect == SupportedSQLDialect.POSTGRESQL:
                 stmt = _postgresql_stmt(poly, keys)

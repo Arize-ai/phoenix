@@ -42,7 +42,7 @@ class SessionTraceLatencyMsQuantileDataLoader(DataLoader[Key, Result]):
             .where(models.Trace.project_session_rowid.in_(session_rowids))
             .order_by(models.Trace.project_session_rowid)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for project_session_rowid, group in groupby(
                 data, lambda row: row.project_session_rowid

@@ -22,7 +22,7 @@ class UserRolesDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         user_roles_by_id: defaultdict[Key, Result] = defaultdict(None)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream_scalars(select(models.UserRole))
             async for user_role in data:
                 user_roles_by_id[user_role.id] = user_role

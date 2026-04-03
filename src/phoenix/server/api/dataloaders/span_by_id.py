@@ -22,7 +22,7 @@ class SpanByIdDataLoader(DataLoader[Key, Result]):
         span_rowids = list(set(keys))
         spans: dict[Key, Result] = {}
         stmt = select(models.Span).where(models.Span.id.in_(span_rowids))
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream_scalars(stmt)
             async for span in data:
                 spans[span.id] = span

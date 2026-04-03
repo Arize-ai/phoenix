@@ -27,7 +27,7 @@ class PromptVersionSequenceNumberDataLoader(DataLoader[Key, Result]):
         ).label("sequence_number")
         subq = select(models.PromptVersion.id.label("prompt_version_id"), row_number).subquery()
         stmt = select(subq).where(subq.c.prompt_version_id.in_(prompt_version_ids))
-        async with self._db() as session:
+        async with self._db.read() as session:
             result = {
                 prompt_version_id: seq_number
                 async for prompt_version_id, seq_number in await session.stream(stmt)

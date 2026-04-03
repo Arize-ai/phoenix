@@ -21,7 +21,7 @@ class ExperimentRunsByExperimentAndExampleDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         runs_by_key: defaultdict[Key, Result] = defaultdict(list)
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             stmt = (
                 select(models.ExperimentRun)
                 .where(

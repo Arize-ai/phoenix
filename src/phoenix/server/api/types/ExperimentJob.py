@@ -92,7 +92,7 @@ class ExperimentJob(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         poly = with_polymorphic(models.ExperimentLog, "*")
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.scalars(
                 select(poly)
                 .where(poly.experiment_id == self.id)
@@ -117,7 +117,7 @@ class ExperimentJob(Node):
         "Use to rehydrate the playground with the exact settings used for this experiment.",
     )
     async def task_config(self, info: Info[Context, None]) -> PromptTaskConfig | None:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             config = await session.get(models.ExperimentPromptTask, self.id)
             if config is None:
                 return None
@@ -142,7 +142,7 @@ class ExperimentJob(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.scalars(
                 select(models.DatasetEvaluators)
                 .join(

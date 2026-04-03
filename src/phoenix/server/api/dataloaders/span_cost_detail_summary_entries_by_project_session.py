@@ -39,7 +39,7 @@ class SpanCostDetailSummaryEntriesByProjectSessionDataLoader(DataLoader[Key, Res
             .group_by(pk, models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )
         results: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for (
                 id_,

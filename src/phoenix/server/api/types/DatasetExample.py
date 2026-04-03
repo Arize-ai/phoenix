@@ -110,7 +110,7 @@ class DatasetExample(Node):
                 for experiment_id in experiment_ids or []
             ]
             query = query.where(models.ExperimentRun.experiment_id.in_(experiment_db_ids))
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([ExperimentRun(id=run.id, db_record=run) for run in runs], args)
 

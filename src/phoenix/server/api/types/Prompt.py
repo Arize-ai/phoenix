@@ -112,7 +112,7 @@ class Prompt(Node):
         version_id: Optional[GlobalID] = None,
         tag_name: Optional[Identifier] = None,
     ) -> PromptVersion:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             if version_id:
                 v_id = from_global_id_with_expected_type(version_id, PromptVersion.__name__)
                 version = await session.scalar(
@@ -150,7 +150,7 @@ class Prompt(Node):
 
     @strawberry.field
     async def version_tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.PromptVersionTag).where(
                 models.PromptVersionTag.prompt_id == self.id
             )
@@ -180,7 +180,7 @@ class Prompt(Node):
             .where(models.PromptVersion.prompt_id == self.id)
             .order_by(models.PromptVersion.id.desc())
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             data = [
                 to_gql_prompt_version(prompt_version, sequence_number)
                 async for prompt_version, sequence_number in await session.stream(stmt)
@@ -197,7 +197,7 @@ class Prompt(Node):
             )
         if not id_:
             return None
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             source_prompt = await session.get(models.Prompt, id_)
         if not source_prompt:
             raise NotFound(f"Source prompt not found: {id_}")
@@ -205,7 +205,7 @@ class Prompt(Node):
 
     @strawberry.field
     async def labels(self, info: Info[Context, None]) -> list["PromptLabel"]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             labels = await session.scalars(
                 select(models.PromptLabel)
                 .join(models.PromptPromptLabel)

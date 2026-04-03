@@ -34,6 +34,7 @@ from phoenix.config import (
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_read_replica_url,
     get_env_refresh_token_expiry,
     get_env_smtp_hostname,
     get_env_smtp_mail_from,
@@ -74,6 +75,8 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities import no_emojis_on_windows
 from phoenix.version import __version__ as phoenix_version
+
+logger = logging.getLogger(__name__)
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -254,16 +257,39 @@ def run(args: Namespace) -> None:
 
         start_prometheus()
 
-    engine = create_engine(
+    primary_engine = create_engine(
         connection_str=db_connection_str,
         migrate=not Settings.disable_migrations,
         log_to_stdout=get_env_log_sql(),
         log_migrations=Settings.log_migrations,
     )
     shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-    shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
-    shutdown_callbacks.append(engine.dispose)
-    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
+    shutdown_callbacks.extend(instrument_engine_if_enabled(primary_engine))
+    shutdown_callbacks.append(primary_engine.dispose)
+
+    read_db = None
+    replica_url = get_env_read_replica_url()
+    if replica_url and primary_engine.dialect.name == "postgresql":
+        replica_engine = create_engine(
+            connection_str=replica_url,
+            migrate=False,
+            log_to_stdout=get_env_log_sql(),
+        )
+        shutdown_callbacks.extend(instrument_engine_if_enabled(replica_engine))
+        shutdown_callbacks.append(replica_engine.dispose)
+        read_db = _db(replica_engine)
+        logger.info("Read replica engine created for %s", replica_url.split("@")[-1])
+    elif replica_url:
+        logger.warning(
+            "PHOENIX_SQL_DATABASE_READ_REPLICA_URL is set but ignored for %s dialect",
+            primary_engine.dialect.name,
+        )
+
+    factory = DbSessionFactory(
+        db=_db(primary_engine),
+        read_db=read_db,
+        dialect=primary_engine.dialect.name,
+    )
 
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()

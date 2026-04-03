@@ -164,7 +164,7 @@ class ProjectSession(Node):
             .filter_by(project_session_rowid=self.id)
             .order_by(models.Trace.start_time)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             traces = await session.stream_scalars(stmt)
             data = [Trace(id=trace.id, db_record=trace) async for trace in traces]
         return connection_from_list(data=data, args=args)
@@ -229,7 +229,7 @@ class ProjectSession(Node):
         from .ProjectSessionAnnotation import ProjectSessionAnnotation
 
         stmt = select(models.ProjectSessionAnnotation).filter_by(project_session_id=self.id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             annotations = await session.stream_scalars(stmt)
             return [
                 ProjectSessionAnnotation(id=annotation.id, db_record=annotation)

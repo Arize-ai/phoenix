@@ -490,7 +490,7 @@ async def query_spans_handler(
             status_code=422,
         )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         results: list[pd.DataFrame] = []
         for query in span_queries:
             df = await session.run_sync(
@@ -627,7 +627,7 @@ async def span_search_otlpv1(
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
@@ -674,7 +674,7 @@ async def span_search_otlpv1(
 
     stmt = stmt.limit(limit + 1)
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -802,7 +802,7 @@ async def span_search(
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
 ) -> SpansResponseBody:
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
@@ -857,7 +857,7 @@ async def span_search(
 
     stmt = stmt.limit(limit + 1)
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:

@@ -25,7 +25,7 @@ class TraceRetentionPolicyIdByProjectIdDataLoader(DataLoader[Key, Result]):
             .where(Project.trace_retention_policy_id.isnot(None))
             .where(Project.id.in_(ids))
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.execute(stmt)
         result = {project_rowid: policy_id for project_rowid, policy_id in data.all()}
         return [

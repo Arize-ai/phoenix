@@ -89,7 +89,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
-            async with self._db() as session:
+            async with self._db.read() as session:
                 dialect = SupportedSQLDialect(session.bind.dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
                 data = await session.stream(stmt)
