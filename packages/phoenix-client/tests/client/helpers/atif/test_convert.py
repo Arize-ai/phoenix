@@ -451,6 +451,21 @@ class TestMultimodalContent:
         # 1 root + 2 LLM + 1 TOOL = 4 spans
         assert len(spans) == 4
 
+    def test_multimodal_input_value_uses_serializable_content(
+        self, multimodal_trajectory: Dict[str, Any]
+    ) -> None:
+        """input.value should contain message content, not converter-private fields."""
+        spans = _convert_atif_trajectory_to_spans(multimodal_trajectory)
+        llm_spans = [s for s in spans if s["span_kind"] == "LLM"]
+        attrs = llm_spans[0].get("attributes", {})
+
+        input_messages = json.loads(attrs["input.value"])
+        assert "_raw_parts" not in attrs["input.value"]
+        assert input_messages[0]["role"] == "user"
+        assert isinstance(input_messages[0]["content"], list)
+        assert input_messages[0]["content"][0]["type"] == "text"
+        assert input_messages[0]["content"][1]["type"] == "image"
+
     def test_multimodal_flag_not_set_on_text_only(self, simple_trajectory: Dict[str, Any]) -> None:
         """Text-only messages should not have the multimodal flag."""
         spans = _convert_atif_trajectory_to_spans(simple_trajectory)

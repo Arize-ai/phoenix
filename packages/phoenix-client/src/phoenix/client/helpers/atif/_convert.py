@@ -129,6 +129,22 @@ def _build_content_part_attributes(prefix: str, parts: list[Any]) -> Dict[str, A
     return attrs
 
 
+def _serialize_input_messages(
+    input_messages: Sequence[Mapping[str, Any]],
+) -> str:
+    """Serialize prompt messages without leaking internal helper fields."""
+    serialized_messages: list[dict[str, Any]] = []
+    for message in input_messages:
+        serialized: dict[str, Any] = {}
+        for key, value in message.items():
+            if key == "_raw_parts":
+                serialized["content"] = value
+            else:
+                serialized[key] = value
+        serialized_messages.append(serialized)
+    return json.dumps(serialized_messages)
+
+
 def _build_llm_attributes(
     step: Mapping[str, Any],
     agent: Mapping[str, Any],
@@ -267,7 +283,10 @@ def _build_message_attributes(
                 entry["_raw_parts"] = raw_msg
             input_messages.append(entry)
         elif src == "system" and msg:
-            input_messages.append({"role": "system", "content": msg})
+            entry = {"role": "system", "content": msg}
+            if isinstance(raw_msg, list):
+                entry["_raw_parts"] = raw_msg
+            input_messages.append(entry)
         elif src == "agent":
             # Assistant message (may include tool calls)
             assistant_msg: Dict[str, Any] = {
@@ -275,6 +294,8 @@ def _build_message_attributes(
             }
             if msg:
                 assistant_msg["content"] = msg
+            if isinstance(raw_msg, list):
+                assistant_msg["_raw_parts"] = raw_msg
             # Include tool calls if present
             prev_tool_calls = prev.get("tool_calls", [])
             if prev_tool_calls:
@@ -338,7 +359,7 @@ def _build_message_attributes(
     # Set input.value to the JSON representation of input messages,
     # matching how real instrumented traces store it.
     if input_messages:
-        attrs["input.value"] = json.dumps(input_messages)
+        attrs["input.value"] = _serialize_input_messages(input_messages)
         attrs["input.mime_type"] = "application/json"
 
     # Output message
