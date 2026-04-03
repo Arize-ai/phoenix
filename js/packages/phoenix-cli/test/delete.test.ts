@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as ConfirmModule from "../src/confirm";
+
 // Mock confirmOrExit to auto-confirm in all delete tests
-vi.mock("../src/confirm", () => ({
-  confirmOrExit: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock("../src/confirm", async (importOriginal) => {
+  const originalModule = await importOriginal<typeof ConfirmModule>();
+  return {
+    ...originalModule,
+    confirmOrExit: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
 // Mock phoenix-client wrappers used by experiment and session delete
 vi.mock("@arizeai/phoenix-client/experiments", () => ({
@@ -25,7 +31,10 @@ import { createPromptCommand } from "../src/commands/prompt";
 import { createSessionCommand } from "../src/commands/session";
 import { createSpanCommand } from "../src/commands/span";
 import { createTraceCommand } from "../src/commands/trace";
-import { confirmOrExit } from "../src/confirm";
+import {
+  confirmOrExit,
+  ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+} from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 
 function makeFetchMock(
@@ -62,6 +71,14 @@ function getFetchMethod(arg: unknown, init?: RequestInit): string {
 }
 
 const BASE_ARGS = ["--endpoint", "http://localhost:6006", "--yes"];
+
+beforeEach(() => {
+  vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "true");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("dataset delete", () => {
   afterEach(() => {
@@ -162,6 +179,52 @@ describe("dataset delete", () => {
         message: "Delete dataset my-dataset? This cannot be undone.",
       })
     );
+  });
+
+  it("exits with INVALID_ARGUMENT when deletes are disabled", async () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "false");
+    vi.mocked(confirmOrExit).mockClear();
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createDatasetCommand().parseAsync(
+        ["delete", "my-dataset", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(vi.mocked(confirmOrExit)).not.toHaveBeenCalled();
+  });
+
+  it("fails before any network call when the delete env var is invalid", async () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "yes");
+    vi.mocked(confirmOrExit).mockClear();
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createDatasetCommand().parseAsync(
+        ["delete", "my-dataset", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(vi.mocked(confirmOrExit)).not.toHaveBeenCalled();
   });
 });
 

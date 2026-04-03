@@ -1,91 +1,66 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { questionMock, closeMock } = vi.hoisted(() => ({
-  questionMock: vi.fn(),
-  closeMock: vi.fn(),
+const { cancelMock, confirmMock, isCancelMock } = vi.hoisted(() => ({
+  cancelMock: vi.fn(),
+  confirmMock: vi.fn(),
+  isCancelMock: vi.fn(),
 }));
 
-vi.mock("readline", () => ({
-  createInterface: vi.fn(() => ({
-    question: questionMock,
-    close: closeMock,
-  })),
+vi.mock("@clack/prompts", () => ({
+  cancel: cancelMock,
+  confirm: confirmMock,
+  isCancel: isCancelMock,
 }));
 
-import * as readline from "readline";
-
-import { confirmAction, confirmOrExit } from "../src/confirm";
-import { ExitCode } from "../src/exitCodes";
-
-function mockAnswer(answer: string) {
-  questionMock.mockImplementation(
-    (_prompt: string, cb: (answer: string) => void) => cb(answer)
-  );
-}
+import {
+  assertDeletesEnabled,
+  confirmAction,
+  confirmOrExit,
+  ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+  parseBooleanEnvironmentVariable,
+} from "../src/confirm";
+import { ExitCode, InvalidArgumentError } from "../src/exitCodes";
 
 describe("confirmAction", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns true when user answers "y"', async () => {
-    mockAnswer("y");
+  it("returns true when the prompt confirms", async () => {
+    confirmMock.mockResolvedValue(true);
+    isCancelMock.mockReturnValue(false);
+
     expect(await confirmAction("Continue?")).toBe(true);
   });
 
-  it('returns true when user answers "yes"', async () => {
-    mockAnswer("yes");
-    expect(await confirmAction("Continue?")).toBe(true);
-  });
+  it("returns false when the prompt declines", async () => {
+    confirmMock.mockResolvedValue(false);
+    isCancelMock.mockReturnValue(false);
 
-  it('returns true for mixed-case "YES"', async () => {
-    mockAnswer("YES");
-    expect(await confirmAction("Continue?")).toBe(true);
-  });
-
-  it('returns true for mixed-case "Yes"', async () => {
-    mockAnswer("Yes");
-    expect(await confirmAction("Continue?")).toBe(true);
-  });
-
-  it('returns false when user answers "n"', async () => {
-    mockAnswer("n");
     expect(await confirmAction("Continue?")).toBe(false);
   });
 
-  it("returns false when user answers with empty string", async () => {
-    mockAnswer("");
-    expect(await confirmAction("Continue?")).toBe(false);
+  it("returns false and cancels when the prompt is cancelled", async () => {
+    const cancelToken = Symbol("cancel");
+    confirmMock.mockResolvedValue(cancelToken);
+    isCancelMock.mockReturnValue(true);
+
+    await expect(confirmAction("Continue?")).resolves.toBe(false);
+    expect(cancelMock).toHaveBeenCalledWith("Operation cancelled");
   });
 
-  it("returns false for any other input", async () => {
-    mockAnswer("sure");
-    expect(await confirmAction("Continue?")).toBe(false);
-  });
-
-  it("uses stderr as output (not stdout)", async () => {
-    mockAnswer("y");
-    await confirmAction("Continue?");
-
-    expect(vi.mocked(readline.createInterface)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: process.stdin,
-        output: process.stderr,
-      })
-    );
-  });
-
-  it("formats prompt with [y/N] suffix", async () => {
-    let capturedPrompt = "";
-    questionMock.mockImplementation(
-      (prompt: string, cb: (answer: string) => void) => {
-        capturedPrompt = prompt;
-        cb("y");
-      }
-    );
+  it("passes clack prompt configuration through", async () => {
+    confirmMock.mockResolvedValue(true);
+    isCancelMock.mockReturnValue(false);
 
     await confirmAction("Delete this?");
-    expect(capturedPrompt).toBe("Delete this? [y/N] ");
+
+    expect(confirmMock).toHaveBeenCalledWith({
+      message: "Delete this?",
+      initialValue: false,
+      active: "Yes",
+      inactive: "No",
+    });
   });
 });
 
@@ -116,7 +91,7 @@ describe("confirmOrExit", () => {
   it("resolves immediately when yes=true (skips prompt)", async () => {
     await confirmOrExit({ message: "Delete?", yes: true });
 
-    expect(vi.mocked(readline.createInterface)).not.toHaveBeenCalled();
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
@@ -152,7 +127,8 @@ describe("confirmOrExit", () => {
       writable: true,
       configurable: true,
     });
-    mockAnswer("n");
+    confirmMock.mockResolvedValue(false);
+    isCancelMock.mockReturnValue(false);
 
     await expect(confirmOrExit({ message: "Delete?" })).rejects.toThrow(
       `process.exit:${ExitCode.CANCELLED}`
@@ -166,7 +142,8 @@ describe("confirmOrExit", () => {
       writable: true,
       configurable: true,
     });
-    mockAnswer("y");
+    confirmMock.mockResolvedValue(true);
+    isCancelMock.mockReturnValue(false);
 
     await expect(
       confirmOrExit({ message: "Delete?" })
@@ -180,7 +157,8 @@ describe("confirmOrExit", () => {
       writable: true,
       configurable: true,
     });
-    mockAnswer("yes");
+    confirmMock.mockResolvedValue(true);
+    isCancelMock.mockReturnValue(false);
 
     await expect(
       confirmOrExit({ message: "Delete?" })
@@ -194,10 +172,93 @@ describe("confirmOrExit", () => {
       writable: true,
       configurable: true,
     });
-    mockAnswer("n");
+    confirmMock.mockResolvedValue(false);
+    isCancelMock.mockReturnValue(false);
 
     await expect(
       confirmOrExit({ message: "Delete?", yes: false })
     ).rejects.toThrow(`process.exit:${ExitCode.CANCELLED}`);
+  });
+});
+
+describe("parseBooleanEnvironmentVariable", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the default when the env var is not set", () => {
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: false,
+      })
+    ).toBe(false);
+  });
+
+  it("parses true values case-insensitively", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "TRUE");
+
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: false,
+      })
+    ).toBe(true);
+  });
+
+  it("parses false values case-insensitively", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "False");
+
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: true,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["1", "yes", ""])(
+    "rejects invalid boolean env values like %s",
+    (value) => {
+      vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, value);
+
+      expect(() =>
+        parseBooleanEnvironmentVariable({
+          envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+          defaultValue: false,
+        })
+      ).toThrow(
+        `${ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES} must be set to TRUE or FALSE (case-insensitive). Got: ${value}`
+      );
+    }
+  );
+});
+
+describe("assertDeletesEnabled", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("exits when deletes are not enabled", () => {
+    expect(() => assertDeletesEnabled()).toThrow(
+      new InvalidArgumentError("Delete commands are disabled.")
+    );
+  });
+
+  it("allows deletes when the env var is true", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "true");
+
+    expect(() => assertDeletesEnabled()).not.toThrow();
+  });
+
+  it("surfaces invalid env values", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "1");
+
+    expect(() => assertDeletesEnabled()).toThrow(
+      new InvalidArgumentError(
+        `${ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES} must be set to TRUE or FALSE (case-insensitive). Got: 1`
+      )
+    );
   });
 });

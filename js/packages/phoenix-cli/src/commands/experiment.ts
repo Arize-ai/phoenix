@@ -10,7 +10,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
-import { confirmOrExit } from "../confirm";
+import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -386,6 +386,8 @@ async function experimentDeleteHandler(
   options: ExperimentDeleteOptions
 ): Promise<void> {
   try {
+    assertDeletesEnabled();
+
     const config = resolveConfig({
       cliOptions: {
         endpoint: options.endpoint,
