@@ -243,6 +243,41 @@ async def test_trace_spans_require_first(
     )
 
 
+async def test_trace_spans_limit_first_page_size(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+
+    trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
+    query = """
+        query ($traceId: ID!, $first: Int!) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans(first: $first) {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"traceId": trace_gid, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"
+
+
 @pytest.mark.parametrize(
     "variables, start_cursor, end_cursor, has_next_page",
     [

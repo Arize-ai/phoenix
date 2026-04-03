@@ -991,6 +991,36 @@ async def test_project_spans_require_first(
     )
 
 
+async def test_project_spans_limit_first_page_size(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!, $first: Int!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectId": PROJECT_ID, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"
+
+
 @pytest.fixture
 async def llama_index_rag_spans(db: DbSessionFactory) -> None:
     # Inserts the first three traces from the llama-index-rag trace fixture

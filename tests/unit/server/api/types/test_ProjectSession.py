@@ -363,3 +363,39 @@ async def test_project_session_traces_require_first(
         response.errors[0].message
         == "Field 'traces' argument 'first' of type 'Int!' is required, but it was not provided."
     )
+
+
+async def test_project_session_traces_limit_first_page_size(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        await _add_trace(session, project, project_session)
+
+    project_session_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+    query = """
+        query ($projectSessionId: ID!, $first: Int!) {
+            node(id: $projectSessionId) {
+                ... on ProjectSession {
+                    traces(first: $first) {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectSessionId": project_session_id, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"
