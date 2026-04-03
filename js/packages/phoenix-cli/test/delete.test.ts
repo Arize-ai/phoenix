@@ -263,7 +263,7 @@ describe("trace delete", () => {
     expect(vi.mocked(confirmOrExit)).toHaveBeenCalledWith(
       expect.objectContaining({
         message:
-          "Delete trace trace-abc? This will also delete all spans. This cannot be undone.",
+          "Delete trace trace-abc? This will also delete all child spans. This cannot be undone.",
       })
     );
   });
