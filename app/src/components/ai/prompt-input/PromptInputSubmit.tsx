@@ -8,21 +8,16 @@ import type { PromptInputSubmitProps } from "./types";
 /**
  * Submit / stop button that adapts its icon and behavior to the current status.
  *
- * - **ready / error** — shows an arrow-up icon; pressing calls `context.onSubmit()`.
- * - **submitted / streaming** — shows a stop icon; pressing calls the `onPress` prop.
+ * - **ready / error** — arrow icon; pressing sends the message.
+ * - **streaming, empty input** — stop icon; pressing stops generation.
+ * - **streaming, user has typed** — arrow icon; pressing stops generation
+ *   then sends the message.
  *
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
- *
- * @example
- * ```tsx
- * <PromptInputActions>
- *   <PromptInputSubmit onPress={handleStop} />
- * </PromptInputActions>
- * ```
  */
 export function PromptInputSubmit({
   ref,
-  onPress,
+  onPress: onStop,
   isDisabled: isDisabledProp,
   "aria-label": ariaLabel,
   className,
@@ -35,13 +30,17 @@ export function PromptInputSubmit({
   const computedDisabled =
     isDisabledProp ?? (context.status === "ready" && isEmpty);
 
+  // Send icon overrides the stop icon when user input is entered during streaming.
+  const showSend = !isStreaming || !isEmpty;
+
   const computedAriaLabel =
-    ariaLabel ?? (isStreaming ? "Stop generation" : "Send message");
+    ariaLabel ?? (showSend ? "Send message" : "Stop generation");
 
   const handlePress = () => {
     if (isStreaming) {
-      onPress?.();
-    } else {
+      onStop?.();
+    }
+    if (!isEmpty) {
       context.onSubmit();
     }
   };
@@ -56,13 +55,7 @@ export function PromptInputSubmit({
       aria-label={computedAriaLabel}
     >
       <Icon
-        svg={
-          isStreaming ? (
-            <Icons.StopCircleOutline />
-          ) : (
-            <Icons.ArrowUpwardOutline />
-          )
-        }
+        svg={showSend ? <Icons.ArrowUpwardOutline /> : <Icons.StopOutline />}
       />
     </Button>
   );

@@ -1,11 +1,13 @@
 import { css } from "@emotion/react";
-import { Panel, Separator } from "react-resizable-panels";
+import { useCallback } from "react";
+import { Panel, type PanelSize, Separator } from "react-resizable-panels";
 
 import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { Chat } from "./Chat";
+import { PxiGlyph } from "./PxiGlyph";
 import { SessionListMenu } from "./SessionListMenu";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -13,13 +15,23 @@ import {
 } from "./sessionSummaryUtils";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 
+const PANEL_STORAGE_KEY = "phoenix-agent-panel-width";
+const DEFAULT_PANEL_WIDTH = "420px";
+
+let savedPanelWidth: string;
+try {
+  savedPanelWidth =
+    localStorage.getItem(PANEL_STORAGE_KEY) ?? DEFAULT_PANEL_WIDTH;
+} catch {
+  savedPanelWidth = DEFAULT_PANEL_WIDTH;
+}
+
 const panelHeaderCSS = css`
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   border-bottom: 1px solid var(--global-border-color-default);
-  container-type: inline-size;
 `;
 
 const panelHeaderActionsCSS = css`
@@ -41,6 +53,7 @@ const panelContentCSS = css`
   flex-direction: column;
   box-sizing: border-box;
   height: 100%;
+  min-width: 420px;
   overflow: hidden;
   border-top: 1px solid var(--global-border-color-default);
 `;
@@ -74,6 +87,14 @@ export function AgentChatPanel() {
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
+  const handleResize = useCallback((panelSize: PanelSize) => {
+    try {
+      localStorage.setItem(PANEL_STORAGE_KEY, `${panelSize.inPixels}px`);
+    } catch {
+      // don't store custom panel width when storage is full or unavailable
+    }
+  }, []);
+
   if (!isAgentsEnabled || !isOpen) {
     return null;
   }
@@ -81,7 +102,13 @@ export function AgentChatPanel() {
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel minSize="20%" maxSize="50%" defaultSize="30%">
+      <Panel
+        minSize="420px"
+        maxSize="50%"
+        defaultSize={savedPanelWidth}
+        groupResizeBehavior="preserve-pixel-size"
+        onResize={handleResize}
+      >
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>
             <Flex
@@ -90,6 +117,12 @@ export function AgentChatPanel() {
               gap="size-50"
               minWidth={0}
             >
+              <PxiGlyph
+                fill="var(--global-text-color-900)"
+                css={css`
+                  transform: scale(0.7);
+                `}
+              />
               <Text
                 weight="heavy"
                 css={sessionHeadingCSS}
