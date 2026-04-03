@@ -1,25 +1,25 @@
-import * as readline from "readline";
+import { cancel, confirm, isCancel } from "@clack/prompts";
 
 import { ExitCode } from "./exitCodes.js";
 
 /**
- * Prompt the user with a yes/no question via stderr.
+ * Prompt the user with a yes/no question.
  *
- * Returns `true` if the user answered "y" or "yes" (case-insensitive),
- * `false` otherwise.
+ * Returns `true` if the user confirms, `false` otherwise.
  */
 export function confirmAction(message: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stderr,
-    });
+  return confirm({
+    message,
+    initialValue: false,
+    active: "Yes",
+    inactive: "No",
+  }).then((value) => {
+    if (isCancel(value)) {
+      cancel("Operation cancelled");
+      return false;
+    }
 
-    rl.question(`${message} [y/N] `, (answer) => {
-      rl.close();
-      const normalized = answer.trim().toLowerCase();
-      resolve(normalized === "y" || normalized === "yes");
-    });
+    return value;
   });
 }
 

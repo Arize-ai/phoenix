@@ -42,6 +42,7 @@
     "@arizeai/openinference-semantic-conventions": "^1.1.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
+    "@clack/prompts": "^1.0.1",
     "commander": "^12.1.0"
   },
   "devDependencies": {
