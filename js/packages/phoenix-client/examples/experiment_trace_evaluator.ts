@@ -27,25 +27,6 @@ const client = createClient({
   },
 });
 
-// Wrap tool functions with traceTool — this automatically creates
-// TOOL spans with OpenInference attributes (input, output, span kind).
-const getWeather = traceTool(
-  ({ location }: { location: string }) => ({
-    location,
-    temperature: Math.round(50 + Math.random() * 40),
-    condition: "sunny",
-  }),
-  { name: "getWeather" }
-);
-
-const getTime = traceTool(
-  ({ timezone }: { timezone: string }) => ({
-    timezone,
-    time: new Date().toLocaleTimeString("en-US", { timeZone: timezone }),
-  }),
-  { name: "getTime" }
-);
-
 async function main() {
   const { datasetId } = await createDataset({
     client,
@@ -78,6 +59,25 @@ async function main() {
     dataset: { datasetId },
     setGlobalTracerProvider: true,
     task: async (example) => {
+      // Define traced tools inside the task so they capture the experiment's
+      // global tracer provider (which is set after the experiment starts).
+      const getWeather = traceTool(
+        ({ location }: { location: string }) => ({
+          location,
+          temperature: Math.round(50 + Math.random() * 40),
+          condition: "sunny",
+        }),
+        { name: "getWeather" }
+      );
+
+      const getTime = traceTool(
+        ({ timezone }: { timezone: string }) => ({
+          timezone,
+          time: new Date().toLocaleTimeString("en-US", { timeZone: timezone }),
+        }),
+        { name: "getTime" }
+      );
+
       const question = example.input.question as string;
 
       if (question.toLowerCase().includes("weather")) {
