@@ -159,9 +159,37 @@ The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`
 - `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
 - `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
 
-### Protobuf Evaluation Format Removed
+### `/v1/evaluations` Endpoint Removed
 
-The `POST /v1/evaluations` endpoint no longer accepts `application/x-protobuf` content type. Evaluations must be sent as `application/x-pandas-arrow` (Apache Arrow IPC format via pandas).
+The `POST /v1/evaluations` and `GET /v1/evaluations` REST endpoints have been removed. Use the annotations API instead:
+
+| Legacy                                     | New                                                          |
+| :----------------------------------------- | :----------------------------------------------------------- |
+| `POST /v1/evaluations` (Arrow or Protobuf) | `client.spans.log_span_annotations_dataframe(...)`           |
+| `GET /v1/evaluations`                      | `client.spans.get_span_annotations(...)`                     |
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+import phoenix as px
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
+)
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
 
 **Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
 

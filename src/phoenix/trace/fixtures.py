@@ -11,6 +11,7 @@ from time import sleep, time
 from typing import (
     NamedTuple,
     Optional,
+    Union,
     cast,
 )
 from urllib.parse import urljoin
@@ -22,6 +23,7 @@ from httpx import ConnectError, HTTPStatusError
 from pyarrow import Table
 
 from phoenix.db.insertion.dataset import DatasetKeys
+from phoenix.db.insertion.types import Precursors
 from phoenix.trace.schemas import Span
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -35,6 +37,12 @@ from phoenix.trace.utils import (
     json_lines_to_df,
     parse_file_extension,
 )
+
+AnnotationPrecursor = Union[
+    Precursors.SpanAnnotation,
+    Precursors.TraceAnnotation,
+    Precursors.DocumentAnnotation,
+]
 
 
 def _prepare_pyarrow(
@@ -612,6 +620,197 @@ def remap_evaluation_ids(
         dataframe.index = dataframe.index.map(lambda value: trace_id_mapping.get(value, value))
 
     return type(evaluations)(eval_name=evaluations.eval_name, dataframe=dataframe)
+
+
+def get_annotation_precursors_from_fixture(
+    fixture_name: str,
+) -> Iterator[tuple[str, list[AnnotationPrecursor]]]:
+    from phoenix.db import models
+
+    fixture = get_trace_fixture_by_name(fixture_name)
+    for eval_fixture in fixture.evaluation_fixtures:
+        logger.info(
+            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
+        )
+        df = _read_eval_fixture_dataframe(eval_fixture)
+        eval_name = eval_fixture.evaluation_name
+        precursors: list[AnnotationPrecursor] = []
+        now = datetime.now(timezone.utc)
+        if isinstance(eval_fixture, DocumentEvaluationFixture):
+            for index, row in df.iterrows():
+                span_id, document_position = cast(tuple[str, int], index)
+                score, label, explanation = _get_precursor_result(row)
+                precursors.append(
+                    Precursors.DocumentAnnotation(
+                        updated_at=now,
+                        span_id=str(span_id),
+                        document_position=int(document_position),
+                        obj=models.DocumentAnnotation(
+                            document_position=int(document_position),
+                            name=eval_name,
+                            identifier="",
+                            source="API",
+                            annotator_kind="LLM",
+                            score=score,
+                            label=label,
+                            explanation=explanation,
+                            metadata_={},
+                        ),
+                    )
+                )
+        else:
+            is_trace = False
+            for evaluations_cls in (SpanEvaluations, TraceEvaluations):
+                try:
+                    evaluations_cls(eval_name=eval_name, dataframe=df)
+                    is_trace = evaluations_cls is TraceEvaluations
+                    break
+                except ValueError:
+                    continue
+            for index, row in df.iterrows():
+                score, label, explanation = _get_precursor_result(row)
+                if is_trace:
+                    precursors.append(
+                        Precursors.TraceAnnotation(
+                            updated_at=now,
+                            trace_id=str(index),
+                            obj=models.TraceAnnotation(
+                                name=eval_name,
+                                identifier="",
+                                source="API",
+                                annotator_kind="LLM",
+                                score=score,
+                                label=label,
+                                explanation=explanation,
+                                metadata_={},
+                            ),
+                        )
+                    )
+                else:
+                    precursors.append(
+                        Precursors.SpanAnnotation(
+                            updated_at=now,
+                            span_id=str(index),
+                            obj=models.SpanAnnotation(
+                                name=eval_name,
+                                identifier="",
+                                source="API",
+                                annotator_kind="LLM",
+                                score=score,
+                                label=label,
+                                explanation=explanation,
+                                metadata_={},
+                            ),
+                        )
+                    )
+        yield eval_name, precursors
+
+
+def _get_precursor_result(
+    row: "pd.Series[str]",
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    return (
+        cast(Optional[float], row.get("score")),
+        cast(Optional[str], row.get("label")),
+        cast(Optional[str], row.get("explanation")),
+    )
+
+
+def remap_precursor_ids(
+    precursor: AnnotationPrecursor,
+    *,
+    trace_id_mapping: dict[str, str],
+    span_id_mapping: dict[str, str],
+) -> AnnotationPrecursor:
+    if isinstance(precursor, Precursors.DocumentAnnotation):
+        new_span_id = span_id_mapping.get(precursor.span_id, precursor.span_id)
+        return replace(precursor, span_id=new_span_id)
+    if isinstance(precursor, Precursors.SpanAnnotation):
+        new_span_id = span_id_mapping.get(precursor.span_id, precursor.span_id)
+        return replace(precursor, span_id=new_span_id)
+    if isinstance(precursor, Precursors.TraceAnnotation):
+        new_trace_id = trace_id_mapping.get(precursor.trace_id, precursor.trace_id)
+        return replace(precursor, trace_id=new_trace_id)
+    raise TypeError(f"Unsupported precursor type: {type(precursor)!r}")
+
+
+def evaluations_to_precursors(
+    evaluations: Evaluations,
+) -> list[AnnotationPrecursor]:
+    from phoenix.db import models
+
+    eval_name = evaluations.eval_name
+    dataframe = evaluations.dataframe
+    now = datetime.now(timezone.utc)
+    precursors: list[AnnotationPrecursor] = []
+
+    if isinstance(evaluations, DocumentEvaluations):
+        for index, row in dataframe.iterrows():
+            span_id, document_position = cast(tuple[str, int], index)
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.DocumentAnnotation(
+                    updated_at=now,
+                    span_id=str(span_id),
+                    document_position=int(document_position),
+                    obj=models.DocumentAnnotation(
+                        document_position=int(document_position),
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    if isinstance(evaluations, SpanEvaluations):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.SpanAnnotation(
+                    updated_at=now,
+                    span_id=str(index),
+                    obj=models.SpanAnnotation(
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    if isinstance(evaluations, TraceEvaluations):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.TraceAnnotation(
+                    updated_at=now,
+                    trace_id=str(index),
+                    obj=models.TraceAnnotation(
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    raise TypeError(f"Unsupported evaluations type: {type(evaluations)!r}")
 
 
 def _new_trace_id() -> str:

@@ -38,6 +38,7 @@ from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
 from phoenix.settings import Settings
+from phoenix.trace.fixtures import evaluations_to_precursors
 from phoenix.trace.trace_dataset import TraceDataset
 
 logger = logging.getLogger(__name__)
@@ -215,8 +216,8 @@ class ThreadSession(Session):
             db=factory,
             authentication_enabled=False,
             initial_spans=trace_dataset.to_spans() if trace_dataset else None,
-            initial_evaluations=(
-                trace_dataset.evaluations
+            initial_annotation_precursors=(
+                [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
                 if trace_dataset is not None and trace_dataset.evaluations
                 else None
             ),
