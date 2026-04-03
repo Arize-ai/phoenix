@@ -21,6 +21,7 @@ Session lifecycle
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Optional
 
@@ -48,13 +49,15 @@ class ModalSandboxBackend(SandboxBackend):
         self,
         timeout: int = _DEFAULT_TIMEOUT,
         idle_timeout: int = _DEFAULT_IDLE_TIMEOUT,
+        app_name: str = "phoenix-sandbox",
     ) -> None:
         import modal  # type: ignore[import-not-found]
 
         self._timeout = timeout
         self._idle_timeout = idle_timeout
         self._sessions: dict[str, Any] = {}
-        self._app = modal.App.lookup("phoenix-sandbox", create_if_missing=True)
+        self._session_locks: dict[str, asyncio.Lock] = {}
+        self._app = modal.App.lookup(app_name, create_if_missing=True)
         self._image = modal.Image.debian_slim()
 
     async def _create_sandbox(self) -> Any:
@@ -69,11 +72,14 @@ class ModalSandboxBackend(SandboxBackend):
         return sandbox
 
     async def start_session(self, session_key: str) -> None:
-        if session_key in self._sessions:
-            logger.debug(f"Modal session '{session_key}' already exists; reusing")
-            return
-        sandbox = await self._create_sandbox()
-        self._sessions[session_key] = sandbox
+        if session_key not in self._session_locks:
+            self._session_locks[session_key] = asyncio.Lock()
+        async with self._session_locks[session_key]:
+            if session_key in self._sessions:
+                logger.debug(f"Modal session '{session_key}' already exists; reusing")
+                return
+            sandbox = await self._create_sandbox()
+            self._sessions[session_key] = sandbox
         logger.debug(f"Started Modal session '{session_key}'")
 
     async def stop_session(self, session_key: str) -> None:
@@ -85,10 +91,12 @@ class ModalSandboxBackend(SandboxBackend):
     async def _exec_code(self, sandbox: Any, code: str) -> ExecutionResult:
         """Run code in a sandbox and collect stdout/stderr."""
         proc = await sandbox.exec.aio("python", "-c", code)
-        stdout = await proc.stdout.read.aio()
-        stderr = await proc.stderr.read.aio()
+        stdout, stderr = await asyncio.gather(
+            proc.stdout.read.aio(),
+            proc.stderr.read.aio(),
+        )
         await proc.wait.aio()
-        exit_code = proc.returncode
+        exit_code = proc.returncode if proc.returncode is not None else 1
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(
             stdout=stdout or "",
@@ -104,9 +112,9 @@ class ModalSandboxBackend(SandboxBackend):
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         if env:
-            logger.debug("ModalSandboxBackend: env vars are not supported per-call; ignoring env")
+            logger.warning("ModalSandboxBackend: env vars are not supported per-call; ignoring env")
         if timeout is not None:
-            logger.debug(
+            logger.warning(
                 "ModalSandboxBackend: per-call timeout not supported; using sandbox-level timeout"
             )
         try:
@@ -131,9 +139,10 @@ class ModalSandboxBackend(SandboxBackend):
 class ModalAdapter(SandboxAdapter):
     key = "MODAL"
     display_name = "Modal"
-    supported_languages = ["PYTHON"]
+    language = "PYTHON"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
         idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
-        return ModalSandboxBackend(timeout=timeout, idle_timeout=idle_timeout)
+        app_name: str = config.get("app_name", "phoenix-sandbox")
+        return ModalSandboxBackend(timeout=timeout, idle_timeout=idle_timeout, app_name=app_name)

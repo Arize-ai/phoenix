@@ -90,8 +90,8 @@ class SandboxAdapter(ABC):
     #: Human-readable name for display in the UI.
     display_name: str
 
-    #: Languages this adapter supports (must match Language.name values in DB).
-    supported_languages: list[Literal["PYTHON", "TYPESCRIPT"]]
+    #: Language this adapter supports (must match Language.name values in DB).
+    language: Literal["PYTHON", "TYPESCRIPT"]
 
     @abstractmethod
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:

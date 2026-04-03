@@ -205,7 +205,12 @@ class ChatCompletionMutationMixin:
                     language_row = await session.get(
                         models.Language, code_evaluator_record.language_id
                     )
-                    language = language_row.name if language_row is not None else "PYTHON"
+                    if language_row is None:
+                        raise ValueError(
+                            f"Language with id {code_evaluator_record.language_id} "
+                            "not found in languages table"
+                        )
+                    language = language_row.name
 
                     # Resolve sandbox backend via config -> provider chain
                     sandbox_backend = None
@@ -234,7 +239,6 @@ class ChatCompletionMutationMixin:
                                 merged_config = {
                                     **provider.config,
                                     **sandbox_cfg.config,
-                                    "language": language,
                                 }
 
                     # Eagerly capture scalar fields before session closes

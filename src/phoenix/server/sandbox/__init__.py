@@ -3,7 +3,7 @@ Sandbox backend registry and factory.
 
 Two tiers:
 - SANDBOX_ADAPTER_METADATA: static dict, always present. Maps backend_type key
-  to AdapterMetadata (display_name, supported_languages). Used for DB seeding
+  to AdapterMetadata (display_name, language). Used for DB seeding
   and UI display regardless of installed optional extras.
 - _SANDBOX_ADAPTERS: populated only for installed backends. Maps backend_type
   key to a SandboxAdapter instance. Used for get_or_create_backend().
@@ -29,19 +29,19 @@ class AdapterMetadata:
     """Static metadata for a sandbox adapter (no runtime deps)."""
 
     display_name: str
-    supported_languages: list[str] = field(default_factory=list)
+    language: str = ""
     dependency_hints: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Static metadata — always present regardless of installed extras.
-# One entry per backend type. supported_languages must match Language.name
-# values seeded to the DB by sync_languages().
+# One entry per (backend_type, language) pair. language must match
+# Language.name values seeded to the DB by sync_languages().
 # ---------------------------------------------------------------------------
 SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "WASM": AdapterMetadata(
         display_name="WebAssembly (local)",
-        supported_languages=["PYTHON"],
+        language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
             (
@@ -52,23 +52,23 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "E2B": AdapterMetadata(
         display_name="E2B",
-        supported_languages=["PYTHON"],
+        language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `e2b` extra.",
             "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
         ],
     ),
-    "DAYTONA": AdapterMetadata(
-        display_name="Daytona",
-        supported_languages=["PYTHON", "TYPESCRIPT"],
+    "DAYTONA_PYTHON": AdapterMetadata(
+        display_name="Daytona (Python)",
+        language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
             "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
         ],
     ),
-    "VERCEL": AdapterMetadata(
-        display_name="Vercel Sandbox",
-        supported_languages=["PYTHON", "TYPESCRIPT"],
+    "VERCEL_PYTHON": AdapterMetadata(
+        display_name="Vercel Sandbox (Python)",
+        language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
@@ -76,14 +76,14 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     ),
     "DENO": AdapterMetadata(
         display_name="Deno (local)",
-        supported_languages=["TYPESCRIPT"],
+        language="TYPESCRIPT",
         dependency_hints=[
             "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
         ],
     ),
     "MODAL": AdapterMetadata(
         display_name="Modal",
-        supported_languages=["PYTHON"],
+        language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `modal` extra.",
             "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
@@ -183,16 +183,16 @@ except ImportError:
     pass
 
 try:
-    from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
+    from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 
-    register_sandbox_adapter(DaytonaAdapter())
+    register_sandbox_adapter(DaytonaPythonAdapter())
 except ImportError:
     pass
 
 try:
-    from phoenix.server.sandbox.vercel_backend import VercelAdapter
+    from phoenix.server.sandbox.vercel_backend import VercelPythonAdapter
 
-    register_sandbox_adapter(VercelAdapter())
+    register_sandbox_adapter(VercelPythonAdapter())
 except ImportError:
     pass
 

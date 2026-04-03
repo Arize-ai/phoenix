@@ -809,13 +809,16 @@ async def get_evaluators(
             evaluator_language = ""
             if code_row.language_id is not None:
                 eval_lang_row = await session.get(models.Language, code_row.language_id)
-                if eval_lang_row is not None:
-                    evaluator_language = eval_lang_row.name
+                if eval_lang_row is None:
+                    raise ValueError(
+                        f"Language with id {code_row.language_id} not found in languages table"
+                    )
+                evaluator_language = eval_lang_row.name
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
             # Resolve sandbox backend via SandboxConfig → SandboxProvider
             backend = None
-            language = ""
+            language = evaluator_language
             sandbox_timeout: Optional[int] = None
             if code_row.sandbox_config_id is not None:
                 sandbox_config = await session.get(models.SandboxConfig, code_row.sandbox_config_id)
@@ -833,14 +836,9 @@ async def get_evaluators(
                                 f"Language mismatch: evaluator language '{evaluator_language}' "
                                 f"does not match the sandbox provider's configured language."
                             )
-                        # Resolve language name from the provider's language_id
-                        lang_row = await session.get(models.Language, sandbox_provider.language_id)
-                        if lang_row is not None:
-                            language = lang_row.name
                         merged_config = {
                             **sandbox_provider.config,
                             **sandbox_config.config,
-                            "language": language,
                         }
                         backend = get_or_create_backend(
                             sandbox_provider.backend_type, config=merged_config
