@@ -34,6 +34,7 @@ export function PromptInput({
   onSubmit,
   status = "ready",
   isDisabled = false,
+  mode = "prompt",
   ...restProps
 }: PromptInputProps) {
   const [value, setValue] = useState("");
@@ -62,6 +63,7 @@ export function PromptInput({
         ref={ref}
         css={promptInputContainerCSS}
         data-status={status}
+        data-input-mode={mode}
         {...restProps}
       >
         {children}

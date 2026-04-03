@@ -56,37 +56,10 @@ export function ElicitationOptionButton({
       }}
     >
       <span className={indicatorClass}>
-        {selected && type === "single" && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 25 }}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "var(--global-text-color-900)",
-            }}
-          />
-        )}
-        {selected && type === "multi" && (
-          <motion.svg
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 25 }}
-            width="12"
-            height="12"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <path
-              d="M3 8.5L6.5 12L13 4"
-              stroke="var(--global-text-color-900)"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </motion.svg>
+        {type === "multi" && (
+          <svg viewBox="0 0 18 18" aria-hidden="true">
+            <polyline points="1 9 7 14 15 4" />
+          </svg>
         )}
       </span>
       {isFreeformEntry ? (

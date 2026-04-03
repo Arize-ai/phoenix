@@ -100,61 +100,8 @@ export const elicitationCarouselCSS = css`
       var(--global-dimension-size-150);
   }
 
-  .elicitation__nav-button {
-    padding: var(--global-dimension-size-75) var(--global-dimension-size-175);
+  .elicitation__nav .react-aria-Button {
     font-size: var(--global-font-size-xs);
-    font-family: inherit;
-    border-radius: var(--global-rounding-small);
-    cursor: pointer;
-    transition:
-      background-color 0.15s ease,
-      color 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .elicitation__nav-button--back {
-    background: transparent;
-    border: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-    color: var(--global-text-color-500);
-
-    &:not(:disabled):hover {
-      color: var(--global-text-color-700);
-      border-color: var(--global-text-color-500);
-    }
-
-    &:disabled {
-      color: var(--global-text-color-300);
-      cursor: default;
-    }
-  }
-
-  .elicitation__nav-button--next {
-    border: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
-  }
-
-  .elicitation__nav-button--next[data-has-answer="true"] {
-    background: var(--global-text-color-900);
-    border-color: var(--global-text-color-900);
-    color: var(--global-color-gray-75);
-    font-weight: 600;
-  }
-
-  .elicitation__nav-button--next[data-has-answer="false"] {
-    background: transparent;
-    color: var(--global-text-color-500);
-  }
-
-  .elicitation__nav-button--submit {
-    background: var(--global-text-color-900);
-    border: var(--global-border-size-thin) solid var(--global-text-color-900);
-    color: var(--global-color-gray-75);
-    font-weight: 600;
-
-    &:hover {
-      opacity: 0.9;
-    }
   }
 `;
 
@@ -173,46 +120,86 @@ export const elicitationOptionButtonCSS = css`
   box-sizing: border-box;
   background: transparent;
   color: var(--global-text-color-500);
+
+  .theme--light & {
+    color: var(--global-text-color-600);
+  }
+
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease,
     color 0.15s ease;
 
+  &:focus-visible {
+    outline: 1px solid var(--global-input-field-border-color-active);
+    outline-offset: 1px;
+  }
+
   &[data-selected="true"] {
     background: rgba(var(--global-color-gray-900-rgb), 0.06);
     border-color: var(--global-text-color-700);
     color: var(--global-text-color-900);
+
+    .theme--light & {
+      background: var(--global-color-gray-75);
+      border-color: var(--global-color-gray-600);
+    }
   }
 
   .option-button__indicator {
     width: 18px;
     height: 18px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     margin-top: 1px;
-    transition: border-color 0.15s ease;
+    transition: all 200ms;
   }
 
   .option-button__indicator--radio {
-    border-radius: var(--global-rounding-full);
-    border: 2px solid var(--global-text-color-300);
+    border-radius: 50%;
+    border: 2px solid var(--global-input-field-border-color);
+    background: var(--global-input-field-background-color);
   }
 
   .option-button__indicator--checkbox {
-    border-radius: var(--global-rounding-xsmall);
-    border: 2px solid var(--global-text-color-300);
+    width: 16px;
+    height: 16px;
+    border-radius: var(--global-rounding-small);
+    border: 2px solid var(--global-checkbox-border-color);
+    background: transparent;
   }
 
-  &[data-selected="true"] .option-button__indicator {
-    border-color: var(--global-text-color-900);
+  .option-button__indicator--checkbox svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: var(--global-checkbox-checkmark-color);
+    stroke-width: 3px;
+    stroke-dasharray: 22px;
+    stroke-dashoffset: 66;
+    transition: all 200ms;
+  }
+
+  &[data-selected="true"] .option-button__indicator--radio {
+    border-color: var(--global-button-primary-background-color);
+    border-width: 6px;
+  }
+
+  &[data-selected="true"] .option-button__indicator--checkbox {
+    border-color: var(--global-checkbox-selected-color);
+    background: var(--global-checkbox-selected-color);
+  }
+
+  &[data-selected="true"] .option-button__indicator--checkbox svg {
+    stroke-dashoffset: 44;
   }
 
   .option-button__content {
     display: flex;
     flex-direction: column;
-    gap: 2px;
     flex: 1;
     min-width: 0;
   }
@@ -225,6 +212,10 @@ export const elicitationOptionButtonCSS = css`
     font-size: var(--global-font-size-xs);
     color: var(--global-text-color-500);
     line-height: var(--global-line-height-s);
+
+    .theme--light & {
+      color: var(--global-text-color-600);
+    }
   }
 
   .option-button__text-entry {
@@ -250,7 +241,7 @@ export const elicitationOptionButtonCSS = css`
     transition: border-color 0.15s ease;
 
     &::placeholder {
-      color: var(--global-text-color-300);
+      color: var(--global-text-color-500);
     }
 
     &:focus {

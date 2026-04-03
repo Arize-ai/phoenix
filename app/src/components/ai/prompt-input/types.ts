@@ -59,6 +59,15 @@ export interface PromptInputContextValue {
  * </PromptInput>
  * ```
  */
+/**
+ * Controls how the prompt input container responds to focus.
+ *
+ * - `"prompt"` — the container holds a textarea; `:focus-within` highlights the border.
+ * - `"elicitation"` — the container wraps interactive controls (e.g. option buttons);
+ *   the container border stays neutral so individual controls can show their own focus.
+ */
+export type PromptInputMode = "prompt" | "elicitation";
+
 export interface PromptInputProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit">, DOMProps {
   ref?: Ref<HTMLDivElement>;
@@ -80,6 +89,11 @@ export interface PromptInputProps
    * @default false
    */
   isDisabled?: boolean;
+  /**
+   * Controls whether focus-within styling is applied to the container border.
+   * @default "prompt"
+   */
+  mode?: PromptInputMode;
 }
 
 /**

@@ -5,6 +5,7 @@ import type {
   ElicitationAnswers,
   ElicitationFreeformTexts,
 } from "@phoenix/agent/tools/elicit";
+import { Button } from "@phoenix/components/core/button";
 
 import { ElicitationOptionButton } from "./ElicitationOptionButton";
 import { elicitationCarouselCSS } from "./styles";
@@ -293,42 +294,27 @@ export function ElicitationCarousel({
           opacity: { duration: 0.12, delay: navDelay },
         }}
       >
-        <motion.button
-          className="elicitation__nav-button elicitation__nav-button--back"
-          whileTap={
-            currentIndex > 0
-              ? { scale: 0.97, transition: { type: "tween", duration: 0.06 } }
-              : undefined
-          }
-          onClick={() => goTo(currentIndex - 1)}
-          disabled={currentIndex === 0}
+        <Button
+          size="S"
+          variant="default"
+          isDisabled={currentIndex === 0}
+          onPress={() => goTo(currentIndex - 1)}
         >
           Back
-        </motion.button>
+        </Button>
 
         {currentIndex === total - 1 ? (
-          <motion.button
-            className="elicitation__nav-button elicitation__nav-button--submit"
-            whileTap={{
-              scale: 0.97,
-              transition: { type: "tween", duration: 0.06 },
-            }}
-            onClick={handleSubmit}
-          >
+          <Button size="S" variant="primary" onPress={handleSubmit}>
             Submit
-          </motion.button>
+          </Button>
         ) : (
-          <motion.button
-            className="elicitation__nav-button elicitation__nav-button--next"
-            data-has-answer={hasAnswer}
-            whileTap={{
-              scale: 0.97,
-              transition: { type: "tween", duration: 0.06 },
-            }}
-            onClick={() => goTo(currentIndex + 1)}
+          <Button
+            size="S"
+            variant={hasAnswer ? "primary" : "default"}
+            onPress={() => goTo(currentIndex + 1)}
           >
             {hasAnswer ? "Next" : canSkip ? "Skip" : "Next"}
-          </motion.button>
+          </Button>
         )}
       </motion.div>
     </div>

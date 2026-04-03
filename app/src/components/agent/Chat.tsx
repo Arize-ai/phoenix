@@ -241,7 +241,7 @@ export function Chat({
       <div className="chat__input">
         <View paddingX="size-200">
           {pendingElicitation ? (
-            <PromptInput status={status} isDisabled>
+            <PromptInput status={status} isDisabled mode="elicitation">
               <ElicitationCarousel
                 questions={pendingElicitation.questions}
                 onSubmit={handleElicitationSubmit}
