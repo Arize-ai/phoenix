@@ -100,6 +100,11 @@ export const elicitationCarouselCSS = css`
       var(--global-dimension-size-150);
   }
 
+  .elicitation__nav-group {
+    display: flex;
+    gap: var(--global-dimension-size-100);
+  }
+
   .elicitation__nav .react-aria-Button {
     font-size: var(--global-font-size-xs);
   }

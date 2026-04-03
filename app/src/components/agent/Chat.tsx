@@ -221,6 +221,21 @@ export function Chat({
     store.getState().setPendingElicitation(sessionId, null);
   };
 
+  /**
+   * Called when the user cancels the elicitation carousel.
+   * Returns an error state to the tool so the agent knows the user declined.
+   */
+  const handleElicitationCancel = () => {
+    if (!pendingElicitation || !sessionId) return;
+    void addToolOutput({
+      state: "output-error",
+      tool: "ask_user",
+      toolCallId: pendingElicitation.toolCallId,
+      errorText: "User cancelled the question.",
+    });
+    store.getState().setPendingElicitation(sessionId, null);
+  };
+
   return (
     <div css={chatCSS}>
       <div className="chat__scroll">
@@ -245,6 +260,7 @@ export function Chat({
               <ElicitationCarousel
                 questions={pendingElicitation.questions}
                 onSubmit={handleElicitationSubmit}
+                onCancel={handleElicitationCancel}
               />
             </PromptInput>
           ) : (

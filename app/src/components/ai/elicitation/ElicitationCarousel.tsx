@@ -64,6 +64,7 @@ const entrySpring = {
 export function ElicitationCarousel({
   questions,
   onSubmit,
+  onCancel,
 }: ElicitationCarouselProps) {
   const [answers, setAnswers] = useState<ElicitationAnswers>({});
   const [freeformTexts, setFreeformTexts] = useState<ElicitationFreeformTexts>(
@@ -296,14 +297,21 @@ export function ElicitationCarousel({
             opacity: { duration: 0.12, delay: navDelay },
           }}
         >
-          <Button
-            size="S"
-            variant="default"
-            isDisabled={currentIndex === 0}
-            onPress={() => goTo(currentIndex - 1)}
-          >
-            Back
-          </Button>
+          <div className="elicitation__nav-group">
+            {onCancel && (
+              <Button size="S" variant="default" onPress={onCancel}>
+                Cancel
+              </Button>
+            )}
+            <Button
+              size="S"
+              variant="default"
+              isDisabled={currentIndex === 0}
+              onPress={() => goTo(currentIndex - 1)}
+            >
+              Back
+            </Button>
+          </div>
 
           {currentIndex === total - 1 ? (
             <Button size="S" variant="primary" onPress={handleSubmit}>

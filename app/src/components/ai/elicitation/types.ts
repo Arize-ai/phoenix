@@ -11,6 +11,8 @@ export interface ElicitationCarouselProps {
   questions: ElicitationQuestion[];
   /** Called when the user submits all answers. */
   onSubmit: (output: ElicitToolOutput) => void;
+  /** Called when the user cancels without answering. */
+  onCancel?: () => void;
 }
 
 /**
