@@ -446,7 +446,7 @@ class Spans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
-        attribute_filters: Optional[dict[str, str]] = None,
+        attribute_filter: Optional[dict[str, str]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -469,7 +469,7 @@ class Spans:
                 by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
-            attribute_filters (Optional[dict[str, str]]): Optional dictionary of attribute
+            attribute_filter (Optional[dict[str, str]]): Optional dictionary of attribute
                 key-value pairs to filter by (AND semantics). Serialized as repeated
                 ``attribute_filter=key:value`` query params.
                 Requires Phoenix server >= 13.24.0.
@@ -486,7 +486,7 @@ class Spans:
             self._guard.require(GET_SPANS_TRACE_IDS)
         if name or span_kind or status_code:
             self._guard.require(GET_SPANS_FILTERS)
-        if attribute_filters:
+        if attribute_filter:
             self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
@@ -516,8 +516,8 @@ class Spans:
                 params["status_code"] = (
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
-            if attribute_filters:
-                params["attribute_filter"] = [f"{k}:{v}" for k, v in attribute_filters.items()]
+            if attribute_filter:
+                params["attribute_filter"] = [f"{k}:{v}" for k, v in attribute_filter.items()]
             if cursor:
                 params["cursor"] = cursor
 
@@ -1717,7 +1717,7 @@ class AsyncSpans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
-        attribute_filters: Optional[dict[str, str]] = None,
+        attribute_filter: Optional[dict[str, str]] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1740,7 +1740,7 @@ class AsyncSpans:
                 by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
-            attribute_filters (Optional[dict[str, str]]): Optional dictionary of attribute
+            attribute_filter (Optional[dict[str, str]]): Optional dictionary of attribute
                 key-value pairs to filter by (AND semantics). Serialized as repeated
                 ``attribute_filter=key:value`` query params.
                 Requires Phoenix server >= 13.24.0.
@@ -1757,7 +1757,7 @@ class AsyncSpans:
             await self._guard.require(GET_SPANS_TRACE_IDS)
         if name or span_kind or status_code:
             await self._guard.require(GET_SPANS_FILTERS)
-        if attribute_filters:
+        if attribute_filter:
             await self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
@@ -1787,8 +1787,8 @@ class AsyncSpans:
                 params["status_code"] = (
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
-            if attribute_filters:
-                params["attribute_filter"] = [f"{k}:{v}" for k, v in attribute_filters.items()]
+            if attribute_filter:
+                params["attribute_filter"] = [f"{k}:{v}" for k, v in attribute_filter.items()]
             if cursor:
                 params["cursor"] = cursor
 

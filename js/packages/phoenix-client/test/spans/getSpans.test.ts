@@ -213,6 +213,73 @@ describe("getSpans", () => {
     });
   });
 
+  describe("attributeFilter parameter", () => {
+    it("should send attribute_filter as array when given a single string", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributeFilter: "llm.model_name:gpt-4",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute_filter: ["llm.model_name:gpt-4"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should send attribute_filter as array when given an array", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributeFilter: ["llm.model_name:gpt-4", "llm.provider:openai"],
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute_filter: ["llm.model_name:gpt-4", "llm.provider:openai"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should not send attribute_filter when undefined", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("attribute_filter");
+    });
+
+    it("should send attribute_filter combined with other filters", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        spanKind: "LLM",
+        attributeFilter: "llm.model_name:gpt-4",
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              span_kind: ["LLM"],
+              attribute_filter: ["llm.model_name:gpt-4"],
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   describe("parentId parameter", () => {
     it('should send parent_id="null" to get root spans only', async () => {
       await getSpans({

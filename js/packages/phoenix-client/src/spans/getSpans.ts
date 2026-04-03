@@ -1,6 +1,7 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import {
+  GET_SPANS_ATTRIBUTE_FILTER,
   GET_SPANS_FILTERS,
   GET_SPANS_TRACE_IDS,
 } from "../constants/serverRequirements";
@@ -34,6 +35,8 @@ export interface GetSpansParams extends ClientFn {
   spanKind?: SpanKindFilter | SpanKindFilter[] | null;
   /** Filter by status code(s) (OK, ERROR, UNSET) */
   statusCode?: SpanStatusCode | SpanStatusCode[] | null;
+  /** Filter by attribute value(s). Format: "attribute.path:value" */
+  attributeFilter?: string | string[] | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -116,6 +119,7 @@ export async function getSpans({
   name,
   spanKind,
   statusCode,
+  attributeFilter,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
   if (traceIds) {
@@ -123,6 +127,12 @@ export async function getSpans({
   }
   if (name != null || spanKind != null || statusCode != null) {
     await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
+  }
+  if (attributeFilter != null) {
+    await ensureServerCapability({
+      client,
+      requirement: GET_SPANS_ATTRIBUTE_FILTER,
+    });
   }
   const projectIdentifier = resolveProjectIdentifier(project);
 
@@ -161,6 +171,12 @@ export async function getSpans({
 
   if (statusCode) {
     params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
+  }
+
+  if (attributeFilter) {
+    params.attribute_filter = Array.isArray(attributeFilter)
+      ? attributeFilter
+      : [attributeFilter];
   }
 
   const { data, error } = await client.GET(

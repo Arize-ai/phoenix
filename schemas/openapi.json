@@ -2971,10 +2971,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed.",
+              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only).",
               "title": "Attribute Filter"
             },
-            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
+            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only)."
           }
         ],
         "responses": {
@@ -3229,10 +3229,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed.",
+              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only).",
               "title": "Attribute Filter"
             },
-            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed."
+            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only)."
           }
         ],
         "responses": {

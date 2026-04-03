@@ -2268,7 +2268,7 @@ class TestClientGetSpansAttributeFilters:
         _existing_project: _ExistingProject,
         _app: _AppInfo,
     ) -> None:
-        """Test that attribute_filters returns only spans with matching attributes."""
+        """Test that attribute_filter returns only spans with matching attributes."""
         api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
@@ -2315,7 +2315,7 @@ class TestClientGetSpansAttributeFilters:
         filtered_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier=project_name,
-                attribute_filters={"session.id": unique_val},
+                attribute_filter={"session.id": unique_val},
                 limit=100,
             )
         )

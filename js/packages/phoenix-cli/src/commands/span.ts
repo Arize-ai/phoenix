@@ -379,7 +379,7 @@ export function createSpanListCommand(): Command {
     )
     .option(
       "--attribute-filter <filters...>",
-      'Filter by attribute key-value pairs (e.g., "llm.token_count > 100")'
+      'Filter by attribute key-value pairs (e.g., "llm.model_name:gpt-4")'
     )
     .option("--include-annotations", "Include span annotations in the output")
     .option("--include-notes", "Include span notes in the output")

@@ -1525,6 +1525,12 @@ async def project_with_attributed_spans(db: DbSessionFactory) -> None:
                     },
                 },
             ),
+            (
+                "span-colon-value",
+                {
+                    "config": {"endpoint": "http://example.com"},
+                },
+            ),
         ]
         for i, (name, attrs) in enumerate(spans_attrs):
             session.add(
@@ -1640,3 +1646,41 @@ async def test_span_search_filter_by_nested_attribute_path(
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "span-nested-doc"
+
+
+async def test_span_search_filter_by_attribute_value_with_colon(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Values containing colons are matched correctly via split(':', 1)."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute_filter": "config.endpoint:http://example.com"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-colon-value"
+
+
+async def test_otlp_span_search_filter_by_attribute_malformed(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Missing colon separator on OTLP endpoint should return 422."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans/otlpv1",
+        params={"attribute_filter": "no-colon-here"},
+    )
+    assert resp.status_code == 422
+    assert "expected format" in resp.text
+
+
+async def test_otlp_span_search_filter_by_attribute_empty_key(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Empty key (leading colon) on OTLP endpoint should return 422."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans/otlpv1",
+        params={"attribute_filter": ":some-value"},
+    )
+    assert resp.status_code == 422
+    assert "key must not be empty" in resp.text
