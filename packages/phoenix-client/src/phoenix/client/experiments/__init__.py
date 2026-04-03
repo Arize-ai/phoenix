@@ -509,7 +509,7 @@ def resume_experiment(
         httpx.HTTPStatusError: If the API returns an error response.
 
     Example::
-        from phoenix.experiments import resume_experiment
+        from phoenix.client.experiments import resume_experiment
 
         # Resume an interrupted experiment
         resume_experiment(

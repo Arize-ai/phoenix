@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Dict, List, Type, Union, cast
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
-
 from ...prompts import ContentPart, Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
@@ -69,7 +67,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 f"'predict' method, got {type(self.client)}"
             )
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "invoke"):
@@ -86,9 +84,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -107,7 +103,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -187,7 +183,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -329,7 +325,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
         return lc_messages
 
-    def _build_prompt(self, prompt: Union[PromptLike, MultimodalPrompt]) -> Union[str, List[Any]]:
+    def _build_prompt(self, prompt: PromptLike) -> Union[str, List[Any]]:
         if isinstance(prompt, str):
             return prompt
         elif isinstance(prompt, list):
@@ -379,15 +375,9 @@ class LangChainModelAdapter(BaseLLMAdapter):
                         # Default to HumanMessage for unknown roles
                         lc_messages.append(HumanMessage(content=text_content))
                 return lc_messages
-        elif isinstance(prompt, MultimodalPrompt):
-            # Handle legacy MultimodalPrompt
-            return prompt.to_text_only_prompt()
         else:
             # If we get here, prompt is an unexpected type
-            # This should never happen given the type hints, but we raise an error to be explicit
-            raise ValueError(
-                f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-            )
+            raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(

@@ -1,7 +1,5 @@
 import logging
-from typing import Any, Dict, List, Type, Union, cast
-
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
+from typing import Any, Dict, List, Type, cast
 
 from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
@@ -72,7 +70,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages, system = self._build_messages(prompt)
@@ -95,9 +93,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             logger.error(f"Anthropic completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if not self._is_async:
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Anthropic client."
@@ -124,7 +120,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -155,7 +151,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -180,7 +176,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -207,7 +203,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -305,9 +301,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return anthropic_messages
 
-    def _build_messages(
-        self, prompt: Union[PromptLike, MultimodalPrompt]
-    ) -> tuple[list[dict[str, Any]], str]:
+    def _build_messages(self, prompt: PromptLike) -> tuple[list[dict[str, Any]], str]:
         """Build messages for Anthropic API.
 
         Returns:
@@ -344,20 +338,8 @@ class AnthropicAdapter(BaseLLMAdapter):
             )
             return non_system_messages_dicts, system_content
 
-        # Handle legacy MultimodalPrompt
-        if isinstance(prompt, MultimodalPrompt):
-            text_parts = []
-            for part in prompt.parts:
-                if part.content_type == PromptPartContentType.TEXT:
-                    text_parts.append(part.content)
-
-            combined_text = "\n".join(text_parts)
-            return [{"role": "user", "content": combined_text}], ""
-
         # If we get here, prompt is an unexpected type
-        raise ValueError(
-            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-        )
+        raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:
