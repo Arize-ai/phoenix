@@ -1,12 +1,8 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, List, Type, Union, cast
+from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
-
-from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
 
 from ...prompts import Message, MessageRole, PromptLike
 from ...registries import register_adapter, register_provider
@@ -83,7 +79,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text using OpenAI client."""
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async OpenAI client.")
@@ -101,9 +97,7 @@ class OpenAIAdapter(BaseLLMAdapter):
             logger.error(f"OpenAI completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Async text generation using OpenAI client."""
         if not self._is_async:
             raise ValueError(
@@ -125,7 +119,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -170,7 +164,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -214,7 +208,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -243,7 +237,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -275,7 +269,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -304,7 +298,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -436,7 +430,7 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         return openai_messages
 
-    def _build_messages(self, prompt: Union[PromptLike, MultimodalPrompt]) -> list[dict[str, Any]]:
+    def _build_messages(self, prompt: PromptLike) -> list[dict[str, Any]]:
         """Build messages for OpenAI API from prompt."""
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
@@ -449,56 +443,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             # Otherwise, already in OpenAI message format (backward compatibility)
             return cast(list[dict[str, Any]], prompt)
 
-        # Handle legacy MultimodalPrompt
-        messages: list[dict[str, Any]] = []
-        if isinstance(prompt, MultimodalPrompt):
-            for part in prompt.parts:
-                if part.content_type == PromptPartContentType.TEXT:
-                    messages.append({"role": "user", "content": part.content})
-                elif part.content_type == PromptPartContentType.AUDIO:
-                    format = str(get_audio_format_from_base64(part.content))
-                    if format not in SUPPORTED_AUDIO_FORMATS:
-                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_audio",
-                                    "input_audio": {
-                                        "data": part.content,
-                                        "format": format,
-                                    },
-                                }
-                            ],
-                        }
-                    )
-                elif part.content_type == PromptPartContentType.IMAGE:
-                    if _is_base64(part.content):
-                        content_url = f"data:image/jpeg;base64,{part.content}"
-                    elif _is_url(part.content):
-                        content_url = part.content
-                    else:
-                        raise ValueError("Only base64 encoded images or image URLs are supported")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": content_url},
-                                }
-                            ],
-                        }
-                    )
-                else:
-                    raise ValueError(f"Unsupported content type: {part.content_type}")
-            return messages
-
         # If we get here, prompt is an unexpected type
-        raise ValueError(
-            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-        )
+        raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """

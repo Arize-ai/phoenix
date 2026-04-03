@@ -58,7 +58,7 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=2.12.0",
+  "arize-phoenix-evals>=2.11.0",
   "arize-phoenix-otel>=0.15.0",
   "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
