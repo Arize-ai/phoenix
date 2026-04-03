@@ -31,3 +31,10 @@ Google Generative AI
 .. automodule:: client.helpers.sdk.google_generativeai
    :members:
    :show-inheritance:
+
+ATIF (Agent Trajectory Interchange Format)
+------------------------------------------
+
+.. automodule:: client.helpers.atif
+   :members:
+   :show-inheritance:
