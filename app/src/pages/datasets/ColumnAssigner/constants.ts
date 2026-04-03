@@ -20,6 +20,10 @@ export function getAutoAssignment(columnName: string): ColumnBucket {
   if (INPUT_NAMES.has(lower)) return "input";
   if (OUTPUT_NAMES.has(lower)) return "output";
   if (lower === "metadata") return "metadata";
+  // Dotted-prefix auto-assignment for roundtripped CSVs
+  if (lower.startsWith("input.")) return "input";
+  if (lower.startsWith("output.")) return "output";
+  if (lower.startsWith("metadata.")) return "metadata";
   return "source";
 }
 

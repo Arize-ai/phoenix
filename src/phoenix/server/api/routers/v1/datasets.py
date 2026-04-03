@@ -655,6 +655,65 @@ DatasetName: TypeAlias = str
 Examples: TypeAlias = Iterator[ExampleContent]
 
 
+def _unflatten_dotted_keys(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
+    """Reconstitute nested dicts from dot-separated keys.
+
+    Example: [("a.b", 1), ("a.c", 2)] -> {"a": {"b": 1, "c": 2}}
+    """
+    result: dict[str, Any] = {}
+    for dotted_key, value in pairs:
+        parts = dotted_key.split(".")
+        current = result
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+    return result
+
+
+def _maybe_parse_json_value(value: Any) -> Any:
+    """Try to parse CSV string values that represent JSON arrays or objects."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if (stripped.startswith("[") and stripped.endswith("]")) or (
+        stripped.startswith("{") and stripped.endswith("}")
+    ):
+        try:
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return value
+
+
+def _build_bucket_from_dotted_keys(
+    row: Mapping[str, Any],
+    keys: frozenset[str],
+    bucket_prefix: str,
+) -> dict[str, Any]:
+    """Build a nested dict from dotted CSV column names for a given bucket.
+
+    Keys starting with ``{bucket_prefix}.`` have the prefix stripped and the
+    remaining dot-separated path is unflattened into nested dicts.  Plain keys
+    are included directly.
+    """
+    prefix_dot = f"{bucket_prefix}."
+    plain: dict[str, Any] = {}
+    dotted: list[tuple[str, Any]] = []
+    for key in keys:
+        value = _maybe_parse_json_value(row.get(key))
+        if key.startswith(prefix_dot):
+            remainder = key[len(prefix_dot) :]
+            dotted.append((remainder, value))
+        else:
+            plain[key] = value
+    if dotted:
+        nested = _unflatten_dotted_keys(dotted)
+        plain.update(nested)
+    return plain
+
+
 @dataclass(frozen=True, slots=True)
 class BucketPlan:
     """Projects row data into a bucket, optionally flattening nested objects."""
@@ -876,8 +935,31 @@ async def _process_csv(
         example_id_key,
     )
 
+    uses_dotted_keys = any(
+        k.startswith(("input.", "output.", "metadata."))
+        for k in input_keys | output_keys | metadata_keys
+    )
+
     def process_rows() -> list[ExampleContent]:
-        # First pass: read all rows and parse JSON for flatten keys
+        if uses_dotted_keys and not flatten_keys:
+            examples = []
+            for row in reader:
+                examples.append(
+                    ExampleContent(
+                        input=_build_bucket_from_dotted_keys(row, input_keys, "input"),
+                        output=_build_bucket_from_dotted_keys(row, output_keys, "output"),
+                        metadata=_build_bucket_from_dotted_keys(row, metadata_keys, "metadata"),
+                        splits=frozenset(
+                            str(v).strip()
+                            for k in split_keys
+                            if (v := row.get(k)) and str(v).strip()
+                        ),
+                        span_id=_get_span_id(row, span_id_key),
+                        external_id=_get_example_id(row, example_id_key),
+                    )
+                )
+            return examples
+
         parsed_rows: list[dict[str, Any]] = []
         for row in reader:
             if flatten_keys:
@@ -904,7 +986,6 @@ async def _process_csv(
             rows=parsed_rows,
         )
 
-        # Second pass: flatten rows and create examples
         examples = []
         for row in parsed_rows:
             examples.append(
@@ -1522,9 +1603,26 @@ async def get_dataset_jsonl_openai_evals(
     return content
 
 
+def _flatten_for_csv(obj: dict[str, Any], prefix: str) -> Iterator[tuple[str, Any]]:
+    """Recursively flatten a dict for CSV export using period-separated keys.
+
+    Nested dicts are recursively flattened. Lists are JSON-serialized.
+    Scalars are kept as-is.
+    """
+    for key, value in obj.items():
+        full_key = f"{prefix}.{key}"
+        if isinstance(value, dict):
+            yield from _flatten_for_csv(value, full_key)
+        elif isinstance(value, (list, tuple)):
+            yield full_key, json.dumps(value, ensure_ascii=False)
+        else:
+            yield full_key, value
+
+
 def _get_content_csv(revisions: list[models.DatasetExampleRevision]) -> bytes:
-    records = [
-        {
+    records = []
+    for revision in revisions:
+        record: dict[str, Any] = {
             "example_id": revision.dataset_example.external_id
             or str(
                 GlobalID(
@@ -1532,13 +1630,12 @@ def _get_content_csv(revisions: list[models.DatasetExampleRevision]) -> bytes:
                     node_id=str(revision.dataset_example_id),
                 )
             ),
-            **{f"input_{k}": v for k, v in revision.input.items()},
-            **{f"output_{k}": v for k, v in revision.output.items()},
-            **{f"metadata_{k}": v for k, v in revision.metadata_.items()},
         }
-        for revision in revisions
-    ]
-    return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
+        record.update(_flatten_for_csv(revision.input, "input"))
+        record.update(_flatten_for_csv(revision.output, "output"))
+        record.update(_flatten_for_csv(revision.metadata_, "metadata"))
+        records.append(record)
+    return pd.DataFrame.from_records(records).to_csv(index=False).encode()
 
 
 def _get_content_jsonl(

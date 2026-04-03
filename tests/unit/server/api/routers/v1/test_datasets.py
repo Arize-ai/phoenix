@@ -345,7 +345,7 @@ async def test_get_dataset_download_latest_version(
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
         StringIO(
-            "example_id,input_in,metadata_info,output_out\n"
+            "example_id,input.in,metadata.info,output.out\n"
             "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
             "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
             "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
@@ -373,7 +373,7 @@ async def test_get_dataset_download_specific_version(
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
     expected = pd.read_csv(
         StringIO(
-            "example_id,input_in,metadata_info,output_out\n"
+            "example_id,input.in,metadata.info,output.out\n"
             "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
             "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
             "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
@@ -2011,6 +2011,56 @@ async def test_post_dataset_upload_csv_with_flatten_keys(
         "difficulty": "medium",
     }
     assert revisions[1].output == {}
+
+
+async def test_post_dataset_upload_csv_with_dotted_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with period-separated column names that unflatten into nested dicts."""
+    name = inspect.stack()[0][3]
+    csv_content = (
+        b"example_id,input.query,input.context.source,input.context.lang,"
+        b"output.response.text,output.response.confidence,metadata.info\n"
+        b"ex1,hello,web,en,hi,0.95,test\n"
+        b"ex2,goodbye,api,fr,au revoir,0.88,test2\n"
+    )
+    file = gzip.compress(csv_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input.query", "input.context.source", "input.context.lang"],
+            "output_keys[]": ["output.response.text", "output.response.confidence"],
+            "metadata_keys[]": ["metadata.info"],
+            "example_id_key": "example_id",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+
+    assert revisions[0].input == {"query": "hello", "context": {"source": "web", "lang": "en"}}
+    assert revisions[0].output == {"response": {"text": "hi", "confidence": "0.95"}}
+    assert revisions[0].metadata_ == {"info": "test"}
+
+    assert revisions[1].input == {"query": "goodbye", "context": {"source": "api", "lang": "fr"}}
+    assert revisions[1].output == {"response": {"text": "au revoir", "confidence": "0.88"}}
+    assert revisions[1].metadata_ == {"info": "test2"}
 
 
 async def test_post_dataset_upload_jsonl_with_flatten_keys(
