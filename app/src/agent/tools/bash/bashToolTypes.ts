@@ -81,6 +81,7 @@ export interface BashToolRuntime {
     command: string,
     options?: {
       signal?: AbortSignal;
+      env?: Record<string, string>;
     }
   ) => Promise<BashToolCommandResult>;
   replacePhoenixFiles: (files: InitialFiles) => Promise<void>;

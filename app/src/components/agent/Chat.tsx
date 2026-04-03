@@ -21,6 +21,7 @@ import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 
 import { AgentModelMenu } from "./AgentModelMenu";
+import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { useAgentChat } from "./useAgentChat";
 
@@ -100,6 +101,7 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    handlePermissionChange,
   } = useAgentChat({ sessionId, chatApiUrl });
 
   return (
@@ -112,6 +114,7 @@ export function Chat({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      handlePermissionChange={handlePermissionChange}
       modelMenuValue={modelMenuValue}
       onModelChange={onModelChange}
     />
@@ -131,6 +134,7 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
+  handlePermissionChange,
   modelMenuValue,
   onModelChange,
 }: {
@@ -142,6 +146,7 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
+  handlePermissionChange: (permission: string, enabled: boolean) => void;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
 }) {
@@ -204,6 +209,7 @@ export function ChatView({
                     shouldFlip
                     variant="quiet"
                   />
+                  <AgentDebugMenu onPermissionChange={handlePermissionChange} />
                 </PromptInputTools>
                 <PromptInputActions>
                   <PromptInputSubmit

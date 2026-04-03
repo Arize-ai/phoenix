@@ -222,6 +222,7 @@ export async function createBashToolRuntime({
       const startTime = performance.now();
       const result = await bash.exec(command, {
         signal: options?.signal,
+        env: options?.env,
       });
       const completedAt = new Date().toISOString();
 

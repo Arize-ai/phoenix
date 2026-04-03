@@ -3,6 +3,7 @@ import type { UIMessage } from "ai";
 
 import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
+import { PERMISSIONS_TOOL_NAME } from "@phoenix/agent/tools/permissions";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
@@ -41,6 +42,7 @@ export async function handleAgentToolCall({
         toolCall,
         sessionId,
         addToolOutput,
+        agentStore,
       });
       return;
     case "ask_user":
@@ -49,6 +51,18 @@ export async function handleAgentToolCall({
         sessionId,
         addToolOutput,
         agentStore,
+      });
+      return;
+    case PERMISSIONS_TOOL_NAME:
+      // This tool is injected synthetically by the UI; the model must not
+      // call it directly. Reject with an error so the model self-corrects.
+      await addToolOutput({
+        state: "output-error",
+        tool: PERMISSIONS_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The update_permissions tool is a system notification only. " +
+          "You cannot call it directly. Permissions are managed by the user through the UI.",
       });
       return;
     default:

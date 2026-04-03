@@ -28,10 +28,12 @@ export type AgentPanelLocation = "docked" | "trace";
 
 export interface AgentDebugSettings {
   retainInactiveBashSessions: boolean;
+  dangerouslyEnableMutations: boolean;
 }
 
 const DEFAULT_AGENT_DEBUG_SETTINGS: AgentDebugSettings = {
   retainInactiveBashSessions: false,
+  dangerouslyEnableMutations: false,
 };
 
 /**
@@ -115,6 +117,7 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setSystemPrompt: (systemPrompt: string) => void;
   clearAllSessions: () => void;
+  setDebug: (patch: Partial<AgentDebugSettings>) => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -335,6 +338,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "clearAllSessions" }
+      );
+    },
+    setDebug: (patch) => {
+      set(
+        (state) => ({
+          debug: { ...state.debug, ...patch },
+        }),
+        false,
+        { type: "setDebug" }
       );
     },
 

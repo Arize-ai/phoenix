@@ -12,6 +12,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { buildPermissionsUpdateMessage } from "@phoenix/agent/tools/permissions";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -119,7 +120,8 @@ export function useAgentChat({
   const chat = useChat<UIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
-  const { messages, sendMessage, status, error, addToolOutput, stop } = chat;
+  const { messages, sendMessage, status, error, addToolOutput, setMessages, stop } =
+    chat;
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -162,6 +164,17 @@ export function useAgentChat({
     store.getState().setPendingElicitation(sessionId, null);
   };
 
+  const handlePermissionChange = (permission: string, enabled: boolean) => {
+    if (messages.length === 0) {
+      return;
+    }
+    const syntheticMessage = buildPermissionsUpdateMessage({
+      permission: permission as "dangerouslyEnableMutations",
+      enabled,
+    });
+    setMessages((prev) => [...prev, syntheticMessage]);
+  };
+
   return {
     messages,
     sendMessage,
@@ -171,6 +184,7 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    handlePermissionChange,
   } as {
     messages: UIMessage[];
     sendMessage: (message: { text: string }) => void;
@@ -180,5 +194,6 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
+    handlePermissionChange: (permission: string, enabled: boolean) => void;
   };
 }

@@ -6,10 +6,11 @@ import type { GeneratedContextFile } from "../types";
 
 export const PHOENIX_GQL_GUIDE = `# phoenix-gql
 
-Use \`phoenix-gql\` to execute read-only GraphQL queries against Phoenix from the bash sandbox.
+Use \`phoenix-gql\` to execute GraphQL operations against Phoenix from the bash sandbox.
 This command is built into the bash environment; you can execute it directly.
+Run \`phoenix-gql --help\` to see current permissions and usage.
 
-Querying tips:
+Tips:
 - Prefer \`node(id: ...)\` with inline fragments when page context already gives you an entity id.
 - Use page context and any route-specific recipe files to find likely ids and entrypoints.
 - Verify argument names and enum values in \`${PHOENIX_ROOT}/graphql/schema.json\` before guessing.
@@ -26,8 +27,8 @@ phoenix-gql big-query.graphql --output /home/user/workspace/result.json
 \`\`\`
 
 Notes:
-- Only GraphQL queries are permitted.
-- Mutations and subscriptions are rejected.
+- Allowed operation types (queries, mutations) depend on runtime permissions. The tool reports its current permissions on stderr with every invocation and in its --help output.
+- Subscriptions are never supported.
 - Large responses may spill to a workspace file unless you pass \`--stdout\`.
 - The GraphQL schema introspection is available at \`${PHOENIX_ROOT}/graphql/schema.json\`.
 `;
