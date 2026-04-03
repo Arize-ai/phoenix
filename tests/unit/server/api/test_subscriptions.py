@@ -909,7 +909,7 @@ class TestChatCompletionSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "text"
+        assert (output := span.pop("output")).pop("mimeType") == "json"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -937,7 +937,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {

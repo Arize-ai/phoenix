@@ -189,16 +189,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
     @abstractmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]: ...
 
-    @property
-    def response_attributes_are_auto_accumulating(self) -> bool:
-        """
-        Whether the response attributes are automatically set from the full response.
-        When True, the base class does not accumulate chunks for attributes or set
-        output attributes from chunks (e.g. OpenAI Responses API sets them from
-        the completed response).
-        """
-        return False
-
     async def chat_completion_create(
         self,
         *,
@@ -233,9 +223,9 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             set_status_on_exception=False,  # we set status manually
         )
         self._attributes = attributes
+        self._raw_output_value: str | None = None
         text_chunks: list[TextChunk] = []
         tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
-        auto_accumulating = self.response_attributes_are_auto_accumulating
         try:
             async for chunk in self._chat_completion_create(
                 messages=messages,
@@ -246,17 +236,21 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
                 stream_model_output=stream_model_output,
             ):
                 if isinstance(chunk, TextChunk):
-                    if not auto_accumulating:
-                        text_chunks.append(chunk)
+                    text_chunks.append(chunk)
                     yield chunk
                 elif isinstance(chunk, ToolCallChunk):
-                    if not auto_accumulating:
-                        tool_call_chunks[chunk.id].append(chunk)
+                    tool_call_chunks[chunk.id].append(chunk)
                     yield chunk
 
             span.set_status(Status(StatusCode.OK))
-            if not auto_accumulating and (text_chunks or tool_call_chunks):
+            # Always set structured llm.output_messages from chunks when available.
+            if text_chunks or tool_call_chunks:
                 span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            # Set output.value: prefer raw response, fall back to chunk reconstruction.
+            if self._raw_output_value is not None:
+                span.set_attribute(OUTPUT_VALUE, self._raw_output_value)
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+            elif text_chunks or tool_call_chunks:
                 if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
                     span.set_attributes(output_attrs)
         except Exception as e:
@@ -830,6 +824,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 )
                 if completion.usage is not None:
                     span.set_attributes(dict(self._llm_token_counts(completion.usage)))
+                self._raw_output_value = completion.model_dump_json(exclude_none=True)
                 for chunk in self._chunks_from_openai_chat_completion(completion):
                     yield chunk
             return
@@ -997,10 +992,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 for chunk in self._chunks_from_openai_responses_response(resp):
                     yield chunk
             if completed_response is not None:
-                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
-                span.set_attribute(
-                    OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True)
-                )
+                self._raw_output_value = completed_response.model_dump_json(exclude_none=True)
                 span.set_attributes(
                     dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
                 )
@@ -1210,8 +1202,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(event.type)
 
         if completed_response is not None:
-            span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
-            span.set_attribute(OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True))
+            self._raw_output_value = completed_response.model_dump_json(exclude_none=True)
             span.set_attributes(
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
@@ -1795,6 +1786,7 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             )
             if not stream_model_output:
                 converse_response = await client.converse(**request)
+                self._raw_output_value = safe_json_dumps(converse_response)
                 for chunk in self._chunks_from_converse_response(converse_response, span):
                     yield chunk
                 return
@@ -2064,8 +2056,6 @@ class OpenAIResponsesAPIStreamingClient(
 ):
     """OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
 
-    response_attributes_are_auto_accumulating = True
-
     @override
     async def _chat_completion_create(
         self,
@@ -2184,8 +2174,6 @@ class AzureOpenAIResponsesAPIStreamingClient(
     AzureOpenAIStreamingClient,
 ):
     """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
-
-    response_attributes_are_auto_accumulating = True
 
     @override
     async def _chat_completion_create(
@@ -2558,6 +2546,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 message = await client.messages.create(**params)
                 if message.usage:
                     self._anthropic_apply_usage_to_span(span, message.usage)
+                self._raw_output_value = message.model_dump_json(exclude_none=True)
                 for block in message.content:
                     if block.type == "text":
                         yield TextChunk(content=block.text)
@@ -2604,6 +2593,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 elif event.type == "text":
                     yield TextChunk(content=event.text)
                 elif event.type == "message_stop":
+                    self._raw_output_value = event.message.model_dump_json(exclude_none=True)
                     usage = event.message.usage
                     output_token_counts: dict[str, Any] = {}
                     if usage.output_tokens:
@@ -3076,6 +3066,7 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                     contents=contents,
                     config=config,
                 )
+                self._raw_output_value = response.model_dump_json(exclude_none=True)
                 for chunk in self._iter_gemini_response_chunks(response, span):
                     yield chunk
             return
