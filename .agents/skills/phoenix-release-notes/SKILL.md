@@ -5,7 +5,8 @@ description: >
   user asks to write release notes, document a release, update release documentation, or mentions
   undocumented releases. Also trigger when the user wants to update GitHub release descriptions,
   add entries to the release notes page, or asks what changed in a recent Phoenix version.
-internal: true
+metadata:
+  internal: true
 ---
 
 # Release Notes

@@ -5,7 +5,8 @@ description: >
   machine-readable docs map used by AI agents and the `px docs fetch` CLI. Use this
   skill whenever adding, auditing, or reorganizing llms.txt entries. Trigger when the
   user mentions llms.txt, docs index, px docs, or LLM-friendly documentation.
-internal: true
+metadata:
+  internal: true
 ---
 
 # Phoenix llms.txt Maintenance

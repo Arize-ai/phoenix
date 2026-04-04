@@ -1,7 +1,8 @@
 ---
 name: phoenix-frontend
 description: Frontend development guidelines for the Phoenix AI observability platform. Use when writing, reviewing, or modifying React components, TypeScript code, styles, or UI features in the app/ directory. Triggers on any frontend task — new components, UI changes, styling, accessibility fixes, form handling, or component refactoring. Also use when the user asks about frontend conventions or component patterns for this project. For design system rules (error display, layout, dialogs, tokens), use the phoenix-design skill.
-internal: true
+metadata:
+  internal: true
 ---
 
 # Phoenix Frontend Development
