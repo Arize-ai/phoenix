@@ -10,6 +10,9 @@ export { registerInstrumentations } from "@opentelemetry/instrumentation";
 export { type Instrumentation } from "@opentelemetry/instrumentation";
 export { type NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
+// OpenInference semantic conventions
+export * from "@arizeai/openinference-semantic-conventions";
+
 // Phoenix abstractions
 export * from "./createNoOpProvider";
 export * from "./openinference";
