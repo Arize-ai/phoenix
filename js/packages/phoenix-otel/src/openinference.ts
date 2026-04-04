@@ -18,7 +18,7 @@ import {
 
 export * from "@arizeai/openinference-core";
 
-const DEFAULT_TRACER_NAME = "openinference-core";
+const DEFAULT_TRACER_NAME = "phoenix-otel";
 
 function getOpenInferenceTracer(tracer?: Tracer): OITracer {
   if (tracer instanceof OITracer) {
@@ -44,9 +44,6 @@ function recordSpanError(span: OISpan, error: unknown): void {
  * Wraps a function so that each invocation is automatically traced as an
  * OpenInference span.
  *
- * Unlike the upstream `@arizeai/openinference-core` helper, Phoenix's version
- * resolves the tracer at call time (not at wrap time), so swapping the global
- * tracer provider between calls is correctly reflected.
  *
  * @param fn - The function to wrap with tracing.
  * @param options - Span configuration including name, kind, attributes, and input/output processors.

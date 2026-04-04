@@ -6,11 +6,12 @@
     "arize",
     "llm",
     "observability",
-    "openinference",
-    "opentelemetry",
+    "openInference",
+    "openTelemetry",
     "otel",
     "phoenix",
-    "tracing"
+    "tracing",
+    "agents"
   ],
   "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel",
   "bugs": {
