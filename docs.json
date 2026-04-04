@@ -935,6 +935,12 @@
                     ]
                   },
                   {
+                    "group": "Secrets",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/secrets/upsert-or-delete-secrets"
+                    ]
+                  },
+                  {
                     "group": "Users",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users",
