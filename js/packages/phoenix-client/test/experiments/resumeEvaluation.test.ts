@@ -7,7 +7,8 @@ import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
 vi.mock("../../src/client");
-vi.mock("@arizeai/phoenix-otel", () => ({
+vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@arizeai/phoenix-otel")>()),
   attachGlobalTracerProvider: vi.fn(() => ({
     detach: vi.fn(),
   })),

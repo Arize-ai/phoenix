@@ -6,7 +6,8 @@ import { resumeExperiment } from "../../src/experiments/resumeExperiment";
 import type { Example } from "../../src/types/datasets";
 
 vi.mock("../../src/client");
-vi.mock("@arizeai/phoenix-otel", () => ({
+vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@arizeai/phoenix-otel")>()),
   attachGlobalTracerProvider: vi.fn(() => ({
     detach: vi.fn(),
   })),

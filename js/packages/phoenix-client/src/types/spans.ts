@@ -1,4 +1,4 @@
-import type { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
+import type { OpenInferenceSpanKind } from "@arizeai/phoenix-otel";
 
 /**
  * Status codes for spans.

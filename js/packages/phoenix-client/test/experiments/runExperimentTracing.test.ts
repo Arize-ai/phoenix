@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@arizeai/phoenix-otel", () => ({
+vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@arizeai/phoenix-otel")>()),
   attachGlobalTracerProvider: vi.fn(() => ({
     detach: vi.fn(),
   })),

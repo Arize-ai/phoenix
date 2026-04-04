@@ -1,4 +1,4 @@
-import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+import { SemanticConventions } from "@arizeai/phoenix-otel";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";

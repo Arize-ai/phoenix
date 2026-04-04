@@ -430,9 +430,6 @@ importers:
 
   packages/phoenix-client:
     dependencies:
-      '@arizeai/openinference-semantic-conventions':
-        specifier: ^1.1.0
-        version: 1.1.0
       '@arizeai/openinference-vercel':
         specifier: ^2.7.0
         version: 2.7.0(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.39.0)

@@ -1,18 +1,14 @@
 import {
-  MimeType,
-  OpenInferenceSpanKind,
-  SemanticConventions,
-} from "@arizeai/openinference-semantic-conventions";
-import type {
-  GlobalTracerProviderRegistration,
-  NodeTracerProvider,
-  Tracer,
-} from "@arizeai/phoenix-otel";
-import {
   attachGlobalTracerProvider,
   type DiagLogLevel,
+  type GlobalTracerProviderRegistration,
+  MimeType,
+  type NodeTracerProvider,
   objectAsAttributes,
+  OpenInferenceSpanKind,
   register,
+  SemanticConventions,
+  type Tracer,
   SpanStatusCode,
 } from "@arizeai/phoenix-otel";
 import invariant from "tiny-invariant";
