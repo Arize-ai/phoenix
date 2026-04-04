@@ -338,7 +338,6 @@ const evaluated = await evaluateExperiment({
 Key points:
 
 - Use `setGlobalTracerProvider: true` on `runExperiment()` so that child spans from `traceTool` or other OTel instrumentation land in the same trace as the task
-- Prefer `traceTool` and the other helpers from `@arizeai/phoenix-otel` so they bind to the active experiment tracer when the task actually runs
 - Use `evaluateExperiment()` as a separate step so spans are ingested before querying
 - Use `getSpans()` with `traceIds` and `spanKind` filters to fetch specific spans from the task trace
 - `traceId` is `null` in dry-run mode since no real traces are recorded
