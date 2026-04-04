@@ -261,6 +261,14 @@ import {
 } from "@arizeai/phoenix-otel";
 ```
 
+## Coding Agent Skill
+
+This package ships with a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
+
+```bash
+npx skills add https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing
+```
+
 ## Documentation
 
 - **[Phoenix Documentation](https://arize.com/docs/phoenix)** - Complete Phoenix documentation
