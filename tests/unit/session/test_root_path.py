@@ -117,11 +117,7 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
         "initial_annotation_precursors"
     ]
     assert isinstance(initial_annotation_precursors, list)
-    assert all(
-        isinstance(
-            p,
-            (Precursors.SpanAnnotation, Precursors.TraceAnnotation, Precursors.DocumentAnnotation),
-        )
-        for p in initial_annotation_precursors
-    )
-    assert len(initial_annotation_precursors) > 0
+    assert len(initial_annotation_precursors) == 3
+    assert any(isinstance(p, Precursors.SpanAnnotation) for p in initial_annotation_precursors)
+    assert any(isinstance(p, Precursors.DocumentAnnotation) for p in initial_annotation_precursors)
+    assert any(isinstance(p, Precursors.TraceAnnotation) for p in initial_annotation_precursors)

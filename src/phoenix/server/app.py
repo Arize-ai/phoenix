@@ -79,6 +79,7 @@ from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -195,7 +196,6 @@ from phoenix.server.types import (
 from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
-    AnnotationPrecursor,
     TracesFixture,
     get_annotation_precursors_from_fixture,
     get_dataset_fixtures,

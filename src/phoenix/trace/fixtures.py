@@ -11,7 +11,6 @@ from time import sleep, time
 from typing import (
     NamedTuple,
     Optional,
-    Union,
     cast,
 )
 from urllib.parse import urljoin
@@ -23,7 +22,7 @@ from httpx import ConnectError, HTTPStatusError
 from pyarrow import Table
 
 from phoenix.db.insertion.dataset import DatasetKeys
-from phoenix.db.insertion.types import Precursors
+from phoenix.db.insertion.types import AnnotationPrecursor, Precursors
 from phoenix.trace.schemas import Span
 from phoenix.trace.span_evaluations import (
     DocumentEvaluations,
@@ -37,12 +36,6 @@ from phoenix.trace.utils import (
     json_lines_to_df,
     parse_file_extension,
 )
-
-AnnotationPrecursor = Union[
-    Precursors.SpanAnnotation,
-    Precursors.TraceAnnotation,
-    Precursors.DocumentAnnotation,
-]
 
 
 def _prepare_pyarrow(
@@ -490,18 +483,6 @@ def send_dataset_fixtures(
             print(f"Dataset sent: {name=}, {len(df)=}")
 
 
-def get_evaluations_from_fixture(
-    fixture_name: str,
-) -> Iterator[Evaluations]:
-    fixture = get_trace_fixture_by_name(fixture_name)
-    for eval_fixture in fixture.evaluation_fixtures:
-        logger.info(
-            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
-        )
-        df = _read_eval_fixture_dataframe(eval_fixture)
-        yield _dataframe_to_evaluations(eval_fixture, df)
-
-
 def _read_eval_fixture_dataframe(eval_fixture: EvaluationFixture) -> pd.DataFrame:
     """Read an evaluation fixture parquet file and return it as a DataFrame.
 
@@ -541,24 +522,6 @@ def _read_eval_fixture_dataframe(eval_fixture: EvaluationFixture) -> pd.DataFram
     return df
 
 
-def _dataframe_to_evaluations(
-    eval_fixture: EvaluationFixture,
-    dataframe: pd.DataFrame,
-) -> Evaluations:
-    eval_name = eval_fixture.evaluation_name
-    if isinstance(eval_fixture, DocumentEvaluationFixture):
-        return DocumentEvaluations(eval_name=eval_name, dataframe=dataframe)
-    for evaluations_cls in (SpanEvaluations, TraceEvaluations):
-        try:
-            return evaluations_cls(eval_name=eval_name, dataframe=dataframe)
-        except ValueError:
-            continue
-    raise ValueError(
-        f"Could not infer evaluation type for fixture '{eval_name}' with index "
-        f"{dataframe.index.names!r}"
-    )
-
-
 def _url(
     file_name: str,
     host: Optional[str] = "https://storage.googleapis.com/",
@@ -595,31 +558,6 @@ def reset_fixture_span_ids_and_timestamps(
         )
         new_spans.append(new_span)
     return new_spans, new_trace_ids, new_span_ids
-
-
-def remap_evaluation_ids(
-    evaluations: Evaluations,
-    *,
-    trace_id_mapping: dict[str, str],
-    span_id_mapping: dict[str, str],
-) -> Evaluations:
-    dataframe = evaluations.dataframe.copy(deep=False)
-
-    if isinstance(evaluations, DocumentEvaluations):
-        span_ids = dataframe.index.get_level_values("context.span_id").map(
-            lambda value: span_id_mapping.get(value, value)
-        )
-        document_positions = dataframe.index.get_level_values("document_position")
-        dataframe.index = pd.MultiIndex.from_arrays(
-            [span_ids, document_positions],
-            names=dataframe.index.names,
-        )
-    elif isinstance(evaluations, SpanEvaluations):
-        dataframe.index = dataframe.index.map(lambda value: span_id_mapping.get(value, value))
-    elif isinstance(evaluations, TraceEvaluations):
-        dataframe.index = dataframe.index.map(lambda value: trace_id_mapping.get(value, value))
-
-    return type(evaluations)(eval_name=evaluations.eval_name, dataframe=dataframe)
 
 
 def get_annotation_precursors_from_fixture(
@@ -667,6 +605,11 @@ def get_annotation_precursors_from_fixture(
                     break
                 except ValueError:
                     continue
+            else:
+                raise ValueError(
+                    f"Could not infer evaluation type for fixture '{eval_name}' "
+                    f"with index {df.index.names!r}"
+                )
             for index, row in df.iterrows():
                 score, label, explanation = _get_precursor_result(row)
                 if is_trace:

@@ -48,6 +48,7 @@ from phoenix.config import (
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import create_engine
+from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
@@ -60,7 +61,6 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
-    AnnotationPrecursor,
     DatasetFixture,
     get_annotation_precursors_from_fixture,
     get_dataset_fixtures,
