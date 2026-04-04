@@ -82,6 +82,8 @@ You can find your collector endpoint and API key in the **Settings** page of you
 
 Call `register()` to initialize tracing. The SDK automatically reads your environment variables.
 
+For manual tracing, the same package also exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters like `setSession` and `setMetadata`.
+
 <Tabs>
   <Tab title="Python" icon="python">
     ```python
@@ -173,6 +175,10 @@ Add instrumentation to capture traces from your LLM calls:
     <Info>
     ESM projects require calling `manuallyInstrument()` on the client class. CommonJS projects can skip this step.
     </Info>
+
+    <Tip>
+    For manual spans, import the helpers from `@arizeai/phoenix-otel`. Phoenix's wrappers resolve the active global tracer when they execute, so the same traced function keeps working inside experiment runs and other provider swaps.
+    </Tip>
 
     See [Integrations](/docs/phoenix/integrations) for all available packages.
   </Tab>

@@ -36,9 +36,9 @@ npm install @arizeai/phoenix-client @arizeai/phoenix-otel @arizeai/phoenix-evals
 
 # Or install individually
 npm install @arizeai/phoenix-client   # REST API client
-npm install @arizeai/phoenix-otel     # Tracing
+npm install @arizeai/phoenix-otel     # Tracing + manual helpers
 npm install @arizeai/phoenix-evals    # Evaluations
-npm install @arizeai/openinference-core  # Instrumentation core
+npm install @arizeai/openinference-core  # Framework-agnostic instrumentation core
 
 # Install CLI globally
 npm install -g @arizeai/phoenix-cli   # Command-line interface
@@ -102,6 +102,8 @@ OpenTelemetry wrapper for sending traces to Phoenix. Simplifies setup with autom
 
 - **Simple setup** — Single `register()` call to configure tracing
 - **Phoenix-aware defaults** — Reads `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and other environment variables
+- **Tracing helpers included** — Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters
+- **Experiment-safe manual tracing** — Helper wrappers resolve the active global tracer at call time
 - **Production ready** — Built-in batch processing and authentication support
 - **Auto-instrumentation** — Support for HTTP, Express, and other OpenTelemetry instrumentations
 - **Manual tracing** — Create custom spans using the OpenTelemetry API
@@ -150,6 +152,8 @@ TypeScript evaluation library for LLM applications. Create custom evaluators or 
 [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fopeninference-core)](https://www.npmjs.com/package/@arizeai/openinference-core)
 
 OpenInference provides instrumentation utilities for tracing LLM applications. The core package (`@arizeai/openinference-core`) offers tracing helpers, decorators, and context attribute propagation.
+
+If you are already using Phoenix, `@arizeai/phoenix-otel` re-exports these helpers from the same package path. Install `@arizeai/openinference-core` directly when you want the framework-agnostic helpers without Phoenix's tracing registration layer.
 
 ### Tracing Helpers
 

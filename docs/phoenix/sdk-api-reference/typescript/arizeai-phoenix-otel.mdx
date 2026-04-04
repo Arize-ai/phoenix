@@ -6,6 +6,8 @@ title: "@arizeai/phoenix-otel"
 
 A simple wrapper around OpenTelemetry for use with [Arize Phoenix](https://github.com/Arize-ai/phoenix). This package simplifies the setup of OpenTelemetry tracing for Node.js applications, providing an easy way to send traces to Phoenix for observability and analysis.
 
+It also re-exports the `@arizeai/openinference-core` tracing helpers and context utilities from the same package path. Phoenix's versions of `withSpan`, `traceChain`, `traceAgent`, `traceTool`, and `observe` resolve the active global tracer when they run, which keeps manual spans attached to experiment-scoped providers.
+
 > **Note**: This package is still under active development and is subject to change.
 
 ## Installation
@@ -23,7 +25,7 @@ Browse the website version under [@arizeai/phoenix-otel Docs](/docs/phoenix/sdk-
 ## Start Here
 
 - [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview) for installation, configuration, instrumentation, production guidance, and troubleshooting
-- [Manual spans](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans) for tracing with OpenInference helpers and raw OTel spans
+- [Manual spans](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans) for tracing with the built-in OpenInference helpers and raw OTel spans
 
 ## Local Install Pattern
 

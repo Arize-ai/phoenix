@@ -11,7 +11,7 @@ These tools can be combined with, or used in place of, OpenTelemetry instrumenta
 
 ## Installation
 
-Ensure you have OpenInference and Phoenix OTEL installed:
+Ensure you have Phoenix OTEL installed:
 
 <Tabs>
 <Tab title="Python" icon="python">
@@ -22,8 +22,10 @@ pip install arize-phoenix-otel
 
 <Tab title="TypeScript" icon="js">
 ```bash
-npm install @arizeai/phoenix-otel @arizeai/openinference-core
+npm install @arizeai/phoenix-otel
 ```
+
+`@arizeai/phoenix-otel` re-exports the OpenInference tracing helpers and context utilities, so Phoenix users can register tracing and add decorators or span helpers from the same package.
 
 For detailed API documentation, consult the respective documentation sites.
 
@@ -76,7 +78,7 @@ def my_func(input: str) -> str:
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { traceChain } from "@arizeai/openinference-core";
+import { traceChain } from "@arizeai/phoenix-otel";
 
 const myFunc = (input: string): string => {
   return "output";
@@ -108,7 +110,7 @@ with tracer.start_as_current_span(
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import { trace } from "@arizeai/phoenix-otel";
 
 await withSpan(
@@ -203,7 +205,7 @@ this_name_should_be_overridden("input")
 #### Using Wrappers
 
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import { trace } from "@arizeai/phoenix-otel";
 
 await withSpan(
@@ -226,7 +228,7 @@ await withSpan(
 #### Using Function Wrappers
 
 ```typescript
-import { traceChain } from "@arizeai/openinference-core";
+import { traceChain } from "@arizeai/phoenix-otel";
 
 const decoratedChainWithPlainTextOutput = traceChain(
   (input: string): string => {
@@ -241,7 +243,7 @@ decoratedChainWithPlainTextOutput("input");
 **Using JSON Serializable Output**
 
 ```typescript
-import { traceChain } from "@arizeai/openinference-core";
+import { traceChain } from "@arizeai/phoenix-otel";
 
 const decoratedChainWithJsonOutput = traceChain(
   (input: string): Record<string, any> => {
@@ -256,7 +258,7 @@ decoratedChainWithJsonOutput("input");
 **Overriding Span Name**
 
 ```typescript
-import { traceChain } from "@arizeai/openinference-core";
+import { traceChain } from "@arizeai/phoenix-otel";
 
 const thisNameShouldBeOverridden = traceChain(
   (input: string): Record<string, any> => {
@@ -303,7 +305,7 @@ decorated_agent("input")
 #### Using Function Wrappers
 
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import { trace } from "@arizeai/phoenix-otel";
 
 await withSpan(
@@ -326,7 +328,7 @@ await withSpan(
 #### Using Function Wrappers
 
 ```typescript
-import { traceAgent } from "@arizeai/openinference-core";
+import { traceAgent } from "@arizeai/phoenix-otel";
 
 const decoratedAgent = traceAgent(
   (input: string): string => {
@@ -395,7 +397,7 @@ this_tool_name_should_be_overridden("input1", 1)
 #### Using Function Wrappers
 
 ```typescript
-import { traceTool } from "@arizeai/openinference-core";
+import { traceTool } from "@arizeai/phoenix-otel";
 
 /**
  * tool-description
@@ -413,7 +415,7 @@ decoratedTool("input1", 1);
 **Overriding Tool Name**
 
 ```typescript
-import { traceTool } from "@arizeai/openinference-core";
+import { traceTool } from "@arizeai/phoenix-otel";
 
 /**
  * this tool description should be overridden
@@ -946,7 +948,7 @@ openai_client.chat.completions.create(
 #### Function Wrapper
 
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import OpenAI from "openai";
 
 const openaiClient = new OpenAI();
@@ -971,7 +973,7 @@ const invokeLLM = withSpan(
 await invokeLLM([{ role: "user", content: "Hello, world!" }]);
 ```
 
-The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can use helper functions from `@arizeai/openinference-core` that produce valid OpenInference attributes for LLM spans:
+The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can use helper functions from `@arizeai/phoenix-otel` that produce valid OpenInference attributes for LLM spans:
 
 * `getLLMAttributes`
 * `defaultProcessInput`
@@ -984,7 +986,7 @@ import {
   getLLMAttributes,
   defaultProcessInput,
   defaultProcessOutput,
-} from "@arizeai/openinference-core";
+} from "@arizeai/phoenix-otel";
 import OpenAI from "openai";
 
 interface ChatCompletionMessageParam {
@@ -1058,7 +1060,7 @@ When using `withSpan` to wrap functions, you can pass `processInput` and `proces
 * Both `processInput` and `processOutput` should output a dictionary mapping attribute names to values.
 
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import OpenAI from "openai";
 
 const openaiClient = new OpenAI();
@@ -1116,7 +1118,7 @@ with suppress_tracing():
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { withSpan } from "@arizeai/openinference-core";
+import { withSpan } from "@arizeai/phoenix-otel";
 import { trace, context, suppressTracing } from "@arizeai/phoenix-otel";
 
 await context.with(suppressTracing(context.active()), async () => {
@@ -1161,8 +1163,8 @@ with using_attributes(session_id="123"):
 <Tab title="TypeScript" icon="js">
 ```typescript
 import { context } from "@opentelemetry/api";
-import { setSession } from "@arizeai/openinference-core";
-import { withSpan } from "@arizeai/openinference-core";
+import { setSession } from "@arizeai/phoenix-otel";
+import { withSpan } from "@arizeai/phoenix-otel";
 import { trace } from "@arizeai/phoenix-otel";
 
 await context.with(
@@ -1244,7 +1246,7 @@ with tracer.start_as_current_span(
 
 <Tab title="TypeScript" icon="js">
 ```typescript
-import { withSpan, getLLMAttributes } from "@arizeai/openinference-core";
+import { withSpan, getLLMAttributes } from "@arizeai/phoenix-otel";
 import { trace } from "@arizeai/phoenix-otel";
 
 const imageUrl =
@@ -1296,5 +1298,4 @@ await withSpan(
 ```
 </Tab>
 </Tabs>
-
 

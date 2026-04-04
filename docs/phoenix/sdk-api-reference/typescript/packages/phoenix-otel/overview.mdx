@@ -3,7 +3,7 @@ title: "Overview"
 description: "Bundled docs for @arizeai/phoenix-otel"
 ---
 
-`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It wraps provider setup, span export, instrumentation registration, and a few convenience utilities for Phoenix-specific tracing workflows.
+`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It wraps provider setup, span export, instrumentation registration, and the OpenInference helpers you need for manual tracing.
 
 ## Install
 
@@ -13,13 +13,16 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 npm install @arizeai/phoenix-otel
 ```
 
-### Recommended — Add OpenInference Core
+### Tracing Helpers Included
 
-`@arizeai/openinference-core` provides tracing helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`), decorators (`@observe`), and context setters (`setSession`, `setUser`, `setMetadata`, `setTag`) that work on top of the provider registered by phoenix-otel. Install it alongside phoenix-otel for the best tracing experience.
+`@arizeai/phoenix-otel` re-exports the `@arizeai/openinference-core` helpers, decorators, and context utilities from the same package path:
 
-```bash
-npm install @arizeai/phoenix-otel @arizeai/openinference-core
-```
+- `withSpan`, `traceChain`, `traceAgent`, `traceTool`
+- `observe`
+- `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`
+- attribute builders like `getLLMAttributes`, `getToolAttributes`, and `getRetrieverAttributes`
+
+Phoenix owns the tracer-bound wrappers in this package so they resolve the active global tracer when they run. That matters for experiment-scoped providers created by `runExperiment()` and for any workflow that swaps global tracers during process lifetime.
 
 ### Add Instrumentations
 
@@ -32,7 +35,7 @@ npm install \
 
 ### Typical Pairings
 
-- `@arizeai/phoenix-otel` plus `@arizeai/openinference-core` for manual tracing with span-kind helpers and context propagation
+- `@arizeai/phoenix-otel` for Phoenix registration plus manual tracing helpers from one import path
 - `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations for automatic framework tracing
 - `@arizeai/phoenix-otel` plus `@arizeai/phoenix-client` for experiment workflows
 - `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors (e.g. `@arizeai/openinference-instrumentation-openai`)
@@ -40,22 +43,22 @@ npm install \
 ## Quick Start
 
 ```ts
-import { register } from "@arizeai/phoenix-otel";
-import { withSpan } from "@arizeai/openinference-core";
-import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
+import { register, traceChain } from "@arizeai/phoenix-otel";
 
 const provider = register({ projectName: "support-bot" });
 
-const handleQuery = withSpan(
+const handleQuery = traceChain(
   async (query: string) => {
     return `Handled: ${query}`;
   },
-  { name: "handle-query", kind: OpenInferenceSpanKind.CHAIN }
+  { name: "handle-query" }
 );
 
 await handleQuery("Hello");
 await provider.shutdown();
 ```
+
+The helper wrappers resolve their tracer at call time, so the same wrapped function keeps working when Phoenix experiments attach a per-run global provider.
 
 ## Docs And Source In `node_modules`
 
@@ -228,18 +231,21 @@ await provider.shutdown();
 ## Package Surface
 
 - `register()` creates a `NodeTracerProvider` and Phoenix exporter setup
+- `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, and `observe()` add OpenInference spans from the same package
+- `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, and `setAttributes()` propagate context attributes to child spans
 - `trace`, `SpanStatusCode`, and other OpenTelemetry re-exports support manual tracing
 - `registerInstrumentations()` wires automatic instrumentation into the same provider
 - `objectAsAttributes()` converts JSON-like objects into OpenTelemetry attribute maps
 
 ## Where To Start
 
-- [Manual spans](./manual-spans) for tracing with `@arizeai/openinference-core` helpers and raw OTel spans
+- [Manual spans](./manual-spans) for tracing with the built-in OpenInference helpers and raw OTel spans
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
     <li><code>src/index.ts</code></li>
+    <li><code>src/openinference.ts</code></li>
     <li><code>src/register.ts</code></li>
     <li><code>src/config.ts</code></li>
     <li><code>src/utils.ts</code></li>

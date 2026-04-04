@@ -30,6 +30,8 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 - **Simple Setup** - One-line configuration with sensible defaults
 - **Environment Variables** - Automatic configuration from environment variables
 - **Batch Processing** - Built-in batch span processing for production use
+- **Tracing Helpers Included** - Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters
+- **Experiment-Safe Manual Tracing** - Helper wrappers resolve the active global tracer when they execute
 
 ## Installation
 
@@ -41,15 +43,22 @@ npm install @arizeai/phoenix-otel
 
 ### Basic Usage
 
-The simplest way to get started is to use the `register` function:
+The simplest way to get started is to use `register()` together with the built-in tracing helpers:
 
 ```typescript
-import { register } from "@arizeai/phoenix-otel";
+import { register, traceChain } from "@arizeai/phoenix-otel";
 
-// Register with default settings (connects to localhost:6006)
-register({
+const provider = register({
   projectName: "my-app",
 });
+
+const answerQuestion = traceChain(
+  async (question: string) => `Handled: ${question}`,
+  { name: "answer-question" }
+);
+
+await answerQuestion("What is Phoenix?");
+await provider.shutdown();
 ```
 
 ### Production Setup
@@ -153,7 +162,33 @@ const response = await openai.chat.completions.create({
 
 ### Manual Tracing
 
-Create custom spans using the OpenTelemetry API:
+Create custom spans using either the built-in helpers or the raw OpenTelemetry API.
+
+With helper wrappers:
+
+```typescript
+import { register, traceTool, withSpan } from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const retrieveWeather = traceTool(
+  async ({ city }: { city: string }) => ({ city, temperature: 72 }),
+  { name: "weather-api" }
+);
+
+const answerQuestion = withSpan(
+  async (question: string) => {
+    const city = question.includes("San Francisco")
+      ? "San Francisco"
+      : "Unknown";
+    const weather = await retrieveWeather({ city });
+    return `The weather in ${weather.city} is ${weather.temperature}F`;
+  },
+  { name: "answer-question", kind: "CHAIN" }
+);
+```
+
+With raw OpenTelemetry:
 
 ```typescript
 import { register, trace, SpanStatusCode } from "@arizeai/phoenix-otel";
@@ -242,23 +277,6 @@ const provider = register({
 
 // Use the provider explicitly
 const tracer = provider.getTracer("my-tracer");
-```
-
-## Re-exported APIs
-
-For convenience, commonly used OpenTelemetry APIs are re-exported:
-
-```typescript
-import {
-  trace, // Main tracing API
-  context, // Context API
-  SpanStatusCode, // Span status codes
-  registerInstrumentations, // Register instrumentations
-  DiagLogLevel, // Diagnostic log levels
-  type Tracer, // Tracer type
-  type Instrumentation, // Instrumentation type
-  type NodeTracerProvider, // Provider type
-} from "@arizeai/phoenix-otel";
 ```
 
 ## Coding Agent Skill

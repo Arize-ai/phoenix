@@ -4,7 +4,7 @@ title: "Add Attributes, Metadata, Users"
 
 ### Using context to customize spans
 
-In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
+In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. Phoenix re-exports those TypeScript helpers from `@arizeai/phoenix-otel`, so you can register tracing and manage context attributes from the same package. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
 
 Supported Context Attributes include:
 
@@ -46,7 +46,7 @@ Supported Context Attributes include:
   <Tab title="TypeScript" icon="js">
 
     ```bash
-    npm install --save @arizeai/phoenix-otel @arizeai/openinference-core
+    npm install --save @arizeai/phoenix-otel
     ```
 
   </Tab>
@@ -87,8 +87,7 @@ Supported Context Attributes include:
     We provide a `setSession` function which allows you to set a sessionId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setSession } from "@arizeai/openinference-core"
+    import { context, setSession } from "@arizeai/phoenix-otel"
 
     context.with(
       setSession(context.active(), { sessionId: "session-id" }),
@@ -136,8 +135,7 @@ Supported Context Attributes include:
     We provide a `setUser` function which allows you to set a userId on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setUser } from "@arizeai/openinference-core"
+    import { context, setUser } from "@arizeai/phoenix-otel"
 
     context.with(
       setUser(context.active(), { userId: "user-id" }),
@@ -190,8 +188,7 @@ Supported Context Attributes include:
     We provide a `setMetadata` function which allows you to set a metadata attributes on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Metadata attributes will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setMetadata } from "@arizeai/openinference-core"
+    import { context, setMetadata } from "@arizeai/phoenix-otel"
 
     context.with(
       setMetadata(context.active(), { key1: "value1", key2: "value2" }),
@@ -240,8 +237,7 @@ Supported Context Attributes include:
     We provide a `setTags` function which allows you to set a list of string tags on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Tags, like metadata, will be serialized to a JSON string when stored on context and will be propagated to spans in the same way.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setTags } from "@arizeai/openinference-core"
+    import { context, setTags } from "@arizeai/phoenix-otel"
 
     context.with(
       setTags(context.active(), ["value1", "value2"]),
@@ -351,8 +347,7 @@ Supported Context Attributes include:
     We provide a `setAttributes` function which allows you to add a set of attributes to context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference auto instrumentations will then pick up these attributes and add them to any spans created within the `context.with` callback. Attributes set on context using `setAttributes` must be valid span [attribute values](https://opentelemetry.io/docs/specs/otel/common/#attribute).
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setAttributes } from "@arizeai/openinference-core"
+    import { context, setAttributes } from "@arizeai/phoenix-otel"
 
     context.with(
       setAttributes(context.active(), { myAttribute: "test" }),
@@ -366,8 +361,7 @@ Supported Context Attributes include:
     You can also use multiple setters at the same time to propagate multiple attributes to the span below. Since each setter function returns a new context, they can be used together as follows.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setAttributes, setSession } from "@arizeai/openinference-core"
+    import { context, setAttributes, setSession } from "@arizeai/phoenix-otel"
 
     context.with(
       setAttributes(
@@ -385,13 +379,11 @@ Supported Context Attributes include:
     You can also use `setAttributes` in conjunction with the [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) to set OpenInference attributes manually.
 
     ```javascript
-    import { context } from "@arizeai/phoenix-otel"
-    import { setAttributes } from "@arizeai/openinference-core"
-    import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+    import { context, setAttributes } from "@arizeai/phoenix-otel"
 
     context.with(
       setAttributes(context.active(), {
-        [SemanticConventions.SESSION_ID]: "session-id"
+        "session.id": "session-id"
       }),
       () => {
         // Calls within this block will generate spans with the attributes:
@@ -431,5 +423,3 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcess
 
 tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint)))
 ```
-
-

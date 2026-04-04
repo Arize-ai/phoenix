@@ -3,28 +3,32 @@ title: "Manual Spans"
 description: "Create manual spans with @arizeai/phoenix-otel"
 ---
 
-The package re-exports `trace`, `context`, and `SpanStatusCode` from OpenTelemetry so you can create custom spans after registration without pulling them from another package.
+The package re-exports `trace`, `context`, and `SpanStatusCode` from OpenTelemetry, plus the `@arizeai/openinference-core` helpers for tracing functions, methods, and context attributes from the same package path.
 
-For most use cases, prefer the `@arizeai/openinference-core` helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`) over raw `startActiveSpan`. They automatically set the correct OpenInference span kind, handle errors, and close the span for you.
+For most use cases, prefer the built-in helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`) over raw `startActiveSpan`. They automatically set the correct OpenInference span kind, handle errors, close the span for you, and follow the active global tracer when they execute.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/index.ts</code></li>
+    <li><code>src/openinference.ts</code></li>
   </ul>
 </section>
 
 ## Recommended — OpenInference Helpers
 
 ```bash
-npm install @arizeai/openinference-core @arizeai/openinference-semantic-conventions
+npm install @arizeai/phoenix-otel
 ```
 
 ```ts
-import { withSpan, setSession, setMetadata } from "@arizeai/openinference-core";
-import { OpenInferenceSpanKind } from "@arizeai/openinference-semantic-conventions";
-import { context } from "@opentelemetry/api";
-import { register } from "@arizeai/phoenix-otel";
+import {
+  context,
+  register,
+  setMetadata,
+  setSession,
+  withSpan,
+} from "@arizeai/phoenix-otel";
 
 register({ projectName: "support-bot" });
 
@@ -33,14 +37,14 @@ const retrieveDocs = withSpan(
     const response = await fetch(`/api/search?q=${query}`);
     return response.json();
   },
-  { name: "retrieve-docs", kind: OpenInferenceSpanKind.RETRIEVER }
+  { name: "retrieve-docs", kind: "RETRIEVER" }
 );
 
 const generateAnswer = withSpan(
   async (query: string, docs: string[]) => {
     return `Answer based on ${docs.length} documents`;
   },
-  { name: "generate-answer", kind: OpenInferenceSpanKind.LLM }
+  { name: "generate-answer", kind: "LLM" }
 );
 
 const ragPipeline = withSpan(
@@ -48,7 +52,7 @@ const ragPipeline = withSpan(
     const docs = await retrieveDocs(query);
     return generateAnswer(query, docs);
   },
-  { name: "rag-pipeline", kind: OpenInferenceSpanKind.CHAIN }
+  { name: "rag-pipeline", kind: "CHAIN" }
 );
 
 // Session and metadata propagate to all child spans
@@ -94,6 +98,7 @@ await tracer.startActiveSpan("lookup-customer", async (span) => {
   <h2>Source Map</h2>
   <ul>
     <li><code>src/index.ts</code></li>
+    <li><code>src/openinference.ts</code></li>
     <li><code>src/register.ts</code></li>
   </ul>
 </section>

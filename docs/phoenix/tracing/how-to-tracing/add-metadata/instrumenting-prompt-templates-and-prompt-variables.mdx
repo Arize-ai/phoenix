@@ -66,8 +66,7 @@ Instrumenting prompt templates and variables allows you to track and visualize p
     All of these are optional. Application of variables to a template will typically happen before the call to an llm and may not be picked up by auto instrumentation. So, this can be helpful to add to ensure you can see the templates and variables while troubleshooting.
 
     ```typescript
-    import { context } from "@opentelemetry/api"
-    import { setPromptTemplate } from "@arizeai/openinference-core"
+    import { context, setPromptTemplate } from "@arizeai/phoenix-otel"
 
     context.with(
       setPromptTemplate(
@@ -90,7 +89,6 @@ Instrumenting prompt templates and variables allows you to track and visualize p
   </Tab>
 
 </Tabs>
-
 
 
 

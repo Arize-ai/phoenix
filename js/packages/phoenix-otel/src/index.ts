@@ -12,5 +12,6 @@ export { type NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
 // Phoenix abstractions
 export * from "./createNoOpProvider";
+export * from "./openinference";
 export * from "./register";
 export * from "./utils";

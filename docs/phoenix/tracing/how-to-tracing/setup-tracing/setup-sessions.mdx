@@ -96,19 +96,16 @@ Below is an example of logging conversations:
 
   <Tab title="TypeScript" icon="js">
 
-    The easiest way to add sessions to your application is to install `@arizeai/openinfernce-core`
+    The easiest way to add sessions to your application is to install `@arizeai/phoenix-otel`
 
     ```javascript
-    npm install @arizeai/openinference-core --save
+    npm install @arizeai/phoenix-otel --save
     ```
 
-    You now can use either the `session.id` semantic attribute or the `setSession` utility function from `openinference-core` to associate traces with a particular session:
+    You now can use either the `session.id` semantic attribute or the `setSession` utility function from `phoenix-otel` to associate traces with a particular session:
 
     ```javascript
-    import { trace } from "@opentelemetry/api";
-    import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
-    import { context } from "@opentelemetry/api";
-    import { setSession } from "@arizeai/openinference-core";
+    import { context, trace, setSession } from "@arizeai/phoenix-otel";
 
     const tracer = trace.getTracer("agent");
 
@@ -120,12 +117,12 @@ Below is an example of logging conversations:
       messages: { role: string; content: string }[];
       sessionId: string;
     }) {
-      return tracer.startActiveSpan("agent", async (span: Span) => {
-        span.setAttribute(SemanticConventions.OPENINFERENCE_SPAN_KIND, "agent");
-        span.setAttribute(SemanticConventions.SESSION_ID, params.sessionId);
+      return tracer.startActiveSpan("agent", async (span) => {
+        span.setAttribute("openinference.span.kind", "agent");
+        span.setAttribute("session.id", params.sessionId);
         span.setAttribute(
-          SemanticConventions.INPUT_VALUE,
-          messages[messages.length - 1].content,
+          "input.value",
+          params.messages[params.messages.length - 1].content,
         );
         try {
           // This is not strictly necessary but it helps propagate the session ID
@@ -139,13 +136,14 @@ Below is an example of logging conversations:
                 model: "gpt-3.5-turbo",
               });
               const response = chatCompletion.choices[0].message;
-              span.setAttribute(SemanticConventions.OUTPUT_VALUE, response.content);
+              span.setAttribute("output.value", response.content);
               span.end();
               return response;
             },
           );
-        } catch (e) {
-          span.error(e);
+        } catch (error) {
+          span.recordException(error as Error);
+          throw error;
         }
       });
     }
@@ -194,5 +192,3 @@ For LangChain, in order to log runs as part of the same thread you need to pass 
 * `thread_id`
 
 * `conversation_id`.
-
-

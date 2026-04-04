@@ -7,6 +7,10 @@ description: "OpenInference Core utilities for LLM tracing in TypeScript"
 
 This package provides OpenInference Core utilities for LLM Traces, including tracing helpers, decorators, and context attribute propagation.
 
+<Note>
+If you are tracing into Phoenix, `@arizeai/phoenix-otel` re-exports this package's helpers and context utilities from a single import path. Phoenix's re-exported wrappers also resolve the active global tracer at call time, which is useful for experiments and other workflows that swap tracer providers.
+</Note>
+
 ## Installation
 
 ```bash

@@ -42,12 +42,12 @@ The key insight is that session IDs are just span attributes. Set them on your p
 
 ## Install Dependencies
 
-You'll need the OpenInference core package to set session context:
+You'll need Phoenix OTEL to register tracing and set session context:
 
 <Tabs>
   <Tab title="TypeScript" icon="js">
     ```bash
-    npm install @arizeai/openinference-core
+    npm install @arizeai/phoenix-otel
     ```
   </Tab>
 
@@ -65,9 +65,7 @@ Here's how to modify your support agent to support sessions:
 <Tabs>
   <Tab title="TypeScript" icon="js">
     ```typescript
-    import { setSession } from "@arizeai/openinference-core";
-    import { context, trace } from "@opentelemetry/api";
-    import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
+    import { context, setSession, trace } from "@arizeai/phoenix-otel";
 
     const tracer = trace.getTracer("support-agent");
 
@@ -84,7 +82,7 @@ Here's how to modify your support agent to support sessions:
               "openinference.span.kind": "AGENT",
               "input.value": userQuery,
               // Add session ID to the span
-              ...(sessionId && { [SemanticConventions.SESSION_ID]: sessionId }),
+              ...(sessionId && { "session.id": sessionId }),
             },
           },
           async (agentSpan) => {
@@ -107,7 +105,7 @@ Here's how to modify your support agent to support sessions:
 
     The key additions:
 
-    1. **`SemanticConventions.SESSION_ID`**: The standard attribute name for session IDs
+    1. **`"session.id"`**: The standard attribute name for session IDs
     2. **`setSession()`**: Propagates the session ID to all child spans
     3. **`context.with()`**: Ensures the session context is active during execution
   </Tab>
@@ -460,7 +458,6 @@ Here's the full evaluation flow. First, fetch spans from Phoenix and group them 
     ```typescript
     import { getSpans } from "@arizeai/phoenix-client/spans";
     import { logSessionAnnotations } from "@arizeai/phoenix-client/sessions";
-    import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
 
     // Fetch all agent spans
     const { spans } = await getSpans({
@@ -473,7 +470,7 @@ Here's the full evaluation flow. First, fetch spans from Phoenix and group them 
 
     const sessionGroups = new Map<string, typeof agentSpans>();
     for (const span of agentSpans) {
-      const sessionId = span.attributes[SemanticConventions.SESSION_ID] as string;
+      const sessionId = span.attributes["session.id"] as string;
       if (sessionId) {
         if (!sessionGroups.has(sessionId)) {
           sessionGroups.set(sessionId, []);
