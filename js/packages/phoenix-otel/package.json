@@ -1,10 +1,13 @@
 {
   "name": "@arizeai/phoenix-otel",
   "version": "0.4.3",
-  "description": "Otel registration and convenience methods",
+  "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
   "keywords": [
     "arize",
     "llm",
+    "observability",
+    "openinference",
+    "opentelemetry",
     "otel",
     "phoenix",
     "tracing"

@@ -176,20 +176,19 @@ const callLLM = withSpan(
     processInput: (messages) =>
       getLLMAttributes({
         provider: "openai",
-        model: "gpt-4o",
-        input_messages: messages.map((m) => ({
-          message: { role: m.role, content: m.content },
+        modelName: "gpt-4o",
+        inputMessages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
         })),
       }),
     processOutput: (response) =>
       getLLMAttributes({
-        output_messages: response.choices.map((c: any) => ({
-          message: {
-            role: c.message.role,
-            content: c.message.content,
-          },
+        outputMessages: response.choices.map((c: any) => ({
+          role: c.message.role,
+          content: c.message.content,
         })),
-        token_count: {
+        tokenCount: {
           prompt: response.usage?.prompt_tokens,
           completion: response.usage?.completion_tokens,
           total: response.usage?.total_tokens,

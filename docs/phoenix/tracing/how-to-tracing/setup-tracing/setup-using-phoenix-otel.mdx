@@ -120,9 +120,11 @@ For manual tracing, the same package also exports `withSpan`, `traceChain`, `tra
       | `projectName` | `string` | `"default"` | Project name in Phoenix |
       | `url` | `string` | `"http://localhost:6006"` | Phoenix server URL |
       | `apiKey` | `string` | — | API key for authentication |
-      | `batch` | `boolean` | `false` | Use batch span processing |
+      | `batch` | `boolean` | `true` | Use batch span processing |
       | `headers` | `Record<string, string>` | `{}` | Custom headers for OTLP requests |
       | `instrumentations` | `Instrumentation[]` | — | Instrumentations to register |
+      | `global` | `boolean` | `true` | Register as the global tracer provider |
+      | `spanProcessors` | `SpanProcessor[]` | — | Custom span processors (overrides default exporter) |
       | `diagLogLevel` | `DiagLogLevel` | — | Enable diagnostic logging |
     </Accordion>
   </Tab>

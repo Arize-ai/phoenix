@@ -102,12 +102,12 @@ Decorator for automatically tracing class methods:
 import { observe } from "@arizeai/openinference-core";
 
 class ChatService {
-  @observe({ kind: "chain" })
+  @observe({ kind: "CHAIN" })
   async processMessage(message: string) {
     return `Processed: ${message}`;
   }
 
-  @observe({ name: "llm-call", kind: "llm" })
+  @observe({ name: "llm-call", kind: "LLM" })
   async callLLM(prompt: string) {
     return await llmClient.generate(prompt);
   }
@@ -125,7 +125,7 @@ The package offers utilities to track important application metadata using conte
 | `setSession` | Specify a session ID to track and group multi-turn conversations |
 | `setUser` | Specify a user ID to track different conversations with a given user |
 | `setMetadata` | Add custom metadata for operational needs |
-| `setTag` | Add tags to filter spans on specific keywords |
+| `setTags` | Add tags to filter spans on specific keywords |
 | `setPromptTemplate` | Track prompt template used, with version and variables |
 | `setAttributes` | Add multiple custom attributes at once |
 

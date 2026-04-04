@@ -41,11 +41,25 @@ function recordSpanError(span: OISpan, error: unknown): void {
 }
 
 /**
- * Phoenix-owned wrapper around `openinference-core`'s `withSpan`.
+ * Wraps a function so that each invocation is automatically traced as an
+ * OpenInference span.
  *
- * The upstream helper resolves the global tracer when the wrapper is created.
- * Phoenix needs late binding so experiment-scoped providers and other global
- * tracer swaps are respected when the wrapped function actually runs.
+ * Unlike the upstream `@arizeai/openinference-core` helper, Phoenix's version
+ * resolves the tracer at call time (not at wrap time), so swapping the global
+ * tracer provider between calls is correctly reflected.
+ *
+ * @param fn - The function to wrap with tracing.
+ * @param options - Span configuration including name, kind, attributes, and input/output processors.
+ * @returns A new function with the same signature as `fn` that creates and manages a trace span on each invocation.
+ *
+ * @example
+ * ```typescript
+ * const tracedFn = withSpan(
+ *   async (query: string) => `processed: ${query}`,
+ *   { name: "my-function", kind: "CHAIN" }
+ * );
+ * await tracedFn("hello");
+ * ```
  */
 export function withSpan<Fn extends AnyFn = AnyFn>(
   fn: Fn,
@@ -120,6 +134,25 @@ export function withSpan<Fn extends AnyFn = AnyFn>(
   return wrappedFn;
 }
 
+/**
+ * Wraps a function so each invocation is traced as a CHAIN span.
+ *
+ * Convenience wrapper around {@link withSpan} with `kind` preset to `"CHAIN"`.
+ * Use for pipeline steps, orchestration logic, or any general-purpose traced function.
+ *
+ * @param fn - The function to wrap with tracing.
+ * @param options - Span configuration (name, attributes, input/output processors). `kind` is preset and cannot be overridden.
+ * @returns A new function with the same signature that creates a CHAIN span on each invocation.
+ *
+ * @example
+ * ```typescript
+ * const summarize = traceChain(
+ *   async (text: string) => `Summary of ${text.length} chars`,
+ *   { name: "summarize" }
+ * );
+ * await summarize("Hello world");
+ * ```
+ */
 export function traceChain<Fn extends AnyFn>(
   fn: Fn,
   options?: Omit<SpanTraceOptions<Fn>, "kind">
@@ -130,6 +163,25 @@ export function traceChain<Fn extends AnyFn>(
   });
 }
 
+/**
+ * Wraps a function so each invocation is traced as an AGENT span.
+ *
+ * Convenience wrapper around {@link withSpan} with `kind` preset to `"AGENT"`.
+ * Use for autonomous agent entry points and decision-making components.
+ *
+ * @param fn - The function to wrap with tracing.
+ * @param options - Span configuration (name, attributes, input/output processors). `kind` is preset and cannot be overridden.
+ * @returns A new function with the same signature that creates an AGENT span on each invocation.
+ *
+ * @example
+ * ```typescript
+ * const supportAgent = traceAgent(
+ *   async (question: string) => ({ answer: "Here's how to reset your password..." }),
+ *   { name: "support-agent" }
+ * );
+ * await supportAgent("How do I reset my password?");
+ * ```
+ */
 export function traceAgent<Fn extends AnyFn>(
   fn: Fn,
   options?: Omit<SpanTraceOptions<Fn>, "kind">
@@ -140,6 +192,25 @@ export function traceAgent<Fn extends AnyFn>(
   });
 }
 
+/**
+ * Wraps a function so each invocation is traced as a TOOL span.
+ *
+ * Convenience wrapper around {@link withSpan} with `kind` preset to `"TOOL"`.
+ * Use for tool calls, API lookups, and function-calling targets.
+ *
+ * @param fn - The function to wrap with tracing.
+ * @param options - Span configuration (name, attributes, input/output processors). `kind` is preset and cannot be overridden.
+ * @returns A new function with the same signature that creates a TOOL span on each invocation.
+ *
+ * @example
+ * ```typescript
+ * const searchDocs = traceTool(
+ *   async (query: string) => fetch(`/api/search?q=${query}`).then(r => r.json()),
+ *   { name: "search-docs" }
+ * );
+ * await searchDocs("OpenTelemetry");
+ * ```
+ */
 export function traceTool<Fn extends AnyFn>(
   fn: Fn,
   options?: Omit<SpanTraceOptions<Fn>, "kind">
@@ -150,6 +221,26 @@ export function traceTool<Fn extends AnyFn>(
   });
 }
 
+/**
+ * Returns a TC39 stage-3 class method decorator that traces the decorated method
+ * as an OpenInference span.
+ *
+ * Uses {@link withSpan} under the hood, so the tracer is resolved at call time.
+ * The method name is used as the default span name; pass `name` in options to override.
+ *
+ * @param options - Span configuration (kind, name, attributes, input/output processors).
+ * @returns A class method decorator function.
+ *
+ * @example
+ * ```typescript
+ * class SupportBot {
+ *   @observe({ kind: "AGENT" })
+ *   async handleTicket(ticketId: string) {
+ *     return { resolved: true };
+ *   }
+ * }
+ * ```
+ */
 export function observe<Fn extends AnyFn>(options: SpanTraceOptions<Fn> = {}) {
   return function (originalMethod: Fn, context: ClassMethodDecoratorContext) {
     const methodName = String(context.name);

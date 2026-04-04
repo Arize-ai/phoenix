@@ -66,7 +66,7 @@ export type RegisterParams = {
 
   /**
    * The URL to the Phoenix server. Can be postfixed with the tracing path.
-   * If not provided, the system will check the PHOENIX_COLLECTOR_URL environment variable.
+   * If not provided, the system will check the PHOENIX_COLLECTOR_ENDPOINT environment variable.
    *
    * The URL will be automatically normalized to include the `/v1/traces` endpoint if not present.
    *
@@ -597,7 +597,7 @@ export function getDefaultSpanProcessor({
  * - Checks if the URL already contains `/v1/traces`
  * - If missing, appends `/v1/traces` to the base URL
  * - Returns a properly formatted URL string
- * - Assumes HTTP over gRPC protocol for OTLP communication
+ * - The `/v1/traces` path is the standard endpoint for OTLP/HTTP trace export
  *
  * @param url - The base URL to the Phoenix server (may or may not include the traces endpoint)
  * @returns A normalized URL string that includes the `/v1/traces` endpoint

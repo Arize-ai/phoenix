@@ -232,11 +232,13 @@ await provider.shutdown();
 
 | Category | Exports |
 |----------|---------|
-| **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()` |
+| **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()` |
 | **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `observe()` |
-| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setAttributes()`, `setPromptTemplate()` |
+| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setAttributes()`, `setPromptTemplate()`, `getAttributesFromContext()` |
 | **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()` |
-| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `suppressTracing`, `registerInstrumentations()` |
+| **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()` |
+| **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
 | **Utilities** | `objectAsAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()` |
 
 ## Where To Start

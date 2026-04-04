@@ -68,7 +68,7 @@ Below is an example of logging conversations:
       # This is not strictly necessary, but it helps to correlate the spans to the same session
       with using_session(session_id):
           response = client.chat.completions.create(
-          model="gpt-3.5-turbo",
+          model="gpt-4o-mini",
           messages=[{"role": "system", "content": "You are a helpful assistant."}] + messages,
       ).choices[0].message
 
@@ -99,12 +99,13 @@ Below is an example of logging conversations:
     The easiest way to add sessions to your application is to install `@arizeai/phoenix-otel`
 
     ```javascript
-    npm install @arizeai/phoenix-otel --save
+    npm install @arizeai/phoenix-otel
     ```
 
     You now can use either the `session.id` semantic attribute or the `setSession` utility function from `phoenix-otel` to associate traces with a particular session:
 
     ```javascript
+    import OpenAI from "openai";
     import { context, trace, setSession } from "@arizeai/phoenix-otel";
 
     const tracer = trace.getTracer("agent");
@@ -133,7 +134,7 @@ Below is an example of logging conversations:
               // Calls within this block will generate spans with the session ID set
               const chatCompletion = await client.chat.completions.create({
                 messages: params.messages,
-                model: "gpt-3.5-turbo",
+                model: "gpt-4o-mini",
               });
               const response = chatCompletion.choices[0].message;
               span.setAttribute("output.value", response.content);
