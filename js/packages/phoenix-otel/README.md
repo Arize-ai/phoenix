@@ -266,7 +266,7 @@ import {
 This package ships with a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
 
 ```bash
-npx skills add https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing
+npx skills add Arize-ai/phoenix phoenix-tracing
 ```
 
 ## Documentation
