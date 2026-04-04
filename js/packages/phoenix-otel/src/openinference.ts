@@ -7,6 +7,7 @@ import {
   type OISpan,
   type SpanTraceOptions,
 } from "@arizeai/openinference-core";
+import { SemanticConventions } from "@arizeai/openinference-semantic-conventions";
 import {
   SpanKind,
   SpanStatusCode,
@@ -18,7 +19,6 @@ import {
 export * from "@arizeai/openinference-core";
 
 const DEFAULT_TRACER_NAME = "openinference-core";
-const OPENINFERENCE_SPAN_KIND = "openinference.span.kind";
 
 function getOpenInferenceTracer(tracer?: Tracer): OITracer {
   if (tracer instanceof OITracer) {
@@ -77,7 +77,7 @@ export function withSpan<Fn extends AnyFn = AnyFn>(
         kind: openTelemetrySpanKind,
         attributes: {
           ...baseAttributes,
-          [OPENINFERENCE_SPAN_KIND]: kind,
+          [SemanticConventions.OPENINFERENCE_SPAN_KIND]: kind,
           ...processInput(...args),
         },
       },
