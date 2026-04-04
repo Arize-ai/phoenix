@@ -104,18 +104,60 @@ export function DatasetPreviewTable({
   // Transform raw rows into dataset preview format
   const previewData = useMemo(() => {
     /**
-     * Adds a value to the target bucket, handling collapse logic.
-     * If the column is in keysToCollapse and the value is an object,
-     * spread its children into the target instead of nesting under the column name.
+     * Sets a value at a (possibly nested) dot-separated key path in an object.
+     * e.g. setNestedValue(obj, "a.b", 1) → obj = { a: { b: 1 } }
+     */
+    const setNestedValue = (
+      obj: Record<string, unknown>,
+      key: string,
+      value: unknown
+    ) => {
+      const parts = key.split(".");
+      if (parts.length === 1) {
+        obj[key] = value;
+        return;
+      }
+      let current = obj;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (
+          !(part in current) ||
+          typeof current[part] !== "object" ||
+          current[part] === null
+        ) {
+          current[part] = {};
+        }
+        current = current[part] as Record<string, unknown>;
+      }
+      current[parts[parts.length - 1]] = value;
+    };
+
+    /**
+     * Strips a bucket prefix from a column name if present.
+     * e.g. getBucketKey("input.question", "input") → "question"
+     */
+    const getBucketKey = (col: string, bucketName: string): string => {
+      const prefix = `${bucketName}.`;
+      return col.toLowerCase().startsWith(prefix)
+        ? col.slice(prefix.length)
+        : col;
+    };
+
+    /**
+     * Adds a value to the target bucket, unflattening dots in the key into
+     * nested objects (e.g. "a.b" → { a: { b: value } }).
+     *
+     * Also handles collapse logic: if the key is in keysToCollapse and the
+     * value is an object, its children are spread directly into the bucket.
      */
     const addToBucket = (
       bucket: Record<string, unknown>,
-      col: string,
+      key: string,
       value: unknown
     ) => {
       if (
         collapseKeys &&
-        keysToCollapseSet.has(col) &&
+        keysToCollapseSet.has(key) &&
         typeof value === "object" &&
         value !== null &&
         !Array.isArray(value)
@@ -123,8 +165,7 @@ export function DatasetPreviewTable({
         // Collapse: spread children into the bucket
         Object.assign(bucket, value);
       } else {
-        // Normal: add under the column name
-        bucket[col] = value;
+        setNestedValue(bucket, key, value);
       }
     };
 
@@ -146,30 +187,30 @@ export function DatasetPreviewTable({
             }
           }
           if (inputColumns.includes(col)) {
-            addToBucket(input, col, value);
+            addToBucket(input, getBucketKey(col, "input"), value);
           }
           if (outputColumns.includes(col)) {
-            addToBucket(output, col, value);
+            addToBucket(output, getBucketKey(col, "output"), value);
           }
           if (metadataColumns.includes(col)) {
-            addToBucket(metadata, col, value);
+            addToBucket(metadata, getBucketKey(col, "metadata"), value);
           }
         });
       } else {
         // JSONL row - object
         for (const col of inputColumns) {
           if (col in row) {
-            addToBucket(input, col, row[col]);
+            addToBucket(input, getBucketKey(col, "input"), row[col]);
           }
         }
         for (const col of outputColumns) {
           if (col in row) {
-            addToBucket(output, col, row[col]);
+            addToBucket(output, getBucketKey(col, "output"), row[col]);
           }
         }
         for (const col of metadataColumns) {
           if (col in row) {
-            addToBucket(metadata, col, row[col]);
+            addToBucket(metadata, getBucketKey(col, "metadata"), row[col]);
           }
         }
       }

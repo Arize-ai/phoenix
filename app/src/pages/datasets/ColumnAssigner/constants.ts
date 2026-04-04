@@ -8,6 +8,7 @@ const OUTPUT_NAMES = new Set([
   "expected",
   "original",
 ]);
+const ID_NAMES = new Set(["example_id", "id"]);
 const SPLIT_NAMES = new Set(["split", "splits", "group"]);
 
 /**
@@ -25,6 +26,13 @@ export function getAutoAssignment(columnName: string): ColumnBucket {
   if (lower.startsWith("output.")) return "output";
   if (lower.startsWith("metadata.")) return "metadata";
   return "source";
+}
+
+/**
+ * Returns whether a column name should be auto-assigned as the example ID key.
+ */
+export function isAutoIdColumn(columnName: string): boolean {
+  return ID_NAMES.has(columnName.toLowerCase());
 }
 
 /**
