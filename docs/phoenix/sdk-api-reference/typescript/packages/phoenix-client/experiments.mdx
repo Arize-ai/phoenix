@@ -240,6 +240,12 @@ Each task run captures an OpenTelemetry trace ID. Evaluators can use `traceId` t
 
 This pattern works best with `evaluateExperiment()` as a separate step after `runExperiment()`, so that all task spans are ingested into Phoenix before the evaluator queries them.
 
+If you want to trace task code with helpers like `traceTool`, install `@arizeai/phoenix-otel` alongside `@arizeai/phoenix-client`:
+
+```bash
+npm install @arizeai/phoenix-client @arizeai/phoenix-otel
+```
+
 ```ts
 import { createClient } from "@arizeai/phoenix-client";
 import { createDataset } from "@arizeai/phoenix-client/datasets";

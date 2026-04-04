@@ -1,3 +1,4 @@
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -6,6 +7,7 @@ import {
   detachGlobalTracerProvider,
   observe,
   register,
+  SpanStatusCode,
   trace,
   traceTool,
   withSpan,
@@ -16,18 +18,25 @@ afterEach(() => {
 });
 
 function createCountingSpanProcessor() {
+  let endCount = 0;
   let startCount = 0;
+  const endedSpans: Readonly<ReadableSpan>[] = [];
 
   const processor: SpanProcessor = {
     onStart: () => {
       startCount += 1;
     },
-    onEnd: (_span: Readonly<Span>) => {},
+    onEnd: (span: Readonly<ReadableSpan>) => {
+      endCount += 1;
+      endedSpans.push(span);
+    },
     forceFlush: async () => {},
     shutdown: async () => {},
   };
 
   return {
+    endedSpans,
+    getEndCount: () => endCount,
     processor,
     getStartCount: () => startCount,
   };
@@ -153,6 +162,40 @@ describe("openinference re-exports", () => {
 
       expect(result.childResult).toBe(`agent:${result.parentTraceId}`);
       expect(getStartCount()).toBe(2);
+    } finally {
+      registration.detach();
+      await provider.shutdown();
+    }
+  });
+
+  test("withSpan records and ends spans when a synchronous function throws", async () => {
+    const { endedSpans, getEndCount, getStartCount, processor } =
+      createCountingSpanProcessor();
+    const provider = register({
+      url: "http://localhost:6006/v1/traces",
+      apiKey: "test",
+      spanProcessors: [processor],
+      global: false,
+    });
+    const traced = withSpan(
+      () => {
+        throw new Error("invalid input");
+      },
+      { name: "sync-failure" }
+    );
+    const registration = attachGlobalTracerProvider(provider);
+
+    try {
+      await expect(
+        runInsideParentSpan("parent", async () => Promise.resolve(traced()))
+      ).rejects.toThrow("invalid input");
+
+      expect(getStartCount()).toBe(2);
+      expect(getEndCount()).toBe(2);
+
+      const childSpan = endedSpans.find((span) => span.name === "sync-failure");
+      expect(childSpan?.status.code).toBe(SpanStatusCode.ERROR);
+      expect(childSpan?.status.message).toBe("invalid input");
     } finally {
       registration.detach();
       await provider.shutdown();

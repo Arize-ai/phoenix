@@ -4,6 +4,7 @@ import {
   isPromise,
   OITracer,
   type AnyFn,
+  type OISpan,
   type SpanTraceOptions,
 } from "@arizeai/openinference-core";
 import {
@@ -26,6 +27,16 @@ function getOpenInferenceTracer(tracer?: Tracer): OITracer {
 
   return new OITracer({
     tracer: tracer ?? trace.getTracer(DEFAULT_TRACER_NAME),
+  });
+}
+
+function recordSpanError(span: OISpan, error: unknown): void {
+  span.recordException(error as Parameters<typeof span.recordException>[0]);
+  span.setStatus({
+    code: SpanStatusCode.ERROR,
+    message: String(
+      (error as { message?: unknown } | null | undefined)?.message ?? error
+    ),
   });
 }
 
@@ -71,40 +82,37 @@ export function withSpan<Fn extends AnyFn = AnyFn>(
         },
       },
       (span) => {
-        const result = fn.apply(this, args) as ReturnType<Fn>;
+        try {
+          const result = fn.apply(this, args) as ReturnType<Fn>;
 
-        if (isPromise(result)) {
-          return result
-            .then((value: Awaited<ReturnType<Fn>>) => {
-              span.setAttributes(processOutput(value));
-              span.setStatus({
-                code: SpanStatusCode.OK,
-              });
-              return value;
-            })
-            .catch((error: unknown) => {
-              span.recordException(
-                error as Parameters<typeof span.recordException>[0]
-              );
-              span.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: String(
-                  (error as { message?: unknown } | null | undefined)?.message ??
-                    error
-                ),
-              });
-              throw error;
-            })
-            .finally(() => span.end());
+          if (isPromise(result)) {
+            return result
+              .then((value: Awaited<ReturnType<Fn>>) => {
+                span.setAttributes(processOutput(value));
+                span.setStatus({
+                  code: SpanStatusCode.OK,
+                });
+                return value;
+              })
+              .catch((error: unknown) => {
+                recordSpanError(span, error);
+                throw error;
+              })
+              .finally(() => span.end());
+          }
+
+          span.setAttributes(processOutput(result as Awaited<ReturnType<Fn>>));
+          span.setStatus({
+            code: SpanStatusCode.OK,
+          });
+          span.end();
+
+          return result;
+        } catch (error) {
+          recordSpanError(span, error);
+          span.end();
+          throw error;
         }
-
-        span.setAttributes(processOutput(result as Awaited<ReturnType<Fn>>));
-        span.setStatus({
-          code: SpanStatusCode.OK,
-        });
-        span.end();
-
-        return result;
       }
     );
   } as Fn;
