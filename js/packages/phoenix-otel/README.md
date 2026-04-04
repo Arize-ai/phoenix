@@ -160,35 +160,92 @@ const response = await openai.chat.completions.create({
 });
 ```
 
-### Manual Tracing
+### Tracing Helpers
 
-Create custom spans using either the built-in helpers or the raw OpenTelemetry API.
-
-With helper wrappers:
+The package includes `withSpan`, `traceChain`, `traceAgent`, and `traceTool` for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
 
 ```typescript
-import { register, traceTool, withSpan } from "@arizeai/phoenix-otel";
+import {
+  register,
+  traceAgent,
+  traceChain,
+  traceTool,
+  withSpan,
+} from "@arizeai/phoenix-otel";
 
 register({ projectName: "my-app" });
 
-const retrieveWeather = traceTool(
-  async ({ city }: { city: string }) => ({ city, temperature: 72 }),
-  { name: "weather-api" }
+// traceTool — for tool calls and API lookups
+const searchDocs = traceTool(
+  async (query: string) => {
+    const response = await fetch(`/api/search?q=${query}`);
+    return response.json();
+  },
+  { name: "search-docs" }
 );
 
-const answerQuestion = withSpan(
+// traceChain — for pipeline steps and orchestration
+const summarize = traceChain(
+  async (text: string) => `Summary of ${text.length} chars`,
+  { name: "summarize" }
+);
+
+// traceAgent — for autonomous agent entry points
+const supportAgent = traceAgent(
   async (question: string) => {
-    const city = question.includes("San Francisco")
-      ? "San Francisco"
-      : "Unknown";
-    const weather = await retrieveWeather({ city });
-    return `The weather in ${weather.city} is ${weather.temperature}F`;
+    const docs = await searchDocs(question);
+    return summarize(JSON.stringify(docs));
   },
-  { name: "answer-question", kind: "CHAIN" }
+  { name: "support-agent" }
+);
+
+// withSpan — general purpose, specify kind explicitly
+const retrieveDocs = withSpan(
+  async (query: string) =>
+    fetch(`/api/search?q=${query}`).then((r) => r.json()),
+  { name: "retrieve-docs", kind: "RETRIEVER" }
 );
 ```
 
-With raw OpenTelemetry:
+These helpers resolve the active global tracer when the wrapped function runs (not when the wrapper is created). This makes them safe for experiment workflows where `runExperiment()` swaps the global provider per task.
+
+### Context Attributes
+
+Propagate session IDs, user IDs, metadata, and tags to all child spans using context setters:
+
+```typescript
+import {
+  context,
+  register,
+  setMetadata,
+  setSession,
+  setUser,
+  traceChain,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const handleQuery = traceChain(async (query: string) => `Handled: ${query}`, {
+  name: "handle-query",
+});
+
+// All spans inside context.with() inherit session, user, and metadata
+await context.with(
+  setMetadata(
+    setUser(setSession(context.active(), { sessionId: "sess-123" }), {
+      userId: "user-456",
+    }),
+    { environment: "production" }
+  ),
+  () => handleQuery("Hello")
+);
+```
+
+Available setters: `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`, `setPromptTemplate`.
+
+### Raw OpenTelemetry Spans
+
+For full control over attributes and timing, use the OpenTelemetry API directly:
 
 ```typescript
 import { register, trace, SpanStatusCode } from "@arizeai/phoenix-otel";
@@ -201,10 +258,7 @@ async function processOrder(orderId: string) {
   return tracer.startActiveSpan("process-order", async (span) => {
     try {
       span.setAttribute("order.id", orderId);
-
-      // Your business logic here
       const result = await fetchOrderDetails(orderId);
-
       span.setAttribute("order.status", result.status);
       return result;
     } catch (error) {
@@ -286,6 +340,46 @@ The Phoenix repo includes a [phoenix-tracing skill](https://github.com/Arize-ai/
 ```bash
 npx skills add Arize-ai/phoenix --skill phoenix-tracing
 ```
+
+Tracing helpers (Phoenix late-binding wrappers):
+
+```typescript
+import {
+  observe,
+  traceAgent,
+  traceChain,
+  traceTool,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+```
+
+Context attribute setters:
+
+```typescript
+import {
+  setAttributes,
+  setMetadata,
+  setPromptTemplate,
+  setSession,
+  setTags,
+  setUser,
+} from "@arizeai/phoenix-otel";
+```
+
+Attribute builders for rich span data:
+
+```typescript
+import {
+  defaultProcessInput,
+  defaultProcessOutput,
+  getEmbeddingAttributes,
+  getLLMAttributes,
+  getRetrieverAttributes,
+  getToolAttributes,
+} from "@arizeai/phoenix-otel";
+```
+
+The tracing helper wrappers resolve the active global tracer when they run. That keeps spans attached to experiment-scoped providers created by `@arizeai/phoenix-client` and to any workflow that swaps providers during process lifetime.
 
 ## Documentation
 

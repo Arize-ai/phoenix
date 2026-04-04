@@ -230,16 +230,20 @@ await provider.shutdown();
 
 ## Package Surface
 
-- `register()` creates a `NodeTracerProvider` and Phoenix exporter setup
-- `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, and `observe()` add OpenInference spans from the same package
-- `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, and `setAttributes()` propagate context attributes to child spans
-- `trace`, `SpanStatusCode`, and other OpenTelemetry re-exports support manual tracing
-- `registerInstrumentations()` wires automatic instrumentation into the same provider
-- `objectAsAttributes()` converts JSON-like objects into OpenTelemetry attribute maps
+| Category | Exports |
+|----------|---------|
+| **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()` |
+| **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `observe()` |
+| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setAttributes()`, `setPromptTemplate()` |
+| **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `suppressTracing`, `registerInstrumentations()` |
+| **Utilities** | `objectAsAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()` |
 
 ## Where To Start
 
-- [Manual spans](./manual-spans) for tracing with the built-in OpenInference helpers and raw OTel spans
+- [Tracing helpers](./tracing-helpers) for wrapping functions with `withSpan`, `traceChain`, `traceAgent`, `traceTool`, and `observe`
+- [Context attributes](./context-attributes) for propagating sessions, users, metadata, and tags to child spans
+- [Manual spans](./manual-spans) for raw OpenTelemetry span creation when you need full control
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>

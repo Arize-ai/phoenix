@@ -49,6 +49,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arizeai/openinference-core": "^2.0.5",
     "@arizeai/openinference-semantic-conventions": "^2.1.7",
     "@arizeai/openinference-vercel": "^2.7.0",
     "@opentelemetry/api": "^1.9.0",
@@ -60,11 +61,7 @@
     "@opentelemetry/sdk-trace-base": "^2.5.1",
     "@opentelemetry/sdk-trace-node": "^2.5.1"
   },
-  "peerDependencies": {
-    "@arizeai/openinference-core": "^2.0.5"
-  },
   "devDependencies": {
-    "@arizeai/openinference-core": "2.0.5",
     "@types/node": "^24.9.1",
     "vitest": "^4.1.0"
   }

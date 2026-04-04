@@ -596,6 +596,9 @@ importers:
 
   packages/phoenix-otel:
     dependencies:
+      '@arizeai/openinference-core':
+        specifier: ^2.0.5
+        version: 2.0.5
       '@arizeai/openinference-semantic-conventions':
         specifier: ^2.1.7
         version: 2.1.7
@@ -627,9 +630,6 @@ importers:
         specifier: ^2.5.1
         version: 2.5.1(@opentelemetry/api@1.9.0)
     devDependencies:
-      '@arizeai/openinference-core':
-        specifier: 2.0.5
-        version: 2.0.5
       '@types/node':
         specifier: ^24.9.1
         version: 24.10.13

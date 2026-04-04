@@ -1,5 +1,5 @@
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
-import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace-node";
+import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { afterEach, describe, expect, test } from "vitest";
 
 import {
@@ -102,8 +102,9 @@ describe("openinference re-exports", () => {
     try {
       const firstRegistration = attachGlobalTracerProvider(firstProvider);
       try {
-        const firstResult = await runInsideParentSpan("first-parent", async () =>
-          tracedTool()
+        const firstResult = await runInsideParentSpan(
+          "first-parent",
+          async () => tracedTool()
         );
 
         expect(firstResult.childResult).toBe(firstResult.parentTraceId);

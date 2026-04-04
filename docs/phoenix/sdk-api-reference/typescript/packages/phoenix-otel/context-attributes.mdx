@@ -1,0 +1,271 @@
+---
+title: "Context Attributes"
+description: "Propagate session IDs, user IDs, metadata, tags, and custom attributes to child spans"
+---
+
+`@arizeai/phoenix-otel` re-exports the OpenInference context setters. These functions write values into the OpenTelemetry context so that auto-instrumentations and child spans inherit them automatically.
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+```ts
+import {
+  context,
+  register,
+  setSession,
+  setUser,
+  traceChain,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const handleQuery = traceChain(async (query: string) => {
+  return `Handled: ${query}`;
+}, { name: "handle-query" });
+
+// Both setSession and setUser propagate to handleQuery and its children
+await context.with(
+  setUser(
+    setSession(context.active(), { sessionId: "sess-123" }),
+    { userId: "user-456" }
+  ),
+  () => handleQuery("Hello")
+);
+```
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/openinference.ts</code> re-exports from <code>@arizeai/openinference-core</code></li>
+    <li><code>src/index.ts</code> for the full export surface</li>
+  </ul>
+</section>
+
+## How Context Propagation Works
+
+Each setter takes a `Context` and returns a new `Context` with the value attached. Wrap your work in `context.with()` to activate it. Any span created inside the callback — whether from tracing helpers, auto-instrumentation, or raw OpenTelemetry — inherits the attributes.
+
+```ts
+import { context, setSession } from "@arizeai/phoenix-otel";
+
+const ctx = setSession(context.active(), { sessionId: "sess-123" });
+
+await context.with(ctx, async () => {
+  // All spans created here have session.id = "sess-123"
+  await myTracedFunction();
+});
+```
+
+Setters compose by chaining — each one wraps the context returned by the previous one:
+
+```ts
+import {
+  context,
+  setMetadata,
+  setSession,
+  setTags,
+  setUser,
+} from "@arizeai/phoenix-otel";
+
+const ctx = setTags(
+  setMetadata(
+    setUser(
+      setSession(context.active(), { sessionId: "sess-123" }),
+      { userId: "user-456" }
+    ),
+    { environment: "production", version: "1.4.2" }
+  ),
+  ["premium", "beta-feature"]
+);
+
+await context.with(ctx, () => runPipeline());
+```
+
+## API Reference
+
+### `setSession(context, session)`
+
+Attaches a session ID. Spans receive the `session.id` attribute.
+
+```ts
+import { context, setSession } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setSession(context.active(), { sessionId: "conv-abc-123" }),
+  () => handleConversation()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `session` | `{ sessionId: string }` | The session identifier. |
+
+### `setUser(context, user)`
+
+Attaches a user ID. Spans receive the `user.id` attribute.
+
+```ts
+import { context, setUser } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setUser(context.active(), { userId: "user-456" }),
+  () => handleRequest()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `user` | `{ userId: string }` | The user identifier. |
+
+### `setMetadata(context, metadata)`
+
+Attaches arbitrary key-value metadata. Serialized as JSON on the `metadata` span attribute.
+
+```ts
+import { context, setMetadata } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setMetadata(context.active(), {
+    environment: "production",
+    region: "us-east-1",
+    model: "gpt-4o",
+  }),
+  () => handleRequest()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `metadata` | `Record<string, unknown>` | Key-value pairs to attach. |
+
+### `setTags(context, tags)`
+
+Attaches a list of string tags. Serialized as JSON on the `tag.tags` span attribute.
+
+```ts
+import { context, setTags } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setTags(context.active(), ["premium-user", "beta-feature", "high-priority"]),
+  () => handleRequest()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `tags` | `string[]` | Tags to attach. |
+
+### `setAttributes(context, attributes)`
+
+Attaches arbitrary span attributes. Unlike `setMetadata`, these are set as individual span attributes rather than serialized into a single JSON field.
+
+```ts
+import { context, setAttributes } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setAttributes(context.active(), {
+    "deployment.environment": "staging",
+    "request.priority": 1,
+  }),
+  () => handleRequest()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `attributes` | `Attributes` | Valid OpenTelemetry span attribute values. |
+
+### `setPromptTemplate(context, promptTemplate)`
+
+Attaches a prompt template and its variables. Useful for tracking which prompts are used across calls.
+
+```ts
+import { context, setPromptTemplate } from "@arizeai/phoenix-otel";
+
+await context.with(
+  setPromptTemplate(context.active(), {
+    template: "Answer the user's question about {{topic}}: {{question}}",
+    variables: { topic: "billing", question: "How do I upgrade?" },
+    version: "v2.1",
+  }),
+  () => callLLM()
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `context` | `Context` | The current OpenTelemetry context. |
+| `promptTemplate` | `{ template: string; variables?: Record<string, string>; version?: string }` | The prompt template, its variable bindings, and an optional version identifier. |
+
+## Combining Multiple Setters
+
+Build up context incrementally when different parts of your code have different information:
+
+```ts
+import {
+  context,
+  register,
+  setMetadata,
+  setSession,
+  setUser,
+  traceAgent,
+  traceTool,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const searchKB = traceTool(
+  async (query: string) => [{ title: "Reset Guide" }],
+  { name: "search-kb" }
+);
+
+const supportAgent = traceAgent(async (question: string) => {
+  const docs = await searchKB(question);
+  return `Found ${docs.length} articles`;
+}, { name: "support-agent" });
+
+async function handleRequest(userId: string, sessionId: string, question: string) {
+  const ctx = setMetadata(
+    setUser(
+      setSession(context.active(), { sessionId }),
+      { userId }
+    ),
+    { source: "web-chat" }
+  );
+
+  return context.with(ctx, () => supportAgent(question));
+}
+```
+
+Every span created by `supportAgent` and `searchKB` inherits the session, user, and metadata attributes.
+
+## Clearing Context Values
+
+Each setter has a corresponding `clear*` function that removes the value from context:
+
+```ts
+import {
+  clearSession,
+  clearUser,
+  clearMetadata,
+  clearTags,
+  clearAttributes,
+  clearPromptTemplate,
+} from "@arizeai/phoenix-otel";
+```
+
+These are useful when you need to prevent a value from propagating to a specific subtree of spans.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/openinference.ts</code></li>
+    <li><code>src/index.ts</code></li>
+  </ul>
+</section>

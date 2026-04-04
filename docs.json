@@ -825,6 +825,8 @@
                 "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
                 "pages": [
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
                 ]
               },
