@@ -36,8 +36,8 @@ class MintlifyDocsClient:
 
     The client lazily connects to the MCP server on first use and keeps the
     connection alive for reuse across requests.  It is safe to call from
-    multiple concurrent tasks — an ``asyncio.Lock`` serialises connection
-    attempts.
+    multiple concurrent tasks — an ``asyncio.Lock`` serialises all session
+    I/O (connection, tool listing, and tool invocations).
 
     Usage::
 
@@ -107,10 +107,13 @@ class MintlifyDocsClient:
             await stack.aclose()
             raise
 
-    async def _ensure_session(self) -> ClientSession:
-        """Return the active session, connecting first if necessary."""
+    async def _ensure_session_locked(self) -> ClientSession:
+        """Return the active session, connecting first if needed.
+
+        Caller **must** already hold ``self._lock``.
+        """
         if self._session is None:
-            await self.connect()
+            await self._connect_locked()
         assert self._session is not None  # noqa: S101
         return self._session
 
@@ -126,29 +129,35 @@ class MintlifyDocsClient:
         if self._tool_definitions is not None:
             return self._tool_definitions
 
-        session = await self._ensure_session()
-        result = await session.list_tools()
+        async with self._lock:
+            # Double-check after acquiring the lock — another task may have
+            # populated the cache while we were waiting.
+            if self._tool_definitions is not None:
+                return self._tool_definitions
 
-        from pydantic_ai.tools import ToolDefinition
+            session = await self._ensure_session_locked()
+            result = await session.list_tools()
 
-        definitions: list[ToolDefinition] = []
-        for tool in result.tools:
-            definitions.append(
-                ToolDefinition(
-                    name=tool.name,
-                    description=tool.description,
-                    parameters_json_schema=tool.inputSchema,
+            from pydantic_ai.tools import ToolDefinition
+
+            definitions: list[ToolDefinition] = []
+            for tool in result.tools:
+                definitions.append(
+                    ToolDefinition(
+                        name=tool.name,
+                        description=tool.description,
+                        parameters_json_schema=tool.inputSchema,
+                    )
                 )
-            )
-            _KNOWN_BACKEND_TOOLS.add(tool.name)
+                _KNOWN_BACKEND_TOOLS.add(tool.name)
 
-        self._tool_definitions = definitions
-        logger.debug(
-            "Discovered %d tool(s) from Mintlify MCP: %s",
-            len(definitions),
-            [d.name for d in definitions],
-        )
-        return definitions
+            self._tool_definitions = definitions
+            logger.debug(
+                "Discovered %d tool(s) from Mintlify MCP: %s",
+                len(definitions),
+                [d.name for d in definitions],
+            )
+            return definitions
 
     # ------------------------------------------------------------------
     # Tool invocation
@@ -165,14 +174,15 @@ class MintlifyDocsClient:
             The concatenated text content blocks from the tool result, or
             ``"No results found"`` if the response contains no text.
         """
-        session = await self._ensure_session()
-        try:
-            result = await session.call_tool(
-                name, arguments=args, read_timeout_seconds=_MCP_CALL_TIMEOUT
-            )
-        except Exception:
-            logger.exception("MCP call_tool(%s) failed", name)
-            raise
+        async with self._lock:
+            session = await self._ensure_session_locked()
+            try:
+                result = await session.call_tool(
+                    name, arguments=args, read_timeout_seconds=_MCP_CALL_TIMEOUT
+                )
+            except Exception:
+                logger.exception("MCP call_tool(%s) failed", name)
+                raise
 
         texts = [block.text for block in result.content if hasattr(block, "text")]
         return "\n".join(texts) if texts else "No results found"

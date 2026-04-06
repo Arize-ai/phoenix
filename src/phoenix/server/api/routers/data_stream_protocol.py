@@ -521,16 +521,29 @@ async def stream_text(
 
                 yield _sse(FinishStepChunk())
 
-                # Identify backend tool calls in this response.
+                # Identify backend and frontend tool calls in this response.
                 backend_calls = (
                     [tc for tc in accumulator.tool_calls if tc.get("name") in backend_tool_names]
                     if backend_tool_names
                     else []
                 )
+                frontend_calls = [
+                    tc
+                    for tc in accumulator.tool_calls
+                    if tc.get("name") not in (backend_tool_names or frozenset())
+                ]
 
                 if not backend_calls:
                     # No backend tools — we're done (or frontend tools will
                     # be handled client-side via the sendAutomatically loop).
+                    break
+
+                if frontend_calls:
+                    # The model requested both backend and frontend tools in
+                    # the same turn.  Break out and let the frontend handle
+                    # its tools first — the client's sendAutomatically loop
+                    # will resubmit and the model can re-request backend
+                    # tools on the next turn.
                     break
 
                 # Execute backend tool calls and stream results.
