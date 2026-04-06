@@ -909,7 +909,7 @@ class TestChatCompletionSubscription:
         assert not input
         assert "api_key" not in input_value
         assert "apiKey" not in input_value
-        assert (output := span.pop("output")).pop("mimeType") == "text"
+        assert (output := span.pop("output")).pop("mimeType") == "json"
         assert output.pop("value")
         assert not output
         assert not span.pop("events")
@@ -937,7 +937,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(INPUT_VALUE)
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
         assert attributes.pop(OUTPUT_VALUE)
-        assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+        assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
         assert attributes.pop(LLM_INPUT_MESSAGES) == [
             {
                 "message": {
@@ -2190,26 +2190,48 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             raw_output_value = attributes.pop(OUTPUT_VALUE)
             output_value = json.loads(raw_output_value)
-            messages = output_value.pop("messages")
-            assert not output_value
-            assert messages is not None
-            assert len(messages) == 1
-            message = messages[0]
-            assert message.pop("role") == "assistant"
-            tool_calls = message.pop("tool_calls")
-            assert not message
-            assert len(tool_calls) == 1
-            tool_call = tool_calls[0]
-            assert tool_call.pop("id").startswith("call_")
-            function = tool_call.pop("function")
-            assert not tool_call
-            assert function.pop("name") == "correctness"
-            tool_call_arguments = function.pop("arguments")
-            assert tool_call_arguments is not None
-            assert json.loads(tool_call_arguments) == {
-                "label": "incorrect",
+            assert output_value == {
+                "id": "chatcmpl-DQenkImJhoauMjqwwwqLeZGXyTXmE",
+                "object": "chat.completion",
+                "created": 1775245740,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "id": "call_4q0aw0YpXJlp7wsm38rZs30l",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "correctness",
+                                        "arguments": '{\n"label": "incorrect"\n}',
+                                    },
+                                }
+                            ],
+                            "annotations": [],
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 104,
+                    "completion_tokens": 11,
+                    "total_tokens": 115,
+                    "prompt_tokens_details": {
+                        "cached_tokens": 0,
+                        "audio_tokens": 0,
+                    },
+                    "completion_tokens_details": {
+                        "reasoning_tokens": 0,
+                        "audio_tokens": 0,
+                        "accepted_prediction_tokens": 0,
+                        "rejected_prediction_tokens": 0,
+                    },
+                },
+                "service_tier": "default",
             }
-            assert not function
             assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
             assert isinstance(
                 attributes.pop(
