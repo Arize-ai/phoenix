@@ -420,7 +420,7 @@ class LLMEvaluator(Evaluator, Node):
                 .order_by(models.PromptVersion.id.desc())
                 .limit(1)
             )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             prompt_version = await session.scalar(stmt)
             if prompt_version is None:
                 raise NotFound(f"Prompt version not found for prompt {prompt_id}")
@@ -442,7 +442,7 @@ class BuiltInEvaluator(Evaluator, Node):
         """Helper to fetch the builtin evaluator record from DB, with caching."""
         if self.db_record is not None:
             return self.db_record
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             builtin = await session.get(models.BuiltinEvaluator, self.id)
             if builtin is None:
                 raise NotFound(f"Built-in evaluator not found: {self.id}")
@@ -462,7 +462,7 @@ class BuiltInEvaluator(Evaluator, Node):
                 raise NotFound(f"Built-in evaluator class not found for key: {self.db_record.key}")
             return evaluator_class
         # Fall back to helper that fetches from DB
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await get_builtin_evaluator_from_orm(session, self.id)
 
     @strawberry.field
@@ -658,7 +658,7 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             evaluator = await session.get(models.Evaluator, record.evaluator_id)
             if evaluator is None:
                 raise NotFound(f"Evaluator not found: {record.evaluator_id}")
@@ -686,7 +686,7 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             evaluator = await session.get(models.Evaluator, record.evaluator_id)
             if evaluator is None:
                 return None
@@ -714,7 +714,7 @@ class DatasetEvaluator(Node):
         configs = record.output_configs
         if configs is None:
             # Fall back to the base evaluator's stored configs
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 evaluator = await session.get(models.Evaluator, record.evaluator_id)
                 if evaluator is None:
                     return []

@@ -39,7 +39,7 @@ class ExperimentRepeatedRunGroupsDataLoader(DataLoader[Key, Result]):
             .order_by(models.ExperimentRun.repetition_number)
         )
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             runs_by_key: dict[Key, list[models.ExperimentRun]] = {}
             for run in (await session.scalars(repeated_run_groups_query)).all():
                 key = (run.experiment_id, run.dataset_example_id)

@@ -24,7 +24,7 @@ class DatasetEvaluatorsByEvaluatorDataLoader(DataLoader[Key, Result]):
             list
         )
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             stmt = (
                 select(models.DatasetEvaluators)
                 .where(models.DatasetEvaluators.evaluator_id.in_(keys))

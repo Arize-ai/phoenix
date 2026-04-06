@@ -19,7 +19,7 @@ class LastUsedTimesByGenerativeModelIdDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        async with self._db() as session:
+        async with self._db.read() as session:
             last_used_times_by_model_id: dict[Key, Result] = {
                 model_id: last_used_time
                 async for model_id, last_used_time in await session.stream(

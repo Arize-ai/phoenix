@@ -255,7 +255,7 @@ class Query:
         # Fetch one extra item to check for next page
         stmt = stmt.limit(page_size + 1)
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             providers = (await session.scalars(stmt)).all()
 
         # Check for next page
@@ -299,7 +299,7 @@ class Query:
         if after:
             stmt = stmt.where(models.Secret.key > after)
         stmt = stmt.limit(page_size + 1)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             secrets = (await session.scalars(stmt)).all()
 
         has_next_page = len(secrets) > page_size
@@ -431,7 +431,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.scalars(
                 select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
@@ -505,7 +505,7 @@ class Query:
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             users = await session.stream_scalars(stmt)
             data = [User(id=user.id, db_record=user) async for user in users]
         return connection_from_list(data=data, args=args)
@@ -515,7 +515,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[UserRole]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             roles = await session.scalars(
                 select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
@@ -535,7 +535,7 @@ class Query:
             .join(models.UserRole)
             .where(models.UserRole.name != "SYSTEM")
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
         return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
@@ -547,7 +547,7 @@ class Query:
             .join(models.UserRole)
             .where(models.UserRole.name == "SYSTEM")
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
         return [SystemApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
@@ -593,7 +593,7 @@ class Query:
             )
         projects_query = exclude_experiment_projects(projects_query)
         projects_query = exclude_dataset_evaluator_projects(projects_query)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
         return connection_from_list(data=data, args=args)
@@ -653,7 +653,7 @@ class Query:
                         .where(models.DatasetsDatasetLabel.dataset_label_id.in_(label_rowids))
                         .distinct()
                     )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
             data=[Dataset(id=dataset.id, db_record=dataset) for dataset in datasets], args=args
@@ -701,7 +701,7 @@ class Query:
         cursor = Cursor.from_string(after) if after else None
         page_size = first or 50
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             experiments = (
                 await session.scalars(
                     select(
@@ -1042,7 +1042,7 @@ class Query:
             )
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = (await session.execute(comparisons_query)).first()
         assert result is not None
 
@@ -1163,7 +1163,7 @@ class Query:
         elif type_name == Prompt.__name__:
             return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 if orm_prompt_version := await session.scalar(
                     select(models.PromptVersion).where(models.PromptVersion.id == node_id)
                 ):
@@ -1241,7 +1241,7 @@ class Query:
                 )
             )
             stmt = stmt.distinct()
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [
                 Prompt(id=orm_prompt.id, db_record=orm_prompt) async for orm_prompt in orm_prompts
@@ -1266,7 +1266,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
             data = [
                 PromptLabel(id=prompt_label.id, db_record=prompt_label)
@@ -1292,7 +1292,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             dataset_labels = await session.scalars(
                 select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
             )
@@ -1317,7 +1317,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             splits = await session.stream_scalars(select(models.DatasetSplit))
             data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
@@ -1327,7 +1327,7 @@ class Query:
 
     @strawberry.field
     async def built_in_evaluators(self, info: Info[Context, None]) -> list[BuiltInEvaluator]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.execute(select(models.BuiltinEvaluator))
             return [BuiltInEvaluator(id=row.id) for row in result.scalars()]
 
@@ -1405,7 +1405,7 @@ class Query:
         else:
             query = query.order_by(PolymorphicEvaluator.name.asc())
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             evaluators = await session.scalars(query)
         data: list[Evaluator] = []
         for evaluator in evaluators:
@@ -1435,7 +1435,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             configs = await session.stream_scalars(
                 select(models.AnnotationConfig).order_by(models.AnnotationConfig.name)
             )
@@ -1502,7 +1502,7 @@ class Query:
         stmt = select(models.ProjectTraceRetentionPolicy).filter_by(
             id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             db_policy = await session.scalar(stmt)
         assert db_policy
         return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
@@ -1525,7 +1525,7 @@ class Query:
         stmt = select(models.ProjectTraceRetentionPolicy).order_by(
             models.ProjectTraceRetentionPolicy.id
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.stream_scalars(stmt)
             data = [
                 ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
@@ -1550,14 +1550,14 @@ class Query:
         if info.context.db.dialect is SupportedSQLDialect.SQLITE:
             # TODO: temporary workaround until we can figure out why
             # the dbstat query takes longer than expected
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 page_count = await session.scalar(text("PRAGMA page_count;"))
                 free_pages = await session.scalar(text("PRAGMA freelist_count;"))
                 page_size = await session.scalar(text("PRAGMA page_size;"))
             num_bytes = (page_count - free_pages) * page_size
             return [DbTableStats(table_name="SQLite", num_bytes=num_bytes)]
             # stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
-            # async with info.context.db() as session:
+            # async with info.context.db.read() as session:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
@@ -1570,7 +1570,7 @@ class Query:
                 AND n.nspname = :nspname;
             """).bindparams(nspname=nspname)
             try:
-                async with info.context.db() as session:
+                async with info.context.db.read() as session:
                     stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
@@ -1606,7 +1606,7 @@ class Query:
         span_id: str,
     ) -> Optional[Span]:
         stmt = select(models.Span.id).filter_by(span_id=span_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
             return Span(id=span_rowid)
@@ -1619,7 +1619,7 @@ class Query:
         trace_id: str,
     ) -> Optional[Trace]:
         stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
             return Trace(id=trace_rowid)
@@ -1632,7 +1632,7 @@ class Query:
         session_id: str,
     ) -> Optional[ProjectSession]:
         stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             session_row = await session.scalar(stmt)
         if session_row:
             return ProjectSession(id=session_row.id, db_record=session_row)
@@ -1739,17 +1739,17 @@ class Query:
         stmt = select(func.count(models.Project.id))
         stmt = exclude_experiment_projects(stmt)
         stmt = exclude_dataset_evaluator_projects(stmt)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
     @strawberry.field
     async def dataset_count(self, info: Info[Context, None]) -> int:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Dataset.id))) or 0
 
     @strawberry.field
     async def prompt_count(self, info: Info[Context, None]) -> int:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Prompt.id))) or 0
 
     @strawberry.field
@@ -1765,7 +1765,7 @@ class Query:
                 has_dataset_association,
             )
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
 

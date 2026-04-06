@@ -115,7 +115,7 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
             )
             .order_by(repetition_mean_scores_subquery.c.annotation_name)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for scores_tuple in await session.stream(run_scores_query):
                 summaries[scores_tuple.experiment_id].append(
                     ExperimentAnnotationSummary(

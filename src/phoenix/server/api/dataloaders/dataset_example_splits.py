@@ -19,7 +19,7 @@ class DatasetExampleSplitsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         example_ids = keys
-        async with self._db() as session:
+        async with self._db.read() as session:
             splits: dict[ExampleID, list[models.DatasetSplit]] = {}
 
             async for example_id, split in await session.stream(

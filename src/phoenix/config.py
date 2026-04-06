@@ -121,6 +121,16 @@ Phoenix supports two types of database URLs:
 Note that if you plan on using SQLite, it's advised to to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
+ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL = "PHOENIX_SQL_DATABASE_READ_REPLICA_URL"
+"""
+The connection URL for a PostgreSQL read replica. When set, read-only database
+queries (dataloaders, query resolvers, read-only REST endpoints) are routed to
+this replica instead of the primary. Ignored for SQLite deployments.
+
+Example::
+
+    PHOENIX_SQL_DATABASE_READ_REPLICA_URL=postgresql://user:pass@replica-host:5432/phoenix
+"""
 ENV_PHOENIX_LOG_SQL = "PHOENIX_LOG_SQL"
 """
 Whether to log all SQL statements to stdout.
@@ -2900,6 +2910,10 @@ def get_env_database_connection_str() -> str:
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
+
+
+def get_env_read_replica_url() -> str | None:
+    return getenv(ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL)
 
 
 def get_env_log_sql() -> bool:

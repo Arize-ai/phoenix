@@ -164,7 +164,7 @@ class Trace(Node):
             return None
 
         stmt = select(models.ProjectSession).filter_by(id=project_session_rowid)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             project_session = await session.scalar(stmt)
         if project_session is None:
             return None
@@ -263,7 +263,7 @@ class Trace(Node):
         stmt = stmt.limit(limit + 1)
 
         cursors_and_nodes = []
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             span_rowids = await session.stream_scalars(stmt)
             async for span_rowid in islice(span_rowids, limit):
                 cursor = Cursor(rowid=span_rowid)
@@ -285,7 +285,7 @@ class Trace(Node):
         info: Info[Context, None],
         sort: Optional[TraceAnnotationSort] = None,
     ) -> list[TraceAnnotation]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.TraceAnnotation).filter_by(trace_rowid=self.id)
             if sort:
                 sort_col = getattr(models.TraceAnnotation, sort.col.value)

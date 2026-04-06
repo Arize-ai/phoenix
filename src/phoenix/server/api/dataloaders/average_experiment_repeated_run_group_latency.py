@@ -37,7 +37,7 @@ class AverageExperimentRepeatedRunGroupLatencyDataLoader(DataLoader[Key, Result]
             )
             .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             average_run_latencies_ms = {
                 (experiment_id, example_id): average_run_latency_ms
                 async for experiment_id, example_id, average_run_latency_ms in await session.stream(

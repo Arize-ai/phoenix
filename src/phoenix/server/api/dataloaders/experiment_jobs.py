@@ -16,7 +16,7 @@ class ExperimentJobsDataLoader(DataLoader[int, Optional[models.ExperimentJob]]):
 
     async def _load_fn(self, keys: list[int]) -> list[Optional[models.ExperimentJob]]:
         by_id: dict[int, models.ExperimentJob] = {}
-        async with self._db() as session:
+        async with self._db.read() as session:
             stmt = select(models.ExperimentJob).where(models.ExperimentJob.id.in_(keys))
             for record in await session.scalars(stmt):
                 by_id[record.id] = record

@@ -17,7 +17,7 @@ class SpanDatasetExamplesDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         span_rowids = keys
-        async with self._db() as session:
+        async with self._db.read() as session:
             dataset_examples: dict[Key, list[models.DatasetExample]] = {
                 span_rowid: [] for span_rowid in span_rowids
             }

@@ -21,7 +21,7 @@ class ProjectByNameDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         project_names = list(set(keys))
         projects_by_name: defaultdict[Key, Result] = defaultdict(None)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream_scalars(
                 select(models.Project).where(models.Project.name.in_(project_names))
             )

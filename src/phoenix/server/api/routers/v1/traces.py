@@ -131,7 +131,7 @@ async def list_project_traces(
         ),
     ),
 ) -> GetTracesResponseBody:
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
 

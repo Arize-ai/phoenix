@@ -130,7 +130,7 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id)
             if sort:
                 # For now assume the the column names match 1:1 with the enum values
@@ -224,7 +224,7 @@ class Dataset(Node):
                 .where(models.DatasetExampleRevision.revision_kind != "DELETE")
             )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -323,7 +323,7 @@ class Dataset(Node):
             )
             query = query.where(filter_condition)
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             dataset_examples = [
                 DatasetExample(
                     id=example.id,
@@ -364,7 +364,7 @@ class Dataset(Node):
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
         if not include_ephemeral:
             stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -418,7 +418,7 @@ class Dataset(Node):
                     raise BadRequest(f"Invalid filter ID: {filter_id}")
             query = query.where(models.Experiment.id.in_(filter_rowids))
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)
                 async for experiment, sequence_number in cast(
@@ -445,7 +445,7 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = (
                 select(models.ExperimentJob)
                 .join(models.Experiment)
@@ -480,7 +480,7 @@ class Dataset(Node):
             .group_by(models.ExperimentRunAnnotation.name)
             .order_by(models.ExperimentRunAnnotation.name)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return [
                 DatasetExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
@@ -505,7 +505,7 @@ class Dataset(Node):
         stmt = select(count(models.DatasetEvaluators.id)).where(
             models.DatasetEvaluators.dataset_id == self.id
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -524,7 +524,7 @@ class Dataset(Node):
             models.DatasetEvaluators.dataset_id == self.id,
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             dataset_evaluator = await session.scalar(stmt)
             if dataset_evaluator is None:
                 raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
@@ -574,7 +574,7 @@ class Dataset(Node):
         else:
             stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.scalars(stmt)
             data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
         # TODO: we need to handle sorting for builtin evaluators as their "kind"

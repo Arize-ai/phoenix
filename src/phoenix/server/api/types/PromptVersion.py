@@ -52,7 +52,7 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.PromptVersionTag).where(
                 models.PromptVersionTag.prompt_version_id == self.id_attr
             )
@@ -77,7 +77,7 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             current_version = await session.get(models.PromptVersion, self.id_attr)
             if current_version is None:
                 return None

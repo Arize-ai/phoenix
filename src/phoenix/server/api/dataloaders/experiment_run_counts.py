@@ -38,7 +38,7 @@ class ExperimentRunCountsDataLoader(DataLoader[Key, Result]):
             )
             .group_by(resolved_experiment_ids.c.id)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             run_counts = {
                 experiment_id: run_count
                 async for experiment_id, run_count in await session.stream(query)

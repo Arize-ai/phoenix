@@ -154,7 +154,7 @@ async def get_session(
         description="The session identifier: either a GlobalID or user-provided session_id string.",
     ),
 ) -> GetSessionResponseBody:
-    async with request.app.state.db() as db_session:
+    async with request.app.state.db.read() as db_session:
         project_session = await _get_session_by_identifier(db_session, session_identifier)
         traces_stmt = (
             select(models.Trace)
@@ -300,7 +300,7 @@ async def list_project_sessions(
         description="Sort order by ID: 'asc' (ascending) or 'desc' (descending).",
     ),
 ) -> GetSessionsResponseBody:
-    async with request.app.state.db() as db_session:
+    async with request.app.state.db.read() as db_session:
         project = await get_project_by_identifier(db_session, project_identifier)
 
         if order == "desc":

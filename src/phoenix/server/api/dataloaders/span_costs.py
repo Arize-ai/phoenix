@@ -19,7 +19,7 @@ class SpanCostsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         span_ids = list(set(keys))
-        async with self._db() as session:
+        async with self._db.read() as session:
             costs = {
                 span_cost.span_rowid: span_cost
                 async for span_cost in await session.stream_scalars(

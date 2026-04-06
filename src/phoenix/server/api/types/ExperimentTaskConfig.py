@@ -239,7 +239,7 @@ class PromptTaskConfig(Node):
             GenerativeModelCustomProvider,
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             prompt_task = await session.get(models.ExperimentPromptTask, self.id)
             if prompt_task is None or prompt_task.custom_provider_id is None:
                 return None

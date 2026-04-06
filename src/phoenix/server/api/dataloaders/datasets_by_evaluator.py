@@ -22,7 +22,7 @@ class DatasetsByEvaluatorDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         datasets_by_evaluator: dict[Key, list[models.Dataset]] = defaultdict(list)
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             stmt = (
                 select(models.DatasetEvaluators.evaluator_id, models.Dataset)
                 .join(

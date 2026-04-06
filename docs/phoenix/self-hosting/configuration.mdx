@@ -43,6 +43,8 @@ The following environment variables will control how your phoenix server runs.
 
   * SQLite, e.g. `sqlite:///path/to/database.db`
 
+* **PHOENIX\_SQL\_DATABASE\_READ\_REPLICA\_URL:** Optional PostgreSQL read replica URL used for read-only queries. Writes continue to use your primary database connection. This setting is ignored for SQLite deployments. Example: `postgresql://user:password@replica-host:5432/phoenix`.
+
 * **PHOENIX\_POSTGRES\_HOST:** As an alternative to setting **PHOENIX\_SQL\_DATABASE\_URL**, you can set the following environment variables to connect to a PostgreSQL database:
 
   * PHOENIX\_POSTGRES\_HOST

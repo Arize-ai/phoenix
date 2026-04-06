@@ -25,7 +25,7 @@ class SessionNumTracesWithErrorDataLoader(DataLoader[Key, Result]):
             .where(models.Span.cumulative_error_count > 0)
             .where(models.Trace.project_session_rowid.in_(keys))
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             result: dict[Key, int] = {
                 id_: value async for id_, value in await session.stream(stmt) if id_ is not None
             }
