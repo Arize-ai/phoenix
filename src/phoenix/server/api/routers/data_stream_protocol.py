@@ -514,6 +514,7 @@ async def stream_text(
                 except Exception as e:
                     logger.exception("Error in model.request_stream()")
                     yield _sse(ErrorChunk(error_text=str(e)))
+                    yield _sse(FinishStepChunk())
                     finish_reason = "error"
                     if llm_span is not None:
                         finalize_llm_span(llm_span, error=e)
