@@ -20,9 +20,8 @@ from openinference.semconv.trace import (
 from opentelemetry import trace  # Use the default tracer provider
 from opentelemetry.trace import Status, StatusCode, Tracer
 from opentelemetry.util import types
-from typing_extensions import TypeAlias
-
 from phoenix.otel import register
+from typing_extensions import TypeAlias
 
 logging.basicConfig(level=logging.INFO)
 
