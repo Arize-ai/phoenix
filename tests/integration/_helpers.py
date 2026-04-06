@@ -2197,8 +2197,6 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
-    # Evaluations
-    (404, "GET", "v1/evaluations"),
     # Spans (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/spans"),
     (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
@@ -2236,7 +2234,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
     (422, "POST", "v1/document_annotations"),
-    (415, "POST", "v1/evaluations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
     (422, "POST", "v1/projects"),

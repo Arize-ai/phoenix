@@ -159,9 +159,70 @@ The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`
 - `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
 - `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
 
-### Protobuf Evaluation Format Removed
+### `/v1/evaluations` Endpoint Removed
 
-The `POST /v1/evaluations` endpoint no longer accepts `application/x-protobuf` content type. Evaluations must be sent as `application/x-pandas-arrow` (Apache Arrow IPC format via pandas).
+The `POST /v1/evaluations` and `GET /v1/evaluations` REST endpoints have been removed. Use the annotations API instead, choosing the replacement by evaluation kind:
+
+#### Ingestion (`POST /v1/evaluations` replacements)
+
+| Evaluation kind | SDK replacement                                        | REST replacement                  |
+| :-------------- | :----------------------------------------------------- | :-------------------------------- |
+| span            | `client.spans.log_span_annotations_dataframe(...)`     | `POST /v1/span_annotations`       |
+| trace           | `client.traces.log_trace_annotations_dataframe(...)`   | `POST /v1/trace_annotations`      |
+| document        | `client.spans.log_document_annotations_dataframe(...)` | `POST /v1/document_annotations`   |
+
+#### Retrieval (`GET /v1/evaluations` replacement)
+
+The old `GET /v1/evaluations` only returned span annotations. Its replacement is `client.spans.get_span_annotations(...)`.
+
+> **Note:** Trace annotation retrieval is available via `GET /projects/{id}/trace_annotations`, but this was not part of the old evaluations endpoint — it is a new capability, not a direct replacement.
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+import phoenix as px
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
+)
+```
+
+**After (span annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (trace annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().traces.log_trace_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (document annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_document_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
+)
+```
 
 **Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
 

@@ -854,7 +854,8 @@
                   {
                     "group": "Annotations",
                     "pages": [
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids"
                     ]
                   },
                   {
@@ -888,8 +889,7 @@
                     "group": "Traces",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations"
                     ]
                   },
                   {
@@ -899,6 +899,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
                     ]
                   },
