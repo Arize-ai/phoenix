@@ -151,6 +151,19 @@ def _redact_stack_trace(error: BaseException) -> str:
     return raw
 
 
+def _sanitize_error_message(error: BaseException) -> str:
+    """Return a user-safe error summary: exception class name only.
+
+    Raw ``str(error)`` can leak internal paths, API keys, or other
+    sensitive details embedded by third-party SDKs.  We keep the
+    exception class name (e.g. ``TimeoutError``, ``RateLimitError``)
+    which is enough for users to understand what went wrong without
+    exposing internals.  The full detail is still available in the
+    server logs.
+    """
+    return type(error).__name__
+
+
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
@@ -1040,7 +1053,7 @@ class CircuitBreaker:
         )
         if self._consecutive_failures >= self.threshold:
             self._tripped = True
-            self._trip_reason = str(error)
+            self._trip_reason = _sanitize_error_message(error)
             logger.warning(f"CircuitBreaker: TRIPPED after {self.threshold} consecutive failures")
             return True
         return False
@@ -1713,10 +1726,12 @@ class RunningExperiment:
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
                 "task" if isinstance(work_item, TaskWorkItem) else "eval",
-                breaker.trip_reason or str(error),
+                breaker.trip_reason or _sanitize_error_message(error),
             )
             return
-        await self._retry_or_fail(work_item, f"transient error: {error}", error=error)
+        await self._retry_or_fail(
+            work_item, f"transient error: {_sanitize_error_message(error)}", error=error
+        )
 
     async def on_failure(
         self,
@@ -1734,7 +1749,7 @@ class RunningExperiment:
         await self._persist_log(
             self._make_log(
                 work_item,
-                message=str(error),
+                message=_sanitize_error_message(error),
                 detail=FailureDetail(
                     type="failure",
                     error_type=type(error).__name__,
@@ -1746,7 +1761,7 @@ class RunningExperiment:
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
                 category.lower(),
-                breaker.trip_reason or str(error),
+                breaker.trip_reason or _sanitize_error_message(error),
             )
 
     async def on_timeout(self, work_item: WorkItem) -> None:

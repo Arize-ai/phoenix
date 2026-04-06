@@ -1,4 +1,11 @@
 import { css } from "@emotion/react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { formatDistance } from "date-fns";
 import {
   startTransition,
   Suspense,
@@ -7,15 +14,12 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Key } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useParams } from "react-router";
 
 import {
-  Badge,
-  Button,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -33,15 +37,18 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
+import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { Skeleton } from "@phoenix/components/core/loading";
+import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import {
   ExperimentStatus,
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
 import {
   formatCost,
@@ -50,10 +57,13 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import type {
+  ExperimentDetailsDialog_jobErrors$data,
+  ExperimentDetailsDialog_jobErrors$key,
+} from "./__generated__/ExperimentDetailsDialog_jobErrors.graphql";
+import type {
   ExperimentDetailsDialogQuery,
   ExperimentDetailsDialogQuery$data,
 } from "./__generated__/ExperimentDetailsDialogQuery.graphql";
-import type { ExperimentDetailsDialog_jobErrors$key } from "./__generated__/ExperimentDetailsDialog_jobErrors.graphql";
 
 function ExperimentDetailsDialogSkeleton() {
   return (
@@ -92,16 +102,10 @@ export function ExperimentDetailsDialog({
   );
 }
 
-const stackTraceCSS = css`
-  padding: var(--ac-global-dimension-size-100);
-  overflow-x: auto;
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
-  background: var(--ac-global-color-grey-100);
-  border-radius: var(--ac-global-rounding-small);
+const errorMessageCellCSS = css`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const detailRowCSS = css`
@@ -209,9 +213,7 @@ function ExperimentOverviewSection({
               <Text weight="heavy" size="S" color="text-700">
                 Metadata
               </Text>
-              <JSONBlock
-                value={JSON.stringify(experiment.metadata, null, 2)}
-              />
+              <JSONBlock value={JSON.stringify(experiment.metadata, null, 2)} />
             </View>
           )}
         </View>
@@ -283,10 +285,10 @@ function ExperimentTaskConfigSection({
         ) : (
           <View padding="size-200">
             <Text size="S" color="text-700">
-              This experiment was run via the SDK or API using custom code,
-              so task configuration details (model, prompt template,
-              parameters) are not stored with the experiment. To capture
-              these details, run experiments from the Playground.
+              This experiment was run via the SDK or API using custom code, so
+              task configuration details (model, prompt template, parameters)
+              are not stored with the experiment. To capture these details, run
+              experiments from the Playground.
             </Text>
           </View>
         )}
@@ -342,10 +344,7 @@ function ExperimentDetailsWithErrors({
               experiment={experiment}
               fullTimeFormatter={fullTimeFormatter}
             />
-            <ExperimentTaskConfigSection
-              taskConfig={taskConfig}
-              job={job}
-            />
+            <ExperimentTaskConfigSection taskConfig={taskConfig} job={job} />
           </DisclosureGroup>
         </div>
       </Panel>
@@ -359,13 +358,127 @@ function ExperimentDetailsWithErrors({
   );
 }
 
-function ErrorCategoryBadge({ category }: { category: string }) {
+/**
+ * Map raw error category to a human-readable level label.
+ */
+function categoryToLevel(category: string): string {
+  switch (category) {
+    case "EXPERIMENT":
+      return "Experiment";
+    case "TASK":
+      return "Task";
+    case "EVAL":
+      return "Eval";
+    default:
+      return category;
+  }
+}
+
+type ErrorNode =
+  ExperimentDetailsDialog_jobErrors$data["errors"]["edges"][number]["node"];
+
+type ErrorRow = {
+  id: string;
+  occurredAt: string;
+  occurredAtRaw: string;
+  category: string;
+  message: string;
+  detail: ErrorNode["detail"];
+};
+
+function formatWorkItem(detail: ErrorRow["detail"]): string | null {
+  if (!detail || detail.__typename === "%other") return null;
+  const workItem = detail.workItem;
+  if (!workItem || workItem.__typename === "%other") return null;
+  if (workItem.__typename === "TaskWorkItemId") {
+    return `Example ${workItem.datasetExampleId}, Rep ${workItem.repetitionNumber}`;
+  }
+  if (workItem.__typename === "EvalWorkItemId") {
+    return `Run ${workItem.experimentRunId}, Evaluator ${workItem.datasetEvaluatorId}`;
+  }
+  return null;
+}
+
+function formatDetailMessage(detail: ErrorRow["detail"]): string | null {
+  if (!detail || detail.__typename === "%other") return null;
+  if (detail.__typename === "RetriesExhaustedDetail") {
+    return `${detail.reason} (after ${detail.retryCount} retries)`;
+  }
+  if (detail.__typename === "FailureDetail") {
+    return detail.errorType;
+  }
+  return null;
+}
+
+function ErrorMessageCell({ row }: { row: ErrorRow }) {
+  const { viewer } = useViewer();
+  const isAdmin = !viewer || viewer.role.name === "ADMIN";
+  const detailMsg = formatDetailMessage(row.detail);
+  const displayText = detailMsg ?? row.message;
   return (
-    <Badge size="S" variant="danger">
-      {category}
-    </Badge>
+    <Flex
+      direction="row"
+      gap="size-50"
+      alignItems="center"
+      justifyContent="space-between"
+      css={css`
+        min-width: 0;
+      `}
+    >
+      <span title={row.message} css={errorMessageCellCSS}>
+        {displayText}
+      </span>
+      {isAdmin && (
+        <CopyToClipboardButton
+          text={row.message}
+          size="S"
+          tooltipText="Copy full message"
+        />
+      )}
+    </Flex>
   );
 }
+
+const ERROR_COL_LEVEL_WIDTH = 150;
+const ERROR_COL_TIME_WIDTH = 150;
+const ERROR_COL_WORK_ITEM_WIDTH = 250;
+
+const errorColumns: ColumnDef<ErrorRow>[] = [
+  {
+    header: "level",
+    accessorKey: "category",
+    cell: ({ row }) => (
+      <Text size="S" color="text-700">
+        {categoryToLevel(row.original.category)}
+      </Text>
+    ),
+  },
+  {
+    header: "time",
+    id: "occurredAt",
+    cell: ({ row }) => (
+      <Text size="S" title={row.original.occurredAt}>
+        {formatDistance(new Date(row.original.occurredAtRaw), new Date(), {
+          addSuffix: true,
+        })}
+      </Text>
+    ),
+  },
+  {
+    header: "work item",
+    id: "workItem",
+    cell: ({ row }) => (
+      <Text size="S" color="text-700">
+        {formatWorkItem(row.original.detail) ?? "—"}
+      </Text>
+    ),
+  },
+  {
+    header: "error",
+    id: "error",
+    cell: ({ row }) => <ErrorMessageCell row={row.original} />,
+  },
+];
 
 function JobErrorsSection({
   jobRef,
@@ -390,14 +503,37 @@ function JobErrorsSection({
               category
               message
               detail {
+                __typename
                 ... on FailureDetail {
                   errorType
                   stackTrace
+                  workItem {
+                    __typename
+                    ... on TaskWorkItemId {
+                      datasetExampleId
+                      repetitionNumber
+                    }
+                    ... on EvalWorkItemId {
+                      experimentRunId
+                      datasetEvaluatorId
+                    }
+                  }
                 }
                 ... on RetriesExhaustedDetail {
                   retryCount
                   reason
                   stackTrace
+                  workItem {
+                    __typename
+                    ... on TaskWorkItemId {
+                      datasetExampleId
+                      repetitionNumber
+                    }
+                    ... on EvalWorkItemId {
+                      experimentRunId
+                      datasetEvaluatorId
+                    }
+                  }
                 }
               }
             }
@@ -424,10 +560,26 @@ function JobErrorsSection({
   }, [data.errors]);
   const hasNextPage = data.errors?.pageInfo?.hasNextPage ?? false;
 
-  const [expandedKeys, setExpandedKeys] = useState<Set<Key>>(() => {
-    const first = errors[0];
-    return first ? new Set<Key>([first.id]) : new Set<Key>();
+  const tableData = useMemo(
+    () =>
+      errors.map((e) => ({
+        id: e.id,
+        occurredAt: fullTimeFormatter(new Date(e.occurredAt)),
+        occurredAtRaw: e.occurredAt,
+        category: e.category,
+        message: e.message,
+        detail: e.detail,
+      })),
+    [errors, fullTimeFormatter]
+  );
+
+  // eslint-disable-next-line react-hooks-js/incompatible-library
+  const table = useReactTable<ErrorRow>({
+    columns: errorColumns,
+    data: tableData,
+    getCoreRowModel: getCoreRowModel(),
   });
+
   const [isOuterExpanded, setIsOuterExpandedRaw] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -438,17 +590,6 @@ function JobErrorsSection({
     },
     [onExpandedChange]
   );
-
-  const allExpanded = errors.length > 0 && expandedKeys.size === errors.length;
-
-  const handleExpandCollapseAll = useCallback(() => {
-    if (allExpanded) {
-      setExpandedKeys(new Set<Key>());
-    } else {
-      setExpandedKeys(new Set<Key>(errors.map((err) => err.id)));
-      setIsOuterExpanded(true);
-    }
-  }, [allExpanded, errors, setIsOuterExpanded]);
 
   const loadMore = useCallback(() => {
     setIsLoadingMore(true);
@@ -473,12 +614,6 @@ function JobErrorsSection({
           setIsOuterExpanded(keys.has("errors"));
         }}
         css={css`
-          /* Suppress the trigger hover highlight when hovering the nested button */
-          [slot="trigger"]:has([data-expand-collapse]:hover):hover:not(
-              [disabled]
-            ) {
-            background-color: transparent;
-          }
           /* Hide the empty disclosure panel so it takes no space */
           .disclosure__panel {
             display: none;
@@ -490,34 +625,15 @@ function JobErrorsSection({
         `}
       >
         <Disclosure id="errors">
-          <DisclosureTrigger
-            arrowPosition="start"
-            justifyContent="space-between"
-          >
+          <DisclosureTrigger arrowPosition="start">
             <Heading level={3} weight="heavy">
               Errors
             </Heading>
-            {isOuterExpanded && (
-              <div
-                data-expand-collapse
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Button
-                  size="S"
-                  variant="default"
-                  onPress={handleExpandCollapseAll}
-                >
-                  {allExpanded ? "Collapse All" : "Expand All"}
-                </Button>
-              </div>
-            )}
           </DisclosureTrigger>
           <DisclosurePanel>{null}</DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
-      {/* Collapsible panel for scrollable error items */}
+      {/* Collapsible panel for scrollable error table */}
       <Panel
         collapsible
         panelRef={panelRef}
@@ -529,53 +645,54 @@ function JobErrorsSection({
             overflow-y: auto;
             overflow-x: hidden;
             height: 100%;
-            padding-left: var(--global-dimension-size-50);
           `}
         >
-          <DisclosureGroup
-            expandedKeys={expandedKeys}
-            onExpandedChange={setExpandedKeys}
+          <table
+            css={[
+              tableCSS,
+              css`
+                table-layout: fixed;
+                width: 100%;
+              `,
+            ]}
           >
-            {errors.map((error) => (
-              <Disclosure key={error.id} id={error.id}>
-                <DisclosureTrigger arrowPosition="start">
-                  <ErrorCategoryBadge category={error.category} />
-                  <Text size="XS" color="text-700">
-                    {fullTimeFormatter(new Date(error.occurredAt))}
-                  </Text>
-                  <Text
-                    size="XS"
-                    color="text-700"
-                    css={css`
-                      flex: 1;
-                      min-width: 0;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                      white-space: nowrap;
-                    `}
-                  >
-                    {error.message}
-                  </Text>
-                </DisclosureTrigger>
-                <DisclosurePanel>
-                  <View padding="size-200">
-                    <Flex direction="column" gap="size-50">
-                      <Text size="S">{error.message}</Text>
-                      {error.detail?.stackTrace ? (
-                        <pre css={stackTraceCSS}>
-                          {error.detail.stackTrace}
-                        </pre>
-                      ) : error.detail != null ? (
-                        <Text size="XS" color="text-500">
-                          Stack trace visible to admins only
-                        </Text>
-                      ) : null}
-                    </Flex>
-                  </View>
-                </DisclosurePanel>
-              </Disclosure>
-            ))}
-          </DisclosureGroup>
+            <colgroup>
+              <col style={{ width: ERROR_COL_LEVEL_WIDTH }} />
+              <col style={{ width: ERROR_COL_TIME_WIDTH }} />
+              <col style={{ width: ERROR_COL_WORK_ITEM_WIDTH }} />
+              <col />
+            </colgroup>
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
           {hasNextPage && (
             <View padding="size-100">
               <Flex justifyContent="center">
@@ -737,7 +854,6 @@ function ExperimentDetailsDialogContent({
           taskConfig={taskConfig}
           fullTimeFormatter={fullTimeFormatter}
         />
-
       ) : (
         <div
           css={css`
@@ -745,17 +861,12 @@ function ExperimentDetailsDialogContent({
             overflow-y: auto;
           `}
         >
-          <DisclosureGroup
-            defaultExpandedKeys={["overview", "task-config"]}
-          >
+          <DisclosureGroup defaultExpandedKeys={["overview", "task-config"]}>
             <ExperimentOverviewSection
               experiment={experiment}
               fullTimeFormatter={fullTimeFormatter}
             />
-            <ExperimentTaskConfigSection
-              taskConfig={taskConfig}
-              job={job}
-            />
+            <ExperimentTaskConfigSection taskConfig={taskConfig} job={job} />
           </DisclosureGroup>
         </div>
       )}
