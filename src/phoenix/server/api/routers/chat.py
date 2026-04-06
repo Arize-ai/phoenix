@@ -161,19 +161,25 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
 def _get_mcp_client(request: Request) -> "MintlifyDocsClient | None":
     """Return the shared MCP client from app state, creating it on first use.
 
-    Returns ``None`` if the MCP client fails to initialise so that the chat
-    endpoint degrades gracefully (backend tools simply won't be available).
+    Returns ``None`` when external networking is disabled
+    (``PHOENIX_ALLOW_EXTERNAL_RESOURCES=false``) or if the client fails to
+    initialise, so the chat endpoint degrades gracefully (backend tools
+    simply won't be available).
     """
+    from phoenix.config import get_env_allow_external_resources
     from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
     state = request.app.state
     if not hasattr(state, "_mcp_client"):
-        try:
-            state._mcp_client = MintlifyDocsClient()
-        except Exception:
-            import logging
-
-            logging.getLogger(__name__).exception("Failed to create MCP client")
+        if not get_env_allow_external_resources():
             state._mcp_client = None
+        else:
+            try:
+                state._mcp_client = MintlifyDocsClient()
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).exception("Failed to create MCP client")
+                state._mcp_client = None
     client: MintlifyDocsClient | None = state._mcp_client
     return client
