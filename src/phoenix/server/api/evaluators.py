@@ -354,6 +354,7 @@ class LLMEvaluator(BaseEvaluator):
                     tools=self._tools,
                     tracer=tracer_,
                     invocation_parameters=invocation_parameters,
+                    stream_model_output=False,
                 ):
                     if isinstance(chunk, ToolCallChunk):
                         if chunk.id not in tool_call_by_id:
