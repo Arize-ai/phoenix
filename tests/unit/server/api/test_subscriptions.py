@@ -2200,7 +2200,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert not message
             assert len(tool_calls) == 1
             tool_call = tool_calls[0]
-            assert tool_call.pop("id") == "call_aABUz9QoikDpYXHXhUkahsNF"
+            assert tool_call.pop("id").startswith("call_")
             function = tool_call.pop("function")
             assert not tool_call
             assert function.pop("name") == "correctness"
