@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7c094e56ba8dfee2c0a6e53bdbd0aaa3>>
+ * @generated SignedSource<<93b0211b40ea1fa3f3c2ee5a9036e1f6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -424,7 +424,61 @@ v33 = {
   "name": "stackTrace",
   "storageKey": null
 },
-v34 = [
+v34 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "workItem",
+  "plural": false,
+  "selections": [
+    (v25/*: any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "datasetExampleId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "repetitionNumber",
+          "storageKey": null
+        }
+      ],
+      "type": "TaskWorkItemId",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "experimentRunId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "datasetEvaluatorId",
+          "storageKey": null
+        }
+      ],
+      "type": "EvalWorkItemId",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
+},
+v35 = [
   (v26/*: any*/)
 ];
 return {
@@ -699,7 +753,8 @@ return {
                                         "name": "errorType",
                                         "storageKey": null
                                       },
-                                      (v33/*: any*/)
+                                      (v33/*: any*/),
+                                      (v34/*: any*/)
                                     ],
                                     "type": "FailureDetail",
                                     "abstractKey": null
@@ -721,7 +776,8 @@ return {
                                         "name": "reason",
                                         "storageKey": null
                                       },
-                                      (v33/*: any*/)
+                                      (v33/*: any*/),
+                                      (v34/*: any*/)
                                     ],
                                     "type": "RetriesExhaustedDetail",
                                     "abstractKey": null
@@ -821,7 +877,7 @@ return {
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v34/*: any*/),
+                            "selections": (v35/*: any*/),
                             "type": "AnthropicConnectionConfig",
                             "abstractKey": null
                           },
@@ -836,7 +892,7 @@ return {
                           },
                           {
                             "kind": "InlineFragment",
-                            "selections": (v34/*: any*/),
+                            "selections": (v35/*: any*/),
                             "type": "GoogleGenAIConnectionConfig",
                             "abstractKey": null
                           }
@@ -859,12 +915,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5b9fe510aee9a0c32744afac07298579",
+    "cacheID": "2303ec86564c8e6e4bb15826874fd2bf",
     "id": null,
     "metadata": {},
     "name": "ExperimentDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n  $errorsFirst: Int = 20\n  $errorsAfter: String = null\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      job {\n        status\n        createdAt\n        maxConcurrency\n        ...ExperimentDetailsDialog_jobErrors\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            stackTrace\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            stackTrace\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentDetailsDialogQuery(\n  $experimentId: ID!\n  $errorsFirst: Int = 20\n  $errorsAfter: String = null\n) {\n  experiment: node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      description\n      sequenceNumber\n      createdAt\n      updatedAt\n      metadata\n      repetitions\n      errorRate\n      runCount\n      expectedRunCount\n      averageRunLatencyMs\n      project {\n        id\n      }\n      user {\n        username\n        profilePictureUrl\n        id\n      }\n      costSummary {\n        total {\n          tokens\n          cost\n        }\n        prompt {\n          tokens\n          cost\n        }\n        completion {\n          tokens\n          cost\n        }\n      }\n      job {\n        status\n        createdAt\n        maxConcurrency\n        ...ExperimentDetailsDialog_jobErrors\n        taskConfig {\n          id\n          streamModelOutput\n          prompt {\n            modelProvider\n            modelName\n            templateType\n            templateFormat\n            invocationParameters\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              __typename\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              __typename\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              __typename\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              __typename\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              __typename\n              baseUrl\n            }\n          }\n        }\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            stackTrace\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            stackTrace\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n"
   }
 };
 })();

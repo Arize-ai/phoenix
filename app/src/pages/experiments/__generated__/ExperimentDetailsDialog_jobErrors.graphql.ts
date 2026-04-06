@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d509312a4fee45cfc908fbdb90e84b7>>
+ * @generated SignedSource<<991927daef7c178779c17bfc833b017e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,10 +17,44 @@ export type ExperimentDetailsDialog_jobErrors$data = {
       readonly node: {
         readonly category: ExperimentErrorCategory;
         readonly detail: {
-          readonly errorType?: string;
-          readonly reason?: string;
-          readonly retryCount?: number;
-          readonly stackTrace?: string | null;
+          readonly __typename: "FailureDetail";
+          readonly errorType: string;
+          readonly stackTrace: string | null;
+          readonly workItem: {
+            readonly __typename: "EvalWorkItemId";
+            readonly datasetEvaluatorId: number;
+            readonly experimentRunId: number;
+          } | {
+            readonly __typename: "TaskWorkItemId";
+            readonly datasetExampleId: number;
+            readonly repetitionNumber: number;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          } | null;
+        } | {
+          readonly __typename: "RetriesExhaustedDetail";
+          readonly reason: string;
+          readonly retryCount: number;
+          readonly stackTrace: string | null;
+          readonly workItem: {
+            readonly __typename: "EvalWorkItemId";
+            readonly datasetEvaluatorId: number;
+            readonly experimentRunId: number;
+          } | {
+            readonly __typename: "TaskWorkItemId";
+            readonly datasetExampleId: number;
+            readonly repetitionNumber: number;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          } | null;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
         } | null;
         readonly id: string;
         readonly message: string;
@@ -57,7 +91,68 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "stackTrace",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "workItem",
+  "plural": false,
+  "selections": [
+    (v2/*: any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "datasetExampleId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "repetitionNumber",
+          "storageKey": null
+        }
+      ],
+      "type": "TaskWorkItemId",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "experimentRunId",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "datasetEvaluatorId",
+          "storageKey": null
+        }
+      ],
+      "type": "EvalWorkItemId",
+      "abstractKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
@@ -156,6 +251,7 @@ return {
                   "name": "detail",
                   "plural": false,
                   "selections": [
+                    (v2/*: any*/),
                     {
                       "kind": "InlineFragment",
                       "selections": [
@@ -166,7 +262,8 @@ return {
                           "name": "errorType",
                           "storageKey": null
                         },
-                        (v2/*: any*/)
+                        (v3/*: any*/),
+                        (v4/*: any*/)
                       ],
                       "type": "FailureDetail",
                       "abstractKey": null
@@ -188,7 +285,8 @@ return {
                           "name": "reason",
                           "storageKey": null
                         },
-                        (v2/*: any*/)
+                        (v3/*: any*/),
+                        (v4/*: any*/)
                       ],
                       "type": "RetriesExhaustedDetail",
                       "abstractKey": null
@@ -196,13 +294,7 @@ return {
                   ],
                   "storageKey": null
                 },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                }
+                (v2/*: any*/)
               ],
               "storageKey": null
             },
@@ -251,6 +343,6 @@ return {
 };
 })();
 
-(node as any).hash = "d4a2296c001af88d92ab225a6bd5d18a";
+(node as any).hash = "27922b925fc0d1d2d6de2f340ffcd3fc";
 
 export default node;
