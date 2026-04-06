@@ -173,7 +173,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         self.provider = provider
         self.model_name = model_name
         self._client_factory = client_factory
-        self._attributes: dict[str, Any] = {}
 
     @property
     @abstractmethod
@@ -222,7 +221,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
             attributes=attributes,
             set_status_on_exception=False,  # we set status manually
         )
-        self._attributes = attributes
         self._raw_output_value: str | None = None
         text_chunks: list[TextChunk] = []
         tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
@@ -283,10 +281,6 @@ class PlaygroundStreamingClient(ABC, Generic[ClientT]):
         except ValueError:
             # happens in some cases if the spec is None
             return False
-
-    @property
-    def attributes(self) -> dict[str, Any]:
-        return dict(self._attributes)
 
     def get_rate_limit_key(self) -> Hashable:
         """Return a hashable key for rate limit bucketing.
