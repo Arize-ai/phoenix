@@ -10,12 +10,9 @@ from tests.unit.vcr import CustomVCR
 @pytest.fixture(autouse=True)
 def _enable_agents(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_DANGEROUSLY_ENABLE_AGENTS", "true")
-    # Disable the MCP docs client so tests don't attempt real HTTP calls
-    # to the Mintlify endpoint (which would conflict with VCR cassettes).
-    monkeypatch.setattr(
-        "phoenix.server.api.routers.chat._get_mcp_client",
-        lambda _request: None,
-    )
+    # Prevent the MCP docs client from making outbound calls to the
+    # Mintlify endpoint during VCR-recorded tests.
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
 
 
 class TestChatRouter:
