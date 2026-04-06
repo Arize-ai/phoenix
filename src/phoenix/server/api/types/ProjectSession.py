@@ -181,7 +181,7 @@ class ProjectSession(Node):
             models.Trace.id.asc(),
         ).limit(first + 1)
         cursors_and_nodes = []
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             traces = await session.stream_scalars(stmt)
             async for trace in islice(traces, first):
                 cursor = Cursor(
@@ -263,7 +263,7 @@ class ProjectSession(Node):
         from .ProjectSessionAnnotation import ProjectSessionAnnotation
 
         stmt = select(models.ProjectSessionAnnotation).filter_by(project_session_id=self.id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             annotations = await session.stream_scalars(stmt)
             return [
                 ProjectSessionAnnotation(id=annotation.id, db_record=annotation)

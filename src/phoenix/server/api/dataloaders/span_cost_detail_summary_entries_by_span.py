@@ -24,7 +24,7 @@ class SpanCostDetailSummaryEntriesBySpanDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         results: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for span_cost_detail in await session.stream_scalars(
                 select(models.SpanCostDetail)
                 .join(models.SpanCost, models.SpanCostDetail.span_cost_id == models.SpanCost.id)

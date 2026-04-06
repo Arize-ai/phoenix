@@ -54,7 +54,7 @@ class DocumentRetrievalMetricsDataLoader(DataLoader[Key, Result]):
         requested_num_docs: defaultdict[tuple[RowId, EvalName], set[NumDocs]] = defaultdict(set)
         for row_id, eval_name, num_docs in results.keys():
             requested_num_docs[(row_id, eval_name)].add(num_docs)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for (span_rowid, name), group in groupby(data, lambda r: (r.span_rowid, r.name)):
                 # We need to fulfill two types of potential requests: 1. when it

@@ -32,7 +32,7 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
             .where(models.Trace.project_session_rowid.in_(keys))
             .group_by(models.Trace.project_session_rowid)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             result: dict[Key, TokenUsage] = {
                 id_: TokenUsage(prompt=prompt, completion=completion)
                 async for id_, prompt, completion in await session.stream(stmt)

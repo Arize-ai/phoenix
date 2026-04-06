@@ -19,7 +19,7 @@ class SpanProjectsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Union[Result, ValueError]]:
         span_ids = list(set(keys))
-        async with self._db() as session:
+        async with self._db.read() as session:
             projects = {
                 span_id: project
                 async for span_id, project in await session.stream(

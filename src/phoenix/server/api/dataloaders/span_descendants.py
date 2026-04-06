@@ -92,7 +92,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         )
 
         results: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             # Group results by root_rowid and max_depth (the Key tuple)
             async for key, group in groupby(data, key=lambda d: tuple(d[1:])):

@@ -35,7 +35,7 @@ class SpanCostSummaryByTraceDataLoader(DataLoader[Key, Result]):
             .group_by(pk)
         )
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for (
                 id_,

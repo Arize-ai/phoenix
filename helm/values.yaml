@@ -310,6 +310,11 @@ database:
   # WARNING: Setting this will override all database.postgres.* settings and disable built-in PostgreSQL validation
   url: ""
 
+  # -- Optional PostgreSQL read replica URL for read-only query routing (PHOENIX_SQL_DATABASE_READ_REPLICA_URL)
+  # When set, Phoenix routes read-only queries to this replica while keeping writes on the primary.
+  # Ignored for SQLite deployments.
+  readReplicaUrl: ""
+
 # Authentication and security
 auth:
   # -- Duration in minutes before access tokens expire and require renewal (PHOENIX_ACCESS_TOKEN_EXPIRY_MINUTES)

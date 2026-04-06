@@ -17,6 +17,6 @@ class ProjectHasTracesDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         pid = models.Trace.project_rowid
         stmt = select(distinct(pid)).where(pid.in_(keys))
-        async with self._db() as session:
+        async with self._db.read() as session:
             result = set(await session.scalars(stmt))
         return [key in result for key in keys]

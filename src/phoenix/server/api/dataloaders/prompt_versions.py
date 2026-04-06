@@ -20,7 +20,7 @@ class PromptVersionDataLoader(DataLoader[Key, Result]):
         prompt_version_ids = list(set(keys))
         versions: dict[Key, models.PromptVersion] = {}
         stmt = select(models.PromptVersion).where(models.PromptVersion.id.in_(prompt_version_ids))
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for version in await session.stream_scalars(stmt):
                 versions[version.id] = version
         return [versions.get(key) for key in keys]

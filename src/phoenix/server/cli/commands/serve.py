@@ -34,6 +34,7 @@ from phoenix.config import (
     get_env_oauth2_settings,
     get_env_password_reset_token_expiry,
     get_env_port,
+    get_env_read_replica_url,
     get_env_refresh_token_expiry,
     get_env_smtp_hostname,
     get_env_smtp_mail_from,
@@ -74,6 +75,8 @@ from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
 from phoenix.utilities import no_emojis_on_windows
 from phoenix.version import __version__ as phoenix_version
+
+logger = logging.getLogger(__name__)
 
 _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
@@ -254,16 +257,13 @@ def run(args: Namespace) -> None:
 
         start_prometheus()
 
-    engine = create_engine(
-        connection_str=db_connection_str,
+    factory, shutdown_callbacks = _create_db_session_factory(
+        db_connection_str=db_connection_str,
+        read_replica_connection_str=get_env_read_replica_url(),
         migrate=not Settings.disable_migrations,
         log_to_stdout=get_env_log_sql(),
         log_migrations=Settings.log_migrations,
     )
-    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-    shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
-    shutdown_callbacks.append(engine.dispose)
-    factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
 
     allowed_origins = get_env_allowed_origins()
     management_url = get_env_management_url()
@@ -384,6 +384,54 @@ def run(args: Namespace) -> None:
 
 def _resolve_grpc_port(args: Namespace) -> int:
     return args.grpc_port if args.grpc_port is not None else get_env_grpc_port()
+
+
+def _create_db_session_factory(
+    *,
+    db_connection_str: str,
+    read_replica_connection_str: Optional[str],
+    migrate: bool,
+    log_to_stdout: bool,
+    log_migrations: bool,
+) -> tuple[DbSessionFactory, list[Callable[[], None | Awaitable[None]]]]:
+    primary_engine = create_engine(
+        connection_str=db_connection_str,
+        migrate=migrate,
+        log_to_stdout=log_to_stdout,
+        log_migrations=log_migrations,
+    )
+    shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
+    shutdown_callbacks.extend(instrument_engine_if_enabled(primary_engine))
+    shutdown_callbacks.append(primary_engine.dispose)
+
+    read_db = None
+    if read_replica_connection_str and primary_engine.dialect.name == "postgresql":
+        replica_engine = create_engine(
+            connection_str=read_replica_connection_str,
+            migrate=False,
+            log_to_stdout=log_to_stdout,
+        )
+        shutdown_callbacks.extend(instrument_engine_if_enabled(replica_engine))
+        shutdown_callbacks.append(replica_engine.dispose)
+        read_db = _db(replica_engine)
+        logger.info(
+            "Read replica engine created for %s",
+            read_replica_connection_str.split("@")[-1],
+        )
+    elif read_replica_connection_str:
+        logger.warning(
+            "PHOENIX_SQL_DATABASE_READ_REPLICA_URL is set but ignored for %s dialect",
+            primary_engine.dialect.name,
+        )
+
+    return (
+        DbSessionFactory(
+            db=_db(primary_engine),
+            read_db=read_db,
+            dialect=primary_engine.dialect.name,
+        ),
+        shutdown_callbacks,
+    )
 
 
 def _load_trace_fixture_initial_batches(

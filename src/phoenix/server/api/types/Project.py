@@ -324,7 +324,7 @@ class Project(Node):
             .where(models.Trace.trace_id == str(trace_id))
             .where(models.Trace.project_rowid == self.id)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             if (trace := await session.scalar(stmt)) is None:
                 return None
         return Trace(id=trace.id, db_record=trace)
@@ -415,7 +415,7 @@ class Project(Node):
                 first + 1  # overfetch by one to determine whether there's a next page
             )
         cursors_and_nodes = []
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             span_records = await session.stream(stmt)
             async for span_record in islice(span_records, first):
                 span_rowid: int = span_record[0]
@@ -452,7 +452,7 @@ class Project(Node):
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
         if session_id:
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 ans = await session.scalar(
                     select(table).filter_by(
                         session_id=session_id,
@@ -513,7 +513,7 @@ class Project(Node):
                 first + 1  # over-fetch by one to determine whether there's a next page
             )
         cursors_and_nodes = []
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             records = await session.stream(stmt)
             async for record in islice(records, first):
                 project_session = record[0]
@@ -551,7 +551,7 @@ class Project(Node):
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -568,7 +568,7 @@ class Project(Node):
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == self.id)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -584,7 +584,7 @@ class Project(Node):
             .join(models.ProjectSession)
             .where(models.ProjectSession.project_id == self.id)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field(
@@ -604,7 +604,7 @@ class Project(Node):
         )
         if span_id:
             stmt = stmt.where(models.Span.span_id == str(span_id))
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
 
     @strawberry.field
@@ -830,7 +830,7 @@ class Project(Node):
             stmt = span_filter(stmt)
 
         data = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for t, total_count, ok_count, error_count, unset_count in await session.stream(
                 stmt
             ):
@@ -901,7 +901,7 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
         data = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for t, v in await session.stream(stmt):
                 timestamp = _as_datetime(t)
                 data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp, value=v)
@@ -984,7 +984,7 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
         data: dict[datetime, TraceCountByStatusTimeSeriesDataPoint] = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for t, total_count, error_count in await session.stream(stmt):
                 timestamp = _as_datetime(t)
                 data[timestamp] = TraceCountByStatusTimeSeriesDataPoint(
@@ -1078,7 +1078,7 @@ class Project(Node):
         stmt = stmt.group_by(bucket).order_by(bucket)
 
         data: dict[datetime, TraceLatencyMsPercentileTimeSeriesDataPoint] = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for (
                 bucket_time,
                 p50,
@@ -1171,7 +1171,7 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
         data: dict[datetime, TraceTokenCountTimeSeriesDataPoint] = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for (
                 t,
                 total_tokens,
@@ -1254,7 +1254,7 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
         data: dict[datetime, TraceTokenCostTimeSeriesDataPoint] = {}
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for (
                 t,
                 total_cost,
@@ -1342,7 +1342,7 @@ class Project(Node):
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
         scores: dict[datetime, dict[str, float]] = {}
         unique_names: set[str] = set()
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             async for (
                 t,
                 name,
@@ -1399,7 +1399,7 @@ class Project(Node):
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = (
                 select(
                     models.GenerativeModel,
@@ -1459,7 +1459,7 @@ class Project(Node):
         if time_range.start is None:
             raise BadRequest("Start time is required")
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = (
                 select(
                     models.GenerativeModel,

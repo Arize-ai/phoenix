@@ -39,7 +39,7 @@ class AverageExperimentRunLatencyDataLoader(DataLoader[Key, Result]):
                 "average_run_latency_ms"
             ),
         ).group_by(average_repetition_latency_ms.c.experiment_id)
-        async with self._db() as session:
+        async with self._db.read() as session:
             average_run_latencies_ms = {
                 experiment_id: average_run_latency_ms
                 async for experiment_id, average_run_latency_ms in await session.stream(query)

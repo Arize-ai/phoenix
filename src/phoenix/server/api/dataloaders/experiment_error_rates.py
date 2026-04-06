@@ -41,7 +41,7 @@ class ExperimentErrorRatesDataLoader(DataLoader[Key, Result]):
                 "average_run_error_rates"
             ),
         ).group_by(average_repetition_error_rates_subquery.c.experiment_id)
-        async with self._db() as session:
+        async with self._db.read() as session:
             average_run_error_rates = {
                 experiment_id: error_rate
                 async for experiment_id, error_rate in await session.stream(
