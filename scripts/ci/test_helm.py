@@ -2237,6 +2237,20 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 ),
             ),
         ),
+        TestCase(
+            "DB Config: Read replica URL sets PHOENIX_SQL_DATABASE_READ_REPLICA_URL",
+            "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@primary.db:5432/phoenix' --set database.readReplicaUrl='postgresql://myuser:mypass@replica.db:5432/phoenix' --set database.postgres.host=phoenix-postgresql --set database.postgres.user=postgres --set database.postgres.password=postgres --set database.postgres.db=phoenix --set database.postgres.port=5432",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.custom_database_url(
+                    "postgresql://myuser:mypass@primary.db:5432/phoenix"
+                ),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_SQL_DATABASE_READ_REPLICA_URL",
+                    "postgresql://myuser:mypass@replica.db:5432/phoenix",
+                ),
+            ),
+        ),
         # Auth
         TestCase("Auth enabled (default)", "--set auth.enabled=true", minimum_resources),
         TestCase("Auth disabled", "--set auth.enabled=false", minimum_resources),
