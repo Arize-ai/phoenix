@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
-import gzip
 import json
-from binascii import hexlify
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from itertools import cycle, islice
-from queue import SimpleQueue
 from random import choice, randint, random
-from threading import Thread
 from time import sleep
-from typing import Any, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple, Type
+from typing import Iterator, List, Tuple
 from urllib.parse import urljoin
 
 import numpy as np
-import pandas as pd
-import requests
 from faker import Faker
-from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import (
     DocumentAttributes,
@@ -41,16 +33,11 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcess
 from opentelemetry.util import types
 from typing_extensions import TypeAlias
 
-import phoenix.trace.v1 as pb
-from phoenix.trace import DocumentEvaluations, Evaluations, SpanEvaluations
-
 url = "http://127.0.0.1:6006"
 grpc_endpoint = "http://127.0.0.1:4317"
 traces_endpoint = urljoin(url, "/v1/traces")
-evals_endpoint = urljoin(url, "/v1/evaluations")
 
 NUM_TRACES = 1000
-GENERATE_EVALS = True
 
 MAX_NUM_EMBEDDINGS = 20
 MAX_NUM_RETRIEVAL_DOCS = 20
@@ -64,10 +51,6 @@ MAX_NUM_SENTENCES = 100
 fake = Faker()
 
 SpanKind: TypeAlias = str
-EvalName: TypeAlias = str
-NumDocs: TypeAlias = int
-
-END_OF_QUEUE = None
 
 
 def _get_tracers(project_names: List[str]) -> Iterator[trace_api.Tracer]:
@@ -89,7 +72,6 @@ def _get_tracers(project_names: List[str]) -> Iterator[trace_api.Tracer]:
 
 
 def _gen_spans(
-    eval_queue: "SimpleQueue[Tuple[trace_api.SpanContext, SpanKind]]",
     tracer: trace_api.Tracer,
     recurse_depth: int,
     recurse_width: int,
@@ -123,19 +105,10 @@ def _gen_spans(
             return
         for _ in range(recurse_width):
             _gen_spans(
-                eval_queue=eval_queue,
                 tracer=tracer,
                 recurse_depth=randint(0, recurse_depth),
                 recurse_width=randint(0, recurse_width),
             )
-    if GENERATE_EVALS:
-        Thread(
-            target=lambda: (
-                sleep(random()),
-                eval_queue.put((span.get_span_context(), num_docs)),
-            ),
-            daemon=True,
-        ).start()
 
 
 def _gen_attributes(
@@ -222,22 +195,11 @@ def _gen_messages(
         # Generate tool role messages with dict/list content to test rendering
         if role == "tool":
             # Randomly choose between different tool return types to test rendering
-            tool_return_type = choice(["dict", "list", "string"])
-            if tool_return_type == "dict":
-                # Generate a dictionary tool return (the bug case)
-                tool_result = {
-                    "accessible_by_AI": [fake.file_name() for _ in range(randint(1, 5))],
-                    "not_accessible_by_AI": [fake.file_name() for _ in range(randint(1, 5))],
-                }
+            if random() < 0.5:
+                # Generate list-style tool return as space-joined string
                 yield (
                     f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
-                    tool_result,
-                )
-            elif tool_return_type == "list":
-                # Generate list tool return
-                yield (
-                    f"{prefix}.{i}.{MessageAttributes.MESSAGE_CONTENT}",
-                    [fake.word() for _ in range(randint(1, 10))],
+                    " ".join(fake.word() for _ in range(randint(1, 10))),
                 )
             else:
                 # Regular string content
@@ -291,172 +253,14 @@ def _gen_documents(
             )
 
 
-def _gen_evals(
-    queue: "SimpleQueue[Tuple[trace_api.SpanContext, NumDocs]]",
-    span_eval_name_and_labels: Dict[str, Set[str]],
-    doc_eval_name_and_labels: Dict[str, Set[str]],
-) -> None:
-    span_pyarrow_queue: "SimpleQueue[Optional[Tuple[EvalName, Dict[str, Any]]]]" = SimpleQueue()
-    doc_pyarrow_queue: "SimpleQueue[Optional[Tuple[EvalName, Dict[str, Any]]]]" = SimpleQueue()
-    protos_queue: "SimpleQueue[Optional[pb.Evaluation]]" = SimpleQueue()
-    span_pyarrow_thread = Thread(
-        target=_send_eval_pyarrow,
-        args=(span_pyarrow_queue, evals_endpoint, SpanEvaluations),
-        daemon=True,
-    )
-    doc_pyarrow_thread = Thread(
-        target=_send_eval_pyarrow,
-        args=(doc_pyarrow_queue, evals_endpoint, DocumentEvaluations),
-        daemon=True,
-    )
-    protos_thread = Thread(
-        target=_send_eval_protos,
-        args=(protos_queue, evals_endpoint),
-        daemon=True,
-    )
-    span_pyarrow_thread.start()
-    doc_pyarrow_thread.start()
-    protos_thread.start()
-    while (item := queue.get()) is not END_OF_QUEUE:
-        context, num_docs = item
-        span_id = hexlify(context.span_id.to_bytes(8, "big")).decode()
-        for i in range(num_docs):
-            for name, labels in doc_eval_name_and_labels.items():
-                score = random()
-                label = choice(list(labels)[: randint(1, len(labels))])
-                explanation = fake.paragraph(nb_sentences=15)
-                if random() < 0.99:
-                    row = {"span_id": span_id, "document_position": i}
-                    row["score"] = score if random() < 0.9995 else None
-                    row["label"] = label if random() < 0.95 else None
-                    row["explanation"] = explanation if random() < 0.95 else None
-                    doc_pyarrow_queue.put((name, row))
-                else:
-                    subject_id = pb.Evaluation.SubjectId(
-                        document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
-                            span_id=span_id,
-                            document_position=i,
-                        )
-                    )
-                    result = pb.Evaluation.Result(
-                        score=DoubleValue(value=score) if random() < 0.9995 else None,
-                        label=StringValue(value=label) if random() < 0.95 else None,
-                        explanation=StringValue(value=explanation) if random() < 0.95 else None,
-                    )
-                    pb_eval = pb.Evaluation(name=name, subject_id=subject_id, result=result)
-                    protos_queue.put(pb_eval)
-        for name, labels in span_eval_name_and_labels.items():
-            if random() < 0.5:
-                continue
-            score = random()
-            label = choice(list(labels))
-            explanation = fake.paragraph(nb_sentences=15)
-            if random() < 0.99:
-                row = {"span_id": span_id}
-                row["score"] = score if random() < 0.95 else None
-                row["label"] = label if random() < 0.95 else None
-                row["explanation"] = explanation if random() < 0.95 else None
-                span_pyarrow_queue.put((name, row))
-            else:
-                subject_id = pb.Evaluation.SubjectId(span_id=span_id)
-                result = pb.Evaluation.Result(
-                    score=DoubleValue(value=score) if random() < 0.95 else None,
-                    label=StringValue(value=label) if random() < 0.95 else None,
-                    explanation=StringValue(value=explanation) if random() < 0.95 else None,
-                )
-                pb_eval = pb.Evaluation(name=name, subject_id=subject_id, result=result)
-                protos_queue.put(pb_eval)
-    span_pyarrow_queue.put(END_OF_QUEUE)
-    doc_pyarrow_queue.put(END_OF_QUEUE)
-    protos_queue.put(END_OF_QUEUE)
-    span_pyarrow_thread.join()
-    doc_pyarrow_thread.join()
-    protos_thread.join()
-
-
-def _send_eval_pyarrow(
-    queue: "SimpleQueue[Tuple[EvalName, Dict[str, Any]]]",
-    endpoint: str,
-    cls: Type[Evaluations],
-) -> None:
-    from phoenix.client import Client as _PhoenixClient
-
-    client = _PhoenixClient(base_url=endpoint)
-    is_document_evals = cls is DocumentEvaluations
-    tables: DefaultDict[EvalName, List[Dict[str, Any]]] = defaultdict(list)
-
-    def _flush() -> None:
-        for eval_name, rows in tables.items():
-            try:
-                df = pd.DataFrame(rows)
-                if is_document_evals:
-                    client.spans.log_document_annotations_dataframe(
-                        dataframe=df, annotation_name=eval_name, annotator_kind="LLM"
-                    )
-                else:
-                    client.spans.log_span_annotations_dataframe(
-                        dataframe=df, annotation_name=eval_name, annotator_kind="LLM"
-                    )
-            except Exception as e:
-                print(e)
-        tables.clear()
-
-    while (item := queue.get()) is not END_OF_QUEUE:
-        name, row = item
-        tables[name].append(row)
-        if random() < 0.01:
-            sleep(random())
-            _flush()
-    sleep(random())
-    _flush()
-
-
-def _send_eval_protos(
-    queue: "SimpleQueue[pb.Evaluation]",
-    endpoint: str,
-) -> None:
-    while (item := queue.get()) is not END_OF_QUEUE:
-        sleep(random())
-        requests.post(
-            endpoint,
-            gzip.compress(item.SerializeToString()),
-            headers={
-                "Content-Type": "application/x-protobuf",
-                "Content-Encoding": "gzip",
-            },
-        )
-
-
 if __name__ == "__main__":
-    eval_queue: "SimpleQueue[Optional[Tuple[trace_api.SpanContext, SpanKind]]]" = SimpleQueue()
-    span_eval_name_and_labels = {
-        fake.color_name(): set(fake.safe_color_name() for _ in range(randint(2, 10)))
-        for _ in range(5)
-    }
-    doc_eval_name_and_labels = {
-        fake.color_name(): set(fake.safe_color_name() for _ in range(randint(2, 10)))
-        for _ in range(5)
-    }
-    evals_thread = Thread(
-        target=_gen_evals,
-        args=(
-            eval_queue,
-            span_eval_name_and_labels,
-            doc_eval_name_and_labels,
-        ),
-        daemon=True,
-    )
-    evals_thread.start()
     project_names = [fake.company() for _ in range(2)]
     tracers = list(islice(_get_tracers(project_names), len(project_names) * 10))
     with ThreadPoolExecutor() as executor:
         for _ in range(NUM_TRACES):
             executor.submit(
                 _gen_spans,
-                eval_queue=eval_queue,
                 tracer=choice(tracers),
                 recurse_depth=randint(2, 5),
                 recurse_width=randint(2, 5),
             )
-    eval_queue.put(END_OF_QUEUE)
-    evals_thread.join()

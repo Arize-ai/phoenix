@@ -79,6 +79,7 @@ from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -177,7 +178,6 @@ from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.evaluations import enqueue_annotations_from_evaluations
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
@@ -197,17 +197,16 @@ from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
+    get_annotation_precursors_from_fixture,
     get_dataset_fixtures,
-    get_evaluations_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
-    remap_evaluation_ids,
+    remap_precursor_ids,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.trace.span_evaluations import Evaluations
 from phoenix.tracers import Tracer
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
@@ -546,20 +545,23 @@ class Scaffolder(DaemonTask):
                 for span in fixture_spans:
                     await self._enqueue_span(span, project_name)
 
-                for evaluations in get_evaluations_from_fixture(fixture.name):
-                    evaluations = remap_evaluation_ids(
-                        evaluations,
-                        trace_id_mapping=trace_id_mapping,
-                        span_id_mapping=span_id_mapping,
-                    )
-                    await enqueue_annotations_from_evaluations(
-                        self._enqueue_annotations,
-                        evaluations,
-                    )
+                for eval_name, precursors_batch in get_annotation_precursors_from_fixture(
+                    fixture.name
+                ):
+                    remapped = [
+                        remap_precursor_ids(
+                            p,
+                            trace_id_mapping=trace_id_mapping,
+                            span_id_mapping=span_id_mapping,
+                        )
+                        for p in precursors_batch
+                    ]
+                    for precursor in remapped:
+                        await self._enqueue_annotations(precursor)
                     logger.info(
                         "Enqueued %s eval annotations for '%s'",
-                        len(evaluations),
-                        evaluations.eval_name,
+                        len(remapped),
+                        eval_name,
                     )
 
             except FileNotFoundError:
@@ -627,7 +629,7 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
-    initial_evaluations: Iterable[Evaluations] = (),
+    initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
@@ -661,11 +663,8 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
-            for evaluations in initial_evaluations:
-                await enqueue_annotations_from_evaluations(
-                    enqueue_annotations,
-                    evaluations,
-                )
+            for precursor in initial_annotation_precursors:
+                await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(experiment_sweeper)
@@ -1024,7 +1023,7 @@ def create_app(
     grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[Evaluations]] = None,
+    initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -1055,7 +1054,9 @@ def create_app(
             for item in initial_spans
         )
     )
-    startup_evaluations = () if initial_evaluations is None else initial_evaluations
+    startup_annotation_precursors = (
+        () if initial_annotation_precursors is None else initial_annotation_precursors
+    )
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
@@ -1163,7 +1164,7 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
-            initial_evaluations=startup_evaluations,
+            initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
