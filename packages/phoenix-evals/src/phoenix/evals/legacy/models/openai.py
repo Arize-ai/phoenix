@@ -442,6 +442,11 @@ class OpenAIModel(BaseModel):
             return "developer"
         if "o3" in self.model:
             return "developer"
+        # For models accessed via a custom base_url (e.g. VertexAI, Gemini,
+        # self-hosted endpoints), default to "user" because many providers
+        # reject requests that contain only "system" messages.
+        if self.base_url:
+            return "user"
         return "system"
 
     @property
