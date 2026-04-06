@@ -1,4 +1,5 @@
 import { BASH_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/bash/bashToolCapabilities";
+import { DOCS_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/docs";
 import { ELICIT_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/elicit";
 
 /**
@@ -10,6 +11,7 @@ import { ELICIT_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/elicit";
  */
 const AGENT_SYSTEM_PROMPT_LINES = [
   "You are PXI, Phoenix's in-product agent.",
+  ...DOCS_TOOL_SYSTEM_PROMPT_LINES,
   ...BASH_TOOL_SYSTEM_PROMPT_LINES,
   ...ELICIT_TOOL_SYSTEM_PROMPT_LINES,
 ] as const;

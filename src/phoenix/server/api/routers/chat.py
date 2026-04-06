@@ -17,6 +17,8 @@ from phoenix.server.bearer_auth import is_authenticated
 if TYPE_CHECKING:
     from pydantic_ai.models import Model as PydanticAIModel
 
+    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
+
 
 class CustomProviderChatSearchParams(BaseModel):
     provider_type: Literal["custom"]
@@ -142,11 +144,36 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         else:
             assert_never(params_)
 
+        # Get the MCP client from app state (lazily initialised).
+        mcp_client = _get_mcp_client(request)
+
         body = parse_chat_body(await request.body())
         return await stream_text(
             request,
             model,
             body=body,
+            mcp_client=mcp_client,
         )
 
     return router
+
+
+def _get_mcp_client(request: Request) -> "MintlifyDocsClient | None":
+    """Return the shared MCP client from app state, creating it on first use.
+
+    Returns ``None`` if the MCP client fails to initialise so that the chat
+    endpoint degrades gracefully (backend tools simply won't be available).
+    """
+    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
+
+    state = request.app.state
+    if not hasattr(state, "_mcp_client"):
+        try:
+            state._mcp_client = MintlifyDocsClient()
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception("Failed to create MCP client")
+            state._mcp_client = None
+    client: MintlifyDocsClient | None = state._mcp_client
+    return client

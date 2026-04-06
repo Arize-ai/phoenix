@@ -9,6 +9,12 @@ import {
   getAskUserToolPreview,
 } from "./AskUserToolDetails";
 import { BashToolDetails, getBashToolPreview } from "./BashToolDetails";
+import {
+  DocsToolDetails,
+  formatDocsToolState,
+  getDocsToolPreview,
+  isDocsToolName,
+} from "./DocsToolDetails";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
 
@@ -204,7 +210,14 @@ function getToolPresentation(
         stateLabel: formatAskUserState(part.state),
         details: <AskUserToolDetails part={part} />,
       };
-    default:
+    default: {
+      if (isDocsToolName(toolName)) {
+        return {
+          preview: getDocsToolPreview(part),
+          stateLabel: formatDocsToolState(part.state, part),
+          details: <DocsToolDetails part={part} />,
+        };
+      }
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
@@ -227,5 +240,6 @@ function getToolPresentation(
           </>
         ),
       };
+    }
   }
 }

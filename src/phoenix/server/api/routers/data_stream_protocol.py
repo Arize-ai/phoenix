@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
 
     from phoenix.server.api.routers.chat_tracing import StreamAccumulator
+    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,21 @@ class ChatBody:
     raw_tools: list[dict[str, Any]] = field(default_factory=list)
 
 
+def _sanitize_raw_body(raw_body: bytes) -> bytes:
+    """Pre-process the raw request JSON to fix dynamic-tool parts that carry
+    ``providerExecuted`` — a field the TypeScript AI SDK includes but the
+    pydantic-ai ``SubmitMessage`` schema does not define on its
+    ``DynamicTool*`` Pydantic models.  Stripping the extra field allows
+    Pydantic validation to succeed.
+    """
+    data = json.loads(raw_body)
+    for msg in data.get("messages", []):
+        for part in msg.get("parts", []):
+            if part.get("type") == "dynamic-tool" and "providerExecuted" in part:
+                del part["providerExecuted"]
+    return json.dumps(data).encode()
+
+
 def parse_chat_body(raw_body: bytes) -> ChatBody:
     """Parse the raw request body into a structured ``ChatBody``.
 
@@ -89,12 +105,13 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     from pydantic_ai.ui.vercel_ai._adapter import VercelAIAdapter
 
     cls = _get_vercel_request_class()
-    body = cls.model_validate_json(raw_body)
+    body = cls.model_validate_json(_sanitize_raw_body(raw_body))
     logger.debug("system=%r", body.system)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
+
     if body.system:
         messages = [ModelRequest(parts=[SystemPromptPart(content=body.system)]), *messages]
 
@@ -129,6 +146,7 @@ async def _encode_stream(
     stream: Any,
     *,
     accumulator: "StreamAccumulator | None" = None,
+    backend_tool_names: frozenset[str] | None = None,
     PartDeltaEvent: Any,
     PartEndEvent: Any,
     PartStartEvent: Any,
@@ -150,6 +168,9 @@ async def _encode_stream(
 ) -> AsyncIterator[str]:
     part_ids: dict[int, str] = {}
     part_tool_ids: dict[int, str] = {}
+    # Track which part indices correspond to backend tools so we can set
+    # provider_executed on subsequent delta/available chunks.
+    _backend_parts: set[int] = set()
 
     async for event in stream:
         if isinstance(event, PartStartEvent):
@@ -171,10 +192,14 @@ async def _encode_stream(
 
             elif isinstance(part, ToolCallPart):
                 part_tool_ids[event.index] = part.tool_call_id
+                is_backend = backend_tool_names is not None and part.tool_name in backend_tool_names
+                if is_backend:
+                    _backend_parts.add(event.index)
                 yield _sse(
                     ToolInputStartChunk(
                         tool_call_id=part.tool_call_id,
                         tool_name=part.tool_name,
+                        provider_executed=True if is_backend else None,
                         dynamic=True,
                     )
                 )
@@ -231,11 +256,13 @@ async def _encode_stream(
                 yield _sse(ReasoningEndChunk(id=msg_id))
 
             elif isinstance(part, ToolCallPart):
+                is_backend = event.index in _backend_parts
                 yield _sse(
                     ToolInputAvailableChunk(
                         tool_call_id=part.tool_call_id,
                         tool_name=part.tool_name,
                         input=part.args_as_dict() or {},
+                        provider_executed=True if is_backend else None,
                         dynamic=True,
                     )
                 )
@@ -256,8 +283,11 @@ async def stream_text(
     model: "Model",
     *,
     body: ChatBody,
+    mcp_client: "MintlifyDocsClient | None" = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
         PartDeltaEvent,
         PartEndEvent,
         PartStartEvent,
@@ -267,6 +297,7 @@ async def stream_text(
         ThinkingPartDelta,
         ToolCallPart,
         ToolCallPartDelta,
+        ToolReturnPart,
     )
     from pydantic_ai.models import ModelRequestParameters
     from pydantic_ai.tools import ToolDefinition
@@ -286,9 +317,11 @@ async def stream_text(
         ToolInputAvailableChunk,
         ToolInputDeltaChunk,
         ToolInputStartChunk,
+        ToolOutputAvailableChunk,
+        ToolOutputErrorChunk,
     )
 
-    messages = body.messages
+    messages: list[Any] = list(body.messages)
 
     def _to_tool_defs(tools: list[FrontendTool]) -> list[ToolDefinition]:
         return [
@@ -300,9 +333,25 @@ async def stream_text(
             for t in tools
         ]
 
+    # Resolve backend (MCP) tool definitions, if available.
+    backend_tool_defs: list[ToolDefinition] = []
+    backend_tool_names: frozenset[str] = frozenset()
+    if mcp_client is not None:
+        try:
+            backend_tool_defs = await mcp_client.get_tool_definitions()
+            backend_tool_names = frozenset(td.name for td in backend_tool_defs)
+            logger.debug("Backend MCP tools: %s", list(backend_tool_names))
+        except Exception:
+            logger.exception("Failed to fetch backend MCP tool definitions")
+
+    frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
+
+    # Merge frontend + backend tools for the model.
+    all_function_tools = frontend_tool_defs + backend_tool_defs
+
     params = ModelRequestParameters(
-        function_tools=_to_tool_defs(body.tools or []),
+        function_tools=all_function_tools,
         output_tools=output_tool_defs,
         output_mode="tool" if output_tool_defs else "text",
         allow_text_output=not output_tool_defs,
@@ -329,24 +378,47 @@ async def stream_text(
         ToolInputAvailableChunk=ToolInputAvailableChunk,
     )
 
+    # Also build raw tool dicts for tracing that include backend tools.
+    raw_all_tools: list[dict[str, Any]] = list(body.raw_tools or [])
+    for td in backend_tool_defs:
+        raw_all_tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": td.name,
+                    "description": td.description,
+                    "parameters": td.parameters_json_schema,
+                },
+            }
+        )
+
     ingest_traces = body.ingest_traces
+
+    # Maximum backend tool loop iterations to prevent runaway loops.
+    _MAX_BACKEND_TOOL_LOOPS = 5
 
     from phoenix.config import get_env_phoenix_pxi_project_name
     from phoenix.server.api.routers.chat_tracing import (
         StreamAccumulator,
-        TracingContext,
         create_agent_span,
         create_llm_span,
+        create_tool_span,
         ensure_project_exists,
+        finalize_llm_span,
+        finalize_tool_span,
         replay_history_spans,
     )
     from phoenix.tracers import Tracer
 
     async def generate() -> AsyncIterator[str]:
         finish_reason: FinishReason = "stop"
-        tracing_ctx: TracingContext | None = None
-        accumulator: StreamAccumulator | None = None
         project_id: int | None = None
+
+        # Tracing state — managed across loop iterations.
+        tracer: Tracer | None = None
+        agent_span: Any = None
+        completed_llm_steps: int = 0
+        next_step_index: int = 0
 
         # Set up tracing before streaming begins.
         if ingest_traces:
@@ -357,7 +429,6 @@ async def stream_text(
                     project_name=get_env_phoenix_pxi_project_name(),
                 )
                 project_id = await ensure_project_exists(request.app.state.db)
-                accumulator = StreamAccumulator()
                 agent_span = create_agent_span(
                     tracer,
                     input_messages=messages,
@@ -368,75 +439,231 @@ async def stream_text(
                     tracer,
                     parent_span=agent_span,
                     messages=messages,
-                    tools=body.raw_tools or None,
-                )
-                llm_span = create_llm_span(
-                    tracer,
-                    parent_span=agent_span,
-                    input_messages=messages,
-                    tools=body.raw_tools or None,
-                    trace_name_suffix=(
-                        f"Step {completed_llm_steps + 1}"
-                        if completed_llm_steps
-                        else body.trace_name_suffix
-                    ),
-                    step_index=next_step_index,
-                )
-                # Tool-call spans created during finalization start one past
-                # the current LLM span's index.
-                tracing_ctx = TracingContext(
-                    tracer,
-                    agent_span=agent_span,
-                    llm_span=llm_span,
-                    accumulator=accumulator,
-                    tools=body.raw_tools or None,
-                    tool_call_step_index=next_step_index + 1,
+                    tools=raw_all_tools or None,
                 )
             except Exception:
                 logger.exception("Failed to set up chat tracing")
-                tracing_ctx = None
-                accumulator = None
+                tracer = None
+                agent_span = None
 
         yield _sse(StartChunk())
-        yield _sse(StartStepChunk())
-        try:
-            async with model.request_stream(messages, None, params) as stream:
-                async for chunk in _encode_stream(stream, accumulator=accumulator, **chunk_types):
-                    yield chunk
-                finish_reason = _FINISH_REASON_MAP.get(stream.finish_reason or "stop", "other")
 
-                if tracing_ctx is not None:
-                    tracing_ctx.finalize(
-                        usage=stream.usage(),
-                        model_name=getattr(stream, "model_name", None),
-                        provider=getattr(stream, "provider_name", None),
+        # ---------------------------------------------------------------
+        # Backend tool execution loop.
+        #
+        # Each iteration: call the model → stream the response → if the
+        # model requested backend tools, execute them server-side, send
+        # ToolOutputAvailable chunks, and loop back for the next model
+        # call.  Frontend tool calls pass through to the client as usual.
+        # ---------------------------------------------------------------
+        loop_count = 0
+        final_output_text: str | None = None
+        try:
+            while loop_count < _MAX_BACKEND_TOOL_LOOPS:
+                loop_count += 1
+                accumulator = StreamAccumulator()
+
+                # Create a tracing LLM span for this model call.
+                llm_span: Any = None
+                if tracer is not None and agent_span is not None:
+                    llm_span = create_llm_span(
+                        tracer,
+                        parent_span=agent_span,
+                        input_messages=messages,
+                        tools=raw_all_tools or None,
+                        trace_name_suffix=(
+                            f"Step {completed_llm_steps + 1}"
+                            if completed_llm_steps
+                            else body.trace_name_suffix
+                        ),
+                        step_index=next_step_index,
                     )
+                    next_step_index += 1
+
+                yield _sse(StartStepChunk())
+
+                try:
+                    async with model.request_stream(messages, None, params) as stream:
+                        async for chunk in _encode_stream(
+                            stream,
+                            accumulator=accumulator,
+                            backend_tool_names=backend_tool_names if backend_tool_names else None,
+                            **chunk_types,
+                        ):
+                            yield chunk
+                        finish_reason = _FINISH_REASON_MAP.get(
+                            stream.finish_reason or "stop", "other"
+                        )
+
+                        # Capture the text from this iteration — the last
+                        # iteration's text becomes the agent span output.
+                        iter_text = accumulator.accumulated_text or None
+                        if iter_text:
+                            final_output_text = iter_text
+
+                        if llm_span is not None:
+                            finalize_llm_span(
+                                llm_span,
+                                output_content=iter_text,
+                                tool_calls=accumulator.tool_calls or None,
+                                usage=stream.usage(),
+                                model_name=getattr(stream, "model_name", None),
+                                provider=getattr(stream, "provider_name", None),
+                            )
+                            completed_llm_steps += 1
+                except Exception as e:
+                    logger.exception("Error in model.request_stream()")
+                    yield _sse(ErrorChunk(error_text=str(e)))
+                    finish_reason = "error"
+                    if llm_span is not None:
+                        finalize_llm_span(llm_span, error=e)
+                    break
+
+                yield _sse(FinishStepChunk())
+
+                # Identify backend tool calls in this response.
+                backend_calls = (
+                    [tc for tc in accumulator.tool_calls if tc.get("name") in backend_tool_names]
+                    if backend_tool_names
+                    else []
+                )
+
+                if not backend_calls:
+                    # No backend tools — we're done (or frontend tools will
+                    # be handled client-side via the sendAutomatically loop).
+                    break
+
+                # Execute backend tool calls and stream results.
+                # Build the ModelResponse (the model's tool-calling output)
+                # and ToolReturnParts (our execution results) for the next
+                # model call.
+                tool_call_parts: list[Any] = []
+                tool_return_parts: list[Any] = []
+
+                for tc in backend_calls:
+                    tc_id = tc.get("id", "")
+                    tc_name = tc.get("name", "")
+                    tc_args_str = tc.get("arguments", "{}")
+                    try:
+                        tc_args = json.loads(tc_args_str) if tc_args_str else {}
+                    except json.JSONDecodeError:
+                        tc_args = {}
+
+                    # Build the ToolCallPart for the ModelResponse message.
+                    tool_call_parts.append(
+                        ToolCallPart(
+                            tool_name=tc_name,
+                            args=tc_args,
+                            tool_call_id=tc_id,
+                        )
+                    )
+
+                    # Execute the backend tool via MCP.
+                    assert mcp_client is not None  # noqa: S101
+                    try:
+                        result_text = await mcp_client.call_tool(tc_name, tc_args)
+                        yield _sse(
+                            ToolOutputAvailableChunk(
+                                tool_call_id=tc_id,
+                                output=result_text,
+                                provider_executed=True,
+                            )
+                        )
+                        tool_return_parts.append(
+                            ToolReturnPart(
+                                tool_name=tc_name,
+                                content=result_text,
+                                tool_call_id=tc_id,
+                            )
+                        )
+
+                        # Create a tracing TOOL span.
+                        if tracer is not None and agent_span is not None:
+                            tool_span = create_tool_span(
+                                tracer,
+                                parent_span=agent_span,
+                                tool_name=tc_name,
+                                tool_parameters=tc_args_str,
+                                tool_output=result_text,
+                                step_index=next_step_index,
+                            )
+                            finalize_tool_span(tool_span)
+                            next_step_index += 1
+
+                    except Exception as tool_err:
+                        error_text = f"Backend tool error: {tool_err}"
+                        yield _sse(
+                            ToolOutputErrorChunk(
+                                tool_call_id=tc_id,
+                                error_text=error_text,
+                                provider_executed=True,
+                            )
+                        )
+                        tool_return_parts.append(
+                            ToolReturnPart(
+                                tool_name=tc_name,
+                                content=error_text,
+                                tool_call_id=tc_id,
+                            )
+                        )
+
+                        if tracer is not None and agent_span is not None:
+                            tool_span = create_tool_span(
+                                tracer,
+                                parent_span=agent_span,
+                                tool_name=tc_name,
+                                tool_parameters=tc_args_str,
+                                tool_output=error_text,
+                                step_index=next_step_index,
+                            )
+                            finalize_tool_span(tool_span, error=tool_err)
+                            next_step_index += 1
+
+                # Append the model's response and our tool results to
+                # messages for the next model call.
+                messages.append(ModelResponse(parts=tool_call_parts))
+                messages.append(ModelRequest(parts=tool_return_parts))
+
+                # Reset accumulator text for the next iteration (tool calls
+                # were intermediate — only the final text matters for the
+                # agent span output).
+                # Continue the loop — the model will see the tool results
+                # and produce a new response.
+
         except Exception as e:
+            logger.exception("Unexpected error in generate() loop")
             yield _sse(ErrorChunk(error_text=str(e)))
             finish_reason = "error"
-            if tracing_ctx is not None:
-                tracing_ctx.finalize_with_error(e)
         finally:
-            # Safety net: ensure spans are always ended, even on GeneratorExit
-            # (client disconnect) or unexpected BaseException.
-            if tracing_ctx is not None:
-                tracing_ctx.ensure_finalized()
+            # Finalize the AGENT span with the final model output.
+            if agent_span is not None:
+                from phoenix.server.api.routers.chat_tracing import finalize_agent_span
 
-        yield _sse(FinishStepChunk())
+                try:
+                    finalize_agent_span(agent_span, output_content=final_output_text)
+                except Exception:
+                    logger.debug("Failed to finalize agent span", exc_info=True)
+
         yield _sse(FinishChunk(finish_reason=finish_reason))
         yield _sse(DoneChunk())
 
         # Persist traces and shut down the tracer to release resources.
-        if tracing_ctx is not None and project_id is not None:
+        if tracer is not None and project_id is not None:
+            from phoenix.server.api.routers.chat_tracing import persist_traces
+
             try:
-                await tracing_ctx.persist_and_shutdown(
+                await persist_traces(
+                    tracer,
                     db=request.app.state.db,
                     project_id=project_id,
                     session_id=body.session_id,
                     event_queue=request.state.event_queue,
                 )
-            except Exception:
-                logger.exception("Failed to persist chat traces")
+            finally:
+                try:
+                    tracer.shutdown()
+                except Exception:
+                    logger.debug("Failed to shut down tracer", exc_info=True)
 
     return StreamingResponse(
         generate(),
