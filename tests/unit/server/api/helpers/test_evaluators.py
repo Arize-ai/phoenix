@@ -3157,27 +3157,35 @@ class TestLLMEvaluator:
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
-        text_response_body = (
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":""},'
-            '"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":"I cannot evaluate this."},'
-            '"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],'
-            '"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,'
-            '"total_tokens":15}}\n\n'
-            "data: [DONE]\n\n"
+        text_response_body = json.dumps(
+            {
+                "id": "chatcmpl-mock",
+                "object": "chat.completion",
+                "created": 1700000000,
+                "model": "gpt-4o-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "I cannot evaluate this.",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+            }
         )
         with respx.mock:
             respx.post("https://api.openai.com/v1/chat/completions").mock(
                 return_value=httpx.Response(
                     200,
                     content=text_response_body,
-                    headers={"content-type": "text/event-stream"},
+                    headers={"content-type": "application/json"},
                 )
             )
             evaluation_results = await llm_evaluator.evaluate(
@@ -3328,30 +3336,45 @@ class TestLLMEvaluator:
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
-        tool_call_response_body = (
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":null,'
-            '"tool_calls":[{"index":0,"id":"call_abc123","type":"function",'
-            '"function":{"name":"correctness","arguments":""}}],"refusal":null},'
-            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,'
-            '"function":{"arguments":"{\\"explanation\\": \\"The output is correct.\\"}"}}]},'
-            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},'
-            '"finish_reason":"tool_calls"}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,'
-            '"completion_tokens":20,"total_tokens":30}}\n\n'
-            "data: [DONE]\n\n"
+        tool_call_response_body = json.dumps(
+            {
+                "id": "chatcmpl-mock",
+                "object": "chat.completion",
+                "created": 1700000000,
+                "model": "gpt-4o-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_abc123",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "correctness",
+                                        "arguments": '{"explanation": "The output is correct."}',
+                                    },
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30,
+                },
+            }
         )
         with respx.mock:
             respx.post("https://api.openai.com/v1/chat/completions").mock(
                 return_value=httpx.Response(
                     200,
                     content=tool_call_response_body,
-                    headers={"content-type": "text/event-stream"},
+                    headers={"content-type": "application/json"},
                 )
             )
             evaluation_results = await llm_evaluator.evaluate(
