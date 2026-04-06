@@ -175,11 +175,22 @@ def _get_mcp_client(request: Request) -> "MintlifyDocsClient | None":
             state._mcp_client = None
         else:
             try:
-                state._mcp_client = MintlifyDocsClient()
+                client = MintlifyDocsClient()
+                state._mcp_client = client
+
+                # Register cleanup so the HTTP transport and MCP session are
+                # closed on server shutdown rather than abandoned.
+                async def _close_mcp_client() -> None:
+                    try:
+                        await client.close()
+                    except Exception:
+                        pass
+
+                request.app.router.on_shutdown.append(_close_mcp_client)
             except Exception:
                 import logging
 
                 logging.getLogger(__name__).exception("Failed to create MCP client")
                 state._mcp_client = None
-    client: MintlifyDocsClient | None = state._mcp_client
-    return client
+    result: MintlifyDocsClient | None = state._mcp_client
+    return result

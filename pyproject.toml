@@ -130,6 +130,7 @@ dev = [
   "py-grpc-prometheus",
   "pyarrow-stubs",
   "pydantic>=1.0,!=2.0.*,<3",
+  "mcp>=1.26.0",
   "pydantic-ai>=1.62.0",
   "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages

@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-31T00:49:15.904428145Z"
+exclude-newer = "2026-04-03T19:22:12.753438Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -534,6 +534,7 @@ dev = [
     { name = "ldap3" },
     { name = "libcst" },
     { name = "litellm" },
+    { name = "mcp" },
     { name = "mypy" },
     { name = "mypy-boto3-bedrock-runtime" },
     { name = "mypy-protobuf" },
@@ -707,6 +708,7 @@ dev = [
     { name = "ldap3" },
     { name = "libcst", specifier = ">=1.8.6" },
     { name = "litellm", specifier = ">1.61.15,<1.82.7" },
+    { name = "mcp", specifier = ">=1.26.0" },
     { name = "mypy", specifier = "==1.19.1" },
     { name = "mypy-boto3-bedrock-runtime" },
     { name = "mypy-protobuf", specifier = ">=5.0.0" },
