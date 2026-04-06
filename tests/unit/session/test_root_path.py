@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import phoenix.session.session as session_module
+from phoenix.db.insertion.types import Precursors
 from phoenix.session.session import launch_app
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.span_evaluations import (
@@ -112,5 +113,11 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
         launch_app(trace=trace_dataset, run_in_thread=True)
 
     assert mock_create_app.call_args is not None
-    initial_evaluations = mock_create_app.call_args.kwargs["initial_evaluations"]
-    assert initial_evaluations is trace_dataset.evaluations
+    initial_annotation_precursors = mock_create_app.call_args.kwargs[
+        "initial_annotation_precursors"
+    ]
+    assert isinstance(initial_annotation_precursors, list)
+    assert len(initial_annotation_precursors) == 3
+    assert any(isinstance(p, Precursors.SpanAnnotation) for p in initial_annotation_precursors)
+    assert any(isinstance(p, Precursors.DocumentAnnotation) for p in initial_annotation_precursors)
+    assert any(isinstance(p, Precursors.TraceAnnotation) for p in initial_annotation_precursors)

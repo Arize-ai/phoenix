@@ -7,7 +7,6 @@ from .annotation_configs import router as annotation_configs_router
 from .annotations import router as annotations_router
 from .datasets import router as datasets_router
 from .documents import router as documents_router
-from .evaluations import router as evaluations_router
 from .experiment_evaluations import router as experiment_evaluations_router
 from .experiment_runs import router as experiment_runs_router
 from .experiments import router as experiments_router
@@ -84,7 +83,6 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     router.include_router(experiment_evaluations_router)
     router.include_router(traces_router)
     router.include_router(spans_router)
-    router.include_router(evaluations_router)
     router.include_router(prompts_router)
     router.include_router(projects_router)
     router.include_router(sessions_router)

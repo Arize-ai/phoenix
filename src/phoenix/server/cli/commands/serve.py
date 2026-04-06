@@ -48,6 +48,7 @@ from phoenix.config import (
 )
 from phoenix.db import get_printable_db_url
 from phoenix.db.engines import create_engine
+from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.app import (
     ScaffolderConfig,
     _db,
@@ -61,17 +62,16 @@ from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     DatasetFixture,
+    get_annotation_precursors_from_fixture,
     get_dataset_fixtures,
-    get_evaluations_from_fixture,
     get_trace_fixtures_by_project_name,
     load_example_traces,
-    remap_evaluation_ids,
+    remap_precursor_ids,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
-from phoenix.trace.span_evaluations import Evaluations
 from phoenix.utilities import no_emojis_on_windows
 from phoenix.version import __version__ as phoenix_version
 
@@ -238,10 +238,10 @@ def run(args: Namespace) -> None:
     auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
-    fixture_evaluations: list[Evaluations] = []
+    fixture_annotation_precursors: list[AnnotationPrecursor] = []
     if trace_dataset_name is not None:
-        fixture_spans, fixture_evaluations, dataset_fixtures = _load_trace_fixture_initial_batches(
-            trace_dataset_name
+        fixture_spans, fixture_annotation_precursors, dataset_fixtures = (
+            _load_trace_fixture_initial_batches(trace_dataset_name)
         )
         if not read_only:
             Thread(
@@ -340,7 +340,7 @@ def run(args: Namespace) -> None:
         grpc_port=grpc_port,
         enable_prometheus=enable_prometheus,
         initial_spans=fixture_spans,
-        initial_evaluations=fixture_evaluations,
+        initial_annotation_precursors=fixture_annotation_precursors,
         welcome_message=msg,
         shutdown_callbacks=shutdown_callbacks,
         secret=auth_settings.phoenix_secret,
@@ -388,7 +388,7 @@ def _resolve_grpc_port(args: Namespace) -> int:
 
 def _load_trace_fixture_initial_batches(
     fixture_name: str,
-) -> tuple[list[Span], list[Evaluations], list[DatasetFixture]]:
+) -> tuple[list[Span], list[AnnotationPrecursor], list[DatasetFixture]]:
     fixture_spans, trace_id_mapping, span_id_mapping = reset_fixture_span_ids_and_timestamps(
         (
             # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
@@ -397,16 +397,17 @@ def _load_trace_fixture_initial_batches(
             for span in load_example_traces(fixture_name).to_spans()
         ),
     )
-    fixture_evaluations = [
-        remap_evaluation_ids(
-            evaluations,
+    fixture_annotation_precursors = [
+        remap_precursor_ids(
+            precursor,
             trace_id_mapping=trace_id_mapping,
             span_id_mapping=span_id_mapping,
         )
-        for evaluations in get_evaluations_from_fixture(fixture_name)
+        for _, batch in get_annotation_precursors_from_fixture(fixture_name)
+        for precursor in batch
     ]
     dataset_fixtures = list(get_dataset_fixtures(fixture_name))
-    return fixture_spans, fixture_evaluations, dataset_fixtures
+    return fixture_spans, fixture_annotation_precursors, dataset_fixtures
 
 
 def _write_pid_file_when_ready(
