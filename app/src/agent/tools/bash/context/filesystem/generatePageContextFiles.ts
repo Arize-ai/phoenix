@@ -2,7 +2,6 @@ import type { InitialFiles } from "just-bash";
 
 import { createManifestFile } from "@phoenix/agent/tools/bash/context/filesystem/manifest";
 import {
-  getPhoenixTopLevelIndexPaths,
   PHOENIX_META_ROOT,
   PHOENIX_ROOT,
 } from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
@@ -20,18 +19,6 @@ const PAGE_CONTEXT_MANIFEST_FRAGMENT =
 
 function createJsonFile(payload: unknown) {
   return JSON.stringify(payload, null, 2);
-}
-
-function createTopLevelSkeletonFiles() {
-  return Object.fromEntries(
-    getPhoenixTopLevelIndexPaths().map((filePath) => [
-      filePath,
-      createJsonFile({
-        path: filePath.replace(/\/INDEX\.json$/, ""),
-        entries: [],
-      }),
-    ])
-  );
 }
 
 function createMetadata({
@@ -85,7 +72,6 @@ export async function generatePageContextFiles({
 
   return {
     files: {
-      ...createTopLevelSkeletonFiles(),
       ...fileContents,
       [`${PHOENIX_META_ROOT}/context.json`]: createJsonFile(metadata),
       [`${PHOENIX_ROOT}/MANIFEST.md`]: createManifestFile({
