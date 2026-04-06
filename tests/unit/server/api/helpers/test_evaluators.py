@@ -2624,27 +2624,52 @@ class TestLLMEvaluator:
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         raw_output_value = attributes.pop(OUTPUT_VALUE)
         output_value = json.loads(raw_output_value)
-        messages = output_value.pop("messages")
-        assert not output_value
-        assert messages is not None
-        assert len(messages) == 1
-        message = messages[0]
-        assert message.pop("role") == "assistant"
-        tool_calls = message.pop("tool_calls")
-        assert not message
-        assert len(tool_calls) == 1
-        tool_call = tool_calls[0]
-        assert isinstance(tool_call.pop("id"), str)
-        function = tool_call.pop("function")
-        assert isinstance(function, dict)
-        assert function.pop("name") == "correctness"
-        raw_arguments = function.pop("arguments")
-        assert isinstance(raw_arguments, str)
-        arguments = json.loads(raw_arguments)
-        assert arguments.pop("label") == "correct"
-        assert isinstance(arguments.pop("explanation"), str)
-        assert not arguments
-        assert not function
+        assert output_value == {
+            "id": "chatcmpl-DQeuwqU8iYEn0jmW2dXui8MlYo5sn",
+            "object": "chat.completion",
+            "created": 1775246186,
+            "model": "gpt-4o-mini-2024-07-18",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "id": "call_yUjsmpi4tVtBJrk9lDCaeHXm",
+                                "type": "function",
+                                "function": {
+                                    "name": "correctness",
+                                    "arguments": (
+                                        '{"label":"correct","explanation":"The output correctly '
+                                        'states that 2 + 2 equals 4."}'
+                                    ),
+                                },
+                            }
+                        ],
+                        "annotations": [],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 98,
+                "completion_tokens": 32,
+                "total_tokens": 130,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "audio_tokens": 0,
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0,
+                },
+            },
+            "service_tier": "default",
+            "system_fingerprint": "fp_ebf4e532f9",
+        }
         assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
         assert isinstance(
             attributes.pop(
