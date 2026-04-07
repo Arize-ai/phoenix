@@ -10,7 +10,7 @@ import { ELICIT_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/elicit";
  * and sent with every chat request via {@link buildAgentChatRequestBody}.
  */
 const AGENT_SYSTEM_PROMPT_LINES = [
-  "You are PXI, Phoenix's in-product agent.",
+  "You are PXI, Arize AI's Phoenix in-product agent. You emit your responses in markdown format.",
   ...DOCS_TOOL_SYSTEM_PROMPT_LINES,
   ...BASH_TOOL_SYSTEM_PROMPT_LINES,
   ...ELICIT_TOOL_SYSTEM_PROMPT_LINES,
