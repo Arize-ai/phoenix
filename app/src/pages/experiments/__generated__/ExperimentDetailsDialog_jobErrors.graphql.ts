@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f31ad6f690eb66bf92d34609a7b2eb48>>
+ * @generated SignedSource<<3444e41e30646389acde70ced704e77c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,6 @@ export type ExperimentDetailsDialog_jobErrors$data = {
         readonly detail: {
           readonly __typename: "FailureDetail";
           readonly errorType: string;
-          readonly stackTrace: string | null;
           readonly workItem: {
             readonly __typename: "EvalWorkItemId";
             readonly datasetEvaluatorId: number;
@@ -37,7 +36,6 @@ export type ExperimentDetailsDialog_jobErrors$data = {
           readonly __typename: "RetriesExhaustedDetail";
           readonly reason: string;
           readonly retryCount: number;
-          readonly stackTrace: string | null;
           readonly workItem: {
             readonly __typename: "EvalWorkItemId";
             readonly datasetEvaluatorId: number;
@@ -95,13 +93,6 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "stackTrace",
-  "storageKey": null
-},
-v4 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -262,8 +253,7 @@ return {
                           "name": "errorType",
                           "storageKey": null
                         },
-                        (v3/*: any*/),
-                        (v4/*: any*/)
+                        (v3/*: any*/)
                       ],
                       "type": "FailureDetail",
                       "abstractKey": null
@@ -285,8 +275,7 @@ return {
                           "name": "reason",
                           "storageKey": null
                         },
-                        (v3/*: any*/),
-                        (v4/*: any*/)
+                        (v3/*: any*/)
                       ],
                       "type": "RetriesExhaustedDetail",
                       "abstractKey": null
@@ -343,6 +332,6 @@ return {
 };
 })();
 
-(node as any).hash = "27922b925fc0d1d2d6de2f340ffcd3fc";
+(node as any).hash = "fad0bb1898b095765731ad5f980c0017";
 
 export default node;

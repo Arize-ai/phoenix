@@ -227,7 +227,6 @@ function JobErrorsSection({
                 __typename
                 ... on FailureDetail {
                   errorType
-                  stackTrace
                   workItem {
                     __typename
                     ... on TaskWorkItemId {
@@ -243,7 +242,6 @@ function JobErrorsSection({
                 ... on RetriesExhaustedDetail {
                   retryCount
                   reason
-                  stackTrace
                   workItem {
                     __typename
                     ... on TaskWorkItemId {

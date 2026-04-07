@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<76122c105e8cf696312f1612a72d9aed>>
+ * @generated SignedSource<<eeca9eba083c1b5a15e3c399bce8e6e8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -77,13 +77,6 @@ v4 = [
   }
 ],
 v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "stackTrace",
-  "storageKey": null
-},
-v6 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -248,8 +241,7 @@ return {
                                     "name": "errorType",
                                     "storageKey": null
                                   },
-                                  (v5/*: any*/),
-                                  (v6/*: any*/)
+                                  (v5/*: any*/)
                                 ],
                                 "type": "FailureDetail",
                                 "abstractKey": null
@@ -271,8 +263,7 @@ return {
                                     "name": "reason",
                                     "storageKey": null
                                   },
-                                  (v5/*: any*/),
-                                  (v6/*: any*/)
+                                  (v5/*: any*/)
                                 ],
                                 "type": "RetriesExhaustedDetail",
                                 "abstractKey": null
@@ -341,16 +332,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eb04dfb921b8566370dd3181f536a7cf",
+    "cacheID": "814b2184195ba57fd259425fefb57882",
     "id": null,
     "metadata": {},
     "name": "ExperimentDetailsDialogJobErrorsQuery",
     "operationKind": "query",
-    "text": "query ExperimentDetailsDialogJobErrorsQuery(\n  $errorsAfter: String\n  $errorsFirst: Int\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentDetailsDialog_jobErrors\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            stackTrace\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            stackTrace\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n"
+    "text": "query ExperimentDetailsDialogJobErrorsQuery(\n  $errorsAfter: String\n  $errorsFirst: Int\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentDetailsDialog_jobErrors\n    id\n  }\n}\n\nfragment ExperimentDetailsDialog_jobErrors on ExperimentJob {\n  errors(first: $errorsFirst, after: $errorsAfter) {\n    edges {\n      node {\n        id\n        occurredAt\n        category\n        message\n        detail {\n          __typename\n          ... on FailureDetail {\n            errorType\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n          ... on RetriesExhaustedDetail {\n            retryCount\n            reason\n            workItem {\n              __typename\n              ... on TaskWorkItemId {\n                datasetExampleId\n                repetitionNumber\n              }\n              ... on EvalWorkItemId {\n                experimentRunId\n                datasetEvaluatorId\n              }\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "27922b925fc0d1d2d6de2f340ffcd3fc";
+(node as any).hash = "fad0bb1898b095765731ad5f980c0017";
 
 export default node;

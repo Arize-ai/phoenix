@@ -231,7 +231,7 @@ class TestCircuitBreaker:
         tripped = cb.record_failure(RuntimeError("e3"))
         assert tripped is True
         assert cb.is_tripped
-        assert cb.trip_reason == "e3"
+        assert cb.trip_reason == "RuntimeError"
         # Success after trip does NOT un-trip
         cb.record_success()
         assert cb.is_tripped

@@ -75,7 +75,6 @@ import heapq
 import json
 import logging
 import random
-import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -173,39 +172,6 @@ class _NoOpTokenBucket:
 
 
 _NO_OP_TOKEN_BUCKET = _NoOpTokenBucket()
-
-
-def _stack_trace_prefixes() -> tuple[tuple[str, str], ...]:
-    import os
-    import sys
-
-    import phoenix
-
-    prefixes: list[tuple[str, str]] = []
-    phoenix_pkg = os.path.dirname(phoenix.__file__)  # .../src/phoenix
-    src_root = os.path.dirname(phoenix_pkg)  # .../src
-    project_root = os.path.dirname(src_root)  # .../project
-    prefixes.append((project_root + os.sep, ""))
-    # Site-packages
-    site_prefix = os.path.join(sys.prefix, "lib")
-    prefixes.append((site_prefix + os.sep, ""))
-    # Python standard library
-    stdlib_dir = os.path.dirname(os.__file__)  # .../lib/python3.x
-    prefixes.append((stdlib_dir + os.sep, ""))
-    # Sort by length descending so longer (more specific) prefixes match first
-    prefixes.sort(key=lambda p: len(p[0]), reverse=True)
-    return tuple(prefixes)
-
-
-_STACK_TRACE_PREFIXES = _stack_trace_prefixes()
-
-
-def _redact_stack_trace(error: BaseException) -> str:
-    """Format an exception's traceback with common path prefixes stripped."""
-    raw = "".join(traceback.format_exception(error))
-    for old, new in _STACK_TRACE_PREFIXES:
-        raw = raw.replace(old, new)
-    return raw
 
 
 def _sanitize_error_message(error: BaseException) -> str:
@@ -1870,7 +1836,6 @@ class RunningExperiment:
                 detail=FailureDetail(
                     type="failure",
                     error_type=type(error).__name__,
-                    stack_trace=_redact_stack_trace(error) if error.__traceback__ else None,
                 ),
             )
         )
@@ -1912,7 +1877,6 @@ class RunningExperiment:
                     type="retries_exhausted",
                     retry_count=self._max_retries,
                     reason=reason,
-                    stack_trace=_redact_stack_trace(error) if error else None,
                 ),
             )
         )
