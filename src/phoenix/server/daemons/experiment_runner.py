@@ -1,15 +1,72 @@
 """
 Background experiment runner daemon.
 
-Three concepts:
-- ExperimentRunner: Daemon orchestrator with fair dispatch and concurrency control
-- RunningExperiment: Per-experiment state with queues and rate limit awareness
-- TaskWorkItem / EvalWorkItem: Self-executing command objects
+This module runs experiments end-to-end in the background. It combines:
 
-Key patterns:
-- Non-blocking rate limit check: Experiment checks capacity before returning work
-- Work items are self-executing with callbacks (Command pattern)
-- Semaphore-first: Acquire concurrency slot before looking for work
+- a daemon-level scheduler across active experiments
+- a per-experiment state machine for queueing, retries, and cancellation
+- self-executing work-item objects for tasks and evaluations
+
+Key objects
+-----------
+- ExperimentRunner
+  - Global coordinator for claim/resume, fairness, dispatch, and shutdown.
+- RunningExperiment
+  - Per-experiment mutable state: task queue, eval queue, retry heap,
+    in-flight tracking, DB cursors, and subscriber streams.
+- TaskWorkItem / EvalWorkItem
+  - Command-style objects that execute one logical unit and report outcomes
+    back to their owning RunningExperiment.
+
+Dispatch model
+--------------
+1. Claim an experiment row from DB and create RunningExperiment.
+2. Acquire a global concurrency seat (semaphore) before selecting work.
+   Why: this bounds global concurrency at selection time and avoids choosing
+   work that cannot run yet.
+3. Refill DB-backed buffers as needed, then choose work by priority:
+   eval queue > ready retries > task queue.
+   Why: evaluator output is user-visible feedback, so evals are prioritized for
+   freshness; ready retries are prioritized over new tasks to honor backoff.
+4. If the chosen item is rate-limited, skip it without blocking the daemon so
+   another experiment can run.
+5. Execute inside _run_and_release (register cancel scope, execute, unregister,
+   release semaphore seat).
+
+Two-phase sequencing
+--------------------
+The runner uses explicit phases per experiment:
+
+1) Initial eval reconciliation phase
+   - _ensure_eval_buffer scans persisted successful task runs that are missing
+     successful eval annotations and enqueues eval work.
+   - This scan is pagination-based over experiment_run.id and runs to
+     exhaustion.
+   - Task DB scanning is disabled during this phase.
+2) Task phase
+   - After the initial eval scan is exhausted, _ensure_task_buffer starts
+     producing task work.
+   - on_task_success reactively enqueues eval work for newly successful tasks.
+
+Why this sequencing exists:
+- It avoids producer overlap between reconciliation and task-driven reactive
+  eval production.
+- It makes phase transition explicit: transition occurs when the initial eval scan
+  reaches DB exhaustion (not when eval queue/retries drain).
+- For EVAL_ONLY experiments, phase 1 may be empty, and phase 2 has no producer.
+
+Retries and completion behavior
+-------------------------------
+- Retryable errors (timeout, rate limit, transient failures) use exponential
+  backoff in a min-heap (RetryItem).
+- Completion is data-driven from queues, retries, in-flight work, and DB
+  exhaustion flags.
+- stop() performs in-memory cancellation/cleanup only; queue state is transient
+  and reconstructed from DB on resume.
+- on_done stop-state DB update is best-effort. If it fails, stale-claim/orphan
+  recovery provides eventual convergence of ownership/status.
+  Why: this avoids coupling completion teardown to in-memory retry orchestration
+  while preserving eventual DB-state correctness.
 """
 
 from __future__ import annotations
@@ -390,7 +447,7 @@ class TaskWorkItem(WorkItem):
 
     @cached_property
     def repetition_number(self) -> int:
-        """Repetition index for this task (0-based)."""
+        """Repetition index for this task (1-based)."""
         return self._repetition_number
 
     @cached_property
@@ -1102,6 +1159,13 @@ class RunningExperiment:
     Priority: evals > retries > tasks
     """
 
+    _TASK_BATCH_SIZE_MULTIPLIER = 2
+    _MIN_TASK_BATCH_SIZE = 10
+    _MAX_TASK_BATCH_SIZE = 200
+    _WORK_ITEM_HIGH_WATERMARK_MULTIPLIER = 4
+    _MIN_WORK_ITEM_HIGH_WATERMARK = 100
+    _WORK_ITEM_LOW_WATERMARK_RATIO = 0.5
+
     def __init__(
         self,
         *,
@@ -1163,14 +1227,31 @@ class RunningExperiment:
         self._eval_circuit_breakers: dict[int, CircuitBreaker] = defaultdict(CircuitBreaker)
 
         # Pagination: load tasks/evals in batches to avoid memory exhaustion
-        self._task_batch_size: int = 10
+        scaled_batch_size = self._TASK_BATCH_SIZE_MULTIPLIER * max(1, int(self._max_concurrency))
+        self._task_batch_size: int = min(
+            self._MAX_TASK_BATCH_SIZE,
+            max(self._MIN_TASK_BATCH_SIZE, scaled_batch_size),
+        )
+        self._work_item_high_watermark: int = max(
+            self._MIN_WORK_ITEM_HIGH_WATERMARK,
+            self._task_batch_size * self._WORK_ITEM_HIGH_WATERMARK_MULTIPLIER,
+        )
+        self._work_item_low_watermark: int = int(
+            self._work_item_high_watermark * self._WORK_ITEM_LOW_WATERMARK_RATIO
+        )
+        # Keep hysteresis valid even if constants are changed later.
+        if self._work_item_low_watermark >= self._work_item_high_watermark:
+            self._work_item_low_watermark = max(0, self._work_item_high_watermark - 1)
+        self._backpressure_active: bool = False
         self._task_db_offset: int = 0
         self._task_db_exhausted: bool = False
 
         # Eval buffer: scans for runs with missing evaluations in batches.
-        # Only runs after all tasks are done to avoid racing with on_task_success.
+        # This is phase 1 (initial reconciliation). Task DB scanning is blocked
+        # until this scan reaches exhaustion.
         self._eval_db_exhausted: bool = not bool(evaluator_run_specs)
         self._eval_db_offset: int = 0
+        self._initial_eval_scan_done: bool = self._eval_db_exhausted
 
         # Cached project_id to avoid repeated DB lookups
         self._project_id: int | None = None
@@ -1208,6 +1289,33 @@ class RunningExperiment:
             )
         return result
 
+    def _resident_work_item_count(self) -> int:
+        """Total in-memory work-item footprint for this experiment."""
+        return (
+            len(self._task_queue)
+            + len(self._eval_queue)
+            + len(self._retry_heap)
+            + len(self._in_flight)
+        )
+
+    def _update_backpressure_state(self) -> None:
+        """Toggle producer backpressure using high/low watermark hysteresis."""
+        resident = self._resident_work_item_count()
+        if self._backpressure_active:
+            if resident <= self._work_item_low_watermark:
+                self._backpressure_active = False
+                logger.debug(
+                    f"Experiment {self._experiment.id}: backpressure OFF "
+                    f"(resident={resident}, low={self._work_item_low_watermark})"
+                )
+            return
+        if resident >= self._work_item_high_watermark:
+            self._backpressure_active = True
+            logger.warning(
+                f"Experiment {self._experiment.id}: backpressure ON "
+                f"(resident={resident}, high={self._work_item_high_watermark})"
+            )
+
     def _has_ready_retries(self) -> bool:
         """Check if any retries are ready."""
         if not self._retry_heap:
@@ -1218,11 +1326,16 @@ class RunningExperiment:
         """
         Return a WorkItem if work is available AND rate limit allows, else None.
 
-        Ensures the task buffer is filled from DB, peeks at the next work item,
-        checks rate limit using its key, then pops if allowed.
+        Runs initial eval reconciliation first (phase 1). Once exhausted,
+        task buffer refill is enabled (phase 2). Then peeks at next work item,
+        checks rate limit, and pops if allowed.
         """
-        await self._ensure_task_buffer()
-        await self._ensure_eval_buffer()
+        if not self._initial_eval_scan_done:
+            await self._ensure_eval_buffer()
+            if self._eval_db_exhausted:
+                self._initial_eval_scan_done = True
+        if self._initial_eval_scan_done:
+            await self._ensure_task_buffer()
         if not self._active:
             logger.debug(
                 f"Experiment {self._experiment.id}: try_get_ready_work_item() -> None (inactive)"
@@ -1339,6 +1452,9 @@ class RunningExperiment:
         if not isinstance(self._experiment_job, models.ExperimentPromptTask):
             self._task_db_exhausted = True
             return
+        self._update_backpressure_state()
+        if self._backpressure_active:
+            return
         prompt_task = self._experiment_job
         if self._task_queue:
             logger.debug(
@@ -1393,7 +1509,7 @@ class RunningExperiment:
                     )
                     result = await session.execute(stmt)
                     rows = result.all()
-        except SQLAlchemyError as e:
+        except (SQLAlchemyError, TimeoutError) as e:
             # DB error - log and return without marking exhausted so we retry next cycle
             logger.warning(
                 f"Experiment {self._experiment.id}: _ensure_task_buffer() DB error, "
@@ -1462,10 +1578,8 @@ class RunningExperiment:
     async def _ensure_eval_buffer(self) -> None:
         """Load eval work items for runs with missing evaluations, in batches.
 
-        Only runs after all tasks are done to avoid racing with
-        on_task_success (which queues evals reactively as tasks complete).
-        Also waits for all in-flight work to finish so reactively-queued
-        evals have written their annotations before we scan.
+        This scan is phase-1 initial reconciliation. It runs before task DB
+        scan is enabled and paginates to exhaustion.
 
         Catches:
         - Evals lost to a crash during a previous run
@@ -1474,19 +1588,21 @@ class RunningExperiment:
         """
         if self._eval_db_exhausted:
             return
-        # Wait until all tasks are done and nothing is in flight.
-        if not self._task_db_exhausted or self._task_queue or self._retry_heap:
-            return
-        if self._eval_queue or self._in_flight:
+        self._update_backpressure_state()
+        if self._backpressure_active:
             return
 
-        # Build eval name → spec mapping
-        specs_by_name: dict[str, EvaluatorRunSpec] = {}
+        # Build per-evaluator output-name sets.
+        # Queueing is per evaluator spec (not per output name) so multi-output evaluators
+        # are executed once even when multiple outputs are missing.
+        spec_output_names: list[tuple[EvaluatorRunSpec, set[str]]] = []
         for spec in self._evaluator_run_specs:
-            for oc in spec.output_configs:
-                if oc.name:
-                    specs_by_name[oc.name] = spec
-        eval_names = list(specs_by_name.keys())
+            output_names = {oc.name for oc in spec.output_configs if oc.name}
+            if output_names:
+                spec_output_names.append((spec, output_names))
+        eval_names = sorted(
+            {name for _, output_names in spec_output_names for name in output_names}
+        )
         if not eval_names:
             self._eval_db_exhausted = True
             return
@@ -1506,7 +1622,7 @@ class RunningExperiment:
                     )
                     result = await session.execute(stmt)
                     rows = result.all()
-        except SQLAlchemyError as e:
+        except (SQLAlchemyError, TimeoutError) as e:
             logger.warning(
                 f"Experiment {self._experiment.id}: _ensure_eval_buffer() DB error, "
                 f"will retry next cycle: {e}"
@@ -1542,20 +1658,21 @@ class RunningExperiment:
                 set(json.loads(annotations_json)) if annotations_json else set()
             )
 
-            for name, spec in specs_by_name.items():
-                if name not in successful_names:
-                    self._eval_queue.append(
-                        self._create_eval_work_item(
-                            experiment_run=run,
-                            dataset_example_revision=revision,
-                            dataset_evaluator_id=spec.dataset_evaluator_id,
-                            evaluator=spec.evaluator,
-                            input_mapping=spec.input_mapping,
-                            output_configs=spec.output_configs,
-                            project_id=spec.evaluator_project_id,
-                        )
+            for spec, output_names in spec_output_names:
+                if output_names.issubset(successful_names):
+                    continue
+                self._eval_queue.append(
+                    self._create_eval_work_item(
+                        experiment_run=run,
+                        dataset_example_revision=revision,
+                        dataset_evaluator_id=spec.dataset_evaluator_id,
+                        evaluator=spec.evaluator,
+                        input_mapping=spec.input_mapping,
+                        output_configs=spec.output_configs,
+                        project_id=spec.evaluator_project_id,
                     )
-                    queued += 1
+                )
+                queued += 1
 
         logger.info(
             f"Experiment {self._experiment.id}: _ensure_eval_buffer() "
@@ -1798,6 +1915,22 @@ class RunningExperiment:
                     repetition_number=work_item.repetition_number,
                 )
             )
+        elif isinstance(work_item, EvalWorkItem):
+            dataset_example_id = GlobalID(
+                DatasetExample.__name__,
+                str(work_item.dataset_example_revision.dataset_example_id),
+            )
+            for config in work_item._output_configs:
+                self._broadcast(
+                    EvaluationChunk(
+                        evaluator_name=config.name,
+                        experiment_run_evaluation=None,
+                        dataset_example_id=dataset_example_id,
+                        repetition_number=work_item.experiment_run.repetition_number,
+                        trace=None,
+                        error=error_msg,
+                    )
+                )
         self._record_failure(work_item)
         breaker = self._get_circuit_breaker(work_item)
         if breaker.record_failure(error or RuntimeError(error_msg)):
@@ -2092,8 +2225,7 @@ class ExperimentRunner(DaemonTask):
                         # Wait for experiments if none exist
                         if not self._experiments:
                             logger.debug("No experiments, waiting for work...")
-                            self._work_available = anyio.Event()
-                            await self._work_available.wait()
+                            await self._wait_for_work_available()
                             logger.debug("Work available, resuming dispatch loop")
                             continue
 
@@ -2158,6 +2290,15 @@ class ExperimentRunner(DaemonTask):
                     f"Dispatch loop ending (_running={self._running}), starting graceful shutdown"
                 )
                 await self._graceful_shutdown()
+
+    async def _wait_for_work_available(self) -> None:
+        """Wait for work signal without dropping a concurrent wake-up."""
+        wait_event = self._work_available
+        await wait_event.wait()
+        # Reset the event only after consuming this wake-up to avoid
+        # missing a signal that arrives right before wait().
+        if wait_event is self._work_available:
+            self._work_available = anyio.Event()
 
     async def _try_get_ready_work_item(self) -> WorkItem | None:
         """
@@ -2481,7 +2622,7 @@ class ExperimentRunner(DaemonTask):
         Args:
             experiment_id: Primary key of the experiment (same as ``ExperimentJob.id``).
             credentials: Ephemeral API credentials (not stored, passed at runtime).
-            subscribe: If True (default), returns a subscription stream to receive chunks.
+            subscribe: If True, returns a subscription stream to receive chunks.
                        Subscribe before work starts to avoid missing early chunks.
 
         Returns:
@@ -2513,11 +2654,6 @@ class ExperimentRunner(DaemonTask):
             credentials=credentials,
             evaluator_run_specs=evaluator_run_specs,
         )
-
-        # Eagerly scan for incomplete evals so resumed experiments
-        # start processing stragglers immediately rather than waiting
-        # for all tasks to finish first.
-        await exp._ensure_eval_buffer()
 
         # Subscribe BEFORE registering - guarantees no missed chunks
         receive_stream = exp.subscribe() if subscribe else None
