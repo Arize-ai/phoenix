@@ -1,6 +1,3 @@
-import { useEffect, useRef } from "react";
-
-import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { AgentChatPanelView } from "./AgentChatPanelView";
@@ -90,8 +87,6 @@ function AgentChatController({
     typeof useAgentChatPanelState
   >["handleModelChange"];
 }) {
-  const store = useAgentStore();
-
   const {
     messages,
     sendMessage,
@@ -105,33 +100,6 @@ function AgentChatController({
     sessionId: activeSessionId,
     chatApiUrl,
   });
-
-  const previousSessionIdRef = useRef<string | null>(null);
-
-  // Mirror the active chat status into the store so the FAB can reflect
-  // background streaming while the panel itself is hidden.
-  useEffect(() => {
-    const previousSessionId = previousSessionIdRef.current;
-    if (previousSessionId && previousSessionId !== activeSessionId) {
-      store.getState().setSessionChatStatus(previousSessionId, "ready");
-    }
-    previousSessionIdRef.current = activeSessionId;
-  }, [activeSessionId, store]);
-
-  useEffect(() => {
-    if (activeSessionId !== null) {
-      store.getState().setSessionChatStatus(activeSessionId, status);
-    }
-  }, [activeSessionId, status, store]);
-
-  useEffect(() => {
-    return () => {
-      const sessionId = previousSessionIdRef.current;
-      if (sessionId !== null) {
-        store.getState().setSessionChatStatus(sessionId, "ready");
-      }
-    };
-  }, [store]);
 
   if (!isOpen) {
     return null;

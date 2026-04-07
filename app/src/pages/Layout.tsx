@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Suspense, useCallback } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
-import { Outlet, useLoaderData } from "react-router";
+import { Outlet, useLoaderData, useMatch } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import { AgentChatPanel } from "@phoenix/components/agent";
@@ -73,10 +73,15 @@ const sideLinksCSS = css`
 export function Layout() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
-  const panelIds =
-    isAgentsEnabled && isAgentPanelOpen
-      ? ["layout-content", "agent-chat"]
-      : ["layout-content"];
+  const traceDetailsMatch = useMatch("/projects/:projectId/traces/:traceId");
+  const spanDetailsMatch = useMatch("/projects/:projectId/spans/:traceId");
+  const isTraceSlideoverOpen =
+    traceDetailsMatch != null || spanDetailsMatch != null;
+  const shouldShowDockedAgentPanel =
+    isAgentsEnabled && isAgentPanelOpen && !isTraceSlideoverOpen;
+  const panelIds = shouldShowDockedAgentPanel
+    ? ["layout-content", "agent-chat"]
+    : ["layout-content"];
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "layout-panels",
     panelIds,
@@ -105,7 +110,7 @@ export function Layout() {
               </Suspense>
             </div>
           </Panel>
-          <AgentChatPanel />
+          {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
         </Group>
       </div>
     </div>

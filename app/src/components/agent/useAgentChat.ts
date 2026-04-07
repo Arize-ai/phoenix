@@ -1,4 +1,4 @@
-import { useChat } from "@ai-sdk/react";
+import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus, UIMessage } from "ai";
 import {
   DefaultChatTransport,
@@ -13,15 +13,14 @@ import type {
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
 import { authFetch } from "@phoenix/authFetch";
+import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 
 /**
- * Owns the AI SDK chat instance for a single agent session/model pair.
- *
- * This hook is mounted by a headless controller so request streaming can
- * continue even while the visible panel UI is closed.
+ * Subscribes the current render surface to the persistent AI SDK chat runtime
+ * for a single agent session/model pair.
  */
 export function useAgentChat({
   sessionId,
@@ -31,54 +30,68 @@ export function useAgentChat({
   chatApiUrl: string;
 }) {
   const store = useAgentStore();
+  const runtime = useAgentChatRuntime();
   const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
 
-  const initialMessages = sessionId
-    ? store.getState().sessionMap[sessionId]?.messages
-    : undefined;
-
-  const chat = useChat<UIMessage>({
-    id: sessionId ?? undefined,
-    messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: chatApiUrl,
-      fetch: authFetch,
-      prepareSendMessagesRequest: ({
-        body,
-        id,
-        messages,
-        trigger,
-        messageId,
-      }) => ({
-        body: buildAgentChatRequestBody({
-          body,
-          id,
-          messages,
-          trigger,
-          messageId,
+  const chatInstance =
+    sessionId === null
+      ? null
+      : runtime.getOrCreateChat({
           sessionId,
-        }),
-      }),
-    }),
-    onToolCall: ({ toolCall }) => {
-      void handleAgentToolCall({
-        toolCall,
-        sessionId,
-        addToolOutput,
-        agentStore: store,
-      });
-    },
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onFinish: ({ messages: finalMessages }) => {
-      if (sessionId && finalMessages) {
-        store.getState().setSessionMessages(sessionId, finalMessages);
-        generateSummary({ sessionId });
-      }
-    },
-  });
+          chatApiUrl,
+          createChat: () => {
+            const initialMessages =
+              store.getState().sessionMap[sessionId]?.messages ?? [];
+            const chat = new Chat<UIMessage>({
+              id: sessionId,
+              messages: initialMessages,
+              transport: new DefaultChatTransport({
+                api: chatApiUrl,
+                fetch: authFetch,
+                prepareSendMessagesRequest: ({
+                  body,
+                  id,
+                  messages,
+                  trigger,
+                  messageId,
+                }) => ({
+                  body: buildAgentChatRequestBody({
+                    body,
+                    id,
+                    messages,
+                    trigger,
+                    messageId,
+                    sessionId,
+                  }),
+                }),
+              }),
+              onToolCall: ({ toolCall }) => {
+                void handleAgentToolCall({
+                  toolCall,
+                  sessionId,
+                  addToolOutput: chat.addToolOutput,
+                  agentStore: store,
+                });
+              },
+              sendAutomaticallyWhen:
+                lastAssistantMessageIsCompleteWithToolCalls,
+              onFinish: ({ messages: finalMessages }) => {
+                if (finalMessages) {
+                  store.getState().setSessionMessages(sessionId, finalMessages);
+                  generateSummary({ sessionId });
+                }
+              },
+            });
+            return chat;
+          },
+        });
+
+  const chat = useChat<UIMessage>(
+    chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
+  );
   const { messages, sendMessage, status, error, addToolOutput, stop } = chat;
 
   const messagesRef = useRef(messages);
