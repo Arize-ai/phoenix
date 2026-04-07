@@ -405,6 +405,7 @@ async def stream_text(
         create_tool_span,
         ensure_project_exists,
         finalize_llm_span,
+        finalize_recent_input_tool_result_spans,
         finalize_tool_span,
     )
     from phoenix.tracers import Tracer
@@ -432,6 +433,12 @@ async def stream_text(
                     input_messages=messages,
                     session_id=body.session_id,
                     trace_name_suffix=body.trace_name_suffix,
+                )
+                finalize_recent_input_tool_result_spans(
+                    tracer,
+                    parent_span=agent_span,
+                    messages=messages,
+                    tools=raw_all_tools or None,
                 )
             except Exception:
                 logger.exception("Failed to set up chat tracing")

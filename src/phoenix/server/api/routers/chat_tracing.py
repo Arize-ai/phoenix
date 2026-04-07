@@ -11,7 +11,9 @@ LLM / TOOL steps when backend tools execute within the same request::
 
 The LLM span records the full conversation history visible to the model as
 ``llm.input_messages.*`` attributes, including earlier assistant tool calls and
-tool returns.
+tool returns. Tool results provided by the frontend in the current request are
+also emitted as sibling ``TOOL`` spans so they appear alongside backend tool
+execution in the trace.
 
 All traces within the same chat session share a ``session.id`` attribute on the
 root AGENT span, enabling cross-trace joins for session-level analysis.
@@ -612,6 +614,58 @@ def finalize_tool_call_spans(
         finalize_tool_span(tool_span, error=error)
 
 
+def finalize_recent_input_tool_result_spans(
+    tracer: Tracer,
+    *,
+    parent_span: Span,
+    messages: Sequence[Any],
+    tools: Sequence[Mapping[str, Any]] | None = None,
+) -> None:
+    """Emit TOOL spans for tool results included in the current request.
+
+    The AI SDK auto-submits client-side tool results from the last assistant
+    step as a trailing suffix of tool-return request messages. We only replay
+    that trailing suffix so traces capture frontend-executed tool results
+    without re-emitting older tool executions already represented by prior
+    spans.
+    """
+    recent_messages = _recent_tool_result_segment(messages)
+    if not recent_messages:
+        return
+
+    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart, ToolReturnPart
+
+    tool_definitions = _tool_definitions_by_name(tools)
+    tool_calls_by_id: dict[str, dict[str, str]] = {}
+
+    for message in recent_messages:
+        if isinstance(message, ModelResponse):
+            for part in message.parts:
+                if isinstance(part, ToolCallPart):
+                    tool_calls_by_id[part.tool_call_id] = {
+                        "name": part.tool_name,
+                        "arguments": part.args_as_json_str() if part.args is not None else "",
+                    }
+        elif isinstance(message, ModelRequest):
+            for part in message.parts:
+                if not isinstance(part, ToolReturnPart):
+                    continue
+                tool_call = tool_calls_by_id.get(part.tool_call_id, {})
+                tool_output = (
+                    part.content if isinstance(part.content, str) else json.dumps(part.content)
+                )
+                tool_name = part.tool_name or tool_call.get("name")
+                tool_span = create_tool_span(
+                    tracer,
+                    parent_span=parent_span,
+                    tool_name=tool_name,
+                    tool_parameters=tool_call.get("arguments"),
+                    tool_output=tool_output,
+                    tool_description=_tool_description(tool_definitions, tool_name),
+                )
+                finalize_tool_span(tool_span)
+
+
 def _extract_response_content_and_tool_calls(
     message: "ModelResponse",
 ) -> tuple[str | None, list[dict[str, str]] | None]:
@@ -631,6 +685,35 @@ def _extract_response_content_and_tool_calls(
                 }
             )
     return ("".join(text_parts) or None, tool_calls or None)
+
+
+def _recent_tool_result_segment(messages: Sequence[Any]) -> list[Any]:
+    from pydantic_ai.messages import ModelRequest, ModelResponse, ToolReturnPart
+
+    trailing_requests: list[Any] = []
+    start_index = len(messages)
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        if not isinstance(message, ModelRequest):
+            break
+        # The AI SDK auto-submits completed client-side tool results as one or
+        # more trailing ModelRequest messages containing only ToolReturnPart
+        # instances. Stop as soon as the suffix no longer matches that shape.
+        if not message.parts or not all(isinstance(part, ToolReturnPart) for part in message.parts):
+            break
+        trailing_requests.append(message)
+        start_index = index
+
+    if not trailing_requests:
+        return []
+
+    segment_start = start_index
+    # Include the immediately preceding assistant response so trailing tool
+    # returns can recover their original tool-call arguments by tool_call_id.
+    while segment_start > 0 and isinstance(messages[segment_start - 1], ModelResponse):
+        segment_start -= 1
+
+    return list(messages[segment_start:])
 
 
 def _tool_definitions_by_name(

@@ -13,6 +13,7 @@ from phoenix.server.api.routers.chat_tracing import (
     ensure_project_exists,
     finalize_agent_span,
     finalize_llm_span,
+    finalize_recent_input_tool_result_spans,
     persist_traces,
 )
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -203,7 +204,7 @@ class TestSpanHierarchy:
         assert parsed["function"]["name"] == "search"
         assert parsed["function"]["description"] == "Search the web"
 
-    def test_llm_span_flattens_prior_tool_call_history(self, db: DbSessionFactory) -> None:
+    def test_traces_recent_frontend_tool_results(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import (
             ModelRequest,
             ModelResponse,
@@ -238,6 +239,11 @@ class TestSpanHierarchy:
         ]
 
         agent_span = create_agent_span(tracer, input_messages=messages)
+        finalize_recent_input_tool_result_spans(
+            tracer,
+            parent_span=agent_span,
+            messages=messages,
+        )
         llm_span = create_llm_span(
             tracer,
             parent_span=agent_span,
@@ -252,7 +258,13 @@ class TestSpanHierarchy:
         tool_spans = [s for s in spans if s.span_kind == OpenInferenceSpanKindValues.TOOL.value]
 
         assert len(llm_spans) == 1
-        assert len(tool_spans) == 0
+        assert len(tool_spans) == 1
+
+        tool_attrs = tool_spans[0].attributes
+        assert tool_spans[0].name == "calculator"
+        assert tool_attrs["tool"]["name"] == "calculator"
+        assert tool_attrs["tool"]["parameters"] == '{"expr": "2+2"}'
+        assert tool_attrs["output"]["value"] == '{"result": 4}'
 
         llm_attrs = llm_spans[0].attributes
         input_msgs = llm_attrs["llm"]["input_messages"]
@@ -268,6 +280,125 @@ class TestSpanHierarchy:
         assert input_msgs[2]["message"]["tool_call_id"] == "tc-1"
         assert input_msgs[2]["message"]["name"] == "calculator"
         assert input_msgs[2]["message"]["content"] == '{"result": 4}'
+
+    def test_ignores_non_trailing_tool_result_history(self, db: DbSessionFactory) -> None:
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        tracer = _make_tracer(db)
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="What is 2+2?")]),
+            ModelResponse(
+                parts=[
+                    TextPart(content="Let me calculate that."),
+                    ToolCallPart(
+                        tool_name="calculator",
+                        args=json.dumps({"expr": "2+2"}),
+                        tool_call_id="tc-1",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="calculator",
+                        content={"result": 4},
+                        tool_call_id="tc-1",
+                    )
+                ]
+            ),
+            ModelRequest(parts=[UserPromptPart(content="Now explain it")]),
+        ]
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        finalize_recent_input_tool_result_spans(
+            tracer,
+            parent_span=agent_span,
+            messages=messages,
+        )
+        llm_span = create_llm_span(
+            tracer,
+            parent_span=agent_span,
+            input_messages=messages,
+        )
+
+        finalize_llm_span(llm_span, output_content="2+2 equals 4.")
+        finalize_agent_span(agent_span, output_content="2+2 equals 4.")
+
+        spans = tracer.get_db_traces(project_id=1)[0].spans
+        tool_spans = [s for s in spans if s.span_kind == OpenInferenceSpanKindValues.TOOL.value]
+
+        assert tool_spans == []
+
+    def test_traces_trailing_parallel_tool_results(self, db: DbSessionFactory) -> None:
+        from pydantic_ai.messages import (
+            ModelRequest,
+            ModelResponse,
+            TextPart,
+            ToolCallPart,
+            ToolReturnPart,
+            UserPromptPart,
+        )
+
+        tracer = _make_tracer(db)
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="Summarize the logs")]),
+            ModelResponse(
+                parts=[
+                    TextPart(content="I'll check two sources."),
+                    ToolCallPart(
+                        tool_name="fetch_logs",
+                        args=json.dumps({"hours": 12}),
+                        tool_call_id="tc-1",
+                    ),
+                    ToolCallPart(
+                        tool_name="fetch_metrics",
+                        args=json.dumps({"hours": 12}),
+                        tool_call_id="tc-2",
+                    ),
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="fetch_logs",
+                        content="log data",
+                        tool_call_id="tc-1",
+                    ),
+                    ToolReturnPart(
+                        tool_name="fetch_metrics",
+                        content="metric data",
+                        tool_call_id="tc-2",
+                    ),
+                ]
+            ),
+        ]
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        finalize_recent_input_tool_result_spans(
+            tracer,
+            parent_span=agent_span,
+            messages=messages,
+        )
+        llm_span = create_llm_span(
+            tracer,
+            parent_span=agent_span,
+            input_messages=messages,
+        )
+
+        finalize_llm_span(llm_span, output_content="Here is the summary.")
+        finalize_agent_span(agent_span, output_content="Here is the summary.")
+
+        spans = tracer.get_db_traces(project_id=1)[0].spans
+        tool_spans = [s for s in spans if s.span_kind == OpenInferenceSpanKindValues.TOOL.value]
+
+        assert [span.name for span in tool_spans] == ["fetch_logs", "fetch_metrics"]
 
     def test_current_llm_span_preserves_kind_and_token_counts_for_long_conversations(
         self, db: DbSessionFactory
