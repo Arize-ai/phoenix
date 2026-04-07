@@ -1,5 +1,57 @@
 # Changelog
 
+## [14.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.23.0...arize-phoenix-v14.0.0) (2026-04-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** remove /v1/evaluations endpoint and Evaluations plumbing ([#12538](https://github.com/Arize-ai/phoenix/issues/12538))
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239))
+* **cli:** CLI flags now follow the subcommand instead of preceding it.  For example:   Before: phoenix --dev serve   After:  phoenix serve --dev
+* **experiments:** define ephemeral experiments and add ExperimentSweeper daemon ([#11815](https://github.com/Arize-ai/phoenix/issues/11815))
+
+### Features
+
+* add [@defer](https://github.com/defer) support to Relay and ProjectPageHeader ([#12486](https://github.com/Arize-ai/phoenix/issues/12486)) ([a87aef5](https://github.com/Arize-ai/phoenix/commit/a87aef53922d589b3a76e0ea59dde22a50e6189d))
+* add read replica routing support for PostgreSQL ([#12532](https://github.com/Arize-ai/phoenix/issues/12532)) ([3163fae](https://github.com/Arize-ai/phoenix/commit/3163faef6f9f6180e9db468424c4cacb7b42b0a6))
+* add Strands Agents integration docs and onboarding snippet ([#12406](https://github.com/Arize-ai/phoenix/issues/12406)) ([8864f9e](https://github.com/Arize-ai/phoenix/commit/8864f9ec98a0333bdb604af2a05224efd0bd0efc))
+* **agent:** add ask_user elicitation tool with carousel UI ([#12517](https://github.com/Arize-ai/phoenix/issues/12517)) ([ced465e](https://github.com/Arize-ai/phoenix/commit/ced465e56d57177c0fc55ce7189bba8c84dbee7b))
+* **agent:** backend MCP docs tool via Mintlify integration ([#12556](https://github.com/Arize-ai/phoenix/issues/12556)) ([b228134](https://github.com/Arize-ai/phoenix/commit/b228134a800d163f953134344ed529d706744058))
+* **agent:** keep chat streaming when panel closes ([#12564](https://github.com/Arize-ai/phoenix/issues/12564)) ([8168a8f](https://github.com/Arize-ai/phoenix/commit/8168a8fde556aca661d9a57d346342b4f63124e7))
+* **agent:** PXI FAB, panel sizing, and stop button ([#12539](https://github.com/Arize-ai/phoenix/issues/12539)) ([d28c122](https://github.com/Arize-ai/phoenix/commit/d28c122f1271c336e377ac9fec415c35b3d549cf))
+* **agent:** trace PXI chat requests locally and remotely ([#12394](https://github.com/Arize-ai/phoenix/issues/12394)) ([cc64489](https://github.com/Arize-ai/phoenix/commit/cc644897c5e9deedf015528aacb2771064e0584a))
+* background experiment runner ([#11731](https://github.com/Arize-ai/phoenix/issues/11731)) ([a769a61](https://github.com/Arize-ai/phoenix/commit/a769a61f1e99aa7671b25b3a44b2ecf5f76fbe70))
+* **cli:** restructure CLI into subcommand-first architecture with serve/db commands ([#12336](https://github.com/Arize-ai/phoenix/issues/12336)) ([b1c4da0](https://github.com/Arize-ai/phoenix/commit/b1c4da0266c8ee31c725adaf5363e9081f6d7637))
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239)) ([15e6415](https://github.com/Arize-ai/phoenix/commit/15e6415105ce4757de905172cbd0e07215d38990))
+* **experiments:** define ephemeral experiments and add ExperimentSweeper daemon ([#11815](https://github.com/Arize-ai/phoenix/issues/11815)) ([69d197e](https://github.com/Arize-ai/phoenix/commit/69d197ed3f61d8be9381900a36c30dcab60f030d))
+* **experiments:** structured error table with sanitized messages ([#12558](https://github.com/Arize-ai/phoenix/issues/12558)) ([6211910](https://github.com/Arize-ai/phoenix/commit/62119108caca5486fdd55fb0498c90d1f448287b))
+* **graphql:** require explicit first for forward pagination ([#12526](https://github.com/Arize-ai/phoenix/issues/12526)) ([ed559c4](https://github.com/Arize-ai/phoenix/commit/ed559c46e58b22425fdc115a1f7c03d0ab6f0d3b))
+* include span and experiment run in error subscription payloads ([#12464](https://github.com/Arize-ai/phoenix/issues/12464)) ([33ec19a](https://github.com/Arize-ai/phoenix/commit/33ec19a02f59129257525ffd2ecccd411e564490))
+* **onboarding:** add new provider integrations and env var support ([#12494](https://github.com/Arize-ai/phoenix/issues/12494)) ([81d296b](https://github.com/Arize-ai/phoenix/commit/81d296bee7c3636514ccae6c06e78f3ec655b6bd))
+* **playground:** add experiment record toggle with ephemeral tracking ([#11944](https://github.com/Arize-ai/phoenix/issues/11944)) ([f14eaef](https://github.com/Arize-ai/phoenix/commit/f14eaef46cbaf8a34ebf87bf266be536a9d38739))
+* poll experiments table when jobs are running ([#12483](https://github.com/Arize-ai/phoenix/issues/12483)) ([7e7c204](https://github.com/Arize-ai/phoenix/commit/7e7c20481787c1eb91d6373719a4c2d94ee5482d))
+* Remove legacy client ([#12164](https://github.com/Arize-ai/phoenix/issues/12164)) ([4c27a0b](https://github.com/Arize-ai/phoenix/commit/4c27a0baa9472d7af873da5d5d441b46e2b9a5cb))
+* use non-streaming for LLM evaluator calls ([#12537](https://github.com/Arize-ai/phoenix/issues/12537)) ([6426374](https://github.com/Arize-ai/phoenix/commit/64263742d01ec166598ffa9ad9ec1af765e5a30d))
+* use raw vendor response as output.value for non-streaming playground ([#12536](https://github.com/Arize-ai/phoenix/issues/12536)) ([26b94ce](https://github.com/Arize-ai/phoenix/commit/26b94ce78cfca6da9130839b67097fc1c5d63c85))
+
+
+### Bug Fixes
+
+* **experiments:** filter errors by level, use LATERAL join, rename to ExperimentLog ([24d956c](https://github.com/Arize-ai/phoenix/commit/24d956ccee8291662b577f119ddfb4b1bbb45f99))
+* **experiments:** fix lastError query failing on SQLite ([#12499](https://github.com/Arize-ai/phoenix/issues/12499)) ([24d956c](https://github.com/Arize-ai/phoenix/commit/24d956ccee8291662b577f119ddfb4b1bbb45f99))
+* persist error records for all terminal experiment outcomes ([#12463](https://github.com/Arize-ai/phoenix/issues/12463)) ([3ffc63f](https://github.com/Arize-ai/phoenix/commit/3ffc63f532d17220e149a601df2bcd8c8b93e5ac))
+
+
+### Documentation
+
+* Adding broken card link action ([#12413](https://github.com/Arize-ai/phoenix/issues/12413)) ([29e5258](https://github.com/Arize-ai/phoenix/commit/29e5258be022d849a3871f7690dc428cacc9cd9b))
+* Adding words to acceptable spelling ([#12501](https://github.com/Arize-ai/phoenix/issues/12501)) ([1135a3d](https://github.com/Arize-ai/phoenix/commit/1135a3d380ac929a8db0e93e691c5bb1a1c956c2))
+
+
+### Code Refactoring
+
+* **server:** remove /v1/evaluations endpoint and Evaluations plumbing ([#12538](https://github.com/Arize-ai/phoenix/issues/12538)) ([a1e9bbd](https://github.com/Arize-ai/phoenix/commit/a1e9bbd6cb9abc96313d5230c701cbc0230e8a28))
+
 ## [13.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.22.2...arize-phoenix-v13.23.0) (2026-04-02)
 
 
