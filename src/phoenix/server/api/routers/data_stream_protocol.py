@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
@@ -140,6 +140,28 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
 
 def _sse(chunk: Any) -> str:
     return f"data: {chunk.encode(6)}\n\n"
+
+
+def _backend_tool_loop_limit_error(
+    *,
+    loop_count: int,
+    max_loops: int,
+    backend_calls: Sequence[dict[str, Any]],
+    has_frontend_calls: bool,
+) -> str | None:
+    """Return a user-visible error when backend tool execution exhausts the loop cap.
+
+    The server can satisfy backend tool calls inline, but if the model keeps
+    requesting more backend tools until the loop cap is hit, we would otherwise
+    end the stream without a final assistant response. Frontend tool calls are
+    excluded because the client will resubmit after it resolves them.
+    """
+    if loop_count < max_loops or not backend_calls or has_frontend_calls:
+        return None
+    return (
+        "Backend tool execution reached the maximum number of follow-up model calls "
+        "before producing a final response."
+    )
 
 
 async def _encode_stream(
@@ -630,6 +652,17 @@ async def stream_text(
                 # the model's next response.
                 messages.append(ModelResponse(parts=tool_call_parts))
                 messages.append(ModelRequest(parts=tool_return_parts))
+
+                loop_limit_error = _backend_tool_loop_limit_error(
+                    loop_count=loop_count,
+                    max_loops=_MAX_BACKEND_TOOL_LOOPS,
+                    backend_calls=backend_calls,
+                    has_frontend_calls=has_frontend_calls,
+                )
+                if loop_limit_error is not None:
+                    yield _sse(ErrorChunk(error_text=loop_limit_error))
+                    finish_reason = "error"
+                    break
 
         except Exception as e:
             logger.exception("Unexpected error in generate() loop")

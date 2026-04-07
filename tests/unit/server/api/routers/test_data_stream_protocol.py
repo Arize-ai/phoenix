@@ -3,6 +3,7 @@ import json
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
+    _backend_tool_loop_limit_error,
     parse_chat_body,
 )
 
@@ -135,3 +136,36 @@ class TestStreamAccumulator:
         acc = StreamAccumulator()
         assert acc.accumulated_text == ""
         assert acc.tool_calls == []
+
+
+class TestBackendToolLoopLimitError:
+    def test_returns_error_when_backend_loop_limit_is_exhausted(self) -> None:
+        error = _backend_tool_loop_limit_error(
+            loop_count=5,
+            max_loops=5,
+            backend_calls=[{"name": "search_docs"}],
+            has_frontend_calls=False,
+        )
+
+        assert error is not None
+        assert "maximum number of follow-up model calls" in error
+
+    def test_skips_error_before_limit(self) -> None:
+        error = _backend_tool_loop_limit_error(
+            loop_count=4,
+            max_loops=5,
+            backend_calls=[{"name": "search_docs"}],
+            has_frontend_calls=False,
+        )
+
+        assert error is None
+
+    def test_skips_error_when_frontend_tools_are_pending(self) -> None:
+        error = _backend_tool_loop_limit_error(
+            loop_count=5,
+            max_loops=5,
+            backend_calls=[{"name": "search_docs"}],
+            has_frontend_calls=True,
+        )
+
+        assert error is None
