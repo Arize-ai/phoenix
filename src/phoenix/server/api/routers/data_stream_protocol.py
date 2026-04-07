@@ -406,7 +406,6 @@ async def stream_text(
         ensure_project_exists,
         finalize_llm_span,
         finalize_tool_span,
-        replay_history_spans,
     )
     from phoenix.tracers import Tracer
 
@@ -417,8 +416,7 @@ async def stream_text(
         # Tracing state — managed across loop iterations.
         tracer: Tracer | None = None
         agent_span: Any = None
-        completed_llm_steps: int = 0
-        next_step_index: int = 0
+        llm_call_count = 0
 
         # Set up tracing before streaming begins.
         if ingest_traces:
@@ -434,12 +432,6 @@ async def stream_text(
                     input_messages=messages,
                     session_id=body.session_id,
                     trace_name_suffix=body.trace_name_suffix,
-                )
-                completed_llm_steps, next_step_index = replay_history_spans(
-                    tracer,
-                    parent_span=agent_span,
-                    messages=messages,
-                    tools=raw_all_tools or None,
                 )
             except Exception:
                 logger.exception("Failed to set up chat tracing")
@@ -466,19 +458,18 @@ async def stream_text(
                 # Create a tracing LLM span for this model call.
                 llm_span: Any = None
                 if tracer is not None and agent_span is not None:
+                    llm_call_count += 1
                     llm_span = create_llm_span(
                         tracer,
                         parent_span=agent_span,
                         input_messages=messages,
                         tools=raw_all_tools or None,
                         trace_name_suffix=(
-                            f"Step {completed_llm_steps + 1}"
-                            if completed_llm_steps
+                            f"Step {llm_call_count}"
+                            if llm_call_count > 1
                             else body.trace_name_suffix
                         ),
-                        step_index=next_step_index,
                     )
-                    next_step_index += 1
 
                 yield _sse(StartStepChunk())
 
@@ -510,7 +501,6 @@ async def stream_text(
                                 model_name=getattr(stream, "model_name", None),
                                 provider=getattr(stream, "provider_name", None),
                             )
-                            completed_llm_steps += 1
                 except Exception as e:
                     logger.exception("Error in model.request_stream()")
                     yield _sse(ErrorChunk(error_text=str(e)))
@@ -590,10 +580,8 @@ async def stream_text(
                                 tool_name=tc_name,
                                 tool_parameters=tc_args_str,
                                 tool_output=result_text,
-                                step_index=next_step_index,
                             )
                             finalize_tool_span(tool_span)
-                            next_step_index += 1
 
                     except Exception as tool_err:
                         error_text = f"Backend tool error: {tool_err}"
@@ -619,10 +607,8 @@ async def stream_text(
                                 tool_name=tc_name,
                                 tool_parameters=tc_args_str,
                                 tool_output=error_text,
-                                step_index=next_step_index,
                             )
                             finalize_tool_span(tool_span, error=tool_err)
-                            next_step_index += 1
 
                 if has_frontend_calls:
                     # The model also requested frontend tools in this turn.
