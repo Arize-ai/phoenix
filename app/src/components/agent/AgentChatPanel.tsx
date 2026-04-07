@@ -1,57 +1,21 @@
-import { css } from "@emotion/react";
-import { Panel, Separator } from "react-resizable-panels";
+import { useEffect, useRef } from "react";
 
-import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
-import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { Chat } from "./Chat";
-import { PxiGlyph } from "./PxiGlyph";
-import { SessionListMenu } from "./SessionListMenu";
+import { AgentChatPanelView } from "./AgentChatPanelView";
+import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
   getSessionDisplayName,
 } from "./sessionSummaryUtils";
+import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 
-const panelHeaderCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  border-bottom: 1px solid var(--global-border-color-default);
-`;
-
-const panelHeaderActionsCSS = css`
-  // prevent the actions from giving up their space to the heading
-  flex-shrink: 0;
-`;
-
-const sessionHeadingCSS = css`
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  // prevent the session heading from pushing actions off screen
-  flex-shrink: 1;
-`;
-
-const panelContentCSS = css`
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  height: 100%;
-  min-width: 420px;
-  overflow: hidden;
-  border-top: 1px solid var(--global-border-color-default);
-`;
-
 /**
- * Resizable side panel that hosts the PXI agent chat.
- *
- * Renders inside the main {@link Layout} within a `react-resizable-panels`
- * Group. Returns `null` when the `agents` feature flag is off or the panel
- * is closed, so it adds zero overhead to the default layout.
+ * Always-mounted controller for the agent chat. The panel UI is conditional,
+ * but the underlying chat hook stays mounted so in-flight streams survive
+ * when the panel is closed.
  */
 export function AgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
@@ -75,79 +39,124 @@ export function AgentChatPanel() {
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
-  if (!isAgentsEnabled || !isOpen) {
+  if (!isAgentsEnabled) {
     return null;
   }
 
   return (
-    <>
-      <Separator css={compactResizeHandleCSS} />
-      <Panel
-        id="agent-chat"
-        minSize="420px"
-        maxSize="50%"
-        defaultSize="420px"
-        groupResizeBehavior="preserve-pixel-size"
-      >
-        <div css={panelContentCSS}>
-          <div css={panelHeaderCSS}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-50"
-              minWidth={0}
-            >
-              <PxiGlyph
-                fill="var(--global-text-color-900)"
-                css={css`
-                  transform: scale(0.7);
-                `}
-              />
-              <Text
-                weight="heavy"
-                css={sessionHeadingCSS}
-                title={sessionDisplayName}
-              >
-                {sessionDisplayName}
-              </Text>
-            </Flex>
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-50"
-              css={panelHeaderActionsCSS}
-            >
-              <SessionListMenu
-                sessions={orderedSessions}
-                activeSessionId={activeSessionId}
-                onSelectSession={setActiveSession}
-                onDeleteSession={deleteSession}
-              />
-              <IconButton
-                size="S"
-                aria-label="New chat"
-                onPress={() => createSession()}
-              >
-                <Icon svg={<Icons.PlusOutline />} />
-              </IconButton>
-              <IconButton
-                size="S"
-                aria-label="Close agent chat"
-                onPress={closePanel}
-              >
-                <Icon svg={<Icons.CloseOutline />} />
-              </IconButton>
-            </Flex>
-          </div>
-          <Chat
-            key={`${activeSessionId}-${chatApiUrl}`}
-            sessionId={activeSessionId}
-            chatApiUrl={chatApiUrl}
-            modelMenuValue={menuValue}
-            onModelChange={handleModelChange}
-          />
-        </div>
-      </Panel>
-    </>
+    <AgentChatController
+      key={`${activeSessionId}-${chatApiUrl}`}
+      isOpen={isOpen}
+      activeSessionId={activeSessionId}
+      orderedSessions={orderedSessions}
+      sessionDisplayName={sessionDisplayName}
+      chatApiUrl={chatApiUrl}
+      menuValue={menuValue}
+      createSession={createSession}
+      setActiveSession={setActiveSession}
+      deleteSession={deleteSession}
+      closePanel={closePanel}
+      handleModelChange={handleModelChange}
+    />
+  );
+}
+
+function AgentChatController({
+  isOpen,
+  activeSessionId,
+  orderedSessions,
+  sessionDisplayName,
+  chatApiUrl,
+  menuValue,
+  createSession,
+  setActiveSession,
+  deleteSession,
+  closePanel,
+  handleModelChange,
+}: {
+  isOpen: boolean;
+  activeSessionId: string | null;
+  orderedSessions: ReturnType<typeof useAgentChatPanelState>["orderedSessions"];
+  sessionDisplayName: string;
+  chatApiUrl: string;
+  menuValue: ReturnType<typeof useAgentChatPanelState>["menuValue"];
+  createSession: ReturnType<typeof useAgentChatPanelState>["createSession"];
+  setActiveSession: ReturnType<
+    typeof useAgentChatPanelState
+  >["setActiveSession"];
+  deleteSession: ReturnType<typeof useAgentChatPanelState>["deleteSession"];
+  closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
+  handleModelChange: ReturnType<
+    typeof useAgentChatPanelState
+  >["handleModelChange"];
+}) {
+  const store = useAgentStore();
+
+  const {
+    messages,
+    sendMessage,
+    stop,
+    status,
+    error,
+    pendingElicitation,
+    handleElicitationSubmit,
+    handleElicitationCancel,
+  } = useAgentChat({
+    sessionId: activeSessionId,
+    chatApiUrl,
+  });
+
+  const previousSessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const previousSessionId = previousSessionIdRef.current;
+    if (previousSessionId && previousSessionId !== activeSessionId) {
+      store.getState().setSessionChatStatus(previousSessionId, "ready");
+    }
+    previousSessionIdRef.current = activeSessionId;
+  }, [activeSessionId, store]);
+
+  useEffect(() => {
+    if (activeSessionId !== null) {
+      store.getState().setSessionChatStatus(activeSessionId, status);
+    }
+  }, [activeSessionId, status, store]);
+
+  useEffect(() => {
+    return () => {
+      const sessionId = previousSessionIdRef.current;
+      if (sessionId !== null) {
+        store.getState().setSessionChatStatus(sessionId, "ready");
+      }
+    };
+  }, [store]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <AgentChatPanelView
+      sessionDisplayName={sessionDisplayName}
+      orderedSessions={orderedSessions}
+      activeSessionId={activeSessionId}
+      onSelectSession={setActiveSession}
+      onDeleteSession={deleteSession}
+      onCreateSession={createSession}
+      onClose={closePanel}
+    >
+      <ChatView
+        messages={messages}
+        sendMessage={sendMessage}
+        stop={stop}
+        status={status}
+        error={error}
+        pendingElicitation={pendingElicitation}
+        handleElicitationSubmit={handleElicitationSubmit}
+        handleElicitationCancel={handleElicitationCancel}
+        modelMenuValue={menuValue}
+        onModelChange={handleModelChange}
+      />
+    </AgentChatPanelView>
   );
 }

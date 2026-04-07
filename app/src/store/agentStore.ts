@@ -1,4 +1,4 @@
-import type { UIMessage } from "ai";
+import type { ChatStatus, UIMessage } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -102,6 +102,8 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     elicitation: PendingElicitation | null
   ) => void;
+  chatStatusBySessionId: Record<string, ChatStatus>;
+  setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
 }
 
 /**
@@ -166,6 +168,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           if (!session) return state;
           const newSessionMap = { ...state.sessionMap };
           delete newSessionMap[sessionId];
+          const newPendingElicitationBySessionId = {
+            ...state.pendingElicitationBySessionId,
+          };
+          delete newPendingElicitationBySessionId[sessionId];
+          const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
+          delete newChatStatusBySessionId[sessionId];
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -175,6 +183,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             sessions: newSessions,
             sessionMap: newSessionMap,
             activeSessionId: newActiveSessionId,
+            pendingElicitationBySessionId: newPendingElicitationBySessionId,
+            chatStatusBySessionId: newChatStatusBySessionId,
           };
         },
         false,
@@ -284,6 +294,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessions: [],
           activeSessionId: null,
           sessionMap: {},
+          pendingElicitationBySessionId: {},
+          chatStatusBySessionId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -305,6 +317,20 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingElicitation" }
+      );
+    },
+
+    chatStatusBySessionId: {},
+    setSessionChatStatus: (sessionId, status) => {
+      set(
+        (state) => ({
+          chatStatusBySessionId: {
+            ...state.chatStatusBySessionId,
+            [sessionId]: status,
+          },
+        }),
+        false,
+        { type: "setSessionChatStatus" }
       );
     },
 

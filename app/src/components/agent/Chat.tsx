@@ -1,16 +1,11 @@
-import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import type { UIMessage } from "ai";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
+import type { ChatStatus, UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 
-import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
-import type { ElicitToolOutput } from "@phoenix/agent/tools/elicit";
-import { authFetch } from "@phoenix/authFetch";
+import type {
+  ElicitToolOutput,
+  PendingElicitation,
+} from "@phoenix/agent/tools/elicit";
 import { Icon, Icons, View } from "@phoenix/components";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import {
@@ -25,10 +20,9 @@ import {
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
-import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AssistantMessage, UserMessage } from "./ChatMessage";
-import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
+import { useAgentChat } from "./useAgentChat";
 
 const chatCSS = css`
   display: flex;
@@ -85,21 +79,6 @@ const chatCSS = css`
   }
 `;
 
-/**
- * Core chat UI for a single agent conversation.
- *
- * Wraps the AI SDK `useChat` hook with Phoenix-specific configuration:
- * - Sends tool definitions and system prompt via {@link buildAgentChatRequestBody}
- * - Dispatches client-side tool calls through {@link handleAgentToolCall}
- * - Persists messages to the Zustand agent store on completion and unmount
- *
- * The parent component keys this on `sessionId + chatApiUrl`, so it fully
- * remounts when **either** the session or the model changes. This is
- * intentional: `chatApiUrl` encodes model params, and the AI SDK transport
- * captures the URL at construction time, so a model switch requires a fresh
- * `useChat` instance. Messages are persisted to the store before unmount so
- * the conversation survives the remount.
- */
 export function Chat({
   sessionId,
   chatApiUrl,
@@ -111,90 +90,59 @@ export function Chat({
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
 }) {
-  const store = useAgentStore();
-  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
+  const {
+    messages,
+    sendMessage,
+    stop,
+    status,
+    error,
+    pendingElicitation,
+    handleElicitationSubmit,
+    handleElicitationCancel,
+  } = useAgentChat({ sessionId, chatApiUrl });
 
-  // Pending elicitation for this session (ephemeral, not persisted)
-  const pendingElicitation = useAgentContext((s) =>
-    sessionId ? (s.pendingElicitationBySessionId[sessionId] ?? null) : null
+  return (
+    <ChatView
+      messages={messages}
+      sendMessage={sendMessage}
+      stop={stop}
+      status={status}
+      error={error}
+      pendingElicitation={pendingElicitation}
+      handleElicitationSubmit={handleElicitationSubmit}
+      handleElicitationCancel={handleElicitationCancel}
+      modelMenuValue={modelMenuValue}
+      onModelChange={onModelChange}
+    />
   );
+}
 
-  // read stored messages for this session
-  const initialMessages = sessionId
-    ? store.getState().sessionMap[sessionId]?.messages
-    : undefined;
-
-  const chat = useChat<UIMessage>({
-    id: sessionId ?? undefined,
-    // seed useChat with stored messages and session ID
-    messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: chatApiUrl,
-      fetch: authFetch,
-      prepareSendMessagesRequest: ({
-        body,
-        id,
-        messages,
-        trigger,
-        messageId,
-      }) => ({
-        body: buildAgentChatRequestBody({
-          body,
-          id,
-          messages,
-          trigger,
-          messageId,
-          sessionId,
-        }),
-      }),
-    }),
-    onToolCall: ({ toolCall }) => {
-      // AI SDK docs recommend not awaiting `addToolOutput` inside `onToolCall`
-      // when using `sendAutomaticallyWhen`, because it can deadlock the chat
-      // update loop. We follow that guidance here by kicking off tool handling
-      // without awaiting it and letting the helper manage tool output updates.
-      // See: ai/docs/04-ai-sdk-ui/03-chatbot-tool-usage.mdx and
-      // ai/docs/08-migration-guides/26-migration-guide-5-0.mdx in this repo's
-      // installed AI SDK package.
-      void handleAgentToolCall({
-        toolCall,
-        sessionId,
-        addToolOutput,
-        agentStore: store,
-      });
-    },
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onFinish: ({ messages: finalMessages }) => {
-      if (sessionId && finalMessages) {
-        // persist after each assistant response completes
-        store.getState().setSessionMessages(sessionId, finalMessages);
-        // Asynchronously generate a short summary for the session list after
-        // the first full exchange. This is fire-and-forget; the hook
-        // deduplicates and is a no-op when a summary already exists.
-        generateSummary({ sessionId });
-      }
-    },
-  });
-  const { messages, sendMessage, status, error, addToolOutput } = chat;
-
-  // Keep a ref to messages for the unmount cleanup (avoids stale closure)
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-
-  // persist messages on unmount (covers model change remount, tab close)
-  useEffect(() => {
-    return () => {
-      if (sessionId && messagesRef.current.length > 0) {
-        store.getState().setSessionMessages(sessionId, messagesRef.current);
-      }
-    };
-  }, [sessionId, store]);
-
+export function ChatView({
+  messages,
+  sendMessage,
+  stop,
+  status,
+  error,
+  pendingElicitation,
+  handleElicitationSubmit,
+  handleElicitationCancel,
+  modelMenuValue,
+  onModelChange,
+}: {
+  messages: UIMessage[];
+  sendMessage: (message: { text: string }) => void;
+  stop: () => Promise<void>;
+  status: ChatStatus;
+  error: Error | undefined;
+  pendingElicitation: PendingElicitation | null;
+  handleElicitationSubmit: (output: ElicitToolOutput) => void;
+  handleElicitationCancel: () => void;
+  modelMenuValue: ModelMenuValue;
+  onModelChange: (model: ModelMenuValue) => void;
+}) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRequestAnimationFrameRef = useRef<number>(0);
 
-  // Coalesce auto-scroll requests into a single rAF so rapid streaming
-  // updates don't queue overlapping smooth-scroll animations.
   useEffect(() => {
     cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
     scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
@@ -202,50 +150,20 @@ export function Chat({
     });
   }, [messages, status]);
 
-  // Cancel any pending rAF on unmount
   useEffect(() => {
     return () => cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
   }, []);
-
-  /**
-   * Called when the user submits answers in the elicitation carousel.
-   * Provides the tool output back to the AI SDK and clears the pending state.
-   */
-  const handleElicitationSubmit = (output: ElicitToolOutput) => {
-    if (!pendingElicitation || !sessionId) return;
-    void addToolOutput({
-      tool: "ask_user",
-      toolCallId: pendingElicitation.toolCallId,
-      output,
-    });
-    store.getState().setPendingElicitation(sessionId, null);
-  };
-
-  /**
-   * Called when the user cancels the elicitation carousel.
-   * Returns an error state to the tool so the agent knows the user declined.
-   */
-  const handleElicitationCancel = () => {
-    if (!pendingElicitation || !sessionId) return;
-    void addToolOutput({
-      state: "output-error",
-      tool: "ask_user",
-      toolCallId: pendingElicitation.toolCallId,
-      errorText: "User cancelled the question.",
-    });
-    store.getState().setPendingElicitation(sessionId, null);
-  };
 
   return (
     <div css={chatCSS}>
       <div className="chat__scroll">
         <div className="chat__messages">
           {messages.length === 0 && <EmptyState />}
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <UserMessage key={m.id} parts={m.parts} />
+          {messages.map((message) =>
+            message.role === "user" ? (
+              <UserMessage key={message.id} parts={message.parts} />
             ) : (
-              <AssistantMessage key={m.id} parts={m.parts} />
+              <AssistantMessage key={message.id} parts={message.parts} />
             )
           )}
           {status === "submitted" && <Loading />}
@@ -269,7 +187,7 @@ export function Chat({
               status={status}
             >
               <PromptInputBody>
-                <PromptInputTextarea placeholder="Send a message…" />
+                <PromptInputTextarea placeholder="Send a message..." />
               </PromptInputBody>
               <PromptInputFooter>
                 <PromptInputTools>
@@ -282,7 +200,11 @@ export function Chat({
                   />
                 </PromptInputTools>
                 <PromptInputActions>
-                  <PromptInputSubmit />
+                  <PromptInputSubmit
+                    onPress={() => {
+                      void stop();
+                    }}
+                  />
                 </PromptInputActions>
               </PromptInputFooter>
             </PromptInput>

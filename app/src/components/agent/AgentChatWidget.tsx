@@ -65,9 +65,12 @@ export function AgentChatWidget() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
-
-  // Agent panel doesn't currently comunicate state to the FAB, but the animations and transitions are ready for it.
-  const isStreaming = false;
+  const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const isStreaming = useAgentContext((state) =>
+    activeSessionId
+      ? state.chatStatusBySessionId[activeSessionId] === "streaming"
+      : false
+  );
 
   if (!isAgentsEnabled || isOpen) {
     return null;
