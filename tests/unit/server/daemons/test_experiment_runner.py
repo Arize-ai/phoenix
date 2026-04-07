@@ -11,6 +11,7 @@ import pytest
 from phoenix.db import models
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
+    EvaluationChunk,
 )
 from phoenix.server.daemons.experiment_runner import (
     CircuitBreaker,
@@ -101,6 +102,19 @@ class _StubTokenBucketRegistry:
         return self._bucket
 
 
+class _AsyncSessionContext:
+    """Minimal async context manager wrapper for mocked DB sessions."""
+
+    def __init__(self, session: Any) -> None:
+        self._session = session
+
+    async def __aenter__(self) -> Any:
+        return self._session
+
+    async def __aexit__(self, *args: Any) -> None:
+        return None
+
+
 def _make_on_done() -> AsyncMock:
     return AsyncMock()
 
@@ -170,12 +184,16 @@ def _make_eval_work_item(
     *,
     run_id: int = 1,
     dataset_evaluator_id: int = 10,
+    output_names: Sequence[str] = ("test-output",),
     retry_count: int = 0,
 ) -> EvalWorkItem:
     evaluator = MagicMock()
     evaluator.name = "test-evaluator"
-    output_config = MagicMock()
-    output_config.name = "test-output"
+    output_configs = []
+    for output_name in output_names:
+        output_config = MagicMock()
+        output_config.name = output_name
+        output_configs.append(output_config)
     return EvalWorkItem(
         running_experiment=running_experiment,
         experiment_run=_make_experiment_run(run_id=run_id),
@@ -186,7 +204,7 @@ def _make_eval_work_item(
         tracer_factory=running_experiment._tracer_factory,
         project_id=1,
         input_mapping=MagicMock(),
-        output_configs=[output_config],
+        output_configs=output_configs,
         retry_count=retry_count,
     )
 
@@ -233,6 +251,47 @@ class TestCircuitBreaker:
 
 
 class TestRunningExperimentQueueLogic:
+    def test_task_batch_size_scales_with_max_concurrency(self) -> None:
+        exp = _make_running_experiment(max_concurrency=20)
+        assert exp._task_batch_size == 40
+
+    def test_task_batch_size_is_bounded(self) -> None:
+        exp_low = _make_running_experiment(max_concurrency=1)
+        assert exp_low._task_batch_size == 10
+
+        exp_zero = _make_running_experiment(max_concurrency=0)
+        assert exp_zero._task_batch_size == 10
+
+        exp_high = _make_running_experiment(max_concurrency=500)
+        assert exp_high._task_batch_size == 200
+
+    def test_backpressure_hysteresis_toggles_only_at_watermarks(self) -> None:
+        exp = _make_running_experiment(max_concurrency=1)
+        exp._work_item_high_watermark = 4
+        exp._work_item_low_watermark = 2
+
+        # Below high watermark -> remains off.
+        for i in range(4):
+            exp._task_queue.append(_make_task_work_item(exp, dataset_example_id=100 + i))
+        exp._task_queue.pop()  # resident=3
+        exp._update_backpressure_state()
+        assert exp._backpressure_active is False
+
+        # At high watermark -> turns on.
+        exp._task_queue.append(_make_task_work_item(exp, dataset_example_id=104))  # resident=4
+        exp._update_backpressure_state()
+        assert exp._backpressure_active is True
+
+        # Above low watermark -> stays on.
+        exp._task_queue.popleft()  # resident=3
+        exp._update_backpressure_state()
+        assert exp._backpressure_active is True
+
+        # At/below low watermark -> turns off.
+        exp._task_queue.popleft()  # resident=2
+        exp._update_backpressure_state()
+        assert exp._backpressure_active is False
+
     def test_has_work_when_eval_db_not_exhausted(self) -> None:
         exp = _make_running_experiment()
         # Default: _eval_db_exhausted is True (no evaluators), _task_db_exhausted is False
@@ -316,6 +375,72 @@ class TestRunningExperimentQueueLogic:
         assert work_item is None
 
     @pytest.mark.anyio
+    async def test_try_get_ready_work_item_blocks_task_scan_during_initial_eval_scan(
+        self,
+    ) -> None:
+        """Phase 1 runs initial eval scan first; task scan is blocked until exhausted."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=91,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._eval_db_exhausted = False
+        exp._initial_eval_scan_done = False
+
+        with (
+            patch.object(exp, "_ensure_eval_buffer", new_callable=AsyncMock) as mock_eval_buffer,
+            patch.object(exp, "_ensure_task_buffer", new_callable=AsyncMock) as mock_task_buffer,
+        ):
+            await exp.try_get_ready_work_item()
+
+        mock_eval_buffer.assert_awaited_once()
+        mock_task_buffer.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_try_get_ready_work_item_transitions_to_task_scan_after_initial_eval_scan(
+        self,
+    ) -> None:
+        """When initial eval scan exhausts, same call enables task scan."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=92,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._eval_db_exhausted = False
+        exp._initial_eval_scan_done = False
+
+        def _mark_exhausted() -> None:
+            exp._eval_db_exhausted = True
+
+        with (
+            patch.object(exp, "_ensure_eval_buffer", new_callable=AsyncMock) as mock_eval_buffer,
+            patch.object(exp, "_ensure_task_buffer", new_callable=AsyncMock) as mock_task_buffer,
+        ):
+            mock_eval_buffer.side_effect = _mark_exhausted
+            await exp.try_get_ready_work_item()
+            await exp.try_get_ready_work_item()
+
+        assert exp._initial_eval_scan_done is True
+        # First call: eval scan + task scan (after transition)
+        # Second call: task scan only.
+        assert mock_eval_buffer.await_count == 1
+        assert mock_task_buffer.await_count == 2
+
+    @pytest.mark.anyio
     async def test_on_rate_limit_requeues_with_backoff(self) -> None:
         """Work item lands in retry heap with correct ready_at."""
         exp = _make_running_experiment(base_backoff_seconds=1.0)
@@ -336,6 +461,22 @@ class TestRunningExperimentQueueLogic:
         assert retry.ready_at <= after + timedelta(seconds=1.0)
 
     @pytest.mark.anyio
+    async def test_unregister_cancel_scope_cleans_in_flight_state(self) -> None:
+        """Unregister always removes work item from in-flight and scope maps."""
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp, run_id=313, dataset_evaluator_id=1)
+        scope = anyio.CancelScope()
+
+        exp.register_cancel_scope(eval_item, scope)
+        assert eval_item in exp._in_flight
+        assert eval_item in exp._cancel_scopes
+
+        await exp.unregister_cancel_scope(eval_item)
+
+        assert eval_item not in exp._in_flight
+        assert eval_item not in exp._cancel_scopes
+
+    @pytest.mark.anyio
     async def test_retry_or_fail_exhausted(self) -> None:
         """After max retries, failure counted and error recorded."""
         exp = _make_running_experiment(max_retries=2)
@@ -351,6 +492,288 @@ class TestRunningExperimentQueueLogic:
         mock_record.assert_called_once()
         # Should NOT be requeued
         assert len(exp._retry_heap) == 0
+
+    @pytest.mark.anyio
+    async def test_retry_or_fail_exhausted_eval_broadcasts_error_chunks(self) -> None:
+        """Exhausted eval retries broadcast terminal error chunks to subscribers."""
+        exp = _make_running_experiment(max_retries=1)
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = True
+
+        eval_item = _make_eval_work_item(
+            exp,
+            retry_count=1,  # already at max retry count
+            output_names=("accuracy", "conciseness"),
+        )
+
+        with (
+            patch.object(exp, "_persist_log", new_callable=AsyncMock) as mock_record,
+            patch.object(exp, "_persist_exhausted_retry", new_callable=AsyncMock) as mock_persist,
+            patch.object(exp, "_broadcast") as mock_broadcast,
+        ):
+            await exp._retry_or_fail(eval_item, "timeout")
+
+        assert exp._evals_failed == 1
+        mock_record.assert_called_once()
+        mock_persist.assert_awaited_once()
+        assert mock_broadcast.call_count == 2
+        emitted = [call.args[0] for call in mock_broadcast.call_args_list]
+        assert all(isinstance(chunk, EvaluationChunk) for chunk in emitted)
+        assert [chunk.evaluator_name for chunk in emitted] == ["accuracy", "conciseness"]
+        assert all(chunk.error == "timeout after 1 retries" for chunk in emitted)
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_queues_multi_output_evaluator_once(self) -> None:
+        """Resume scan queues one EvalWorkItem per evaluator, not per output name."""
+        output_config_a = MagicMock()
+        output_config_a.name = "accuracy"
+        output_config_b = MagicMock()
+        output_config_b.name = "conciseness"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=42,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config_a, output_config_b],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = False
+
+        run = _make_experiment_run(run_id=7, repetition_number=1)
+        revision = _make_dataset_example_revision(dataset_example_id=99)
+        result = MagicMock()
+        result.all.return_value = [(run, 1, revision, "[]")]
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(return_value=result)
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        assert len(exp._eval_queue) == 1
+        queued_item = exp._eval_queue[0]
+        assert isinstance(queued_item, EvalWorkItem)
+        assert queued_item.dataset_evaluator_id == 42
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_scans_even_when_tasks_pending(self) -> None:
+        """Bootstrap reconciliation does not gate on task-phase state."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=77,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = False
+        exp._eval_db_exhausted = False
+        exp._task_queue.append(_make_task_work_item(exp, dataset_example_id=123))
+
+        run = _make_experiment_run(run_id=8, repetition_number=1)
+        revision = _make_dataset_example_revision(dataset_example_id=1001)
+        result = MagicMock()
+        result.all.return_value = [(run, 1, revision, "[]")]
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(return_value=result)
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        session.execute.assert_awaited_once()
+        assert len(exp._eval_queue) == 1
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_does_not_check_eval_key_reservations(self) -> None:
+        """Reconciliation scan no longer depends on key reservation state."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=88,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = False
+
+        # DB has an incomplete run (run_id=10); scanner should enqueue it.
+        run = _make_experiment_run(run_id=10, repetition_number=1)
+        revision = _make_dataset_example_revision(dataset_example_id=1002)
+        result = MagicMock()
+        result.all.return_value = [(run, 1, revision, "[]")]
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(return_value=result)
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        session.execute.assert_awaited_once()
+        assert len(exp._eval_queue) == 1
+        queued_item = exp._eval_queue[0]
+        assert isinstance(queued_item, EvalWorkItem)
+        assert queued_item.experiment_run.id == 10
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_scans_even_when_task_retry_pending(self) -> None:
+        """Bootstrap reconciliation ignores task retry state."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=89,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = False
+
+        retry_task = _make_task_work_item(exp, dataset_example_id=1100)
+        heapq.heappush(
+            exp._retry_heap,
+            RetryItem(
+                ready_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+                work_item=retry_task,
+            ),
+        )
+
+        run = _make_experiment_run(run_id=10, repetition_number=1)
+        revision = _make_dataset_example_revision(dataset_example_id=1003)
+        result = MagicMock()
+        result.all.return_value = [(run, 1, revision, "[]")]
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(return_value=result)
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        session.execute.assert_awaited_once()
+        assert len(exp._eval_queue) == 1
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_pauses_and_resumes_with_backpressure(self) -> None:
+        """Backpressure pauses eval scanning until resident work drops below low watermark."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=95,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = False
+        exp._work_item_high_watermark = 1
+        exp._work_item_low_watermark = 0
+
+        # One retry item is enough to trip backpressure.
+        retry_task = _make_task_work_item(exp, dataset_example_id=1200)
+        heapq.heappush(
+            exp._retry_heap,
+            RetryItem(
+                ready_at=datetime.now(timezone.utc) + timedelta(seconds=60),
+                work_item=retry_task,
+            ),
+        )
+
+        run = _make_experiment_run(run_id=11, repetition_number=1)
+        revision = _make_dataset_example_revision(dataset_example_id=1004)
+        result = MagicMock()
+        result.all.return_value = [(run, 1, revision, "[]")]
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(return_value=result)
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        session.execute.assert_not_awaited()
+        assert exp._backpressure_active is True
+
+        exp._retry_heap.clear()
+
+        await exp._ensure_eval_buffer()
+
+        session.execute.assert_awaited_once()
+        assert exp._backpressure_active is False
+        assert len(exp._eval_queue) == 1
+
+    @pytest.mark.anyio
+    async def test_ensure_eval_buffer_timeout_is_non_fatal(self) -> None:
+        """Eval buffer timeout is logged and retried later, not raised."""
+        output_config = MagicMock()
+        output_config.name = "accuracy"
+        evaluator = MagicMock()
+        evaluator.name = "quality-evaluator"
+        spec = EvaluatorRunSpec(
+            dataset_evaluator_id=90,
+            evaluator=evaluator,
+            input_mapping=MagicMock(),
+            output_configs=[output_config],
+            evaluator_project_id=1,
+        )
+        exp = _make_running_experiment(evaluator_run_specs=[spec])
+        exp._task_db_exhausted = True
+        exp._eval_db_exhausted = False
+
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(side_effect=TimeoutError())
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_eval_buffer()
+
+        assert exp._eval_db_exhausted is False
+        assert len(exp._eval_queue) == 0
+
+    @pytest.mark.anyio
+    async def test_ensure_task_buffer_timeout_is_non_fatal(self) -> None:
+        """Task buffer timeout is logged and retried later, not raised."""
+        exp = _make_running_experiment()
+        exp._task_db_exhausted = False
+        exp._eval_db_exhausted = True
+        exp._project_id = 1
+        exp._experiment.repetitions = 1
+        exp._experiment_job = MagicMock(spec=models.ExperimentPromptTask)
+
+        session = MagicMock()
+        session.bind = MagicMock()
+        session.bind.dialect.name = "postgresql"
+        session.execute = AsyncMock(side_effect=TimeoutError())
+        exp._db = MagicMock(return_value=_AsyncSessionContext(session))
+
+        await exp._ensure_task_buffer()
+
+        assert exp._task_db_exhausted is False
+        assert len(exp._task_queue) == 0
 
     @pytest.mark.anyio
     async def test_on_transient_error_trips_circuit_breaker(self) -> None:
@@ -445,7 +868,7 @@ class TestRoundRobinFairness:
 
 
 # ===========================================================================
-# Group 4: EvalWorkItem cancellation
+# Group 5: EvalWorkItem cancellation
 # ===========================================================================
 
 
@@ -465,7 +888,7 @@ class TestEvalWorkItemCancellation:
 
 
 # ===========================================================================
-# Group 5: Graceful shutdown
+# Group 6: Graceful shutdown
 # ===========================================================================
 
 
@@ -495,7 +918,7 @@ class TestGracefulShutdown:
 
 
 # ===========================================================================
-# Group 6: Error persistence
+# Group 7: Error persistence
 # ===========================================================================
 
 
