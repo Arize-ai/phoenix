@@ -17,6 +17,12 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 
+/**
+ * Owns the AI SDK chat instance for a single agent session/model pair.
+ *
+ * This hook is mounted by a headless controller so request streaming can
+ * continue even while the visible panel UI is closed.
+ */
 export function useAgentChat({
   sessionId,
   chatApiUrl,
@@ -78,6 +84,8 @@ export function useAgentChat({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  // Persist the latest messages if the chat controller remounts because the
+  // active session or model changed.
   useEffect(() => {
     return () => {
       if (sessionId && messagesRef.current.length > 0) {

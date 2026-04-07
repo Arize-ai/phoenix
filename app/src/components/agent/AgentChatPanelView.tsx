@@ -39,6 +39,12 @@ const panelContentCSS = css`
   border-top: 1px solid var(--global-border-color-default);
 `;
 
+/**
+ * Presentational shell for the resizable agent panel.
+ *
+ * All request lifecycle and persistence behavior lives outside this component
+ * so the panel can be hidden without tearing down the active chat.
+ */
 export function AgentChatPanelView({
   sessionDisplayName,
   orderedSessions,

@@ -108,6 +108,8 @@ function AgentChatController({
 
   const previousSessionIdRef = useRef<string | null>(null);
 
+  // Mirror the active chat status into the store so the FAB can reflect
+  // background streaming while the panel itself is hidden.
   useEffect(() => {
     const previousSessionId = previousSessionIdRef.current;
     if (previousSessionId && previousSessionId !== activeSessionId) {

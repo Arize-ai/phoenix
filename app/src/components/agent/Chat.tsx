@@ -79,6 +79,7 @@ const chatCSS = css`
   }
 `;
 
+/** Connects the presentational chat view to the agent chat controller hook. */
 export function Chat({
   sessionId,
   chatApiUrl,
@@ -117,6 +118,10 @@ export function Chat({
   );
 }
 
+/**
+ * Pure chat view used both by the legacy mounted panel and by the headless
+ * controller path that keeps streaming alive while the panel is hidden.
+ */
 export function ChatView({
   messages,
   sendMessage,
@@ -143,6 +148,7 @@ export function ChatView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRequestAnimationFrameRef = useRef<number>(0);
 
+  // Coalesce rapid message/status updates into a single smooth scroll.
   useEffect(() => {
     cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
     scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
@@ -215,6 +221,7 @@ export function ChatView({
   );
 }
 
+/** Empty-state shown before the first user message in a session. */
 function EmptyState() {
   return (
     <div className="chat__empty">
@@ -229,10 +236,12 @@ function EmptyState() {
   );
 }
 
+/** Loading affordance shown while the assistant response is pending. */
 function Loading() {
   return <Shimmer size="M">Thinking...</Shimmer>;
 }
 
+/** Inline request error banner for the active chat turn. */
 function ErrorMessage({ error }: { error: Error }) {
   return <p className="chat__error">{error.message}</p>;
 }
