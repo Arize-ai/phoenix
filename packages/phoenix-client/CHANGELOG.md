@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.0...arize-phoenix-client-v2.3.1) (2026-04-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239))
+
+### Features
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239)) ([15e6415](https://github.com/Arize-ai/phoenix/commit/15e6415105ce4757de905172cbd0e07215d38990))
+
+
+### Miscellaneous Chores
+
+* release 2.3.1 ([#12572](https://github.com/Arize-ai/phoenix/issues/12572)) ([a33630d](https://github.com/Arize-ai/phoenix/commit/a33630d1913c2c43a6d2f3c39056ea11a2de8bee))
+
 ## [2.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.2.0...arize-phoenix-client-v2.3.0) (2026-04-03)
 
 
