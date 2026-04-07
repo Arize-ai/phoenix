@@ -5,15 +5,11 @@ from enum import Enum
 from typing import Annotated, Union
 
 import strawberry
-from strawberry import Private
 from strawberry.relay import Node, NodeID
-from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types import experiment_log as log_types
-from phoenix.server.api.context import Context
-from phoenix.server.bearer_auth import PhoenixUser
 
 
 @strawberry.enum
@@ -75,26 +71,10 @@ def _work_item_id_from_orm(row: models.ExperimentLog) -> ExperimentLogWorkItemId
     return None  # EXPERIMENT logs have no work item
 
 
-def _is_admin(info: Info[Context, None]) -> bool:
-    if not info.context.auth_enabled:
-        return True
-    return isinstance((user := info.context.user), PhoenixUser) and user.is_admin
-
-
-# =============================================================================
-# Error Detail (what went wrong)
-# =============================================================================
-
-
 @strawberry.type
 class FailureDetail:
     work_item: ExperimentLogWorkItemId | None
     error_type: str
-    _stack_trace: Private[str | None] = None
-
-    @strawberry.field
-    def stack_trace(self, info: Info[Context, None]) -> str | None:
-        return self._stack_trace if _is_admin(info) else None
 
     @classmethod
     def from_orm(
@@ -105,7 +85,6 @@ class FailureDetail:
         return cls(
             work_item=_work_item_id_from_orm(row),
             error_type=obj.error_type,
-            _stack_trace=obj.stack_trace,
         )
 
 
@@ -114,11 +93,6 @@ class RetriesExhaustedDetail:
     work_item: ExperimentLogWorkItemId | None
     retry_count: int
     reason: str
-    _stack_trace: Private[str | None] = None
-
-    @strawberry.field
-    def stack_trace(self, info: Info[Context, None]) -> str | None:
-        return self._stack_trace if _is_admin(info) else None
 
     @classmethod
     def from_orm(
@@ -130,7 +104,6 @@ class RetriesExhaustedDetail:
             work_item=_work_item_id_from_orm(row),
             retry_count=obj.retry_count,
             reason=obj.reason,
-            _stack_trace=obj.stack_trace,
         )
 
 

@@ -75,7 +75,6 @@ import heapq
 import json
 import logging
 import random
-import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -175,37 +174,17 @@ class _NoOpTokenBucket:
 _NO_OP_TOKEN_BUCKET = _NoOpTokenBucket()
 
 
-def _stack_trace_prefixes() -> tuple[tuple[str, str], ...]:
-    import os
-    import sys
+def _sanitize_error_message(error: BaseException) -> str:
+    """Return a user-safe error summary: exception class name only.
 
-    import phoenix
-
-    prefixes: list[tuple[str, str]] = []
-    phoenix_pkg = os.path.dirname(phoenix.__file__)  # .../src/phoenix
-    src_root = os.path.dirname(phoenix_pkg)  # .../src
-    project_root = os.path.dirname(src_root)  # .../project
-    prefixes.append((project_root + os.sep, ""))
-    # Site-packages
-    site_prefix = os.path.join(sys.prefix, "lib")
-    prefixes.append((site_prefix + os.sep, ""))
-    # Python standard library
-    stdlib_dir = os.path.dirname(os.__file__)  # .../lib/python3.x
-    prefixes.append((stdlib_dir + os.sep, ""))
-    # Sort by length descending so longer (more specific) prefixes match first
-    prefixes.sort(key=lambda p: len(p[0]), reverse=True)
-    return tuple(prefixes)
-
-
-_STACK_TRACE_PREFIXES = _stack_trace_prefixes()
-
-
-def _redact_stack_trace(error: BaseException) -> str:
-    """Format an exception's traceback with common path prefixes stripped."""
-    raw = "".join(traceback.format_exception(error))
-    for old, new in _STACK_TRACE_PREFIXES:
-        raw = raw.replace(old, new)
-    return raw
+    Raw ``str(error)`` can leak internal paths, API keys, or other
+    sensitive details embedded by third-party SDKs.  We keep the
+    exception class name (e.g. ``TimeoutError``, ``RateLimitError``)
+    which is enough for users to understand what went wrong without
+    exposing internals.  The full detail is still available in the
+    server logs.
+    """
+    return type(error).__name__
 
 
 class LLMClient(Protocol):
@@ -1097,7 +1076,7 @@ class CircuitBreaker:
         )
         if self._consecutive_failures >= self.threshold:
             self._tripped = True
-            self._trip_reason = str(error)
+            self._trip_reason = _sanitize_error_message(error)
             logger.warning(f"CircuitBreaker: TRIPPED after {self.threshold} consecutive failures")
             return True
         return False
@@ -1830,10 +1809,12 @@ class RunningExperiment:
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
                 "task" if isinstance(work_item, TaskWorkItem) else "eval",
-                breaker.trip_reason or str(error),
+                breaker.trip_reason or _sanitize_error_message(error),
             )
             return
-        await self._retry_or_fail(work_item, f"transient error: {error}", error=error)
+        await self._retry_or_fail(
+            work_item, f"transient error: {_sanitize_error_message(error)}", error=error
+        )
 
     async def on_failure(
         self,
@@ -1851,11 +1832,10 @@ class RunningExperiment:
         await self._persist_log(
             self._make_log(
                 work_item,
-                message=str(error),
+                message=_sanitize_error_message(error),
                 detail=FailureDetail(
                     type="failure",
                     error_type=type(error).__name__,
-                    stack_trace=_redact_stack_trace(error) if error.__traceback__ else None,
                 ),
             )
         )
@@ -1863,7 +1843,7 @@ class RunningExperiment:
         if breaker.record_failure(error):
             await self._handle_circuit_trip(
                 category.lower(),
-                breaker.trip_reason or str(error),
+                breaker.trip_reason or _sanitize_error_message(error),
             )
 
     async def on_timeout(self, work_item: WorkItem) -> None:
@@ -1897,7 +1877,6 @@ class RunningExperiment:
                     type="retries_exhausted",
                     retry_count=self._max_retries,
                     reason=reason,
-                    stack_trace=_redact_stack_trace(error) if error else None,
                 ),
             )
         )
