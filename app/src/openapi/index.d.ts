@@ -4907,6 +4907,14 @@ export interface operations {
         end_time?: string | null;
         /** @description Filter by one or more trace IDs */
         trace_id?: string[] | null;
+        /** @description Filter by parent span ID. Use "null" to get root spans only. */
+        parent_id?: string | null;
+        /** @description Filter by span name(s) */
+        name?: string[] | null;
+        /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
+        status_code?: string[] | null;
+        /** @description Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings ("42") are compared as strings. */
+        attribute?: string[] | null;
       };
       header?: never;
       path: {
@@ -4968,6 +4976,16 @@ export interface operations {
         end_time?: string | null;
         /** @description Filter by one or more trace IDs */
         trace_id?: string[] | null;
+        /** @description Filter by parent span ID. Use "null" to get root spans only. */
+        parent_id?: string | null;
+        /** @description Filter by span name(s) */
+        name?: string[] | null;
+        /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+        span_kind?: string[] | null;
+        /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
+        status_code?: string[] | null;
+        /** @description Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings ("42") are compared as strings. */
+        attribute?: string[] | null;
       };
       header?: never;
       path: {

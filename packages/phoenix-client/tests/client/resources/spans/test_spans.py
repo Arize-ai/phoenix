@@ -116,29 +116,27 @@ class TestGetSpansFilters:
 
 class TestGetSpansAttributeFilters:
     def test_single_attribute_filter(self) -> None:
-        transport = _make_handler(expected_params={"attribute_filter": ["llm.model:gpt-4"]})
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4"]})
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute_filter={"llm.model": "gpt-4"},
+            attribute={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
     def test_multiple_attribute_filters(self) -> None:
-        transport = _make_handler(
-            expected_params={"attribute_filter": ["llm.model:gpt-4", "user.id:abc"]}
-        )
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4", "user.id:abc"]})
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute_filter={"llm.model": "gpt-4", "user.id": "abc"},
+            attribute={"llm.model": "gpt-4", "user.id": "abc"},
         )
         assert len(spans) == 1
 
     def test_no_attribute_filters_omits_param(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             query_string = parse_qs(urlparse(str(request.url)).query)
-            assert "attribute_filter" not in query_string
+            assert "attribute" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
@@ -152,16 +150,97 @@ class TestGetSpansAttributeFilters:
         transport = _make_handler(
             expected_params={
                 "span_kind": ["LLM"],
-                "attribute_filter": ["llm.model:gpt-4"],
+                "attribute": ["llm.model:gpt-4"],
             }
         )
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
             span_kind="LLM",
-            attribute_filter={"llm.model": "gpt-4"},
+            attribute={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
+
+    def test_int_value_serialized_bare(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["count:42"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"count": 42},
+        )
+        assert len(spans) == 1
+
+    def test_float_value_serialized_bare(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["score:3.14"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"score": 3.14},
+        )
+        assert len(spans) == 1
+
+    def test_bool_true_serialized_lowercase(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["cached:true"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"cached": True},
+        )
+        assert len(spans) == 1
+
+    def test_bool_false_serialized_lowercase(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["cached:false"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"cached": False},
+        )
+        assert len(spans) == 1
+
+    def test_string_numeric_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['count:"42"']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"count": "42"},
+        )
+        assert len(spans) == 1
+
+    def test_plain_string_value_unquoted(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["model:gpt-4"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    def test_non_finite_float_raises_value_error(self) -> None:
+        import math
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
+        with pytest.raises(ValueError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attribute={"score": float("nan")},
+            )
+        with pytest.raises(ValueError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attribute={"score": math.inf},
+            )
+
+    def test_non_scalar_value_raises_type_error(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
+        with pytest.raises(TypeError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attribute={"tags": ["a", "b"]},  # type: ignore[dict-item]
+            )
 
 
 class TestAsyncGetSpansFilters:
@@ -197,23 +276,21 @@ class TestAsyncGetSpansFilters:
 class TestAsyncGetSpansAttributeFilters:
     @pytest.mark.anyio
     async def test_single_attribute_filter(self) -> None:
-        transport = _make_handler(expected_params={"attribute_filter": ["llm.model:gpt-4"]})
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4"]})
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attribute_filter={"llm.model": "gpt-4"},
+            attribute={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
     @pytest.mark.anyio
     async def test_multiple_attribute_filters(self) -> None:
-        transport = _make_handler(
-            expected_params={"attribute_filter": ["llm.model:gpt-4", "user.id:abc"]}
-        )
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4", "user.id:abc"]})
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attribute_filter={"llm.model": "gpt-4", "user.id": "abc"},
+            attribute={"llm.model": "gpt-4", "user.id": "abc"},
         )
         assert len(spans) == 1
 
@@ -221,7 +298,7 @@ class TestAsyncGetSpansAttributeFilters:
     async def test_no_attribute_filter_omits_param(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             query_string = parse_qs(urlparse(str(request.url)).query)
-            assert "attribute_filter" not in query_string
+            assert "attribute" not in query_string
             return httpx.Response(
                 200,
                 json={"data": [_make_span()], "next_cursor": None},
@@ -236,13 +313,13 @@ class TestAsyncGetSpansAttributeFilters:
         transport = _make_handler(
             expected_params={
                 "span_kind": ["LLM"],
-                "attribute_filter": ["llm.model:gpt-4"],
+                "attribute": ["llm.model:gpt-4"],
             }
         )
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
             span_kind="LLM",
-            attribute_filter={"llm.model": "gpt-4"},
+            attribute={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1

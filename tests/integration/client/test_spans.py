@@ -9,9 +9,10 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
-from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
+
+from phoenix.client.__generated__ import v1
 
 from .._helpers import (
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
@@ -847,6 +848,7 @@ class TestClientForSpansRetrieval:
         api_key = _app.admin_secret
 
         import httpx
+
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2175,6 +2177,7 @@ class TestClientForSpanDeletion:
         api_key = _app.admin_secret
 
         import httpx
+
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2312,7 +2315,7 @@ class TestClientGetSpansAttributeFilters:
         filtered_spans = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
                 project_identifier=project_name,
-                attribute_filter={"session.id": unique_val},
+                attribute={"session.id": unique_val},
                 limit=100,
             )
         )

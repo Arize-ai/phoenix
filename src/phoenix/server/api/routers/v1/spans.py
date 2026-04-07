@@ -58,33 +58,63 @@ from .utils import (
 DEFAULT_SPAN_LIMIT = 1000
 
 
-def _parse_attribute_filter(filter_str: str) -> sa.ColumnElement[bool]:
-    """Parse an ``attribute_filter`` query-param value into a SQLAlchemy
+def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
+    """Parse an ``attribute`` query-param value into a SQLAlchemy
     filter clause.
 
     The expected format is ``key:value`` where *key* is a dot-separated
-    attribute path (e.g. ``llm.model_name``) and *value* is the exact string
-    to match.  The split is performed on the **first** ``:`` only, so values
-    may contain additional colons.
+    attribute path (e.g. ``llm.model_name``) and *value* is the string
+    representation of the value to match.  The split is performed on the
+    **first** ``:`` only, so values may contain additional colons.
 
-    Returns ``models.Span.attributes[key_parts].as_string() == value``.
+    The value is parsed with ``json.loads()`` to determine its type:
+    - ``int`` → ``.as_integer() == val``
+    - ``float`` → ``.as_float() == val``
+    - ``bool`` → ``.as_boolean() == val``
+    - ``str`` or parse failure → ``.as_string() == val``
+    - ``None``, ``list``, or ``dict`` → HTTP 422
 
-    Raises :class:`HTTPException` (422) when the separator is missing or
-    the key portion is empty.
+    Raises :class:`HTTPException` (422) when the separator is missing,
+    the key is empty, the value is empty, or the value parses to an
+    unsupported type (None, list, dict).
     """
     if ":" not in filter_str:
         raise HTTPException(
             status_code=422,
-            detail=f"Invalid attribute_filter '{filter_str}': expected format 'key:value'",
+            detail=f"Invalid attribute '{filter_str}': expected format 'key:value'",
         )
     key, value = filter_str.split(":", 1)
     if not key:
         raise HTTPException(
             status_code=422,
-            detail="Invalid attribute_filter: key must not be empty",
+            detail="Invalid attribute: key must not be empty",
+        )
+    if not value:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid attribute: value must not be empty",
         )
     key_parts = key.split(".")
-    clause: sa.ColumnElement[bool] = models.Span.attributes[key_parts].as_string() == value
+    col = models.Span.attributes[key_parts]
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        parsed = value
+    if isinstance(parsed, bool):
+        clause: sa.ColumnElement[bool] = col.as_boolean() == parsed
+    elif isinstance(parsed, int):
+        clause = col.as_integer() == parsed
+    elif isinstance(parsed, float):
+        clause = col.as_float() == parsed
+    elif isinstance(parsed, str):
+        clause = col.as_string() == parsed
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid attribute value '{value}': must be a string, integer, float, or boolean"
+            ),
+        )
     return clause
 
 
@@ -703,7 +733,7 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
-    attribute_filter: Optional[list[str]] = Query(
+    attribute: Optional[list[str]] = Query(
         default=None,
         description=(
             "Filter by attribute key:value pairs (dot-separated keys, "
@@ -751,9 +781,9 @@ async def span_search_otlpv1(
                 )
             )
         )
-    if attribute_filter:
-        for af in attribute_filter:
-            stmt = stmt.where(_parse_attribute_filter(af))
+    if attribute:
+        for af in attribute:
+            stmt = stmt.where(_parse_attribute(af))
 
     if cursor:
         try:
@@ -891,7 +921,7 @@ async def span_search(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
-    attribute_filter: Optional[list[str]] = Query(
+    attribute: Optional[list[str]] = Query(
         default=None,
         description=(
             "Filter by attribute key:value pairs (dot-separated keys, "
@@ -945,9 +975,9 @@ async def span_search(
                 )
             )
         )
-    if attribute_filter:
-        for af in attribute_filter:
-            stmt = stmt.where(_parse_attribute_filter(af))
+    if attribute:
+        for af in attribute:
+            stmt = stmt.where(_parse_attribute(af))
 
     if cursor:
         try:

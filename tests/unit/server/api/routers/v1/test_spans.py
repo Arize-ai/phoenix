@@ -1480,7 +1480,7 @@ async def test_otlp_span_search_filter_by_status_code(
 
 @pytest.fixture
 async def project_with_attributed_spans(db: DbSessionFactory) -> None:
-    """Insert spans with known attributes for attribute_filter tests."""
+    """Insert spans with known attributes for attribute tests."""
     async with db() as session:
         project = models.Project(name="attr-filter-test")
         session.add(project)
@@ -1559,7 +1559,7 @@ async def test_span_search_filter_by_attribute(
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": "llm.model_name:gpt-4"},
+        params={"attribute": "llm.model_name:gpt-4"},
     )
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
@@ -1572,7 +1572,7 @@ async def test_otlp_span_search_filter_by_attribute(
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans/otlpv1",
-        params={"attribute_filter": "llm.model_name:gpt-4"},
+        params={"attribute": "llm.model_name:gpt-4"},
     )
     assert resp.is_success
     spans = [OtlpSpan.model_validate(s) for s in resp.json()["data"]]
@@ -1583,12 +1583,12 @@ async def test_otlp_span_search_filter_by_attribute(
 async def test_span_search_filter_by_multiple_attributes(
     httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
 ) -> None:
-    """Multiple attribute_filter params are ANDed."""
+    """Multiple attribute params are ANDed."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
         params=[
-            ("attribute_filter", "llm.model_name:gpt-4"),
-            ("attribute_filter", "openinference.span.kind:LLM"),
+            ("attribute", "llm.model_name:gpt-4"),
+            ("attribute", "openinference.span.kind:LLM"),
         ],
     )
     assert resp.is_success
@@ -1603,7 +1603,7 @@ async def test_span_search_filter_by_attribute_malformed(
     """Missing colon separator should return 422."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": "no-colon-here"},
+        params={"attribute": "no-colon-here"},
     )
     assert resp.status_code == 422
     assert "expected format" in resp.text
@@ -1615,7 +1615,7 @@ async def test_span_search_filter_by_attribute_empty_key(
     """Empty key (leading colon) should return 422."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": ":some-value"},
+        params={"attribute": ":some-value"},
     )
     assert resp.status_code == 422
     assert "key must not be empty" in resp.text
@@ -1627,7 +1627,7 @@ async def test_span_search_filter_by_attribute_no_match(
     """Non-matching attribute filter returns empty result set."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": "llm.model_name:nonexistent-model"},
+        params={"attribute": "llm.model_name:nonexistent-model"},
     )
     assert resp.is_success
     spans = resp.json()["data"]
@@ -1640,7 +1640,7 @@ async def test_span_search_filter_by_nested_attribute_path(
     """Verify filtering with a deeply nested attribute path (D6)."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": "retrieval.source.document.id:doc-42"},
+        params={"attribute": "retrieval.source.document.id:doc-42"},
     )
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
@@ -1654,7 +1654,7 @@ async def test_span_search_filter_by_attribute_value_with_colon(
     """Values containing colons are matched correctly via split(':', 1)."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
-        params={"attribute_filter": "config.endpoint:http://example.com"},
+        params={"attribute": "config.endpoint:http://example.com"},
     )
     assert resp.is_success
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
@@ -1668,7 +1668,7 @@ async def test_otlp_span_search_filter_by_attribute_malformed(
     """Missing colon separator on OTLP endpoint should return 422."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans/otlpv1",
-        params={"attribute_filter": "no-colon-here"},
+        params={"attribute": "no-colon-here"},
     )
     assert resp.status_code == 422
     assert "expected format" in resp.text
@@ -1680,7 +1680,195 @@ async def test_otlp_span_search_filter_by_attribute_empty_key(
     """Empty key (leading colon) on OTLP endpoint should return 422."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans/otlpv1",
-        params={"attribute_filter": ":some-value"},
+        params={"attribute": ":some-value"},
     )
     assert resp.status_code == 422
     assert "key must not be empty" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# Type-aware comparison tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def project_with_typed_spans(db: DbSessionFactory) -> None:
+    """Insert spans with integer, float, boolean, and string attributes."""
+    async with db() as session:
+        project = models.Project(name="typed-attr-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracetyped000000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_attrs: list[tuple[str, dict[str, Any]]] = [
+            (
+                "span-int",
+                {"llm": {"token_count": {"prompt": 42}}},
+            ),
+            (
+                "span-float",
+                {"llm": {"temperature": 3.14}},
+            ),
+            (
+                "span-bool-true",
+                {"llm": {"stream": True}},
+            ),
+            (
+                "span-bool-false",
+                {"llm": {"stream": False}},
+            ),
+            (
+                "span-string",
+                {"llm": {"model_name": "gpt-4"}},
+            ),
+            (
+                "span-string-42",
+                {"llm": {"token_count": {"prompt": "42"}}},
+            ),
+        ]
+        for i, (name, attrs) in enumerate(spans_attrs):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"typed{i:05d}",
+                    parent_id=None,
+                    name=name,
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes=attrs,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_attribute_type_integer_match(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Bare integer value matches stored int via .as_integer()."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.token_count.prompt:42"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-int"
+
+
+async def test_attribute_type_float_match(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Bare float value matches stored float via .as_float()."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.temperature:3.14"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-float"
+
+
+async def test_attribute_type_boolean_true_match(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Bare 'true' matches stored bool True via .as_boolean()."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.stream:true"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-bool-true"
+
+
+async def test_attribute_type_boolean_false_match(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Bare 'false' matches stored bool False via .as_boolean()."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.stream:false"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-bool-false"
+
+
+async def test_attribute_type_string_fallback_match(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Non-numeric, non-boolean value matches stored string via .as_string() fallback."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.model_name:gpt-4"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-string"
+
+
+async def test_attribute_type_quoted_string_matches_string_not_int(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Quoted "42" explicitly matches stored string "42", not stored int 42."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": 'llm.token_count.prompt:"42"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-string-42"
+
+
+async def test_attribute_null_value_returns_422(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """JSON null as attribute value returns 422."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.model_name:null"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_attribute_array_value_returns_422(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """JSON array as attribute value returns 422."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.model_name:[1,2]"},
+    )
+    assert resp.status_code == 422
+
+
+async def test_attribute_empty_value_returns_422(
+    httpx_client: httpx.AsyncClient, project_with_typed_spans: None
+) -> None:
+    """Empty value (key with trailing colon, nothing after) returns 422."""
+    resp = await httpx_client.get(
+        "v1/projects/typed-attr-test/spans",
+        params={"attribute": "llm.model_name:"},
+    )
+    assert resp.status_code == 422

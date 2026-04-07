@@ -54,7 +54,7 @@ interface SpanListOptions {
   name?: string[];
   traceId?: string[];
   parentId?: string;
-  attributeFilter?: string[];
+  attribute?: string[];
   includeAnnotations?: boolean;
   includeNotes?: boolean;
 }
@@ -93,7 +93,7 @@ async function fetchSpansForProject(
     names?: string[];
     spanKinds?: string[];
     statusCodes?: string[];
-    attributeFilter?: string[];
+    attribute?: string[];
     limit: number;
   }
 ): Promise<Span[]> {
@@ -119,7 +119,7 @@ async function fetchSpansForProject(
             name: options.names,
             span_kind: options.spanKinds,
             status_code: options.statusCodes,
-            attribute_filter: options.attributeFilter,
+            attribute: options.attribute,
           },
         },
       }
@@ -219,7 +219,7 @@ async function spanListHandler(
         names: options.name,
         spanKinds: options.spanKind,
         statusCodes: options.statusCode,
-        attributeFilter: options.attributeFilter,
+        attribute: options.attribute,
       }
     );
 
@@ -378,7 +378,7 @@ export function createSpanListCommand(): Command {
       'Filter by parent span ID (use "null" for root spans only)'
     )
     .option(
-      "--attribute-filter <filters...>",
+      "--attribute <filters...>",
       'Filter by attribute key-value pairs (e.g., "llm.model_name:gpt-4")'
     )
     .option("--include-annotations", "Include span annotations in the output")

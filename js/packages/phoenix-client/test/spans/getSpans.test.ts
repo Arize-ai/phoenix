@@ -213,11 +213,11 @@ describe("getSpans", () => {
     });
   });
 
-  describe("attributeFilter parameter", () => {
-    it("should send attribute_filter as array when given a single string", async () => {
+  describe("attribute parameter", () => {
+    it("should send attribute as array when given a single string", async () => {
       await getSpans({
         project: { projectName: "test-project" },
-        attributeFilter: "llm.model_name:gpt-4",
+        attribute: "llm.model_name:gpt-4",
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -225,17 +225,17 @@ describe("getSpans", () => {
         expect.objectContaining({
           params: expect.objectContaining({
             query: expect.objectContaining({
-              attribute_filter: ["llm.model_name:gpt-4"],
+              attribute: ["llm.model_name:gpt-4"],
             }),
           }),
         })
       );
     });
 
-    it("should send attribute_filter as array when given an array", async () => {
+    it("should send attribute as array when given an array", async () => {
       await getSpans({
         project: { projectName: "test-project" },
-        attributeFilter: ["llm.model_name:gpt-4", "llm.provider:openai"],
+        attribute: ["llm.model_name:gpt-4", "llm.provider:openai"],
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -243,27 +243,27 @@ describe("getSpans", () => {
         expect.objectContaining({
           params: expect.objectContaining({
             query: expect.objectContaining({
-              attribute_filter: ["llm.model_name:gpt-4", "llm.provider:openai"],
+              attribute: ["llm.model_name:gpt-4", "llm.provider:openai"],
             }),
           }),
         })
       );
     });
 
-    it("should not send attribute_filter when undefined", async () => {
+    it("should not send attribute when undefined", async () => {
       await getSpans({
         project: { projectName: "test-project" },
       });
 
       const callArgs = mockGet.mock.calls[0]?.[1];
-      expect(callArgs.params.query).not.toHaveProperty("attribute_filter");
+      expect(callArgs.params.query).not.toHaveProperty("attribute");
     });
 
-    it("should send attribute_filter combined with other filters", async () => {
+    it("should send attribute combined with other filters", async () => {
       await getSpans({
         project: { projectName: "test-project" },
         spanKind: "LLM",
-        attributeFilter: "llm.model_name:gpt-4",
+        attribute: "llm.model_name:gpt-4",
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -272,7 +272,7 @@ describe("getSpans", () => {
           params: expect.objectContaining({
             query: expect.objectContaining({
               span_kind: ["LLM"],
-              attribute_filter: ["llm.model_name:gpt-4"],
+              attribute: ["llm.model_name:gpt-4"],
             }),
           }),
         })

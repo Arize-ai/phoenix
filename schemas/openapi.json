@@ -2956,7 +2956,7 @@
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           },
           {
-            "name": "attribute_filter",
+            "name": "attribute",
             "in": "query",
             "required": false,
             "schema": {
@@ -2971,10 +2971,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only).",
-              "title": "Attribute Filter"
+              "description": "Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings (\"42\") are compared as strings.",
+              "title": "Attribute"
             },
-            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only)."
+            "description": "Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings (\"42\") are compared as strings."
           }
         ],
         "responses": {
@@ -3214,7 +3214,7 @@
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
           },
           {
-            "name": "attribute_filter",
+            "name": "attribute",
             "in": "query",
             "required": false,
             "schema": {
@@ -3229,10 +3229,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only).",
-              "title": "Attribute Filter"
+              "description": "Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings (\"42\") are compared as strings.",
+              "title": "Attribute"
             },
-            "description": "Filter by attribute key:value pairs (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on the first colon only)."
+            "description": "Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings (\"42\") are compared as strings."
           }
         ],
         "responses": {

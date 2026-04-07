@@ -78,7 +78,7 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
 
 export const GET_SPANS_ATTRIBUTE_FILTER: ParameterRequirement = {
   kind: "parameter",
-  parameterName: "attribute_filter",
+  parameterName: "attribute",
   parameterLocation: "query",
   route: "GET /v1/projects/{id}/spans",
   minServerVersion: [13, 24, 0],
