@@ -30,6 +30,7 @@ from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
+from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.trace.schemas import (
     Span as SpanForInsertion,
@@ -624,6 +625,10 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description="Advanced span filter expression (SpanFilter DSL).",
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
@@ -675,6 +680,24 @@ async def span_search_otlpv1(
     stmt = stmt.limit(limit + 1)
 
     async with request.app.state.db() as session:
+        if filter:
+            # Fetch distinct evaluation/annotation names for this project to validate filter expressions
+            result = await session.execute(
+                select(models.SpanAnnotation.name)
+                .join(models.Span, models.Span.id == models.SpanAnnotation.span_rowid)
+                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
+                .where(models.Trace.project_rowid == project_id)
+                .distinct()
+            )
+            valid_eval_names = [row[0] for row in result if row[0] is not None]
+            try:
+                span_filter = SpanFilter(
+                    condition=filter, valid_eval_names=valid_eval_names or None
+                )
+                stmt = span_filter(stmt)
+            except SyntaxError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid filter expression: {e}")
+
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -801,6 +824,10 @@ async def span_search(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    filter: Optional[str] = Query(
+        default=None,
+        description="Advanced span filter expression (SpanFilter DSL).",
+    ),
 ) -> SpansResponseBody:
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -858,6 +885,23 @@ async def span_search(
     stmt = stmt.limit(limit + 1)
 
     async with request.app.state.db() as session:
+        if filter:
+            result = await session.execute(
+                select(models.SpanAnnotation.name)
+                .join(models.Span, models.Span.id == models.SpanAnnotation.span_rowid)
+                .join(models.Trace, models.Trace.id == models.Span.trace_rowid)
+                .where(models.Trace.project_rowid == project_id)
+                .distinct()
+            )
+            valid_eval_names = [row[0] for row in result if row[0] is not None]
+            try:
+                span_filter = SpanFilter(
+                    condition=filter, valid_eval_names=valid_eval_names or None
+                )
+                stmt = span_filter(stmt)
+            except SyntaxError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid filter expression: {e}")
+
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:

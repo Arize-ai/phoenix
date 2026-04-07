@@ -189,6 +189,57 @@ class TestLaunchApp:
                         {"j": 1},
                     ] * (i + 1)
 
+    async def test_spans_rest_filter_by_name(self, _env: Mapping[str, str], _fake: Faker) -> None:
+        project_name = _fake.unique.pystr()
+        span_name_match = f"match_{token_hex(8)}"
+        span_name_other = f"other_{token_hex(8)}"
+        start_time = int(datetime.now(timezone.utc).timestamp() * 1e9)
+
+        with _server(_AppInfo(_env)) as app:
+            exporter = _http_span_exporter(app)
+
+            # Create a span that should match the filter
+            start_time += 10_000_000
+            span_match = _start_span(
+                project_name=project_name,
+                span_name=span_name_match,
+                exporter=exporter,
+                start_time=start_time,
+                attributes={},
+            )
+            span_match.end(start_time + 10_000_000)
+
+            # Create a span that should be filtered out
+            start_time += 20_000_000
+            span_other = _start_span(
+                project_name=project_name,
+                span_name=span_name_other,
+                exporter=exporter,
+                start_time=start_time,
+                attributes={},
+            )
+            span_other.end(start_time + 10_000_000)
+
+            client = _httpx_client(app)
+
+            def query_fn() -> Optional[list[dict[str, Any]]]:
+                resp = client.get(
+                    f"v1/projects/{project_name}/spans",
+                    params={"filter": f'name == "{span_name_match}"'},
+                )
+                if resp.status_code != 200:
+                    return None
+                body = resp.json()
+                data = body.get("data") or []
+                if not data:
+                    return None
+                return data
+
+            spans = await _get(query_fn)
+            assert spans is not None
+            names = {span["name"] for span in spans}
+            assert names == {span_name_match}
+
     def test_api_access(self, _no_auth_app: _AppInfo) -> None:
         """Test that all endpoints in our test constants return expected status codes."""
         client = _httpx_client(_no_auth_app)
