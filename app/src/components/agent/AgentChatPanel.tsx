@@ -1,6 +1,6 @@
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { AgentChatPanelView } from "./AgentChatPanelView";
+import { AgentChatHeader, DockedAgentChatFrame } from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -106,15 +106,16 @@ function AgentChatController({
   }
 
   return (
-    <AgentChatPanelView
-      sessionDisplayName={sessionDisplayName}
-      orderedSessions={orderedSessions}
-      activeSessionId={activeSessionId}
-      onSelectSession={setActiveSession}
-      onDeleteSession={deleteSession}
-      onCreateSession={createSession}
-      onClose={closePanel}
-    >
+    <DockedAgentChatFrame>
+      <AgentChatHeader
+        sessionDisplayName={sessionDisplayName}
+        orderedSessions={orderedSessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={setActiveSession}
+        onDeleteSession={deleteSession}
+        onCreateSession={createSession}
+        onClose={closePanel}
+      />
       <ChatView
         messages={messages}
         sendMessage={sendMessage}
@@ -127,6 +128,6 @@ function AgentChatController({
         modelMenuValue={menuValue}
         onModelChange={handleModelChange}
       />
-    </AgentChatPanelView>
+    </DockedAgentChatFrame>
   );
 }

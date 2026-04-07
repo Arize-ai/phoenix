@@ -40,12 +40,9 @@ const panelContentCSS = css`
 `;
 
 /**
- * Presentational shell for the resizable agent panel.
- *
- * All request lifecycle and persistence behavior lives outside this component
- * so the panel can be hidden without tearing down the active chat.
+ * Shared header for PXI chat surfaces.
  */
-export function AgentChatPanelView({
+export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
@@ -53,7 +50,6 @@ export function AgentChatPanelView({
   onDeleteSession,
   onCreateSession,
   onClose,
-  children,
 }: {
   sessionDisplayName: string;
   orderedSessions: AgentSession[];
@@ -62,71 +58,113 @@ export function AgentChatPanelView({
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
   onClose: () => void;
+}) {
+  return (
+    <div css={panelHeaderCSS}>
+      <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
+        <PxiGlyph
+          fill="var(--global-text-color-900)"
+          css={css`
+            transform: scale(0.7);
+          `}
+        />
+        <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
+          {sessionDisplayName}
+        </Text>
+      </Flex>
+      <Flex
+        direction="row"
+        alignItems="center"
+        gap="size-50"
+        css={panelHeaderActionsCSS}
+      >
+        <SessionListMenu
+          sessions={orderedSessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={onSelectSession}
+          onDeleteSession={onDeleteSession}
+        />
+        <IconButton size="S" aria-label="New chat" onPress={onCreateSession}>
+          <Icon svg={<Icons.PlusOutline />} />
+        </IconButton>
+        <IconButton size="S" aria-label="Close agent chat" onPress={onClose}>
+          <Icon svg={<Icons.CloseOutline />} />
+        </IconButton>
+      </Flex>
+    </div>
+  );
+}
+
+/**
+ * Shared content frame for the docked and embedded PXI surfaces.
+ */
+function AgentChatFrame({
+  panelId,
+  panelProps,
+  children,
+  contentCss,
+}: {
+  panelId: string;
+  panelProps?: Partial<React.ComponentProps<typeof Panel>>;
   children: ReactNode;
+  contentCss: ReturnType<typeof css>;
 }) {
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel
-        id="agent-chat"
-        minSize="420px"
-        maxSize="50%"
-        defaultSize="420px"
-        groupResizeBehavior="preserve-pixel-size"
-      >
-        <div css={panelContentCSS}>
-          <div css={panelHeaderCSS}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-50"
-              minWidth={0}
-            >
-              <PxiGlyph
-                fill="var(--global-text-color-900)"
-                css={css`
-                  transform: scale(0.7);
-                `}
-              />
-              <Text
-                weight="heavy"
-                css={sessionHeadingCSS}
-                title={sessionDisplayName}
-              >
-                {sessionDisplayName}
-              </Text>
-            </Flex>
-            <Flex
-              direction="row"
-              alignItems="center"
-              gap="size-50"
-              css={panelHeaderActionsCSS}
-            >
-              <SessionListMenu
-                sessions={orderedSessions}
-                activeSessionId={activeSessionId}
-                onSelectSession={onSelectSession}
-                onDeleteSession={onDeleteSession}
-              />
-              <IconButton
-                size="S"
-                aria-label="New chat"
-                onPress={onCreateSession}
-              >
-                <Icon svg={<Icons.PlusOutline />} />
-              </IconButton>
-              <IconButton
-                size="S"
-                aria-label="Close agent chat"
-                onPress={onClose}
-              >
-                <Icon svg={<Icons.CloseOutline />} />
-              </IconButton>
-            </Flex>
-          </div>
-          {children}
-        </div>
+      <Panel id={panelId} {...panelProps}>
+        <div css={contentCss}>{children}</div>
       </Panel>
     </>
+  );
+}
+
+/**
+ * Presentational shell for the docked resizable agent panel.
+ */
+export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
+  return (
+    <AgentChatFrame
+      panelId="agent-chat"
+      panelProps={{
+        minSize: "420px",
+        maxSize: "50%",
+        defaultSize: "420px",
+        groupResizeBehavior: "preserve-pixel-size",
+      }}
+      contentCss={panelContentCSS}
+    >
+      {children}
+    </AgentChatFrame>
+  );
+}
+
+const tracePanelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--global-border-color-default);
+  background: var(--global-background-color-primary);
+`;
+
+/**
+ * Presentational shell for the trace slideover's embedded PXI panel.
+ */
+export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
+  return (
+    <AgentChatFrame
+      panelId="trace-agent-chat"
+      panelProps={{
+        defaultSize: "32%",
+        minSize: "24%",
+        maxSize: "45%",
+      }}
+      contentCss={tracePanelContentCSS}
+    >
+      {children}
+    </AgentChatFrame>
   );
 }
