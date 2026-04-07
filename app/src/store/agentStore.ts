@@ -14,6 +14,17 @@ import type { ModelConfig } from "./playground/types";
  */
 export type AgentPosition = "detached" | "pinned";
 
+/**
+ * Which surface currently hosts the agent chat panel.
+ * - "docked": the resizable panel in the main layout
+ * - "trace": the embedded panel inside a trace slideover
+ *
+ * When a surface mounts it claims the active location; the Layout uses this
+ * to decide whether to render the docked panel (only when no other surface
+ * has claimed the location).
+ */
+export type AgentPanelLocation = "docked" | "trace";
+
 export interface AgentDebugSettings {
   retainInactiveBashSessions: boolean;
 }
@@ -56,6 +67,13 @@ export interface AgentProps {
   isOpen: boolean;
   /** Current layout position of the agent panel. */
   position: AgentPosition;
+  /**
+   * Which surface currently hosts the agent chat panel.
+   * Defaults to "docked". Set to "trace" when a trace slideover mounts its
+   * own embedded chat panel, which suppresses the docked panel in Layout.
+   * This field is ephemeral and not persisted.
+   */
+  activePanelLocation: AgentPanelLocation;
   /** Ordered list of session IDs. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
@@ -76,6 +94,7 @@ export interface AgentState extends AgentProps {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
+  setActivePanelLocation: (location: AgentPanelLocation) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
   setActiveSession: (sessionId: string | null) => void;
@@ -122,6 +141,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   > = (set) => ({
     isOpen: false,
     position: "detached",
+    activePanelLocation: "docked",
     sessions: [],
     activeSessionId: null,
     sessionMap: {},
@@ -137,6 +157,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setPosition: (position) => {
       set({ position }, false, { type: "setPosition" });
+    },
+    setActivePanelLocation: (location) => {
+      set({ activePanelLocation: location }, false, {
+        type: "setActivePanelLocation",
+      });
     },
     createSession: () => {
       const sessionId = crypto.randomUUID();

@@ -14,7 +14,6 @@ type AgentChatRuntime = {
     chatApiUrl: string;
     createChat: () => Chat<UIMessage>;
   }) => Chat<UIMessage>;
-  removeChatsForSession: (sessionId: string) => void;
   pruneChats: (liveSessionIds: string[]) => void;
 };
 
@@ -26,7 +25,7 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const [runtime] = useState<AgentChatRuntime>(() => {
     const chatRegistry = new Map<
       string,
-      { chatApiUrl: string; chat: Chat<UIMessage> }
+      { chatApiUrl: string; chat: Chat<UIMessage>; unsubscribe: () => void }
     >();
 
     return {
@@ -36,22 +35,25 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
           return existingEntry.chat;
         }
 
+        // Clean up the previous chat's status callback before replacing
+        if (existingEntry) {
+          existingEntry.unsubscribe();
+        }
+
         const chat = createChat();
-        chat["~registerStatusCallback"](() => {
+        const unsubscribe = chat["~registerStatusCallback"](() => {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
-        chatRegistry.set(sessionId, { chatApiUrl, chat });
+        chatRegistry.set(sessionId, { chatApiUrl, chat, unsubscribe });
         store.getState().setSessionChatStatus(sessionId, chat.status);
         return chat;
-      },
-      removeChatsForSession: (sessionId) => {
-        chatRegistry.delete(sessionId);
-        store.getState().setSessionChatStatus(sessionId, "ready");
       },
       pruneChats: (liveSessionIds) => {
         const liveSessionIdSet = new Set(liveSessionIds);
         for (const sessionId of chatRegistry.keys()) {
           if (!liveSessionIdSet.has(sessionId)) {
+            const entry = chatRegistry.get(sessionId);
+            entry?.unsubscribe();
             chatRegistry.delete(sessionId);
             store.getState().setSessionChatStatus(sessionId, "ready");
           }

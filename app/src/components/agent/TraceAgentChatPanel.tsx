@@ -6,13 +6,35 @@ import {
   EMPTY_SESSION_DISPLAY_NAME,
   getSessionDisplayName,
 } from "./sessionSummaryUtils";
+import { useActiveChatPanelWhileMounted } from "./useActiveChatPanelWhileMounted";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 
+/**
+ * Agent chat panel embedded inside the trace slideover.
+ *
+ * Claims `activePanelLocation = "trace"` while mounted so the Layout
+ * suppresses the docked panel. Released back to `"docked"` on unmount.
+ */
 export function TraceAgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
+  const { isOpen } = useAgentChatPanelState();
+  useActiveChatPanelWhileMounted("trace");
+
+  if (!isAgentsEnabled || !isOpen) {
+    return null;
+  }
+
+  return <TraceAgentChatController />;
+}
+
+/**
+ * Inner controller that only mounts when agents are enabled and the panel is
+ * open. This avoids running useAgentChat (which registers a Chat instance in
+ * the runtime) when it's not needed.
+ */
+function TraceAgentChatController() {
   const {
-    isOpen,
     activeSessionId,
     orderedSessions,
     chatApiUrl,
@@ -44,10 +66,6 @@ export function TraceAgentChatPanel() {
     sessionId: activeSessionId,
     chatApiUrl,
   });
-
-  if (!isAgentsEnabled || !isOpen) {
-    return null;
-  }
 
   return (
     <TraceAgentChatFrame>

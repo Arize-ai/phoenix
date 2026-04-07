@@ -112,7 +112,7 @@ function AgentChatFrame({
   return (
     <>
       <Separator css={compactResizeHandleCSS} />
-      <Panel id={panelId} {...panelProps}>
+      <Panel {...panelProps} id={panelId}>
         <div css={contentCss}>{children}</div>
       </Panel>
     </>
