@@ -197,6 +197,15 @@ class TestGetSpansAttributeFilters:
         )
         assert len(spans) == 1
 
+    def test_string_true_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['cached:"true"']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"cached": "true"},
+        )
+        assert len(spans) == 1
+
     def test_string_numeric_value_quoted_on_wire(self) -> None:
         transport = _make_handler(expected_params={"attribute": ['count:"42"']})
         client = httpx.Client(transport=transport, base_url="http://test")
@@ -321,5 +330,15 @@ class TestAsyncGetSpansAttributeFilters:
             project_identifier="my-project",
             span_kind="LLM",
             attribute={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_string_true_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['cached:"true"']})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            attribute={"cached": "true"},
         )
         assert len(spans) == 1

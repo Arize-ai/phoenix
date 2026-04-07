@@ -81,7 +81,7 @@ export const GET_SPANS_ATTRIBUTE_FILTER: ParameterRequirement = {
   parameterName: "attribute",
   parameterLocation: "query",
   route: "GET /v1/projects/{id}/spans",
-  minServerVersion: [13, 24, 0],
+  minServerVersion: [13, 25, 0],
 };
 
 /**
