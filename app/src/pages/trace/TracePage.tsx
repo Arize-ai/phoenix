@@ -20,6 +20,7 @@ import {
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 
@@ -32,6 +33,7 @@ export function TracePage() {
   const { traceId, projectId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const isAgentsEnabled = useFeatureFlag("agents");
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
@@ -59,16 +61,18 @@ export function TracePage() {
                   <TitleWithID title="Trace" id={traceId as string} />
                 </Flex>
                 <DialogTitleExtra>
-                  {/* The global FAB is intentionally hidden while a modal overlay
-                      is open, so traces expose a local PXI entrypoint here. */}
-                  <Button
-                    size="S"
-                    variant="primary"
-                    leadingVisual={<PxiGlyph variant="resting" />}
-                    onPress={() => setIsOpen(true)}
-                  >
-                    Ask PXI
-                  </Button>
+                  {isAgentsEnabled ? (
+                    /* The global FAB is intentionally hidden while a modal overlay
+                        is open, so traces expose a local PXI entrypoint here. */
+                    <Button
+                      size="S"
+                      variant="primary"
+                      leadingVisual={<PxiGlyph variant="resting" />}
+                      onPress={() => setIsOpen(true)}
+                    >
+                      Ask PXI
+                    </Button>
+                  ) : null}
                   <ShareLinkButton
                     preserveSearchParams
                     buttonText="Share"

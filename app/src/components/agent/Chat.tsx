@@ -19,8 +19,8 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
 
+import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { useAgentChat } from "./useAgentChat";
 
@@ -197,7 +197,7 @@ export function ChatView({
               </PromptInputBody>
               <PromptInputFooter>
                 <PromptInputTools>
-                  <ModelMenu
+                  <AgentModelMenu
                     value={modelMenuValue}
                     onChange={onModelChange}
                     placement="top start"

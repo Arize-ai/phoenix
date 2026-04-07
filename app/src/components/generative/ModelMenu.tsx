@@ -167,6 +167,7 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
 export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
+  isDisabled?: boolean;
   /**
    * Visual variant of the trigger button.
    * - `"default"` — standard bordered button with chevron icon.
@@ -179,6 +180,7 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
 export function ModelMenu({
   value,
   onChange,
+  isDisabled = false,
   placement,
   shouldFlip,
   variant = "default",
@@ -318,7 +320,7 @@ export function ModelMenu({
 
   return (
     <MenuTrigger>
-      <Button size="S" variant={variant}>
+      <Button size="S" variant={variant} isDisabled={isDisabled}>
         {value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
             {isValidSelectedProvider && (
