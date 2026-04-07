@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.13.0...arize-phoenix-evals-v3.0.0) (2026-04-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239))
+
+### Features
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239)) ([15e6415](https://github.com/Arize-ai/phoenix/commit/15e6415105ce4757de905172cbd0e07215d38990))
+
 ## [2.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.12.0...arize-phoenix-evals-v2.13.0) (2026-04-01)
 
 
