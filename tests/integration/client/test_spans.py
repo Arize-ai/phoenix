@@ -9,10 +9,9 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
+from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
-
-from phoenix.client.__generated__ import v1
 
 from .._helpers import (
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
@@ -848,7 +847,6 @@ class TestClientForSpansRetrieval:
         api_key = _app.admin_secret
 
         import httpx
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2177,7 +2175,6 @@ class TestClientForSpanDeletion:
         api_key = _app.admin_secret
 
         import httpx
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 

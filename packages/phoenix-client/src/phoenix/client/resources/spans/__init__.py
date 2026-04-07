@@ -58,15 +58,13 @@ def _serialize_attribute_value(v: Union[str, int, float, bool]) -> str:
         if not math.isfinite(v):
             raise ValueError(f"Non-finite float values are not supported: {v!r}")
         return str(v)
-    if isinstance(v, str):
-        try:
-            parsed = json.loads(v)
-        except (json.JSONDecodeError, ValueError):
-            return v
-        if not isinstance(parsed, str):
-            return json.dumps(v)
+    try:
+        parsed = json.loads(v)
+    except (json.JSONDecodeError, ValueError):
         return v
-    raise TypeError(f"Attribute values must be str, int, float, or bool; got {type(v).__name__!r}")
+    if not isinstance(parsed, str):
+        return json.dumps(v)
+    return v
 
 
 # Re-export generated types
