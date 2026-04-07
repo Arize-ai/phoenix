@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
-import { useCallback } from "react";
-import { Panel, type PanelSize, Separator } from "react-resizable-panels";
+import { Panel, Separator } from "react-resizable-panels";
 
 import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
@@ -14,17 +13,6 @@ import {
   getSessionDisplayName,
 } from "./sessionSummaryUtils";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
-
-const PANEL_STORAGE_KEY = "phoenix-agent-panel-width";
-const DEFAULT_PANEL_WIDTH = "420px";
-
-let savedPanelWidth: string;
-try {
-  savedPanelWidth =
-    localStorage.getItem(PANEL_STORAGE_KEY) ?? DEFAULT_PANEL_WIDTH;
-} catch {
-  savedPanelWidth = DEFAULT_PANEL_WIDTH;
-}
 
 const panelHeaderCSS = css`
   display: flex;
@@ -87,14 +75,6 @@ export function AgentChatPanel() {
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
-  const handleResize = useCallback((panelSize: PanelSize) => {
-    try {
-      localStorage.setItem(PANEL_STORAGE_KEY, `${panelSize.inPixels}px`);
-    } catch {
-      // don't store custom panel width when storage is full or unavailable
-    }
-  }, []);
-
   if (!isAgentsEnabled || !isOpen) {
     return null;
   }
@@ -103,11 +83,11 @@ export function AgentChatPanel() {
     <>
       <Separator css={compactResizeHandleCSS} />
       <Panel
+        id="agent-chat"
         minSize="420px"
         maxSize="50%"
-        defaultSize={savedPanelWidth}
+        defaultSize="420px"
         groupResizeBehavior="preserve-pixel-size"
-        onResize={handleResize}
       >
         <div css={panelContentCSS}>
           <div css={panelHeaderCSS}>

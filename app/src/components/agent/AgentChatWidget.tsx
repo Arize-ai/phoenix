@@ -12,28 +12,6 @@ const shimmer = keyframes`
   50%      { background-position: -200% center; }
 `;
 
-const breathe = keyframes`
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 0.7; }
-`;
-
-const gapTL = keyframes`
-  0%, 70%, 100% { transform: translate(0.5px, 0.5px); }
-  20%           { transform: translate(-0.5px, -0.5px); }
-`;
-const gapTR = keyframes`
-  0%, 70%, 100% { transform: translate(-0.5px, 0.5px); }
-  20%           { transform: translate(0.5px, -0.5px); }
-`;
-const gapBL = keyframes`
-  0%, 70%, 100% { transform: translate(0.5px, -0.5px); }
-  20%           { transform: translate(-0.5px, 0.5px); }
-`;
-const gapBR = keyframes`
-  0%, 70%, 100% { transform: translate(-0.5px, -0.5px); }
-  20%           { transform: translate(0.5px, 0.5px); }
-`;
-
 const buttonCSS = css`
   position: fixed;
   bottom: 24px;
@@ -72,37 +50,6 @@ const shapeCSS = css`
   }
 `;
 
-const thinkingDotsCSS = css`
-  .fab-glyph circle {
-    fill: var(--global-color-gray-50);
-  }
-
-  .fab-dot-center {
-    animation: ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 1s;
-  }
-  .fab-dot-tl {
-    animation: ${gapTL} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0s, 0s;
-  }
-  .fab-dot-tr {
-    animation: ${gapTR} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.3s, 0.5s;
-  }
-  .fab-dot-br {
-    animation: ${gapBR} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.6s, 2s;
-  }
-  .fab-dot-bl {
-    animation: ${gapBL} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.9s, 1.5s;
-  }
-`;
-
 const shimmerCSS = css`
   background: linear-gradient(
     120deg,
@@ -112,18 +59,6 @@ const shimmerCSS = css`
   );
   background-size: 400% 100%;
   animation: ${shimmer} 10s ease-in-out infinite;
-`;
-
-const restingDotsCSS = css`
-  .fab-glyph {
-    transform: scale(0.7);
-  }
-
-  .fab-glyph circle {
-    fill: var(--global-color-gray-100);
-    opacity: 1;
-    animation: none;
-  }
 `;
 
 export function AgentChatWidget() {
@@ -141,11 +76,7 @@ export function AgentChatWidget() {
   return createPortal(
     <button css={buttonCSS} onClick={toggleOpen} aria-label="Open agent chat">
       <motion.div
-        css={[
-          shapeCSS,
-          isStreaming ? shimmerCSS : undefined,
-          isStreaming ? thinkingDotsCSS : restingDotsCSS,
-        ]}
+        css={[shapeCSS, isStreaming ? shimmerCSS : undefined]}
         initial={false}
         animate={{
           width: isStreaming ? 40 : 58,
@@ -161,7 +92,15 @@ export function AgentChatWidget() {
           ease: [0.4, 0, 0.2, 1],
         }}
       >
-        <PxiGlyph className="fab-glyph" fill="var(--global-color-gray-50)" />
+        <PxiGlyph
+          className="fab-glyph"
+          fill={
+            isStreaming
+              ? "var(--global-color-gray-50)"
+              : "var(--global-color-gray-100)"
+          }
+          variant={isStreaming ? "thinking" : "resting"}
+        />
         <AnimatePresence>
           {!isStreaming && (
             <motion.span
