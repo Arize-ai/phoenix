@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
+  Button,
   Dialog,
   Flex,
   Loading,
@@ -9,6 +10,7 @@ import {
   ModalOverlay,
   TitleWithID,
 } from "@phoenix/components";
+import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
 import {
   DialogCloseButton,
   DialogContent,
@@ -17,6 +19,7 @@ import {
 } from "@phoenix/components/core/dialog";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 
@@ -29,6 +32,7 @@ export function TracePage() {
   const { traceId, projectId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
 
@@ -55,6 +59,16 @@ export function TracePage() {
                   <TitleWithID title="Trace" id={traceId as string} />
                 </Flex>
                 <DialogTitleExtra>
+                  {/* The global FAB is intentionally hidden while a modal overlay
+                      is open, so traces expose a local PXI entrypoint here. */}
+                  <Button
+                    size="S"
+                    variant="primary"
+                    leadingVisual={<PxiGlyph variant="resting" />}
+                    onPress={() => setIsOpen(true)}
+                  >
+                    Ask PXI
+                  </Button>
                   <ShareLinkButton
                     preserveSearchParams
                     buttonText="Share"

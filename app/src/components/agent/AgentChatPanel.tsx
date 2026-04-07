@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import { Loading } from "@phoenix/components/core";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { AgentChatHeader, DockedAgentChatFrame } from "./AgentChatPanelView";
@@ -116,18 +119,21 @@ function AgentChatController({
         onCreateSession={createSession}
         onClose={closePanel}
       />
-      <ChatView
-        messages={messages}
-        sendMessage={sendMessage}
-        stop={stop}
-        status={status}
-        error={error}
-        pendingElicitation={pendingElicitation}
-        handleElicitationSubmit={handleElicitationSubmit}
-        handleElicitationCancel={handleElicitationCancel}
-        modelMenuValue={menuValue}
-        onModelChange={handleModelChange}
-      />
+      {/* Catch runaway suspense triggers that aren't handled locally */}
+      <Suspense fallback={<Loading />}>
+        <ChatView
+          messages={messages}
+          sendMessage={sendMessage}
+          stop={stop}
+          status={status}
+          error={error}
+          pendingElicitation={pendingElicitation}
+          handleElicitationSubmit={handleElicitationSubmit}
+          handleElicitationCancel={handleElicitationCancel}
+          modelMenuValue={menuValue}
+          onModelChange={handleModelChange}
+        />
+      </Suspense>
     </DockedAgentChatFrame>
   );
 }

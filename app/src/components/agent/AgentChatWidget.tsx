@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
 import { PxiGlyph } from "./PxiGlyph";
 
@@ -66,13 +67,16 @@ export function AgentChatWidget() {
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
+  const hasOpenModal = useHasOpenModal();
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
       : false
   );
 
-  if (!isAgentsEnabled || isOpen) {
+  // Use contextual entrypoints inside modals (e.g. trace slideover header)
+  // instead of letting the global FAB compete with overlay hit-testing.
+  if (!isAgentsEnabled || isOpen || hasOpenModal) {
     return null;
   }
 
