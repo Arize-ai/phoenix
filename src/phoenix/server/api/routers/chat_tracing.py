@@ -640,21 +640,27 @@ def finalize_recent_input_tool_result_spans(
 
     for message in recent_messages:
         if isinstance(message, ModelResponse):
-            for part in message.parts:
-                if isinstance(part, ToolCallPart):
-                    tool_calls_by_id[part.tool_call_id] = {
-                        "name": part.tool_name,
-                        "arguments": part.args_as_json_str() if part.args is not None else "",
+            for response_part in message.parts:
+                if isinstance(response_part, ToolCallPart):
+                    tool_calls_by_id[response_part.tool_call_id] = {
+                        "name": response_part.tool_name,
+                        "arguments": (
+                            response_part.args_as_json_str()
+                            if response_part.args is not None
+                            else ""
+                        ),
                     }
         elif isinstance(message, ModelRequest):
-            for part in message.parts:
-                if not isinstance(part, ToolReturnPart):
+            for request_part in message.parts:
+                if not isinstance(request_part, ToolReturnPart):
                     continue
-                tool_call = tool_calls_by_id.get(part.tool_call_id, {})
+                tool_call = tool_calls_by_id.get(request_part.tool_call_id, {})
                 tool_output = (
-                    part.content if isinstance(part.content, str) else json.dumps(part.content)
+                    request_part.content
+                    if isinstance(request_part.content, str)
+                    else json.dumps(request_part.content)
                 )
-                tool_name = part.tool_name or tool_call.get("name")
+                tool_name = request_part.tool_name or tool_call.get("name")
                 tool_span = create_tool_span(
                     tracer,
                     parent_span=parent_span,
