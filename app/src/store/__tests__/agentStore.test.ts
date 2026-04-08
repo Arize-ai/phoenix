@@ -1,4 +1,5 @@
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
+import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import { createAgentStore } from "../agentStore";
 
@@ -80,6 +81,70 @@ describe("agentStore", () => {
       expect(store.getState().systemPrompt).toBe(AGENT_SYSTEM_PROMPT);
       store.getState().setSystemPrompt("custom");
       expect(store.getState().systemPrompt).toBe("custom");
+    });
+  });
+
+  describe("setCapability", () => {
+    it("updates one capability without clobbering the others", () => {
+      const store = createAgentStore();
+      const defaultCapabilities = createDefaultAgentCapabilities();
+      const [capabilityToToggle] = Object.keys(defaultCapabilities) as Array<
+        keyof typeof defaultCapabilities
+      >;
+
+      store.getState().setCapability({
+        key: capabilityToToggle,
+        enabled: true,
+      });
+
+      expect(store.getState().capabilities[capabilityToToggle]).toBe(true);
+
+      for (const [capabilityKey, enabled] of Object.entries(
+        defaultCapabilities
+      ) as Array<[keyof typeof defaultCapabilities, boolean]>) {
+        if (capabilityKey === capabilityToToggle) {
+          continue;
+        }
+
+        expect(store.getState().capabilities[capabilityKey]).toBe(enabled);
+      }
+    });
+  });
+
+  describe("persist migration", () => {
+    it("migrates legacy debug flags into capabilities", async () => {
+      localStorage.setItem(
+        "arize-phoenix-agent",
+        JSON.stringify({
+          state: {
+            isOpen: false,
+            position: "detached",
+            sessions: [],
+            activeSessionId: null,
+            sessionMap: {},
+            defaultModelConfig: {
+              provider: "ANTHROPIC",
+              modelName: "claude-opus-4-6",
+              invocationParameters: [],
+              supportedInvocationParameters: [],
+            },
+            debug: {
+              retainInactiveBashSessions: true,
+              dangerouslyEnableMutations: true,
+            },
+          },
+          version: 1,
+        })
+      );
+
+      const store = createAgentStore();
+      await store.persist.rehydrate();
+
+      expect(store.getState().capabilities).toEqual({
+        ...createDefaultAgentCapabilities(),
+        "bash.retainInactiveSessions": true,
+        "graphql.mutations": true,
+      });
     });
   });
 });
