@@ -7,6 +7,39 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.07.2026">
+## [04.07.2026: PostgreSQL Read Replica Routing](/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica)
+**Available in arize-phoenix 14.0.0+**
+
+Route read-only queries (GraphQL resolvers, REST reads, dataloaders) to an optional PostgreSQL read replica via `PHOENIX_SQL_DATABASE_READ_REPLICA_URL`, reducing load on the primary under high span ingestion.
+
+- **Set and go** — point the env var at your replica; writes always go to the primary
+- **No config change needed** when a replica is not configured — falls back to primary
+</Update>
+
+<Update label="04.07.2026">
+## [04.07.2026: Breaking Changes — Phoenix v14](/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes)
+**Breaking changes in arize-phoenix 14.0.0, arize-phoenix-evals 3.0.0, arize-phoenix-client 2.3.1+**
+
+Phoenix v14 removes several legacy APIs. See the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md) for step-by-step instructions.
+
+- **CLI is now subcommand-first** — `phoenix serve --dev` replaces `phoenix --dev serve`
+- **`px.Client()` removed** — use `from phoenix.client import Client` with `base_url=` instead of `endpoint=`
+- **`/v1/evaluations` removed** — use `/v1/span_annotations`, `/v1/trace_annotations`, or `/v1/document_annotations`
+- **Evals 1.0 removed** — `arize-phoenix-evals` 3.0.0 drops the `legacy/` subpackage; `phoenix.experiments` is replaced by `phoenix.client.experiments`
+</Update>
+
+<Update label="04.03.2026">
+## [04.03.2026: ATIF Trajectory Upload](/docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload)
+**Available in arize-phoenix-client 2.3.0+ (Python)**
+
+`upload_atif_trajectories_as_spans` converts [ATIF](https://github.com/harbor-ai/agent-trajectory-format) (Agent Trajectory Interchange Format) trajectory JSON files into OpenTelemetry span trees and uploads them to Phoenix. Visualize offline Harbor agent runs alongside live instrumented traces.
+
+- **Supports ATIF v1.0–v1.6** including multimodal content (images) in v1.6+
+- **Subagent linking** — upload parent and child trajectories together to link them into one trace
+- **Idempotent** — trace/span IDs are derived from `session_id` via SHA-256; re-uploading the same file is safe
+</Update>
+
 <Update label="04.01.2026">
 ## [04.01.2026: Python 3.14 Support](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
 **Available in arize-phoenix 13.21.0+, arize-phoenix-client 2.2.0+, arize-phoenix-evals 2.13.0+**

@@ -1,0 +1,146 @@
+---
+title: "Release Notes"
+description: "Breaking changes in Phoenix v14.0.0: CLI restructuring, legacy client removal, evaluations endpoint removal, and evals 1.0 removal."
+---
+
+# Breaking Change: CLI Now Subcommand-First
+
+April 7, 2026
+
+**Breaking change in arize-phoenix 14.0.0**
+
+The Phoenix server CLI is now **subcommand-first**. Flags that previously preceded the subcommand must now follow it.
+
+**Before:**
+
+```bash
+phoenix --dev serve
+phoenix --host 0.0.0.0 --port 6006 serve
+python -m phoenix.server.main --dev --dev-vite-port 5173 serve
+```
+
+**After:**
+
+```bash
+phoenix serve --dev
+phoenix serve --host 0.0.0.0 --port 6006
+python -m phoenix.server.main serve --dev --dev-vite-port 5173
+```
+
+The `db migrate` subcommand is unchanged. Pass `--database-url` directly to the subcommand that needs it, or rely on `PHOENIX_SQL_DATABASE_URL`:
+
+```bash
+phoenix serve --database-url "postgresql://..."
+phoenix db migrate --database-url "postgresql://..."
+```
+
+The deprecated `--enable-websockets` flag has been removed. Use `phoenix serve --help` or `phoenix db migrate --help` for full option listings.
+
+# Breaking Change: Legacy `px.Client()` Removed
+
+April 7, 2026
+
+**Breaking change in arize-phoenix 14.0.0**
+
+`phoenix.session.client.Client` (accessed as `px.Client()`) has been removed. All client interactions now go through `arize-phoenix-client`.
+
+```bash
+pip install arize-phoenix-client
+```
+
+**Before:**
+
+```python
+import phoenix as px
+
+client = px.Client(endpoint="http://localhost:6006")
+spans_df = client.get_spans_dataframe()
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+client = Client(base_url="http://localhost:6006")
+spans_df = client.spans.get_spans_dataframe()
+```
+
+The `endpoint` parameter is now `base_url`. When omitted, the client falls back to environment variables or `http://localhost:6006`. The new client organizes methods under resource namespaces (`.spans`, `.traces`, `.datasets`, `.experiments`) instead of flat methods on the client object.
+
+See the [v14 migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md) for a full method-by-method mapping.
+
+# Breaking Change: `/v1/evaluations` Endpoint Removed
+
+April 7, 2026
+
+**Breaking change in arize-phoenix 14.0.0**
+
+The `POST /v1/evaluations` and `GET /v1/evaluations` REST endpoints have been removed. Use the annotations API instead:
+
+| Previous | Replacement |
+| :------- | :---------- |
+| `POST /v1/evaluations` (span evals) | `POST /v1/span_annotations` |
+| `POST /v1/evaluations` (trace evals) | `POST /v1/trace_annotations` |
+| `POST /v1/evaluations` (document evals) | `POST /v1/document_annotations` |
+| `GET /v1/evaluations` | `client.spans.get_span_annotations(...)` |
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+import phoenix as px
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
+)
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+`protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
+
+# Breaking Change: Evals 1.0 Removed
+
+April 7, 2026
+
+**Breaking change in arize-phoenix-evals 3.0.0, arize-phoenix-client 2.3.1+**
+
+`arize-phoenix-evals` 3.0.0 removes the legacy evals 1.0 module and the legacy experiments module from the Phoenix server package.
+
+**Removed from `arize-phoenix-evals`:**
+- The entire `legacy/` subpackage and its `models/` wrappers
+- `MultimodalPrompt`, `PromptPartContentType`, and `PromptPart` types — all adapter methods now use `PromptLike`
+
+**Removed from `arize-phoenix`:**
+- `phoenix.experiments` — the legacy experiment execution module (`functions.py`, `tracing.py`, `evaluators/`)
+- `phoenix.experiments.types` — use `phoenix.client.__generated__.v1.DatasetExample` instead
+
+**Experiments migration:**
+
+```python
+# Before
+from phoenix.experiments.types import Example
+from phoenix.experiments.evaluators import create_evaluator
+from phoenix.experiments import run_experiment, evaluate_experiment
+
+experiment = run_experiment(dataset, task, evaluators=[...])
+
+# After
+from phoenix.client.__generated__.v1 import DatasetExample as Example
+from phoenix.client.experiments import create_evaluator, run_experiment, evaluate_experiment
+
+experiment = run_experiment(dataset=dataset, task=task, evaluators=[...])
+```
+
+The `phoenix-client` experiments module (`phoenix.client.experiments`) is the replacement and has no dependency on `arize-phoenix-evals`.

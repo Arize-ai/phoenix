@@ -1144,6 +1144,9 @@
               {
                 "group": "04.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica",
+                  "docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes",
+                  "docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload",
                   "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
                 ]
               },
