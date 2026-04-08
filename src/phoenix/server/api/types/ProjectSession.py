@@ -262,13 +262,11 @@ class ProjectSession(Node):
         """Get all annotations for this session."""
         from .ProjectSessionAnnotation import ProjectSessionAnnotation
 
-        stmt = select(models.ProjectSessionAnnotation).filter_by(project_session_id=self.id)
-        async with info.context.db.read() as session:
-            annotations = await session.stream_scalars(stmt)
-            return [
-                ProjectSessionAnnotation(id=annotation.id, db_record=annotation)
-                async for annotation in annotations
-            ]
+        annotations = await info.context.data_loaders.session_annotations_by_session.load(self.id)
+        return [
+            ProjectSessionAnnotation(id=annotation.id, db_record=annotation)
+            for annotation in annotations
+        ]
 
     @strawberry.field(
         description="Summarizes each annotation (by name) associated with the session"
