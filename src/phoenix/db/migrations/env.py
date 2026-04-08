@@ -23,7 +23,11 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-_schema = get_env_database_schema()
+# Resolve schema: empty string must become None so Alembic uses the default
+# search path. When _schema is "", Alembic's has_table() checks for the
+# version table in the "" namespace (which doesn't exist), misses the table
+# in "public", and then CREATE TABLE fails with DuplicateTableError.
+_schema = get_env_database_schema() or None
 
 
 def run_migrations_offline() -> None:
