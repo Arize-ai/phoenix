@@ -2923,7 +2923,7 @@ def get_env_log_sql() -> bool:
 def get_env_database_schema() -> Optional[str]:
     if get_env_database_connection_str().startswith("sqlite"):
         return None
-    return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
+    return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or None
 
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:

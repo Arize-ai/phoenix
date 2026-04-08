@@ -11,11 +11,14 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
+    ENV_PHOENIX_SQL_DATABASE_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
+    get_env_database_schema,
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
@@ -109,6 +112,53 @@ class TestPostgresConnectionString:
 
             expected = f"postgresql://{quote('user')}:{quote('pass')}@2001:db8::1:5432"
             assert get_env_postgres_connection_str() == expected
+
+
+class TestGetEnvDatabaseSchema:
+    """Tests for PHOENIX_SQL_DATABASE_SCHEMA (empty string must behave like unset for PostgreSQL)."""
+
+    _PG_URL = "postgresql://user:pass@localhost:5432/phoenix"
+
+    @staticmethod
+    def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_URL, raising=False)
+        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        for key in (
+            "PHOENIX_POSTGRES_USER",
+            "PHOENIX_POSTGRES_PASSWORD",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_PORT",
+            "PHOENIX_POSTGRES_DB",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_sqlite_url_returns_none_regardless_of_schema_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, "sqlite:////tmp/phoenix.db")
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "custom")
+        assert get_env_database_schema() is None
+
+    def test_postgres_unset_schema_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
+        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        assert get_env_database_schema() is None
+
+    def test_postgres_empty_string_schema_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
+        assert get_env_database_schema() is None
+
+    def test_postgres_non_empty_schema_returned(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
+        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "phoenix_app")
+        assert get_env_database_schema() == "phoenix_app"
 
 
 class TestGetEnvStartupAdmins:

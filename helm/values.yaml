@@ -280,7 +280,8 @@ database:
     # -- Port number for PostgreSQL connections (PHOENIX_POSTGRES_PORT)
     port: 5432
 
-    # -- PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA)
+    # -- PostgreSQL schema to use (PHOENIX_SQL_DATABASE_SCHEMA). When empty, the chart
+    # omits the env var and Phoenix uses the default schema (typically public).
     schema: ""
 
     # -- PostgreSQL username (PHOENIX_POSTGRES_USER)

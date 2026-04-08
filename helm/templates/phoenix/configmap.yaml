@@ -148,7 +148,9 @@ data:
   {{- if .Values.database.readReplicaUrl }}
   PHOENIX_SQL_DATABASE_READ_REPLICA_URL: {{ .Values.database.readReplicaUrl | quote }}
   {{- end }}
+  {{- if .Values.database.postgres.schema }}
   PHOENIX_SQL_DATABASE_SCHEMA: {{ .Values.database.postgres.schema | quote }}
+  {{- end }}
   PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES: {{ .Values.database.allocatedStorageGiB | quote }}
   PHOENIX_DEFAULT_RETENTION_POLICY_DAYS: {{ .Values.database.defaultRetentionPolicyDays | quote }}
 

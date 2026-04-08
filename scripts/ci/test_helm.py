@@ -1619,6 +1619,20 @@ class ConfigMapValidators:
         return validator
 
     @staticmethod
+    def configmap_lacks_key(key: str) -> Validator:
+        """Validate that the Phoenix ConfigMap does not contain a specific key."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return key not in data
+
+        return validator
+
+    @staticmethod
     def env_from_references_configmap(configmap_name_contains: str) -> Validator:
         """Validate that envFrom references a ConfigMap with a specific name pattern."""
 
@@ -2208,6 +2222,16 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             all_of(
                 PostgreSQLValidators.is_enabled(),
                 DatabaseValidators.postgresql_credentials_set(),
+                ConfigMapValidators.configmap_lacks_key("PHOENIX_SQL_DATABASE_SCHEMA"),
+            ),
+        ),
+        TestCase(
+            "DB Config: non-empty database.postgres.schema sets PHOENIX_SQL_DATABASE_SCHEMA",
+            "--set postgresql.enabled=true --set persistence.enabled=false --set database.postgres.schema=phoenix_app",
+            all_of(
+                PostgreSQLValidators.is_enabled(),
+                DatabaseValidators.postgresql_credentials_set(),
+                ConfigMapValidators.configmap_has_key("PHOENIX_SQL_DATABASE_SCHEMA", "phoenix_app"),
             ),
         ),
         TestCase(
