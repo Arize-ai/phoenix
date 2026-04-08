@@ -1,7 +1,7 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
-import type { AgentStore } from "@phoenix/store/agentStore";
+import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import { getBashToolInput } from "./bashToolSchema";
 import { getOrCreateBashToolRuntime } from "./bashToolSessionRegistry";
@@ -9,6 +9,7 @@ import { PHOENIX_GQL_MUTATIONS_ENV_VAR } from "./phoenixGqlCommand";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
 
+/** Inputs required to execute one bash tool call in the browser runtime. */
 type HandleBashToolCallOptions = {
   toolCall: {
     toolCallId: string;
@@ -18,14 +19,33 @@ type HandleBashToolCallOptions = {
   // falls back to a shared default session key in that case.
   sessionId: string | null;
   addToolOutput: AddToolOutput;
-  agentStore: AgentStore;
+  capabilities: AgentCapabilities;
 };
 
+/** Sets environment variables for the bash runtime based on the current capabilities. */
+function buildBashExecutionEnv({
+  capabilities,
+}: {
+  capabilities: AgentCapabilities;
+}): Record<string, string> {
+  const env: Record<string, string> = {};
+
+  if (capabilities["graphql.mutations"]) {
+    env[PHOENIX_GQL_MUTATIONS_ENV_VAR] = "1";
+  }
+
+  return env;
+}
+
+/**
+ * Validates the tool input, applies capability-derived runtime env vars, and
+ * then forwards the command to the session-scoped just-bash runtime.
+ */
 export async function handleBashToolCall({
   toolCall,
   sessionId,
   addToolOutput,
-  agentStore,
+  capabilities,
 }: HandleBashToolCallOptions) {
   const bashToolInput = getBashToolInput(toolCall.input);
 
@@ -40,16 +60,9 @@ export async function handleBashToolCall({
   }
 
   try {
-    const { debug } = agentStore.getState();
-    const env: Record<string, string> = {};
-
-    if (debug.dangerouslyEnableMutations) {
-      env[PHOENIX_GQL_MUTATIONS_ENV_VAR] = "1";
-    }
-
     const bashToolRuntime = await getOrCreateBashToolRuntime(sessionId);
     const result = await bashToolRuntime.executeCommand(bashToolInput.command, {
-      env,
+      env: buildBashExecutionEnv({ capabilities }),
     });
 
     await addToolOutput({

@@ -1,5 +1,14 @@
 import type { UIMessage } from "ai";
 
+/**
+ * For the workflow to add, edit, or remove a frontend tool, see
+ * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ */
+import {
+  buildAgentCapabilitySystemPrompt,
+  type AgentCapabilities,
+} from "@phoenix/agent/extensions/capabilities";
+
 import { agentToolDefinitions } from "./chatTools";
 
 type BuildAgentChatRequestBodyOptions = {
@@ -17,6 +26,8 @@ type BuildAgentChatRequestBodyOptions = {
   systemPrompt: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
+  /** Runtime capability snapshot to expose to the model for this turn. */
+  capabilities: AgentCapabilities;
 };
 
 /** Request payload sent to the PXI agent chat endpoint. */
@@ -39,9 +50,27 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   sessionId?: string;
 };
 
+function buildSystemPrompt({
+  systemPrompt,
+  capabilities,
+}: {
+  systemPrompt: string;
+  capabilities: AgentCapabilities;
+}): string {
+  const capabilityPrompt = buildAgentCapabilitySystemPrompt({ capabilities });
+
+  return capabilityPrompt
+    ? `${systemPrompt}\n\n${capabilityPrompt}`
+    : systemPrompt;
+}
+
 /**
  * Merges the AI SDK transport payload with the frontend tool definitions that
  * the agent chat API expects for client-side tool execution.
+ *
+ * The exported request body includes three agent-specific additions beyond the
+ * raw AI SDK payload: the base system prompt, the current runtime capability
+ * summary, and the frontend tool definitions the model may call.
  */
 export function buildAgentChatRequestBody({
   body,
@@ -51,6 +80,7 @@ export function buildAgentChatRequestBody({
   messageId,
   systemPrompt,
   sessionId,
+  capabilities,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   return {
     ...body,
@@ -58,7 +88,7 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    system: systemPrompt,
+    system: buildSystemPrompt({ systemPrompt, capabilities }),
     tools: agentToolDefinitions,
     traceNameSuffix: "Turn",
     ...(sessionId ? { sessionId } : {}),

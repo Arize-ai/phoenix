@@ -1,5 +1,8 @@
-import { bashToolDefinition } from "@phoenix/agent/tools/bash";
-import { elicitToolDefinition } from "@phoenix/agent/tools/elicit";
+/**
+ * For the workflow to add, edit, or remove a frontend tool, see
+ * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ */
+import { agentToolDefinitions } from "@phoenix/agent/extensions/toolRegistry";
 
 /**
  * Client-side tool definitions sent alongside every chat request so the
@@ -9,4 +12,4 @@ import { elicitToolDefinition } from "@phoenix/agent/tools/elicit";
  * and append it to this array. The corresponding handler must also be
  * registered in {@link handleAgentToolCall}.
  */
-export const agentToolDefinitions = [bashToolDefinition, elicitToolDefinition];
+export { agentToolDefinitions };

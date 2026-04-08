@@ -4,6 +4,11 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
+import {
+  createDefaultAgentCapabilities,
+  type AgentCapabilities,
+  type AgentCapabilityKey,
+} from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
@@ -25,16 +30,6 @@ export type AgentPosition = "detached" | "pinned";
  * has claimed the location).
  */
 export type AgentPanelLocation = "docked" | "trace";
-
-export interface AgentDebugSettings {
-  retainInactiveBashSessions: boolean;
-  dangerouslyEnableMutations: boolean;
-}
-
-const DEFAULT_AGENT_DEBUG_SETTINGS: AgentDebugSettings = {
-  retainInactiveBashSessions: false,
-  dangerouslyEnableMutations: false,
-};
 
 /**
  * An agent conversation session containing messages, context references,
@@ -90,8 +85,8 @@ export interface AgentProps {
    * Defaults to the built-in {@link AGENT_SYSTEM_PROMPT}.
    */
   systemPrompt: string;
-  /** Debug-only runtime flags for temporary agent behavior overrides. */
-  debug: AgentDebugSettings;
+  /** Typed runtime capabilities that influence tool and session behavior. */
+  capabilities: AgentCapabilities;
 }
 
 /**
@@ -117,7 +112,10 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setSystemPrompt: (systemPrompt: string) => void;
   clearAllSessions: () => void;
-  setDebug: (patch: Partial<AgentDebugSettings>) => void;
+  setCapability: (params: {
+    key: AgentCapabilityKey;
+    enabled: boolean;
+  }) => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -157,7 +155,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     systemPrompt: AGENT_SYSTEM_PROMPT,
-    debug: { ...DEFAULT_AGENT_DEBUG_SETTINGS },
+    capabilities: createDefaultAgentCapabilities(),
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -340,13 +338,13 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "clearAllSessions" }
       );
     },
-    setDebug: (patch) => {
+    setCapability: ({ key, enabled }) => {
       set(
         (state) => ({
-          debug: { ...state.debug, ...patch },
+          capabilities: { ...state.capabilities, [key]: enabled },
         }),
         false,
-        { type: "setDebug" }
+        { type: "setCapability" }
       );
     },
 
@@ -388,31 +386,50 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
-        let next = persisted as AgentProps & { systemPrompt?: string };
-        if (version === 0) {
-          // Legacy sessions may not have `createdAt`. Backfill with 0 so the
-          // UI can distinguish them from sessions created after this migration.
-          const state = persisted as AgentProps;
-          const migratedSessionMap: Record<string, AgentSession> = {};
-          for (const [sessionId, session] of Object.entries(
-            state.sessionMap ?? {}
-          )) {
-            migratedSessionMap[sessionId] = {
-              ...session,
-              createdAt: (session as AgentSession).createdAt ?? 0,
-            };
-          }
-          next = { ...state, sessionMap: migratedSessionMap };
-        }
-        if (version < 2) {
-          next = {
-            ...next,
-            systemPrompt: next.systemPrompt ?? AGENT_SYSTEM_PROMPT,
+        const state = persisted as Partial<AgentProps> & {
+          capabilities?: Partial<AgentCapabilities>;
+          systemPrompt?: string;
+          debug?: {
+            retainInactiveBashSessions?: boolean;
+            dangerouslyEnableMutations?: boolean;
+          };
+        };
+        const migratedSessionMap: Record<string, AgentSession> = {};
+
+        for (const [sessionId, session] of Object.entries(
+          state.sessionMap ?? {}
+        )) {
+          migratedSessionMap[sessionId] = {
+            ...session,
+            createdAt: (session as AgentSession).createdAt ?? 0,
           };
         }
-        return next as AgentState;
+
+        const migratedCapabilities = {
+          ...createDefaultAgentCapabilities(),
+          ...(state.capabilities ?? {}),
+          ...(version <= 2
+            ? {
+                "bash.retainInactiveSessions":
+                  state.debug?.retainInactiveBashSessions ??
+                  state.capabilities?.["bash.retainInactiveSessions"] ??
+                  false,
+                "graphql.mutations":
+                  state.debug?.dangerouslyEnableMutations ??
+                  state.capabilities?.["graphql.mutations"] ??
+                  false,
+              }
+            : {}),
+        };
+
+        return {
+          ...state,
+          sessionMap: migratedSessionMap,
+          systemPrompt: state.systemPrompt ?? AGENT_SYSTEM_PROMPT,
+          capabilities: migratedCapabilities,
+        } as AgentState;
       },
       partialize: (state) => ({
         isOpen: state.isOpen,
@@ -422,7 +439,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         systemPrompt: state.systemPrompt,
-        debug: state.debug,
+        capabilities: state.capabilities,
       }),
     })
   );

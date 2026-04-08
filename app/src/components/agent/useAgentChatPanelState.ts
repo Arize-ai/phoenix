@@ -131,15 +131,16 @@ export function useAgentChatPanelState() {
 
   // Garbage-collect bash runtimes for sessions that are no longer active.
   // Eagerly evicts inactive runtimes so stale `/phoenix` context files don't
-  // survive session churn. When session switching ships, the debug flag
-  // can become a user-facing retention preference.
+  // survive session churn. Capability state keeps this runtime policy distinct
+  // from session/chat state and leaves room for future UI surfaces.
   useEffect(() => {
     const syncBashRuntimeRegistry = () => {
       const state = store.getState();
       garbageCollectBashToolRuntimes({
         activeSessionId: state.activeSessionId,
         sessionIds: state.sessions,
-        retainInactiveSessions: state.debug.retainInactiveBashSessions,
+        retainInactiveSessions:
+          state.capabilities["bash.retainInactiveSessions"],
       });
     };
 

@@ -243,7 +243,7 @@ export const phoenixGqlCommand = defineCommand(
       if (isNonQueryOperation(query) && !mutationsEnabled) {
         throw new Error(
           "Mutations are not currently permitted. " +
-            "The user can enable them via the 'Dangerously enable mutations' toggle in the agent debug menu."
+            "The user can enable the 'Dangerously enable mutations' agent capability from the debug menu."
         );
       }
 

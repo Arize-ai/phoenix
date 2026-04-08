@@ -1,5 +1,6 @@
 import type { Selection } from "react-aria-components";
 
+import { getAgentCapabilitiesForControlSurface } from "@phoenix/agent/extensions/capabilities";
 import {
   Icon,
   Icons,
@@ -11,35 +12,44 @@ import {
 import { PromptInputButton } from "@phoenix/components/ai/prompt-input";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-const MUTATIONS_KEY = "dangerouslyEnableMutations";
+/** Capability controls that should be shown in the prompt toolbar debug menu. */
+const debugMenuCapabilities =
+  getAgentCapabilitiesForControlSurface("debug-menu");
 
-type AgentDebugMenuProps = {
-  /**
-   * Called after a permission toggle is committed to the store. The parent
-   * component uses this to inject a synthetic tool-call message into the
-   * chat history so the model is informed of the change.
-   */
-  onPermissionChange?: (permission: string, enabled: boolean) => void;
-};
+function getSelectedCapabilityKeys(
+  capabilities: Record<string, boolean>
+): Selection {
+  return new Set(
+    debugMenuCapabilities
+      .filter((definition) => capabilities[definition.key])
+      .map((definition) => definition.key)
+  );
+}
+
+function updateDebugCapabilities({
+  selectedKeys,
+  store,
+}: {
+  selectedKeys: Exclude<Selection, "all">;
+  store: ReturnType<typeof useAgentStore>;
+}) {
+  for (const definition of debugMenuCapabilities) {
+    store.getState().setCapability({
+      key: definition.key,
+      enabled: selectedKeys.has(definition.key),
+    });
+  }
+}
 
 /**
- * Debug menu for the agent prompt input toolbar.
- *
- * Houses internal-only toggles that modify agent runtime behavior.
- * Currently supports:
- * - **Dangerously enable mutations**: allows the `phoenix-gql` CLI tool to
- *   execute GraphQL mutations and exposes mutation fields during schema
- *   introspection.
+ * Renders the prompt-toolbar debug menu from capability metadata rather than
+ * hardcoded toggles so new controls can be added by extending the registry.
  */
-export function AgentDebugMenu({ onPermissionChange }: AgentDebugMenuProps) {
+export function AgentDebugMenu() {
   const store = useAgentStore();
-  const dangerouslyEnableMutations = useAgentContext(
-    (s) => s.debug.dangerouslyEnableMutations
-  );
+  const capabilities = useAgentContext((state) => state.capabilities);
 
-  const selectedKeys: Selection = new Set(
-    dangerouslyEnableMutations ? [MUTATIONS_KEY] : []
-  );
+  const selectedKeys = getSelectedCapabilityKeys(capabilities);
 
   return (
     <MenuTrigger>
@@ -49,22 +59,27 @@ export function AgentDebugMenu({ onPermissionChange }: AgentDebugMenuProps) {
       >
         <Icon svg={<Icons.WrenchOutline />} />
       </PromptInputButton>
-      <MenuContainer placement="top start" maxHeight={350}>
+      <MenuContainer placement="top start" maxHeight={350} minHeight={0}>
         <Menu
           selectionMode="multiple"
           selectedKeys={selectedKeys}
           onSelectionChange={(keys: Selection) => {
-            if (keys === "all") return;
-            const enabled = keys.has(MUTATIONS_KEY);
-            store.getState().setDebug({
-              dangerouslyEnableMutations: enabled,
-            });
-            onPermissionChange?.(MUTATIONS_KEY, enabled);
+            if (keys === "all") {
+              return;
+            }
+
+            updateDebugCapabilities({ selectedKeys: keys, store });
           }}
         >
-          <MenuItem id={MUTATIONS_KEY} textValue="Dangerously enable mutations">
-            Dangerously enable mutations
-          </MenuItem>
+          {debugMenuCapabilities.map((definition) => (
+            <MenuItem
+              key={definition.key}
+              id={definition.key}
+              textValue={definition.label}
+            >
+              {definition.label}
+            </MenuItem>
+          ))}
         </Menu>
       </MenuContainer>
     </MenuTrigger>
