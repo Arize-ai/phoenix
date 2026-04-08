@@ -67,9 +67,9 @@ def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
     representation of the value to match.  The split is performed on the
     **first** ``:`` only, so values may contain additional colons.
 
-    The value is parsed with ``json.loads()`` to determine its type
-    and then compared directly at the JSON level (type-aware):
-    - ``int``, ``float``, ``bool``, ``str`` (or parse failure) → direct JSON comparison
+    The value is parsed with ``json.loads()`` to determine its type:
+    - ``bool`` → ``.as_boolean() == val``
+    - ``int``, ``float``, ``str`` (or parse failure) → type-aware JSON text comparison
     - ``None``, ``list``, or ``dict`` → HTTP 422
 
     Raises :class:`HTTPException` (422) when the separator is missing,
@@ -98,8 +98,10 @@ def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
         parsed = json.loads(value)
     except (json.JSONDecodeError, ValueError):
         parsed = value
-    if isinstance(parsed, (bool, int, float, str)):
-        clause: sa.ColumnElement[bool] = col == sa.type_coerce(parsed, sa.JSON())
+    if isinstance(parsed, bool):
+        clause: sa.ColumnElement[bool] = col.as_boolean() == parsed
+    elif isinstance(parsed, (int, float, str)):
+        clause = sa.cast(col, sa.Text) == json.dumps(parsed)
     else:
         raise HTTPException(
             status_code=422,
