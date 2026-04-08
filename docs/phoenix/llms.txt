@@ -76,6 +76,7 @@
 - [Modifying Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans): Use SpanProcessors to filter or enrich spans
 - [Multimodal Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/multimodal-tracing): Capture image, audio, and multimodal data in traces
 - [Suppress Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/suppress-tracing): Disable tracing for specific code blocks
+- [Construct Shareable URLs](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/constructing-urls): Link to projects, traces, spans, and sessions by human-readable identifiers
 
 ## Evaluation
 
