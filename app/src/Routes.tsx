@@ -95,6 +95,7 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
@@ -437,6 +438,11 @@ const router = createBrowserRouter(
           <Route
             path="/redirects/sessions/:session_id"
             loader={sessionRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/projects/:project_name"
+            loader={projectRedirectLoader}
             errorElement={<ErrorElement />}
           />
           <Route

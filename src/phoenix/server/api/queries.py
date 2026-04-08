@@ -1626,6 +1626,19 @@ class Query:
         return None
 
     @strawberry.field
+    async def get_project_by_name(
+        self,
+        info: Info[Context, None],
+        name: str,
+    ) -> Optional[Project]:
+        stmt = select(models.Project).where(models.Project.name == name)
+        async with info.context.db.read() as session:
+            project_row = await session.scalar(stmt)
+        if project_row:
+            return Project(id=project_row.id, db_record=project_row)
+        return None
+
+    @strawberry.field
     async def get_project_session_by_id(
         self,
         info: Info[Context, None],

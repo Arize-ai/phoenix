@@ -2965,6 +2965,7 @@ type Query {
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
+  getProjectByName(name: String!): Project
   getProjectSessionById(sessionId: String!): ProjectSession
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
