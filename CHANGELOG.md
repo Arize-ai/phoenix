@@ -1,5 +1,19 @@
 # Changelog
 
+## [14.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.0.0...arize-phoenix-v14.1.0) (2026-04-08)
+
+
+### Features
+
+* **agent:** Push chat runtime out of panel, share it with trace slideover ([#12579](https://github.com/Arize-ai/phoenix/issues/12579)) ([30dfdb5](https://github.com/Arize-ai/phoenix/commit/30dfdb5575e5585c4e5b5d25071156d1a23f93b8))
+
+
+### Bug Fixes
+
+* add valid OpenAPI examples for span creation endpoint ([#12371](https://github.com/Arize-ai/phoenix/issues/12371)) ([d74be37](https://github.com/Arize-ai/phoenix/commit/d74be37cefff79313e216ce1ef80993e3c645345))
+* **agent:** surface backend tool loop exhaustion ([#12569](https://github.com/Arize-ai/phoenix/issues/12569)) ([c887c93](https://github.com/Arize-ai/phoenix/commit/c887c9393243a5c1970ae3dffde9fe01b81743ad))
+* normalize empty PHOENIX_SQL_DATABASE_SCHEMA to None ([#12582](https://github.com/Arize-ai/phoenix/issues/12582)) ([cd0dfaa](https://github.com/Arize-ai/phoenix/commit/cd0dfaa09e1c9d92927657fae10ad4ebc0a786cb))
+
 ## [14.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v13.23.0...arize-phoenix-v14.0.0) (2026-04-07)
 
 
