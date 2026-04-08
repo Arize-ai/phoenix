@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.1.0...arize-phoenix-v14.1.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* use dataloader for session annotations to prevent connection exhaustion ([#12585](https://github.com/Arize-ai/phoenix/issues/12585)) ([8549fde](https://github.com/Arize-ai/phoenix/commit/8549fde5ba66a2e98d9f4d8bd5e7cc205212014d))
+
 ## [14.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.0.0...arize-phoenix-v14.1.0) (2026-04-08)
 
 
