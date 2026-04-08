@@ -110,7 +110,7 @@ class TestSyncSandboxProviders:
             "FAKE": type(
                 "_FakeMeta",
                 (),
-                {"supported_languages": ["COBOL"]},
+                {"language": "COBOL"},
             )(),
         }
         # Should not raise even when language does not exist in DB
@@ -143,24 +143,21 @@ class TestSyncSandboxProviders:
 
 
 class TestAdapterMetadataConsistency:
-    """Adapter class supported_languages must match SANDBOX_ADAPTER_METADATA."""
+    """Adapter class language must match SANDBOX_ADAPTER_METADATA."""
 
-    def test_e2b_adapter_languages_match_metadata(self) -> None:
+    def test_e2b_adapter_language_matches_metadata(self) -> None:
         try:
             from phoenix.server.sandbox.e2b_backend import E2BAdapter
         except ImportError:
             pytest.skip("e2b optional extra not installed")
-        meta_langs = set(SANDBOX_ADAPTER_METADATA["E2B"].supported_languages)
-        adapter_langs = set(E2BAdapter.supported_languages)
-        assert adapter_langs == meta_langs, (
-            f"E2BAdapter.supported_languages {adapter_langs} does not match metadata {meta_langs}"
+        assert E2BAdapter.language == SANDBOX_ADAPTER_METADATA["E2B"].language, (
+            f"E2BAdapter.language {E2BAdapter.language!r} does not match "
+            f"metadata {SANDBOX_ADAPTER_METADATA['E2B'].language!r}"
         )
 
-    def test_wasm_adapter_languages_match_metadata(self) -> None:
+    def test_wasm_adapter_language_matches_metadata(self) -> None:
         try:
             from phoenix.server.sandbox.wasm_backend import WASMAdapter
         except ImportError:
             pytest.skip("wasmtime optional extra not installed")
-        meta_langs = set(SANDBOX_ADAPTER_METADATA["WASM"].supported_languages)
-        adapter_langs = set(WASMAdapter.supported_languages)
-        assert adapter_langs == meta_langs
+        assert WASMAdapter.language == SANDBOX_ADAPTER_METADATA["WASM"].language

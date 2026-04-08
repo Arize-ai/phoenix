@@ -99,11 +99,11 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
         "Install Phoenix with the `e2b` extra.",
         "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
     ]
-    assert backends["DAYTONA"]["dependencyHints"] == [
+    assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
         "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
     ]
-    assert backends["VERCEL"]["dependencyHints"] == [
+    assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",
         "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
     ]

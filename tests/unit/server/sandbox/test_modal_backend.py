@@ -75,10 +75,10 @@ class TestModalAdapter:
 
         assert ModalAdapter.key == "MODAL"
 
-    def test_supported_languages(self) -> None:
+    def test_language(self) -> None:
         from phoenix.server.sandbox.modal_backend import ModalAdapter
 
-        assert ModalAdapter.supported_languages == ["PYTHON"]
+        assert ModalAdapter.language == "PYTHON"
 
     def test_build_backend_returns_sandbox_backend(self) -> None:
         from phoenix.server.sandbox.modal_backend import ModalAdapter, ModalSandboxBackend

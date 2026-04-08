@@ -326,6 +326,7 @@ module = [
   "google.*",
   "mistralai.*",
   "jsonpath_ng",
+  "vercel.*",
 ]
 ignore_missing_imports = true
 
