@@ -27,9 +27,6 @@ type HandleAgentToolCallOptions = {
 
 /**
  * Thin adapter between the AI SDK runtime and the registry-backed tool layer.
- *
- * Keeping this file small makes it easy for readers to discover that all real
- * dispatch logic now lives in `agent/extensions/toolRegistry.ts`.
  */
 export async function handleAgentToolCall({
   toolCall,

@@ -41,6 +41,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Keeps browser bash runtimes alive when switching sessions instead of eagerly garbage-collecting them.",
     defaultValue: false,
     scope: "global",
+    controlSurface: "debug-menu",
   },
   {
     key: "graphql.mutations",
