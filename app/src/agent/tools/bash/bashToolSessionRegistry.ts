@@ -41,6 +41,16 @@ export function clearBashToolRuntime(sessionId: string | null) {
   bashToolSessionRegistry.delete(getBashToolSessionKey(sessionId));
 }
 
+/**
+ * Reclaims bash runtimes that should not outlive the current session state.
+ *
+ * Policy:
+ * - deleted sessions are always evicted
+ * - when inactive retention is disabled, only the active session keeps its
+ *   runtime in today's single-session UX
+ * - when inactive retention is enabled, existing but inactive sessions may
+ *   keep their runtimes for debugging or future multi-session behavior
+ */
 export function garbageCollectBashToolRuntimes({
   activeSessionId,
   sessionIds,

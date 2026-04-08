@@ -1,4 +1,5 @@
 import type { Chat, UIMessage } from "@ai-sdk/react";
+import type { ChatStatus } from "ai";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -14,13 +15,53 @@ type AgentChatRuntime = {
     chatApiUrl: string;
     createChat: () => Chat<UIMessage>;
   }) => Chat<UIMessage>;
-  pruneChats: (liveSessionIds: string[]) => void;
+  pruneChats: ({
+    activeSessionId,
+    liveSessionIds,
+  }: {
+    activeSessionId: string | null;
+    liveSessionIds: string[];
+  }) => void;
 };
+
+/**
+ * Retains chat runtimes only while they are still useful to the UI.
+ *
+ * Policy:
+ * - deleted sessions are always evicted
+ * - the active session is always retained, even when idle
+ * - inactive sessions are retained only while a response is in flight so
+ *   streaming can survive surface changes or session switches
+ * - idle inactive sessions are reconstructed from store-backed messages when
+ *   revisited, so their runtime can be reclaimed eagerly
+ */
+export function shouldRetainChatRuntime({
+  sessionId,
+  activeSessionId,
+  liveSessionIds,
+  status,
+}: {
+  sessionId: string;
+  activeSessionId: string | null;
+  liveSessionIds: Set<string>;
+  status: ChatStatus;
+}) {
+  if (!liveSessionIds.has(sessionId)) {
+    return false;
+  }
+
+  if (sessionId === activeSessionId) {
+    return true;
+  }
+
+  return status === "submitted" || status === "streaming";
+}
 
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
 
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const store = useAgentStore();
+  const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const sessionIds = useAgentContext((state) => state.sessions);
   const [runtime] = useState<AgentChatRuntime>(() => {
     const chatRegistry = new Map<
@@ -48,23 +89,33 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
         store.getState().setSessionChatStatus(sessionId, chat.status);
         return chat;
       },
-      pruneChats: (liveSessionIds) => {
+      pruneChats: ({ activeSessionId, liveSessionIds }) => {
         const liveSessionIdSet = new Set(liveSessionIds);
         for (const sessionId of chatRegistry.keys()) {
-          if (!liveSessionIdSet.has(sessionId)) {
-            const entry = chatRegistry.get(sessionId);
-            entry?.unsubscribe();
-            chatRegistry.delete(sessionId);
-            store.getState().setSessionChatStatus(sessionId, "ready");
+          const entry = chatRegistry.get(sessionId);
+          if (
+            entry &&
+            shouldRetainChatRuntime({
+              sessionId,
+              activeSessionId,
+              liveSessionIds: liveSessionIdSet,
+              status: entry.chat.status,
+            })
+          ) {
+            continue;
           }
+
+          entry?.unsubscribe();
+          chatRegistry.delete(sessionId);
+          store.getState().setSessionChatStatus(sessionId, "ready");
         }
       },
     };
   });
 
   useEffect(() => {
-    runtime.pruneChats(sessionIds);
-  }, [runtime, sessionIds]);
+    runtime.pruneChats({ activeSessionId, liveSessionIds: sessionIds });
+  }, [activeSessionId, runtime, sessionIds]);
 
   return (
     <AgentChatRuntimeContext.Provider value={runtime}>
