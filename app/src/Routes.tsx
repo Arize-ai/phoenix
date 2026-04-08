@@ -77,6 +77,7 @@ import {
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
+  SettingsAgentsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -422,6 +423,13 @@ const router = createBrowserRouter(
               loader={settingsPromptsPageLoader}
               handle={{
                 crumb: () => "Prompts",
+              }}
+            />
+            <Route
+              path="agents"
+              element={<SettingsAgentsPage />}
+              handle={{
+                crumb: () => "Agents",
               }}
             />
           </Route>
