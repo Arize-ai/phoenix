@@ -6,6 +6,15 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 type AgentChatRuntime = {
+  /**
+   * Returns the runtime-owned AI SDK chat for a session/model pair, creating or
+   * replacing it when necessary.
+   *
+   * The registry key is the logical agent session id, while `chatApiUrl`
+   * captures the currently selected model/transport. When the URL changes we
+   * replace the runtime chat for that session instead of keeping multiple idle
+   * variants alive.
+   */
   getOrCreateChat: ({
     sessionId,
     chatApiUrl,
@@ -15,6 +24,10 @@ type AgentChatRuntime = {
     chatApiUrl: string;
     createChat: () => Chat<UIMessage>;
   }) => Chat<UIMessage>;
+  /**
+   * Reconciles the runtime registry against current app state, reclaiming chats
+   * that no longer need to remain imperative singletons.
+   */
   pruneChats: ({
     activeSessionId,
     liveSessionIds,
@@ -59,6 +72,18 @@ export function shouldRetainChatRuntime({
 
 const AgentChatRuntimeContext = createContext<AgentChatRuntime | null>(null);
 
+/**
+ * Hosts the long-lived AI SDK chat registry used by all agent chat surfaces.
+ *
+ * The important split is:
+ * - React components are disposable view bindings
+ * - AI SDK `Chat` instances are imperative runtimes owned here
+ * - Zustand remains the durable source of truth for session metadata/messages
+ *
+ * That lets requests continue while the visible surface moves between layouts,
+ * while still allowing idle runtimes to be reclaimed and reconstructed from
+ * store-backed state when revisited.
+ */
 export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const store = useAgentStore();
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
@@ -76,12 +101,17 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
           return existingEntry.chat;
         }
 
-        // Clean up the previous chat's status callback before replacing
+        // A model/transport swap replaces the runtime for this session. We do
+        // not keep multiple chat variants per session alive; instead we detach
+        // the old status subscription and let retention/pruning reclaim it.
         if (existingEntry) {
           existingEntry.unsubscribe();
         }
 
         const chat = createChat();
+        // Mirror transient AI SDK status into the store so other surfaces
+        // (session list, FAB, retention policy) can react without holding a
+        // direct reference to the runtime instance.
         const unsubscribe = chat["~registerStatusCallback"](() => {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
@@ -105,6 +135,9 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
             continue;
           }
 
+          // Once a chat no longer needs to remain runtime-resident, the store
+          // becomes the only durable source of truth until the chat is created
+          // again for a future surface/session visit.
           entry?.unsubscribe();
           chatRegistry.delete(sessionId);
           store.getState().setSessionChatStatus(sessionId, "ready");
