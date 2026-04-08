@@ -81,10 +81,12 @@
 
 - [Python Quickstart](https://arize.com/docs/phoenix/evaluation/python-quickstart): Get started with evaluations in Python
 - [TypeScript Quickstart](https://arize.com/docs/phoenix/evaluation/typescript-quickstart): Get started with evaluations in TypeScript
+- [Evals Quickstart](https://arize.com/docs/phoenix/evaluation/evals): Run evaluators on a standalone dataset with arize-phoenix-evals
 
 ### Overview
 
 - [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): LLM-as-judge evaluation with pre-built and custom evaluators
+- [Phoenix Evals Preview](https://arize.com/docs/phoenix/evaluation/preview): Composable evaluation building blocks with LLM adapters, input mapping, and built-in metrics
 - [Use Any LLM](https://arize.com/docs/phoenix/evaluation/llm-evals/use-any-llm): Configure any LLM provider as an evaluation model
 - [Executors](https://arize.com/docs/phoenix/evaluation/llm-evals/executors): Concurrency, rate limits, batching for evaluations
 - [Evaluator Traces](https://arize.com/docs/phoenix/evaluation/llm-evals/evaluator-traces): View evaluation execution details and model reasoning
@@ -230,6 +232,7 @@
 - [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
 - [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
+- [Strands Agents Tracing](https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): Auto-instrument Strands Agents with openinference-instrumentation-strands-agents
 
 ### TypeScript Frameworks
 
