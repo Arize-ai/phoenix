@@ -1,7 +1,7 @@
 """add sandbox and code evaluator support
 
 Revision ID: 0ff41b5b118f
-Revises: f1a6b2f0c9d5
+Revises: aba52fffe1a1
 Create Date: 2026-02-27 03:14:47.636690
 
 """
@@ -45,7 +45,7 @@ _Integer = sa.Integer().with_variant(
 
 # revision identifiers, used by Alembic.
 revision: str = "0ff41b5b118f"
-down_revision: Union[str, None] = "f1a6b2f0c9d5"
+down_revision: Union[str, None] = "aba52fffe1a1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
