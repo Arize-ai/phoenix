@@ -214,8 +214,7 @@ def main() -> None:
         type=str,
         default=None,
         help=(
-            "Path to save results JSON. "
-            "If omitted, results are written to examples/agent-trajectory-evals/results/"
+            "Path to save results JSON. If omitted, results are written to examples/agents/results/"
         ),
     )
     args = parser.parse_args()

@@ -224,6 +224,8 @@ def transfer_to_human_agents(summary: str) -> str:
 @function_tool
 def calculate(expression: str) -> str:
     """Calculate the result of a mathematical expression."""
+    # Caution: in production, sanitize or sandbox LLM-generated expressions
+    # to prevent LLM-controlled code execution.
     return Calculate.invoke(data=_data, expression=expression)
 
 

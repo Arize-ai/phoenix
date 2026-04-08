@@ -30,7 +30,7 @@ class SimulatedUser:
     Provides a clean interface for the multi-turn conversation loop:
     - reset(instruction) -> first user message
     - step(agent_response) -> next user message or stop signal
-    - is_done(message) -> whether the conversation should end
+    - is_stop(message) -> whether the conversation should end
     """
 
     STOP_SIGNAL = "###STOP###"
