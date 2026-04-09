@@ -1,0 +1,611 @@
+/**
+ * @generated SignedSource<<7f8069cb3b3265df1f605d66431b9dbf>>
+ * @lightSyntaxTransform
+ * @nogrep
+ */
+
+/* tslint:disable */
+/* eslint-disable */
+// @ts-nocheck
+
+import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type UpdateDatasetCodeEvaluatorInput = {
+  datasetEvaluatorId: string;
+  description?: string | null;
+  inputMapping?: EvaluatorInputMappingInput | null;
+  name: string;
+  outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
+};
+export type EvaluatorInputMappingInput = {
+  literalMapping?: any;
+  pathMapping?: any;
+};
+export type AnnotationConfigInput = {
+  categorical?: CategoricalAnnotationConfigInput | null;
+  continuous?: ContinuousAnnotationConfigInput | null;
+  freeform?: FreeformAnnotationConfigInput | null;
+};
+export type CategoricalAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
+  values: ReadonlyArray<CategoricalAnnotationConfigValueInput>;
+};
+export type CategoricalAnnotationConfigValueInput = {
+  label: string;
+  score?: number | null;
+};
+export type ContinuousAnnotationConfigInput = {
+  description?: string | null;
+  lowerBound?: number | null;
+  name: string;
+  optimizationDirection: OptimizationDirection;
+  upperBound?: number | null;
+};
+export type FreeformAnnotationConfigInput = {
+  description?: string | null;
+  name: string;
+};
+export type EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation$variables = {
+  connectionIds: ReadonlyArray<string>;
+  input: UpdateDatasetCodeEvaluatorInput;
+};
+export type EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation$data = {
+  readonly updateDatasetCodeEvaluator: {
+    readonly evaluator: {
+      readonly id: string;
+      readonly " $fragmentSpreads": FragmentRefs<"CodeDatasetEvaluatorDetails_datasetEvaluator" | "DatasetEvaluatorsTable_row" | "PlaygroundDatasetSection_evaluator">;
+    };
+  };
+};
+export type EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation = {
+  response: EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation$data;
+  variables: EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation$variables;
+};
+
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
+  }
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "updatedAt",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "profilePictureUrl",
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "kind",
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Prompt",
+  "kind": "LinkedField",
+  "name": "prompt",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/)
+  ],
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelName",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "modelProvider",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EvaluatorInputMapping",
+  "kind": "LinkedField",
+  "name": "inputMapping",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "literalMapping",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pathMapping",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isBuiltin",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v17 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*: any*/),
+    (v16/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "score",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
+v18 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*: any*/),
+    (v16/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    }
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "outputConfigs",
+  "plural": true,
+  "selections": [
+    (v19/*: any*/),
+    (v17/*: any*/),
+    (v18/*: any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v3/*: any*/)
+      ],
+      "type": "Node",
+      "abstractKey": "__isNode"
+    }
+  ],
+  "storageKey": null
+};
+return {
+  "fragment": {
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation",
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetEvaluatorMutationPayload",
+        "kind": "LinkedField",
+        "name": "updateDatasetCodeEvaluator",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetEvaluator",
+            "kind": "LinkedField",
+            "name": "evaluator",
+            "plural": false,
+            "selections": [
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "DatasetEvaluatorsTable_row",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v5/*: any*/),
+                  (v6/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "User",
+                    "kind": "LinkedField",
+                    "name": "user",
+                    "plural": false,
+                    "selections": [
+                      (v7/*: any*/),
+                      (v8/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      (v4/*: any*/),
+                      (v9/*: any*/),
+                      (v10/*: any*/),
+                      (v6/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v11/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "promptVersionTag",
+                            "plural": false,
+                            "selections": [
+                              (v4/*: any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "promptVersion",
+                            "plural": false,
+                            "selections": [
+                              (v12/*: any*/),
+                              (v13/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "LLMEvaluator",
+                        "abstractKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              {
+                "kind": "InlineDataFragmentSpread",
+                "name": "PlaygroundDatasetSection_evaluator",
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v14/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "evaluator",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      (v9/*: any*/),
+                      (v15/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "outputConfigs",
+                    "plural": true,
+                    "selections": [
+                      (v17/*: any*/),
+                      (v18/*: any*/)
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "args": null,
+                "argumentDefinitions": []
+              },
+              {
+                "args": null,
+                "kind": "FragmentSpread",
+                "name": "CodeDatasetEvaluatorDetails_datasetEvaluator"
+              },
+              (v3/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "type": "Mutation",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
+    "kind": "Operation",
+    "name": "EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation",
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetEvaluatorMutationPayload",
+        "kind": "LinkedField",
+        "name": "updateDatasetCodeEvaluator",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "DatasetEvaluator",
+            "kind": "LinkedField",
+            "name": "evaluator",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/),
+              (v4/*: any*/),
+              (v5/*: any*/),
+              (v6/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "User",
+                "kind": "LinkedField",
+                "name": "user",
+                "plural": false,
+                "selections": [
+                  (v7/*: any*/),
+                  (v8/*: any*/),
+                  (v3/*: any*/)
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "evaluator",
+                "plural": false,
+                "selections": [
+                  (v19/*: any*/),
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v9/*: any*/),
+                  (v10/*: any*/),
+                  (v6/*: any*/),
+                  (v15/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v11/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersionTag",
+                        "kind": "LinkedField",
+                        "name": "promptVersionTag",
+                        "plural": false,
+                        "selections": [
+                          (v4/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "PromptVersion",
+                        "kind": "LinkedField",
+                        "name": "promptVersion",
+                        "plural": false,
+                        "selections": [
+                          (v12/*: any*/),
+                          (v13/*: any*/),
+                          (v3/*: any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "LLMEvaluator",
+                    "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v5/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "language",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "sourceCode",
+                        "storageKey": null
+                      },
+                      (v20/*: any*/)
+                    ],
+                    "type": "CodeEvaluator",
+                    "abstractKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              (v14/*: any*/),
+              (v20/*: any*/)
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "filters": null,
+            "handle": "appendNode",
+            "key": "",
+            "kind": "LinkedHandle",
+            "name": "evaluator",
+            "handleArgs": [
+              {
+                "kind": "Variable",
+                "name": "connections",
+                "variableName": "connectionIds"
+              },
+              {
+                "kind": "Literal",
+                "name": "edgeTypeName",
+                "value": "DatasetEvaluatorEdge"
+              }
+            ]
+          }
+        ],
+        "storageKey": null
+      }
+    ]
+  },
+  "params": {
+    "cacheID": "eb1b757d88de895f4d596b9c5c6ee95e",
+    "id": null,
+    "metadata": {},
+    "name": "EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation",
+    "operationKind": "mutation",
+    "text": "mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(\n  $input: UpdateDatasetCodeEvaluatorInput!\n) {\n  updateDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...CodeDatasetEvaluatorDetails_datasetEvaluator\n      id\n    }\n  }\n}\n\nfragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      id\n      name\n      description\n      language\n      sourceCode\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+  }
+};
+})();
+
+(node as any).hash = "5a6b78b399f992fb9531bb1dd66bcbc8";
+
+export default node;

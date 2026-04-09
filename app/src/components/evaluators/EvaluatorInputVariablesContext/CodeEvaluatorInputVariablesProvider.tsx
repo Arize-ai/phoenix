@@ -6,8 +6,15 @@ import { jsonSchemaZodSchema } from "@phoenix/schemas";
 export const CodeEvaluatorInputVariablesProvider = ({
   children,
   evaluatorInputSchema,
-}: PropsWithChildren<{ evaluatorInputSchema: unknown }>) => {
+  variables: initialVariables,
+}: PropsWithChildren<{
+  evaluatorInputSchema?: unknown;
+  variables?: string[];
+}>) => {
   const variables = useMemo(() => {
+    if (initialVariables != null) {
+      return initialVariables;
+    }
     if (!evaluatorInputSchema) {
       return [];
     }
@@ -21,7 +28,7 @@ export const CodeEvaluatorInputVariablesProvider = ({
     const inputVariables = Object.keys(inputSchema.data.properties);
 
     return inputVariables;
-  }, [evaluatorInputSchema]);
+  }, [evaluatorInputSchema, initialVariables]);
   return (
     <EvaluatorInputVariablesProvider variables={variables}>
       {children}
