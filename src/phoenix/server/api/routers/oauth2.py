@@ -748,10 +748,17 @@ async def _create_user(
     Returns:
         The created user
     """
+    email = user_info.email
+    # The users.username column is NOT NULL, but the OIDC `name` claim is
+    # optional and some IDPs omit it or return an empty string. Fall back
+    # to the local part of the email so we always have a non-empty value
+    # to satisfy the constraint; a random suffix is appended below if it
+    # collides with an existing username.
+    username = user_info.username or email.split("@", 1)[0]
     email_exists, username_exists = await _email_and_username_exist(
         session,
-        email=(email := user_info.email),
-        username=(username := user_info.username),
+        email=email,
+        username=username,
     )
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
@@ -763,7 +770,7 @@ async def _create_user(
             user_role_id=role_id,
             oauth2_client_id=oauth2_client_id,
             oauth2_user_id=user_info.idp_user_id,
-            username=_with_random_suffix(username) if username and username_exists else username,
+            username=_with_random_suffix(username) if username_exists else username,
             email=email,
             profile_picture_url=user_info.profile_picture_url,
             reset_password=False,
