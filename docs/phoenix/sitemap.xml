@@ -1653,6 +1653,18 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica</loc>
+    <lastmod>2026-04-09T17:21:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes</loc>
+    <lastmod>2026-04-09T17:21:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload</loc>
+    <lastmod>2026-04-09T17:21:26+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314</loc>
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
