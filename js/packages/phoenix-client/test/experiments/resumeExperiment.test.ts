@@ -1,3 +1,4 @@
+import type * as PhoenixOtel from "@arizeai/phoenix-otel";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClient, type PhoenixClient } from "../../src/client";
@@ -7,7 +8,7 @@ import type { Example } from "../../src/types/datasets";
 
 vi.mock("../../src/client");
 vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@arizeai/phoenix-otel")>()),
+  ...(await importOriginal<typeof PhoenixOtel>()),
   attachGlobalTracerProvider: vi.fn(() => ({
     detach: vi.fn(),
   })),

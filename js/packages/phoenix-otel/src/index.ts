@@ -15,6 +15,6 @@ export * from "@arizeai/openinference-semantic-conventions";
 
 // Phoenix abstractions
 export * from "./createNoOpProvider";
-export * from "./openInference";
+export * from "./openinference";
 export * from "./register";
 export * from "./utils";

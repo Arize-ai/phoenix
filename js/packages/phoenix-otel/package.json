@@ -3,6 +3,7 @@
   "version": "0.4.3",
   "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
   "keywords": [
+    "agents",
     "arize",
     "llm",
     "observability",
@@ -10,8 +11,7 @@
     "openTelemetry",
     "otel",
     "phoenix",
-    "tracing",
-    "agents"
+    "tracing"
   ],
   "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel",
   "bugs": {
