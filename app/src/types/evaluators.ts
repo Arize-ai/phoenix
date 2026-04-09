@@ -125,6 +125,8 @@ export type ContinuousEvaluatorAnnotationConfig = {
  */
 export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
+export type CodeEvaluatorLanguage = "PYTHON" | "TYPESCRIPT";
+
 /**
  * The source data for evaluator input mappings.
  *
