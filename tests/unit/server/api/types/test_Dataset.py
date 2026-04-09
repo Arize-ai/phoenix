@@ -591,6 +591,16 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 
 class TestDatasetExperimentCountResolver:
+    QUERY_WITHOUT_OPTIONAL_ARGS = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experimentCount
+          }
+        }
+      }
+    """
+
     QUERY = """
       query ($datasetId: ID!, $datasetVersionId: ID = null, $includeEphemeral: Boolean = false) {
         node(id: $datasetId) {
@@ -608,6 +618,20 @@ class TestDatasetExperimentCountResolver:
     ) -> None:
         response = await gql_client.execute(
             query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 2}}
+
+    async def test_experiment_count_handles_omitted_optional_args(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_deletion: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY_WITHOUT_OPTIONAL_ARGS,
             variables={
                 "datasetId": str(GlobalID("Dataset", str(1))),
             },
