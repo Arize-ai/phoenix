@@ -161,7 +161,7 @@ class Dataset(Node):
                 global_id=dataset_version_id,
                 expected_type_name=DatasetVersion.__name__,
             )
-            if dataset_version_id
+            if dataset_version_id is not UNSET and dataset_version_id is not None
             else None
         )
 

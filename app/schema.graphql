@@ -607,6 +607,15 @@ input CreateDatasetBuiltinEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetCodeEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  description: String = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -2182,6 +2191,8 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createDatasetCodeEvaluator(input: CreateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetCodeEvaluator(input: UpdateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   updateCodeEvaluator(input: UpdateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
@@ -3862,6 +3873,14 @@ input UpdateCodeEvaluatorInput {
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!]
+  description: String
+}
+
+input UpdateDatasetCodeEvaluatorInput {
   datasetEvaluatorId: ID!
   name: Identifier!
   inputMapping: EvaluatorInputMappingInput = null

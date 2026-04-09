@@ -794,6 +794,12 @@ class DatasetEvaluator(Node):
                     return []
                 if isinstance(evaluator, models.LLMEvaluator):
                     configs = list(evaluator.output_configs)
+                elif isinstance(evaluator, models.CodeEvaluator):
+                    configs = [
+                        config
+                        for config in evaluator.output_configs
+                        if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    ]
                 elif isinstance(evaluator, models.BuiltinEvaluator):
                     builtin = get_builtin_evaluator_by_key(evaluator.key)
                     if builtin is None:
