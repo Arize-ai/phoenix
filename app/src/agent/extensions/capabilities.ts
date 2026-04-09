@@ -60,14 +60,25 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
   },
 ];
 
-/** Fast lookup map for code paths that already know the capability key. */
-const AGENT_CAPABILITY_DEFINITIONS_BY_KEY: Record<
-  AgentCapabilityKey,
-  AgentCapabilityDefinition
-> = {
-  "bash.retainInactiveSessions": AGENT_CAPABILITY_DEFINITIONS[0],
-  "graphql.mutations": AGENT_CAPABILITY_DEFINITIONS[1],
-};
+/** Fast lookup map derived from the definitions array. */
+const AGENT_CAPABILITY_DEFINITIONS_BY_KEY = Object.fromEntries(
+  AGENT_CAPABILITY_DEFINITIONS.map((def) => [def.key, def])
+) as Record<AgentCapabilityKey, AgentCapabilityDefinition>;
+
+// Runtime completeness check: every key in DEFAULT_AGENT_CAPABILITIES (which is
+// compile-time checked against AgentCapabilityKey) must have a matching entry in
+// the definitions array.  This catches the case where a developer adds a new key
+// to AgentCapabilityKey and DEFAULT_AGENT_CAPABILITIES but forgets to add its
+// definition to AGENT_CAPABILITY_DEFINITIONS.
+for (const key of Object.keys(
+  DEFAULT_AGENT_CAPABILITIES
+) as AgentCapabilityKey[]) {
+  if (!AGENT_CAPABILITY_DEFINITIONS_BY_KEY[key]) {
+    throw new Error(
+      `Missing AGENT_CAPABILITY_DEFINITIONS entry for capability key: "${key}"`
+    );
+  }
+}
 
 function getSystemPromptLine({
   definition,

@@ -76,10 +76,8 @@ const bashAgentTool = createRegisteredAgentTool<BashToolInput>({
     capabilities,
   }) => {
     await handleBashToolCall({
-      toolCall: {
-        toolCallId: toolCall.toolCallId,
-        input,
-      },
+      toolCallId: toolCall.toolCallId,
+      input,
       sessionId,
       addToolOutput,
       capabilities,
@@ -188,7 +186,7 @@ export async function handleRegisteredAgentToolCall({
 
   const input = registeredTool.parseInput(toolCall.input);
 
-  if (!input) {
+  if (input == null) {
     await addToolOutput({
       state: "output-error",
       tool: toolCall.toolName,
