@@ -20,7 +20,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def _load_fixture(name: str) -> Dict[str, Any]:
-    with open(FIXTURES_DIR / name) as f:
+    with open(FIXTURES_DIR / name, encoding="utf-8") as f:
         return json.load(f)  # type: ignore[no-any-return]
 
 
