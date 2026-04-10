@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f8069cb3b3265df1f605d66431b9dbf>>
+ * @generated SignedSource<<55032df165c1872b200d6bdd6d48323a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,8 @@ export type UpdateDatasetCodeEvaluatorInput = {
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
-  literalMapping?: any;
-  pathMapping?: any;
+  literalMapping: any;
+  pathMapping: any;
 };
 export type AnnotationConfigInput = {
   categorical?: CategoricalAnnotationConfigInput | null;

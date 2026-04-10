@@ -175,7 +175,7 @@ dev = [
 [project.optional-dependencies]
 evals = []
 experimental = []
-sandbox = [
+wasm = [
   "wasmtime>=15.0",
 ]
 e2b = [
@@ -184,8 +184,12 @@ e2b = [
 daytona = [
   "daytona>=0.140.0",
 ]
-vercel-sandbox = [
+vercel = [
   "vercel>=0.5.1",
+  "websockets>=14.0",
+]
+modal = [
+  "modal>=0.70.0",
 ]
 pg = [
   "asyncpg",
@@ -324,6 +328,7 @@ module = [
   "google.*",
   "mistralai.*",
   "jsonpath_ng",
+  "vercel.*",
 ]
 ignore_missing_imports = true
 

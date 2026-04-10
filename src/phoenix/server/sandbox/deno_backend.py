@@ -63,7 +63,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
 class DenoAdapter(SandboxAdapter):
     key = "DENO"
     display_name = "Deno (local)"
-    supported_languages = ["TYPESCRIPT"]
+    language = "TYPESCRIPT"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (
