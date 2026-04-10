@@ -71,7 +71,8 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
-            "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+            "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
+            "`VERCEL_TEAM_ID`.",
         ],
     ),
     "DENO": AdapterMetadata(

@@ -11,10 +11,16 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend
 from phoenix.server.sandbox.vercel_backend import (
     _DEFAULT_LANGUAGE,
     _LANGUAGE_CONFIGS,
+    ENV_VERCEL_OIDC_TOKEN,
+    ENV_VERCEL_PROJECT_ID,
+    ENV_VERCEL_TEAM_ID,
+    ENV_VERCEL_TOKEN,
     VercelPythonAdapter,
     VercelSandboxBackend,
 )
@@ -22,6 +28,28 @@ from phoenix.server.sandbox.vercel_backend import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_VERCEL_ACCESS_TRIPLE = {
+    "token": "tok",
+    "project_id": "prj_test",
+    "team_id": "team_test",
+}
+
+
+def _vercel_backend(language: str = "PYTHON") -> VercelSandboxBackend:
+    return VercelSandboxBackend(
+        token=_VERCEL_ACCESS_TRIPLE["token"],
+        project_id=_VERCEL_ACCESS_TRIPLE["project_id"],
+        team_id=_VERCEL_ACCESS_TRIPLE["team_id"],
+        language=language,
+    )
+
+
+_FULL_VERCEL_CONFIG = {
+    ENV_VERCEL_TOKEN: _VERCEL_ACCESS_TRIPLE["token"],
+    ENV_VERCEL_PROJECT_ID: _VERCEL_ACCESS_TRIPLE["project_id"],
+    ENV_VERCEL_TEAM_ID: _VERCEL_ACCESS_TRIPLE["team_id"],
+}
 
 
 def _make_mock_sandbox(
@@ -70,27 +98,52 @@ class TestVercelPythonAdapter:
 
     def test_build_backend_returns_sandbox_backend(self) -> None:
         adapter = VercelPythonAdapter()
-        backend = adapter.build_backend({"PHOENIX_SANDBOX_VERCEL_API_KEY": "tok"})
+        backend = adapter.build_backend(dict(_FULL_VERCEL_CONFIG))
         assert isinstance(backend, SandboxBackend)
         assert isinstance(backend, VercelSandboxBackend)
 
     def test_build_backend_python_language(self) -> None:
         adapter = VercelPythonAdapter()
-        backend = adapter.build_backend({"PHOENIX_SANDBOX_VERCEL_API_KEY": "tok"})
+        backend = adapter.build_backend(dict(_FULL_VERCEL_CONFIG))
         assert isinstance(backend, VercelSandboxBackend)
         assert backend._language == "PYTHON"
 
     def test_build_backend_uses_config_api_key(self) -> None:
         adapter = VercelPythonAdapter()
-        backend = adapter.build_backend({"PHOENIX_SANDBOX_VERCEL_API_KEY": "test-key"})
+        backend = adapter.build_backend(
+            {
+                ENV_VERCEL_TOKEN: "test-key",
+                ENV_VERCEL_PROJECT_ID: "prj_cfg",
+                ENV_VERCEL_TEAM_ID: "team_cfg",
+            }
+        )
         assert isinstance(backend, VercelSandboxBackend)
         assert backend._token == "test-key"
+        assert backend._project_id == "prj_cfg"
+        assert backend._team_id == "team_cfg"
+        assert not backend._use_oidc_env
 
-    def test_build_backend_raises_without_token(self) -> None:
-        import pytest
-
+    def test_build_backend_uses_oidc_when_vercel_oidc_token_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(ENV_VERCEL_OIDC_TOKEN, "oidc-dev-token")
         adapter = VercelPythonAdapter()
-        with pytest.raises(ValueError, match="token"):
+        backend = adapter.build_backend({})
+        assert isinstance(backend, VercelSandboxBackend)
+        assert backend._use_oidc_env
+
+    def test_build_backend_raises_without_credentials(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for key in (
+            ENV_VERCEL_OIDC_TOKEN,
+            ENV_VERCEL_TOKEN,
+            ENV_VERCEL_PROJECT_ID,
+            ENV_VERCEL_TEAM_ID,
+        ):
+            monkeypatch.delenv(key, raising=False)
+        adapter = VercelPythonAdapter()
+        with pytest.raises(ValueError, match="Vercel sandbox authentication"):
             adapter.build_backend({})
 
 
@@ -107,11 +160,14 @@ class TestVercelSandboxBackendLanguageRouting:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.execute("print(1)", session_key="s")
 
         call_kwargs = mock_class.create.call_args.kwargs
         assert call_kwargs["runtime"] == _LANGUAGE_CONFIGS["PYTHON"]["runtime"]
+        assert call_kwargs["token"] == _VERCEL_ACCESS_TRIPLE["token"]
+        assert call_kwargs["project_id"] == _VERCEL_ACCESS_TRIPLE["project_id"]
+        assert call_kwargs["team_id"] == _VERCEL_ACCESS_TRIPLE["team_id"]
 
     async def test_python_runs_python3_command(self) -> None:
         mock_class, sandbox = _make_mock_sandbox()
@@ -120,7 +176,7 @@ class TestVercelSandboxBackendLanguageRouting:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.execute("print(1)", session_key="s")
 
         cmd, args = sandbox.run_command.call_args.args
@@ -135,7 +191,7 @@ class TestVercelSandboxBackendLanguageRouting:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="TYPESCRIPT")
+            backend = _vercel_backend(language="TYPESCRIPT")
             await backend.execute("console.log(1)", session_key="s")
 
         call_kwargs = mock_class.create.call_args.kwargs
@@ -148,7 +204,7 @@ class TestVercelSandboxBackendLanguageRouting:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="TYPESCRIPT")
+            backend = _vercel_backend(language="TYPESCRIPT")
             await backend.execute("console.log(1)", session_key="s")
 
         cmd, args = sandbox.run_command.call_args.args
@@ -162,7 +218,7 @@ class TestVercelSandboxBackendLanguageRouting:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="COBOL")
+            backend = _vercel_backend(language="COBOL")
             await backend.execute("x", session_key="s")
 
         call_kwargs = mock_class.create.call_args.kwargs
@@ -182,7 +238,7 @@ class TestVercelSandboxBackendResult:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             result = await backend.execute("print('hello')", session_key="s")
 
         assert isinstance(result, ExecutionResult)
@@ -196,7 +252,7 @@ class TestVercelSandboxBackendResult:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             result = await backend.execute("bad code", session_key="s")
 
         assert result.error == "boom"
@@ -209,14 +265,14 @@ class TestVercelSandboxBackendResult:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             result = await backend.execute("x", session_key="s")
 
         assert result.error is not None
         assert "network error" in result.error
 
     async def test_close_does_not_raise(self) -> None:
-        backend = VercelSandboxBackend(token="tok")
+        backend = _vercel_backend(language=_DEFAULT_LANGUAGE)
         await backend.close()
 
 
@@ -235,7 +291,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("sess1")
 
         mock_class.create.assert_called_once()
@@ -250,7 +306,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("sess1")
             await backend.start_session("sess1")
 
@@ -266,7 +322,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("sess1")
             result = await backend.execute("print(1)", session_key="sess1")
 
@@ -284,7 +340,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("sess1")
             await backend.execute("x = 1", session_key="sess1")
             await backend.execute("print(x)", session_key="sess1")
@@ -302,7 +358,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("sess1")
             await backend.stop_session("sess1")
 
@@ -315,7 +371,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock()},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             # Should not raise
             await backend.stop_session("nonexistent")
 
@@ -328,7 +384,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             # No start_session — ephemeral execution
             result = await backend.execute("print(1)", session_key="ephemeral-key")
 
@@ -350,7 +406,7 @@ class TestVercelSandboxBackendSessions:
             "sys.modules",
             {"vercel": MagicMock(), "vercel.sandbox": MagicMock(AsyncSandbox=mock_class)},
         ):
-            backend = VercelSandboxBackend(token="tok", language="PYTHON")
+            backend = _vercel_backend()
             await backend.start_session("a")
             await backend.start_session("b")
             await backend.close()

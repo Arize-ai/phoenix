@@ -8,6 +8,11 @@ otherwise spins up an ephemeral sandbox (create → run_command → stop).
 Requires the ``vercel`` extra (``vercel>=0.5.1``).
 Import is deferred to avoid top-level failures when the extra is absent.
 
+Authentication follows the Vercel Sandbox SDK: either ``VERCEL_OIDC_TOKEN`` (for
+local ``vercel env pull`` or deployments on Vercel), or the access-token
+triple ``VERCEL_TOKEN``, ``VERCEL_PROJECT_ID``, and ``VERCEL_TEAM_ID``. See
+https://vercel.com/docs/vercel-sandbox/concepts/authentication
+
 Language routing
 ----------------
 - PYTHON  → runtime="python3.13", run_command("python3", ["-c", code])
@@ -21,13 +26,17 @@ import logging
 import os
 from typing import Any, Optional
 
-from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
-
 from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
 )
+
+# Vercel SDK env (https://vercel.com/docs/vercel-sandbox/concepts/authentication)
+ENV_VERCEL_OIDC_TOKEN = "VERCEL_OIDC_TOKEN"
+ENV_VERCEL_TOKEN = "VERCEL_TOKEN"
+ENV_VERCEL_PROJECT_ID = "VERCEL_PROJECT_ID"
+ENV_VERCEL_TEAM_ID = "VERCEL_TEAM_ID"
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +65,30 @@ class VercelSandboxBackend(SandboxBackend):
     Supports named sessions via start_session/stop_session for sandbox reuse
     across multiple execute() calls, or ephemeral execution (no session) which
     spins up a fresh sandbox per call.
+
+    Credentials: either rely on ``VERCEL_OIDC_TOKEN`` in the process environment
+    (``use_oidc_env=True``), or pass an access-token triple ``token``,
+    ``project_id``, and ``team_id`` for ``AsyncSandbox.create``.
     """
 
-    def __init__(self, token: str, language: str = _DEFAULT_LANGUAGE) -> None:
+    def __init__(
+        self,
+        *,
+        use_oidc_env: bool = False,
+        token: Optional[str] = None,
+        project_id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        language: str = _DEFAULT_LANGUAGE,
+    ) -> None:
+        self._use_oidc_env = use_oidc_env
         self._token = token
+        self._project_id = project_id
+        self._team_id = team_id
+        if not use_oidc_env and not (token and project_id and team_id):
+            raise ValueError(
+                "VercelSandboxBackend requires use_oidc_env=True, or "
+                "token, project_id, and team_id."
+            )
         self._language = language.upper() if language else _DEFAULT_LANGUAGE
         self._sessions: dict[str, Any] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
@@ -71,7 +100,11 @@ class VercelSandboxBackend(SandboxBackend):
         from vercel.sandbox import AsyncSandbox
 
         runtime: str = self._lang_cfg()["runtime"]
-        create_kwargs: dict[str, Any] = {"runtime": runtime, "token": self._token}
+        create_kwargs: dict[str, Any] = {"runtime": runtime}
+        if not self._use_oidc_env:
+            create_kwargs["token"] = self._token
+            create_kwargs["project_id"] = self._project_id
+            create_kwargs["team_id"] = self._team_id
         if env:
             create_kwargs["env"] = env
         return await AsyncSandbox.create(**create_kwargs)
@@ -147,21 +180,40 @@ class VercelSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
+def _resolve_vercel_access_token(config: dict[str, Any]) -> str:
+    return str(config.get(ENV_VERCEL_TOKEN) or "") or os.environ.get(ENV_VERCEL_TOKEN, "")
+
+
+def _resolve_vercel_project_id(config: dict[str, Any]) -> str:
+    return str(config.get(ENV_VERCEL_PROJECT_ID) or "") or os.environ.get(ENV_VERCEL_PROJECT_ID, "")
+
+
+def _resolve_vercel_team_id(config: dict[str, Any]) -> str:
+    return str(config.get(ENV_VERCEL_TEAM_ID) or "") or os.environ.get(ENV_VERCEL_TEAM_ID, "")
+
+
 class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
     display_name = "Vercel Sandbox (Python)"
     language = "PYTHON"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        token: str = (
-            config.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
-            or os.environ.get("PHOENIX_SANDBOX_VERCEL_API_KEY")
-            or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
-            or ""
-        )
-        if not token:
-            raise ValueError(
-                "Vercel sandbox requires a token. "
-                "Set PHOENIX_SANDBOX_VERCEL_API_KEY in env or config."
+        if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
+            return VercelSandboxBackend(use_oidc_env=True, language="PYTHON")
+
+        token = _resolve_vercel_access_token(config)
+        project_id = _resolve_vercel_project_id(config)
+        team_id = _resolve_vercel_team_id(config)
+        if token and project_id and team_id:
+            return VercelSandboxBackend(
+                token=token,
+                project_id=project_id,
+                team_id=team_id,
+                language="PYTHON",
             )
-        return VercelSandboxBackend(token=token, language="PYTHON")
+        raise ValueError(
+            "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
+            "(e.g. from `vercel env pull`), or set all of VERCEL_TOKEN, "
+            "VERCEL_PROJECT_ID, and VERCEL_TEAM_ID. See "
+            "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+        )

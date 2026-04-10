@@ -105,7 +105,8 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     ]
     assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",
-        "Provide `PHOENIX_SANDBOX_VERCEL_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+        "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
+        "`VERCEL_TEAM_ID`.",
     ]
     assert backends["DENO"]["dependencyHints"] == [
         "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
