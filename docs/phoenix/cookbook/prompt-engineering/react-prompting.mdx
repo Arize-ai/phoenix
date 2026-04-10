@@ -62,8 +62,9 @@ from phoenix.client import Client as PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.evals import (
     TOOL_CALLING_PROMPT_RAILS_MAP,
-    OpenAIModel,
-    llm_classify,
+    LLM,
+    create_classifier,
+    evaluate_dataframe,
 )
 from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
@@ -296,14 +297,18 @@ def prompt_task(input):
 
 
 def evaluate_response(input, output):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        template=TOOL_CALLING_PROMPT_TEMPLATE,
-        model=OpenAIModel(model="gpt-3.5-turbo"),
-        rails=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
-        provide_explanation=True,
+    llm = LLM(provider="openai", model="gpt-3.5-turbo")
+    classifier = create_classifier(
+        name="tool_calling",
+        prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
+        llm=llm,
+        choices=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
     )
-    score = response_classifications.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
+        evaluators=[classifier],
+    )
+    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
     return score
 ```
 
@@ -380,14 +385,18 @@ def prompt_task(input):
 
 
 def evaluate_response(input, output):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        template=TOOL_CALLING_PROMPT_TEMPLATE,
-        model=OpenAIModel(model="gpt-3.5-turbo"),
-        rails=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
-        provide_explanation=True,
+    llm = LLM(provider="openai", model="gpt-3.5-turbo")
+    classifier = create_classifier(
+        name="tool_calling",
+        prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
+        llm=llm,
+        choices=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
     )
-    score = response_classifications.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
+        evaluators=[classifier],
+    )
+    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
     return score
 ```
 

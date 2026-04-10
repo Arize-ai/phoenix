@@ -103,7 +103,7 @@ dataset = Client().datasets.create_dataset(
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
-Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function is llm_classify and our evaluator is a comparison between the task output and our annotated labels.
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `evaluate_dataframe` with a `create_classifier` and our evaluator is a comparison between the task output and our annotated labels.
 
 ```py expandable
 from phoenix.evals.templates import (
@@ -145,23 +145,26 @@ INPUT RECEIPT: """,
 ```
 ```py expandable
 import json
-from phoenix.evals import llm_classify
-from phoenix.evals import OpenAIModel
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+
+llm = LLM(provider="openai", model="gpt-4o")
+receipt_classifier = create_classifier(
+    name="receipt_accuracy",
+    prompt_template=classification_template,
+    llm=llm,
+    choices=rails,
+)
 
 def task_function(input, reference):
     parsed = json.loads(input['attributes.input.value'])
     image_url = parsed['messages'][0]['content'][1]['image_url']['url']
     output = reference['attributes.llm.output_messages'][0]['message.content']
 
-    response_classification = llm_classify(
-        data=pd.DataFrame([{"image": image_url, "output": output}]),
-        template=classification_template,
-        model=OpenAIModel(model="gpt-4o"),
-        rails=rails,
-        provide_explanation=True,
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"image": image_url, "output": output}]),
+        evaluators=[receipt_classifier],
     )
-    # print(response_classification)
-    label = response_classification.iloc[0]["label"]
+    label = result_df.iloc[0]["label"]
     return label
 
 

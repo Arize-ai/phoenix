@@ -1,6 +1,6 @@
 ---
 title: "Release Notes"
-description: "Breaking changes in Phoenix v14.0.0: CLI restructuring, legacy client removal, evaluations endpoint removal, and evals 1.0 removal."
+description: "Breaking changes in Phoenix v14.0.0: CLI restructuring, legacy client removal, evaluations endpoint removal, evals 1.0 removal, and GraphQL pagination."
 ---
 
 # Breaking Change: CLI Now Subcommand-First
@@ -144,3 +144,61 @@ experiment = run_experiment(dataset=dataset, task=task, evaluators=[...])
 ```
 
 The `phoenix-client` experiments module (`phoenix.client.experiments`) is the replacement and has no dependency on `arize-phoenix-evals`.
+
+# Breaking Change: GraphQL Forward Pagination Requires `first`
+
+April 7, 2026
+
+**Breaking change in arize-phoenix 14.0.0**
+
+Three GraphQL connection fields now require an explicit `first` argument and no longer accept backward pagination (`last`/`before`):
+
+| Type | Field | Max `first` |
+| :--- | :---- | :---------- |
+| `Project` | `spans` | 1000 |
+| `Trace` | `spans` | 1000 |
+| `ProjectSession` | `traces` | 1000 |
+
+**Before:**
+
+```graphql
+query {
+  project(id: "...") {
+    spans {
+      edges { node { name } }
+    }
+  }
+}
+```
+
+**After:**
+
+```graphql
+query {
+  project(id: "...") {
+    spans(first: 100) {
+      edges { node { name } }
+    }
+  }
+}
+```
+
+Queries that omit `first` will fail with `"first" is required`. Queries that pass `first` greater than 1000 will fail with `"first" must be less than or equal to 1000`. Backward pagination with `last`/`before` is no longer supported on these fields.
+
+This change protects the server from unbounded queries that could cause excessive memory usage and slow response times.
+
+# New: Server-Side Experiment Execution
+
+April 7, 2026
+
+**New in arize-phoenix 14.0.0**
+
+Experiments now run as a background daemon inside the Phoenix server instead of in the caller's Python process. When you call `run_experiment`, work is enqueued server-side — your script or notebook can exit and the experiment continues running.
+
+Additional capabilities:
+
+- **Crash recovery** — if the server restarts mid-experiment, the runner automatically resumes incomplete work from the database.
+- **Multi-replica coordination** — in PostgreSQL HA deployments, heartbeat-based ownership ensures exactly one replica runs each experiment. Stale claims from crashed replicas are recovered within ~10 minutes.
+- **Resume API** — use `resume_experiment(experiment_id=..., task=...)` to manually resume a stopped or interrupted experiment, running only the missing or failed runs.
+
+The `run_experiment` call signature is unchanged. See [Run Experiments in the Background](/datasets-and-experiments/how-to-experiments/run-experiments-in-background) for full documentation.

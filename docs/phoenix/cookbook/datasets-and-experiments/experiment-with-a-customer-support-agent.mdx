@@ -205,39 +205,39 @@ The parameters extracted from the question must match the JSON below exactly.
 Let's run evaluations using Phoenix's `llm_classify` function for our responses dataframe we generated above!
 
 ```python expandable
-from phoenix.evals import OpenAIModel, llm_classify
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
 
 rails = ["incorrect", "correct"]
+llm = LLM(provider="openai", model="gpt-4o")
 
-router_eval_df = llm_classify(
-    data=response_df,
-    template=ROUTER_EVAL_TEMPLATE,
-    model=OpenAIModel(model="gpt-4o"),
-    rails=rails,
-    provide_explanation=True,
-    include_prompt=True,
-    concurrency=4,
+router_classifier = create_classifier(
+    name="router_eval",
+    prompt_template=ROUTER_EVAL_TEMPLATE,
+    llm=llm,
+    choices=rails,
 )
 
-function_selection_eval_df = llm_classify(
-    data=response_df,
-    template=FUNCTION_SELECTION_EVAL_TEMPLATE,
-    model=OpenAIModel(model="gpt-4o"),
-    rails=rails,
-    provide_explanation=True,
-    include_prompt=True,
-    concurrency=4,
+function_selection_classifier = create_classifier(
+    name="function_selection_eval",
+    prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
+    llm=llm,
+    choices=rails,
 )
 
-parameter_extraction_eval_df = llm_classify(
-    data=response_df,
-    template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
-    model=OpenAIModel(model="gpt-4o"),
-    rails=rails,
-    provide_explanation=True,
-    include_prompt=True,
-    concurrency=4,
+parameter_extraction_classifier = create_classifier(
+    name="parameter_extraction_eval",
+    prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
+    llm=llm,
+    choices=rails,
 )
+
+evals_df = evaluate_dataframe(
+    dataframe=response_df,
+    evaluators=[router_classifier, function_selection_classifier, parameter_extraction_classifier],
+)
+router_eval_df = evals_df[["router_eval_label", "router_eval_score", "router_eval_explanation"]]
+function_selection_eval_df = evals_df[["function_selection_eval_label", "function_selection_eval_score", "function_selection_eval_explanation"]]
+parameter_extraction_eval_df = evals_df[["parameter_extraction_eval_label", "parameter_extraction_eval_score", "parameter_extraction_eval_explanation"]]
 ```
 
 ## Create and Run an Experiment
@@ -258,20 +258,23 @@ dataset = px_client.datasets.create_dataset(
 
 ```python expandable
 def generic_eval(input, output, prompt_template):
+    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+
     df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
     rails = ["correct", "incorrect"]
-    eval_df = llm_classify(
-        data=df_in,
-        template=prompt_template,
-        model=OpenAIModel(model="gpt-4o"),
-        rails=rails,
-        provide_explanation=True,
+    llm = LLM(provider="openai", model="gpt-4o")
+    classifier = create_classifier(
+        name="eval",
+        prompt_template=prompt_template,
+        llm=llm,
+        choices=rails,
     )
-    label = eval_df["label"][0]
+    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[classifier])
+    label = eval_df["eval_label"][0]
     score = (
         1 if rails and label == rails[0] else 0
     )  # Choose the 0 item in rails as the correct "1" label
-    explanation = eval_df["explanation"][0]
+    explanation = eval_df["eval_explanation"][0]
     return EvaluationResult(score=score, label=label, explanation=explanation)
 
 

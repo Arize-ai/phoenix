@@ -49,22 +49,21 @@ df_sample = df_sample.rename(columns={
 ## Run Relevance Classification
 
 ```python
-model = OpenAIModel(model="gpt-4", temperature=0.0)
-rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
+from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
-relevance_classifications = llm_classify(
-    dataframe=df_sample,
-    template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    concurrency=20,
-)["label"].tolist()
+llm = LLM(provider="openai", model="gpt-4")
+relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+
+evals_df = evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator])
+relevance_classifications = evals_df["document_relevance_label"].tolist()
+rails = relevance_evaluator.CHOICES
 ```
 
 ## Evaluate Results
 
 ```python
-true_labels = df_sample["relevant"].map(RAG_RELEVANCY_PROMPT_RAILS_MAP).tolist()
+true_labels = df_sample["relevant"].map({True: "relevant", False: "unrelated"}).tolist()
 
 print(classification_report(true_labels, relevance_classifications, labels=rails))
 confusion_matrix = ConfusionMatrix(
@@ -84,13 +83,9 @@ confusion_matrix.plot(
 ## Get Explanations
 
 ```python
-relevance_classifications_df = llm_classify(
+relevance_classifications_df = evaluate_dataframe(
     dataframe=df_sample.sample(n=5),
-    template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    provide_explanation=True,
-    concurrency=20,
+    evaluators=[relevance_evaluator],
 )
 ```
 
@@ -100,8 +95,8 @@ Run the same evaluation with different models:
 
 ```python
 # GPT-3.5
-model_gpt35 = OpenAIModel(model="gpt-3.5-turbo", temperature=0.0)
+llm_gpt35 = LLM(provider="openai", model="gpt-3.5-turbo")
 
 # GPT-4 Turbo
-model_gpt4turbo = OpenAIModel(model="gpt-4-turbo-preview", temperature=0.0)
+llm_gpt4turbo = LLM(provider="openai", model="gpt-4-turbo-preview")
 ```

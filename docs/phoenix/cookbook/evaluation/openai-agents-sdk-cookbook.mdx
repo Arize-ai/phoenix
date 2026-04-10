@@ -112,7 +112,7 @@ Next, we create our evaluator.
 ```python expandable
 import pandas as pd
 
-from phoenix.evals import OpenAIModel, llm_classify
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
 
 
 def correctness_eval(input, output):
@@ -136,14 +136,18 @@ def correctness_eval(input, output):
 
     # Run the evaluation
     rails = ["correct", "incorrect"]
-    eval_df = llm_classify(
-        data=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        template=MATH_EVAL_TEMPLATE,
-        model=OpenAIModel(model="gpt-4.1"),
-        rails=rails,
-        provide_explanation=True,
+    llm = LLM(provider="openai", model="gpt-4.1")
+    classifier = create_classifier(
+        name="math_correctness",
+        prompt_template=MATH_EVAL_TEMPLATE,
+        llm=llm,
+        choices=rails,
     )
-    label = eval_df["label"][0]
+    eval_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
+        evaluators=[classifier],
+    )
+    label = eval_df["math_correctness_label"][0]
     score = 1 if label == "correct" else 0
     return score
 ```
@@ -252,8 +256,6 @@ Another option is to pull traces from completed production runs and batch proces
 
 ```py
 from opentelemetry.trace import StatusCode, format_span_id
-
-from phoenix.trace import SpanEvaluations
 ```
 
 After importing the necessary libraries, we set up a tracer object to enable span creation for tracing our task function.

@@ -68,6 +68,7 @@ px trace list ./my-traces --limit 50
 | `PHOENIX_PROJECT` | Project name or ID |
 | `PHOENIX_API_KEY` | API key for authentication (if required) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Set to `true` to enable delete commands |
 
 CLI flags take priority over environment variables.
 
@@ -337,6 +338,155 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 <system>You are a helpful assistant specialized in...</system>
 <user>{{user_input}}</user>
 ```
+
+## Delete Commands
+
+Delete commands are disabled by default and must be explicitly enabled via an environment variable.
+
+| Variable | Description |
+|----------|-------------|
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Set to `true` to enable all `px <noun> delete` commands |
+
+**Confirmation behavior:**
+- Interactive TTY: prompts for `y` or `yes` before deleting
+- Non-TTY (CI/pipes): requires `--yes`/`-y` flag, otherwise exits with code 3
+- `--yes`/`-y`: bypasses all prompts
+
+### `px dataset delete <dataset-identifier>`
+
+Delete a dataset by name or ID.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px dataset delete my-dataset
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px dataset delete my-dataset --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px project delete <project-identifier>`
+
+Delete a project by name or ID.
+
+**Cascade warning:** Deletes all traces, spans, sessions, and annotations in the project.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px project delete my-project
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px project delete my-project --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px trace delete <trace-identifier>`
+
+Delete a trace by OTel trace ID or GlobalID.
+
+**Cascade warning:** Deletes all child spans.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px trace delete abc123def456
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px trace delete abc123def456 --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px experiment delete <experiment-id>`
+
+Delete an experiment by ID.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px experiment delete RXhwZXJpbWVudDox
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px experiment delete RXhwZXJpbWVudDox --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session delete <session-id>`
+
+Delete a session by GlobalID or user-provided session_id.
+
+**Cascade warning:** Deletes all traces, spans, and annotations in the session.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px session delete my-session-id
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px session delete my-session-id --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px annotation-config delete <config-id>`
+
+Delete an annotation configuration by ID.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px prompt delete <prompt-identifier>`
+
+Delete a prompt by name or ID.
+
+**Cascade warning:** Deletes all versions, tags, and labels.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px prompt delete my-evaluator
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px prompt delete my-evaluator --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px span delete <span-identifier>`
+
+Delete a single span by OTel span_id or GlobalID. Child spans are **not** deleted.
+
+```bash
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px span delete abc123span456
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px span delete abc123span456 --yes
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-y, --yes` | Skip confirmation prompt | — |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
 
 ### `px api graphql <query>`
 

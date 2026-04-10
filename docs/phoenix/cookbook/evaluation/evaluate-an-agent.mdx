@@ -465,7 +465,8 @@ OpenAIInstrumentor().uninstrument()  # Uninstrument the OpenAI client to avoid c
 import nest_asyncio
 
 from phoenix.client import Client
-from phoenix.evals import TOOL_CALLING_PROMPT_TEMPLATE, OpenAIModel, llm_classify
+from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals.metrics import ToolSelectionEvaluator
 from phoenix.client.experiments import evaluate_experiment, run_experiment
 from phoenix.client.experiments import create_evaluator
 from phoenix.client.__generated__.v1 import DatasetExample as Example
@@ -476,7 +477,8 @@ nest_asyncio.apply()
 
 ```python
 px_client = Client()
-eval_model = OpenAIModel(model="gpt-4o-mini")
+llm = LLM(provider="openai", model="gpt-4o-mini")
+tool_selection_evaluator = ToolSelectionEvaluator(llm=llm)
 ```
 
 ## Function Calling Evals using LLM as a Judge
@@ -524,19 +526,18 @@ tool_calls_df.head()
 ```
 
 ```python expandable
-tool_call_eval = llm_classify(
+tool_calls_df["available_tools"] = (
+    "generate_visualization, lookup_sales_data, analyze_sales_data, run_python_code"
+)
+tool_calls_df["tool_selection"] = tool_calls_df["tool_call"]
+
+tool_call_eval = evaluate_dataframe(
     dataframe=tool_calls_df,
-    template=TOOL_CALLING_PROMPT_TEMPLATE.template.replace(
-        "{tool_definitions}",
-        "generate_visualization, lookup_sales_data, analyze_sales_data, run_python_code",
-    ),
-    rails=["correct", "incorrect"],
-    model=eval_model,
-    provide_explanation=True,
+    evaluators=[tool_selection_evaluator],
 )
 
 tool_call_eval["score"] = tool_call_eval.apply(
-    lambda x: 1 if x["label"] == "correct" else 0, axis=1
+    lambda x: 1 if x["tool_selection_label"] == "correct" else 0, axis=1
 )
 
 tool_call_eval.head()

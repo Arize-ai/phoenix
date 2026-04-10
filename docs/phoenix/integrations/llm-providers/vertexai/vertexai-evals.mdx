@@ -3,33 +3,34 @@ title: "VertexAI Evals"
 description: Configure and run VertexAI for evals
 ---
 
-### VertexAI
+### Using Google Vertex AI with Phoenix Evals
 
 <Info>
-Need to install the extra dependency`google-cloud-aiplatform>=1.33.0`
+Requires `google-generativeai`
+
+```sh
+pip install "arize-phoenix-evals>=3" google-generativeai
+```
 </Info>
 
-```python highlight={2}
-class VertexAIModel:
-    project: Optional[str] = None
-    location: Optional[str] = None
-    credentials: Optional["Credentials"] = None
-    model: str = "text-bison"
-    tuned_model: Optional[str] = None
-    temperature: float = 0.0
-    max_tokens: int = 1024
-    top_p: float = 0.95
-    top_k: int = 40
-```
-
-To authenticate with VertexAI, you must pass either your credentials or a project, location pair. In the following example, we quickly instantiate the VertexAI model as follows:
+Create an `LLM` instance with the Google provider:
 
 ```python
-project = "my-project-id"
-location = "us-central1" # as an example
-model = VertexAIModel(project=project, location=location)
-model("Hello there, this is a tesst if you are working?")
-# Output: "Hello world, I am working!"
+from phoenix.evals import LLM
+
+llm = LLM(provider="google", model="gemini-2.0-flash")
 ```
 
+The `LLM` wrapper reads your API key from the `GOOGLE_API_KEY` environment variable, or you can authenticate via Application Default Credentials for Vertex AI.
 
+### Using with evaluators
+
+```python
+from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals.metrics import FaithfulnessEvaluator
+
+llm = LLM(provider="google", model="gemini-2.0-flash")
+evaluator = FaithfulnessEvaluator(llm=llm)
+
+results_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
+```

@@ -118,23 +118,22 @@ One of the quickest ways of getting started is to produce synthetic queries usin
     ```python
     import json
 
-    from phoenix.evals import OpenAIModel, llm_generate
+    from phoenix.evals import LLM
+
+    llm = LLM(provider="openai", model="gpt-4o")
 
 
-    def output_parser(response: str, index: int):
+    def generate_questions(row):
+        prompt = generate_questions_template.format(**row)
+        response = llm.generate_text(prompt=prompt)
         try:
             return json.loads(response)
         except json.JSONDecodeError as e:
             return {"__error__": str(e)}
 
 
-    questions_df = llm_generate(
-        dataframe=document_chunks_df,
-        template=generate_questions_template,
-        model=OpenAIModel(model="gpt-3.5-turbo"),
-        output_parser=output_parser,
-        concurrency=20,
-    )
+    questions_df = document_chunks_df.copy()
+    questions_df["generated"] = questions_df.apply(generate_questions, axis=1)
     questions_df["output"] = [None, None, None]
     ```
 

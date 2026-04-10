@@ -96,10 +96,11 @@ If you'd like to follow along with this evaluation example, you can check out th
 
     ```typescript
     import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
-    import { createDocumentRelevancyEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevancyEvaluator";
+    import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals/llm/createDocumentRelevanceEvaluator";
+    import { openai } from "@ai-sdk/openai";
 
-    const documentRelevancyEvaluator = createDocumentRelevancyEvaluator({
-        model: createOpenAIModel("gpt-5"),
+    const documentRelevancyEvaluator = createDocumentRelevanceEvaluator({
+        model: openai("gpt-4o-mini"),
       });
 
       const documentRelevancyCheck = asExperimentEvaluator({

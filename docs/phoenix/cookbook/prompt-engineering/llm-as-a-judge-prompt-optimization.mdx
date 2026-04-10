@@ -161,21 +161,23 @@ Finally, we run our experiment. With this setup, we can measure how well our pro
 ```python expandable
 import pandas as pd
 
-from phoenix.evals import (
-    OpenAIModel,
-    llm_classify,
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+
+llm = LLM(provider="openai", model="gpt-4")
+empathy_classifier = create_classifier(
+    name="empathy",
+    prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
+    llm=llm,
+    choices=list(map(str, range(1, 11))),
 )
 
 
 def initial_prompt(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[empathy_classifier],
     )
-    score = response_classifications.iloc[0]["label"]
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 
@@ -233,14 +235,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    classifier = create_classifier(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[classifier],
+    )
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 
@@ -299,14 +304,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    classifier = create_classifier(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[classifier],
+    )
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 
@@ -373,14 +381,17 @@ print(EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED)
 
 ```python expandable
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    classifier = create_classifier(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[classifier],
+    )
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 
@@ -421,14 +432,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    classifier = create_classifier(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[classifier],
+    )
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 
@@ -451,14 +465,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = (
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    classifier = create_classifier(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
+    result_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
+        evaluators=[classifier],
+    )
+    score = result_df.iloc[0]["label"]
     return int(score)
 
 

@@ -1,26 +1,20 @@
 ---
 title: "Quickstart: Evals"
-description: "This quickstart guide will show you through the basics of evaluating data from your LLM application."
+description: "Evaluate data from your LLM application using arize-phoenix-evals 3.0."
 ---
 
 ## Install Phoenix Evals
 
 ```bash
-pip install -q "arize-phoenix-evals>=2"
-pip install -q openai nest_asyncio
+pip install -q "arize-phoenix-evals>=3"
+pip install -q openai
 ```
 
 ## Prepare your dataset
 
 The first thing you'll need is a dataset to evaluate. This could be your own collected or generated set of examples, or data you've exported from Phoenix traces. If you've already collected some trace data, this makes a great starting point.
 
-For the sake of this guide however, we'll download some pre-existing data to evaluate. Feel free to substitute this with your own data, just be sure it includes the following columns:
-
-* reference
-
-* query
-
-* response
+For this guide, we'll create a small dataset inline. Feel free to substitute with your own data — just be sure it includes the columns expected by the evaluators you choose.
 
 ```python expandable
 import pandas as pd
@@ -28,19 +22,22 @@ import pandas as pd
 df = pd.DataFrame(
     [
         {
-            "reference": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
-            "query": "Where is the Eiffel Tower located?",
-            "response": "The Eiffel Tower is located in Paris, France.",
+            "input": "Where is the Eiffel Tower located?",
+            "output": "The Eiffel Tower is located in Paris, France.",
+            "context": "The Eiffel Tower is located in Paris, France. It was constructed in 1889 as the entrance arch to the 1889 World's Fair.",
+            "reference": "The Eiffel Tower is in Paris, France.",
         },
         {
-            "reference": "The Great Wall of China is over 13,000 miles long. It was built over many centuries by various Chinese dynasties to protect against nomadic invasions.",
-            "query": "How long is the Great Wall of China?",
-            "response": "The Great Wall of China is approximately 13,171 miles (21,196 kilometers) long.",
+            "input": "How long is the Great Wall of China?",
+            "output": "The Great Wall of China is approximately 13,171 miles (21,196 kilometers) long.",
+            "context": "The Great Wall of China is over 13,000 miles long. It was built over many centuries by various Chinese dynasties to protect against nomadic invasions.",
+            "reference": "Over 13,000 miles long.",
         },
         {
-            "reference": "The Amazon rainforest is the largest tropical rainforest in the world. It covers much of northwestern Brazil and extends into Colombia, Peru and other South American countries.",
-            "query": "What is the largest tropical rainforest?",
-            "response": "The Amazon rainforest is the largest tropical rainforest in the world. It is home to the largest number of plant and animal species in the world.",
+            "input": "What is the largest tropical rainforest?",
+            "output": "The Amazon rainforest is the largest tropical rainforest in the world. It is home to the largest number of plant and animal species in the world.",
+            "context": "The Amazon rainforest is the largest tropical rainforest in the world. It covers much of northwestern Brazil and extends into Colombia, Peru and other South American countries.",
+            "reference": "The Amazon rainforest.",
         },
     ]
 )
@@ -49,7 +46,7 @@ df.head()
 
 ## Evaluate and Log Results
 
-Set up evaluators (in this case for hallucinations and Q\&A correctness), run the evaluations, and log the results to visualize them in Phoenix. We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of other models. First, we need to add our OpenAI API key to our environment.
+Set up evaluators (in this case for faithfulness and correctness), run the evaluations, and log the results to visualize them in Phoenix. We'll use OpenAI as our evaluation model, but Phoenix supports [many providers](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm). First, add your OpenAI API key to the environment.
 
 ```python
 import os
@@ -62,56 +59,46 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 ```
 
 ```python expandable
-import nest_asyncio
+from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals.metrics import FaithfulnessEvaluator, CorrectnessEvaluator
 
-from phoenix.evals import HallucinationEvaluator, OpenAIModel, QAEvaluator, run_evals
-
-nest_asyncio.apply()  # This is needed for concurrency in notebook environments
-
-# Set your OpenAI API key
-eval_model = OpenAIModel(model="gpt-4o")
+# Create an LLM instance (replaces the old OpenAIModel)
+llm = LLM(provider="openai", model="gpt-4o")
 
 # Define your evaluators
-hallucination_evaluator = HallucinationEvaluator(eval_model)
-qa_evaluator = QAEvaluator(eval_model)
+# FaithfulnessEvaluator checks if the output is grounded in the context
+# CorrectnessEvaluator checks if the output is factually correct
+faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
+correctness_evaluator = CorrectnessEvaluator(llm=llm)
 
-# We have to make some minor changes to our dataframe to use the column names expected by our evaluators
-# for `hallucination_evaluator` the input df needs to have columns 'output', 'input', 'context'
-# for `qa_evaluator` the input df needs to have columns 'output', 'input', 'reference'
-df["context"] = df["reference"]
-df.rename(columns={"query": "input", "response": "output"}, inplace=True)
-assert all(column in df.columns for column in ["output", "input", "context", "reference"])
-
-# Run the evaluators, each evaluator will return a dataframe with evaluation results
-# We upload the evaluation results to Phoenix in the next step
-hallucination_eval_df, qa_eval_df = run_evals(
-    dataframe=df, evaluators=[hallucination_evaluator, qa_evaluator], provide_explanation=True
+# Run the evaluators over the dataframe
+# Each evaluator expects specific columns:
+#   FaithfulnessEvaluator: 'input', 'output', 'context'
+#   CorrectnessEvaluator: 'input', 'output'
+results_df = evaluate_dataframe(
+    dataframe=df,
+    evaluators=[faithfulness_evaluator, correctness_evaluator],
 )
 ```
 
-Explanation of the parameters used in run\_evals above:
+### Key concepts
 
-* `dataframe` - a pandas dataframe that includes the data you want to evaluate. This could be spans exported from Phoenix, or data you've brought in from elsewhere. This dataframe must include the columns expected by the evaluators you are using. To see the columns expected by each built-in evaluator, check the corresponding page in the Using Phoenix Evaluators section.
+* **`LLM`** — A unified wrapper over LLM providers (OpenAI, Anthropic, Google, LiteLLM, etc.). Use `LLM(provider="openai", model="gpt-4o")` instead of the removed `OpenAIModel`.
 
-* `evaluators` - a list of built-in Phoenix evaluators to use.
+* **`evaluate_dataframe`** — Runs a list of evaluators over every row of a DataFrame and returns a new DataFrame with score columns. Replaces the removed `run_evals`.
 
-* `provide_explanation` - a binary flag that instructs the evaluators to generate explanations for their choices.
+* **Built-in evaluators** — `phoenix.evals.metrics` provides ready-to-use evaluators like `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `DocumentRelevanceEvaluator`, `ConcisenessEvaluator`, and more. Each takes an `LLM` instance and returns `Score` objects with a label, numeric score, and explanation.
 
 ## Analyze Your Evaluations
 
-Combine your evaluation results and explanations with your original dataset:
+The results DataFrame includes score columns for each evaluator:
 
 ```python
-results_df = df.copy()
-results_df["hallucination_eval"] = hallucination_eval_df["label"]
-results_df["hallucination_explanation"] = hallucination_eval_df["explanation"]
-results_df["qa_eval"] = qa_eval_df["label"]
-results_df["qa_explanation"] = qa_eval_df["explanation"]
-results_df.head()
+# Score columns are named {evaluator_name}_score
+# Execution details are in {evaluator_name}_execution_details
+print(results_df.columns.tolist())
 ```
 
 ## (Optional) Log Results to Phoenix
 
-**Note:** You'll only be able to log evaluations to the Phoenix UI if you used a trace or span dataset exported from Phoenix as your dataset in this quickstart. If you've used your own outside dataset, you won't be able to log these results to Phoenix.
-
-Provided you started from a trace dataset, you can log your evaluation results to Phoenix using [these instructions](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations).
+If you started from a trace or span dataset exported from Phoenix, you can log your evaluation results back using [these instructions](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations).

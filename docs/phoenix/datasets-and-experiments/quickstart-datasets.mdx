@@ -262,9 +262,14 @@ Use pre-built evaluators to grade task output with code...
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.experiments.evaluators import ContainsAnyKeyword
+    from phoenix.evals import create_evaluator
 
-    contains_keyword = ContainsAnyKeyword(keywords=["Y Combinator", "YC"])
+    @create_evaluator(name="contains_keyword", kind="code")
+    def contains_keyword(output):
+        keywords = ["Y Combinator", "YC"]
+        output_lower = str(output).lower()
+        contains = any(kw.lower() in output_lower for kw in keywords)
+        return contains
     ```
 
   </Tab>
@@ -308,11 +313,11 @@ or LLMs.
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.experiments.evaluators import ConcisenessEvaluator
-    from phoenix.evals.models import OpenAIModel
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ConcisenessEvaluator
 
-    model = OpenAIModel(model="gpt-4o")
-    conciseness = ConcisenessEvaluator(model=model)
+    llm = LLM(provider="openai", model="gpt-4o")
+    conciseness = ConcisenessEvaluator(llm=llm)
     ```
 
   </Tab>
