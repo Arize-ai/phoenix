@@ -106,48 +106,6 @@ export function SandboxConfigDialogTrigger(
   );
 }
 
-/**
- * Inline link-style trigger for creating a config, pre-filled with a specific
- * provider. Used as a nudge on provider rows that have zero configs.
- */
-export function CreateConfigNudge({
-  providers,
-  defaultProvider,
-}: {
-  providers: ProviderRow[];
-  defaultProvider: ProviderRow;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Button size="S" variant="default">
-        Create a config
-      </Button>
-      <ModalOverlay>
-        <Modal size="L">
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>New Sandbox Config</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <SandboxConfigDialogContent
-                mode="create"
-                providers={providers}
-                defaultProvider={defaultProvider}
-                onClose={() => setIsOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
-  );
-}
-
 type SandboxConfigDialogContentProps = (
   | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
   | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig }
