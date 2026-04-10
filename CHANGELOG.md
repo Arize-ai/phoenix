@@ -1,5 +1,17 @@
 # Changelog
 
+## [14.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.1.1...arize-phoenix-v14.2.0) (2026-04-10)
+
+
+### Features
+
+* add /redirects/projects/:project_name for name-based project URLs ([#12593](https://github.com/Arize-ai/phoenix/issues/12593)) ([afd9584](https://github.com/Arize-ai/phoenix/commit/afd95840791251c2489ce2d83be6c50563148dfd))
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-02-2026 through 04-07-2026 ([#12588](https://github.com/Arize-ai/phoenix/issues/12588)) ([3a55bae](https://github.com/Arize-ai/phoenix/commit/3a55bae1c8c98882207bd632b9568c234ce125e8))
+
 ## [14.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.1.0...arize-phoenix-v14.1.1) (2026-04-08)
 
 
