@@ -273,7 +273,7 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
             SandboxBackendInfo(
                 backend_type=backend_type,
                 display_name=meta.display_name,
-                supported_languages=[Language(lang) for lang in meta.supported_languages],
+                supported_languages=[Language(meta.language)] if meta.language else [],
                 status=status,
                 dependency_hints=meta.dependency_hints,
             )

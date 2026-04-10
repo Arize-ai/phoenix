@@ -82,10 +82,10 @@ class DaytonaSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
-class DaytonaAdapter(SandboxAdapter):
-    key = "DAYTONA"
-    display_name = "Daytona"
-    supported_languages = ["PYTHON", "TYPESCRIPT"]
+class DaytonaPythonAdapter(SandboxAdapter):
+    key = "DAYTONA_PYTHON"
+    display_name = "Daytona (Python)"
+    language = "PYTHON"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (
