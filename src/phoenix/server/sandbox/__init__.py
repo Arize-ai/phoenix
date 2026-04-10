@@ -75,6 +75,15 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "`VERCEL_TEAM_ID`.",
         ],
     ),
+    "VERCEL_TYPESCRIPT": AdapterMetadata(
+        display_name="Vercel Sandbox (TypeScript)",
+        language="TYPESCRIPT",
+        dependency_hints=[
+            "Install Phoenix with the `vercel` extra.",
+            "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
+            "`VERCEL_TEAM_ID`.",
+        ],
+    ),
     "DENO": AdapterMetadata(
         display_name="Deno (local)",
         language="TYPESCRIPT",
@@ -191,9 +200,10 @@ except ImportError:
     pass
 
 try:
-    from phoenix.server.sandbox.vercel_backend import VercelPythonAdapter
+    from phoenix.server.sandbox.vercel_backend import VercelPythonAdapter, VercelTypescriptAdapter
 
     register_sandbox_adapter(VercelPythonAdapter())
+    register_sandbox_adapter(VercelTypescriptAdapter())
 except ImportError:
     pass
 

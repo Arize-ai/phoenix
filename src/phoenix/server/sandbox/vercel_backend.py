@@ -16,7 +16,7 @@ https://vercel.com/docs/vercel-sandbox/concepts/authentication
 Language routing
 ----------------
 - PYTHON  → runtime="python3.13", run_command("python3", ["-c", code])
-- TYPESCRIPT → runtime="node24", run_command("node", ["--input-type=module", "-e", code])
+- TYPESCRIPT → runtime="node24", run_command("node", ["--input-type=module-typescript", "-e", code])
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ _LANGUAGE_CONFIGS: dict[str, dict[str, Any]] = {
     "TYPESCRIPT": {
         "runtime": "node24",
         "cmd": "node",
-        "args_prefix": ["--input-type=module", "-e"],
+        "args_prefix": ["--input-type=module-typescript", "-e"],
     },
 }
 _DEFAULT_LANGUAGE = "TYPESCRIPT"
@@ -210,6 +210,33 @@ class VercelPythonAdapter(SandboxAdapter):
                 project_id=project_id,
                 team_id=team_id,
                 language="PYTHON",
+            )
+        raise ValueError(
+            "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
+            "(e.g. from `vercel env pull`), or set all of VERCEL_TOKEN, "
+            "VERCEL_PROJECT_ID, and VERCEL_TEAM_ID. See "
+            "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+        )
+
+
+class VercelTypescriptAdapter(SandboxAdapter):
+    key = "VERCEL_TYPESCRIPT"
+    display_name = "Vercel Sandbox (TypeScript)"
+    language = "TYPESCRIPT"
+
+    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+        if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
+            return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT")
+
+        token = _resolve_vercel_access_token(config)
+        project_id = _resolve_vercel_project_id(config)
+        team_id = _resolve_vercel_team_id(config)
+        if token and project_id and team_id:
+            return VercelSandboxBackend(
+                token=token,
+                project_id=project_id,
+                team_id=team_id,
+                language="TYPESCRIPT",
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
