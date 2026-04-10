@@ -180,14 +180,16 @@ Generate 25 diverse math problems. Ensure there are no duplicate problems.
 ```python
 import nest_asyncio
 
+from phoenix.evals import LLM
+
 nest_asyncio.apply()
 pd.set_option("display.max_colwidth", 500)
 
 # Initialize the model
-model = OpenAIModel(model="gpt-4o", max_tokens=1300)
+llm = LLM(provider="openai", model="gpt-4o")
 
 # Generate math problems
-resp = model(MATH_GEN_TEMPLATE)
+resp = llm.generate_text(prompt=MATH_GEN_TEMPLATE)
 
 # Create DataFrame
 split_response = resp.strip().split("\n")
@@ -271,6 +273,8 @@ We also revise the task function to include `with` clauses that generate structu
 ```python expandable
 # This is our modified correctness evaluator.
 def correctness_eval(input, output):
+    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+
     # Template for evaluating math problem solutions
     MATH_EVAL_TEMPLATE = """
     You are evaluating whether a math problem was solved correctly.
@@ -291,12 +295,16 @@ def correctness_eval(input, output):
 
     # Run the evaluation
     rails = ["correct", "incorrect"]
-    eval_df = llm_classify(
-        data=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        template=MATH_EVAL_TEMPLATE,
-        model=OpenAIModel(model="gpt-4.1"),
-        rails=rails,
-        provide_explanation=True,
+    llm = LLM(provider="openai", model="gpt-4.1")
+    classifier = create_classifier(
+        name="math_correctness",
+        prompt_template=MATH_EVAL_TEMPLATE,
+        llm=llm,
+        choices=rails,
+    )
+    eval_df = evaluate_dataframe(
+        dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
+        evaluators=[classifier],
     )
 
     return eval_df

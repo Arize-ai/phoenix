@@ -489,7 +489,7 @@ It follows a standard pattern:
 
 1. Export traces from Phoenix
 2. Prepare those exported traces in a dataframe with the correct columns
-3. Use `llm_classify` to run a standard template across each row of that dataframe and produce an eval label
+3. Use `evaluate_dataframe` with a `ToolSelectionEvaluator` to classify each row and produce an eval label
 4. Upload the results back into Phoenix
 
 ```python expandable
@@ -1226,29 +1226,33 @@ LABEL: "correct" or "incorrect"
 ```
 
 ```python
-TOOL_CALLING_PROMPT_TEMPLATE.template.replace("{tool_definitions}", json.dumps(tools))
+# Available tools for the agent
+available_tools_str = json.dumps(tools)
 ```
 
 ````python expandable
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+
+eval_llm = LLM(provider="openai", model="gpt-4o-mini")
+
+
 def function_calling_eval(input: str, output: str) -> float:
     function_calls = output.get("tool_calls")
     if function_calls:
         eval_df = pd.DataFrame(
-            {"question": [input.get("question")] * len(function_calls), "tool_call": function_calls}
+            {"input": [input.get("question")] * len(function_calls), "tool_selection": function_calls}
         )
+        eval_df["available_tools"] = available_tools_str
 
-        tool_call_eval = llm_classify(
+        from phoenix.evals.metrics import ToolSelectionEvaluator
+        tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
+        tool_call_eval = evaluate_dataframe(
             dataframe=eval_df,
-            template=TOOL_CALLING_PROMPT_TEMPLATE.template.replace(
-                "{tool_definitions}", json.dumps(tools).replace("{", '"').replace("}", '"')
-            ),
-            rails=["correct", "incorrect"],
-            model=eval_model,
-            provide_explanation=True,
+            evaluators=[tool_selection_evaluator],
         )
 
         tool_call_eval["score"] = tool_call_eval.apply(
-            lambda x: 1 if x["label"] == "correct" else 0, axis=1
+            lambda x: 1 if x["tool_selection_label"] == "correct" else 0, axis=1
         )
         return tool_call_eval["score"].mean()
     else:
@@ -1300,26 +1304,26 @@ def evaluate_sql_result(output, expected) -> bool:
 
 def evaluate_clarity(output: str, input: str) -> bool:
     df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    response = llm_classify(
-        dataframe=df,
-        template=CLARITY_LLM_JUDGE_PROMPT,
-        rails=["clear", "unclear"],
-        model=eval_model,
-        provide_explanation=True,
+    clarity_classifier = create_classifier(
+        name="clarity",
+        prompt_template=CLARITY_LLM_JUDGE_PROMPT,
+        llm=eval_llm,
+        choices=["clear", "unclear"],
     )
-    return response["label"] == "clear"
+    result = evaluate_dataframe(dataframe=df, evaluators=[clarity_classifier])
+    return result["clarity_label"][0] == "clear"
 
 
 def evaluate_entity_correctness(output: str, input: str) -> bool:
     df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    response = llm_classify(
-        dataframe=df,
-        template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
-        rails=["correct", "incorrect"],
-        model=eval_model,
-        provide_explanation=True,
+    entity_classifier = create_classifier(
+        name="entity_correctness",
+        prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
+        llm=eval_llm,
+        choices=["correct", "incorrect"],
     )
-    return response["label"] == "correct"
+    result = evaluate_dataframe(dataframe=df, evaluators=[entity_classifier])
+    return result["entity_correctness_label"][0] == "correct"
 ````
 
 ```python expandable

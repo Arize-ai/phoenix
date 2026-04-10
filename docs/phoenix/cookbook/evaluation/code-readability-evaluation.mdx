@@ -50,16 +50,31 @@ df = df.rename(columns={"prompt": "input", "solution": "output"})
 Run readability classifications against a subset of the data.
 
 ```python
-model = OpenAIModel(model="gpt-4", temperature=0.0)
-rails = list(CODE_READABILITY_PROMPT_RAILS_MAP.values())
+from phoenix.evals import LLM, create_classifier, evaluate_dataframe
 
-readability_classifications = llm_classify(
-    dataframe=df,
-    template=CODE_READABILITY_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    concurrency=20,
-)["label"].tolist()
+CODE_READABILITY_PROMPT_TEMPLATE = """
+You are evaluating whether a piece of code is readable or not.
+
+[BEGIN DATA]
+************
+[Code]: {output}
+************
+[END DATA]
+
+Is the code readable? Respond with "readable" or "unreadable".
+"""
+
+rails = ["readable", "unreadable"]
+llm = LLM(provider="openai", model="gpt-4")
+readability_classifier = create_classifier(
+    name="code_readability",
+    prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
+    llm=llm,
+    choices=rails,
+)
+
+evals_df = evaluate_dataframe(dataframe=df, evaluators=[readability_classifier])
+readability_classifications = evals_df["code_readability_label"].tolist()
 ```
 
 ## Evaluate Results and Plot Confusion Matrix
@@ -67,7 +82,7 @@ readability_classifications = llm_classify(
 Evaluate the predictions against human-labeled ground-truth readability labels.
 
 ```python
-true_labels = df["readable"].map(CODE_READABILITY_PROMPT_RAILS_MAP).tolist()
+true_labels = df["readable"].map({True: "readable", False: "unreadable"}).tolist()
 print(classification_report(true_labels, readability_classifications, labels=rails))
 confusion_matrix = ConfusionMatrix(
     actual_vector=true_labels, predict_vector=readability_classifications, classes=rails
@@ -85,16 +100,12 @@ confusion_matrix.plot(
 
 ## Get Explanations
 
-When evaluating a dataset for readability, it can be useful to know why the LLM classified text as readable or not. The following code block runs `llm_classify` with explanations turned on so that we can inspect why the LLM made the classification it did. There is speed tradeoff since more tokens is being generated but it can be highly informative when troubleshooting.
+When evaluating a dataset for readability, it can be useful to know why the LLM classified text as readable or not. The following code block runs the classifier with explanations included so that we can inspect why the LLM made the classification it did. There is a speed tradeoff since more tokens are being generated but it can be highly informative when troubleshooting.
 
 ```python
-readability_classifications_df = llm_classify(
+readability_classifications_df = evaluate_dataframe(
     dataframe=df.sample(n=5),
-    template=CODE_READABILITY_PROMPT_TEMPLATE,
-    model=model,
-    rails=rails,
-    provide_explanation=True,
-    concurrency=20,
+    evaluators=[readability_classifier],
 )
 ```
 
@@ -104,8 +115,8 @@ Run the same evaluation with different models:
 
 ```python
 # GPT-3.5
-model_gpt35 = OpenAIModel(model="gpt-3.5-turbo", temperature=0.0)
+llm_gpt35 = LLM(provider="openai", model="gpt-3.5-turbo")
 
 # GPT-4 Turbo
-model_gpt4turbo = OpenAIModel(model="gpt-4-turbo-preview", temperature=0.0)
+llm_gpt4turbo = LLM(provider="openai", model="gpt-4-turbo-preview")
 ```
