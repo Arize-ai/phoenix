@@ -6,3 +6,5 @@ onlyBuiltDependencies:
   - esbuild
   - protobufjs
 minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@arizeai/openinference-core"
