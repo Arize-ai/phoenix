@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.2.0...arize-phoenix-v14.2.1) (2026-04-10)
+
+
+### Bug Fixes
+
+* remove WebSocket support for GraphQL subscriptions, use HTTP multipart ([#12610](https://github.com/Arize-ai/phoenix/issues/12610)) ([ed77fea](https://github.com/Arize-ai/phoenix/commit/ed77feafa4877ed01f89555002e4be372d3aa4ac))
+
 ## [14.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.1.1...arize-phoenix-v14.2.0) (2026-04-10)
 
 
