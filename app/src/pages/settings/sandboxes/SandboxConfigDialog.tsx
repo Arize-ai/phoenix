@@ -44,7 +44,7 @@ import type {
 import { languageLabel, parseConfigText, toPrettyJSONObject } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
-  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
   | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig };
 
 export function SandboxConfigDialogTrigger(
@@ -87,6 +87,7 @@ export function SandboxConfigDialogTrigger(
                 <SandboxConfigDialogContent
                   mode="create"
                   providers={props.providers}
+                  defaultProvider={props.defaultProvider}
                   onClose={() => setIsOpen(false)}
                 />
               ) : (
@@ -105,14 +106,61 @@ export function SandboxConfigDialogTrigger(
   );
 }
 
+/**
+ * Inline link-style trigger for creating a config, pre-filled with a specific
+ * provider. Used as a nudge on provider rows that have zero configs.
+ */
+export function CreateConfigNudge({
+  providers,
+  defaultProvider,
+}: {
+  providers: ProviderRow[];
+  defaultProvider: ProviderRow;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+      <Button size="S" variant="default">
+        Create a config
+      </Button>
+      <ModalOverlay>
+        <Modal size="L">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Sandbox Config</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <SandboxConfigDialogContent
+                mode="create"
+                providers={providers}
+                defaultProvider={defaultProvider}
+                onClose={() => setIsOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
+  );
+}
+
 type SandboxConfigDialogContentProps = (
-  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
   | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig }
 ) & { onClose: () => void };
+
+function defaultConfigName(provider: ProviderRow): string {
+  return `${provider.backend.displayName} - ${languageLabel(provider.provider.language)}`;
+}
 
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const { mode, onClose } = props;
   const providers = mode === "create" ? props.providers : [];
+  const defaultProvider = mode === "create" ? props.defaultProvider : undefined;
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<SandboxConfigFormValues>({
@@ -126,8 +174,8 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             configText: toPrettyJSONObject(props.config.config),
           }
         : {
-            sandboxProviderId: "",
-            name: "",
+            sandboxProviderId: defaultProvider?.provider.id ?? "",
+            name: defaultProvider ? defaultConfigName(defaultProvider) : "",
             description: "",
             timeout: 30,
             configText: toPrettyJSONObject({}),
@@ -239,6 +287,22 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     onSelectionChange={(key) => {
                       if (typeof key === "string") {
                         field.onChange(key);
+                        // Auto-fill the name when the current value is empty
+                        // or still matches a previously generated default.
+                        const currentName = form.getValues("name");
+                        const isDefaultName =
+                          !currentName ||
+                          providers.some(
+                            (p) => defaultConfigName(p) === currentName
+                          );
+                        if (isDefaultName) {
+                          const selected = providers.find(
+                            (p) => p.provider.id === key
+                          );
+                          if (selected) {
+                            form.setValue("name", defaultConfigName(selected));
+                          }
+                        }
                       }
                     }}
                     onBlur={field.onBlur}
