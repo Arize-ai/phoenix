@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 _BUILTIN_LANGUAGES = ["PYTHON", "TYPESCRIPT"]
 
 
-class _HasSupportedLanguages(Protocol):
+class _HasLanguage(Protocol):
     """Structural type for AdapterMetadata — avoids a circular import."""
 
-    supported_languages: list[str]
+    language: str
 
 
 async def sync_languages(session: AsyncSession) -> None:
@@ -48,7 +48,7 @@ async def sync_languages(session: AsyncSession) -> None:
 
 async def sync_sandbox_providers(
     session: AsyncSession,
-    adapter_metadata: Mapping[str, _HasSupportedLanguages],
+    adapter_metadata: Mapping[str, _HasLanguage],
 ) -> None:
     """Seed one sandbox_providers row per (backend_type, language) pair.
 
@@ -70,24 +70,24 @@ async def sync_sandbox_providers(
     existing_pairs: set[tuple[str, int]] = {(row[0], row[1]) for row in existing_result.fetchall()}
 
     for key, meta in adapter_metadata.items():
-        for lang_name in meta.supported_languages:
-            lang_id = language_ids.get(lang_name)
-            if lang_id is None:
-                logger.warning(
-                    f"Language '{lang_name}' not found in languages table; "
-                    f"skipping sandbox_providers row for {key}/{lang_name}"
-                )
-                continue
+        lang_name = meta.language
+        lang_id = language_ids.get(lang_name)
+        if lang_id is None:
+            logger.warning(
+                f"Language '{lang_name}' not found in languages table; "
+                f"skipping sandbox_providers row for {key}/{lang_name}"
+            )
+            continue
 
-            if (key, lang_id) not in existing_pairs:
-                session.add(
-                    models.SandboxProvider(
-                        backend_type=key,
-                        language_id=lang_id,
-                    )
+        if (key, lang_id) not in existing_pairs:
+            session.add(
+                models.SandboxProvider(
+                    backend_type=key,
+                    language_id=lang_id,
                 )
-                logger.info(
-                    f"Inserted sandbox_providers row: backend_type={key!r}, language={lang_name!r}"
-                )
+            )
+            logger.info(
+                f"Inserted sandbox_providers row: backend_type={key!r}, language={lang_name!r}"
+            )
 
     await session.flush()

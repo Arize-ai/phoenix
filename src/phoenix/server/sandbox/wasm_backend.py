@@ -143,7 +143,7 @@ class WASMBackend(BaseNoSessionBackend):
 class WASMAdapter(SandboxAdapter):
     key = "WASM"
     display_name = "WebAssembly (local)"
-    supported_languages = ["PYTHON"]
+    language = "PYTHON"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         timeout = int(config.get("timeout", _DEFAULT_TIMEOUT_SECONDS))
