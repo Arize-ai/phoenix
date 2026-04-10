@@ -701,7 +701,9 @@ def _process_json(
         raise ValueError("Input should be a list containing only dictionary objects")
     outputs, metadata, splits = data.get("outputs"), data.get("metadata"), data.get("splits")
     for k, v in {"outputs": outputs, "metadata": metadata}.items():
-        if v and not (isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)):
+        if v is not None and not (
+            isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)
+        ):
             raise ValueError(
                 f"{k} should be a list of same length as input containing only dictionary objects"
             )
@@ -769,8 +771,8 @@ def _process_json(
 
         example = ExampleContent(
             input=obj,
-            output=outputs[i] if outputs else {},
-            metadata=metadata[i] if metadata else {},
+            output=outputs[i] if outputs is not None else {},
+            metadata=metadata[i] if metadata is not None else {},
             splits=frozenset(split_set),
             span_id=span_id,
         )

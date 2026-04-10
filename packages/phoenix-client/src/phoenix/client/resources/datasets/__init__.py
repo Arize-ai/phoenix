@@ -763,8 +763,8 @@ class Datasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         dataset_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -823,7 +823,7 @@ class Datasets:
         """
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = any(inputs) or outputs is not None or metadata is not None
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -895,8 +895,8 @@ class Datasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -949,7 +949,7 @@ class Datasets:
 
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = any(inputs) or outputs is not None or metadata is not None
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1122,8 +1122,8 @@ class Datasets:
         *,
         dataset_name: str,
         inputs: Iterable[Mapping[str, Any]],
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
@@ -1135,8 +1135,8 @@ class Datasets:
         """
         # Convert to lists to handle generators and validate
         inputs_list = list(inputs)
-        outputs_list = list(outputs) if outputs else []
-        metadata_list = list(metadata) if metadata else []
+        outputs_list = list(outputs) if outputs is not None else None
+        metadata_list = list(metadata) if metadata is not None else None
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
 
@@ -1150,7 +1150,7 @@ class Datasets:
             ("outputs", outputs_list),
             ("metadata", metadata_list),
         ]:
-            if data:
+            if data is not None:
                 if len(data) != len(inputs_list):
                     raise ValueError(
                         f"{name} must have same length as inputs "
@@ -1177,9 +1177,9 @@ class Datasets:
             "inputs": inputs_list,
         }
         # Only include optional fields if they have meaningful values
-        if outputs_list:
+        if outputs_list is not None:
             payload["outputs"] = outputs_list
-        if metadata_list:
+        if metadata_list is not None:
             payload["metadata"] = metadata_list
         if splits_list and any(s is not None for s in splits_list):
             payload["splits"] = splits_list
@@ -1572,8 +1572,8 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         dataset_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -1607,7 +1607,7 @@ class AsyncDatasets:
         """
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = any(inputs) or outputs is not None or metadata is not None
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1679,8 +1679,8 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1730,7 +1730,7 @@ class AsyncDatasets:
 
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = any(inputs) or outputs is not None or metadata is not None
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1888,8 +1888,8 @@ class AsyncDatasets:
         *,
         dataset_name: str,
         inputs: Iterable[Mapping[str, Any]],
-        outputs: Iterable[Mapping[str, Any]] = (),
-        metadata: Iterable[Mapping[str, Any]] = (),
+        outputs: Optional[Iterable[Mapping[str, Any]]] = None,
+        metadata: Optional[Iterable[Mapping[str, Any]]] = None,
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
@@ -1899,8 +1899,8 @@ class AsyncDatasets:
         """Async version of _upload_json_dataset."""
         # Convert to lists to handle generators and validate
         inputs_list = list(inputs)
-        outputs_list = list(outputs) if outputs else []
-        metadata_list = list(metadata) if metadata else []
+        outputs_list = list(outputs) if outputs is not None else None
+        metadata_list = list(metadata) if metadata is not None else None
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
 
@@ -1914,7 +1914,7 @@ class AsyncDatasets:
             ("outputs", outputs_list),
             ("metadata", metadata_list),
         ]:
-            if data:
+            if data is not None:
                 if len(data) != len(inputs_list):
                     raise ValueError(
                         f"{name} must have same length as inputs "
@@ -1941,9 +1941,9 @@ class AsyncDatasets:
             "inputs": inputs_list,
         }
         # Only include optional fields if they have meaningful values
-        if outputs_list:
+        if outputs_list is not None:
             payload["outputs"] = outputs_list
-        if metadata_list:
+        if metadata_list is not None:
             payload["metadata"] = metadata_list
         if splits_list and any(s is not None for s in splits_list):
             payload["splits"] = splits_list
