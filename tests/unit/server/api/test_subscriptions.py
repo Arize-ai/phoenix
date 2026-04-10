@@ -188,13 +188,15 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
             },
         }
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                payloads = [payload async for payload in subscription.stream()]
+        with custom_vcr.use_cassette():
+            payloads = [
+                payload
+                async for payload in gql_client.subscription(
+                    query=self.QUERY,
+                    variables=variables,
+                    operation_name="ChatCompletionSubscription",
+                )
+            ]
 
         # check subscription payloads
         assert payloads
@@ -337,13 +339,15 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
             },
         }
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                payloads = [payload async for payload in subscription.stream()]
+        with custom_vcr.use_cassette():
+            payloads = [
+                payload
+                async for payload in gql_client.subscription(
+                    query=self.QUERY,
+                    variables=variables,
+                    operation_name="ChatCompletionSubscription",
+                )
+            ]
 
         # check subscription payloads
         assert len(payloads) == 2
@@ -501,13 +505,15 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
             },
         }
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                payloads = [payload async for payload in subscription.stream()]
+        with custom_vcr.use_cassette():
+            payloads = [
+                payload
+                async for payload in gql_client.subscription(
+                    query=self.QUERY,
+                    variables=variables,
+                    operation_name="ChatCompletionSubscription",
+                )
+            ]
 
         # check subscription payloads
         assert payloads
@@ -682,13 +688,15 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
             }
         }
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                payloads = [payload async for payload in subscription.stream()]
+        with custom_vcr.use_cassette():
+            payloads = [
+                payload
+                async for payload in gql_client.subscription(
+                    query=self.QUERY,
+                    variables=variables,
+                    operation_name="ChatCompletionSubscription",
+                )
+            ]
 
         # check subscription payloads
         assert payloads
@@ -848,13 +856,15 @@ class TestChatCompletionSubscription:
                 "repetitions": 1,
             },
         }
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                payloads = [payload async for payload in subscription.stream()]
+        with custom_vcr.use_cassette():
+            payloads = [
+                payload
+                async for payload in gql_client.subscription(
+                    query=self.QUERY,
+                    variables=variables,
+                    operation_name="ChatCompletionSubscription",
+                )
+            ]
 
         # check subscription payloads
         assert payloads
@@ -1127,23 +1137,20 @@ class TestChatCompletionOverDatasetSubscription:
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            custom_vcr.register_matcher(
-                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
-            )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
-                async for payload in subscription.stream():
-                    if (
-                        dataset_example_id := payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                    ) not in payloads:
-                        payloads[dataset_example_id] = []
-                    payloads[dataset_example_id].append(payload)
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )  # a custom request matcher is needed since the requests are concurrent
+        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
 
         # check subscription payloads
         assert len(payloads) == 4
@@ -1535,23 +1542,20 @@ class TestChatCompletionOverDatasetSubscription:
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            custom_vcr.register_matcher(
-                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
-            )  # a custom request matcher is needed since the requests are concurrent
-            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
-                async for payload in subscription.stream():
-                    if (
-                        dataset_example_id := payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                    ) not in payloads:
-                        payloads[dataset_example_id] = []
-                    payloads[dataset_example_id].append(payload)
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )  # a custom request matcher is needed since the requests are concurrent
+        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
 
         # check subscription payloads
         cities_to_countries = dict(cities_and_countries)
@@ -1648,23 +1652,20 @@ class TestChatCompletionOverDatasetSubscription:
         }
 
         payloads: dict[Optional[str], list[Any]] = {}
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            custom_vcr.register_matcher(
-                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
-            )
-            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
-                async for payload in subscription.stream():
-                    if (
-                        dataset_example_id := payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                    ) not in payloads:
-                        payloads[dataset_example_id] = []
-                    payloads[dataset_example_id].append(payload)
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
 
         # Should only have examples 1, 2, 3 (train split) + experiment payload
         # Examples 4 and 5 (test split) should NOT be present
@@ -1743,23 +1744,20 @@ class TestChatCompletionOverDatasetSubscription:
         }
 
         payloads: dict[Optional[str], list[Any]] = {}
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            custom_vcr.register_matcher(
-                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
-            )
-            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
-                async for payload in subscription.stream():
-                    if (
-                        dataset_example_id := payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                    ) not in payloads:
-                        payloads[dataset_example_id] = []
-                    payloads[dataset_example_id].append(payload)
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
 
         # Should have all examples 1-5 + experiment payload
         all_example_ids = [
@@ -1826,23 +1824,20 @@ class TestChatCompletionOverDatasetSubscription:
         }
 
         payloads: dict[Optional[str], list[Any]] = {}
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            custom_vcr.register_matcher(
-                _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
-            )
-            with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
-                async for payload in subscription.stream():
-                    if (
-                        dataset_example_id := payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                    ) not in payloads:
-                        payloads[dataset_example_id] = []
-                    payloads[dataset_example_id].append(payload)
+        custom_vcr.register_matcher(
+            _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
+        )
+        with custom_vcr.use_cassette(match_on=[_request_bodies_contain_same_city.__name__]):
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                if (
+                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                ) not in payloads:
+                    payloads[dataset_example_id] = []
+                payloads[dataset_example_id].append(payload)
 
         # Should have all examples 1-5 + experiment payload
         all_example_ids = [
@@ -1943,23 +1938,20 @@ class TestChatCompletionOverDatasetSubscription:
         payloads: dict[Optional[str], list[Any]] = {}
         evaluation_chunks: list[Any] = []
 
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletionOverDataset"]["__typename"]
-                    if typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletionOverDataset"])
-                    else:
-                        dataset_example_id = payload["chatCompletionOverDataset"][
-                            "datasetExampleId"
-                        ]
-                        if dataset_example_id not in payloads:
-                            payloads[dataset_example_id] = []
-                        payloads[dataset_example_id].append(payload)
+        with custom_vcr.use_cassette():
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                typename = payload["chatCompletionOverDataset"]["__typename"]
+                if typename == EvaluationChunk.__name__:
+                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                else:
+                    dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    if dataset_example_id not in payloads:
+                        payloads[dataset_example_id] = []
+                    payloads[dataset_example_id].append(payload)
 
         assert len(evaluation_chunks) == 2
         llm_chunk = next(
@@ -2533,18 +2525,17 @@ class TestChatCompletionOverDatasetSubscription:
         error_chunks: list[Any] = []
         evaluation_chunks: list[Any] = []
 
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletionOverDataset"]["__typename"]
-                    if typename == ChatCompletionSubscriptionError.__name__:
-                        error_chunks.append(payload["chatCompletionOverDataset"])
-                    elif typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletionOverDataset"])
+        with custom_vcr.use_cassette():
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                typename = payload["chatCompletionOverDataset"]["__typename"]
+                if typename == ChatCompletionSubscriptionError.__name__:
+                    error_chunks.append(payload["chatCompletionOverDataset"])
+                elif typename == EvaluationChunk.__name__:
+                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
 
         # Verify we got an error chunk (message may mention model or be a connection/API error)
         assert len(error_chunks) == 1
@@ -2641,16 +2632,15 @@ class TestChatCompletionOverDatasetSubscription:
         custom_vcr.register_matcher(
             _request_bodies_contain_same_city.__name__, _request_bodies_contain_same_city
         )
-        async with gql_client.subscription(
-            query=self.QUERY,
-            variables=variables,
-            operation_name="ChatCompletionOverDatasetSubscription",
-        ) as subscription:
-            with custom_vcr.use_cassette():
-                async for payload in subscription.stream():
-                    typename = payload["chatCompletionOverDataset"]["__typename"]
-                    if typename == EvaluationChunk.__name__:
-                        evaluation_chunks.append(payload["chatCompletionOverDataset"])
+        with custom_vcr.use_cassette():
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ChatCompletionOverDatasetSubscription",
+            ):
+                typename = payload["chatCompletionOverDataset"]["__typename"]
+                if typename == EvaluationChunk.__name__:
+                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
 
         # Verify we got exactly 1 evaluation chunk with custom display name
         assert len(evaluation_chunks) == 1

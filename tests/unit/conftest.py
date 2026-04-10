@@ -41,7 +41,6 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
-from tests.unit.transport import ASGIWebSocketTransport
 from tests.unit.vcr import CustomVCR
 
 
@@ -307,7 +306,7 @@ async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
 def httpx_client(
     asgi_app: ASGIApp,
 ) -> httpx.AsyncClient:
-    asgi_transport = ASGIWebSocketTransport(app=asgi_app)
+    asgi_transport = httpx.ASGITransport(app=asgi_app)
     return httpx.AsyncClient(transport=asgi_transport, base_url="http://test")
 
 

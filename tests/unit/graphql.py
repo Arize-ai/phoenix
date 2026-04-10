@@ -1,13 +1,10 @@
-import contextlib
+import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from urllib.parse import urljoin
-from uuid import uuid4
 
 import httpx
-from httpx_ws import AsyncWebSocketSession, aconnect_ws
-from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 
 
 class GraphQLError(Exception):
@@ -22,6 +19,9 @@ class GraphQLError(Exception):
 class GraphQLExecutionResult:
     data: Optional[dict[str, Any]] = None
     errors: list[GraphQLError] = field(default_factory=list)
+
+
+_MULTIPART_ACCEPT = "multipart/mixed;boundary=graphql;subscriptionSpec=1.0,application/json"
 
 
 class AsyncGraphQLClient:
@@ -62,86 +62,111 @@ class AsyncGraphQLClient:
             ],
         )
 
-    @contextlib.asynccontextmanager
     async def subscription(
         self,
         query: str,
         variables: Optional[dict[str, Any]] = None,
         operation_name: Optional[str] = None,
-    ) -> AsyncIterator["GraphQLSubscription"]:
-        """
-        Starts a GraphQL subscription session.
-        """
-        async with aconnect_ws(  # type: ignore[var-annotated,unused-ignore]
-            self._gql_url,
-            self._httpx_client,
-            subprotocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
-        ) as session:
-            await session.send_json({"type": "connection_init"})
-            message = await session.receive_json(timeout=self._timeout_seconds)
-            if message.get("type") != "connection_ack":
-                raise RuntimeError("Websocket connection failed")
-            yield GraphQLSubscription(
-                session=session,
-                query=query,
-                variables=variables,
-                operation_name=operation_name,
-                timeout_seconds=self._timeout_seconds,
-            )
-
-
-class GraphQLSubscription:
-    """
-    A session for a GraphQL subscription.
-    """
-
-    def __init__(
-        self,
-        *,
-        session: AsyncWebSocketSession,
-        query: str,
-        variables: Optional[dict[str, Any]] = None,
-        operation_name: Optional[str] = None,
-        timeout_seconds: Optional[float] = None,
-    ) -> None:
-        self._session = session
-        self._query = query
-        self._variables = variables
-        self._operation_name = operation_name
-        self._timeout_seconds = timeout_seconds
-
-    async def stream(
-        self,
     ) -> AsyncIterator[dict[str, Any]]:
         """
-        Streams subscription payloads.
+        Runs a GraphQL subscription over HTTP using the Apollo multipart
+        subscription protocol (multipart/mixed).
         """
-        connection_id = str(uuid4())
-        await self._session.send_json(
-            {
-                "id": connection_id,
-                "type": "subscribe",
-                "payload": {
-                    "query": self._query,
-                    **({"variables": self._variables} if self._variables is not None else {}),
-                    **(
-                        {"operationName": self._operation_name}
-                        if self._operation_name is not None
-                        else {}
-                    ),
-                },
-            }
-        )
-        while True:
-            message = await self._session.receive_json(timeout=self._timeout_seconds)
-            message_type = message.get("type")
-            assert message.get("id") == connection_id
-            if message_type == "complete":
-                break
-            elif message_type == "next":
-                if (data := message["payload"]["data"]) is not None:
+        body = {
+            "query": query,
+            **({"variables": variables} if variables is not None else {}),
+            **({"operationName": operation_name} if operation_name is not None else {}),
+        }
+        async with self._httpx_client.stream(
+            "POST",
+            self._gql_url,
+            json=body,
+            headers={
+                "Accept": _MULTIPART_ACCEPT,
+                "Content-Type": "application/json",
+            },
+        ) as response:
+            response.raise_for_status()
+            async for payload in _parse_multipart_response(response):
+                inner = payload.get("payload", payload)
+                if errors := inner.get("errors"):
+                    raise RuntimeError(errors)
+                if data := inner.get("data"):
                     yield data
-            elif message_type == "error":
-                raise RuntimeError(message["payload"])
+
+
+async def _parse_multipart_response(
+    response: httpx.Response,
+) -> AsyncIterator[dict[str, Any]]:
+    """
+    Parse an Apollo multipart subscription response
+    (multipart/mixed with boundary-delimited JSON parts).
+    """
+    content_type = response.headers.get("content-type", "")
+
+    # Handle regular JSON response (non-streaming)
+    if "application/json" in content_type and "multipart" not in content_type:
+        data: dict[str, Any] = json.loads(await response.aread())
+        yield data
+        return
+
+    # Handle multipart response
+    buffer = b""
+    boundary: bytes | None = None
+
+    if "boundary=" in content_type:
+        boundary = content_type.split("boundary=")[1].split(";")[0].strip().encode()
+
+    async for chunk in response.aiter_bytes():
+        buffer += chunk
+
+        while True:
+            if boundary is None:
+                if b"\r\n" in buffer:
+                    first_line = buffer.split(b"\r\n")[0]
+                    if first_line.startswith(b"--"):
+                        boundary = first_line[2:]
+
+            if boundary is None:
+                break
+
+            delimiter = b"--" + boundary
+            end_delimiter = delimiter + b"--"
+
+            if end_delimiter in buffer:
+                parts = buffer.split(delimiter)
+                for part in parts[1:]:
+                    if part.strip() and not part.startswith(b"--"):
+                        json_data = _extract_json_from_part(part)
+                        if json_data:
+                            yield json_data
+                return
+
+            parts = buffer.split(delimiter)
+            if len(parts) > 2:
+                for part in parts[1:-1]:
+                    json_data = _extract_json_from_part(part)
+                    if json_data:
+                        yield json_data
+                buffer = delimiter + parts[-1]
             else:
-                assert False, f"Unexpected message type: {message_type}"
+                break
+
+
+def _extract_json_from_part(part: bytes) -> dict[str, Any] | None:
+    if b"\r\n\r\n" in part:
+        _, body = part.split(b"\r\n\r\n", 1)
+    elif b"\n\n" in part:
+        _, body = part.split(b"\n\n", 1)
+    else:
+        body = part
+
+    body = body.strip()
+    if not body or body == b"--":
+        return None
+
+    try:
+        result: dict[str, Any] = json.loads(body.decode("utf-8"))
+        return result
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None

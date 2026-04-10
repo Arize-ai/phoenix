@@ -100,7 +100,6 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx",
-  "httpx-ws",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
