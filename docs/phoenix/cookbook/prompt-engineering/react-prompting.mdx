@@ -61,11 +61,12 @@ from phoenix.client import Client
 from phoenix.client import Client as PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.evals import (
-    TOOL_CALLING_PROMPT_RAILS_MAP,
     LLM,
     create_classifier,
     evaluate_dataframe,
 )
+
+TOOL_CALLING_PROMPT_RAILS_MAP = {"correct": "correct", "incorrect": "incorrect"}
 from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
