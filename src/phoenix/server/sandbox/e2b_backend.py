@@ -105,7 +105,7 @@ class E2BSandboxBackend(SandboxBackend):
 class E2BAdapter(SandboxAdapter):
     key = "E2B"
     display_name = "E2B"
-    supported_languages = ["PYTHON"]
+    language = "PYTHON"
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (

@@ -86,8 +86,8 @@ class TestWASMAdapter:
     def test_key(self) -> None:
         assert WASMAdapter.key == "WASM"
 
-    def test_supported_languages(self) -> None:
-        assert "PYTHON" in WASMAdapter.supported_languages
+    def test_language(self) -> None:
+        assert WASMAdapter.language == "PYTHON"
 
     def test_build_backend_default_timeout(self) -> None:
         adapter = WASMAdapter()

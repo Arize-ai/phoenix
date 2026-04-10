@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<02dd3e4c4452e113e602dc70df251404>>
+ * @generated SignedSource<<e6541224164a810902f771efcbe60331>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,8 +48,8 @@ export type FreeformAnnotationConfigInput = {
   name: string;
 };
 export type EvaluatorInputMappingInput = {
-  literalMapping?: any;
-  pathMapping?: any;
+  literalMapping: any;
+  pathMapping: any;
 };
 export type EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation$variables = {
   input: UpdateCodeEvaluatorInput;
