@@ -154,7 +154,7 @@ type SandboxConfigDialogContentProps = (
 ) & { onClose: () => void };
 
 function defaultConfigName(provider: ProviderRow): string {
-  return `${provider.backend.displayName} - ${languageLabel(provider.provider.language)}`;
+  return `${provider.backend.displayName}`;
 }
 
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
@@ -283,6 +283,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   <ComboBox
                     label="Provider"
                     placeholder="Search providers"
+                    size="L"
                     selectedKey={field.value || null}
                     onSelectionChange={(key) => {
                       if (typeof key === "string") {
@@ -308,7 +309,6 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     onBlur={field.onBlur}
                     isInvalid={fieldState.invalid}
                     errorMessage={fieldState.error?.message}
-                    size="M"
                     menuTrigger="focus"
                     defaultItems={providers ?? []}
                     renderEmptyState={() => <div>No providers found</div>}
@@ -317,7 +317,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                       <ComboBoxItem
                         id={item.provider.id}
                         key={item.provider.id}
-                        textValue={`${item.backend.displayName} ${languageLabel(item.provider.language)}`}
+                        textValue={`${item.backend.displayName}`}
                       >
                         <Flex direction="column" gap="size-25">
                           <Text>{item.backend.displayName}</Text>
