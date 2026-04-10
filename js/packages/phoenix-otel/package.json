@@ -3,11 +3,11 @@
   "version": "0.4.3",
   "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
   "keywords": [
+    "OpenInference",
     "agents",
     "arize",
     "llm",
     "observability",
-    "openInference",
     "openTelemetry",
     "otel",
     "phoenix",
