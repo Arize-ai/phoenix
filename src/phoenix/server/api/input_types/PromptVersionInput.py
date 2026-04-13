@@ -260,9 +260,13 @@ class ChatPromptVersionInput:
         )
 
     def __post_init__(self) -> None:
-        self.invocation_parameters = {
-            k: v for k, v in self.invocation_parameters.items() if v is not None
-        }
+        self.invocation_parameters = JSON(
+            {
+                k: v
+                for k, v in cast(dict[str, Any], self.invocation_parameters).items()
+                if v is not None
+            }
+        )
 
     def to_orm_prompt_version(
         self,

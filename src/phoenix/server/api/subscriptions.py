@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import deque
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from typing import (
     Any,
     AsyncGenerator,
@@ -9,6 +9,7 @@ from typing import (
     Coroutine,
     Optional,
     TypeVar,
+    cast,
 )
 
 import strawberry
@@ -85,9 +86,9 @@ async def _stream_single_chat_completion(
         messages = formatted_messages(
             messages=messages,
             template_format=template_options.format,
-            template_variables=template_options.variables,
+            template_variables=cast(Mapping[str, Any], template_options.variables),
         )
-    invocation_parameters = dict(input.prompt_version.invocation_parameters)
+    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
 
     tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
     response_format = (
@@ -196,7 +197,7 @@ class Subscription:
             if custom_provider_id is not None
             else to_connection_config(model_provider, input.connection_config)
         )
-        headers = dict(input.headers) if input.headers else None
+        headers = cast(dict[str, str], input.headers) if input.headers else None
         async with info.context.db() as session:
             llm_client = await get_playground_client(
                 model_provider=model_provider,

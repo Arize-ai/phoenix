@@ -86,7 +86,7 @@ class Dataset(Node):
             val = await info.context.data_loaders.dataset_fields.load(
                 (self.id, models.Dataset.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def created_at(

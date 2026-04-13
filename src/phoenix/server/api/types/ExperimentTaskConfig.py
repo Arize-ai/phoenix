@@ -206,7 +206,9 @@ class PromptTaskConfig(Node):
                     if obj.response_format
                     else None
                 ),
-                invocation_parameters=get_raw_invocation_parameters(obj.invocation_parameters),
+                invocation_parameters=JSON(
+                    get_raw_invocation_parameters(obj.invocation_parameters)
+                ),
                 model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
                 model_name=obj.model_name,
             ),

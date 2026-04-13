@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import strawberry
 from openinference.semconv.trace import (
@@ -337,7 +337,7 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: example.input,
                         DatasetExampleRevision.output.key: example.output,
                         DatasetExampleRevision.metadata_.key: {
-                            **(example.metadata or {}),
+                            **cast(dict[str, Any], example.metadata or {}),
                             "annotations": span_annotation,
                         },
                         DatasetExampleRevision.revision_kind.key: "CREATE",

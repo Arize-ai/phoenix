@@ -75,7 +75,9 @@ class OpenAIClientKwargs:
             base_url=kwargs.base_url,
             organization=kwargs.organization,
             project=kwargs.project,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -137,7 +139,9 @@ class AzureOpenAIClientKwargs:
     def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs) -> Self:
         return cls(
             azure_endpoint=kwargs.azure_endpoint,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -180,7 +184,9 @@ class AnthropicClientKwargs:
             return None
         return cls(
             base_url=kwargs.base_url,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -292,7 +298,7 @@ class GoogleGenAIHttpOptions:
             return None
         return cls(
             base_url=http_options.base_url,
-            headers=dict(http_options.headers) if http_options.headers else None,
+            headers=JSON(dict(http_options.headers)) if http_options.headers else None,
         )
 
 

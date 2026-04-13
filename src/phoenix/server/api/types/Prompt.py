@@ -90,7 +90,7 @@ class Prompt(Node):
             val = await info.context.data_loaders.prompt_fields.load(
                 (self.id, models.Prompt.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def created_at(

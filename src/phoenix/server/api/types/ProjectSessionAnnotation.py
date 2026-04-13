@@ -107,7 +107,7 @@ class ProjectSessionAnnotation(Node, Annotation):
             val = await info.context.data_loaders.project_session_annotation_fields.load(
                 (self.id, models.ProjectSessionAnnotation.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field(description="The identifier of the annotation.")  # type: ignore
     async def identifier(

@@ -33,7 +33,7 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.287.3",
+  "strawberry-graphql==0.314.3",
   "graphql-core>=3.3.0a0,<3.4",  # incremental execution currently requires the graphql-core 3.3 prerelease line
   "pyarrow",
   "typing-extensions>=4.6",
@@ -142,7 +142,7 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry]==0.287.3",
+  "strawberry-graphql[opentelemetry]==0.314.3",
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -200,7 +200,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.60b1",
   "opentelemetry-instrumentation-grpc==0.60b1",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.287.3",
+  "strawberry-graphql[opentelemetry]==0.314.3",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
 ]
@@ -311,6 +311,13 @@ module = [
   "jsonpath_ng",
 ]
 ignore_missing_imports = true
+
+[tool.basedpyright]
+# Resolve imports against the uv-managed environment and src-layout package root.
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+pythonVersion = "3.10"
 
 [tool.ruff]
 exclude = [

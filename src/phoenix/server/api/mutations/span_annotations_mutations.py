@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy import delete, insert, select
@@ -91,14 +91,14 @@ class SpanAnnotationMutationMixin:
                 existing_annotation = await session.scalar(q)
 
                 if existing_annotation:
-                    existing_annotation.name = values["name"]
-                    existing_annotation.label = values["label"]
-                    existing_annotation.score = values["score"]
-                    existing_annotation.explanation = values["explanation"]
-                    existing_annotation.metadata_ = values["metadata_"]
-                    existing_annotation.annotator_kind = values["annotator_kind"]
-                    existing_annotation.source = values["source"]
-                    existing_annotation.user_id = values["user_id"]
+                    existing_annotation.name = annotation_input.name
+                    existing_annotation.label = annotation_input.label
+                    existing_annotation.score = annotation_input.score
+                    existing_annotation.explanation = annotation_input.explanation
+                    existing_annotation.metadata_ = cast(dict[str, Any], annotation_input.metadata)
+                    existing_annotation.annotator_kind = annotation_input.annotator_kind.value
+                    existing_annotation.source = annotation_input.source.value
+                    existing_annotation.user_id = user_id
                     session.add(existing_annotation)
                     processed_annotation = existing_annotation
 

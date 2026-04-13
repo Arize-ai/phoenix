@@ -13,6 +13,7 @@ from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
@@ -1488,7 +1489,7 @@ class Query:
                 description=config.description,
                 optimization_direction=optimization_direction,
                 messages=gql_messages,
-                choices=config.choices,
+                choices=JSON(config.choices),
             )
             gql_configs.append(gql_config)
 
@@ -1667,6 +1668,7 @@ class Query:
         formatter = get_template_formatter(template_options.format)
         # Ensure variables is a dict - JSON scalar can be any JSON type
         raw_variables = template_options.variables
+        variables: dict[str, Any]
         if isinstance(raw_variables, dict):
             variables = raw_variables
         elif isinstance(raw_variables, str):

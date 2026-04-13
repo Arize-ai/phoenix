@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -201,7 +201,7 @@ class PromptMutationMixin:
             if input.metadata is UNSET:
                 metadata = prompt.metadata_
             else:
-                metadata = input.metadata or {}
+                metadata = cast(dict[str, Any], input.metadata or {})
 
             new_prompt = models.Prompt(
                 name=name,

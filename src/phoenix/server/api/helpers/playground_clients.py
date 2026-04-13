@@ -53,7 +53,6 @@ from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
 from opentelemetry.trace import Span as OTelSpan
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
@@ -106,7 +105,7 @@ from phoenix.utilities.json import jsonify
 if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStreamManager
-    from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
+    from anthropic.types import MessageParam, TextBlockParam, ToolUseBlockParam
     from anthropic.types.message_create_params import MessageCreateParamsBase
     from anthropic.types.usage import Usage
     from google.genai.client import AsyncClient as GoogleAsyncClient
@@ -2687,7 +2686,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         self,
         messages: Sequence[PlaygroundMessage],
     ) -> tuple[list["MessageParam"], str]:
-        anthropic_messages: list["MessageParam"] = []
+        from anthropic.types import MessageParam, ToolResultBlockParam
+
+        anthropic_messages: list[MessageParam] = []
         system_prompt = ""
         for msg in messages:
             role = msg["role"]
@@ -2696,23 +2697,25 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             tool_calls = msg.get("tool_calls")
             tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
-                anthropic_messages.append({"role": "user", "content": tool_aware_content})
+                anthropic_messages.append(MessageParam(role="user", content=tool_aware_content))
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
+                anthropic_messages.append(
+                    MessageParam(role="assistant", content=tool_aware_content)
+                )
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
                 anthropic_messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_call_id or "",
-                                "content": content or "",
-                            }
+                    MessageParam(
+                        role="user",
+                        content=[
+                            ToolResultBlockParam(
+                                type="tool_result",
+                                tool_use_id=tool_call_id or "",
+                                content=content or "",
+                            )
                         ],
-                    }
+                    )
                 )
             else:
                 assert_never(role)
@@ -2720,14 +2723,24 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(
-        self, content: str, tool_calls: Optional[Sequence[JSONScalarType]]
-    ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
+        self, content: str, tool_calls: Optional[Sequence[PlaygroundToolCall]]
+    ) -> Union[str, list[ToolUseBlockParam | TextBlockParam]]:
+        from anthropic.types import TextBlockParam, ToolUseBlockParam
+
         if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
-            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = []
+            tool_use_content: list[ToolUseBlockParam | TextBlockParam] = []
             if content:
-                tool_use_content.append({"type": "text", "text": content})
-            tool_use_content.extend(tool_calls)
+                tool_use_content.append(TextBlockParam(type="text", text=content))
+            tool_use_content.extend(
+                ToolUseBlockParam(
+                    type="tool_use",
+                    id=tc.get("id", ""),
+                    name=tc.get("function", {}).get("name", ""),
+                    input=tc.get("function", {}).get("arguments", {}),
+                )
+                for tc in tool_calls
+            )
             return tool_use_content
 
         return content

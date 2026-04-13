@@ -19,7 +19,7 @@ py-grpc-prometheus
 pydantic-ai>=1.62.0
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
-strawberry-graphql[opentelemetry]==0.287.3
+strawberry-graphql[opentelemetry]==0.314.3
 tenacity
 types-aiobotocore-bedrock-runtime
 types-cachetools

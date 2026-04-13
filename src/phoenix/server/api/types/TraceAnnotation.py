@@ -106,7 +106,7 @@ class TraceAnnotation(Node):
             val = await info.context.data_loaders.trace_annotation_fields.load(
                 (self.id, models.TraceAnnotation.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field(description="The identifier of the annotation.")  # type: ignore
     async def identifier(

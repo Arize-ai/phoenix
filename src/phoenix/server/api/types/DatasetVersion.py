@@ -43,7 +43,7 @@ class DatasetVersion(Node):
             val = await info.context.data_loaders.dataset_version_fields.load(
                 (self.id, models.DatasetVersion.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def created_at(

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -108,7 +108,7 @@ class ProjectSessionAnnotationMutationMixin:
             anno.score = input.score
             anno.explanation = input.explanation
             anno.annotator_kind = input.annotator_kind.value
-            anno.metadata_ = input.metadata
+            anno.metadata_ = cast(dict[str, Any], input.metadata)
             anno.source = input.source.value
 
             session.add(anno)

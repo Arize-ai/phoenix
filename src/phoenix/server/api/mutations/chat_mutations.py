@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from pydantic import ValidationError
@@ -99,7 +99,7 @@ class ChatCompletionMutationMixin:
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
-            context = preview_item.context
+            context = cast(dict[str, Any], preview_item.context)
             input_mapping = preview_item.input_mapping
 
             if evaluator_id := evaluator_input.built_in_evaluator_id:

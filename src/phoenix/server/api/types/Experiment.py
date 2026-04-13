@@ -162,7 +162,7 @@ class Experiment(Node):
             val = await info.context.data_loaders.experiment_fields.load(
                 (self.id, models.Experiment.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def created_at(

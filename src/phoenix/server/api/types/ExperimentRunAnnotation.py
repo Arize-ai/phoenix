@@ -136,7 +136,7 @@ class ExperimentRunAnnotation(Node):
             val = await info.context.data_loaders.experiment_run_annotation_fields.load(
                 (self.id, models.ExperimentRunAnnotation.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
     async def start_time(

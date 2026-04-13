@@ -27,7 +27,7 @@ class UnparsableSecret:
 
 ResolvedSecret: TypeAlias = Annotated[
     DecryptedSecret | UnparsableSecret,
-    strawberry.union("ResolvedSecret", [DecryptedSecret, UnparsableSecret]),
+    strawberry.union("ResolvedSecret"),
 ]
 
 

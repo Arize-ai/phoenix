@@ -3,6 +3,7 @@ from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
 from graphql.language import ListValueNode, NameNode, ObjectFieldNode, ObjectValueNode, ValueNode
+from starlette.datastructures import Secret
 from strawberry.extensions import SchemaExtension
 from strawberry.printer import ast_from_value as strawberry_ast_from_value
 from strawberry.schema.config import StrawberryConfig
@@ -15,23 +16,33 @@ from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
 )
+from phoenix.server.api.types.CronExpression import (
+    CronExpression,
+    cron_expression_scalar_definition,
+)
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
+from phoenix.server.api.types.Identifier import Identifier, identifier_scalar_definition
+from phoenix.server.api.types.SecretString import secret_string_scalar_definition
 
 
 def _patch_strawberry_schema_printer() -> None:
     """
-    Fix Strawberry's schema printer for graphql-core 3.3.
+    Monkey-patch Strawberry's ``ast_from_leaf_type`` for graphql-core 3.3 schema printing.
 
-    graphql-core 3.3 made AST nodes frozen dataclasses, so fields like
-    ObjectValueNode(fields=...) now require a tuple instead of a list.
-    Strawberry 0.287.3 still passes fields=[...] (a list), which causes
-    ``TypeError: Invalid AST Node: []`` when printing the schema. This patch
-    swaps in a version that passes tuple(...) instead.
+    graphql-core 3.3 uses frozen, kw-only AST nodes; Strawberry switched object literals
+    to ``tuple(...)`` for ``ObjectValueNode.fields`` (among other nodes), including in
+    ``ast_from_leaf_type`` — see https://github.com/strawberry-graphql/strawberry/pull/4267
+    (that PR also contains unrelated gql-core 3.3 execute fixes).
 
-    TODO: Remove after upgrading strawberry-graphql past 0.310.1.
-    Fixed upstream in https://github.com/strawberry-graphql/strawberry/pull/4267
+    Strawberry still does not recurse through Python ``list`` / ``tuple`` values inside
+    serialized dicts: ``ast_from_leaf_type({"a": [1]})`` raises ``TypeError`` on stock
+    0.314.x. This wrapper keeps upstream dict handling and adds list/tuple handling so
+    nested structures (e.g. input defaults) can be printed.
+
+    TODO: Drop this patch if ``strawberry.printer.ast_from_value.ast_from_leaf_type``
+    gains equivalent list/tuple support upstream.
     """
     if getattr(strawberry_ast_from_value, "_phoenix_patch_applied", False):
         return
@@ -73,7 +84,14 @@ def build_graphql_schema(
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
-        config=StrawberryConfig(enable_experimental_incremental_execution=True),
+        config=StrawberryConfig(
+            enable_experimental_incremental_execution=True,
+            scalar_map={
+                Identifier: identifier_scalar_definition,
+                CronExpression: cron_expression_scalar_definition,
+                Secret: secret_string_scalar_definition,
+            },
+        ),
         types=list(
             chain(
                 _implementing_types(ChatCompletionSubscriptionPayload),
@@ -88,10 +106,8 @@ def _implementing_types(interface: Any) -> Iterator[StrawberryType]:
     Iterates over strawberry types implementing the given strawberry interface.
     Recursively includes all subclasses, not just direct subclasses.
     """
-    assert isinstance(
-        strawberry_definition := getattr(interface, "__strawberry_definition__", None),
-        StrawberryObjectDefinition,
-    )
+    strawberry_definition = getattr(interface, "__strawberry_definition__", None)
+    assert isinstance(strawberry_definition, StrawberryObjectDefinition)
     assert strawberry_definition.is_interface
 
     def _get_all_subclasses(cls: Any) -> Iterator[StrawberryType]:
