@@ -21,6 +21,7 @@ from phoenix.evals import (
     ClassificationEvaluator,
     evaluate_dataframe,
 )
+from phoenix.evals.utils import to_annotation_dataframe
 from rich.console import Console
 
 load_dotenv()
@@ -128,30 +129,21 @@ def run_judge_on_traces(
         evaluators=[evaluator],
     )
 
-    # Extract labels from score column
-    score_data = results_df["judge_score"]
-    results_df["label"] = score_data.apply(
-        lambda x: x.get("label") if isinstance(x, dict) else None
-    )
-    results_df["explanation"] = score_data.apply(
-        lambda x: x.get("explanation") if isinstance(x, dict) else None
-    )
-
     console.print(f"[green]Completed labeling of {len(results_df)} traces")
 
-    # Log to Phoenix
+    # Convert to annotation format and log to Phoenix
+    annotations_df = to_annotation_dataframe(results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
-        dataframe=results_df,
+        dataframe=annotations_df,
         annotation_name="LLM-as-Judge Evaluation",
         annotator_kind="LLM",
     )
 
-    results_df = results_df.rename(
-        columns={
-            "label": "llm_as_judge_label",
-            "explanation": "llm_as_judge_explanation",
-        },
+    # Extract labels for downstream use (judgy)
+    score_data = results_df["judge_score"]
+    results_df["llm_as_judge_label"] = score_data.apply(
+        lambda x: x.get("label") if isinstance(x, dict) else None
     )
 
     console.print("[green]Completed LLM-as-Judge Evaluation, logged to Phoenix")

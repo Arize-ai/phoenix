@@ -63,7 +63,7 @@ from phoenix.client.types import PromptVersion
 from phoenix.evals import (
     LLM,
     ClassificationEvaluator,
-    evaluate_dataframe,
+    bind_evaluator,
 )
 from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
@@ -295,20 +295,17 @@ def prompt_task(input):
     return resp
 
 
-def evaluate_response(input, output):
-    llm = LLM(provider="openai", model="gpt-3.5-turbo")
-    evaluator = ClassificationEvaluator(
+from phoenix.evals import bind_evaluator
+
+tool_calling_evaluator = bind_evaluator(
+    ClassificationEvaluator(
         name="tool_calling",
-        llm=llm,
+        llm=LLM(provider="openai", model="gpt-3.5-turbo"),
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        evaluators=[evaluator],
-    )
-    score_data = result_df["tool_calling_score"].iloc[0]
-    return 0 if (isinstance(score_data, dict) and score_data.get("label") == "incorrect") else 1
+    ),
+    input_mapping={"question": "input.Questions", "tool_calls": "output"},
+)
 ```
 
 #### Experiment
@@ -317,7 +314,7 @@ def evaluate_response(input, output):
 initial_experiment = run_experiment(
     dataset,
     task=prompt_task,
-    evaluators=[evaluate_response],
+    evaluators=[tool_calling_evaluator],
     experiment_description="Customer Support Prompt",
     experiment_name="initial-prompt",
     experiment_metadata={"prompt": "prompt_id=" + prompt.id},
@@ -383,20 +380,17 @@ def prompt_task(input):
     return resp
 
 
-def evaluate_response(input, output):
-    llm = LLM(provider="openai", model="gpt-3.5-turbo")
-    evaluator = ClassificationEvaluator(
+from phoenix.evals import bind_evaluator
+
+tool_calling_evaluator = bind_evaluator(
+    ClassificationEvaluator(
         name="tool_calling",
-        llm=llm,
+        llm=LLM(provider="openai", model="gpt-3.5-turbo"),
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        evaluators=[evaluator],
-    )
-    score_data = result_df["tool_calling_score"].iloc[0]
-    return 0 if (isinstance(score_data, dict) and score_data.get("label") == "incorrect") else 1
+    ),
+    input_mapping={"question": "input.Questions", "tool_calls": "output"},
+)
 ```
 
 #### Experiment
@@ -405,7 +399,7 @@ def evaluate_response(input, output):
 initial_experiment = run_experiment(
     dataset,
     task=prompt_task,
-    evaluators=[evaluate_response],
+    evaluators=[tool_calling_evaluator],
     experiment_description="Customer Support Prompt",
     experiment_name="improved-prompt",
     experiment_metadata={"prompt": "prompt_id=" + prompt.id},

@@ -467,10 +467,13 @@ raw_outputs, _ = await executor.execute([row.to_dict() for _, row in df.iterrows
 ```python
 import phoenix as px
 from phoenix.client import Client
+from phoenix.evals.utils import to_annotation_dataframe
 
+# Convert evaluate_dataframe results to annotation format, then log
+annotations = to_annotation_dataframe(results)
 px_client = Client()
 px_client.spans.log_span_annotations_dataframe(
-    dataframe=results,
+    dataframe=annotations,
     annotation_name="LLM-as-Judge Evaluation",
     annotator_kind="LLM",
 )
@@ -485,6 +488,7 @@ px_client.spans.log_span_annotations_dataframe(
 ```python
 import phoenix as px
 from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals.utils import to_annotation_dataframe
 from phoenix.trace.dsl import SpanQuery
 from phoenix.client import Client
 import pandas as pd
@@ -526,9 +530,10 @@ results = await async_evaluate_dataframe(
     evaluators=[evaluator],
 )
 
-# 5. Log to Phoenix
+# 5. Convert to annotations and log to Phoenix
+annotations = to_annotation_dataframe(results)
 px_client.spans.log_span_annotations_dataframe(
-    dataframe=results,
+    dataframe=annotations,
     annotation_name="Dietary Adherence Evaluation",
     annotator_kind="LLM",
 )

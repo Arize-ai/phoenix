@@ -16,6 +16,7 @@ from phoenix.evals import (
     ClassificationEvaluator,
     evaluate_dataframe,
 )
+from phoenix.evals.utils import to_annotation_dataframe
 
 load_dotenv()
 
@@ -113,27 +114,24 @@ def generate_phoenix_labels(
         evaluators=[evaluator],
     )
 
-    # Extract labels and explanations from score column
-    score_data = results_df["ground_truth_score"]
-    results_df["label"] = score_data.apply(
-        lambda x: x.get("label") if isinstance(x, dict) else None
-    )
-    results_df["explanation"] = score_data.apply(
-        lambda x: x.get("explanation") if isinstance(x, dict) else None
-    )
-
     print(f"Completed labeling of {len(results_df)} traces")
 
-    # Log evaluations to Phoenix
+    # Convert to annotation format and log to Phoenix
+    annotations_df = to_annotation_dataframe(results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
-        dataframe=results_df,
+        dataframe=annotations_df,
         annotation_name="Ground Truth Labels",
         annotator_kind="LLM",
     )
 
-    results_df = results_df.rename(
-        columns={"label": "ground_truth_label", "explanation": "ground_truth_explanation"},
+    # Extract labels for downstream use
+    score_data = results_df["ground_truth_score"]
+    results_df["ground_truth_label"] = score_data.apply(
+        lambda x: x.get("label") if isinstance(x, dict) else None
+    )
+    results_df["ground_truth_explanation"] = score_data.apply(
+        lambda x: x.get("explanation") if isinstance(x, dict) else None
     )
 
     print("Logged evaluations to Phoenix")

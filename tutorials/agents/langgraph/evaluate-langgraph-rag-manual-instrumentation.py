@@ -29,13 +29,13 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-from phoenix.evals import (  # type: ignore[attr-defined]
-    LLM,
+from phoenix.evals import LLM, evaluate_dataframe  # type: ignore[attr-defined]
+from phoenix.evals.metrics import (  # type: ignore[attr-defined]
     CorrectnessEvaluator,
     DocumentRelevanceEvaluator,
     FaithfulnessEvaluator,
-    evaluate_dataframe,
 )
+from phoenix.evals.utils import to_annotation_dataframe  # type: ignore[attr-defined]
 
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
@@ -644,24 +644,15 @@ async def main():
         )
         print("✅ Logged retrieval relevance evaluations")
 
-    if qa_results:
+    if qa_results and "qa_correctness" in qa_results:
         from phoenix.client import Client
 
+        annotations_df = to_annotation_dataframe(qa_results["qa_correctness"])
         px_client = Client()
-        if "qa_correctness" in qa_results:
-            px_client.spans.log_span_annotations_dataframe(
-                dataframe=qa_results["qa_correctness"],
-                annotation_name="Q&A Correctness",
-                annotator_kind="LLM",
-            )
-            print("✅ Logged Q&A correctness evaluations")
-        if "hallucination" in qa_results:
-            px_client.spans.log_span_annotations_dataframe(
-                dataframe=qa_results["hallucination"],
-                annotation_name="Hallucination",
-                annotator_kind="LLM",
-            )
-            print("✅ Logged hallucination evaluations")
+        px_client.spans.log_span_annotations_dataframe(
+            dataframe=annotations_df,
+        )
+        print("✅ Logged Q&A correctness and faithfulness evaluations")
 
     print("\n🎉 LangGraph RAG Agent with manual instrumentation complete!")
     print("\n📈 Check the Phoenix UI for detailed tracing information:")

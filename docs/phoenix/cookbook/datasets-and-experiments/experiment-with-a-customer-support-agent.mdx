@@ -260,35 +260,42 @@ dataset = px_client.datasets.create_dataset(
 ```
 
 ```python expandable
-def generic_eval(input, output, prompt_template):
-    from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
-    df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
-    llm = LLM(provider="openai", model="gpt-4o")
-    evaluator = ClassificationEvaluator(
-        name="eval",
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Map template variables to experiment data paths
+eval_input_mapping = {"question": "input.question", "response": "output"}
+
+routing_evaluator = bind_evaluator(
+    ClassificationEvaluator(
+        name="router_eval",
         llm=llm,
-        prompt_template=prompt_template,
+        prompt_template=ROUTER_EVAL_TEMPLATE,
         choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[evaluator])
-    eval_result = eval_df["eval_score"].iloc[0]
-    label = eval_result["label"] if isinstance(eval_result, dict) else None
-    score = 1 if label == "correct" else 0
-    explanation = eval_result.get("explanation")
-    return EvaluationResult(score=score, label=label, explanation=explanation)
+    ),
+    input_mapping=eval_input_mapping,
+)
 
+function_selection_evaluator = bind_evaluator(
+    ClassificationEvaluator(
+        name="function_selection_eval",
+        llm=llm,
+        prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
+        choices={"correct": 1.0, "incorrect": 0.0},
+    ),
+    input_mapping=eval_input_mapping,
+)
 
-def routing_eval(input, output):
-    return generic_eval(input, output, ROUTER_EVAL_TEMPLATE)
-
-
-def function_call_eval(input, output):
-    return generic_eval(input, output, FUNCTION_SELECTION_EVAL_TEMPLATE)
-
-
-def parameter_extraction_eval(input, output):
-    return generic_eval(input, output, PARAMETER_EXTRACTION_EVAL_TEMPLATE)
+parameter_extraction_evaluator = bind_evaluator(
+    ClassificationEvaluator(
+        name="parameter_extraction_eval",
+        llm=llm,
+        prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
+        choices={"correct": 1.0, "incorrect": 0.0},
+    ),
+    input_mapping=eval_input_mapping,
+)
 ```
 
 ```python
@@ -299,7 +306,7 @@ def prompt_gen_task(input):
 experiment = run_experiment(
     dataset=dataset,
     task=prompt_gen_task,
-    evaluators=[routing_eval, function_call_eval, parameter_extraction_eval],
+    evaluators=[routing_evaluator, function_selection_evaluator, parameter_extraction_evaluator],
     experiment_name="agents-cookbook",
 )
 ```
