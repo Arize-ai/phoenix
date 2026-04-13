@@ -13,6 +13,8 @@ import {
   ComboBoxItem,
   Flex,
   Heading,
+  Icon,
+  Icons,
   Input,
   Label,
   ListBox,
@@ -50,7 +52,6 @@ import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { languageLabel } from "@phoenix/pages/settings/sandboxes/utils";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationChoice,
@@ -325,11 +326,30 @@ const CodeEvaluatorSourceEditor = ({
       <Heading level={2} weight="heavy">
         Evaluator Code
       </Heading>
-      <Text color="text-500">
-        Define an <code>evaluate</code> function that returns either a numeric
-        score or a categorical label.
-      </Text>
-      <div css={editorWrapCSS}>
+      <Flex direction="row" justifyContent="space-between" alignItems="center">
+        <Text color="text-500">
+          Define an <code>evaluate</code> function that returns either a numeric
+          score or a categorical label.
+        </Text>
+        <Button
+          size="S"
+          variant="default"
+          onPress={() => onChange(DEFAULT_CODE_EVALUATOR_SOURCE[language])}
+        >
+          <Icon svg={<Icons.Refresh />} />
+          Reset to default
+        </Button>
+      </Flex>
+      <div
+        css={editorWrapCSS}
+        onKeyDown={(e) => {
+          // Prevent Escape from propagating to the modal overlay,
+          // which would close the slideover and discard edits.
+          if (e.key === "Escape") {
+            e.stopPropagation();
+          }
+        }}
+      >
         <CodeMirror
           value={sourceCode}
           onChange={onChange}
@@ -574,6 +594,7 @@ const CodeEvaluatorSandboxField = ({
     <View marginBottom="size-200" flex="none">
       <ComboBox
         label="Sandbox config"
+        size="L"
         placeholder={
           sandboxConfigs.length > 0
             ? "Select a sandbox config"
@@ -602,14 +623,19 @@ const CodeEvaluatorSandboxField = ({
           <ComboBoxItem
             id={String(item.id)}
             key={item.id}
-            textValue={`${item.name} ${item.providerLabel}`}
+            textValue={item.name}
           >
             <Flex direction="column" gap="size-25">
               <Text>{item.name}</Text>
-              <Text color="text-700" size="S">
-                {item.providerLabel}
-                {item.description ? ` · ${item.description}` : ""}
-              </Text>
+              {item.description ? (
+                <Text color="text-700" size="S">
+                  {item.description}
+                </Text>
+              ) : (
+                <Text color="text-700" size="S">
+                  {item.providerLabel}
+                </Text>
+              )}
             </Flex>
           </ComboBoxItem>
         )}
@@ -639,10 +665,23 @@ export const mapSandboxConfigOptions = (
       name: config.name,
       description: config.description,
       providerLanguage: provider.language,
-      providerLabel: `${provider.backendType} ${languageLabel(provider.language)} provider`,
+      providerLabel: backendTypeLabel(provider.backendType),
     }))
   );
 };
+
+const BACKEND_TYPE_LABELS: Record<string, string> = {
+  WASM: "WebAssembly",
+  E2B: "E2B",
+  DAYTONA_PYTHON: "Daytona",
+  VERCEL_PYTHON: "Vercel",
+  VERCEL_TYPESCRIPT: "Vercel",
+  DENO: "Deno",
+  MODAL: "Modal",
+};
+
+const backendTypeLabel = (backendType: string): string =>
+  BACKEND_TYPE_LABELS[backendType] ?? backendType;
 
 const decodeRelayNodeId = (globalId: string) => {
   const decoded = globalThis.atob(globalId);
