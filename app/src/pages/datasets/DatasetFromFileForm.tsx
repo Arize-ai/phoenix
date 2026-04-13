@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
+import { authFetch } from "@phoenix/authFetch";
 import {
   Alert,
   Button,
@@ -543,7 +544,7 @@ export function DatasetFromFileForm({
         });
       }
 
-      return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
+      return authFetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
         body: formData,
       })
@@ -694,7 +695,9 @@ export function DatasetFromFileForm({
                 <span css={rowCountCSS}>
                   {totalRowCount !== null && totalRowCount > previewRows.length
                     ? `showing ${previewRows.length} of ${totalRowCount} rows`
-                    : `${previewRows.length} row${previewRows.length === 1 ? "" : "s"}`}
+                    : `${previewRows.length} row${
+                        previewRows.length === 1 ? "" : "s"
+                      }`}
                 </span>
               </div>
               <TabPanel css={previewTabPanelCSS} id="file">
@@ -759,7 +762,9 @@ export function DatasetFromFileForm({
               }) => (
                 <ColumnMultiSelector
                   label="Split Column (optional)"
-                  description={`Select one or more ${fileType === "csv" ? "column" : "key"}s to automatically assign examples to splits`}
+                  description={`Select one or more ${
+                    fileType === "csv" ? "column" : "key"
+                  }s to automatically assign examples to splits`}
                   columns={columns}
                   selectedColumns={value}
                   onChange={onChange}
