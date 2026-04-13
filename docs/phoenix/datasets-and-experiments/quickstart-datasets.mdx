@@ -262,14 +262,13 @@ Use pre-built evaluators to grade task output with code...
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.evals import create_evaluator
+    from phoenix.client.experiments import create_evaluator
+
 
     @create_evaluator(name="contains_keyword", kind="code")
-    def contains_keyword(output):
+    def contains_keyword(output, expected):
         keywords = ["Y Combinator", "YC"]
-        output_lower = str(output).lower()
-        contains = any(kw.lower() in output_lower for kw in keywords)
-        return contains
+        return any(kw.lower() in str(output).lower() for kw in keywords)
     ```
 
   </Tab>
@@ -313,11 +312,11 @@ or LLMs.
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.evals import LLM
     from phoenix.evals.metrics import ConcisenessEvaluator
+    from phoenix.evals.models import OpenAIModel
 
-    llm = LLM(provider="openai", model="gpt-4o")
-    conciseness = ConcisenessEvaluator(llm=llm)
+    model = OpenAIModel(model="gpt-4o")
+    conciseness = ConcisenessEvaluator(model=model)
     ```
 
   </Tab>
@@ -537,8 +536,8 @@ Run an experiment and evaluate the results.
     from phoenix.client.experiments import run_experiment
 
     experiment = run_experiment(
-        dataset=dataset,
-        task=task,
+        dataset,
+        task,
         experiment_name="initial-experiment",
         evaluators=[jaccard_similarity, accuracy],
     )
@@ -576,7 +575,7 @@ Run more evaluators after the fact.
     ```python
     from phoenix.client.experiments import evaluate_experiment
 
-    experiment = evaluate_experiment(experiment=experiment, evaluators=[contains_keyword, conciseness])
+    experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
     ```
 
   </Tab>
