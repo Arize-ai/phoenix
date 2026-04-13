@@ -27,6 +27,7 @@ from typing import Any, Optional
 
 from .types import (
     ExecutionResult,
+    ModalConfig,
     SandboxAdapter,
     SandboxBackend,
 )
@@ -140,6 +141,7 @@ class ModalAdapter(SandboxAdapter):
     key = "MODAL"
     display_name = "Modal"
     language = "PYTHON"
+    config_model = ModalConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
