@@ -27,7 +27,7 @@ test("recovers from an expired session by refreshing auth", async ({
     await route.continue();
   });
 
-  await page.reload();
+  await page.goto("/projects");
   await page.waitForURL("**/projects");
 
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
@@ -59,7 +59,7 @@ test("redirects to login when session refresh fails", async ({ page }) => {
     });
   });
 
-  await page.reload();
+  await page.goto("/projects");
   await page.waitForURL("**/login?returnUrl=%2Fprojects");
 });
 
@@ -85,6 +85,6 @@ test("redirects to login when session refresh times out", async ({ page }) => {
     await route.abort();
   });
 
-  await page.reload();
+  await page.goto("/projects");
   await page.waitForURL("**/login?returnUrl=%2Fprojects");
 });
