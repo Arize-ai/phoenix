@@ -14,7 +14,7 @@ type BuildAgentChatRequestBodyOptions = {
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
   /** System prompt from agent settings (persisted in the agent store). */
-  system: string;
+  systemPrompt: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
 };
@@ -49,7 +49,7 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  system,
+  systemPrompt,
   sessionId,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   return {
@@ -58,7 +58,7 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    system,
+    system: systemPrompt,
     tools: agentToolDefinitions,
     traceNameSuffix: "Turn",
     ...(sessionId ? { sessionId } : {}),
