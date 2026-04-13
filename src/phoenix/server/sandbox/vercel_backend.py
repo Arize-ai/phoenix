@@ -30,6 +30,8 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    VercelPythonConfig,
+    VercelTypescriptConfig,
 )
 
 # Vercel SDK env (https://vercel.com/docs/vercel-sandbox/concepts/authentication)
@@ -196,6 +198,7 @@ class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
     display_name = "Vercel Sandbox (Python)"
     language = "PYTHON"
+    config_model = VercelPythonConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
@@ -223,6 +226,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
     key = "VERCEL_TYPESCRIPT"
     display_name = "Vercel Sandbox (TypeScript)"
     language = "TYPESCRIPT"
+    config_model = VercelTypescriptConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):

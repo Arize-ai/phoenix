@@ -7,13 +7,20 @@ test app, backed by seed_sandbox_providers DB fixtures.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server import sandbox as sandbox_module
+from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+_e2b_adapter = E2BAdapter()
+_patched_adapters = {**sandbox_module._SANDBOX_ADAPTERS, "E2B": _e2b_adapter}
 
 # ---------------------------------------------------------------------------
 # GraphQL documents
@@ -605,3 +612,151 @@ class TestCrossProviderIsolation:
         assert set(e2b_config_names) == set(e2b_names)
         # No overlap
         assert not set(wasm_config_names) & set(e2b_config_names)
+
+
+class TestConfigValidationPath:
+    """
+    Integration tests for the validation path in create/update mutations.
+
+    Patches _SANDBOX_ADAPTERS to always include E2BAdapter (which has declared
+    config fields), independent of whether e2b_code_interpreter is installed.
+    E2BAdapter.validate_config() only needs pydantic — no optional extras.
+    """
+
+    async def test_create_valid_e2b_config_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-valid",
+                        "config": {"template": "custom-tmpl", "cwd": "/workspace"},
+                    }
+                },
+            )
+        assert result.data and not result.errors
+
+    async def test_create_preserves_unknown_keys(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """extra="allow" means unknown keys survive validation and are persisted."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-extra-keys",
+                        "config": {"template": "base", "custom_key": "preserved"},
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        cfg_id = result.data["createSandboxConfig"]["sandboxConfig"]["id"]
+
+        # Verify persisted config includes the unknown key
+        async with db() as session:
+            from strawberry.relay import GlobalID as GID
+
+            gid = GID.from_id(cfg_id)
+            row_id = int(gid.node_id)
+            row = await session.get(models.SandboxConfig, row_id)
+        assert row is not None
+        assert row.config.get("custom_key") == "preserved"
+
+    async def test_update_valid_config_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+        # Create a config first
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-update-test",
+                config={},
+                timeout=30,
+            )
+            session.add(config)
+            await session.flush()
+            config_id = config.id
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config_id),
+                        "config": {"template": "new-template", "metadata": "my-label"},
+                    }
+                },
+            )
+        assert result.data and not result.errors
+
+    async def test_update_config_persists_validated_dict(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """After update, DB row stores the validated (pydantic model_dump) dict."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-persist-test",
+                config={},
+                timeout=30,
+            )
+            session.add(config)
+            await session.flush()
+            config_id = config.id
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config_id),
+                        "config": {"template": "saved-tmpl"},
+                    }
+                },
+            )
+        assert result.data and not result.errors
+
+        async with db() as session:
+            row = await session.get(models.SandboxConfig, config_id)
+        assert row is not None
+        # template was provided — must be persisted
+        assert row.config.get("template") == "saved-tmpl"
