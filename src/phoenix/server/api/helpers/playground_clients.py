@@ -341,14 +341,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
     ) -> None:
         if not model_name:
             raise BadRequest("A model name is required for OpenAI models")
-        from openai import RateLimitError as OpenAIRateLimitError
 
         super().__init__(
             client_factory=client_factory,
             provider=provider,
             model_name=model_name,
         )
-        self._rate_limit_error_cls = OpenAIRateLimitError
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -356,19 +354,17 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        return isinstance(e, self._rate_limit_error_cls)
+        from openai import APIStatusError
+
+        return isinstance(e, APIStatusError) and e.status_code == 429
 
     @override
     def is_transient_error(self, e: Exception) -> bool:
-        from openai import APIConnectionError, APITimeoutError, InternalServerError
+        from openai import APIConnectionError, APIStatusError, APITimeoutError
 
-        if isinstance(e, (APIConnectionError, APITimeoutError, InternalServerError)):
+        if isinstance(e, (APIConnectionError, APITimeoutError)):
             return True
-        # Also check status code for 5xx errors
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
+        return isinstance(e, APIStatusError) and 500 <= e.status_code
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
@@ -2335,33 +2331,17 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
 
     @override
     def is_rate_limit_error(self, e: Exception) -> bool:
-        # Anthropic has both RateLimitError (429) and OverloadedError (529)
-        # OverloadedError may not exist in all anthropic SDK versions
-        rate_limit_types: tuple[type, ...] = (self._anthropic.RateLimitError,)
-        if hasattr(self._anthropic, "OverloadedError"):
-            rate_limit_types = (*rate_limit_types, self._anthropic.OverloadedError)
-        return isinstance(e, rate_limit_types)
+        from anthropic import APIStatusError
+
+        return isinstance(e, APIStatusError) and e.status_code == 429
 
     @override
     def is_transient_error(self, e: Exception) -> bool:
-        # Anthropic-specific transient errors
-        # Some error types may not exist in all anthropic SDK versions
-        transient_types: list[type] = [
-            self._anthropic.APIConnectionError,
-            self._anthropic.APITimeoutError,
-            self._anthropic.InternalServerError,
-        ]
-        if hasattr(self._anthropic, "ServiceUnavailableError"):
-            transient_types.append(self._anthropic.ServiceUnavailableError)
-        if hasattr(self._anthropic, "OverloadedError"):
-            transient_types.append(self._anthropic.OverloadedError)
+        from anthropic import APIConnectionError, APIStatusError, APITimeoutError
 
-        if isinstance(e, tuple(transient_types)):
+        if isinstance(e, (APIConnectionError, APITimeoutError)):
             return True
-        status_code = getattr(e, "status_code", None)
-        if status_code and 500 <= status_code < 600:
-            return True
-        return False
+        return isinstance(e, APIStatusError) and 500 <= e.status_code
 
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
