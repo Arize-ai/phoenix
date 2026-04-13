@@ -29,8 +29,6 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-
-import phoenix as px
 from phoenix.evals import (  # type: ignore[attr-defined]
     LLM,
     CorrectnessEvaluator,
@@ -42,6 +40,8 @@ from phoenix.evals import (  # type: ignore[attr-defined]
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
 from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
+
+import phoenix as px
 from phoenix.trace import DocumentEvaluations
 
 nest_asyncio.apply()

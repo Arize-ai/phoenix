@@ -14,8 +14,6 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from judgy import estimate_success_rate  # type: ignore[import-not-found]
-from rich.console import Console
-
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import (
@@ -23,6 +21,7 @@ from phoenix.evals import (
     ClassificationEvaluator,
     evaluate_dataframe,
 )
+from rich.console import Console
 
 load_dotenv()
 
