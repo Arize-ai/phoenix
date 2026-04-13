@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 1.0.0
+
+### Major Changes
+
+- 1449f3d: Re-export openinference semantic conventions from phoenix-otel and update phoenix-client to import them from phoenix-otel instead of depending on @arizeai/openinference-semantic-conventions directly.
+
 ## 0.4.3
 
 ### Patch Changes
