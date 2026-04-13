@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
@@ -152,7 +153,16 @@ function ProviderStatusText({ backend }: { backend: BackendInfo }) {
   return (
     <TooltipTrigger delay={100}>
       <TriggerWrap>
-        <Text color="text-700">{label}</Text>
+        <Text
+          color="text-700"
+          css={css`
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+            cursor: help;
+          `}
+        >
+          {label}
+        </Text>
       </TriggerWrap>
       <RichTooltip width={320}>
         <Flex direction="column" gap="size-50">
