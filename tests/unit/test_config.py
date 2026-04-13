@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
@@ -15,12 +16,15 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
+    _validate_managed_identity_config,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
     get_env_database_schema,
     get_env_phoenix_admin_secret,
+    get_env_postgres_azure_token_lifetime,
     get_env_postgres_connection_str,
+    get_env_postgres_use_managed_identity,
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
@@ -2225,3 +2229,240 @@ class TestValidateEnvAllowedProviders:
 
         with pytest.raises(ValueError, match="INVALID_PROVIDER"):
             validate_env_allowed_providers()
+
+
+class TestPostgresConnectionStringManagedIdentity:
+    """Tests for Azure managed identity path in get_env_postgres_connection_str()."""
+
+    def _clear_pg_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for key in (
+            "PHOENIX_POSTGRES_USER",
+            "PHOENIX_POSTGRES_PASSWORD",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_PORT",
+            "PHOENIX_POSTGRES_DB",
+            "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY",
+            "PHOENIX_POSTGRES_USE_AWS_IAM_AUTH",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_managed_identity_minimal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI with host + user produces a password-free connection string."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert "mi-user" in result
+        assert "db.postgres.database.azure.com" in result
+        assert "@" in result
+        # No password in the URL
+        assert ":" not in result.split("@")[0].split("//")[1]
+
+    def test_managed_identity_with_port_and_db(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI connection string includes port and database when set."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+        monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert ":5432" in result
+        assert "/mydb" in result
+
+    def test_managed_identity_password_set_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Setting a password alongside MI raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "should-not-be-here")
+
+        with pytest.raises(ValueError, match="must not be set"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_and_iam_mutual_exclusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Enabling both MI and AWS IAM auth simultaneously raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        with pytest.raises(ValueError, match="Cannot enable both"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_no_host_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no host results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_no_user_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no user results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_false_uses_password_auth(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicitly setting MI to false falls back to normal password auth."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "myuser")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "mypassword")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert quote("mypassword") in result
+        assert quote("myuser") in result
+
+    def test_managed_identity_username_with_at_sign_encoded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Usernames containing '@' (common for Azure MI display names) are URL-encoded."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "my-identity@tenant.onmicrosoft.com")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert quote("my-identity@tenant.onmicrosoft.com") in result
+        # Raw @ should not appear in the userinfo portion (before the host @)
+        userinfo = result.split("@db.postgres.database.azure.com")[0].split("//")[1]
+        assert "@" not in userinfo
+
+
+class TestValidateManagedIdentityConfig:
+    """Tests for _validate_managed_identity_config() startup validation."""
+
+    def _clear_mi_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for key in (
+            "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY",
+            "PHOENIX_POSTGRES_USE_AWS_IAM_AUTH",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_USER",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_disabled_returns_without_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Validation is a no-op when MI is not enabled."""
+        self._clear_mi_env(monkeypatch)
+        _validate_managed_identity_config()  # should not raise
+
+    def test_both_auth_methods_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI + AWS IAM enabled simultaneously raises ValueError."""
+        self._clear_mi_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true")
+
+        with pytest.raises(ValueError, match="Cannot enable both"):
+            _validate_managed_identity_config()
+
+    def test_missing_host_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled without a host raises ValueError."""
+        self._clear_mi_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        with pytest.raises(ValueError, match="PHOENIX_POSTGRES_HOST"):
+            _validate_managed_identity_config()
+
+    def test_missing_user_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled with a host but no user raises ValueError."""
+        self._clear_mi_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+
+        with pytest.raises(ValueError, match="PHOENIX_POSTGRES_USER"):
+            _validate_managed_identity_config()
+
+    def test_azure_identity_not_installed_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """ImportError is raised with an actionable message when azure-identity is missing."""
+        self._clear_mi_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        # Simulate azure-identity not being installed
+        monkeypatch.setitem(sys.modules, "azure.identity.aio", None)  # type: ignore[arg-type]
+
+        with pytest.raises(ImportError, match="azure-identity is required"):
+            _validate_managed_identity_config()
+
+
+class TestGetEnvPostgresUseManagedIdentity:
+    """Tests for get_env_postgres_use_managed_identity()."""
+
+    def test_unset_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", raising=False)
+        assert get_env_postgres_use_managed_identity() is False
+
+    def test_true_string_returns_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        assert get_env_postgres_use_managed_identity() is True
+
+    def test_false_string_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        assert get_env_postgres_use_managed_identity() is False
+
+
+class TestGetEnvPostgresAzureTokenLifetime:
+    """Tests for get_env_postgres_azure_token_lifetime()."""
+
+    def test_default_is_3300(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", raising=False)
+        assert get_env_postgres_azure_token_lifetime() == 3300
+
+    def test_custom_valid_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", "1800")
+        assert get_env_postgres_azure_token_lifetime() == 1800
+
+    def test_zero_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", "0")
+        with pytest.raises(ValueError, match="positive integer"):
+            get_env_postgres_azure_token_lifetime()
+
+    @pytest.mark.parametrize("value", ["-1", "-100"])
+    def test_negative_raises(self, value: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", value)
+        with pytest.raises(ValueError, match="positive integer"):
+            get_env_postgres_azure_token_lifetime()
+
+    def test_non_integer_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", "abc")
+        with pytest.raises(ValueError, match="must be an integer"):
+            get_env_postgres_azure_token_lifetime()
+
+    def test_exactly_2700_does_not_warn(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """2700 is at the boundary — no warning should be emitted."""
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", "2700")
+        with caplog.at_level("WARNING"):
+            result = get_env_postgres_azure_token_lifetime()
+        assert result == 2700
+        assert not caplog.records
+
+    def test_above_2700_warns(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Values above 2700 return the value but emit a warning."""
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS", "2701")
+        with caplog.at_level("WARNING"):
+            result = get_env_postgres_azure_token_lifetime()
+        assert result == 2701
+        assert any("2701" in r.message for r in caplog.records)

@@ -14,7 +14,8 @@ def get_pg_config(
 
     Args:
         url: SQLAlchemy URL
-        enforce_ssl: If True, ensure SSL is enabled (required for AWS RDS IAM auth)
+        enforce_ssl: If True, ensure SSL is enabled (required for AWS RDS IAM auth and
+            Azure managed identity)
 
     Returns:
         Tuple of (base_url, connect_args):
@@ -28,8 +29,8 @@ def get_pg_config(
         ssl_args = {"sslmode": "require"}
     elif enforce_ssl and ssl_args.get("sslmode") == "disable":
         raise ValueError(
-            "SSL cannot be disabled when using AWS RDS IAM authentication. "
-            "Remove 'sslmode=disable' from the connection string."
+            "SSL cannot be disabled when using AWS RDS IAM authentication or Azure managed "
+            "identity. Remove 'sslmode=disable' from the connection string."
         )
 
     base_url = url.set(

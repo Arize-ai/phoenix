@@ -153,14 +153,30 @@ def aio_postgresql_engine(
     log_migrations: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
+        get_env_postgres_azure_token_lifetime,
         get_env_postgres_iam_token_lifetime,
         get_env_postgres_use_iam_auth,
+        get_env_postgres_use_managed_identity,
     )
+    from phoenix.db.azure_auth import create_azure_token_connection_creator
 
     use_iam_auth = get_env_postgres_use_iam_auth()
-    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_iam_auth)
+    use_managed_identity = get_env_postgres_use_managed_identity()
+    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_iam_auth or use_managed_identity)
 
-    if use_iam_auth:
+    azure_creator = None
+    if use_managed_identity:
+        logger.info("Azure managed identity enabled for PostgreSQL connections")
+        azure_creator = create_azure_token_connection_creator(asyncpg_url, asyncpg_args)
+        engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=azure_creator,
+            echo=log_to_stdout,
+            json_serializer=_dumps,
+            pool_pre_ping=True,
+            pool_recycle=get_env_postgres_azure_token_lifetime(),
+        )
+    elif use_iam_auth:
         if not (host := url.host):
             raise ValueError("Database host is required for IAM authentication")
         if not (user := url.username):
@@ -201,7 +217,15 @@ def aio_postgresql_engine(
     if not migrate:
         return engine
 
-    if use_iam_auth:
+    if use_managed_identity:
+        migration_engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=azure_creator,
+            echo=log_migrations,
+            json_serializer=_dumps,
+            poolclass=NullPool,
+        )
+    elif use_iam_auth:
         migration_engine = create_async_engine(
             url=asyncpg_url,
             async_creator=iam_async_creator,

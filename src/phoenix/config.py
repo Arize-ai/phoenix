@@ -162,14 +162,23 @@ Used with PHOENIX_POSTGRES_HOST to specify the user to use for the PostgreSQL da
 
 When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this should be
 set to the IAM-enabled database username configured in your RDS/Aurora instance.
+
+When using Azure managed identity (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true), this should
+be set to the Entra ID principal name for the managed identity as registered in the PostgreSQL
+server. For user-assigned managed identities, this is the identity's display name. For
+system-assigned managed identities, this is the Azure resource name (e.g., the VM or App Service
+name). On Flexible Server, the principal is registered via the Azure Portal or CLI
+(az postgres flexible-server ad-admin create).
 """
 ENV_PHOENIX_POSTGRES_PASSWORD = "PHOENIX_POSTGRES_PASSWORD"
 """
 Used with PHOENIX_POSTGRES_HOST to specify the password to use for the PostgreSQL database
-(required, unless PHOENIX_POSTGRES_USE_AWS_IAM_AUTH is enabled).
+(required, unless PHOENIX_POSTGRES_USE_AWS_IAM_AUTH or PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY
+is enabled).
 
-When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this password
-is NOT used. Instead, authentication tokens are generated dynamically using AWS IAM credentials.
+When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), or Azure managed
+identity (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true), this password is NOT used. Instead,
+authentication tokens are generated dynamically.
 """
 ENV_PHOENIX_POSTGRES_DB = "PHOENIX_POSTGRES_DB"
 """
@@ -196,6 +205,35 @@ ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS = (
 Token lifetime in seconds for connection pool recycling when using AWS RDS IAM authentication.
 AWS RDS auth tokens are valid for 15 minutes. This should be set slightly lower to ensure
 tokens are refreshed before expiration. Defaults to 840 seconds (14 minutes).
+"""
+ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY = "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY"
+"""
+Enable Azure managed identity authentication for PostgreSQL connections. When enabled, Phoenix
+will use Azure DefaultAzureCredential to obtain short-lived authentication tokens instead of
+using a static password.
+
+This requires:
+- azure-identity to be installed: pip install 'arize-phoenix[azure]'
+- A managed identity assigned to the compute resource running Phoenix
+- The managed identity registered as an Entra ID admin or user in the PostgreSQL server
+- SSL is required; Phoenix will reject sslmode=disable
+
+Cannot be used simultaneously with PHOENIX_POSTGRES_USE_AWS_IAM_AUTH.
+Set to 'true', '1', or 'yes' to enable. Defaults to false.
+"""
+ENV_PHOENIX_POSTGRES_AZURE_SCOPE = "PHOENIX_POSTGRES_AZURE_SCOPE"
+"""
+Azure scope URL for PostgreSQL access token requests.
+Defaults to the standard scope for Azure Database for PostgreSQL - Flexible Server:
+https://ossrdbms-aad.database.windows.net/.default
+"""
+ENV_PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS = "PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS"
+"""
+Token lifetime in seconds used for connection pool recycling when using Azure managed identity
+authentication. Azure managed identity access tokens are valid for approximately 60-75 minutes
+(platform-enforced; not configurable via tenant policy). This value should be set lower than
+the actual token lifetime to ensure connections are recycled before expiration.
+Defaults to 3300 seconds (55 minutes).
 """
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
@@ -2691,11 +2729,26 @@ def get_env_postgres_connection_str() -> Optional[str]:
     pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
     pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
     use_iam_auth = _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
+    use_managed_identity = _bool_val(ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY, False)
+
+    if use_managed_identity and use_iam_auth:
+        raise ValueError(
+            f"Cannot enable both {ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY} and "
+            f"{ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} simultaneously. Set only one."
+        )
 
     if not (pg_host and pg_user):
         return None
 
-    if use_iam_auth:
+    if use_managed_identity:
+        if pg_password:
+            raise ValueError(
+                f"{ENV_PHOENIX_POSTGRES_PASSWORD} must not be set when using Azure managed "
+                f"identity ({ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY}=true). "
+                "Remove the password — authentication tokens are obtained from Azure automatically."
+            )
+        connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
+    elif use_iam_auth:
         if pg_password:
             raise ValueError(
                 f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be "
@@ -3298,6 +3351,7 @@ def verify_server_environment_variables() -> None:
     get_env_max_spans_queue_size()
     validate_env_support_email()
     _validate_iam_auth_config()
+    _validate_managed_identity_config()
     validate_env_allowed_providers()
 
     # Notify users about deprecated environment variables if they are being used.
@@ -3448,3 +3502,93 @@ def _validate_iam_auth_config() -> None:
             "Ensure AWS credentials are configured via environment variables, "
             "~/.aws/credentials, or IAM role."
         )
+
+
+def get_env_postgres_use_managed_identity() -> bool:
+    """
+    Gets whether Azure managed identity authentication is enabled for PostgreSQL connections.
+
+    Returns:
+        bool: True if managed identity authentication should be used, False otherwise (default)
+    """
+    return _bool_val(ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY, False)
+
+
+def get_env_postgres_azure_token_lifetime() -> int:
+    """
+    Gets the token lifetime in seconds used for connection pool recycling when using Azure managed
+    identity authentication. Connections are recycled before this deadline to ensure tokens remain
+    valid. Azure managed identity tokens are valid for approximately 60–75 minutes
+    (platform-enforced). Defaults to 3300 seconds (55 minutes).
+
+    Returns:
+        int: Token lifetime in seconds
+    """
+    raw = getenv(ENV_PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS)
+    if raw is not None:
+        try:
+            lifetime = int(raw)
+        except ValueError:
+            raise ValueError(
+                f"{ENV_PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS} must be an integer "
+                f"(seconds), got: {raw!r}"
+            )
+        if lifetime <= 0:
+            raise ValueError(
+                f"{ENV_PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS} must be a positive "
+                f"integer. Got: {lifetime}"
+            )
+        if lifetime > 2700:
+            logger.warning(
+                f"{ENV_PHOENIX_POSTGRES_AZURE_TOKEN_LIFETIME_SECONDS} is set to {lifetime} "
+                "seconds, which exceeds the recommended maximum of 2700 seconds (45 minutes). "
+                "Azure managed identity tokens are valid for approximately 60–75 minutes; "
+                "setting this value too high risks connections attempting to use expired tokens."
+            )
+        return lifetime
+    return 3300
+
+
+def _validate_managed_identity_config() -> None:
+    """
+    Validate Azure managed identity configuration if enabled.
+
+    Raises:
+        ImportError: If azure-identity is not installed when managed identity is enabled
+        ValueError: If configuration is invalid
+    """
+    if not get_env_postgres_use_managed_identity():
+        return
+
+    use_iam_auth = _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
+    if use_iam_auth:
+        raise ValueError(
+            f"Cannot enable both {ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY} and "
+            f"{ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} simultaneously. Set only one."
+        )
+
+    pg_host = getenv(ENV_PHOENIX_POSTGRES_HOST)
+    if not pg_host:
+        # PHOENIX_SQL_DATABASE_URL path: host/user validation not applicable
+        return
+
+    if getenv(ENV_PHOENIX_POSTGRES_PASSWORD):
+        raise ValueError(
+            f"{ENV_PHOENIX_POSTGRES_PASSWORD} must not be set when using Azure managed "
+            f"identity ({ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY}=true). "
+            "Remove the password — authentication tokens are obtained from Azure automatically."
+        )
+
+    if not getenv(ENV_PHOENIX_POSTGRES_USER):
+        raise ValueError(
+            f"{ENV_PHOENIX_POSTGRES_USER} must be set when using Azure managed identity "
+            "authentication"
+        )
+
+    try:
+        from azure.identity.aio import DefaultAzureCredential  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            f"azure-identity is required when {ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY} "
+            "is enabled. Install it with: pip install 'arize-phoenix[azure]'"
+        ) from e
