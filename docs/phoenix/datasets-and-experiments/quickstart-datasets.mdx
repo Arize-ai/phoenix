@@ -312,11 +312,11 @@ or LLMs.
   <Tab title="Python" icon="python">
 
     ```python
+    from phoenix.evals import LLM
     from phoenix.evals.metrics import ConcisenessEvaluator
-    from phoenix.evals.models import OpenAIModel
 
-    model = OpenAIModel(model="gpt-4o")
-    conciseness = ConcisenessEvaluator(model=model)
+    llm = LLM(provider="openai", model="gpt-4o")
+    conciseness = ConcisenessEvaluator(llm=llm)
     ```
 
   </Tab>
@@ -536,8 +536,8 @@ Run an experiment and evaluate the results.
     from phoenix.client.experiments import run_experiment
 
     experiment = run_experiment(
-        dataset,
-        task,
+        dataset=dataset,
+        task=task,
         experiment_name="initial-experiment",
         evaluators=[jaccard_similarity, accuracy],
     )
@@ -575,7 +575,7 @@ Run more evaluators after the fact.
     ```python
     from phoenix.client.experiments import evaluate_experiment
 
-    experiment = evaluate_experiment(experiment, evaluators=[contains_keyword, conciseness])
+    experiment = evaluate_experiment(experiment=experiment, evaluators=[contains_keyword, conciseness])
     ```
 
   </Tab>
