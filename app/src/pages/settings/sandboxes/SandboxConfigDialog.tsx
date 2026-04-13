@@ -44,7 +44,7 @@ import type {
 import { languageLabel, parseConfigText, toPrettyJSONObject } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
-  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
   | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig };
 
 export function SandboxConfigDialogTrigger(
@@ -87,6 +87,7 @@ export function SandboxConfigDialogTrigger(
                 <SandboxConfigDialogContent
                   mode="create"
                   providers={props.providers}
+                  defaultProvider={props.defaultProvider}
                   onClose={() => setIsOpen(false)}
                 />
               ) : (
@@ -106,13 +107,18 @@ export function SandboxConfigDialogTrigger(
 }
 
 type SandboxConfigDialogContentProps = (
-  | { mode: "create"; providers: ProviderRow[] }
+  | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
   | { mode: "edit"; provider: SandboxProvider; config: SandboxConfig }
 ) & { onClose: () => void };
+
+function defaultConfigName(provider: ProviderRow): string {
+  return `${provider.backend.displayName}`;
+}
 
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const { mode, onClose } = props;
   const providers = mode === "create" ? props.providers : [];
+  const defaultProvider = mode === "create" ? props.defaultProvider : undefined;
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<SandboxConfigFormValues>({
@@ -126,8 +132,8 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             configText: toPrettyJSONObject(props.config.config),
           }
         : {
-            sandboxProviderId: "",
-            name: "",
+            sandboxProviderId: defaultProvider?.provider.id ?? "",
+            name: defaultProvider ? defaultConfigName(defaultProvider) : "",
             description: "",
             timeout: 30,
             configText: toPrettyJSONObject({}),
@@ -235,16 +241,32 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   <ComboBox
                     label="Provider"
                     placeholder="Search providers"
+                    size="L"
                     selectedKey={field.value || null}
                     onSelectionChange={(key) => {
                       if (typeof key === "string") {
                         field.onChange(key);
+                        // Auto-fill the name when the current value is empty
+                        // or still matches a previously generated default.
+                        const currentName = form.getValues("name");
+                        const isDefaultName =
+                          !currentName ||
+                          providers.some(
+                            (p) => defaultConfigName(p) === currentName
+                          );
+                        if (isDefaultName) {
+                          const selected = providers.find(
+                            (p) => p.provider.id === key
+                          );
+                          if (selected) {
+                            form.setValue("name", defaultConfigName(selected));
+                          }
+                        }
                       }
                     }}
                     onBlur={field.onBlur}
                     isInvalid={fieldState.invalid}
                     errorMessage={fieldState.error?.message}
-                    size="M"
                     menuTrigger="focus"
                     defaultItems={providers ?? []}
                     renderEmptyState={() => <div>No providers found</div>}
@@ -253,7 +275,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                       <ComboBoxItem
                         id={item.provider.id}
                         key={item.provider.id}
-                        textValue={`${item.backend.displayName} ${languageLabel(item.provider.language)}`}
+                        textValue={`${item.backend.displayName}`}
                       >
                         <Flex direction="column" gap="size-25">
                           <Text>{item.backend.displayName}</Text>
