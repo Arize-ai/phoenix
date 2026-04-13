@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-import tempfile
+import socket
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
@@ -10,12 +10,10 @@ from typing import Callable, Literal, Optional, cast
 
 import pytest
 from _pytest.fixtures import SubRequest
-from diskcache import Cache  # type: ignore[import-untyped]
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from phoenix.client.__generated__ import v1
-from portpicker import pick_unused_port  # type: ignore[import-untyped]
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
@@ -48,31 +46,57 @@ from ._helpers import (
     _Username,
 )
 
-# Cross-process port reservation cache shared across all pytest-xdist workers.
-# pick_unused_port() finds a free port at the OS level, but two workers can race
-# to claim the same port before either has bound to it (TOCTOU). This diskcache
-# acts as a global registry: cache.add() is atomic across processes, so only one
-# worker can claim a given port. Entries expire after the TTL so stale entries
-# from crashed runs do not permanently crowd out ports.
-_PORT_CACHE_DIR = os.path.join(tempfile.gettempdir(), "phoenix-test-ports")
+# Partition the port number space across pytest-xdist workers so that two
+# workers can never hand out the same port. Each worker draws sequentially
+# from a disjoint window carved out of [_PORT_RANGE_START, _PORT_RANGE_END),
+# eliminating cross-worker bind races under -n. The range sits above common
+# service ports and below Linux's default ephemeral range (32768), so the
+# kernel won't lease our reserved ports to unrelated outbound connections.
+_PORT_RANGE_START = 20000
+_PORT_RANGE_END = 32768
+
+
+def _is_port_free(port: int) -> bool:
+    """Return True iff `port` can be bound on loopback right now.
+
+    Binds to 127.0.0.1 rather than 0.0.0.0: a loopback bind still fails
+    against an existing 0.0.0.0 binding (0.0.0.0 covers all interfaces
+    including loopback), so the check catches the cases that actually
+    matter in a test environment while avoiding exposing even an
+    unlistening socket on all interfaces.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 @pytest.fixture(scope="session")
-def _ports() -> Iterator[Iterator[int]]:
-    def _allocate(cache: Cache) -> Iterator[int]:
-        while True:
-            for _ in range(100):
-                candidate = pick_unused_port()
-                # cache.add() is atomic across processes: returns True only
-                # if the key was freshly inserted (i.e., not yet claimed).
-                if cache.add(str(candidate), True, expire=5 * 60):
-                    yield candidate
-                    break
-            else:
-                raise RuntimeError("Failed to allocate unique test port after 100 attempts")
+def _ports(request: pytest.FixtureRequest, worker_id: str) -> Iterator[int]:
+    # `worker_id` is provided by pytest-xdist: "gw0", "gw1", ... under -n,
+    # or "master" when running without xdist. `workercount` is set by xdist
+    # on each worker's config.workerinput; it's stable in practice but not
+    # part of xdist's documented public API.
+    if worker_id == "master":
+        worker_idx, worker_count = 0, 1
+    else:
+        worker_idx = int(worker_id.removeprefix("gw"))
+        worker_count = request.config.workerinput["workercount"]  # type: ignore[attr-defined]
 
-    with Cache(_PORT_CACHE_DIR) as cache:
-        yield _allocate(cache)
+    window_size = (_PORT_RANGE_END - _PORT_RANGE_START) // worker_count
+    start = _PORT_RANGE_START + worker_idx * window_size
+    end = start + window_size
+
+    def _allocate() -> Iterator[int]:
+        for port in count(start):
+            if port >= end:
+                raise RuntimeError(f"Worker {worker_id} exhausted its port window [{start}, {end})")
+            if _is_port_free(port):
+                yield port
+
+    return _allocate()
 
 
 @pytest.fixture(scope="session")

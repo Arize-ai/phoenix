@@ -3,7 +3,6 @@
 aioboto3
 asyncpg
 beautifulsoup4
-diskcache
 faker
 google-genai
 httpx
@@ -11,7 +10,6 @@ hypothesis-jsonschema
 openinference-semantic-conventions
 opentelemetry-sdk>=1.35.0
 pandas-stubs
-portpicker
 psutil
 psycopg[binary,pool]
 pyjwt
