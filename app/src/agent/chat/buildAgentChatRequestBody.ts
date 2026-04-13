@@ -1,7 +1,6 @@
 import type { UIMessage } from "ai";
 
 import { agentToolDefinitions } from "./chatTools";
-import { AGENT_SYSTEM_PROMPT } from "./systemPrompt";
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
@@ -14,6 +13,8 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
+  /** System prompt from agent settings (persisted in the agent store). */
+  system: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
 };
@@ -48,6 +49,7 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
+  system,
   sessionId,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   return {
@@ -56,7 +58,7 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    system: AGENT_SYSTEM_PROMPT,
+    system,
     tools: agentToolDefinitions,
     traceNameSuffix: "Turn",
     ...(sessionId ? { sessionId } : {}),

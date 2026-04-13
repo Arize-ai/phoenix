@@ -1,3 +1,5 @@
+export { AgentSettingsForm } from "./AgentSettingsForm";
+export type { AgentSettingsFormValues } from "./AgentSettingsForm";
 export { AgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { Chat } from "./Chat";

@@ -3,6 +3,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
@@ -82,6 +83,11 @@ export interface AgentProps {
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
+  /**
+   * System instructions sent with PXI agent chat requests (editable in Settings).
+   * Defaults to the built-in {@link AGENT_SYSTEM_PROMPT}.
+   */
+  systemPrompt: string;
   /** Debug-only runtime flags for temporary agent behavior overrides. */
   debug: AgentDebugSettings;
 }
@@ -107,6 +113,7 @@ export interface AgentState extends AgentProps {
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: UIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
+  setSystemPrompt: (systemPrompt: string) => void;
   clearAllSessions: () => void;
 
   // -- Elicitation (ephemeral, not persisted) --
@@ -146,6 +153,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    systemPrompt: AGENT_SYSTEM_PROMPT,
     debug: { ...DEFAULT_AGENT_DEBUG_SETTINGS },
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
@@ -313,6 +321,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
+    setSystemPrompt: (systemPrompt) => {
+      set({ systemPrompt }, false, { type: "setSystemPrompt" });
+    },
     clearAllSessions: () => {
       set(
         {
@@ -365,8 +376,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 1,
+      version: 2,
       migrate: (persisted, version) => {
+        let next = persisted as AgentProps & { systemPrompt?: string };
         if (version === 0) {
           // Legacy sessions may not have `createdAt`. Backfill with 0 so the
           // UI can distinguish them from sessions created after this migration.
@@ -380,9 +392,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
               createdAt: (session as AgentSession).createdAt ?? 0,
             };
           }
-          return { ...state, sessionMap: migratedSessionMap };
+          next = { ...state, sessionMap: migratedSessionMap };
         }
-        return persisted as AgentState;
+        if (version < 2) {
+          next = {
+            ...next,
+            systemPrompt: next.systemPrompt ?? AGENT_SYSTEM_PROMPT,
+          };
+        }
+        return next as AgentState;
       },
       partialize: (state) => ({
         isOpen: state.isOpen,
@@ -391,6 +409,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
+        systemPrompt: state.systemPrompt,
         debug: state.debug,
       }),
     })

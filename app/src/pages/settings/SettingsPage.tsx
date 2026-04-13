@@ -5,6 +5,7 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -21,7 +22,7 @@ const settingsPageInnerCSS = css`
   margin-right: auto;
 `;
 
-const tabs: { id: string; label: string }[] = [
+const TABS: { id: string; label: string }[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "AI Providers" },
   { id: "models", label: "Models" },
@@ -44,6 +45,10 @@ export function SettingsPage() {
     },
     [navigate]
   );
+  const isAgentsEnabled = useFeatureFlag("agents");
+  const tabs = isAgentsEnabled
+    ? TABS
+    : TABS.filter((tab) => tab.id !== "agents");
   if (!tab) {
     return <Navigate to="/settings/general" replace />;
   }

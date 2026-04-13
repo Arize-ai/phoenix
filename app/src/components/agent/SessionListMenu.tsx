@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 
 import {
+  Button,
   Flex,
   Icon,
-  IconButton,
   Icons,
   Keyboard,
   Menu,
@@ -80,9 +80,12 @@ export function SessionListMenu({
 
   return (
     <MenuTrigger onOpenChange={setMenuOpen} isOpen={menuOpen}>
-      <IconButton size="S" aria-label="Sessions">
-        <Icon svg={<Icons.HistoryOutline />} />
-      </IconButton>
+      <Button
+        variant="quiet"
+        size="S"
+        aria-label="Sessions"
+        leadingVisual={<Icon svg={<Icons.HistoryOutline />} />}
+      />
       <MenuContainer placement="bottom end" maxHeight={400}>
         <Menu
           selectionMode="single"
@@ -137,13 +140,13 @@ function SessionMenuItem({
       trailingContent={
         <StopPropagation>
           <TooltipTrigger delay={300}>
-            <IconButton
+            <Button
+              variant="quiet"
               size="S"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session.id)}
-            >
-              <Icon svg={<Icons.TrashOutline />} />
-            </IconButton>
+              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            />
             <Tooltip>
               Delete <Keyboard>⌫</Keyboard>
             </Tooltip>

@@ -6,8 +6,9 @@ import { ELICIT_TOOL_SYSTEM_PROMPT_LINES } from "@phoenix/agent/tools/elicit";
  * Ordered lines that compose the agent system prompt.
  *
  * Each registered tool contributes its own behavioural guidelines here.
- * The lines are joined with newlines into {@link AGENT_SYSTEM_PROMPT}
- * and sent with every chat request via {@link buildAgentChatRequestBody}.
+ * The lines are joined with newlines into {@link AGENT_SYSTEM_PROMPT}, which is
+ * the default for the editable system prompt persisted in the agent store and
+ * sent with chat requests via {@link buildAgentChatRequestBody}.
  */
 const AGENT_SYSTEM_PROMPT_LINES = [
   "You are PXI, Arize AI's Phoenix in-product agent. You emit your responses in markdown format.",

@@ -2,7 +2,14 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { Panel, Separator } from "react-resizable-panels";
 
-import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+} from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import type { AgentSession } from "@phoenix/store/agentStore";
 
@@ -84,12 +91,27 @@ export function AgentChatHeader({
           onSelectSession={onSelectSession}
           onDeleteSession={onDeleteSession}
         />
-        <IconButton size="S" aria-label="New chat" onPress={onCreateSession}>
-          <Icon svg={<Icons.PlusOutline />} />
-        </IconButton>
-        <IconButton size="S" aria-label="Close agent chat" onPress={onClose}>
-          <Icon svg={<Icons.CloseOutline />} />
-        </IconButton>
+        <Button
+          variant="quiet"
+          size="S"
+          aria-label="New chat"
+          onPress={onCreateSession}
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        />
+        <LinkButton
+          variant="quiet"
+          size="S"
+          to="/settings/agents"
+          aria-label="Agent settings"
+          leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        />
+        <Button
+          variant="quiet"
+          size="S"
+          aria-label="Close agent chat"
+          onPress={onClose}
+          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+        />
       </Flex>
     </div>
   );
