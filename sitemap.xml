@@ -1169,6 +1169,14 @@
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers</loc>
+    <lastmod>2026-04-13T18:22:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes</loc>
+    <lastmod>2026-04-13T18:22:08+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans</loc>
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
@@ -1651,6 +1659,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0</loc>
+    <lastmod>2026-04-13T18:22:08+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica</loc>
