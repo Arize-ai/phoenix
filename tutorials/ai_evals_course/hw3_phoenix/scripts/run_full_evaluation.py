@@ -5,6 +5,7 @@ This script runs the finalized judge on all traces and uses judgy to compute
 the corrected success rate with confidence intervals.
 """
 
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -13,13 +14,13 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from judgy import estimate_success_rate  # type: ignore[import-not-found]
+from judgy import estimate_success_rate  # type: ignore[import-untyped]
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import (
     LLM,
     ClassificationEvaluator,
-    evaluate_dataframe,
+    async_evaluate_dataframe,
 )
 from phoenix.evals.utils import to_annotation_dataframe
 from rich.console import Console
@@ -43,8 +44,10 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        client = Client()
-        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
+        px_client = Client()
+        trace_df = px_client.spans.get_spans_dataframe(
+            query=query, project_identifier="recipe-agent"
+        )
 
         if trace_df.empty:
             console.print("[red]No traces found in Phoenix!")
@@ -75,7 +78,8 @@ def load_test_data(judgy_path: str) -> Tuple[List[int], List[int]]:
 def _normalize_prompt_variables(prompt: str) -> str:
     """Replace dotted Phoenix column placeholders with clean variable names.
 
-    E.g. {attributes.query} -> {query}
+    The judge prompt file uses {attributes.query} etc. which need to become
+    {query} etc. for the ClassificationEvaluator template.
     """
     for dotted, clean in COLUMN_TO_VARIABLE.items():
         prompt = prompt.replace(f"{{{dotted}}}", f"{{{clean}}}")
@@ -83,12 +87,11 @@ def _normalize_prompt_variables(prompt: str) -> str:
 
 
 def _strip_json_format_instruction(prompt: str) -> str:
-    """Remove JSON format instructions from the prompt.
+    """Remove JSON format instructions from the judge prompt file.
 
     ClassificationEvaluator uses tool calling to structure output,
     so explicit JSON formatting instructions are unnecessary.
     """
-    # Remove lines asking for JSON format
     prompt = re.sub(
         r"MAKE SURE TO RETURN YOUR EVALUATION IN THE FOLLOWING JSON FORMAT:.*",
         "Return a label of PASS or FAIL and your explanation.",
@@ -106,11 +109,13 @@ def run_judge_on_traces(
     console.print(f"[yellow]Running judge on {len(traces_df)} traces with Phoenix evals...")
 
     # Normalize the prompt: replace dotted column names with clean variables,
-    # and remove JSON format instructions (ClassificationEvaluator uses tool calling)
+    # and remove JSON format instructions (ClassificationEvaluator uses tool
+    # calling)
     clean_prompt = _normalize_prompt_variables(judge_prompt)
     clean_prompt = _strip_json_format_instruction(clean_prompt)
 
-    # Set up ClassificationEvaluator
+    # Set up ClassificationEvaluator with score mapping:
+    # PASS=1.0, FAIL=0.0 so Score.score can be used directly as binary pred
     model = LLM(provider="openai", model="gpt-4o")
 
     evaluator = ClassificationEvaluator(
@@ -120,19 +125,21 @@ def run_judge_on_traces(
         choices={"PASS": 1.0, "FAIL": 0.0},
     )
 
-    # Rename dotted column names so the evaluator template variables resolve correctly
+    # Rename dotted column names so evaluator template variables resolve
     eval_df = traces_df.rename(columns={k: v for k, v in COLUMN_TO_VARIABLE.items()})
 
-    # Run evaluation
-    results_df = evaluate_dataframe(
-        dataframe=eval_df,
-        evaluators=[evaluator],
+    # Run evaluation (async for better performance)
+    results_df = asyncio.get_event_loop().run_until_complete(
+        async_evaluate_dataframe(
+            dataframe=eval_df,
+            evaluators=[evaluator],
+        )
     )
 
     console.print(f"[green]Completed labeling of {len(results_df)} traces")
 
     # Convert to annotation format and log to Phoenix
-    annotations_df = to_annotation_dataframe(results_df)
+    annotations_df = to_annotation_dataframe(dataframe=results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
         dataframe=annotations_df,
@@ -140,24 +147,14 @@ def run_judge_on_traces(
         annotator_kind="LLM",
     )
 
-    # Extract labels for downstream use (judgy)
-    score_data = results_df["judge_score"]
-    results_df["llm_as_judge_label"] = score_data.apply(
-        lambda x: x.get("label") if isinstance(x, dict) else None
-    )
-
     console.print("[green]Completed LLM-as-Judge Evaluation, logged to Phoenix")
 
-    # Convert to binary predictions for judgy
-    binary_predictions: List[int] = []
-    for label in results_df["llm_as_judge_label"]:
-        if label == "PASS":
-            binary_predictions.append(1)
-        elif label == "FAIL":
-            binary_predictions.append(0)
-        else:
-            # Default to FAIL for unknown/error cases
-            binary_predictions.append(0)
+    # Convert to binary predictions for judgy using Score.score directly
+    # (choices mapped PASS=1.0, FAIL=0.0)
+    score_data = results_df["judge_score"]
+    binary_predictions: List[int] = [
+        int(s.get("score", 0)) if isinstance(s, dict) else 0 for s in score_data
+    ]
 
     return binary_predictions, results_df
 
@@ -169,14 +166,12 @@ def compute_metrics_with_judgy(
 ) -> Tuple[float, float, float, float]:
     """Compute corrected success rate and confidence interval using judgy."""
 
-    # Estimate true success rate with judgy
     theta_hat, lower_bound, upper_bound = estimate_success_rate(
         test_labels=test_labels,
         test_preds=test_preds,
         unlabeled_preds=unlabeled_preds,
     )
 
-    # Also compute raw observed success rate
     raw_success_rate = float(np.mean(unlabeled_preds))
 
     return theta_hat, lower_bound, upper_bound, raw_success_rate

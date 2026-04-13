@@ -441,7 +441,7 @@ results = await async_evaluate_dataframe(
 
 ### Free-form Text Generation (AsyncExecutor)
 
-Use `AsyncExecutor` **only** for generating unstructured LLM outputs that are not evaluations (e.g., synthetic data generation, labeling). For evaluations, always prefer `ClassificationEvaluator`.
+Use `AsyncExecutor` **only** for non-evaluation tasks such as synthetic data generation. For evaluations, always prefer `ClassificationEvaluator` with `async_evaluate_dataframe`.
 
 ```python
 from phoenix.evals import LLM
@@ -449,13 +449,13 @@ from phoenix.evals.executors import AsyncExecutor
 
 llm = LLM(provider="openai", model="gpt-4o")
 
-# Example: Generate synthetic labels (not an evaluation)
-async def generate_label(row):
-    prompt = f"Generate a category label for: {row['text']}"
+# Example: Generate rephrased queries for synthetic data (not an evaluation)
+async def rephrase_query(row):
+    prompt = f"Rephrase this query in a different way: {row['query']}"
     return await llm.async_generate_text(prompt)
 
-executor = AsyncExecutor(generation_fn=generate_label, concurrency=10)
-raw_outputs, _ = await executor.execute([row.to_dict() for _, row in df.iterrows()])
+executor = AsyncExecutor(generation_fn=rephrase_query, concurrency=10)
+rephrased, _ = await executor.execute([row.to_dict() for _, row in df.iterrows()])
 ```
 
 ---

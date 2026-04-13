@@ -168,7 +168,7 @@ empathy_evaluator = ClassificationEvaluator(
     name="empathy",
     llm=llm,
     prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-    choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+    choices=list(map(str, range(1, 11))),
 )
 
 
@@ -239,7 +239,7 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+        choices=list(map(str, range(1, 11))),
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
@@ -308,7 +308,7 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+        choices=list(map(str, range(1, 11))),
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
@@ -385,7 +385,7 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
-        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+        choices=list(map(str, range(1, 11))),
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
@@ -436,7 +436,7 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+        choices=list(map(str, range(1, 11))),
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
@@ -469,7 +469,7 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
+        choices=list(map(str, range(1, 11))),
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),

@@ -5,6 +5,7 @@ This script uses Phoenix evals with GPT-4o to create ground truth labels
 for whether Recipe Bot responses properly adhere to dietary restrictions.
 """
 
+import asyncio
 from pathlib import Path
 
 import pandas as pd
@@ -14,7 +15,7 @@ from phoenix.client.types.spans import SpanQuery
 from phoenix.evals import (
     LLM,
     ClassificationEvaluator,
-    evaluate_dataframe,
+    async_evaluate_dataframe,
 )
 from phoenix.evals.utils import to_annotation_dataframe
 
@@ -47,9 +48,9 @@ DIETARY RESTRICTION DEFINITIONS:
 - Low-sodium: Reduced sodium content for heart health
 
 EVALUATION CRITERIA:
-- PASS: The recipe clearly adheres to the dietary preferences with appropriate ingredients
+- PASS: The recipe clearly adheres to the dietary restriction with appropriate ingredients
 and preparation methods
-- FAIL: The recipe contains ingredients or methods that violate the dietary preferences
+- FAIL: The recipe contains ingredients or methods that violate the dietary restriction
 - Consider both explicit ingredients and cooking methods
 - Be strict but reasonable in your evaluation
 
@@ -68,8 +69,10 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        client = Client()
-        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
+        px_client = Client()
+        trace_df = px_client.spans.get_spans_dataframe(
+            query=query, project_identifier="recipe-agent"
+        )
         print("Loaded traces from Phoenix")
         return trace_df
     except Exception as e:
@@ -109,15 +112,17 @@ def generate_phoenix_labels(
     )
 
     # Run evaluation
-    results_df = evaluate_dataframe(
-        dataframe=eval_df,
-        evaluators=[evaluator],
+    results_df = asyncio.get_event_loop().run_until_complete(
+        async_evaluate_dataframe(
+            dataframe=eval_df,
+            evaluators=[evaluator],
+        )
     )
 
     print(f"Completed labeling of {len(results_df)} traces")
 
     # Convert to annotation format and log to Phoenix
-    annotations_df = to_annotation_dataframe(results_df)
+    annotations_df = to_annotation_dataframe(dataframe=results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
         dataframe=annotations_df,
@@ -125,13 +130,10 @@ def generate_phoenix_labels(
         annotator_kind="LLM",
     )
 
-    # Extract labels for downstream use
+    # Extract ground truth labels for downstream use (balance_labels needs these)
     score_data = results_df["ground_truth_score"]
     results_df["ground_truth_label"] = score_data.apply(
         lambda x: x.get("label") if isinstance(x, dict) else None
-    )
-    results_df["ground_truth_explanation"] = score_data.apply(
-        lambda x: x.get("explanation") if isinstance(x, dict) else None
     )
 
     print("Logged evaluations to Phoenix")
@@ -150,10 +152,16 @@ def balance_labels(
     print(f"Available traces: {len(pass_traces)} PASS, {len(fail_traces)} FAIL")
 
     # Sample to get balanced dataset
-    selected_pass = pass_traces.sample(n=min(target_positive, len(pass_traces)), random_state=42)
-    selected_fail = fail_traces.sample(n=min(target_negative, len(fail_traces)), random_state=42)
+    selected_pass = pass_traces.sample(
+        n=min(target_positive, len(pass_traces)), random_state=42
+    )
+    selected_fail = fail_traces.sample(
+        n=min(target_negative, len(fail_traces)), random_state=42
+    )
 
-    balanced_df = pd.concat([selected_pass, selected_fail]).sample(frac=1, random_state=42)
+    balanced_df = pd.concat([selected_pass, selected_fail]).sample(
+        frac=1, random_state=42
+    )
 
     print(f"Balanced dataset: {len(selected_pass)} PASS, {len(selected_fail)} FAIL")
 
