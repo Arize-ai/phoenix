@@ -298,10 +298,7 @@ span.end();
 `observe` wraps class methods with tracing while preserving method `this` context. Use TypeScript 5+ standard decorators.
 
 ```typescript
-import {
-  OpenInferenceSpanKind,
-  observe,
-} from "@arizeai/phoenix-otel";
+import { OpenInferenceSpanKind, observe } from "@arizeai/phoenix-otel";
 
 class ChatService {
   @observe({ kind: OpenInferenceSpanKind.CHAIN })
