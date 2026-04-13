@@ -1,5 +1,5 @@
 ---
-"@arizeai/phoenix-otel": minor
+"@arizeai/phoenix-otel": major
 "@arizeai/phoenix-client": patch
 ---
 
