@@ -19,9 +19,62 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from phoenix.server.sandbox.types import SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import ConfigFieldSpec, SandboxAdapter, SandboxBackend
 
 logger = logging.getLogger(__name__)
+
+# JSON Schema "type" → ConfigFieldSpec.field_type mapping.
+_JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
+    "string": "string",
+    "integer": "integer",
+    "number": "integer",
+    "boolean": "boolean",
+}
+
+
+def _config_field_specs_from_model(
+    model_cls: Any,
+) -> list[ConfigFieldSpec]:
+    """
+    Derive ConfigFieldSpec list from a pydantic model's JSON schema.
+
+    Skips fields not listed in the schema's `properties` (extra="allow" wildcard
+    fields are not enumerated). Fields with `enum` become field_type="select".
+    """
+    schema = model_cls.model_json_schema()
+    properties: dict[str, Any] = schema.get("properties", {})
+    required_keys: set[str] = set(schema.get("required", []))
+    specs: list[ConfigFieldSpec] = []
+    for key, prop in properties.items():
+        # Unwrap anyOf (e.g. Optional[str] → [{type: string}, {type: null}])
+        effective_prop = prop
+        if "anyOf" in prop:
+            non_null = [p for p in prop["anyOf"] if p.get("type") != "null"]
+            if non_null:
+                effective_prop = non_null[0]
+
+        if "enum" in effective_prop:
+            ft: str = "select"
+            choices: Optional[list[str]] = [str(c) for c in effective_prop["enum"]]
+        else:
+            raw_type = effective_prop.get("type", "string")
+            ft = _JSON_SCHEMA_TYPE_MAP.get(raw_type, "string")
+            choices = None
+
+        display_name: str = prop.get("title") or key.replace("_", " ").title()
+        description: str = prop.get("description") or effective_prop.get("description") or ""
+
+        specs.append(
+            ConfigFieldSpec(
+                key=key,
+                display_name=display_name,
+                field_type=ft,  # type: ignore[arg-type]
+                required=key in required_keys,
+                description=description,
+                choices=choices,
+            )
+        )
+    return specs
 
 
 @dataclass
@@ -31,6 +84,7 @@ class AdapterMetadata:
     display_name: str
     language: str = ""
     dependency_hints: list[str] = field(default_factory=list)
+    config_field_specs: list[ConfigFieldSpec] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -120,8 +174,17 @@ def _config_hash(config: dict[str, Any] | None) -> str:
 
 
 def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
-    """Register a SandboxAdapter in the runtime registry."""
+    """Register a SandboxAdapter in the runtime registry.
+
+    Derives config_field_specs from the adapter's pydantic config_model and
+    writes them into SANDBOX_ADAPTER_METADATA so the GQL layer has a single
+    authoritative source (no dual-registration).
+    """
     _SANDBOX_ADAPTERS[adapter.key] = adapter
+    if adapter.key in SANDBOX_ADAPTER_METADATA:
+        SANDBOX_ADAPTER_METADATA[adapter.key].config_field_specs = _config_field_specs_from_model(
+            adapter.config_model
+        )
     logger.debug(f"Registered sandbox adapter: {adapter.key!r}")
     return adapter
 

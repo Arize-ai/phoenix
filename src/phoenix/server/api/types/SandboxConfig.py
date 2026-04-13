@@ -22,6 +22,18 @@ from phoenix.server.api.context import Context
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_or_create_backend
 
 
+@strawberry.type
+class ConfigFieldSpecType:
+    """GQL mirror of the ConfigFieldSpec dataclass."""
+
+    key: str
+    display_name: str
+    field_type: str
+    required: bool
+    description: str
+    choices: Optional[list[str]]
+
+
 @strawberry.enum
 class Language(Enum):
     """Execution language for a code evaluator or sandbox provider."""
@@ -56,6 +68,7 @@ class SandboxBackendInfo:
     supported_languages: list[Language]
     status: SandboxBackendStatus
     dependency_hints: list[str]
+    config_field_specs: list[ConfigFieldSpecType]
 
 
 @strawberry.type
@@ -269,6 +282,7 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
                 if backend is not None
                 else SandboxBackendStatus.UNAVAILABLE
             )
+        raw_specs = getattr(meta, "config_field_specs", [])
         infos.append(
             SandboxBackendInfo(
                 backend_type=backend_type,
@@ -276,6 +290,17 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
                 supported_languages=[Language(meta.language)] if meta.language else [],
                 status=status,
                 dependency_hints=meta.dependency_hints,
+                config_field_specs=[
+                    ConfigFieldSpecType(
+                        key=s.key,
+                        display_name=s.display_name,
+                        field_type=s.field_type,
+                        required=s.required,
+                        description=s.description,
+                        choices=s.choices,
+                    )
+                    for s in raw_specs
+                ],
             )
         )
     return infos

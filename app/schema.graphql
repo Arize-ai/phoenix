@@ -504,6 +504,15 @@ type CodeEvaluatorMutationPayload {
   query: Query!
 }
 
+type ConfigFieldSpecType {
+  key: String!
+  displayName: String!
+  fieldType: String!
+  required: Boolean!
+  description: String!
+  choices: [String!]
+}
+
 union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
 
 input ConnectionConfigInput {
@@ -3074,6 +3083,7 @@ type SandboxBackendInfo {
   supportedLanguages: [Language!]!
   status: SandboxBackendStatus!
   dependencyHints: [String!]!
+  configFieldSpecs: [ConfigFieldSpecType!]!
 }
 
 enum SandboxBackendStatus {
