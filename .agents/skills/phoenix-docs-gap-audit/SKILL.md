@@ -92,7 +92,10 @@ Split the list into three buckets:
   gap, even though the change technically lives in the frontend.
 - **Skip** — dep bumps (`chore(deps):`), internal refactors with no public surface,
   test-only changes, CI/build changes, formatting, skill/workflow edits, release-please
-  bookkeeping (`chore(main): release …`).
+  bookkeeping (`chore(main): release …`), **feature flags** (env vars named
+  `*_DANGEROUSLY_*`, `*_EXPERIMENTAL_*`, `*_ENABLE_*` internal toggles, or otherwise
+  intentionally undocumented escape hatches — these are deliberately kept out of public
+  docs and should never be flagged as missing documentation).
 - **Unclear** — when you cannot tell from the message and changed paths. **Default to
   reading the diff** rather than guessing. It is cheap and catches features hidden behind
   `refactor:` or `chore:` prefixes.
@@ -218,7 +221,12 @@ For server changes touching `src/phoenix/server/...`:
 2. GraphQL: the schema is self-documenting, but user-facing features built on it belong in
    `docs/phoenix/`. Check whether a product doc exists.
 3. Env vars / config: grep `docs/phoenix/environments.mdx`, `self-hosting/`, and
-   `production-guide.mdx`. New env vars with no mention in any of those are gaps.
+   `production-guide.mdx`. New env vars with no mention in any of those are gaps —
+   **except feature flags** (e.g. `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES`,
+   experimental toggles, or any env var the code treats as an internal escape hatch).
+   These are intentionally omitted from public docs; do not flag them as gaps, and if
+   you find them *already documented*, flag that as a gap in the opposite direction
+   (feature flag leaked into public docs).
 4. Migrations/schema changes: check `docs/phoenix/self-hosting/` and `MIGRATION.md`.
 
 For UI changes touching `app/src/`:
@@ -346,7 +354,8 @@ it and know exactly what to fix next.
 |---|---|
 | Commit message says `refactor:` — skip? | Read the diff. Refactors often add exports. |
 | Feature exists only in an example file? | Not a public API — skip unless `examples/` is documented as a supported surface. |
-| New env var, no doc anywhere? | High-severity Missing in `docs/phoenix/environments.mdx`. |
+| New env var, no doc anywhere? | High-severity Missing in `docs/phoenix/environments.mdx` — **unless** it is a feature flag (e.g. `*_DANGEROUSLY_*`, experimental toggle). Feature flags are deliberately undocumented; skip them. |
+| Feature flag appears in public docs? | Flag as a gap in the opposite direction — feature flags should be removed from user-facing docs. |
 | Stale doc with old param name? | High-severity Stale. Stale examples mislead users. |
 | Python docstring missing on exported function? | Medium Incomplete (package-level docs). |
 | TS `/** */` missing on exported function? | Medium Incomplete (TypeDoc will render nothing). |

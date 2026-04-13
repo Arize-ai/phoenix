@@ -45,15 +45,12 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                                 | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID                            |
-| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
-| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
-
-Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+| Variable                 | Description                   |
+| ------------------------ | ----------------------------- |
+| `PHOENIX_HOST`           | Phoenix API endpoint          |
+| `PHOENIX_PROJECT`        | Project name or ID            |
+| `PHOENIX_API_KEY`        | API key (if auth is enabled)  |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
 
 ## Commands
 
@@ -311,8 +308,6 @@ px annotation-config list --format raw --no-progress | jq '.[].name'
 
 ## Delete commands
 
-Delete commands are disabled by default. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` to enable them.
-
 **Confirmation behavior:**
 - Interactive TTY: prompts for `y` or `yes`
 - Non-TTY (CI/pipes): requires `--yes`/`-y` flag, otherwise exits with code 3
@@ -327,8 +322,8 @@ All delete commands accept `--endpoint`, `--api-key`, and `--no-progress`.
 Delete a dataset by name or ID.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px dataset delete my-dataset
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px dataset delete my-dataset --yes  # skip prompt
+px dataset delete my-dataset
+px dataset delete my-dataset --yes  # skip prompt
 ```
 
 | Option          | Description                   |
@@ -345,8 +340,8 @@ Delete a project by name or ID.
 > **Cascade warning:** Deletes all traces, spans, sessions, and annotations in the project.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px project delete my-project
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px project delete my-project --yes
+px project delete my-project
+px project delete my-project --yes
 ```
 
 | Option          | Description              |
@@ -363,8 +358,8 @@ Delete a trace by OTel trace ID or GlobalID.
 > **Cascade warning:** Deletes all child spans.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px trace delete abc123def456
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px trace delete abc123def456 --yes
+px trace delete abc123def456
+px trace delete abc123def456 --yes
 ```
 
 | Option          | Description              |
@@ -379,8 +374,8 @@ PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px trace delete abc123def456 --yes
 Delete an experiment by ID.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px experiment delete RXhwZXJpbWVudDox
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px experiment delete RXhwZXJpbWVudDox --yes
+px experiment delete RXhwZXJpbWVudDox
+px experiment delete RXhwZXJpbWVudDox --yes
 ```
 
 | Option          | Description              |
@@ -397,8 +392,8 @@ Delete a session by GlobalID or user-provided session_id.
 > **Cascade warning:** Deletes all traces, spans, and annotations in the session.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px session delete my-session-id
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px session delete my-session-id --yes
+px session delete my-session-id
+px session delete my-session-id --yes
 ```
 
 | Option          | Description              |
@@ -413,8 +408,8 @@ PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px session delete my-session-id --ye
 Delete an annotation configuration by ID.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox --yes
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox --yes
 ```
 
 | Option          | Description              |
@@ -431,8 +426,8 @@ Delete a prompt by name or ID.
 > **Cascade warning:** Deletes all versions, tags, and labels.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px prompt delete my-evaluator
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px prompt delete my-evaluator --yes
+px prompt delete my-evaluator
+px prompt delete my-evaluator --yes
 ```
 
 | Option          | Description              |
@@ -447,8 +442,8 @@ PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px prompt delete my-evaluator --yes
 Delete a single span by OTel span_id or GlobalID. Child spans are **not** deleted.
 
 ```bash
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px span delete abc123span456
-PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px span delete abc123span456 --yes
+px span delete abc123span456
+px span delete abc123span456 --yes
 ```
 
 | Option          | Description              |
