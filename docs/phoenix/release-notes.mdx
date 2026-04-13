@@ -7,6 +7,20 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.13.2026">
+## [04.13.2026: @arizeai/phoenix-otel 1.0](/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0)
+**Available in @arizeai/phoenix-otel 1.0.0+**
+
+`@arizeai/phoenix-otel` now re-exports the full `@arizeai/openinference-core` and `@arizeai/openinference-semantic-conventions` surface from a single import.
+
+- **Tracing helpers** — `withSpan`, `traceChain`, `traceAgent`, `traceTool` wrap functions with OpenInference spans and follow global provider changes
+- **`observe` decorator** — trace class methods with TypeScript 5+ standard decorators while preserving `this`
+- **Context setters** — `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`, `setPromptTemplate` propagate attributes to child spans
+- **Attribute builders** — `getLLMAttributes`, `getRetrieverAttributes`, `getEmbeddingAttributes`, `getToolAttributes`, and more for raw OTel spans
+- **Semantic conventions** — `SemanticConventions` and `OpenInferenceSpanKind` re-exported; no second dependency needed
+- **Redaction** — `OITracer` + `traceConfig` or `OPENINFERENCE_HIDE_*` env vars strip sensitive attributes before export
+</Update>
+
 <Update label="04.07.2026">
 ## [04.07.2026: PostgreSQL Read Replica Routing](/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica)
 **Available in arize-phoenix 14.0.0+**
