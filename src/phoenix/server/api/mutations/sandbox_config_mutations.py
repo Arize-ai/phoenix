@@ -12,7 +12,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
@@ -27,6 +27,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider as SandboxProviderType,
 )
+from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
 # ---------------------------------------------------------------------------
 # Payload types
@@ -87,6 +88,15 @@ class SandboxConfigMutationMixin:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
             values = sandbox_config_from_input(input, provider_id=provider_id)
+            config_dict = values.get("config", {}) or {}
+            adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
+            if adapter is not None:
+                try:
+                    config_dict = adapter.validate_config(config_dict)
+                except ValueError as exc:
+                    raise BadRequest(str(exc))
+            values["config"] = config_dict
+
             row = models.SandboxConfig(**values)
             session.add(row)
             await session.flush()
@@ -120,7 +130,20 @@ class SandboxConfigMutationMixin:
             if input.description is not strawberry.UNSET:
                 row.description = input.description
             if input.config is not strawberry.UNSET:
-                row.config = dict(input.config) if input.config is not None else {}
+                config_dict = dict(input.config) if input.config is not None else {}
+                provider = await session.scalar(
+                    select(models.SandboxProvider).where(
+                        models.SandboxProvider.id == row.sandbox_provider_id
+                    )
+                )
+                if provider is not None:
+                    adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
+                    if adapter is not None:
+                        try:
+                            config_dict = adapter.validate_config(config_dict)
+                        except ValueError as exc:
+                            raise BadRequest(str(exc))
+                row.config = config_dict
             if input.timeout is not strawberry.UNSET:
                 row.timeout = input.timeout if input.timeout is not None else 30
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
