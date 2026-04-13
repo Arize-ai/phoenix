@@ -45,12 +45,15 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                 | Description                   |
-| ------------------------ | ----------------------------- |
-| `PHOENIX_HOST`           | Phoenix API endpoint          |
-| `PHOENIX_PROJECT`        | Project name or ID            |
-| `PHOENIX_API_KEY`        | API key (if auth is enabled)  |
-| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
+| Variable                                 | Description                                   |
+| ---------------------------------------- | --------------------------------------------- |
+| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
+| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+
+Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ## Commands
 
@@ -303,153 +306,6 @@ px annotation-config list --format raw --no-progress | jq '.[].name'
 | ------------------- | -------------------------- | -------- |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress`     | Suppress progress output   | —        |
-
----
-
-## Delete commands
-
-**Confirmation behavior:**
-- Interactive TTY: prompts for `y` or `yes`
-- Non-TTY (CI/pipes): requires `--yes`/`-y` flag, otherwise exits with code 3
-- `--yes`/`-y`: skips all prompts
-
-All delete commands accept `--endpoint`, `--api-key`, and `--no-progress`.
-
----
-
-### `px dataset delete <dataset-identifier>`
-
-Delete a dataset by name or ID.
-
-```bash
-px dataset delete my-dataset
-px dataset delete my-dataset --yes  # skip prompt
-```
-
-| Option          | Description                   |
-| --------------- | ----------------------------- |
-| `-y, --yes`     | Skip confirmation prompt      |
-| `--no-progress` | Suppress progress output      |
-
----
-
-### `px project delete <project-identifier>`
-
-Delete a project by name or ID.
-
-> **Cascade warning:** Deletes all traces, spans, sessions, and annotations in the project.
-
-```bash
-px project delete my-project
-px project delete my-project --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px trace delete <trace-identifier>`
-
-Delete a trace by OTel trace ID or GlobalID.
-
-> **Cascade warning:** Deletes all child spans.
-
-```bash
-px trace delete abc123def456
-px trace delete abc123def456 --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px experiment delete <experiment-id>`
-
-Delete an experiment by ID.
-
-```bash
-px experiment delete RXhwZXJpbWVudDox
-px experiment delete RXhwZXJpbWVudDox --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px session delete <session-id>`
-
-Delete a session by GlobalID or user-provided session_id.
-
-> **Cascade warning:** Deletes all traces, spans, and annotations in the session.
-
-```bash
-px session delete my-session-id
-px session delete my-session-id --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px annotation-config delete <config-id>`
-
-Delete an annotation configuration by ID.
-
-```bash
-px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox
-px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzox --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px prompt delete <prompt-identifier>`
-
-Delete a prompt by name or ID.
-
-> **Cascade warning:** Deletes all versions, tags, and labels.
-
-```bash
-px prompt delete my-evaluator
-px prompt delete my-evaluator --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
-
----
-
-### `px span delete <span-identifier>`
-
-Delete a single span by OTel span_id or GlobalID. Child spans are **not** deleted.
-
-```bash
-px span delete abc123span456
-px span delete abc123span456 --yes
-```
-
-| Option          | Description              |
-| --------------- | ------------------------ |
-| `-y, --yes`     | Skip confirmation prompt |
-| `--no-progress` | Suppress progress output |
 
 ---
 
