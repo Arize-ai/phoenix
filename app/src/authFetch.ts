@@ -7,6 +7,17 @@ import { createLoginRedirectUrl } from "./utils/routingUtils";
 const REFRESH_URL = BASE_URL + "/auth/refresh";
 const REFRESH_TIMEOUT_MS = 10_000;
 
+declare global {
+  interface Window {
+    __PHOENIX_AUTH_REFRESH_TIMEOUT_MS__?: number;
+  }
+}
+
+function getRefreshTimeoutMs() {
+  // primarily exercised by tests, not production code
+  return window.__PHOENIX_AUTH_REFRESH_TIMEOUT_MS__ ?? REFRESH_TIMEOUT_MS;
+}
+
 class UnauthorizedError extends Error {
   constructor() {
     super("Unauthorized");
@@ -63,7 +74,7 @@ export async function refreshTokens(): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => {
     controller.abort(new RefreshTimeoutError());
-  }, REFRESH_TIMEOUT_MS);
+  }, getRefreshTimeoutMs());
   // This function should make a request to the server to refresh the access token
   refreshPromise = fetch(REFRESH_URL, {
     method: "POST",
