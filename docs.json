@@ -283,7 +283,6 @@
                 "pages": [
                   "docs/phoenix/datasets-and-experiments/how-to-experiments",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
