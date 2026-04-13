@@ -161,21 +161,21 @@ Finally, we run our experiment. With this setup, we can measure how well our pro
 ```python expandable
 import pandas as pd
 
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4")
-empathy_classifier = create_classifier(
+empathy_evaluator = ClassificationEvaluator(
     name="empathy",
-    prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
     llm=llm,
-    choices=list(map(str, range(1, 11))),
+    prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
+    choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
 )
 
 
 def initial_prompt(input):
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[empathy_classifier],
+        evaluators=[empathy_evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -235,15 +235,15 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
-        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
-        choices=list(map(str, range(1, 11))),
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -304,15 +304,15 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
-        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
-        choices=list(map(str, range(1, 11))),
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -381,15 +381,15 @@ print(EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED)
 
 ```python expandable
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
-        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
         llm=llm,
-        choices=list(map(str, range(1, 11))),
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
+        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -432,15 +432,15 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
-        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
-        choices=list(map(str, range(1, 11))),
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -465,15 +465,15 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = (
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
-        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
-        choices=list(map(str, range(1, 11))),
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        choices={str(i): float(i - 1) / 9.0 for i in range(1, 11)},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)

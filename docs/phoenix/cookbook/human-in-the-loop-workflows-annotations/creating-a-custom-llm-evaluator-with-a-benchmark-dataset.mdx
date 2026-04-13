@@ -103,7 +103,7 @@ dataset = Client().datasets.create_dataset(
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
-Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `evaluate_dataframe` with a `create_classifier` and our evaluator is a comparison between the task output and our annotated labels.
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `evaluate_dataframe` with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
 
 ```py expandable
 from phoenix.evals.templates import (
@@ -145,14 +145,14 @@ INPUT RECEIPT: """,
 ```
 ```py expandable
 import json
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4o")
-receipt_classifier = create_classifier(
+receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
-    prompt_template=classification_template,
     llm=llm,
-    choices=choices,
+    prompt_template=classification_template,
+    choices={"accurate": 1.0, "almost accurate": 0.5, "inaccurate": 0.0},
 )
 
 def task_function(input, reference):
@@ -162,7 +162,7 @@ def task_function(input, reference):
 
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"image": image_url, "output": output}]),
-        evaluators=[receipt_classifier],
+        evaluators=[receipt_evaluator],
     )
     label = result_df["receipt_accuracy_score"].iloc[0]["label"]
     return label

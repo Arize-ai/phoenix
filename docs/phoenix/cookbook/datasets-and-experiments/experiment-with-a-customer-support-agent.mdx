@@ -3,6 +3,16 @@ title: "Experiment with a Customer Support Agent"
 description: "This guide shows you how to create and evaluate agents with Phoenix to improve performance."
 ---
 
+
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/experiments/agents-cookbook.ipynb" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+
+
+We'll go through the following steps:
+
+* Create a customer support agent using a router template
+* Trace the agent activity, including function calling
 * Create a dataset to benchmark performance
 * Evaluate agent performance using code, human annotation, and LLM as a judge
 * Experiment with different prompts and models
@@ -195,34 +205,34 @@ The parameters extracted from the question must match the JSON below exactly.
 Let's run evaluations using Phoenix's `evaluate_dataframe` function for our responses dataframe we generated above!
 
 ```python expandable
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4o")
 
-router_classifier = create_classifier(
+router_evaluator = ClassificationEvaluator(
     name="router_eval",
+    llm=llm,
     prompt_template=ROUTER_EVAL_TEMPLATE,
-    llm=llm,
-    choices=["incorrect", "correct"],
+    choices={"correct": 1.0, "incorrect": 0.0},
 )
 
-function_selection_classifier = create_classifier(
+function_selection_evaluator = ClassificationEvaluator(
     name="function_selection_eval",
-    prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
     llm=llm,
-    choices=["incorrect", "correct"],
+    prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
+    choices={"correct": 1.0, "incorrect": 0.0},
 )
 
-parameter_extraction_classifier = create_classifier(
+parameter_extraction_evaluator = ClassificationEvaluator(
     name="parameter_extraction_eval",
-    prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
     llm=llm,
-    choices=["incorrect", "correct"],
+    prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
+    choices={"correct": 1.0, "incorrect": 0.0},
 )
 
 evals_df = evaluate_dataframe(
     dataframe=response_df,
-    evaluators=[router_classifier, function_selection_classifier, parameter_extraction_classifier],
+    evaluators=[router_evaluator, function_selection_evaluator, parameter_extraction_evaluator],
 )
 router_eval_df = pd.DataFrame(evals_df["router_eval_score"].tolist(), index=evals_df.index)
 function_selection_eval_df = pd.DataFrame(
@@ -251,21 +261,20 @@ dataset = px_client.datasets.create_dataset(
 
 ```python expandable
 def generic_eval(input, output, prompt_template):
-    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+    from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
     df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
-    choices = ["correct", "incorrect"]
     llm = LLM(provider="openai", model="gpt-4o")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="eval",
-        prompt_template=prompt_template,
         llm=llm,
-        choices=choices,
+        prompt_template=prompt_template,
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
-    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[classifier])
+    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[evaluator])
     eval_result = eval_df["eval_score"].iloc[0]
-    label = eval_result["label"]
-    score = 1 if label == choices[0] else 0
+    label = eval_result["label"] if isinstance(eval_result, dict) else None
+    score = 1 if label == "correct" else 0
     explanation = eval_result.get("explanation")
     return EvaluationResult(score=score, label=label, explanation=explanation)
 

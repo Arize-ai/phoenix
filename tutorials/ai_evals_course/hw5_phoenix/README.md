@@ -56,9 +56,8 @@ Load the generated traces from Phoenix for analysis. You should:
 Use Phoenix's evaluation framework to automatically detect failures. You should:
 
 - Load the evaluation prompt from the provided `eval.txt` file
-- Set up an LLM evaluation model (e.g., GPT-4) with appropriate parameters
-- Write a parser function to extract failure state and explanation from LLM responses
-- Use Phoenix's `AsyncExecutor` with `async_generate_text` to evaluate all traces
+- Set up a `ClassificationEvaluator` with the pipeline states as choices
+- Use `async_evaluate_dataframe` to evaluate all traces (output parsing is handled automatically via tool calling)
 - Log the evaluation results back to Phoenix for visualization
 
 ### Step 4: Analyze Failure Patterns
@@ -178,34 +177,33 @@ def load_traces() -> pd.DataFrame:
 ### LLM-Based Evaluation
 
 ```python
-from phoenix.evals import LLM
-from phoenix.evals.executors import AsyncExecutor
-import re
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
 eval_model = LLM(provider="openai", model="gpt-4o")
 
-async def generate_eval(row):
-    prompt = eval_prompt.format(**row)
-    return await eval_model.async_generate_text(prompt)
+# Load the evaluation prompt (uses clean variable names like {input} and {output})
+eval_prompt = open("evaluators/parse_request_eval.txt").read()
 
-executor = AsyncExecutor(generation_fn=generate_eval, concurrency=10)
-raw_outputs, _ = await executor.execute(
-    [row.to_dict() for _, row in traces_df.iterrows()]
+# Create ClassificationEvaluator — output parsing is handled automatically via tool calling
+evaluator = ClassificationEvaluator(
+    name="failure_state",
+    llm=eval_model,
+    prompt_template=eval_prompt,
+    choices=["ParseRequest", "PlanToolCalls", "GenRecipeArgs",
+             "GetRecipes", "GenWebArgs", "GetWebInfo", "ComposeResponse"],
 )
 
-def parser(response: str) -> dict:
-    """Parse evaluation results"""
-    failure_state_pattern = r'"failure_state":\s*"([^"]*)"'
-    explanation_pattern = r'"explanation":\s*"([^"]*)"'
-    failure_state_match = re.search(failure_state_pattern, response, re.IGNORECASE)
-    explanation_match = re.search(explanation_pattern, response, re.IGNORECASE)
-    return {
-        "label": failure_state_match.group(1) if failure_state_match else None,
-        "explanation": explanation_match.group(1) if explanation_match else None,
-    }
+# Rename dotted column names so evaluator template variables resolve correctly
+eval_df = traces_df.rename(columns={
+    "attributes.input.value": "input",
+    "attributes.output.value": "output",
+})
 
-parsed = [parser(o or "") for o in raw_outputs]
-failure_analysis = pd.DataFrame(parsed, index=traces_df.index)
+# Run evaluation
+failure_analysis = await async_evaluate_dataframe(
+    dataframe=eval_df,
+    evaluators=[evaluator],
+)
 
 # Log evaluations
 from phoenix.client import AsyncClient

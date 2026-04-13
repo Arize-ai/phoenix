@@ -62,6 +62,10 @@ A linear sequence of prompt steps, where the output of one becomes the input to 
 
 **Use case:** Multistep reasoning, query rewriting, or building up answers gradually.
 
+<CardGroup>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_promptchaining.ipynb" icon="book" horizontal description="Prompt chaining notebook"/>
+</CardGroup>
+
 ### Parallelization
 
 Runs multiple LLMs in parallel — either by splitting tasks (sectioning) or getting multiple opinions (voting).
@@ -78,6 +82,10 @@ With the `Send` API, LangGraph lets you:
 
 This improves reliability and reduces bottlenecks in linear pipelines.
 
+<CardGroup>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_parallel.ipynb" icon="book" horizontal description="Parallelization notebook"/>
+</CardGroup>
+
 ### Router
 
 Routes an input to the most appropriate follow-up node based on its type or intent.
@@ -85,6 +93,10 @@ Routes an input to the most appropriate follow-up node based on its type or inte
 **Use case:** Customer support bots, intent classification, or model selection.
 
 LangGraph routers enable domain-specific delegation — e.g., classify an incoming query as "billing", "technical support", or "FAQ", and send it to a specialized sub-agent. Each route can have its own tools, memory, and context. Use structured output with a routing schema to make classification more reliable.
+
+<CardGroup>
+<Card title="View notebook" href="https://github.com/Arize-ai/phoenix/blob/main/tutorials/agents/langgraph/langgraph_router.ipynb" icon="book" horizontal description="Routing notebook"/>
+</CardGroup>
 
 ### Evaluator–Optimizer Loop
 

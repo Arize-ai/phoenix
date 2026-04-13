@@ -5,16 +5,18 @@ This script uses Phoenix evals with GPT-4o to create ground truth labels
 for whether Recipe Bot responses properly adhere to dietary restrictions.
 """
 
-import re
 from pathlib import Path
-from typing import Any, Dict
 
 import pandas as pd
 from dotenv import load_dotenv
+
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
-from phoenix.evals import LLM
-from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals import (
+    LLM,
+    ClassificationEvaluator,
+    evaluate_dataframe,
+)
 
 load_dotenv()
 
@@ -22,7 +24,7 @@ script_dir = Path(__file__).parent
 hw3_dir = script_dir.parent
 data_dir = hw3_dir / "data"
 
-# Labeling prompt for GPT-4o (adapted for Phoenix evals)
+# Labeling prompt for GPT-4o
 LABELING_PROMPT = """You are an expert nutritionist and dietary specialist. Your task is to evaluate
 whether a recipe response properly adheres to the specified dietary restriction.
 
@@ -45,21 +47,19 @@ DIETARY RESTRICTION DEFINITIONS:
 - Low-sodium: Reduced sodium content for heart health
 
 EVALUATION CRITERIA:
-- PASS: The recipe clearly adheres to the dietary restriction with appropriate ingredients
+- PASS: The recipe clearly adheres to the dietary preferences with appropriate ingredients
 and preparation methods
-- FAIL: The recipe contains ingredients or methods that violate the dietary restriction
+- FAIL: The recipe contains ingredients or methods that violate the dietary preferences
 - Consider both explicit ingredients and cooking methods
 - Be strict but reasonable in your evaluation
 
 Please analyze the query, dietary restriction, and recipe response, then provide your evaluation.
 
-Query: {attributes.query}
-Dietary Restriction: {attributes.dietary_restriction}
-Recipe Response: {attributes.output.value}
+Query: {query}
+Dietary Restriction: {dietary_restriction}
+Recipe Response: {output}
 
-Return your response in this exact format:
-"explanation": "Detailed explanation of your evaluation, citing specific ingredients or methods",
-"label": "PASS" or "FAIL",
+Return a label of PASS or FAIL and your explanation.
 """
 
 
@@ -77,24 +77,10 @@ def load_traces_from_phoenix() -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def output_parser(output: str, row_index: int) -> Dict[str, Any]:
-    """Output parser function for Phoenix evals."""
-    label_pattern = r'"label":\s*"([^"]*)"'
-    explanation_pattern = r'"explanation":\s*"([^"]*)"'
-
-    label_match = re.search(label_pattern, output, re.IGNORECASE)
-    explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
-
-    return {
-        "label": label_match.group(1) if label_match else None,
-        "explanation": explanation_match.group(1) if explanation_match else None,
-    }
-
-
 def generate_phoenix_labels(
     trace_df: pd.DataFrame, prompt: str, sample_size: int = 600
 ) -> pd.DataFrame:
-    """Label traces using Phoenix evals."""
+    """Label traces using Phoenix evals ClassificationEvaluator."""
     # Sample traces for labeling
     if len(trace_df) > sample_size:
         sampled_df = trace_df.sample(n=sample_size, random_state=42)
@@ -103,44 +89,56 @@ def generate_phoenix_labels(
 
     print(f"Labeling {len(sampled_df)} traces with Phoenix evals...")
 
-    # Run the evaluation using LLM + AsyncExecutor
-    import asyncio
+    # Set up ClassificationEvaluator
+    llm = LLM(provider="openai", model="gpt-4o")
 
-    model = LLM(provider="openai", model="gpt-4o")
-
-    async def generate_label(row):
-        filled_prompt = prompt.format(**row)
-        return await model.async_generate_text(filled_prompt)
-
-    executor = AsyncExecutor(generation_fn=generate_label, concurrency=10)
-    raw_outputs, _ = asyncio.get_event_loop().run_until_complete(
-        executor.execute([row.to_dict() for _, row in sampled_df.iterrows()])
+    evaluator = ClassificationEvaluator(
+        name="ground_truth",
+        llm=llm,
+        prompt_template=prompt,
+        choices={"PASS": 1.0, "FAIL": 0.0},
     )
 
-    # Parse outputs
-    parsed = [output_parser(str(o) if o else "", i) for i, o in enumerate(raw_outputs)]
-    test_results = pd.DataFrame(parsed)
+    # Rename dotted column names so the evaluator template variables resolve correctly
+    eval_df = sampled_df.rename(
+        columns={
+            "attributes.query": "query",
+            "attributes.dietary_restriction": "dietary_restriction",
+            "attributes.output.value": "output",
+        },
+    )
 
-    test_results = pd.merge(test_results, sampled_df, left_index=True, right_index=True)
+    # Run evaluation
+    results_df = evaluate_dataframe(
+        dataframe=eval_df,
+        evaluators=[evaluator],
+    )
 
-    print(f"Completed labeling of {len(test_results)} traces")
+    # Extract labels and explanations from score column
+    score_data = results_df["ground_truth_score"]
+    results_df["label"] = score_data.apply(
+        lambda x: x.get("label") if isinstance(x, dict) else None
+    )
+    results_df["explanation"] = score_data.apply(
+        lambda x: x.get("explanation") if isinstance(x, dict) else None
+    )
 
-    test_results.set_index(sampled_df.index)
+    print(f"Completed labeling of {len(results_df)} traces")
 
+    # Log evaluations to Phoenix
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
-        dataframe=test_results,
+        dataframe=results_df,
         annotation_name="Ground Truth Labels",
         annotator_kind="LLM",
     )
 
-    test_results.rename(
+    results_df = results_df.rename(
         columns={"label": "ground_truth_label", "explanation": "ground_truth_explanation"},
-        inplace=True,
     )
 
     print("Logged evaluations to Phoenix")
-    return test_results
+    return results_df  # type: ignore[no-any-return]
 
 
 def balance_labels(

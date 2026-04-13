@@ -346,12 +346,13 @@ This evaluator checks if the agent maintained context throughout the conversatio
 
   <Tab title="Python" icon="python">
     ```python
-    from phoenix.evals import LLM, create_classifier
+    from phoenix.evals import LLM, ClassificationEvaluator
 
     llm = LLM(provider="openai", model="gpt-5")
 
-    conversation_coherence_evaluator = create_classifier(
+    conversation_coherence_evaluator = ClassificationEvaluator(
         name="conversation_coherence",
+        llm=llm,
         prompt_template="""You are evaluating whether a customer support agent maintained context throughout a multi-turn conversation.
 
     A conversation is COHERENT if:
@@ -370,7 +371,6 @@ This evaluator checks if the agent maintained context throughout the conversatio
     {input}
 
     Did the agent maintain context throughout this conversation?""",
-        llm=llm,
         choices={"coherent": 1, "incoherent": 0},
     )
     ```
@@ -415,8 +415,9 @@ This evaluator determines if the customer's issue was actually resolved:
 
   <Tab title="Python" icon="python">
     ```python
-    resolution_evaluator = create_classifier(
+    resolution_evaluator = ClassificationEvaluator(
         name="resolution_status",
+        llm=llm,
         prompt_template="""You are evaluating whether a customer's issue was resolved in a support conversation.
 
     The issue is RESOLVED if:
@@ -433,7 +434,6 @@ This evaluator determines if the customer's issue was actually resolved:
     {input}
 
     Was the customer's issue resolved?""",
-        llm=llm,
         choices={"resolved": 1, "unresolved": 0},
     )
     ```

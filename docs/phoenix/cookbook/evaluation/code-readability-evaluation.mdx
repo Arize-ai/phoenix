@@ -50,7 +50,7 @@ df = df.rename(columns={"prompt": "input", "solution": "output"})
 Run readability classifications against a subset of the data.
 
 ```python
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 CODE_READABILITY_PROMPT_TEMPLATE = """
 You are evaluating whether a piece of code is readable or not.
@@ -65,14 +65,14 @@ Is the code readable? Respond with "readable" or "unreadable".
 """
 
 llm = LLM(provider="openai", model="gpt-4")
-readability_classifier = create_classifier(
+readability_evaluator = ClassificationEvaluator(
     name="code_readability",
-    prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
     llm=llm,
-    choices=["readable", "unreadable"],
+    prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
+    choices={"readable": 1.0, "unreadable": 0.0},
 )
 
-evals_df = evaluate_dataframe(dataframe=df, evaluators=[readability_classifier])
+evals_df = evaluate_dataframe(dataframe=df, evaluators=[readability_evaluator])
 readability_classifications = evals_df["code_readability_score"].str["label"].tolist()
 ```
 
@@ -105,7 +105,7 @@ When evaluating a dataset for readability, it can be useful to know why the LLM 
 ```python
 readability_classifications_df = evaluate_dataframe(
     dataframe=df.sample(n=5),
-    evaluators=[readability_classifier],
+    evaluators=[readability_evaluator],
 )
 readability_classifications_df["label"] = readability_classifications_df["code_readability_score"].str["label"]
 readability_classifications_df["explanation"] = readability_classifications_df[

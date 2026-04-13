@@ -112,7 +112,7 @@ Next, we create our evaluator.
 ```python expandable
 import pandas as pd
 
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 
 def correctness_eval(input, output):
@@ -136,15 +136,15 @@ def correctness_eval(input, output):
 
     # Run the evaluation
     llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="math_correctness",
-        prompt_template=MATH_EVAL_TEMPLATE,
         llm=llm,
-        choices=["correct", "incorrect"],
+        prompt_template=MATH_EVAL_TEMPLATE,
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     eval_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     label = eval_df["math_correctness_score"].iloc[0]["label"]
     score = 1 if label == "correct" else 0
@@ -272,7 +272,7 @@ We also revise the task function to include `with` clauses that generate structu
 ```python expandable
 # This is our modified correctness evaluator.
 def correctness_eval(input, output):
-    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+    from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
     # Template for evaluating math problem solutions
     MATH_EVAL_TEMPLATE = """
@@ -294,15 +294,15 @@ def correctness_eval(input, output):
 
     # Run the evaluation
     llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="math_correctness",
-        prompt_template=MATH_EVAL_TEMPLATE,
         llm=llm,
-        choices=["correct", "incorrect"],
+        prompt_template=MATH_EVAL_TEMPLATE,
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     eval_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
 
     return eval_df["math_correctness_score"].iloc[0]
