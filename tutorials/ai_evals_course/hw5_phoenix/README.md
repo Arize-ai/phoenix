@@ -58,7 +58,7 @@ Use Phoenix's evaluation framework to automatically detect failures. You should:
 - Load the evaluation prompt from the provided `eval.txt` file
 - Set up an LLM evaluation model (e.g., GPT-4) with appropriate parameters
 - Write a parser function to extract failure state and explanation from LLM responses
-- Use Phoenix's `llm_generate` function to evaluate all traces
+- Use Phoenix's `AsyncExecutor` with `async_generate_text` to evaluate all traces
 - Log the evaluation results back to Phoenix for visualization
 
 ### Step 4: Analyze Failure Patterns
@@ -178,27 +178,34 @@ def load_traces() -> pd.DataFrame:
 ### LLM-Based Evaluation
 
 ```python
-from phoenix.evals import llm_generate, OpenAIModel
+from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
+import re
 
-def parser(response: str, row_index: int) -> dict:
+eval_model = LLM(provider="openai", model="gpt-4o")
+
+async def generate_eval(row):
+    prompt = eval_prompt.format(**row)
+    return await eval_model.async_generate_text(prompt)
+
+executor = AsyncExecutor(generation_fn=generate_eval, concurrency=10)
+raw_outputs, _ = await executor.execute(
+    [row.to_dict() for _, row in traces_df.iterrows()]
+)
+
+def parser(response: str) -> dict:
     """Parse evaluation results"""
-    failure_state = r'"failure_state":\s*"([^"]*)"'
-    explanation = r'"explanation":\s*"([^"]*)"'
-    failure_state_match = re.search(failure_state, response, re.IGNORECASE).group(1)
-    explanation_match = re.search(explanation, response, re.IGNORECASE).group(1)
+    failure_state_pattern = r'"failure_state":\s*"([^"]*)"'
+    explanation_pattern = r'"explanation":\s*"([^"]*)"'
+    failure_state_match = re.search(failure_state_pattern, response, re.IGNORECASE)
+    explanation_match = re.search(explanation_pattern, response, re.IGNORECASE)
     return {
-        "label": failure_state_match,
-        "explanation": explanation_match
+        "label": failure_state_match.group(1) if failure_state_match else None,
+        "explanation": explanation_match.group(1) if explanation_match else None,
     }
 
-# Generate evaluations
-failure_analysis = llm_generate(
-    dataframe=traces_df,
-    template=eval_prompt,
-    model=eval_model,
-    output_parser=parser,
-    concurrency=10,
-)
+parsed = [parser(o or "") for o in raw_outputs]
+failure_analysis = pd.DataFrame(parsed, index=traces_df.index)
 
 # Log evaluations
 from phoenix.client import AsyncClient
