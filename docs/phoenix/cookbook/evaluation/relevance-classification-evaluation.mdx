@@ -56,8 +56,8 @@ llm = LLM(provider="openai", model="gpt-4")
 relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
 evals_df = evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator])
-relevance_classifications = evals_df["document_relevance_label"].tolist()
-rails = relevance_evaluator.CHOICES
+relevance_classifications = evals_df["document_relevance_score"].str["label"].tolist()
+choices = relevance_evaluator.CHOICES
 ```
 
 ## Evaluate Results
@@ -65,9 +65,9 @@ rails = relevance_evaluator.CHOICES
 ```python
 true_labels = df_sample["relevant"].map({True: "relevant", False: "unrelated"}).tolist()
 
-print(classification_report(true_labels, relevance_classifications, labels=rails))
+print(classification_report(true_labels, relevance_classifications, labels=choices))
 confusion_matrix = ConfusionMatrix(
-    actual_vector=true_labels, predict_vector=relevance_classifications, classes=rails
+    actual_vector=true_labels, predict_vector=relevance_classifications, classes=choices
 )
 confusion_matrix.plot(
     cmap=plt.colormaps["Blues"],
@@ -87,6 +87,12 @@ relevance_classifications_df = evaluate_dataframe(
     dataframe=df_sample.sample(n=5),
     evaluators=[relevance_evaluator],
 )
+relevance_classifications_df["label"] = relevance_classifications_df["document_relevance_score"].str[
+    "label"
+]
+relevance_classifications_df["explanation"] = relevance_classifications_df[
+    "document_relevance_score"
+].str["explanation"]
 ```
 
 ## Compare Models

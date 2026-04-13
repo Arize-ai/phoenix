@@ -187,18 +187,18 @@ Queries that omit `first` will fail with `"first" is required`. Queries that pas
 
 This change protects the server from unbounded queries that could cause excessive memory usage and slow response times.
 
-# New: Server-Side Experiment Execution
+# New: Resume Interrupted SDK Experiments
 
 April 7, 2026
 
 **New in arize-phoenix 14.0.0**
 
-Experiments now run as a background daemon inside the Phoenix server instead of in the caller's Python process. When you call `run_experiment`, work is enqueued server-side — your script or notebook can exit and the experiment continues running.
+SDK experiments still run in the caller's Python process. Phoenix v14 adds dedicated resume APIs so you can continue interrupted experiments without starting over from scratch.
 
 Additional capabilities:
 
-- **Crash recovery** — if the server restarts mid-experiment, the runner automatically resumes incomplete work from the database.
-- **Multi-replica coordination** — in PostgreSQL HA deployments, heartbeat-based ownership ensures exactly one replica runs each experiment. Stale claims from crashed replicas are recovered within ~10 minutes.
-- **Resume API** — use `resume_experiment(experiment_id=..., task=...)` to manually resume a stopped or interrupted experiment, running only the missing or failed runs.
+- **Resume API** — use `resume_experiment(experiment_id=..., task=...)` to re-run only missing or failed task runs.
+- **Async resume API** — use `async_resume_experiment(...)` for async tasks.
+- **Evaluator support** — pass `evaluators` to `resume_experiment` to run or re-run evaluations on completed task runs after resuming.
 
-The `run_experiment` call signature is unchanged. See [Run Experiments in the Background](/datasets-and-experiments/how-to-experiments/run-experiments-in-background) for full documentation.
+The `run_experiment` call signature is unchanged. See [Resume Interrupted Experiments](/datasets-and-experiments/how-to-experiments/run-experiments-in-background) for full documentation.

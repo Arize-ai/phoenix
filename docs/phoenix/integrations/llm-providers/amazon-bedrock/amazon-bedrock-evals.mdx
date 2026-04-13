@@ -40,7 +40,10 @@ results_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 If you need to assume a role, configure your credentials via environment variables before creating the LLM:
 
 ```python
+import os
+
 import boto3
+from phoenix.evals import LLM
 
 sts_client = boto3.client("sts")
 response = sts_client.assume_role(

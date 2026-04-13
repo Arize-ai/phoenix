@@ -536,9 +536,7 @@ tool_call_eval = evaluate_dataframe(
     evaluators=[tool_selection_evaluator],
 )
 
-tool_call_eval["score"] = tool_call_eval.apply(
-    lambda x: 1 if x["tool_selection_label"] == "correct" else 0, axis=1
-)
+tool_call_eval["score"] = tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
 
 tool_call_eval.head()
 ```
@@ -1251,8 +1249,8 @@ def function_calling_eval(input: str, output: str) -> float:
             evaluators=[tool_selection_evaluator],
         )
 
-        tool_call_eval["score"] = tool_call_eval.apply(
-            lambda x: 1 if x["tool_selection_label"] == "correct" else 0, axis=1
+        tool_call_eval["score"] = (
+            tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
         )
         return tool_call_eval["score"].mean()
     else:
@@ -1311,7 +1309,7 @@ def evaluate_clarity(output: str, input: str) -> bool:
         choices=["clear", "unclear"],
     )
     result = evaluate_dataframe(dataframe=df, evaluators=[clarity_classifier])
-    return result["clarity_label"][0] == "clear"
+    return result["clarity_score"].iloc[0]["label"] == "clear"
 
 
 def evaluate_entity_correctness(output: str, input: str) -> bool:
@@ -1323,7 +1321,7 @@ def evaluate_entity_correctness(output: str, input: str) -> bool:
         choices=["correct", "incorrect"],
     )
     result = evaluate_dataframe(dataframe=df, evaluators=[entity_classifier])
-    return result["entity_correctness_label"][0] == "correct"
+    return result["entity_correctness_score"].iloc[0]["label"] == "correct"
 ````
 
 ```python expandable
@@ -1354,5 +1352,4 @@ You've now evaluated every aspect of your agent. If you've made it this far, you
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/combined-agent-experiments.png" />
 </Frame>
-
 

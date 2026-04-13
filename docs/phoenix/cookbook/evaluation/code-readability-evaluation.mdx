@@ -64,17 +64,16 @@ You are evaluating whether a piece of code is readable or not.
 Is the code readable? Respond with "readable" or "unreadable".
 """
 
-rails = ["readable", "unreadable"]
 llm = LLM(provider="openai", model="gpt-4")
 readability_classifier = create_classifier(
     name="code_readability",
     prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
     llm=llm,
-    choices=rails,
+    choices=["readable", "unreadable"],
 )
 
 evals_df = evaluate_dataframe(dataframe=df, evaluators=[readability_classifier])
-readability_classifications = evals_df["code_readability_label"].tolist()
+readability_classifications = evals_df["code_readability_score"].str["label"].tolist()
 ```
 
 ## Evaluate Results and Plot Confusion Matrix
@@ -83,9 +82,10 @@ Evaluate the predictions against human-labeled ground-truth readability labels.
 
 ```python
 true_labels = df["readable"].map({True: "readable", False: "unreadable"}).tolist()
-print(classification_report(true_labels, readability_classifications, labels=rails))
+choices = ["readable", "unreadable"]
+print(classification_report(true_labels, readability_classifications, labels=choices))
 confusion_matrix = ConfusionMatrix(
-    actual_vector=true_labels, predict_vector=readability_classifications, classes=rails
+    actual_vector=true_labels, predict_vector=readability_classifications, classes=choices
 )
 confusion_matrix.plot(
     cmap=plt.colormaps["Blues"],
@@ -107,6 +107,10 @@ readability_classifications_df = evaluate_dataframe(
     dataframe=df.sample(n=5),
     evaluators=[readability_classifier],
 )
+readability_classifications_df["label"] = readability_classifications_df["code_readability_score"].str["label"]
+readability_classifications_df["explanation"] = readability_classifications_df[
+    "code_readability_score"
+].str["explanation"]
 ```
 
 ## Compare Models

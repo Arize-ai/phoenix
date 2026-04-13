@@ -111,9 +111,9 @@ from phoenix.evals.templates import (
     PromptPartTemplate,
     PromptPartContentType,
 )
-rails = ["accurate", "almost accurate", "inaccurate"]
+choices = ["accurate", "almost accurate", "inaccurate"]
 classification_template = ClassificationTemplate(
-    rails=rails,  # Specify the valid output labels
+    rails=choices,  # Specify the valid output labels
     template=[
         # Prompt part 1: Task description
         PromptPartTemplate(
@@ -152,7 +152,7 @@ receipt_classifier = create_classifier(
     name="receipt_accuracy",
     prompt_template=classification_template,
     llm=llm,
-    choices=rails,
+    choices=choices,
 )
 
 def task_function(input, reference):
@@ -164,7 +164,7 @@ def task_function(input, reference):
         dataframe=pd.DataFrame([{"image": image_url, "output": output}]),
         evaluators=[receipt_classifier],
     )
-    label = result_df.iloc[0]["label"]
+    label = result_df["receipt_accuracy_score"].iloc[0]["label"]
     return label
 
 
@@ -189,7 +189,7 @@ Next, we’ll refine our evaluation prompt template by adding more specific inst
 
 ```py expandable
 classification_template = ClassificationTemplate(
-    rails=rails,  # Specify the valid output labels
+    rails=choices,  # Specify the valid output labels
     template=[
         # Prompt part 1: Task description
         PromptPartTemplate(

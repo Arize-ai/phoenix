@@ -177,7 +177,7 @@ def initial_prompt(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[empathy_classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -245,7 +245,7 @@ def llm_as_a_judge(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -314,7 +314,7 @@ def llm_as_a_judge(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -391,7 +391,7 @@ def llm_as_a_judge(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -442,7 +442,7 @@ def llm_as_a_judge(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -475,7 +475,7 @@ def llm_as_a_judge(input):
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[classifier],
     )
-    score = result_df.iloc[0]["label"]
+    score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
 
 
@@ -498,5 +498,4 @@ By systematically testing and combining these approaches, you can refine your ev
 <Frame caption="Final Results">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d87fdfbc-image.jpeg" />
 </Frame>
-
 

@@ -28,7 +28,7 @@ Phoenix v14 removes several legacy APIs. See the [migration guide](https://githu
 - **`/v1/evaluations` removed** — use `/v1/span_annotations`, `/v1/trace_annotations`, or `/v1/document_annotations`
 - **Evals 1.0 removed** — `arize-phoenix-evals` 3.0.0 drops the `legacy/` subpackage; `phoenix.experiments` is replaced by `phoenix.client.experiments`
 - **GraphQL pagination requires `first`** — `Project.spans`, `Trace.spans`, and `ProjectSession.traces` now require an explicit `first` argument (max 1000)
-- **Server-side experiments** — experiments now run as a background daemon on the server with crash recovery and multi-replica coordination
+- **Resume interrupted SDK experiments** — continue missing or failed runs with `resume_experiment` and `async_resume_experiment`
 </Update>
 
 <Update label="04.03.2026">
@@ -972,4 +972,3 @@ We’ve added paging functionality to the Experiment Compare details slide-over 
 <Card href="/docs/phoenix/release-notes/2026" horizontal arrow="true">
   2026
 </Card>
-

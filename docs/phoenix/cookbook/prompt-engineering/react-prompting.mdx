@@ -66,7 +66,7 @@ from phoenix.evals import (
     evaluate_dataframe,
 )
 
-TOOL_CALLING_PROMPT_RAILS_MAP = {"correct": "correct", "incorrect": "incorrect"}
+TOOL_CALLING_CHOICES = ["correct", "incorrect"]
 from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
@@ -303,14 +303,13 @@ def evaluate_response(input, output):
         name="tool_calling",
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         llm=llm,
-        choices=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
+        choices=TOOL_CALLING_CHOICES,
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         evaluators=[classifier],
     )
-    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
-    return score
+    return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```
 
 #### Experiment
@@ -391,14 +390,13 @@ def evaluate_response(input, output):
         name="tool_calling",
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         llm=llm,
-        choices=list(TOOL_CALLING_PROMPT_RAILS_MAP.values()),
+        choices=TOOL_CALLING_CHOICES,
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         evaluators=[classifier],
     )
-    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
-    return score
+    return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```
 
 #### Experiment
@@ -427,5 +425,4 @@ Keep in mind that results may vary due to randomness and the model's non-determi
 To refine and test these prompts against other datasets, experiment with alternative techniques like Chain of Thought (CoT) prompting to assess how they complement or contrast with ReAct in your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using both the TypeScript and Python Clients.
 
 From here, you can check out more [examples on Phoenix](/docs/phoenix/cookbook), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
-
 

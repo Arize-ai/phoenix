@@ -202,8 +202,7 @@ def evaluate_response(input, output):
         dataframe=pd.DataFrame([{"question": question, "answer": output}]),
         evaluators=[rhyme_classifier],
     )
-    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
-    return score
+    return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
 ```
 
 Here, we expect to see improvements in our experiment. The evaluator should flag significantly fewer nonsensical answers as you have refined your system prompt.
@@ -252,8 +251,7 @@ def evaluate_all_responses(input, output):
         dataframe=pd.DataFrame([{"question": input["Questions"], "answer": output}]),
         evaluators=[full_classifier],
     )
-    score = result_df.apply(lambda x: 0 if x["label"] == "incorrect" else 1, axis=1)
-    return score
+    return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
 
 
 experiment = run_experiment(

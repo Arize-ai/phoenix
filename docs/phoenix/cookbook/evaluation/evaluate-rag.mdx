@@ -569,11 +569,19 @@ evals_df = evaluate_dataframe(
     dataframe=qa_with_reference_df,
     evaluators=[qa_evaluator, hallucination_evaluator],
 )
-qa_correctness_eval_df = evals_df[["correctness_label", "correctness_score", "correctness_explanation"]].rename(
-    columns=lambda c: c.replace("correctness_", "")
+qa_correctness_eval_df = pd.concat(
+    [
+        evals_df[["context.span_id"]],
+        pd.DataFrame(evals_df["correctness_score"].tolist(), index=evals_df.index),
+    ],
+    axis=1,
 )
-hallucination_eval_df = evals_df[["faithfulness_label", "faithfulness_score", "faithfulness_explanation"]].rename(
-    columns=lambda c: c.replace("faithfulness_", "")
+hallucination_eval_df = pd.concat(
+    [
+        evals_df[["context.span_id"]],
+        pd.DataFrame(evals_df["faithfulness_score"].tolist(), index=evals_df.index),
+    ],
+    axis=1,
 )
 ```
 
@@ -614,7 +622,6 @@ Since we have evaluated our RAG system's QA performance and Hallucinations perfo
 ```py expandable
 from phoenix.client.resources.spans import SpanAnnotationData
 
-# Expect dataframes indexed by context.span_id
 qac_rows = qa_correctness_eval_df.reset_index()[
     ["context.span_id", "score", "label", "explanation"]
 ].dropna(how="all", subset=["score", "label", "explanation"])
@@ -670,5 +677,4 @@ phoenix URL http://localhost:6006/
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
 Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/docs/phoenix/evaluation/llm-evals) documentation.
-
 
