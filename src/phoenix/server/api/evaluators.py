@@ -53,7 +53,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
-from phoenix.server.sandbox.types import SandboxBackend
+from phoenix.server.sandbox.types import SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
@@ -2441,6 +2441,12 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 session_key=session_key or self._name,
                 timeout=self._timeout,
             )
+        except UnsupportedOperation as exc:
+            err = f"Sandbox backend does not support this operation: {exc}"
+            return [
+                self._make_error_result(name, err, start_time)
+                for _ in (output_configs or [None])  # type: ignore[list-item]
+            ]
         except Exception as exc:
             err = f"Sandbox execution failed: {exc}"
             return [
