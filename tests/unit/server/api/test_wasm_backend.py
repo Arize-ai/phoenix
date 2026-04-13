@@ -17,7 +17,7 @@ import pytest
 
 pytest.importorskip("wasmtime", reason="wasmtime optional extra not installed")
 
-from phoenix.server.sandbox.types import ExecutionResult  # noqa: E402
+from phoenix.server.sandbox.types import ExecutionResult, UnsupportedOperation  # noqa: E402
 from phoenix.server.sandbox.wasm_backend import WASMAdapter, WASMBackend, _run_wasm  # noqa: E402
 
 
@@ -43,7 +43,7 @@ class TestWASMBackendExecute:
     async def test_execute_returns_execution_result(self) -> None:
         expected = ExecutionResult(stdout="hello\n", stderr="")
         binary_path = Path("/fake/cpython.wasm")
-        backend = WASMBackend(binary_path=binary_path, timeout=10)
+        backend = WASMBackend(binary_path=binary_path)
 
         with patch(
             "phoenix.server.sandbox.wasm_backend._run_wasm",
@@ -52,13 +52,20 @@ class TestWASMBackendExecute:
             result = await backend.execute("print('hello')", session_key="k")
 
         assert result is expected
-        mock_run.assert_called_once_with(binary_path, "print('hello')", 10)
+        from phoenix.server.sandbox.wasm_backend import _DEFAULT_TIMEOUT_SECONDS
+
+        mock_run.assert_called_once_with(binary_path, "print('hello')", _DEFAULT_TIMEOUT_SECONDS)
+
+    async def test_execute_raises_unsupported_operation_when_env_passed(self) -> None:
+        backend = WASMBackend(binary_path=Path("/fake/cpython.wasm"))
+        with pytest.raises(UnsupportedOperation):
+            await backend.execute("x=1", session_key="k", env={"FOO": "bar"})
 
     async def test_execute_resolves_binary_via_download_when_path_is_none(self) -> None:
         expected = ExecutionResult(stdout="", stderr="")
         fake_path = Path("/downloaded/cpython.wasm")
 
-        backend = WASMBackend(binary_path=None, timeout=5)
+        backend = WASMBackend(binary_path=None)
         with patch(
             "phoenix.server.sandbox.wasm_backend._run_wasm",
             return_value=expected,
@@ -89,17 +96,10 @@ class TestWASMAdapter:
     def test_language(self) -> None:
         assert WASMAdapter.language == "PYTHON"
 
-    def test_build_backend_default_timeout(self) -> None:
+    def test_build_backend_returns_wasm_backend(self) -> None:
         adapter = WASMAdapter()
         backend = adapter.build_backend({})
         assert isinstance(backend, WASMBackend)
-        assert backend._timeout == 30
-
-    def test_build_backend_custom_timeout(self) -> None:
-        adapter = WASMAdapter()
-        backend = adapter.build_backend({"timeout": "60"})
-        assert isinstance(backend, WASMBackend)
-        assert backend._timeout == 60
 
     def test_build_backend_returns_sandbox_backend(self) -> None:
         from phoenix.server.sandbox.types import SandboxBackend

@@ -16,6 +16,7 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     BaseNoSessionBackend,
+    DenoConfig,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -64,6 +65,7 @@ class DenoAdapter(SandboxAdapter):
     key = "DENO"
     display_name = "Deno (local)"
     language = "TYPESCRIPT"
+    config_model = DenoConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (

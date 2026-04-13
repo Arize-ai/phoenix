@@ -14,6 +14,7 @@ from typing import Any, Optional
 from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
+    E2BConfig,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -34,9 +35,13 @@ class E2BSandboxBackend(SandboxBackend):
         self,
         api_key: str,
         template: str = "base",
+        cwd: Optional[str] = None,
+        metadata: Optional[str] = None,
     ) -> None:
         self._api_key = api_key
         self._template = template
+        self._cwd = cwd
+        self._metadata = metadata
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
@@ -44,12 +49,24 @@ class E2BSandboxBackend(SandboxBackend):
 
         return AsyncSandbox
 
+    def _create_kwargs(self) -> dict[str, Any]:
+        """Build kwargs for AsyncSandbox.create().
+
+        The E2B SDK expects metadata as Dict[str, str]. A string value from
+        the config is passed under the key ``"info"``, so the sandbox is
+        tagged with ``{"info": "<value>"}``.
+        """
+        kwargs: dict[str, Any] = {"api_key": self._api_key, "template": self._template}
+        if self._metadata is not None:
+            kwargs["metadata"] = {"info": self._metadata}
+        return kwargs
+
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:
             logger.debug(f"E2B session '{session_key}' already exists; reusing")
             return
         AsyncSandbox = self._get_sandbox_cls()
-        sandbox = await AsyncSandbox.create(api_key=self._api_key, template=self._template)
+        sandbox = await AsyncSandbox.create(**self._create_kwargs())
         self._sessions[session_key] = sandbox
         logger.debug(f"Started E2B session '{session_key}'")
 
@@ -72,13 +89,13 @@ class E2BSandboxBackend(SandboxBackend):
             run_kwargs: dict[str, Any] = {"envs": env or {}}
             if timeout is not None:
                 run_kwargs["timeout"] = timeout
+            if self._cwd is not None:
+                run_kwargs["cwd"] = self._cwd
             if sandbox is not None:
                 execution = await sandbox.run_code(code, **run_kwargs)
             else:
                 # Ephemeral: spin up a fresh sandbox, run, then close.
-                async with await AsyncSandbox.create(
-                    api_key=self._api_key, template=self._template
-                ) as sb:
+                async with await AsyncSandbox.create(**self._create_kwargs()) as sb:
                     execution = await sb.run_code(code, **run_kwargs)
 
             stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""
@@ -106,6 +123,7 @@ class E2BAdapter(SandboxAdapter):
     key = "E2B"
     display_name = "E2B"
     language = "PYTHON"
+    config_model = E2BConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (
@@ -115,4 +133,6 @@ class E2BAdapter(SandboxAdapter):
             or ""
         )
         template: str = config.get("template", "base")
-        return E2BSandboxBackend(api_key=api_key, template=template)
+        cwd: Optional[str] = config.get("cwd") or None
+        metadata: Optional[str] = config.get("metadata") or None
+        return E2BSandboxBackend(api_key=api_key, template=template, cwd=cwd, metadata=metadata)
