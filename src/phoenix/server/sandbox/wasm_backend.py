@@ -27,12 +27,15 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
+    WASMConfig,
 )
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
+
 
 # Module-level cache: path → (engine, compiled module).
 # Engine and module must be paired — a module compiled with one engine
@@ -107,10 +110,8 @@ class WASMBackend(BaseNoSessionBackend):
     def __init__(
         self,
         binary_path: Optional[Path] = None,
-        timeout: int = _DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         self._binary_path = binary_path
-        self._timeout = timeout
 
     def _resolve_binary(self) -> Path:
         if self._binary_path is not None:
@@ -126,6 +127,8 @@ class WASMBackend(BaseNoSessionBackend):
         env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        if env:
+            raise UnsupportedOperation("WASM backend does not support environment variables")
         binary_path = self._resolve_binary()
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -133,7 +136,7 @@ class WASMBackend(BaseNoSessionBackend):
             _run_wasm,
             binary_path,
             code,
-            timeout if timeout is not None else self._timeout,
+            timeout if timeout is not None else _DEFAULT_TIMEOUT_SECONDS,
         )
 
     async def close(self) -> None:
@@ -144,7 +147,7 @@ class WASMAdapter(SandboxAdapter):
     key = "WASM"
     display_name = "WebAssembly (local)"
     language = "PYTHON"
+    config_model = WASMConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-        timeout = int(config.get("timeout", _DEFAULT_TIMEOUT_SECONDS))
-        return WASMBackend(timeout=timeout)
+        return WASMBackend()
