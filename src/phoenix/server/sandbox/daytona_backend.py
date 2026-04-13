@@ -14,6 +14,7 @@ from typing import Any, Optional
 from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
 
 from .types import (
+    DaytonaPythonConfig,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -68,7 +69,7 @@ class DaytonaSandboxBackend(SandboxBackend):
             if workspace is None:
                 client = self._get_client()
                 workspace = await client.create()
-            result = await workspace.process.code_run(code)
+            result = await workspace.process.code_run(code, envs=env or {})
             return ExecutionResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
@@ -86,6 +87,7 @@ class DaytonaPythonAdapter(SandboxAdapter):
     key = "DAYTONA_PYTHON"
     display_name = "Daytona (Python)"
     language = "PYTHON"
+    config_model = DaytonaPythonConfig
 
     def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
         api_key: str = (
