@@ -85,6 +85,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arizeai/openinference-semantic-conventions": "^2.1.7",
     "@arizeai/openinference-vercel": "^2.7.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
