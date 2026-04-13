@@ -1,25 +1,25 @@
 ---
 title: "Manual Spans"
-description: "Create manual spans with @arizeai/phoenix-otel"
+description: "Create raw OpenTelemetry spans, build OpenInference attributes, and redact sensitive data with @arizeai/phoenix-otel"
 ---
 
-The package re-exports `trace`, `context`, and `SpanStatusCode` from OpenTelemetry, plus the `@arizeai/openinference-core` helpers for tracing functions, methods, and context attributes from the same package path.
+`@arizeai/phoenix-otel` re-exports the OpenTelemetry `trace`, `context`, and `SpanStatusCode` APIs, plus the `@arizeai/openinference-core` attribute builders, `OITracer`, and utility helpers.
 
-For most use cases, prefer the built-in helpers (`withSpan`, `traceChain`, `traceAgent`, `traceTool`) over raw `startActiveSpan`. They automatically set the correct OpenInference span kind, handle errors, close the span for you, and follow the active global tracer when they execute.
+For most use cases, prefer the tracing helpers covered in [Tracing Helpers](./tracing-helpers). Use manual spans when you need exact span timing, low-level OpenTelemetry interop, or explicit control over which attributes are recorded.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
-    <li><code>src/index.ts</code></li>
-    <li><code>src/openinference.ts</code></li>
+    <li><code>src/index.ts</code> re-exports the manual tracing surface</li>
+    <li><code>src/register.ts</code> configures the Phoenix exporter and provider</li>
+    <li><code>node_modules/@arizeai/openinference-core/src/helpers/attributeHelpers.ts</code> implements the attribute builders</li>
+    <li><code>node_modules/@arizeai/openinference-core/src/trace/trace-config/OITracer.ts</code> implements redaction-aware tracing</li>
   </ul>
 </section>
 
-## Recommended — OpenInference Helpers
+## Recommended First: OpenInference Helpers
 
-```bash
-npm install @arizeai/phoenix-otel
-```
+If you do not need low-level OpenTelemetry control, use the helper wrappers first:
 
 ```ts
 import {
@@ -41,7 +41,7 @@ const retrieveDocs = withSpan(
 );
 
 const generateAnswer = withSpan(
-  async (query: string, docs: string[]) => {
+  async (query: string, docs: unknown[]) => {
     return `Answer based on ${docs.length} documents`;
   },
   { name: "generate-answer", kind: "LLM" }
@@ -55,7 +55,6 @@ const ragPipeline = withSpan(
   { name: "rag-pipeline", kind: "CHAIN" }
 );
 
-// Session and metadata propagate to all child spans
 await context.with(
   setMetadata(
     setSession(context.active(), { sessionId: "session-abc-123" }),
@@ -67,7 +66,7 @@ await context.with(
 
 ## Raw OpenTelemetry Spans
 
-Use raw spans when you need full control over attributes and timing:
+Use raw spans when you need full control over timing and attributes:
 
 ```ts
 import {
@@ -94,11 +93,120 @@ await tracer.startActiveSpan("lookup-customer", async (span) => {
 });
 ```
 
+If you need context-propagated session, user, metadata, or prompt-template attributes on a plain tracer span, copy them explicitly with `getAttributesFromContext()` as shown on [Context Attributes](./context-attributes).
+
+## Attribute Helper APIs
+
+Use the attribute helpers to build OpenInference-compatible attribute sets for LLM, retriever, embedding, tool, input, and output spans.
+
+```ts
+import { getLLMAttributes, trace } from "@arizeai/phoenix-otel";
+
+const tracer = trace.getTracer("llm-service");
+
+tracer.startActiveSpan("llm-inference", (span) => {
+  span.setAttributes(
+    getLLMAttributes({
+      provider: "openai",
+      modelName: "gpt-4o-mini",
+      inputMessages: [{ role: "user", content: "What is Phoenix?" }],
+      outputMessages: [{ role: "assistant", content: "Phoenix is..." }],
+      tokenCount: { prompt: 12, completion: 44, total: 56 },
+      invocationParameters: { temperature: 0.2 },
+    })
+  );
+  span.end();
+});
+```
+
+Common helpers:
+
+- `getLLMAttributes`
+- `getEmbeddingAttributes`
+- `getRetrieverAttributes`
+- `getToolAttributes`
+- `getMetadataAttributes`
+- `getInputAttributes`
+- `getOutputAttributes`
+- `defaultProcessInput`
+- `defaultProcessOutput`
+
+## Trace Config And Redaction
+
+`OITracer` wraps an OpenTelemetry tracer and applies OpenInference trace masking rules before attributes are written. It also merges propagated context attributes automatically.
+
+```ts
+import {
+  OITracer,
+  OpenInferenceSpanKind,
+  trace,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+const tracer = new OITracer({
+  tracer: trace.getTracer("my-service"),
+  traceConfig: {
+    hideInputs: true,
+    hideOutputText: true,
+    hideEmbeddingVectors: true,
+    base64ImageMaxLength: 8_000,
+  },
+});
+
+const safeLLMCall = withSpan(
+  async (prompt: string) => `model response for ${prompt}`,
+  {
+    tracer,
+    kind: OpenInferenceSpanKind.LLM,
+    name: "safe-llm-call",
+  }
+);
+```
+
+You can also configure masking via environment variables:
+
+- `OPENINFERENCE_HIDE_INPUTS`
+- `OPENINFERENCE_HIDE_OUTPUTS`
+- `OPENINFERENCE_HIDE_INPUT_MESSAGES`
+- `OPENINFERENCE_HIDE_OUTPUT_MESSAGES`
+- `OPENINFERENCE_HIDE_INPUT_IMAGES`
+- `OPENINFERENCE_HIDE_INPUT_TEXT`
+- `OPENINFERENCE_HIDE_OUTPUT_TEXT`
+- `OPENINFERENCE_HIDE_EMBEDDING_VECTORS`
+- `OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH`
+- `OPENINFERENCE_HIDE_PROMPTS`
+
+## Utility Helpers
+
+The package also re-exports small safety utilities:
+
+- `withSafety({ fn, onError? })` wraps a function and returns `null` if it throws
+- `safelyJSONStringify(value)` wraps `JSON.stringify`
+- `safelyJSONParse(value)` wraps `JSON.parse`
+
+```ts
+import {
+  safelyJSONParse,
+  safelyJSONStringify,
+  withSafety,
+} from "@arizeai/phoenix-otel";
+
+const safeDivide = withSafety({
+  fn: (a: number, b: number) => a / b,
+});
+
+const serialized = safelyJSONStringify({ ok: true });
+const parsed = safelyJSONParse(serialized ?? "{}");
+const result = safeDivide(4, 2);
+```
+
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
     <li><code>src/index.ts</code></li>
-    <li><code>src/openinference.ts</code></li>
     <li><code>src/register.ts</code></li>
+    <li><code>node_modules/@arizeai/openinference-core/src/helpers/attributeHelpers.ts</code></li>
+    <li><code>node_modules/@arizeai/openinference-core/src/trace/trace-config/OITracer.ts</code></li>
+    <li><code>node_modules/@arizeai/openinference-core/src/utils/index.ts</code></li>
   </ul>
 </section>

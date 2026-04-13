@@ -315,7 +315,11 @@
 - [TypeScript API Reference](https://arize-ai.github.io/phoenix/modules.html): Full auto-generated TypeScript API docs
 - [Phoenix Client (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client): Manage traces, datasets, and prompts via @arizeai/phoenix-client
 - [Phoenix Evals (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals): Run LLM and code evaluators via @arizeai/phoenix-evals
-- [Phoenix OTEL (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel): Configure OpenTelemetry tracing via @arizeai/phoenix-otel
+- [Phoenix OTEL (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel): Register Phoenix tracing and use OpenInference helpers via @arizeai/phoenix-otel
+- [Phoenix OTEL Overview (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview): Configure `register()`, OTLP export, instrumentations, and provider lifecycle in @arizeai/phoenix-otel
+- [Phoenix OTEL Tracing Helpers (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers): Wrap functions and methods with `withSpan`, `traceChain`, `traceAgent`, and `traceTool`
+- [Phoenix OTEL Context Attributes (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes): Propagate session, user, metadata, prompt template, and custom attributes in @arizeai/phoenix-otel
+- [Phoenix OTEL Manual Spans (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans): Build raw spans, OpenInference attributes, and redaction with `OITracer`
 - [OpenInference Core (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core): Semantic conventions and span utilities via @arizeai/openinference-core
 - [MCP Server SDK](https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server): Build MCP servers that expose Phoenix data to AI assistants
 - [Phoenix CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli): Fetch docs, manage traces, and run experiments from the terminal

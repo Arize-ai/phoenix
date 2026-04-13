@@ -1,9 +1,9 @@
 ---
 title: "Overview"
-description: "Bundled docs for @arizeai/phoenix-otel"
+description: "Register OpenTelemetry with Phoenix and use OpenInference helpers from @arizeai/phoenix-otel"
 ---
 
-`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It wraps provider setup, span export, instrumentation registration, and the OpenInference helpers you need for manual tracing.
+`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It handles provider setup, OTLP export, and instrumentation registration, then re-exports the full `@arizeai/openinference-core` helper surface and OpenInference semantic conventions from the same package path.
 
 ## Install
 
@@ -12,17 +12,6 @@ Install the package and any OpenTelemetry instrumentations you want to use with 
 ```bash
 npm install @arizeai/phoenix-otel
 ```
-
-### Tracing Helpers Included
-
-`@arizeai/phoenix-otel` re-exports the `@arizeai/openinference-core` helpers, decorators, and context utilities from the same package path:
-
-- `withSpan`, `traceChain`, `traceAgent`, `traceTool`
-- `observe`
-- `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`
-- attribute builders like `getLLMAttributes`, `getToolAttributes`, and `getRetrieverAttributes`
-
-Phoenix owns the tracer-bound wrappers in this package so they resolve the active global tracer when they run. That matters for experiment-scoped providers created by `runExperiment()` and for any workflow that swaps global tracers during process lifetime.
 
 ### Add Instrumentations
 
@@ -33,12 +22,18 @@ npm install \
   @opentelemetry/instrumentation-express
 ```
 
-### Typical Pairings
+## What This Package Includes
 
-- `@arizeai/phoenix-otel` for Phoenix registration plus manual tracing helpers from one import path
-- `@arizeai/phoenix-otel` plus OpenTelemetry instrumentations for automatic framework tracing
-- `@arizeai/phoenix-otel` plus `@arizeai/phoenix-client` for experiment workflows
-- `@arizeai/phoenix-otel` plus framework-specific OpenInference instrumentors (e.g. `@arizeai/openinference-instrumentation-openai`)
+`@arizeai/phoenix-otel` combines Phoenix registration with OpenInference authoring APIs:
+
+- Phoenix registration: `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()`
+- OpenInference wrappers: `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`
+- decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
+- attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
+- redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
+- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`
+
+The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs, so module-scoped traced helpers continue following global provider changes.
 
 ## Quick Start
 
@@ -58,7 +53,7 @@ await handleQuery("Hello");
 await provider.shutdown();
 ```
 
-The helper wrappers resolve their tracer at call time, so the same wrapped function keeps working when Phoenix experiments attach a per-run global provider.
+If you want raw control over span shape, switch to `withSpan()` or the OpenTelemetry `trace` API. The package docs linked below cover both patterns.
 
 ## Docs And Source In `node_modules`
 
@@ -69,7 +64,12 @@ node_modules/@arizeai/phoenix-otel/docs/
 node_modules/@arizeai/phoenix-otel/src/
 ```
 
-The bundled docs cover configuration, instrumentation, manual spans, and troubleshooting.
+Because `@arizeai/phoenix-otel` re-exports `@arizeai/openinference-core`, the dependency docs are also high-value local references:
+
+```text
+node_modules/@arizeai/openinference-core/docs/
+node_modules/@arizeai/openinference-core/src/
+```
 
 ## Configuration
 
@@ -147,46 +147,46 @@ register({
 });
 ```
 
-- the package also re-exports `registerInstrumentations`
-- auto-instrumentation setups often work best when they are initialized very early in process startup
-- for custom providers, you can pass your own `spanProcessors`
+- `registerInstrumentations()` is also re-exported for manual setups
+- auto-instrumentation works best when initialized very early in process startup
+- ESM projects often need manual library instrumentation rather than loader-based auto-instrumentation
 
 ## Production
 
 ### Enable Batch Processing
 
-Always set `batch: true` (the default) in production. The batch span processor groups spans before export, improving compression and reducing the number of outgoing network requests. Disable batching only during local debugging when you need spans to appear immediately.
+Keep `batch: true` in production. The batch span processor groups spans before export, reducing request volume and export overhead. Disable batching only when you need immediate local feedback.
 
 ```ts
 const provider = register({
   projectName: "support-bot",
   url: "https://app.phoenix.arize.com",
   apiKey: process.env.PHOENIX_API_KEY,
-  batch: true, // default — groups spans for efficient export
+  batch: true,
 });
 ```
 
 ### Provider Lifecycle
 
-In production you must flush and shut down the provider before your process exits, otherwise in-flight batches are lost.
+Flush and shut down the provider before process exit, otherwise in-flight batches can be lost.
 
 ```ts
 process.on("SIGTERM", async () => {
-  await provider.shutdown(); // flushes buffered spans, then tears down
+  await provider.shutdown();
   process.exit(0);
 });
 ```
 
-For short-lived processes (scripts, serverless functions, CLI tools) call `shutdown()` at the end of your work:
+For short-lived processes such as scripts, CLI commands, and serverless handlers:
 
 ```ts
 await doWork();
-await provider.shutdown(); // ensures the final batch is exported
+await provider.shutdown();
 ```
 
 ### Custom Span Processors
 
-If you need full control over export (for example, sending spans to a secondary backend), pass your own `spanProcessors`. This replaces the default Phoenix exporter setup entirely.
+If you need full control over export, pass your own `spanProcessors`. This replaces the default Phoenix exporter setup.
 
 ```ts
 import { register } from "@arizeai/phoenix-otel";
@@ -234,27 +234,26 @@ await provider.shutdown();
 |----------|---------|
 | **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()` |
 | **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `observe()` |
-| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setAttributes()`, `setPromptTemplate()`, `getAttributesFromContext()` |
-| **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()` |
+| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`, `getAttributesFromContext()` |
+| **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
+| **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
 | **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
 | **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()` |
 | **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
-| **Utilities** | `objectAsAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()` |
 
 ## Where To Start
 
 - [Tracing helpers](./tracing-helpers) for wrapping functions with `withSpan`, `traceChain`, `traceAgent`, `traceTool`, and `observe`
-- [Context attributes](./context-attributes) for propagating sessions, users, metadata, and tags to child spans
-- [Manual spans](./manual-spans) for raw OpenTelemetry span creation when you need full control
+- [Context attributes](./context-attributes) for propagating sessions, users, metadata, tags, prompt templates, and manual context propagation
+- [Manual spans](./manual-spans) for raw OpenTelemetry spans, attribute builders, `OITracer`, and utility helpers
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
-    <li><code>src/index.ts</code></li>
-    <li><code>src/openinference.ts</code></li>
-    <li><code>src/register.ts</code></li>
-    <li><code>src/config.ts</code></li>
-    <li><code>src/utils.ts</code></li>
-    <li><code>src/createNoOpProvider.ts</code></li>
+    <li><code>src/index.ts</code> exports the package surface</li>
+    <li><code>src/register.ts</code> implements provider setup and global attachment helpers</li>
+    <li><code>src/config.ts</code> reads Phoenix environment variables</li>
+    <li><code>src/createNoOpProvider.ts</code> provides a no-op provider for detached states</li>
+    <li><code>package.json</code> declares the bundled docs and the <code>@arizeai/openinference-core</code> dependency</li>
   </ul>
 </section>
