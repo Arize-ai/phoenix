@@ -28,6 +28,7 @@ jobs:
     env:
       PYTHON_VERSION: "3.12"
       UV_VERSION: "0.10.9"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PHOENIX_HOST: "127.0.0.1"
       PHOENIX_PORT: "6606"
     steps:
@@ -55,13 +56,18 @@ jobs:
             uv pip install --python .pypi-smoke/bin/python arize-phoenix
           fi
 
-          LATEST_VERSION=$(python -m pip index versions arize-phoenix | python - <<'PY'
+          INDEX_OUTPUT=$(python -m pip index versions arize-phoenix 2>&1)
+          LATEST_VERSION=$(INDEX_OUTPUT="${INDEX_OUTPUT}" python - <<'PY'
+          import os
           import re
-          import sys
 
-          match = re.search(r"\(([^)]+)\)", sys.stdin.readline())
+          output = os.environ["INDEX_OUTPUT"]
+          match = re.search(r"arize-phoenix \(([^)]+)\)", output)
           if match is None:
-              raise SystemExit("Could not determine latest version from `pip index versions` output")
+              raise SystemExit(
+                  "Could not determine latest version from `pip index versions` output:\n"
+                  + output
+              )
           print(match.group(1))
           PY
           )
