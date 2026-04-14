@@ -85,6 +85,10 @@ function attachTraceAnnotationsToTraces(
   }
 }
 
+function getResolvedTraceId(spans: Span[]): string | undefined {
+  return spans[0]?.context?.trace_id;
+}
+
 interface TraceGetOptions {
   endpoint?: string;
   project?: string;
@@ -395,6 +399,7 @@ async function traceGetHandler(
     });
 
     const traceSpans: SpanWithAnnotations[] = spans;
+    const resolvedTraceId = getResolvedTraceId(spans);
     let traceAnnotations: TraceAnnotation[] | undefined;
     if (options.includeAnnotations) {
       writeProgress({
@@ -405,7 +410,7 @@ async function traceGetHandler(
       traceAnnotations = await fetchTraceAnnotations({
         client,
         projectIdentifier: projectId,
-        traceIds: [traceId],
+        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
       });
 
       const spanIds = traceSpans

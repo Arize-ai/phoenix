@@ -49,6 +49,18 @@ function trimString(value: string | undefined): string | undefined {
   return trimmedValue.length > 0 ? trimmedValue : undefined;
 }
 
+function parseScore(score: string | number): number {
+  if (typeof score === "number") {
+    return score;
+  }
+  const trimmedScore = score.trim();
+  const numericScore = Number(trimmedScore);
+  if (!trimmedScore || !Number.isFinite(numericScore)) {
+    throw new Error("invalid score");
+  }
+  return numericScore;
+}
+
 function normalizeAnnotatorKind(
   targetType: AnnotationTargetType,
   annotatorKind: string | undefined
@@ -95,14 +107,13 @@ export function normalizeAnnotationInput({
   if (score === undefined) {
     normalizedScore = null;
   } else {
-    const numericScore =
-      typeof score === "number" ? score : Number.parseFloat(score.trim());
-    if (!Number.isFinite(numericScore)) {
+    try {
+      normalizedScore = parseScore(score);
+    } catch {
       throw new InvalidArgumentError(
         `Invalid value for --score: ${String(score)}\n  ${getAnnotateUsage(targetType)}`
       );
     }
-    normalizedScore = numericScore;
   }
 
   const normalizedLabel = trimString(label) ?? null;

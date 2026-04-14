@@ -336,6 +336,35 @@ describe("span annotate", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("fails with INVALID_ARGUMENT when --score contains trailing non-numeric characters", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createSpanCommand().parseAsync(
+        [
+          "annotate",
+          "span-123",
+          "--name",
+          "reviewer",
+          "--score",
+          "0abc",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("fails with INVALID_ARGUMENT when --annotator-kind is invalid", async () => {
     const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
     vi.stubGlobal("fetch", fetchMock);
@@ -606,6 +635,86 @@ describe("trace get", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("uses the resolved full trace ID when fetching trace annotations for a prefix lookup", async () => {
+    const resolvedTraceId = "trace-1234567890abcdef";
+    const traceIdPrefix = "trace-1234";
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: {
+          data: {
+            id: "project-default",
+          },
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [
+            {
+              name: "root",
+              span_kind: "CHAIN",
+              parent_id: null,
+              status_code: "OK",
+              status_message: "",
+              start_time: "2026-01-13T10:00:00.000Z",
+              end_time: "2026-01-13T10:00:01.000Z",
+              attributes: {
+                "input.value": "hello",
+                "output.value": "world",
+              },
+              events: [],
+              context: {
+                trace_id: resolvedTraceId,
+                span_id: "span-123",
+              },
+            },
+          ],
+          next_cursor: null,
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [],
+          next_cursor: null,
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [],
+          next_cursor: null,
+        },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "get",
+        traceIdPrefix,
+        "--project",
+        "default",
+        "--include-annotations",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    const traceAnnotationsUrl = new URL(
+      getFetchUrl(fetchMock.mock.calls[2][0])
+    );
+    expect(traceAnnotationsUrl.searchParams.getAll("trace_ids")).toEqual([
+      resolvedTraceId,
+    ]);
   });
 
   it("includes trace and span annotations in raw output when requested", async () => {
