@@ -89,10 +89,10 @@ def run_judge_on_traces(
 
     async def generate_prediction(row):
         filled_prompt = judge_prompt.format(**row)
-        return await model.async_generate_text(filled_prompt)
+        return await model.async_generate_text(filled_prompt, temperature=0)
 
     executor = AsyncExecutor(generation_fn=generate_prediction, concurrency=10)
-    raw_outputs, _ = asyncio.get_event_loop().run_until_complete(
+    raw_outputs, _ = asyncio.run(
         executor.execute([row.to_dict() for _, row in traces_df.iterrows()])
     )
 

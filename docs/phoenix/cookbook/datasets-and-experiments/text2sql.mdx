@@ -308,7 +308,7 @@ from openai import OpenAI
 
 from phoenix.client.experiments import evaluate_experiment
 from phoenix.client.experiments import create_evaluator
-from phoenix.client.resources.experiments.types import EvaluationResult
+from phoenix.client.resources.experiments.types import ExperimentEvaluation as EvaluationResult
 
 openai_client = OpenAI()
 
@@ -507,5 +507,4 @@ Key takeaways:
 * Track progress with Phoenix's experiments
 
 You can further improve this system by adding better evaluators or handling edge cases.
-
 

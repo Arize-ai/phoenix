@@ -110,10 +110,10 @@ def generate_phoenix_labels(
 
     async def generate_label(row):
         filled_prompt = prompt.format(**row)
-        return await model.async_generate_text(filled_prompt)
+        return await model.async_generate_text(filled_prompt, temperature=0)
 
     executor = AsyncExecutor(generation_fn=generate_label, concurrency=10)
-    raw_outputs, _ = asyncio.get_event_loop().run_until_complete(
+    raw_outputs, _ = asyncio.run(
         executor.execute([row.to_dict() for _, row in sampled_df.iterrows()])
     )
 
