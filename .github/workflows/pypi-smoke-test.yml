@@ -1,6 +1,9 @@
 name: PyPI Smoke Test
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/pypi-smoke-test.yml"
   workflow_dispatch:
   schedule:
     - cron: "0 13 * * *"
