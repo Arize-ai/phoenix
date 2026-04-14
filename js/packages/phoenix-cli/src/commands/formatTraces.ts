@@ -190,6 +190,7 @@ function renderSpanNode(
   );
 
   const nextAncestors = [...opts.ancestors, opts.isLast];
+  renderSpanAnnotations(lines, span, nextAncestors);
   for (let i = 0; i < children.length; i++) {
     renderSpanNode(lines, children[i]!, {
       ancestors: nextAncestors,
@@ -205,6 +206,62 @@ function formatDurationMs(startTime: string, endTime: string): string {
     return "n/a";
   }
   return `${Math.max(0, endMs - startMs)}ms`;
+}
+
+function renderSpanAnnotations(
+  lines: string[],
+  span: Span,
+  ancestors: boolean[]
+): void {
+  const annotations = span.annotations;
+  if (!annotations?.length) {
+    return;
+  }
+
+  const detailPrefix =
+    "│  " +
+    ancestors
+      .map((ancestorIsLast) => (ancestorIsLast ? "   " : "│  "))
+      .join("");
+
+  lines.push(`${detailPrefix}annotations:`);
+  for (const annotation of annotations) {
+    const parts = [
+      annotation.name,
+      `[${annotation.annotator_kind}]`,
+      ...formatAnnotationResultParts(annotation.result),
+    ];
+    lines.push(`${detailPrefix}- ${parts.join(" ")}`);
+  }
+}
+
+function formatAnnotationResultParts(
+  result:
+    | {
+        label?: string | null;
+        score?: number | null;
+        explanation?: string | null;
+      }
+    | null
+    | undefined
+): string[] {
+  if (!result) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  if (result.label !== undefined && result.label !== null) {
+    parts.push(`label=${JSON.stringify(result.label)}`);
+  }
+  if (result.score !== undefined && result.score !== null) {
+    parts.push(`score=${result.score}`);
+  }
+  if (result.explanation !== undefined && result.explanation !== null) {
+    parts.push(
+      `explanation=${JSON.stringify(truncateValue(result.explanation))}`
+    );
+  }
+  return parts;
 }
 
 function previewAttributeValue(value: unknown): string | undefined {
@@ -232,4 +289,11 @@ function previewAttributeValue(value: unknown): string | undefined {
     return `${str.slice(0, VALUE_PREVIEW_MAX_CHARS)}…`;
   }
   return str;
+}
+
+function truncateValue(value: string): string {
+  if (value.length <= VALUE_PREVIEW_MAX_CHARS) {
+    return value;
+  }
+  return value.slice(0, VALUE_PREVIEW_MAX_CHARS) + "…";
 }

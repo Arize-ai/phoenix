@@ -79,6 +79,38 @@ const mockTraceWithError: Trace = {
   spans: [mockErrorSpan],
 };
 
+const mockTraceWithAnnotations: Trace = {
+  traceId: "annotated123",
+  spans: [
+    {
+      ...mockSpan1,
+      context: {
+        ...mockSpan1.context,
+        trace_id: "annotated123",
+      },
+      annotations: [
+        {
+          id: "annotation-1",
+          created_at: "2026-01-13T10:00:01.000Z",
+          updated_at: "2026-01-13T10:00:01.000Z",
+          source: "API",
+          user_id: null,
+          name: "reviewer",
+          annotator_kind: "HUMAN",
+          identifier: "",
+          metadata: null,
+          span_id: "span1",
+          result: {
+            label: "pass",
+            score: 0.9,
+            explanation: "Looks good",
+          },
+        },
+      ],
+    } as unknown as MockSpan,
+  ],
+};
+
 describe("Output Formatting", () => {
   describe("trace output - raw", () => {
     it("should format as compact JSON", () => {
@@ -148,6 +180,18 @@ describe("Output Formatting", () => {
       });
 
       expect(output).toContain("✗ failed_operation (UNKNOWN) - 100ms");
+    });
+
+    it("should render span annotations when present", () => {
+      const output = formatTraceOutput({
+        trace: mockTraceWithAnnotations,
+        format: "pretty",
+      });
+
+      expect(output).toContain("annotations:");
+      expect(output).toContain(
+        '- reviewer [HUMAN] label="pass" score=0.9 explanation="Looks good"'
+      );
     });
 
     it("should format array of traces", () => {
