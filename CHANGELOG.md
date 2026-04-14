@@ -1,5 +1,26 @@
 # Changelog
 
+## [14.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.4.0...arize-phoenix-v14.5.0) (2026-04-14)
+
+
+### Features
+
+* Add chat metadata to assistant messages ([#12665](https://github.com/Arize-ai/phoenix/issues/12665)) ([a6f0f7f](https://github.com/Arize-ai/phoenix/commit/a6f0f7f7216ca675d9307f2afcfcee07dc537f28))
+* Add span and trace annotation commands to the Phoenix CLI ([#12664](https://github.com/Arize-ai/phoenix/issues/12664)) ([c04a0c3](https://github.com/Arize-ai/phoenix/commit/c04a0c3ea1be246b8b91d40a64912f1879719da4))
+* **agent:** add feedback actions to assistant messages ([#12670](https://github.com/Arize-ai/phoenix/issues/12670)) ([b9af91a](https://github.com/Arize-ai/phoenix/commit/b9af91aeb37ca5648e20f92df6b6417d0b0d3dc6))
+* **agent:** toggle assistant agent on/off from settings ([#12654](https://github.com/Arize-ai/phoenix/issues/12654)) ([4a6b1c7](https://github.com/Arize-ai/phoenix/commit/4a6b1c79eb7f86bd4cce590ec50157c766e4f5cf))
+
+
+### Bug Fixes
+
+* pxi skill yaml malformed ([#12662](https://github.com/Arize-ai/phoenix/issues/12662)) ([fd82f2b](https://github.com/Arize-ai/phoenix/commit/fd82f2b2c753925534a3dfc2416db5f88ee24565))
+
+
+### Documentation
+
+* add ATIF trajectory import docs ([#12631](https://github.com/Arize-ai/phoenix/issues/12631)) ([ef9e6cc](https://github.com/Arize-ai/phoenix/commit/ef9e6cc12dfe54136f2f90b83718f7b98bb2597c))
+* add Python pre-release dependency version policy to AGENTS.md ([#12659](https://github.com/Arize-ai/phoenix/issues/12659)) ([4bdaf93](https://github.com/Arize-ai/phoenix/commit/4bdaf93f8c118ad3e1e10dadfa120f1d3aeb31bd))
+
 ## [14.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.3.1...arize-phoenix-v14.4.0) (2026-04-14)
 
 
