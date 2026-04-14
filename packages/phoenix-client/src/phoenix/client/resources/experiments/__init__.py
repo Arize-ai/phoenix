@@ -1763,7 +1763,7 @@ class Experiments:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
-        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        span_context = span.get_span_context()
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
@@ -1957,7 +1957,7 @@ class Experiments:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
-        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        span_context = span.get_span_context()
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
@@ -3513,7 +3513,7 @@ class AsyncExperiments:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
-        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        span_context = span.get_span_context()
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
@@ -3711,7 +3711,7 @@ class AsyncExperiments:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
-        span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+        span_context = span.get_span_context()
         if span_context is not None and span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 

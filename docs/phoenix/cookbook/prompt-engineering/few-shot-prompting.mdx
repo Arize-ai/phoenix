@@ -161,7 +161,7 @@ from phoenix.client.experiments import run_experiment
 nest_asyncio.apply()
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=zero_shot_prompt,
     evaluators=[evaluate_response],
     experiment_description="Zero-Shot Prompt",
@@ -231,7 +231,7 @@ def one_shot_prompt_template(input):
 
 ```python
 one_shot_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=one_shot_prompt_template,
     evaluators=[evaluate_response],
     experiment_description="One-Shot Prompting",
@@ -302,7 +302,7 @@ def few_shot_prompt_template(input):
 
 ```python
 few_shot_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=few_shot_prompt_template,
     evaluators=[evaluate_response],
     experiment_description="Few Shot Prompting",

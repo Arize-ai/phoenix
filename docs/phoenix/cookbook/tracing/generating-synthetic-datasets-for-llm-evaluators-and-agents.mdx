@@ -125,7 +125,7 @@ def evaluate_response(output, reference):
 from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
-    df,
+    dataset=df,
     task=task_function,
     evaluators=[evaluate_response],
     experiment_name="evaluator performance"
@@ -248,7 +248,7 @@ from phoenix.client.experiments import run_experiment
 
 
 initial_experiment = run_experiment(
-    df, task=task_function, evaluators=[evaluate_response], experiment_name="evaluator performance"
+    dataset=df, task=task_function, evaluators=[evaluate_response], experiment_name="evaluator performance"
 )
 ```
 

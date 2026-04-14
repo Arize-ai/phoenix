@@ -43,7 +43,7 @@ judge_cheap = ClassificationEvaluator(
 ```python
 # BAD
 for model in ["gpt-4o", "claude-3", "gemini-pro"]:
-    results = run_experiment(dataset, task, model)
+    results = run_experiment(dataset=dataset, task=task, evaluators=model)
 
 # GOOD
 failures = analyze_errors(results)

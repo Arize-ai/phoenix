@@ -80,8 +80,6 @@ relevance = ClassificationEvaluator(
 
 ## Pre-Built
 
-`MatchesRegex` is available from `phoenix.evals.metrics`. `ContainsAnyKeyword` and `JSONParseable` have been removed — implement them with `@create_evaluator`:
-
 ```python
 from phoenix.client.experiments import create_evaluator
 from phoenix.evals.metrics import MatchesRegex
@@ -98,6 +96,7 @@ def contains_any_keyword(output, expected):
 @create_evaluator(name="json_parseable", kind="code")
 def json_parseable(output):
     import json
+
     try:
         json.loads(output)
         return True

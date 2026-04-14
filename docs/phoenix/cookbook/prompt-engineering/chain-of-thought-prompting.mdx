@@ -146,7 +146,7 @@ def evaluate_response(output, expected):
 
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=zero_shot_prompt,
     evaluators=[evaluate_response],
     experiment_description="Zero-Shot Prompt",
@@ -227,7 +227,7 @@ def evaluate_response(output, expected):
 
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=zero_shot_COT_prompt,
     evaluators=[evaluate_response],
     experiment_description="Zero-Shot COT Prompt",
@@ -303,7 +303,7 @@ def evaluate_response(output, expected):
 
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=self_consistency_COT_prompt,
     evaluators=[evaluate_response],
     experiment_description="Self Consistency COT Prompt",
@@ -397,7 +397,7 @@ from phoenix.client.experiments import run_experiment
 nest_asyncio.apply()
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=few_shot_COT_prompt,
     evaluators=[evaluate_response],
     experiment_description="Few-Shot COT Prompt",

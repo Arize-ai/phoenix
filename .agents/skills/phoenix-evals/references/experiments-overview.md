@@ -40,7 +40,7 @@ print(experiment.aggregate_scores)
 Test setup before full execution:
 
 ```python
-experiment = run_experiment(dataset, task, evaluators, dry_run=3)  # Just 3 examples
+experiment = run_experiment(dataset=dataset, task=task, evaluators=evaluators, dry_run=3)  # Just 3 examples
 ```
 
 ## Best Practices

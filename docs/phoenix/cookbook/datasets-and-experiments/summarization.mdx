@@ -222,8 +222,8 @@ Run your first experiment and follow the link in the cell output to inspect the 
 from phoenix.client.experiments import run_experiment
 
 experiment_results = run_experiment(
-    dataset,
-    task,
+    dataset=dataset,
+    task=task,
     experiment_name="initial-template",
     experiment_description="first experiment using a simple prompt template",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -246,8 +246,8 @@ SUMMARY
 """
 task = partial(summarize_article_openai, prompt_template=template, model=gpt_4o)
 experiment_results = run_experiment(
-    dataset,
-    task,
+    dataset=dataset,
+    task=task,
     experiment_name="concise-template",
     experiment_description="explicitly instuct the llm to be concise",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -317,8 +317,8 @@ Now run the experiment.
 ```python
 task = partial(summarize_article_openai, prompt_template=template, model=gpt_4o)
 experiment_results = run_experiment(
-    dataset,
-    task,
+    dataset=dataset,
+    task=task,
     experiment_name="few-shot-template",
     experiment_description="include examples",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -368,8 +368,8 @@ claude_35_sonnet = "claude-3-5-sonnet-20240620"
 task = partial(summarize_article_anthropic, prompt_template=template, model=claude_35_sonnet)
 
 experiment_results = run_experiment(
-    dataset,
-    task,
+    dataset=dataset,
+    task=task,
     experiment_name="anthropic-few-shot",
     experiment_description="anthropic",
     experiment_metadata={"vendor": "anthropic", "model": claude_35_sonnet},

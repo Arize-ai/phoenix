@@ -23,7 +23,7 @@ ci_evaluators = [
 ]
 
 # Small but representative dataset (~100 examples)
-run_experiment(ci_dataset, task, ci_evaluators)
+run_experiment(dataset=ci_dataset, task=task, evaluators=ci_evaluators)
 ```
 
 Set thresholds: regression=0.95, safety=1.0, format=0.98.

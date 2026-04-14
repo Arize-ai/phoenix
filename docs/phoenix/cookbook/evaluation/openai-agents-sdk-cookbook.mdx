@@ -229,7 +229,7 @@ print(dataset)
 from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=solve_math_problem,
     evaluators=[correctness_eval],
     experiment_description="Solve Math Problems",
@@ -370,7 +370,7 @@ Finally, we run an experiment to simulate traces in production.
 from phoenix.client.experiments import run_experiment
 
 initial_experiment = run_experiment(
-    dataset,
+    dataset=dataset,
     task=solve_math_problem,
     experiment_description="Solve Math Problems",
     experiment_name=f"solve-math-questions-{str(uuid.uuid4())[:5]}",

@@ -262,13 +262,14 @@ Use pre-built evaluators to grade task output with code...
   <Tab title="Python" icon="python">
 
     ```python
-    from phoenix.client.experiments import create_evaluator
-
+    from phoenix.evals import create_evaluator
 
     @create_evaluator(name="contains_keyword", kind="code")
-    def contains_keyword(output, expected):
+    def contains_keyword(output):
         keywords = ["Y Combinator", "YC"]
-        return any(kw.lower() in str(output).lower() for kw in keywords)
+        output_lower = str(output).lower()
+        contains = any(kw.lower() in output_lower for kw in keywords)
+        return contains
     ```
 
   </Tab>

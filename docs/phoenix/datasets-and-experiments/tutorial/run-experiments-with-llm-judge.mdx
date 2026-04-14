@@ -58,7 +58,7 @@ We create an LLM as a Judge evaluator that assesses whether the agent's response
 ```python Python
 # Define LLM Judge Evaluator checking for Actionable Responses
 from phoenix.evals import create_classifier, LLM
-from phoenix.client.resources.experiments.types import ExperimentEvaluation as EvaluationResult
+from phoenix.client.resources.experiments.types import EvaluationResult
 
 # Define Prompt Template
 support_response_actionability_judge = """
@@ -201,3 +201,4 @@ Now that you know how to run experiments with LLM as a Judge evaluators, you can
 
 <Card title="Run Experiments with Code Evals" icon="check-circle" href="/docs/phoenix/datasets-and-experiments/tutorial/run-experiments-with-code-evals" description="Code-eval experiments"/>
 <Card title="Iterating with Experiments in Your Workflow" icon="refresh" href="/docs/phoenix/datasets-and-experiments/tutorial/iteration-workflow-experiments" description="Iteration workflow overview"/>
+

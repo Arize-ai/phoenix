@@ -5,6 +5,7 @@ This script uses Phoenix evals with GPT-4o to create ground truth labels
 for whether Recipe Bot responses properly adhere to dietary restrictions.
 """
 
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict
@@ -13,8 +14,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
-from phoenix.evals import LLM
-from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals import OpenAIModel, llm_generate
 
 load_dotenv()
 
@@ -103,23 +103,14 @@ def generate_phoenix_labels(
 
     print(f"Labeling {len(sampled_df)} traces with Phoenix evals...")
 
-    # Run the evaluation using LLM + AsyncExecutor
-    import asyncio
-
-    model = LLM(provider="openai", model="gpt-4o")
-
-    async def generate_label(row):
-        filled_prompt = prompt.format(**row)
-        return await model.async_generate_text(filled_prompt, temperature=0)
-
-    executor = AsyncExecutor(generation_fn=generate_label, concurrency=10)
-    raw_outputs, _ = asyncio.run(
-        executor.execute([row.to_dict() for _, row in sampled_df.iterrows()])
+    # Run the evaluation using Phoenix
+    test_results = llm_generate(
+        dataframe=sampled_df,
+        template=prompt,
+        model=OpenAIModel(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
+        output_parser=output_parser,
+        include_prompt=True,
     )
-
-    # Parse outputs
-    parsed = [output_parser(str(o) if o else "", i) for i, o in enumerate(raw_outputs)]
-    test_results = pd.DataFrame(parsed)
 
     test_results = pd.merge(test_results, sampled_df, left_index=True, right_index=True)
 
