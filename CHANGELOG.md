@@ -1,5 +1,17 @@
 # Changelog
 
+## [14.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.3.1...arize-phoenix-v14.4.0) (2026-04-14)
+
+
+### Features
+
+* **agent:** Capability menu + Refactor PXI frontend tool wiring around a capability registry ([#12590](https://github.com/Arize-ai/phoenix/issues/12590)) ([0518f16](https://github.com/Arize-ai/phoenix/commit/0518f1632dacd6df7e74e914a3bfdd4047a2f8a1))
+
+
+### Bug Fixes
+
+* remove pin on graphql-core ([#12657](https://github.com/Arize-ai/phoenix/issues/12657)) ([21b4c27](https://github.com/Arize-ai/phoenix/commit/21b4c27c4de6755c4f72a7841a475403afad4517))
+
 ## [14.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.3.0...arize-phoenix-v14.3.1) (2026-04-14)
 
 
