@@ -2,6 +2,7 @@ import type { componentsV1 } from "@arizeai/phoenix-client";
 
 export type Span = componentsV1["schemas"]["Span"];
 export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
+export type TraceAnnotation = componentsV1["schemas"]["TraceAnnotation"];
 export type SpanWithAnnotations = Span & { annotations?: SpanAnnotation[] };
 
 /**
@@ -9,6 +10,7 @@ export type SpanWithAnnotations = Span & { annotations?: SpanAnnotation[] };
  */
 export interface Trace {
   traceId: string;
+  annotations?: TraceAnnotation[];
   spans: SpanWithAnnotations[];
   rootSpan?: SpanWithAnnotations;
   startTime?: string;

@@ -81,6 +81,24 @@ const mockTraceWithError: Trace = {
 
 const mockTraceWithAnnotations: Trace = {
   traceId: "annotated123",
+  annotations: [
+    {
+      id: "trace-annotation-1",
+      created_at: "2026-01-13T10:00:00.500Z",
+      updated_at: "2026-01-13T10:00:00.500Z",
+      source: "API",
+      user_id: null,
+      name: "trace-reviewer",
+      annotator_kind: "LLM",
+      identifier: "",
+      metadata: null,
+      trace_id: "annotated123",
+      result: {
+        label: "pass",
+        explanation: "Top level trace annotation",
+      },
+    },
+  ],
   spans: [
     {
       ...mockSpan1,
@@ -188,6 +206,10 @@ describe("Output Formatting", () => {
         format: "pretty",
       });
 
+      expect(output).toContain("Trace Annotations:");
+      expect(output).toContain(
+        '- trace-reviewer [LLM] label="pass" explanation="Top level trace annotation"'
+      );
       expect(output).toContain("annotations:");
       expect(output).toContain(
         '- reviewer [HUMAN] label="pass" score=0.9 explanation="Looks good"'

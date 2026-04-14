@@ -89,6 +89,7 @@ function formatTracePretty(trace: Trace): string {
     if (inputPreview || outputPreview) lines.push(`│`);
   }
 
+  renderTraceAnnotations(lines, trace);
   lines.push(`│  Spans:`);
 
   for (let i = 0; i < forest.length; i++) {
@@ -100,6 +101,24 @@ function formatTracePretty(trace: Trace): string {
 
   lines.push(`└─`);
   return lines.join("\n");
+}
+
+function renderTraceAnnotations(lines: string[], trace: Trace): void {
+  const annotations = trace.annotations;
+  if (!annotations?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Annotations:");
+  for (const annotation of annotations) {
+    const parts = [
+      annotation.name,
+      `[${annotation.annotator_kind}]`,
+      ...formatAnnotationResultParts(annotation.result),
+    ];
+    lines.push(`│  - ${parts.join(" ")}`);
+  }
+  lines.push("│");
 }
 
 type Span = Trace["spans"][number];

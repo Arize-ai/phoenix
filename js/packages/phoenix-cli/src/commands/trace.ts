@@ -12,7 +12,12 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
+import {
+  buildTrace,
+  groupSpansByTrace,
+  type SpanWithAnnotations,
+  type Trace,
+} from "../trace";
 import {
   buildAnnotationMutationResult,
   getAnnotationMutationHelpText,
@@ -29,8 +34,56 @@ import {
   type OutputFormat as TraceOutputFormat,
 } from "./formatTraces";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
+import {
+  fetchTraceAnnotations,
+  type TraceAnnotation,
+} from "./traceAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
+
+function attachSpanAnnotationsToSpans(
+  spans: SpanWithAnnotations[],
+  annotations: SpanAnnotation[]
+): void {
+  const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
+  for (const annotation of annotations) {
+    const spanId = annotation.span_id;
+    if (!annotationsBySpanId.has(spanId)) {
+      annotationsBySpanId.set(spanId, []);
+    }
+    annotationsBySpanId.get(spanId)!.push(annotation);
+  }
+
+  for (const span of spans) {
+    const spanId = span.context?.span_id;
+    if (!spanId) continue;
+    const spanAnnotations = annotationsBySpanId.get(spanId);
+    if (spanAnnotations) {
+      span.annotations = spanAnnotations;
+    }
+  }
+}
+
+function attachTraceAnnotationsToTraces(
+  traces: Trace[],
+  annotations: TraceAnnotation[]
+): void {
+  const annotationsByTraceId = new Map<string, TraceAnnotation[]>();
+  for (const annotation of annotations) {
+    const traceId = annotation.trace_id;
+    if (!annotationsByTraceId.has(traceId)) {
+      annotationsByTraceId.set(traceId, []);
+    }
+    annotationsByTraceId.get(traceId)!.push(annotation);
+  }
+
+  for (const trace of traces) {
+    const traceAnnotations = annotationsByTraceId.get(trace.traceId);
+    if (traceAnnotations) {
+      trace.annotations = traceAnnotations;
+    }
+  }
+}
 
 interface TraceGetOptions {
   endpoint?: string;
@@ -341,39 +394,36 @@ async function traceGetHandler(
       noProgress: !options.progress,
     });
 
+    const traceSpans: SpanWithAnnotations[] = spans;
+    let traceAnnotations: TraceAnnotation[] | undefined;
     if (options.includeAnnotations) {
-      const spanIds = spans
+      writeProgress({
+        message: "Fetching trace and span annotations...",
+        noProgress: !options.progress,
+      });
+
+      traceAnnotations = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: [traceId],
+      });
+
+      const spanIds = traceSpans
         .map((span) => span.context?.span_id)
         .filter((spanId): spanId is string => Boolean(spanId));
-      const annotations = await fetchSpanAnnotations({
+      const spanAnnotations = await fetchSpanAnnotations({
         client,
         projectIdentifier: projectId,
         spanIds,
       });
-
-      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
-      for (const annotation of annotations) {
-        const spanId = annotation.span_id;
-        if (!annotationsBySpanId.has(spanId)) {
-          annotationsBySpanId.set(spanId, []);
-        }
-        annotationsBySpanId.get(spanId)!.push(annotation);
-      }
-
-      for (const span of spans) {
-        const spanId = span.context?.span_id;
-        if (!spanId) continue;
-        const spanAnnotations = annotationsBySpanId.get(spanId);
-        if (spanAnnotations) {
-          (
-            span as typeof span & { annotations?: SpanAnnotation[] }
-          ).annotations = spanAnnotations;
-        }
-      }
+      attachSpanAnnotationsToSpans(traceSpans, spanAnnotations);
     }
 
     // Build trace
-    const trace = buildTrace({ spans });
+    const trace = buildTrace({ spans: traceSpans });
+    if (traceAnnotations?.length) {
+      trace.annotations = traceAnnotations;
+    }
 
     // Output trace
     const outputFormat: TraceOutputFormat = options.file
@@ -478,42 +528,31 @@ async function traceListHandler(
 
     if (options.includeAnnotations) {
       writeProgress({
-        message: "Fetching span annotations...",
+        message: "Fetching trace and span annotations...",
         noProgress: !options.progress,
       });
+
+      const traceAnnotations = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: traces.map((trace) => trace.traceId),
+        maxConcurrent: options.maxConcurrent,
+      });
+      attachTraceAnnotationsToTraces(traces, traceAnnotations);
 
       const spanIds = traces
         .flatMap((trace) => trace.spans)
         .map((span) => span.context?.span_id)
         .filter((spanId): spanId is string => Boolean(spanId));
 
-      const annotations = await fetchSpanAnnotations({
+      const spanAnnotations = await fetchSpanAnnotations({
         client,
         projectIdentifier: projectId,
         spanIds,
         maxConcurrent: options.maxConcurrent,
       });
-
-      const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
-      for (const annotation of annotations) {
-        const spanId = annotation.span_id;
-        if (!annotationsBySpanId.has(spanId)) {
-          annotationsBySpanId.set(spanId, []);
-        }
-        annotationsBySpanId.get(spanId)!.push(annotation);
-      }
-
       for (const trace of traces) {
-        for (const span of trace.spans) {
-          const spanId = span.context?.span_id;
-          if (!spanId) continue;
-          const spanAnnotations = annotationsBySpanId.get(spanId);
-          if (spanAnnotations) {
-            (
-              span as typeof span & { annotations?: SpanAnnotation[] }
-            ).annotations = spanAnnotations;
-          }
-        }
+        attachSpanAnnotationsToSpans(trace.spans, spanAnnotations);
       }
     }
 
@@ -566,7 +605,7 @@ export function createTraceGetCommand(): Command {
     .option("--file <path>", "Save trace to file instead of stdout")
     .option(
       "--include-annotations",
-      "Include span annotations in the trace export"
+      "Include trace and span annotations in the trace export"
     )
     .action(traceGetHandler);
 }
@@ -604,7 +643,7 @@ export function createTraceListCommand(): Command {
     )
     .option(
       "--include-annotations",
-      "Include span annotations in the trace export"
+      "Include trace and span annotations in the trace export"
     )
     .action(traceListHandler);
 }

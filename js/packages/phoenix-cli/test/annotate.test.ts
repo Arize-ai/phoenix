@@ -601,3 +601,139 @@ describe("trace annotate", () => {
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("500"));
   });
 });
+
+describe("trace get", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("includes trace and span annotations in raw output when requested", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: {
+          data: {
+            id: "project-default",
+          },
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [
+            {
+              name: "root",
+              span_kind: "CHAIN",
+              parent_id: null,
+              status_code: "OK",
+              status_message: "",
+              start_time: "2026-01-13T10:00:00.000Z",
+              end_time: "2026-01-13T10:00:01.000Z",
+              attributes: {
+                "input.value": "hello",
+                "output.value": "world",
+              },
+              events: [],
+              context: {
+                trace_id: "trace-123",
+                span_id: "span-123",
+              },
+            },
+          ],
+          next_cursor: null,
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [
+            {
+              id: "trace-annotation-1",
+              created_at: "2026-01-13T10:00:00.500Z",
+              updated_at: "2026-01-13T10:00:00.500Z",
+              source: "API",
+              user_id: null,
+              name: "reviewer",
+              annotator_kind: "HUMAN",
+              result: {
+                label: "pass",
+              },
+              metadata: null,
+              identifier: "",
+              trace_id: "trace-123",
+            },
+          ],
+          next_cursor: null,
+        },
+      },
+      {
+        ok: true,
+        body: {
+          data: [
+            {
+              id: "span-annotation-1",
+              created_at: "2026-01-13T10:00:00.750Z",
+              updated_at: "2026-01-13T10:00:00.750Z",
+              source: "API",
+              user_id: null,
+              name: "accuracy",
+              annotator_kind: "CODE",
+              result: {
+                score: 0.9,
+              },
+              metadata: null,
+              identifier: "",
+              span_id: "span-123",
+            },
+          ],
+          next_cursor: null,
+        },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "get",
+        "trace-123",
+        "--project",
+        "default",
+        "--include-annotations",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
+      "/v1/projects/project-default/trace_annotations"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
+      "/v1/projects/project-default/span_annotations"
+    );
+
+    const output = stdoutSpy.mock.calls[0]?.[0];
+    expect(output).toBeTruthy();
+
+    const parsedOutput = JSON.parse(String(output));
+    expect(parsedOutput.annotations).toEqual([
+      expect.objectContaining({
+        id: "trace-annotation-1",
+        name: "reviewer",
+        trace_id: "trace-123",
+      }),
+    ]);
+    expect(parsedOutput.spans[0].annotations).toEqual([
+      expect.objectContaining({
+        id: "span-annotation-1",
+        name: "accuracy",
+        span_id: "span-123",
+      }),
+    ]);
+  });
+});
