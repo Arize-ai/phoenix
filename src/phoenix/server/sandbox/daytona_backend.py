@@ -52,7 +52,7 @@ class DaytonaSandboxBackend(SandboxBackend):
         install_code = (
             f"import subprocess, sys\n"
             f"r = subprocess.run(\n"
-            f"    [sys.executable, '-m', 'pip', 'install', {self._packages!r}],\n"
+            f"    [sys.executable, '-m', 'pip', 'install', *{self._packages!r}],\n"
             f"    capture_output=True, text=True\n"
             f")\n"
             f"if r.returncode != 0:\n"
