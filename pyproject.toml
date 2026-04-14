@@ -34,7 +34,6 @@ dependencies = [
   "uvicorn",
   "psutil",
   "strawberry-graphql==0.314.3",
-  "graphql-core>=3.3.0a0,<3.4",  # incremental execution currently requires the graphql-core 3.3 prerelease line
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",

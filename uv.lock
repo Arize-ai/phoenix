@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-10T21:42:25.920507Z"
+exclude-newer = "2026-04-11T14:35:26.33229Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -432,7 +432,6 @@ dependencies = [
     { name = "cachetools" },
     { name = "email-validator" },
     { name = "fastapi" },
-    { name = "graphql-core" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx" },
@@ -616,7 +615,6 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.135.2" },
     { name = "google-genai", marker = "python_full_version >= '3.10' and extra == 'container'", specifier = ">=1.50.0" },
     { name = "google-genai", marker = "python_full_version < '3.10' and extra == 'container'" },
-    { name = "graphql-core", specifier = ">=3.3.0a0,<3.4" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
     { name = "httpx" },
