@@ -55,12 +55,14 @@ jobs:
             uv pip install --python .pypi-smoke/bin/python arize-phoenix
           fi
 
-          LATEST_VERSION=$(python -m pip index versions arize-phoenix --json | python - <<'PY'
-          import json
+          LATEST_VERSION=$(python -m pip index versions arize-phoenix | python - <<'PY'
+          import re
           import sys
 
-          data = json.load(sys.stdin)
-          print(data["versions"][0])
+          match = re.search(r"\(([^)]+)\)", sys.stdin.readline())
+          if match is None:
+              raise SystemExit("Could not determine latest version from `pip index versions` output")
+          print(match.group(1))
           PY
           )
 
