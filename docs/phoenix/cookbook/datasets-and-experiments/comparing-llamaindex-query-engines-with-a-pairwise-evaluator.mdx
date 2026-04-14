@@ -48,7 +48,7 @@ async def task(input):
 Conduct a dry-run experiment on 3 randomly selected examples.
 
 ```python
-experiment = run_experiment(dataset=dataset, task=task, dry_run=3)
+experiment = px_client.experiments.run_experiment(dataset=dataset, task=task, dry_run=3)
 ```
 
 ## Define Evaluators For Each Experiment Run

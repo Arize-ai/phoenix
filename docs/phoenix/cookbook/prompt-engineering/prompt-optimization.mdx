@@ -145,11 +145,9 @@ Now you can run the initial experiment. This will be the base prompt that you'll
 ```python
 import nest_asyncio
 
-from phoenix.client.experiments import run_experiment
-
 nest_asyncio.apply()
 
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_prompt,
     evaluators=[evaluate_response],
@@ -226,7 +224,7 @@ def test_prompt(input):
 Now you can run another experiment with the new prompt. The dataset of test cases and the evaluator will be the same as the previous experiment.
 
 ```python
-few_shot_experiment = run_experiment(
+few_shot_experiment = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_prompt,
     evaluators=[evaluate_response],
@@ -335,7 +333,7 @@ def test_prompt(input):
 ```
 
 ```python
-meta_prompting_experiment = run_experiment(
+meta_prompting_experiment = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_prompt,
     evaluators=[evaluate_response],
@@ -470,7 +468,7 @@ def test_gradient_prompt(input):
 ```
 
 ```python
-gradient_experiment = run_experiment(
+gradient_experiment = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_gradient_prompt,
     evaluators=[evaluate_response],
@@ -581,7 +579,7 @@ def test_dspy_prompt(input):
 
 ```python
 # Run experiment with DSPy-optimized classifier
-dspy_experiment = run_experiment(
+dspy_experiment = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_dspy_prompt,
     evaluators=[evaluate_response],
@@ -620,7 +618,7 @@ def test_dspy_prompt(input):
 
 ```python
 # Run experiment with DSPy-optimized classifier
-dspy_experiment_using_gpt_4o = run_experiment(
+dspy_experiment_using_gpt_4o = px_client.experiments.run_experiment(
     dataset=dataset,
     task=test_dspy_prompt,
     evaluators=[evaluate_response],
