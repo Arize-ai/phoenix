@@ -2,6 +2,7 @@ export { AgentSettingsForm } from "./AgentSettingsForm";
 export type { AgentSettingsFormValues } from "./AgentSettingsForm";
 export { AgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
+export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { Chat } from "./Chat";
 export { AssistantMessage, UserMessage } from "./ChatMessage";
 export {

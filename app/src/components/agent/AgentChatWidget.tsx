@@ -3,10 +3,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
 import { PxiGlyph } from "./PxiGlyph";
+import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 const shimmer = keyframes`
   0%, 100% { background-position: 200% center; }
@@ -63,7 +63,7 @@ const shimmerCSS = css`
 `;
 
 export function AgentChatWidget() {
-  const isAgentsEnabled = useFeatureFlag("agents");
+  const isAssistantAgentEnabled = useAssistantAgentEnabled();
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
@@ -76,7 +76,7 @@ export function AgentChatWidget() {
 
   // Use contextual entrypoints inside modals (e.g. trace slideover header)
   // instead of letting the global FAB compete with overlay hit-testing.
-  if (!isAgentsEnabled || isOpen || hasOpenModal) {
+  if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
     return null;
   }
 
