@@ -3,7 +3,7 @@ import type { ChatStatus } from "ai";
 import type { PropsWithChildren } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import type { PxiUIMessage } from "@phoenix/agent/chat/messageMetadata";
+import type { AssistantUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 type AgentChatRuntime = {
@@ -23,8 +23,8 @@ type AgentChatRuntime = {
   }: {
     sessionId: string;
     chatApiUrl: string;
-    createChat: () => Chat<PxiUIMessage>;
-  }) => Chat<PxiUIMessage>;
+    createChat: () => Chat<AssistantUIMessage>;
+  }) => Chat<AssistantUIMessage>;
   /**
    * Reconciles the runtime registry against current app state, reclaiming chats
    * that no longer need to remain imperative singletons.
@@ -92,7 +92,11 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
   const [runtime] = useState<AgentChatRuntime>(() => {
     const chatRegistry = new Map<
       string,
-      { chatApiUrl: string; chat: Chat<PxiUIMessage>; unsubscribe: () => void }
+      {
+        chatApiUrl: string;
+        chat: Chat<AssistantUIMessage>;
+        unsubscribe: () => void;
+      }
     >();
 
     return {

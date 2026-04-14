@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import { isTextUIPart } from "ai";
 import { useMemo } from "react";
 
-import type { PxiUIMessage } from "@phoenix/agent/chat/messageMetadata";
+import type { AssistantUIMessage } from "@phoenix/agent/chat/types";
 import { Message, MessageContent } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
@@ -21,7 +21,7 @@ const assistantMessageCSS = css`
 // ---------------------------------------------------------------------------
 
 /** Renders a user message bubble (right-aligned, primary colour). */
-export function UserMessage({ parts }: { parts: PxiUIMessage["parts"] }) {
+export function UserMessage({ parts }: { parts: AssistantUIMessage["parts"] }) {
   const text = parts
     .filter(isTextUIPart)
     .map((p) => p.text)
@@ -40,7 +40,11 @@ export function UserMessage({ parts }: { parts: PxiUIMessage["parts"] }) {
  * {@link ToolPartGroup} pool; shorter runs render individually as
  * {@link ToolPart} details.
  */
-export function AssistantMessage({ parts }: { parts: PxiUIMessage["parts"] }) {
+export function AssistantMessage({
+  parts,
+}: {
+  parts: AssistantUIMessage["parts"];
+}) {
   const grouped = useMemo(() => groupMessageParts(parts), [parts]);
 
   return (

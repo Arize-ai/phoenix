@@ -3,7 +3,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { PxiUIMessage } from "@phoenix/agent/chat/messageMetadata";
+import type { AssistantUIMessage } from "@phoenix/agent/chat/types";
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import {
   createDefaultAgentCapabilities,
@@ -41,7 +41,7 @@ export type AgentSession = {
   /** Brief human-readable summary of the conversation so far. */
   shortSummary: string;
   /** Messages in AI SDK UIMessage format. */
-  messages: PxiUIMessage[];
+  messages: AssistantUIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
@@ -109,7 +109,10 @@ export interface AgentState extends AgentProps {
   ) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
-  setSessionMessages: (sessionId: string, messages: PxiUIMessage[]) => void;
+  setSessionMessages: (
+    sessionId: string,
+    messages: AssistantUIMessage[]
+  ) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setSystemPrompt: (systemPrompt: string) => void;
   clearAllSessions: () => void;

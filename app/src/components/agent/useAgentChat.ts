@@ -8,9 +8,9 @@ import { useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import {
-  pxiMessageMetadataSchema,
-  type PxiUIMessage,
-} from "@phoenix/agent/chat/messageMetadata";
+  assistantMessageMetadataSchema,
+  type AssistantUIMessage,
+} from "@phoenix/agent/chat/types";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import type {
   ElicitToolOutput,
@@ -67,10 +67,10 @@ export function useAgentChat({
             // be recreated without losing visible conversation history.
             const initialMessages =
               store.getState().sessionMap[sessionId]?.messages ?? [];
-            const chat = new Chat<PxiUIMessage>({
+            const chat = new Chat<AssistantUIMessage>({
               id: sessionId,
               messages: initialMessages,
-              messageMetadataSchema: pxiMessageMetadataSchema,
+              messageMetadataSchema: assistantMessageMetadataSchema,
               transport: new DefaultChatTransport({
                 api: chatApiUrl,
                 fetch: authFetch,
@@ -122,7 +122,7 @@ export function useAgentChat({
   // `useChat` subscribes the current React tree to the already-created runtime
   // instance. When `sessionId` is null we intentionally expose an inert chat
   // shape rather than creating a shared fallback runtime through this hook.
-  const chat = useChat<PxiUIMessage>(
+  const chat = useChat<AssistantUIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
   const { messages, sendMessage, status, error, addToolOutput, stop } = chat;
@@ -178,7 +178,7 @@ export function useAgentChat({
     handleElicitationSubmit,
     handleElicitationCancel,
   } as {
-    messages: PxiUIMessage[];
+    messages: AssistantUIMessage[];
     sendMessage: (message: { text: string }) => void;
     stop: () => Promise<void>;
     status: ChatStatus;

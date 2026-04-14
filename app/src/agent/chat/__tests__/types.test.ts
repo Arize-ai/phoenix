@@ -3,9 +3,9 @@ import type { ChatTransport, UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 
 import {
-  pxiMessageMetadataSchema,
-  type PxiUIMessage,
-} from "../messageMetadata";
+  assistantMessageMetadataSchema,
+  type AssistantUIMessage,
+} from "../types";
 
 function createChunkStream(chunks: UIMessageChunk[]) {
   return new ReadableStream<UIMessageChunk>({
@@ -18,9 +18,9 @@ function createChunkStream(chunks: UIMessageChunk[]) {
   });
 }
 
-describe("pxiMessageMetadata", () => {
+describe("assistantMessageMetadata", () => {
   it("attaches streamed trace metadata to the assistant message", async () => {
-    const transport: ChatTransport<PxiUIMessage> = {
+    const transport: ChatTransport<AssistantUIMessage> = {
       sendMessages: async () =>
         createChunkStream([
           {
@@ -33,7 +33,7 @@ describe("pxiMessageMetadata", () => {
           },
           { type: "start-step" },
           { type: "text-start", id: "text-1" },
-          { type: "text-delta", id: "text-1", delta: "Hello from PXI" },
+          { type: "text-delta", id: "text-1", delta: "Hello from the agent" },
           { type: "text-end", id: "text-1" },
           { type: "finish-step" },
           { type: "finish", finishReason: "stop" },
@@ -41,10 +41,10 @@ describe("pxiMessageMetadata", () => {
       reconnectToStream: async () => null,
     };
 
-    const chat = new Chat<PxiUIMessage>({
+    const chat = new Chat<AssistantUIMessage>({
       id: "session-1",
       transport,
-      messageMetadataSchema: pxiMessageMetadataSchema,
+      messageMetadataSchema: assistantMessageMetadataSchema,
     });
 
     await chat.sendMessage({ text: "Hi" });
