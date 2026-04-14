@@ -1,4 +1,4 @@
-import { startTransition, Suspense, useEffect, useRef } from "react";
+import { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
@@ -86,14 +86,8 @@ function EvaluationSummaryValue(props: {
     project
   );
 
-  // Refetch the evaluation summary if the fetchKey changes.
-  // Skip the initial mount — the parent useLazyLoadQuery already fetches fresh data.
-  const hasMounted = useRef<boolean>(false);
+  // Refetch the evaluation summary if the fetchKey changes
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });

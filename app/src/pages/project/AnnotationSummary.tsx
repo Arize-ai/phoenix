@@ -1,4 +1,4 @@
-import React, { startTransition, Suspense, useEffect, useRef } from "react";
+import React, { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -19,7 +19,6 @@ import {
   ChartTooltipItem,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { Skeleton } from "@phoenix/components/core/loading";
 import type {
   ComponentSize,
   SizingProps,
@@ -124,14 +123,8 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  // Refetch the annotation summary if the fetchKey changes.
-  // Skip the initial mount — the parent useLazyLoadQuery already fetches fresh data.
-  const hasMounted = useRef<boolean>(false);
+  // Refetch the annotation summary if the fetchKey changes
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });
@@ -163,16 +156,7 @@ export function Summary({
       <Text elementType="h3" size="S" color="text-700">
         <Truncate maxWidth="120px">{name}</Truncate>
       </Text>
-      <Suspense
-        fallback={
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <Skeleton width={24} height={24} borderRadius="circle" />
-            <Skeleton width={50} height="1.2em" />
-          </Flex>
-        }
-      >
-        {children}
-      </Suspense>
+      <Suspense fallback={<Text size="L">--</Text>}>{children}</Suspense>
     </Flex>
   );
 }

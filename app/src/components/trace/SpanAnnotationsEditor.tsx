@@ -452,7 +452,6 @@ function SpanAnnotationsList(props: {
             project: node(id: $projectId) {
               ... on Project {
                 ...ProjectPageHeader_stats
-                ...ProjectPageHeaderDeferredSummaryNames_project
               }
             }
             node(id: $spanId) {

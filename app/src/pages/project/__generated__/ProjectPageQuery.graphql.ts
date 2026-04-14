@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b113ee885d35aee13287b3853a09133f>>
+ * @generated SignedSource<<426421d9efdba4adea8e636be9b18342>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,6 +46,23 @@ v1 = [
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
+  }
+],
+v2 = {
+  "kind": "Variable",
+  "name": "timeRange",
+  "variableName": "timeRange"
+},
+v3 = [
+  (v2/*: any*/)
+],
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "cost",
+    "storageKey": null
   }
 ];
 return {
@@ -120,15 +137,92 @@ return {
             "selections": [
               {
                 "alias": "timeRangeTraceCount",
-                "args": [
-                  {
-                    "kind": "Variable",
-                    "name": "timeRange",
-                    "variableName": "timeRange"
-                  }
-                ],
+                "args": (v3/*: any*/),
                 "kind": "ScalarField",
                 "name": "traceCount",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "SpanCostSummary",
+                "kind": "LinkedField",
+                "name": "costSummary",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "total",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "prompt",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "CostBreakdown",
+                    "kind": "LinkedField",
+                    "name": "completion",
+                    "plural": false,
+                    "selections": (v4/*: any*/),
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              {
+                "alias": "latencyMsP50",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "probability",
+                    "value": 0.5
+                  },
+                  (v2/*: any*/)
+                ],
+                "kind": "ScalarField",
+                "name": "latencyMsQuantile",
+                "storageKey": null
+              },
+              {
+                "alias": "latencyMsP99",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "probability",
+                    "value": 0.99
+                  },
+                  (v2/*: any*/)
+                ],
+                "kind": "ScalarField",
+                "name": "latencyMsQuantile",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "spanAnnotationNames",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "documentEvaluationNames",
                 "storageKey": null
               },
               {
@@ -148,12 +242,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3a8e11793e64ffe2c9f96a61031f0bd",
+    "cacheID": "a4d5dd7c54e37a658e854f3bce8af11e",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectPageHeader_stats\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectPageHeader_stats\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
