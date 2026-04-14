@@ -171,7 +171,7 @@ export function ChatView({
             message.role === "user" ? (
               <UserMessage key={message.id} parts={message.parts} />
             ) : (
-              <AssistantMessage key={message.id} parts={message.parts} />
+              <AssistantMessage key={message.id} message={message} />
             )
           )}
           {status === "submitted" && <Loading />}
