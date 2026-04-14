@@ -947,6 +947,9 @@ export function PlaygroundDatasetExamplesTable({
   const incrementEvalsCompleted = usePlaygroundContext(
     (state) => state.incrementEvalsCompleted
   );
+  const incrementEvalsFailed = usePlaygroundContext(
+    (state) => state.incrementEvalsFailed
+  );
   const initExperimentRunProgress = usePlaygroundContext(
     (state) => state.initExperimentRunProgress
   );
@@ -1050,7 +1053,11 @@ export function PlaygroundDatasetExamplesTable({
               annotationName: chatCompletion.evaluatorName,
               score: chatCompletion.experimentRunEvaluation?.score ?? null,
             });
-            incrementEvalsCompleted(instanceId);
+            if (chatCompletion.error != null) {
+              incrementEvalsFailed(instanceId);
+            } else {
+              incrementEvalsCompleted(instanceId);
+            }
             break;
           }
           // This should never happen
@@ -1068,6 +1075,7 @@ export function PlaygroundDatasetExamplesTable({
       appendExampleDataToolCallChunk,
       appendExampleDataEvaluationChunk,
       incrementEvalsCompleted,
+      incrementEvalsFailed,
       incrementRunsCompleted,
       incrementRunsFailed,
       playgroundStore,
