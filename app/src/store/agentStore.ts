@@ -3,8 +3,8 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import type { AssistantUIMessage } from "@phoenix/agent/chat/types";
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
+import type { AssistantUIMessage } from "@phoenix/agent/chat/types";
 import {
   createDefaultAgentCapabilities,
   type AgentCapabilities,

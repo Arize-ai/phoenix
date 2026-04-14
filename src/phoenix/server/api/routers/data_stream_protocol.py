@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
 
-    from phoenix.server.api.routers.chat_tracing import StreamAccumulator
+    from phoenix.server.api.routers.chat_tracing import ChatMessageMetadata, StreamAccumulator
     from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
@@ -436,7 +436,7 @@ async def stream_text(
     async def generate() -> AsyncIterator[str]:
         finish_reason: FinishReason = "stop"
         project_id: int | None = None
-        message_metadata: dict[str, str] | None = None
+        message_metadata: ChatMessageMetadata | None = None
 
         # Tracing state — managed across loop iterations.
         tracer: Tracer | None = None

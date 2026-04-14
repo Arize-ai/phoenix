@@ -10,12 +10,12 @@ from phoenix.config import get_env_phoenix_pxi_project_name
 from phoenix.db import models
 from phoenix.server.api.routers.chat_tracing import (
     create_agent_span,
-    get_chat_message_metadata,
     create_llm_span,
     ensure_project_exists,
     finalize_agent_span,
     finalize_llm_span,
     finalize_recent_input_tool_result_spans,
+    get_chat_message_metadata,
     persist_traces,
 )
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -101,7 +101,7 @@ class TestSpanHierarchy:
         agent_span = create_agent_span(tracer, input_messages=messages, session_id="s1")
 
         metadata = get_chat_message_metadata(agent_span, session_id="s1")
-        span_context = agent_span.get_span_context()  # type: ignore[no-untyped-call]
+        span_context = agent_span.get_span_context()
 
         assert metadata == {
             "traceId": format_trace_id(span_context.trace_id),

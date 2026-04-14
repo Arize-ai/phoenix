@@ -7,11 +7,11 @@ import {
 import { useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import {
   assistantMessageMetadataSchema,
   type AssistantUIMessage,
 } from "@phoenix/agent/chat/types";
-import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import type {
   ElicitToolOutput,
   PendingElicitation,
