@@ -26,13 +26,13 @@ LiteLLM reads AWS credentials from the standard environment variables (`AWS_ACCE
 ### Using with evaluators
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import FaithfulnessEvaluator
 
 llm = LLM(provider="litellm", model="bedrock/anthropic.claude-3-sonnet-20240229-v1:0")
 evaluator = FaithfulnessEvaluator(llm=llm)
 
-results_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
+results_df = await async_evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 ```
 
 ### Authentication with assumed roles

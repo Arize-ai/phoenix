@@ -465,7 +465,7 @@ OpenAIInstrumentor().uninstrument()  # Uninstrument the OpenAI client to avoid c
 import nest_asyncio
 
 from phoenix.client import Client
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import ToolSelectionEvaluator
 from phoenix.client.experiments import evaluate_experiment, run_experiment
 from phoenix.client.experiments import create_evaluator
@@ -489,7 +489,7 @@ It follows a standard pattern:
 
 1. Export traces from Phoenix
 2. Prepare those exported traces in a dataframe with the correct columns
-3. Use `evaluate_dataframe` with a `ToolSelectionEvaluator` to classify each row and produce an eval label
+3. Use `async_evaluate_dataframe` with a `ToolSelectionEvaluator` to classify each row and produce an eval label
 4. Upload the results back into Phoenix
 
 ```python expandable
@@ -531,7 +531,7 @@ tool_calls_df["available_tools"] = (
 )
 tool_calls_df["tool_selection"] = tool_calls_df["tool_call"]
 
-tool_call_eval = evaluate_dataframe(
+tool_call_eval = await async_evaluate_dataframe(
     dataframe=tool_calls_df,
     evaluators=[tool_selection_evaluator],
 )
@@ -1229,7 +1229,7 @@ available_tools_str = json.dumps(tools)
 ```
 
 ````python expandable
-from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator
 
 eval_llm = LLM(provider="openai", model="gpt-4o-mini")
 
@@ -1237,22 +1237,17 @@ eval_llm = LLM(provider="openai", model="gpt-4o-mini")
 def function_calling_eval(input: str, output: str) -> float:
     function_calls = output.get("tool_calls")
     if function_calls:
-        eval_df = pd.DataFrame(
-            {"input": [input.get("question")] * len(function_calls), "tool_selection": function_calls}
-        )
-        eval_df["available_tools"] = available_tools_str
-
         from phoenix.evals.metrics import ToolSelectionEvaluator
         tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
-        tool_call_eval = evaluate_dataframe(
-            dataframe=eval_df,
-            evaluators=[tool_selection_evaluator],
-        )
-
-        tool_call_eval["score"] = (
-            tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
-        )
-        return tool_call_eval["score"].mean()
+        scores = []
+        for tool_selection in function_calls:
+            result = tool_selection_evaluator.evaluate(eval_input={
+                "input": input.get("question"),
+                "tool_selection": tool_selection,
+                "available_tools": available_tools_str,
+            })
+            scores.append(1 if result.label == "correct" else 0)
+        return sum(scores) / len(scores)
     else:
         return 0
 
@@ -1301,27 +1296,25 @@ def evaluate_sql_result(output, expected) -> bool:
 
 
 def evaluate_clarity(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
     clarity_evaluator = ClassificationEvaluator(
         name="clarity",
         llm=eval_llm,
         prompt_template=CLARITY_LLM_JUDGE_PROMPT,
         choices={"clear": 1.0, "unclear": 0.0},
     )
-    result = evaluate_dataframe(dataframe=df, evaluators=[clarity_evaluator])
-    return result["clarity_score"].iloc[0]["label"] == "clear"
+    result = clarity_evaluator.evaluate(eval_input={"query": input.get("question"), "response": output.get("final_output")})
+    return result.label == "clear"
 
 
 def evaluate_entity_correctness(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
     entity_evaluator = ClassificationEvaluator(
         name="entity_correctness",
         llm=eval_llm,
         prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
         choices={"correct": 1.0, "incorrect": 0.0},
     )
-    result = evaluate_dataframe(dataframe=df, evaluators=[entity_evaluator])
-    return result["entity_correctness_score"].iloc[0]["label"] == "correct"
+    result = entity_evaluator.evaluate(eval_input={"query": input.get("question"), "response": output.get("final_output")})
+    return result.label == "correct"
 ````
 
 ```python expandable

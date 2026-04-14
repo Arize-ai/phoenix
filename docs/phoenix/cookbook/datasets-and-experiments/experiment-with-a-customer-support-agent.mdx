@@ -202,10 +202,10 @@ The parameters extracted from the question must match the JSON below exactly.
 # See full eval template in the notebook
 ```
 
-Let's run evaluations using Phoenix's `evaluate_dataframe` function for our responses dataframe we generated above!
+Let's run evaluations using Phoenix's `async_evaluate_dataframe` function for our responses dataframe we generated above!
 
 ```python expandable
-from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4o")
 
@@ -230,7 +230,7 @@ parameter_extraction_evaluator = ClassificationEvaluator(
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 
-evals_df = evaluate_dataframe(
+evals_df = await async_evaluate_dataframe(
     dataframe=response_df,
     evaluators=[router_evaluator, function_selection_evaluator, parameter_extraction_evaluator],
 )

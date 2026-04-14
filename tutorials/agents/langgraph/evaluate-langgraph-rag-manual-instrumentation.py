@@ -29,7 +29,7 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-from phoenix.evals import LLM, evaluate_dataframe  # type: ignore[attr-defined]
+from phoenix.evals import LLM, async_evaluate_dataframe  # type: ignore[attr-defined]
 from phoenix.evals.metrics import (  # type: ignore[attr-defined]
     CorrectnessEvaluator,
     DocumentRelevanceEvaluator,
@@ -451,7 +451,7 @@ def create_rag_agent() -> StateGraph:
 
 
 # Phoenix evaluation functions
-def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
+async def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
     """Extract retrieval evaluation data from Phoenix traces"""
 
     print("📋 Extracting retrieval documents from Phoenix traces...")
@@ -473,7 +473,7 @@ def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
         llm = LLM(provider="openai", model="gpt-4o")
         relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-        relevance_results = evaluate_dataframe(
+        relevance_results = await async_evaluate_dataframe(
             dataframe=retrieved_documents_df,
             evaluators=[relevance_evaluator],
         )
@@ -488,7 +488,7 @@ def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
         return {}
 
 
-def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
+async def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
     """Extract Q&A evaluation data from Phoenix traces"""
 
     print("📋 Extracting Q&A data from Phoenix traces...")
@@ -512,7 +512,7 @@ def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
         # FaithfulnessEvaluator: high score = faithful (inverted from HallucinationEvaluator)
         faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
-        all_results = evaluate_dataframe(
+        all_results = await async_evaluate_dataframe(
             dataframe=qa_with_reference_df,
             evaluators=[correctness_evaluator, faithfulness_evaluator],
         )
@@ -536,10 +536,10 @@ async def run_phoenix_evaluations(
     print("\n🔍 Starting Phoenix evaluation pipeline...")
 
     # Extract and evaluate retrieval performance
-    retrieval_results = extract_retrieval_evaluations(phoenix_client)
+    retrieval_results = await extract_retrieval_evaluations(phoenix_client)
 
     # Extract and evaluate Q&A performance
-    qa_results = extract_qa_evaluations(phoenix_client)
+    qa_results = await extract_qa_evaluations(phoenix_client)
 
     return retrieval_results, qa_results
 

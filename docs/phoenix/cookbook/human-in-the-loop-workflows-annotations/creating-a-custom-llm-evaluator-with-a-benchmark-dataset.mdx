@@ -103,7 +103,7 @@ dataset = Client().datasets.create_dataset(
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
-Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `evaluate_dataframe` with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `async_evaluate_dataframe` with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
 
 ```py expandable
 from phoenix.evals.templates import (
