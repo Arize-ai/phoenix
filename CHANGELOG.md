@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.3.0...arize-phoenix-v14.3.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* Harden authFetch and add it to dataset upload path ([#12616](https://github.com/Arize-ai/phoenix/issues/12616)) ([62590d2](https://github.com/Arize-ai/phoenix/commit/62590d25d1d8da90a0db2ed19d1291a8a3462220))
+
 ## [14.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.2.1...arize-phoenix-v14.3.0) (2026-04-14)
 
 
