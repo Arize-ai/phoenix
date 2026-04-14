@@ -63,7 +63,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ChatMessageMetadata(TypedDict):
+class AssistantMessageMetadata(TypedDict):
     traceId: str
     rootSpanId: str
     sessionId: str
@@ -83,11 +83,11 @@ class StreamAccumulator:
         return "".join(self.text_parts)
 
 
-def get_chat_message_metadata(span: Span, *, session_id: str) -> ChatMessageMetadata:
-    """Return AI SDK message metadata for the root AGENT span."""
+def get_assistant_message_metadata(span: Span, *, session_id: str) -> AssistantMessageMetadata:
+    """Return AI SDK message metadata for an assistant message."""
 
     context = span.get_span_context()
-    return ChatMessageMetadata(
+    return AssistantMessageMetadata(
         traceId=format_trace_id(context.trace_id),
         rootSpanId=format_span_id(context.span_id),
         sessionId=session_id,
