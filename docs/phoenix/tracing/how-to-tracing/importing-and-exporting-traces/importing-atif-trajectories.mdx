@@ -3,7 +3,7 @@ title: "Import ATIF Trajectories"
 description: "Upload agent trajectories in ATIF (Agent Trajectory Interchange Format) to Phoenix and visualize them as traces."
 ---
 
-[ATIF (Agent Trajectory Interchange Format)](https://github.com/benediktstroebl/agent-eval/blob/main/ATIF-spec.md) is an open schema for recording agent execution traces. Agent frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://github.com/benediktstroebl/agent-eval), a benchmark harness for evaluating coding agents.
+[ATIF (Agent Trajectory Interchange Format)](https://www.harborframework.com/docs/agents/trajectory-format) is an open schema for recording agent execution traces. Agent frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://www.harborframework.com/docs), a benchmark harness for evaluating coding agents.
 
 The `phoenix-client` package includes a utility that converts ATIF trajectory JSON into OpenTelemetry-compatible span trees and uploads them to Phoenix, so you can visualize and evaluate agent runs using Phoenix's tracing UI.
 
