@@ -20,6 +20,8 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
@@ -37,7 +39,7 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider as SandboxProviderType,
 )
-from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+from phoenix.server.sandbox import _SANDBOX_ADAPTERS, invalidate_backend_cache
 
 _RESERVED_ENV_VAR_PREFIX = "PHOENIX_SANDBOX_"
 
@@ -84,6 +86,38 @@ class DeleteSandboxConfigPayload:
 class UpdateSandboxProviderPayload:
     sandbox_provider: SandboxProviderType
     query: Query
+
+
+@strawberry.type
+class SetSandboxCredentialPayload:
+    backend_type: str
+    key: str
+    query: Query
+
+
+@strawberry.type
+class DeleteSandboxCredentialPayload:
+    backend_type: str
+    key: str
+    query: Query
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _validate_sandbox_credential_key(backend_type: str, key: str) -> None:
+    """Raise BadRequest if backend_type is unknown or key is not in adapter's env_var_specs."""
+    adapter = _SANDBOX_ADAPTERS.get(backend_type)
+    if adapter is None:
+        raise BadRequest(f"Unknown sandbox backend type: {backend_type!r}")
+    valid_keys = {spec.key for spec in adapter.env_var_specs}
+    if key not in valid_keys:
+        raise BadRequest(
+            f"Key {key!r} is not a valid credential for backend {backend_type!r}. "
+            f"Valid keys: {sorted(valid_keys)}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -242,3 +276,52 @@ class SandboxConfigMutationMixin:
             sandbox_provider=to_gql_sandbox_provider(row),
             query=Query(),
         )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
+    async def set_sandbox_credential(
+        self,
+        info: Info[Context, None],
+        backend_type: str,
+        key: str,
+        value: str,
+    ) -> SetSandboxCredentialPayload:
+        """Encrypt and upsert a sandbox provider credential into the secrets table."""
+        _validate_sandbox_credential_key(backend_type, key)
+        value = value.strip()
+        if not value:
+            raise BadRequest("Credential value cannot be empty")
+        encrypted = info.context.encrypt(value.encode("utf-8"))
+        dialect = SupportedSQLDialect(info.context.db.dialect.name)
+        async with info.context.db() as session:
+            await session.execute(
+                insert_on_conflict(
+                    {"key": key, "value": encrypted, "user_id": None},
+                    dialect=dialect,
+                    table=models.Secret,
+                    unique_by=("key",),
+                    constraint_name="pk_secrets",
+                    on_conflict=OnConflict.DO_UPDATE,
+                )
+            )
+        await invalidate_backend_cache(backend_type)
+        return SetSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
+    async def delete_sandbox_credential(
+        self,
+        info: Info[Context, None],
+        backend_type: str,
+        key: str,
+    ) -> DeleteSandboxCredentialPayload:
+        """Delete a sandbox provider credential from the secrets table."""
+        _validate_sandbox_credential_key(backend_type, key)
+        import sqlalchemy as sa
+
+        async with info.context.db() as session:
+            await session.execute(sa.delete(models.Secret).where(models.Secret.key == key))
+        await invalidate_backend_cache(backend_type)
+        return DeleteSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())

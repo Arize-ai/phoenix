@@ -82,6 +82,19 @@ class ConfigFieldSpec:
     choices: Optional[list[str]] = None
 
 
+@dataclass
+class EnvVarSpec:
+    """Describes a provider credential env var required by a sandbox adapter.
+
+    Used by _resolve_sandbox_credentials() for DB secret lookup and by
+    setSandboxCredential/deleteSandboxCredential mutations for key validation.
+    """
+
+    key: str
+    display_name: str
+    description: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Per-adapter pydantic config models.
 # extra="allow" preserves unknown keys (D9 contract).
@@ -311,6 +324,9 @@ class SandboxAdapter(ABC):
 
     #: Specs for config keys accepted by this adapter. Subclasses override at class level.
     config_field_specs: list["ConfigFieldSpec"] = []
+
+    #: Specs for provider credential env vars required by this adapter.
+    env_var_specs: list["EnvVarSpec"] = []
 
     @abstractmethod
     def build_backend(

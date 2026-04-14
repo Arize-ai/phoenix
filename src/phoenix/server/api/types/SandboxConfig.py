@@ -270,11 +270,33 @@ def to_gql_sandbox_provider(row: models.SandboxProvider) -> SandboxProvider:
     return SandboxProvider(id=row.id, db_record=row)
 
 
-async def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
+async def get_sandbox_backend_info(
+    info: Optional[Any] = None,
+) -> list[SandboxBackendInfo]:
     """
     Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
     with runtime status derived from get_or_create_backend().
+
+    Pass the Strawberry `info` object so DB-stored credentials are resolved
+    when checking backend availability. Falls back to env-only resolution if
+    info is None.
     """
+    session = None
+    decrypt = None
+    if info is not None:
+        context = info.context
+        decrypt = context.decrypt
+        # Open a read session for credential lookup during availability check
+        async with context.db.read() as _session:
+            session = _session
+            return await _get_sandbox_backend_info_with_session(session=session, decrypt=decrypt)
+    return await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+
+
+async def _get_sandbox_backend_info_with_session(
+    session: Optional[Any],
+    decrypt: Optional[Any],
+) -> list[SandboxBackendInfo]:
     from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
     infos: list[SandboxBackendInfo] = []
@@ -286,7 +308,7 @@ async def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
             # Adapter registration and backend construction can still over-report
             # availability when runtime prerequisites are only checked later
             # (for example, missing binaries, API keys, or first-use downloads).
-            backend = await get_or_create_backend(backend_type)
+            backend = await get_or_create_backend(backend_type, session=session, decrypt=decrypt)
             status = (
                 SandboxBackendStatus.AVAILABLE
                 if backend is not None

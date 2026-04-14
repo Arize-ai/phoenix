@@ -26,6 +26,7 @@ import logging
 from typing import Any, Optional
 
 from .types import (
+    EnvVarSpec,
     ExecutionResult,
     ModalConfig,
     SandboxAdapter,
@@ -147,6 +148,18 @@ class ModalAdapter(SandboxAdapter):
     display_name = "Modal"
     language = "PYTHON"
     config_model = ModalConfig
+    env_var_specs = [
+        EnvVarSpec(
+            key="MODAL_TOKEN_ID",
+            display_name="Modal Token ID",
+            description="Modal token ID for authentication.",
+        ),
+        EnvVarSpec(
+            key="MODAL_TOKEN_SECRET",
+            display_name="Modal Token Secret",
+            description="Modal token secret for authentication.",
+        ),
+    ]
 
     def build_backend(
         self,

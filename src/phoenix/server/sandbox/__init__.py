@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
 
@@ -26,6 +27,9 @@ from phoenix.server.sandbox.types import (
     EnvVarSecretRef,
     SandboxAdapter,
     SandboxBackend,
+)
+from phoenix.server.sandbox.types import (
+    EnvVarSpec as EnvVarSpec,
 )
 
 if TYPE_CHECKING:
@@ -241,6 +245,19 @@ async def close_all_backends() -> None:
     _BACKEND_CACHE.clear()
 
 
+async def invalidate_backend_cache(backend_type: str) -> None:
+    """Remove all _BACKEND_CACHE entries for backend_type, closing each backend."""
+    evicted = 0
+    for key in [k for k in _BACKEND_CACHE if k[0] == backend_type]:
+        backend = _BACKEND_CACHE.pop(key)
+        try:
+            await backend.close()
+        except Exception:
+            logger.warning(f"Error closing sandbox backend {key!r}", exc_info=True)
+        evicted += 1
+    logger.debug(f"Invalidated {evicted} cache entries for backend_type={backend_type!r}")
+
+
 class MissingSecretError(Exception):
     """Raised when a secret_ref entry references a Secret key that does not exist."""
 
@@ -300,6 +317,48 @@ async def _resolve_user_env(
     return user_env
 
 
+async def _resolve_sandbox_credentials(
+    session: Optional[AsyncSession],
+    decrypt: Optional[Callable[[bytes], bytes]],
+    env_var_specs: list[EnvVarSpec],
+) -> dict[str, str]:
+    """Resolve provider credentials via DB secret lookup + env var fallback.
+
+    For each spec in env_var_specs: query the secrets table first, fall back
+    to os.getenv(). Keys absent from both tiers are omitted from the result.
+    Safe when session or decrypt are None (returns env-only resolution).
+    """
+    if not env_var_specs:
+        return {}
+
+    keys = [spec.key for spec in env_var_specs]
+    db_secrets: dict[str, str] = {}
+
+    if session is not None and decrypt is not None:
+        import sqlalchemy as sa
+
+        from phoenix.db import models
+
+        rows = (
+            await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+        ).all()
+        for row in rows:
+            try:
+                db_secrets[row.key] = decrypt(row.value).decode("utf-8")
+            except Exception:
+                logger.warning(f"Failed to decrypt sandbox credential {row.key!r}", exc_info=True)
+
+    result: dict[str, str] = {}
+    for key in keys:
+        if key in db_secrets:
+            result[key] = db_secrets[key]
+        else:
+            env_val = os.getenv(key)
+            if env_val:
+                result[key] = env_val
+    return result
+
+
 async def get_or_create_backend(
     backend_type: str,
     config: dict[str, Any] | None = None,
@@ -319,10 +378,6 @@ async def get_or_create_backend(
     - No adapter is registered for backend_type (optional dep not installed)
     - Backend construction fails (non-secret errors are caught and logged)
     """
-    cache_key = (backend_type, _config_hash(config))
-    if cache_key in _BACKEND_CACHE:
-        return _BACKEND_CACHE[cache_key]
-
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
         logger.debug(
@@ -331,13 +386,23 @@ async def get_or_create_backend(
         )
         return None
 
+    # Resolve provider credentials (DB secret → env var fallback) and merge
+    # them into a shallow copy of config so adapters see them via config.get().
+    # User-supplied config keys take precedence over resolved credentials.
+    provider_creds = await _resolve_sandbox_credentials(session, decrypt, adapter.env_var_specs)
+    effective_config: dict[str, Any] = {**provider_creds, **(config or {})}
+
+    cache_key = (backend_type, _config_hash(effective_config))
+    if cache_key in _BACKEND_CACHE:
+        return _BACKEND_CACHE[cache_key]
+
     user_env: Optional[dict[str, str]] = None
-    raw_env_vars = (config or {}).get("env_vars")
+    raw_env_vars = effective_config.get("env_vars")
     if raw_env_vars and session is not None and decrypt is not None:
         user_env = await _resolve_user_env(raw_env_vars, session, decrypt)
 
     try:
-        backend = adapter.build_backend(config or {}, user_env=user_env)
+        backend = adapter.build_backend(effective_config, user_env=user_env)
         _BACKEND_CACHE[cache_key] = backend
         return backend
     except MissingSecretError:

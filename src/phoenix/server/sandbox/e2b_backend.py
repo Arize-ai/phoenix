@@ -15,6 +15,7 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     E2BConfig,
+    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -127,6 +128,13 @@ class E2BAdapter(SandboxAdapter):
     display_name = "E2B"
     language = "PYTHON"
     config_model = E2BConfig
+    env_var_specs = [
+        EnvVarSpec(
+            key="PHOENIX_SANDBOX_E2B_API_KEY",
+            display_name="E2B API Key",
+            description="API key for the E2B sandbox service.",
+        ),
+    ]
 
     def build_backend(
         self,

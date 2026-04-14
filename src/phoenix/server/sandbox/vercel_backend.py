@@ -27,6 +27,7 @@ import os
 from typing import Any, Optional
 
 from .types import (
+    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -204,11 +205,36 @@ def _resolve_vercel_team_id(config: dict[str, Any]) -> str:
     return str(config.get(ENV_VERCEL_TEAM_ID) or "") or os.environ.get(ENV_VERCEL_TEAM_ID, "")
 
 
+_VERCEL_ENV_VAR_SPECS = [
+    EnvVarSpec(
+        key="VERCEL_OIDC_TOKEN",
+        display_name="Vercel OIDC Token",
+        description="OIDC token for Vercel sandbox (e.g. from `vercel env pull`).",
+    ),
+    EnvVarSpec(
+        key="VERCEL_TOKEN",
+        display_name="Vercel Access Token",
+        description="Vercel personal access token (used with VERCEL_PROJECT_ID and VERCEL_TEAM_ID).",  # noqa: E501
+    ),
+    EnvVarSpec(
+        key="VERCEL_PROJECT_ID",
+        display_name="Vercel Project ID",
+        description="Vercel project ID (used with VERCEL_TOKEN and VERCEL_TEAM_ID).",
+    ),
+    EnvVarSpec(
+        key="VERCEL_TEAM_ID",
+        display_name="Vercel Team ID",
+        description="Vercel team ID (used with VERCEL_TOKEN and VERCEL_PROJECT_ID).",
+    ),
+]
+
+
 class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
     display_name = "Vercel Sandbox (Python)"
     language = "PYTHON"
     config_model = VercelPythonConfig
+    env_var_specs = _VERCEL_ENV_VAR_SPECS
 
     def build_backend(
         self,
@@ -242,6 +268,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
     display_name = "Vercel Sandbox (TypeScript)"
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
+    env_var_specs = _VERCEL_ENV_VAR_SPECS
 
     def build_backend(
         self,

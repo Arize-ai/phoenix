@@ -15,6 +15,7 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
 
 from .types import (
     DaytonaPythonConfig,
+    EnvVarSpec,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
@@ -118,6 +119,13 @@ class DaytonaPythonAdapter(SandboxAdapter):
     display_name = "Daytona (Python)"
     language = "PYTHON"
     config_model = DaytonaPythonConfig
+    env_var_specs = [
+        EnvVarSpec(
+            key="PHOENIX_SANDBOX_DAYTONA_API_KEY",
+            display_name="Daytona API Key",
+            description="API key for the Daytona sandbox service.",
+        ),
+    ]
 
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
