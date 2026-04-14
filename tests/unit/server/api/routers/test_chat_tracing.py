@@ -15,7 +15,7 @@ from phoenix.server.api.routers.chat_tracing import (
     finalize_agent_span,
     finalize_llm_span,
     finalize_recent_input_tool_result_spans,
-    get_assistant_message_metadata,
+    get_agent_message_metadata,
     persist_traces,
 )
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -100,7 +100,7 @@ class TestSpanHierarchy:
 
         agent_span = create_agent_span(tracer, input_messages=messages, session_id="s1")
 
-        metadata = get_assistant_message_metadata(agent_span, session_id="s1")
+        metadata = get_agent_message_metadata(agent_span, session_id="s1")
         span_context = agent_span.get_span_context()
 
         assert metadata == {
