@@ -167,13 +167,22 @@ export function ChatView({
       <div className="chat__scroll">
         <div className="chat__messages">
           {messages.length === 0 && <EmptyState />}
-          {messages.map((message) =>
-            message.role === "user" ? (
-              <UserMessage key={message.id} parts={message.parts} />
-            ) : (
-              <AssistantMessage key={message.id} message={message} />
-            )
-          )}
+          {messages.map((message, index) => {
+            if (message.role === "user") {
+              return <UserMessage key={message.id} parts={message.parts} />;
+            }
+            // Only the last assistant message can still be streaming — hide
+            // its actions until the chat reports it is settled.
+            const isLast = index === messages.length - 1;
+            const showActions = !isLast || status === "ready";
+            return (
+              <AssistantMessage
+                key={message.id}
+                message={message}
+                showActions={showActions}
+              />
+            );
+          })}
           {status === "submitted" && <Loading />}
           {error && <ErrorMessage error={error} />}
           <div ref={bottomRef} />

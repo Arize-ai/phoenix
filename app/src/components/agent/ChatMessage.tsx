@@ -39,11 +39,17 @@ export function UserMessage({ parts }: { parts: AgentUIMessage["parts"] }) {
  * parts. Consecutive runs of 3+ tool calls are collapsed into a
  * {@link ToolPartGroup} pool; shorter runs render individually as
  * {@link ToolPart} details.
+ *
+ * `showActions` gates the feedback/copy/trace toolbar — callers should set
+ * it to `false` while this particular message is still streaming so users
+ * don't interact with incomplete content.
  */
 export function AssistantMessage({
   message,
+  showActions = true,
 }: {
   message: AgentUIMessage;
+  showActions?: boolean;
 }) {
   const grouped = groupMessageParts(message.parts);
 
@@ -65,7 +71,9 @@ export function AssistantMessage({
                   </MarkdownBlock>
                 );
               case "tool-solo":
-                return <ToolPart key={`tool-${group.index}`} part={group.part} />;
+                return (
+                  <ToolPart key={`tool-${group.index}`} part={group.part} />
+                );
               case "tool-group":
                 return (
                   <ToolPartGroup
@@ -79,7 +87,7 @@ export function AssistantMessage({
           })}
         </div>
       </MessageContent>
-      <AssistantMessageActions message={message} />
+      {showActions ? <AssistantMessageActions message={message} /> : null}
     </Message>
   );
 }
