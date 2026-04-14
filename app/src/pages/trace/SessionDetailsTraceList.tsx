@@ -4,24 +4,39 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
+import { useSearchParams } from "react-router";
 
 import {
   Flex,
   Icon,
   Icons,
   Link,
+  ListBox,
+  ListBoxItem,
   Loading,
   Text,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type {
@@ -177,6 +192,110 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
   );
 }
 
+type SessionTurnRow = {
+  traceId: string;
+  rootSpan: SessionTraceRootSpan;
+};
+
+type IndexedSessionTurnRow = SessionTurnRow & { index: number };
+
+const turnListCSS = css`
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+
+  .react-aria-ListBoxItem {
+    margin: 0;
+    padding: var(--global-dimension-static-size-200);
+    border-radius: 0;
+    border-left: 4px solid transparent;
+    border-bottom: 1px solid var(--global-border-color-default);
+    box-sizing: border-box;
+    cursor: pointer;
+
+    &[data-hovered],
+    &[data-focused] {
+      background: var(--global-list-item-hover-background-color);
+    }
+
+    &[data-selected] {
+      background: var(--global-list-item-selected-background-color);
+      color: var(--global-text-color-900);
+      border-left-color: var(--global-list-item-selected-border-color);
+    }
+  }
+`;
+
+function SessionTurnList({
+  rows,
+  selectedTraceId,
+  onTurnClick,
+}: {
+  rows: ReadonlyArray<SessionTurnRow>;
+  selectedTraceId: string | null;
+  onTurnClick: (traceId: string) => void;
+}) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  const indexedRows: IndexedSessionTurnRow[] = rows.map((row, index) => ({
+    ...row,
+    index,
+  }));
+  return (
+    <ListBox
+      aria-label="Session turns"
+      items={indexedRows}
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={selectedTraceId ? [selectedTraceId] : []}
+      onSelectionChange={(selection) => {
+        if (selection === "all") return;
+        const key = selection.keys().next().value;
+        if (typeof key === "string") {
+          onTurnClick(key);
+        }
+      }}
+      css={turnListCSS}
+    >
+      {(row) => (
+        <ListBoxItem id={row.traceId} textValue={`Turn ${row.index + 1}`}>
+          <Flex direction="column" gap="size-100">
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-100"
+            >
+              <Text weight="heavy">Turn {row.index + 1}</Text>
+              <Text color="text-700" size="XS">
+                {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+              </Text>
+            </Flex>
+            <Flex direction="row" gap="size-100" alignItems="center" wrap>
+              <TokenCount size="S">
+                {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+              </TokenCount>
+              {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                <TokenCosts size="S">
+                  {row.rootSpan.trace.costSummary.total.cost}
+                </TokenCosts>
+              ) : null}
+              {row.rootSpan.latencyMs != null ? (
+                <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
+              ) : null}
+            </Flex>
+          </Flex>
+        </ListBoxItem>
+      )}
+    </ListBox>
+  );
+}
+
+const turnDetailRowCSS = css`
+  &[data-selected] {
+    background-color: var(--global-list-detail-selected-background-color);
+  }
+`;
+
 export function SessionDetailsTraceList({
   tracesRef,
 }: {
@@ -262,51 +381,136 @@ export function SessionDetailsTraceList({
     [fetchMoreOnBottomReached]
   );
 
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "session-details-layout",
+    storage: localStorage,
+  });
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+
+  const handleTurnClick = (traceId: string) => {
+    setSearchParams(
+      (params) => {
+        params.set(SELECTED_TRACE_ID_PARAM, traceId);
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  // Scroll the selected turn into view on mount and when the selection
+  // changes. The effect also re-runs when more turns are paginated in
+  // (initial mount may have a selection whose row is not yet mounted),
+  // so we dedupe via a ref to avoid snapping the scroll back to the
+  // selected turn when the user has manually scrolled elsewhere and a
+  // later page loads.
+  const lastScrolledTraceIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedTraceId == null) {
+      lastScrolledTraceIdRef.current = null;
+      return;
+    }
+    if (lastScrolledTraceIdRef.current === selectedTraceId) return;
+    const el = rowRefs.current.get(selectedTraceId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      lastScrolledTraceIdRef.current = selectedTraceId;
+    }
+  }, [selectedTraceId, sessionRootSpans]);
+
+  // Clear the selected trace id from the URL when leaving the session
+  // details view so it does not leak into other pages. `setSearchParams`
+  // from react-router is not referentially stable — stash the latest
+  // setter in a ref so this cleanup only runs on true unmount.
+  const setSearchParamsRef = useRef(setSearchParams);
+  setSearchParamsRef.current = setSearchParams;
+  useEffect(() => {
+    return () => {
+      setSearchParamsRef.current(
+        (params) => {
+          params.delete(SELECTED_TRACE_ID_PARAM);
+          return params;
+        },
+        { replace: true }
+      );
+    };
+  }, []);
+
   return (
-    <div
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
       css={css`
-        height: 100%;
         flex: 1 1 auto;
-        overflow: auto;
+        overflow: hidden;
       `}
-      onScroll={(e) =>
-        debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-      }
     >
-      {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
-        <View
-          borderBottomColor="default"
-          borderBottomWidth={"thin"}
-          key={rootSpan.spanId}
+      <Panel id="session-turns" defaultSize="20%" minSize="10%">
+        <SessionTurnList
+          rows={sessionRootSpans}
+          selectedTraceId={selectedTraceId}
+          onTurnClick={handleTurnClick}
+        />
+      </Panel>
+      <Separator css={compactResizeHandleCSS} />
+      <Panel id="session-turn-details">
+        <div
+          css={css`
+            height: 100%;
+            overflow: auto;
+          `}
+          onScroll={(e) =>
+            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+          }
         >
-          <Flex direction={"row"}>
-            <View
-              borderRightWidth={"thin"}
-              borderEndColor="default"
-              padding="size-200"
-              flex={"1 1 auto"}
+          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
+            <div
+              key={rootSpan.spanId}
+              css={turnDetailRowCSS}
+              data-selected={traceId === selectedTraceId || undefined}
+              ref={(el) => {
+                if (el) {
+                  rowRefs.current.set(traceId, el);
+                } else {
+                  rowRefs.current.delete(traceId);
+                }
+              }}
             >
-              <RootSpanInputOutput rootSpan={rootSpan} />
+              <View borderBottomColor="default" borderBottomWidth={"thin"}>
+                <Flex direction={"row"}>
+                  <View
+                    borderRightWidth={"thin"}
+                    borderEndColor="default"
+                    padding="size-200"
+                    flex={"1 1 auto"}
+                  >
+                    <RootSpanInputOutput rootSpan={rootSpan} />
+                  </View>
+                  <View width={350} padding="size-200" flex="none">
+                    <RootSpanDetails
+                      traceId={traceId}
+                      rootSpan={rootSpan}
+                      index={index}
+                    />
+                  </View>
+                </Flex>
+              </View>
+            </div>
+          ))}
+          {isLoadingNext && (
+            <View
+              borderBottomColor="default"
+              borderBottomWidth={"thin"}
+              padding="size-200"
+            >
+              <Loading />
             </View>
-            <View width={350} padding="size-200" flex="none">
-              <RootSpanDetails
-                traceId={traceId}
-                rootSpan={rootSpan}
-                index={index}
-              />
-            </View>
-          </Flex>
-        </View>
-      ))}
-      {isLoadingNext && (
-        <View
-          borderBottomColor="default"
-          borderBottomWidth={"thin"}
-          padding="size-200"
-        >
-          <Loading />
-        </View>
-      )}
-    </div>
+          )}
+        </div>
+      </Panel>
+    </Group>
   );
 }

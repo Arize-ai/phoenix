@@ -1064,6 +1064,18 @@ const roundingCSS = (theme: Theme) => css`
   }
 `;
 
+const listCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-list-item-hover-background-color: var(--hover-background);
+    --global-list-item-selected-background-color: var(--global-color-gray-200);
+    --global-list-item-selected-border-color: var(--global-color-gray-300);
+    --global-list-detail-selected-background-color: var(
+      --global-color-gray-100
+    );
+  }
+`;
+
 const tableCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1222,6 +1234,7 @@ export const derivedCSS = (theme: Theme) =>
     toolCallCSS(theme),
     popoverCSS(theme),
     roundingCSS(theme),
+    listCSS(theme),
     tableCSS(theme),
     markdownCSS(theme),
     borderAndGridCSS(theme),
