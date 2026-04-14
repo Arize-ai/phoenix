@@ -2,10 +2,7 @@ import { Chat } from "@ai-sdk/react";
 import type { ChatTransport, UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 
-import {
-  assistantMessageMetadataSchema,
-  type AssistantUIMessage,
-} from "../types";
+import { assistantMessageMetadataSchema, type AgentUIMessage } from "../types";
 
 function createChunkStream(chunks: UIMessageChunk[]) {
   return new ReadableStream<UIMessageChunk>({
@@ -45,7 +42,7 @@ describe("assistantMessageMetadataSchema", () => {
 
 describe("assistant chat metadata", () => {
   it("attaches streamed trace metadata to the assistant message", async () => {
-    const transport: ChatTransport<AssistantUIMessage> = {
+    const transport: ChatTransport<AgentUIMessage> = {
       sendMessages: async () =>
         createChunkStream([
           {
@@ -66,7 +63,7 @@ describe("assistant chat metadata", () => {
       reconnectToStream: async () => null,
     };
 
-    const chat = new Chat<AssistantUIMessage>({
+    const chat = new Chat<AgentUIMessage>({
       id: "session-1",
       transport,
       messageMetadataSchema: assistantMessageMetadataSchema,

@@ -8,7 +8,7 @@ import {
 } from "@phoenix/agent/extensions/capabilities";
 
 import { agentToolDefinitions } from "./chatTools";
-import type { AssistantUIMessage } from "./types";
+import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
@@ -16,7 +16,7 @@ type BuildAgentChatRequestBodyOptions = {
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
-  messages: AssistantUIMessage[];
+  messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
@@ -34,7 +34,7 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
-  messages: AssistantUIMessage[];
+  messages: AgentUIMessage[];
   /** Reason the transport is sending this request. */
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */

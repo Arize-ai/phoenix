@@ -17,4 +17,4 @@ export type AssistantMessageMetadata = z.infer<
   typeof assistantMessageMetadataSchema
 >;
 
-export type AssistantUIMessage = UIMessage<AssistantMessageMetadata>;
+export type AgentUIMessage = UIMessage<AssistantMessageMetadata>;
