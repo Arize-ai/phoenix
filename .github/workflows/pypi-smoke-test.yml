@@ -75,29 +75,11 @@ jobs:
 
           if [ "${{ matrix.verify_latest }}" = "true" ]; then
             INDEX_OUTPUT=$(python -m pip index versions arize-phoenix 2>&1)
-            LATEST_VERSION=$(INDEX_OUTPUT="${INDEX_OUTPUT}" python - <<'PY'
-            import os
-            import re
-
-            output = os.environ["INDEX_OUTPUT"]
-            match = re.search(r"arize-phoenix \(([^)]+)\)", output)
-            if match is None:
-                raise SystemExit(
-                    "Could not determine latest version from `pip index versions` output:\n"
-                    + output
-                )
-            print(match.group(1))
-            PY
-            )
+            LATEST_VERSION=$(INDEX_OUTPUT="${INDEX_OUTPUT}" python -c 'import os, re; output = os.environ["INDEX_OUTPUT"]; match = re.search(r"arize-phoenix \(([^)]+)\)", output); print(match.group(1)) if match else (_ for _ in ()).throw(SystemExit("Could not determine latest version from `pip index versions` output:\n" + output))')
 
             echo "Latest installer-visible version: ${LATEST_VERSION}"
 
-            INSTALLED_VERSION=$(.pypi-smoke/bin/python - <<'PY'
-            from importlib.metadata import version
-
-            print(version("arize-phoenix"))
-            PY
-            )
+            INSTALLED_VERSION=$(.pypi-smoke/bin/python -c 'from importlib.metadata import version; print(version("arize-phoenix"))')
 
             echo "Installed version: ${INSTALLED_VERSION}"
 
