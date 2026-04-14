@@ -759,7 +759,10 @@ export function createTraceAnnotateCommand(): Command {
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators")
-    .addHelpText("after", getAnnotationMutationHelpText("trace"))
+    .addHelpText(
+      "after",
+      getAnnotationMutationHelpText({ targetType: "trace" })
+    )
     .action(traceAnnotateHandler);
 }
 

@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 
+import { trimToUndefined } from "./normalize";
+
 const CLI_PACKAGE_NAME = "@arizeai/phoenix-cli";
 const CLI_LATEST_VERSION_URL = `https://registry.npmjs.org/${encodeURIComponent(CLI_PACKAGE_NAME)}/latest`;
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 1500;
@@ -41,9 +43,7 @@ function getPackageJsonVersion({
   if (typeof packageJson.version !== "string") {
     return undefined;
   }
-
-  const version = packageJson.version.trim();
-  return version.length > 0 ? version : undefined;
+  return trimToUndefined({ value: packageJson.version });
 }
 
 function readCliVersionFromPackageJson(): string | undefined {
@@ -62,9 +62,7 @@ function readCliVersionFromEnvironment(): string | undefined {
   if (typeof process.env.npm_package_version !== "string") {
     return undefined;
   }
-
-  const version = process.env.npm_package_version.trim();
-  return version.length > 0 ? version : undefined;
+  return trimToUndefined({ value: process.env.npm_package_version });
 }
 
 export const CLI_VERSION =

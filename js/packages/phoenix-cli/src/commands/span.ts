@@ -428,7 +428,7 @@ export function createSpanAnnotateCommand(): Command {
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators")
-    .addHelpText("after", getAnnotationMutationHelpText("span"))
+    .addHelpText("after", getAnnotationMutationHelpText({ targetType: "span" }))
     .action(spanAnnotateHandler);
 }
 

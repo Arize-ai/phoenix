@@ -310,7 +310,7 @@ describe("span annotate", () => {
   it("fails with INVALID_ARGUMENT when --score is invalid", async () => {
     const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
@@ -334,12 +334,17 @@ describe("span annotate", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Invalid value for --score: not-a-number. Expected a finite number."
+      )
+    );
   });
 
   it("fails with INVALID_ARGUMENT when --score contains trailing non-numeric characters", async () => {
     const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
       code?: number
     ) => {
@@ -363,6 +368,11 @@ describe("span annotate", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Invalid value for --score: 0abc. Expected a finite number."
+      )
+    );
   });
 
   it("fails with INVALID_ARGUMENT when --annotator-kind is invalid", async () => {
@@ -628,6 +638,40 @@ describe("trace annotate", () => {
       expect.stringContaining("Error annotating trace:")
     );
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining("500"));
+  });
+
+  it("fails with INVALID_ARGUMENT when trace --score is invalid", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createTraceCommand().parseAsync(
+        [
+          "annotate",
+          "trace-123",
+          "--name",
+          "reviewer",
+          "--score",
+          "NaN-ish",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Invalid value for --score: NaN-ish. Expected a finite number."
+      )
+    );
   });
 });
 

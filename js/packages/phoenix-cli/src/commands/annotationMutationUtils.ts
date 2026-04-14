@@ -1,4 +1,5 @@
 import { InvalidArgumentError } from "../exitCodes";
+import { parseNumber, trimToUndefined } from "../normalize";
 
 export type AnnotationTargetType = "span" | "trace";
 export type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
@@ -28,12 +29,20 @@ export interface NormalizedAnnotationInput {
   };
 }
 
-function getTargetIdPlaceholder(targetType: AnnotationTargetType): string {
+function getTargetIdPlaceholder({
+  targetType,
+}: {
+  targetType: AnnotationTargetType;
+}): string {
   return targetType === "span" ? "<span-id>" : "<trace-id>";
 }
 
-function getAnnotateUsage(targetType: AnnotationTargetType): string {
-  const targetIdPlaceholder = getTargetIdPlaceholder(targetType);
+function getAnnotateUsage({
+  targetType,
+}: {
+  targetType: AnnotationTargetType;
+}): string {
+  const targetIdPlaceholder = getTargetIdPlaceholder({ targetType });
   return [
     `px ${targetType} annotate ${targetIdPlaceholder} --name <name> --label <label>`,
     `px ${targetType} annotate ${targetIdPlaceholder} --name <name> --score <number>`,
@@ -41,34 +50,19 @@ function getAnnotateUsage(targetType: AnnotationTargetType): string {
   ].join("\n  ");
 }
 
-function trimString(value: string | undefined): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const trimmedValue = value.trim();
-  return trimmedValue.length > 0 ? trimmedValue : undefined;
-}
-
-function parseScore(score: string | number): number {
-  if (typeof score === "number") {
-    return score;
-  }
-  const trimmedScore = score.trim();
-  const numericScore = Number(trimmedScore);
-  if (!trimmedScore || !Number.isFinite(numericScore)) {
-    throw new Error("invalid score");
-  }
-  return numericScore;
-}
-
-function normalizeAnnotatorKind(
-  targetType: AnnotationTargetType,
-  annotatorKind: string | undefined
-): AnnotatorKind {
+function normalizeAnnotatorKind({
+  targetType,
+  annotatorKind,
+}: {
+  targetType: AnnotationTargetType;
+  annotatorKind: string | undefined;
+}): AnnotatorKind {
   if (annotatorKind === undefined) {
     return "HUMAN";
   }
-  const normalizedAnnotatorKind = annotatorKind.trim().toUpperCase();
+  const normalizedAnnotatorKind = trimToUndefined({
+    value: annotatorKind,
+  })?.toUpperCase();
   if (
     normalizedAnnotatorKind === "HUMAN" ||
     normalizedAnnotatorKind === "LLM" ||
@@ -77,7 +71,7 @@ function normalizeAnnotatorKind(
     return normalizedAnnotatorKind;
   }
   throw new InvalidArgumentError(
-    `Invalid value for --annotator-kind: ${annotatorKind}\n  Valid values: HUMAN, LLM, CODE\n  ${getAnnotateUsage(targetType)}`
+    `Invalid value for --annotator-kind: ${annotatorKind}\n  Valid values: HUMAN, LLM, CODE\n  ${getAnnotateUsage({ targetType })}`
   );
 }
 
@@ -96,10 +90,10 @@ export function normalizeAnnotationInput({
   explanation?: string;
   annotatorKind?: string;
 }): NormalizedAnnotationInput {
-  const normalizedName = trimString(name);
+  const normalizedName = trimToUndefined({ value: name });
   if (!normalizedName) {
     throw new InvalidArgumentError(
-      `Missing required flag --name.\n  ${getAnnotateUsage(targetType)}`
+      `Missing required flag --name.\n  ${getAnnotateUsage({ targetType })}`
     );
   }
 
@@ -108,20 +102,23 @@ export function normalizeAnnotationInput({
     normalizedScore = null;
   } else {
     try {
-      normalizedScore = parseScore(score);
-    } catch {
+      normalizedScore = parseNumber({
+        rawValue: score,
+        inputName: "--score",
+      });
+    } catch (error) {
       throw new InvalidArgumentError(
-        `Invalid value for --score: ${String(score)}\n  ${getAnnotateUsage(targetType)}`
+        `${error instanceof Error ? error.message : String(error)}\n  ${getAnnotateUsage({ targetType })}`
       );
     }
   }
 
-  const normalizedLabel = trimString(label) ?? null;
-  const normalizedExplanation = trimString(explanation) ?? null;
-  const normalizedAnnotatorKind = normalizeAnnotatorKind(
+  const normalizedLabel = trimToUndefined({ value: label }) ?? null;
+  const normalizedExplanation = trimToUndefined({ value: explanation }) ?? null;
+  const normalizedAnnotatorKind = normalizeAnnotatorKind({
     targetType,
-    annotatorKind
-  );
+    annotatorKind,
+  });
 
   const hasResult =
     normalizedLabel !== null ||
@@ -129,7 +126,7 @@ export function normalizeAnnotationInput({
     normalizedExplanation !== null;
   if (!hasResult) {
     throw new InvalidArgumentError(
-      `At least one of --label, --score, or --explanation must be provided.\n  ${getAnnotateUsage(targetType)}`
+      `At least one of --label, --score, or --explanation must be provided.\n  ${getAnnotateUsage({ targetType })}`
     );
   }
 
@@ -178,10 +175,12 @@ export function buildAnnotationMutationResult({
   };
 }
 
-export function getAnnotationMutationHelpText(
-  targetType: AnnotationTargetType
-): string {
-  const targetIdPlaceholder = getTargetIdPlaceholder(targetType);
+export function getAnnotationMutationHelpText({
+  targetType,
+}: {
+  targetType: AnnotationTargetType;
+}): string {
+  const targetIdPlaceholder = getTargetIdPlaceholder({ targetType });
   return [
     "",
     "Examples:",

@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Phoenix CLI
@@ -22,7 +22,9 @@ The CLI uses singular resource commands with subcommands like `list` and `get`:
 ```bash
 px trace list
 px trace get <trace-id>
+px trace annotate <trace-id>
 px span list
+px span annotate <span-id>
 px dataset list
 px dataset get <name>
 px project list
@@ -63,6 +65,8 @@ px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 px trace get <trace-id> --format raw | jq .
 px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace annotate <trace-id> --name reviewer --label pass
+px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
 ```
 
 ### Trace JSON shape
@@ -101,6 +105,8 @@ px span list --parent-id <span-id> --limit 10              # only children of a 
 px span list --include-annotations --limit 10              # include annotation scores
 px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
+px span annotate <span-id> --name reviewer --label pass
+px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
 ```
 
 ### Span JSON shape
