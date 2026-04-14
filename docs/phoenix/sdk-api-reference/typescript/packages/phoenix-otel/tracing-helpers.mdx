@@ -1,115 +1,30 @@
 ---
 title: "Tracing Helpers"
-description: "Wrap functions and methods with OpenInference spans using withSpan, traceChain, traceAgent, traceTool, and observe"
+description: "Wrap agents, tools, chains, retrievers, and LLM calls so Phoenix sees them as structured spans you can inspect and evaluate."
 ---
 
-`@arizeai/phoenix-otel` re-exports the OpenInference tracing helpers from `@arizeai/openinference-core`, so you can configure Phoenix export and author traced functions from one package path.
+Tracing helpers turn ordinary functions into observable building blocks. Wrap your agent step, your tool call, or your retriever, and Phoenix will show the inputs, the outputs, the timing, and any errors — one span per invocation, nested under whichever span is active.
 
-```bash
-npm install @arizeai/phoenix-otel
-```
-
-```ts
-import { register, traceChain, traceTool } from "@arizeai/phoenix-otel";
-
-register({ projectName: "my-app" });
-
-const fetchWeather = traceTool(
-  async (city: string) => ({ city, temp: 72 }),
-  { name: "fetch-weather" }
-);
-
-const handleQuery = traceChain(
-  async (query: string) => {
-    const weather = await fetchWeather("San Francisco");
-    return `It is ${weather.temp}F in ${weather.city}`;
-  },
-  { name: "handle-query" }
-);
-
-await handleQuery("What's the weather?");
-```
+This page walks through the common patterns. If you need raw OpenTelemetry spans, see [Manual Spans](./manual-spans).
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
-    <li><code>src/index.ts</code> re-exports the helper surface from <code>@arizeai/openinference-core</code></li>
-    <li><code>node_modules/@arizeai/openinference-core/src/helpers/withSpan.ts</code> implements wrapper behavior</li>
+    <li><code>src/index.ts</code> exports the helper surface</li>
+    <li><code>node_modules/@arizeai/openinference-core/src/helpers/withSpan.ts</code> implements the wrapper behavior</li>
     <li><code>node_modules/@arizeai/openinference-core/src/helpers/wrappers.ts</code> defines <code>traceChain</code>, <code>traceAgent</code>, and <code>traceTool</code></li>
     <li><code>node_modules/@arizeai/openinference-core/src/helpers/decorators.ts</code> defines <code>observe</code></li>
   </ul>
 </section>
 
-## Why These Re-Exports Matter
+## Trace An Agent Step
 
-`@arizeai/phoenix-otel` adds Phoenix registration and export. The tracing helpers themselves come from `@arizeai/openinference-core`.
-
-Those helpers resolve the default tracer when the wrapped function is invoked, not when the wrapper is created. That means:
-
-- functions wrapped at module load continue following later global provider changes
-- experiment-scoped providers still receive spans from previously defined helpers
-- you can keep using the same wrappers when moving between standalone tracing and experiment workflows
-
-## API Reference
-
-### `withSpan(fn, options?)`
-
-The general-purpose wrapper. All other helper wrappers build on it.
+`traceAgent` marks a function as the top of an agent's decision loop. Use it on the function your user or API actually calls.
 
 ```ts
-import { OpenInferenceSpanKind, withSpan } from "@arizeai/phoenix-otel";
+import { register, traceAgent } from "@arizeai/phoenix-otel";
 
-const retrieveDocs = withSpan(
-  async (query: string) => {
-    return [`Document for ${query}`];
-  },
-  {
-    name: "retrieve-docs",
-    kind: OpenInferenceSpanKind.RETRIEVER,
-  }
-);
-```
-
-**Options** (`SpanTraceOptions`):
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | `string` | `fn.name` | Span name. Falls back to the function name. |
-| `kind` | `OpenInferenceSpanKind` | `CHAIN` | OpenInference span kind such as `CHAIN`, `AGENT`, `TOOL`, `LLM`, or `RETRIEVER`. |
-| `tracer` | `Tracer` | default tracer | Override the tracer instance. When omitted, the default tracer is resolved when the wrapper runs. |
-| `attributes` | `Attributes` | — | Base attributes merged into every span. |
-| `processInput` | `(...args) => Attributes` | `defaultProcessInput` | Custom function to extract span attributes from input arguments. |
-| `processOutput` | `(result) => Attributes` | `defaultProcessOutput` | Custom function to extract span attributes from the return value. |
-| `openTelemetrySpanKind` | `SpanKind` | `SpanKind.INTERNAL` | Underlying OpenTelemetry span kind. |
-
-**Behavior:**
-
-- wraps both sync and async functions
-- records input and output attributes automatically
-- records exceptions, marks the span as `ERROR`, closes the span, and re-throws
-- preserves the call-time `this` value
-
-### `traceChain(fn, options?)`
-
-Shorthand for `withSpan(fn, { ...options, kind: OpenInferenceSpanKind.CHAIN })`.
-
-```ts
-import { traceChain } from "@arizeai/phoenix-otel";
-
-const summarize = traceChain(
-  async (text: string) => {
-    return `Summary of ${text.length} chars`;
-  },
-  { name: "summarize" }
-);
-```
-
-### `traceAgent(fn, options?)`
-
-Shorthand for `withSpan(fn, { ...options, kind: OpenInferenceSpanKind.AGENT })`.
-
-```ts
-import { traceAgent } from "@arizeai/phoenix-otel";
+register({ projectName: "support-bot" });
 
 const supportAgent = traceAgent(
   async (question: string) => {
@@ -117,11 +32,15 @@ const supportAgent = traceAgent(
   },
   { name: "support-agent" }
 );
+
+await supportAgent("How do I reset my password?");
 ```
 
-### `traceTool(fn, options?)`
+In Phoenix, this shows up as an `AGENT` span with the question as input and the structured answer as output. Any tool or LLM spans you create inside the function will nest beneath it automatically.
 
-Shorthand for `withSpan(fn, { ...options, kind: OpenInferenceSpanKind.TOOL })`.
+## Trace A Tool Call
+
+`traceTool` wraps functions the agent can invoke — a search, a lookup, an external API call.
 
 ```ts
 import { traceTool } from "@arizeai/phoenix-otel";
@@ -135,9 +54,81 @@ const searchDocs = traceTool(
 );
 ```
 
-### `observe(options?)`
+Each call becomes a `TOOL` span under whichever span is active when it runs. This is where Phoenix lets you see whether the right tool ran with the right arguments, and whether its output actually helped.
 
-Decorator factory for class methods. Use TypeScript 5+ standard decorators.
+## Trace A Chain (Non-Agent Pipeline)
+
+If your app is a fixed pipeline rather than an agent, `traceChain` is the right wrapper for the top-level function. Everything else works the same.
+
+```ts
+import { traceChain } from "@arizeai/phoenix-otel";
+
+const summarize = traceChain(
+  async (text: string) => {
+    return `Summary of ${text.length} chars`;
+  },
+  { name: "summarize" }
+);
+```
+
+## Trace A Retriever Or LLM Call With Rich Attributes
+
+For retrievers and LLM calls, Phoenix can render a lot more detail — documents, messages, token counts — if you emit the OpenInference attributes for them. Use `withSpan` directly and pass a `processOutput` (or `processInput`) that shapes the return value into those attributes.
+
+```ts
+import {
+  OpenInferenceSpanKind,
+  getInputAttributes,
+  getRetrieverAttributes,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+const retrieveDocs = withSpan(
+  async (query: string) => [
+    { id: "doc-1", content: "Phoenix is an observability platform." },
+    { id: "doc-2", content: "It supports tracing LLM applications." },
+  ],
+  {
+    name: "retrieve-docs",
+    kind: OpenInferenceSpanKind.RETRIEVER,
+    processInput: (query) => getInputAttributes(query),
+    processOutput: (documents) => getRetrieverAttributes({ documents }),
+  }
+);
+```
+
+The same pattern works for LLM calls with `getLLMAttributes`, embeddings with `getEmbeddingAttributes`, and tools with `getToolAttributes`. See [Manual Spans](./manual-spans) for the full list of attribute builders.
+
+## Compose Them Into A Pipeline
+
+The wrappers compose. Nest a tool inside an agent, and Phoenix will link the spans into a single trace.
+
+```ts
+import { register, traceAgent, traceTool } from "@arizeai/phoenix-otel";
+
+register({ projectName: "support-bot" });
+
+const searchKB = traceTool(
+  async (query: string) => [{ title: "Password Reset", body: "..." }],
+  { name: "search-kb" }
+);
+
+const supportAgent = traceAgent(
+  async (question: string) => {
+    const docs = await searchKB(question);
+    return `Based on ${docs.length} articles: ...`;
+  },
+  { name: "support-agent" }
+);
+
+await supportAgent("How do I reset my password?");
+```
+
+One trace, two spans, the relationship preserved.
+
+## Trace Class Methods With A Decorator
+
+If your code is object-oriented, `observe` is a decorator factory for class methods. It preserves `this` and uses the method name as the default span name.
 
 ```ts
 import { OpenInferenceSpanKind, observe } from "@arizeai/phoenix-otel";
@@ -155,80 +146,31 @@ class SupportBot {
 }
 ```
 
-`observe` preserves method `this` context and uses the method name as the default span name unless you pass `name`.
+Requires TypeScript 5+ standard decorators.
 
-## Input / Output Processing
+## What Happens On Errors
 
-By default, `withSpan` serializes function arguments into `input.value` and the return value into `output.value`. Override this with `processInput` and `processOutput` when you want richer OpenInference attributes.
+All the wrappers record exceptions onto the span, mark it as `ERROR`, close the span, and re-throw the original error. You get full visibility into failures without losing the exception semantics your caller expects.
 
-```ts
-import {
-  OpenInferenceSpanKind,
-  getInputAttributes,
-  getRetrieverAttributes,
-  withSpan,
-} from "@arizeai/phoenix-otel";
+## Options Reference
 
-const retriever = withSpan(
-  async (query: string) => [`Doc A for ${query}`, `Doc B for ${query}`],
-  {
-    name: "retriever",
-    kind: OpenInferenceSpanKind.RETRIEVER,
-    processInput: (query) => getInputAttributes(query),
-    processOutput: (documents) =>
-      getRetrieverAttributes({
-        documents: documents.map((content, index) => ({
-          id: `doc-${index}`,
-          content,
-        })),
-      }),
-  }
-);
-```
+All the wrappers (`withSpan`, `traceAgent`, `traceTool`, `traceChain`, and `observe`) accept the same options shape:
 
-The same customization pattern works with `traceChain`, `traceAgent`, and `traceTool`, since they all delegate to `withSpan`.
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `name` | `string` | `fn.name` | Span name. Falls back to the function or method name. |
+| `kind` | `OpenInferenceSpanKind` | `CHAIN` | Span kind: `CHAIN`, `AGENT`, `TOOL`, `LLM`, `RETRIEVER`, `EMBEDDING`, etc. |
+| `tracer` | `Tracer` | default tracer | Override the tracer. When omitted, resolved at call time so global provider changes are picked up. |
+| `attributes` | `Attributes` | — | Base attributes merged into every span the wrapper creates. |
+| `processInput` | `(...args) => Attributes` | `defaultProcessInput` | Shape function arguments into span attributes. |
+| `processOutput` | `(result) => Attributes` | `defaultProcessOutput` | Shape the return value into span attributes. |
+| `openTelemetrySpanKind` | `SpanKind` | `INTERNAL` | Underlying OpenTelemetry span kind. |
 
-## Combining Helpers With Context Attributes
+`traceAgent`, `traceTool`, and `traceChain` are shorthands that fix `kind` to `AGENT`, `TOOL`, and `CHAIN` respectively. Anything you pass through their options is forwarded to `withSpan`.
 
-Tracing helpers compose naturally with [context attributes](./context-attributes). Wrap a call in `context.with()` to propagate session IDs, metadata, or tags to all child spans.
+## Using Helpers Inside Experiments
 
-```ts
-import {
-  context,
-  register,
-  setMetadata,
-  setSession,
-  traceAgent,
-  traceTool,
-} from "@arizeai/phoenix-otel";
-
-register({ projectName: "support-bot" });
-
-const searchKB = traceTool(
-  async (query: string) => [{ title: "Password Reset", body: "..." }],
-  { name: "search-kb" }
-);
-
-const supportAgent = traceAgent(
-  async (question: string) => {
-    const docs = await searchKB(question);
-    return `Based on ${docs.length} articles: ...`;
-  },
-  { name: "support-agent" }
-);
-
-await context.with(
-  setMetadata(
-    setSession(context.active(), { sessionId: "sess-abc-123" }),
-    { environment: "production", region: "us-east-1" }
-  ),
-  () => supportAgent("How do I reset my password?")
-);
-```
-
-## Use With Experiments
-
-When you run experiments with `@arizeai/phoenix-client`, the experiment framework can attach a per-run global provider. Because the wrappers resolve the default tracer at invocation time, traced functions defined at module scope still route spans to the active provider.
+When you run an experiment with `@arizeai/phoenix-client`, the experiment framework can attach a per-run global provider. Because the helpers resolve the default tracer at call time (not at wrap time), traced functions defined at module scope still route spans to whichever provider is active when they run — so you can reuse the same wrappers across standalone tracing and experiments.
 
 ```ts
 import { traceTool } from "@arizeai/phoenix-otel";
@@ -243,10 +185,8 @@ const classifyIntent = traceTool(
   { name: "classify-intent" }
 );
 
-const client = createClient();
-
 await runExperiment({
-  client,
+  client: createClient(),
   datasetId: "my-dataset",
   task: async (example) => classifyIntent(example.input.text as string),
   evaluators: [
