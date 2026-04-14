@@ -1,5 +1,23 @@
 # Changelog
 
+## [14.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.2.1...arize-phoenix-v14.3.0) (2026-04-14)
+
+
+### Features
+
+* **agent:** assistant agent settings page ([#12637](https://github.com/Arize-ai/phoenix/issues/12637)) ([bca2318](https://github.com/Arize-ai/phoenix/commit/bca23186770e6bf26489704e3bfe33bed42ce838))
+* Re-export openinference-core from phoenix-otel with docs ([#12541](https://github.com/Arize-ai/phoenix/issues/12541)) ([1449f3d](https://github.com/Arize-ai/phoenix/commit/1449f3db622915f9813bcc9b4f1d7d588204d708))
+
+
+### Bug Fixes
+
+* migrate custom scalars to scalar_map for strawberry-graphql 0.314.3 ([#12568](https://github.com/Arize-ai/phoenix/issues/12568)) ([3488aa7](https://github.com/Arize-ai/phoenix/commit/3488aa72f828f3ca72c4ddf5ec0d95f4f2035061))
+
+
+### Documentation
+
+* weekly docs gap audit (2026-04-02 → 2026-04-09) ([#12606](https://github.com/Arize-ai/phoenix/issues/12606)) ([6372cfb](https://github.com/Arize-ai/phoenix/commit/6372cfb59b38039fbad4dfd0c7deec7597793b66))
+
 ## [14.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.2.0...arize-phoenix-v14.2.1) (2026-04-10)
 
 
