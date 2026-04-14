@@ -18,13 +18,22 @@ permissions:
 
 jobs:
   smoke-test:
-    name: Default install and boot latest PyPI Phoenix (${{ matrix.installer }})
+    name: Default install and boot latest PyPI Phoenix (${{ matrix.name }})
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        installer: [pip, uv]
+        include:
+          - name: pip install
+            mode: pip-install
+            verify_latest: true
+          - name: uv pip install
+            mode: uv-pip-install
+            verify_latest: true
+          - name: uv tool run
+            mode: uv-tool-run
+            verify_latest: false
     env:
       PYTHON_VERSION: "3.12"
       UV_VERSION: "0.10.9"
@@ -43,54 +52,63 @@ jobs:
       - name: Install latest Phoenix from PyPI and verify startup
         env:
           PHOENIX_WORKING_DIR: ${{ runner.temp }}/phoenix-smoke
-          PHOENIX_SMOKE_LOG: ${{ runner.temp }}/phoenix-smoke-${{ matrix.installer }}.log
+          PHOENIX_SMOKE_LOG: ${{ runner.temp }}/phoenix-smoke-${{ matrix.mode }}.log
         run: |
           set -euo pipefail
 
-          python -m venv .pypi-smoke
+          SERVER_CMD=""
 
-          if [ "${{ matrix.installer }}" = "pip" ]; then
+          if [ "${{ matrix.mode }}" = "pip-install" ]; then
+            python -m venv .pypi-smoke
             .pypi-smoke/bin/python -m pip install --upgrade pip
             .pypi-smoke/bin/python -m pip install arize-phoenix
-          else
+            SERVER_CMD=".pypi-smoke/bin/arize-phoenix serve"
+          elif [ "${{ matrix.mode }}" = "uv-pip-install" ]; then
+            python -m venv .pypi-smoke
             uv pip install --python .pypi-smoke/bin/python arize-phoenix
+            SERVER_CMD=".pypi-smoke/bin/arize-phoenix serve"
+          else
+            SERVER_CMD="uv tool run arize-phoenix serve"
           fi
 
-          INDEX_OUTPUT=$(python -m pip index versions arize-phoenix 2>&1)
-          LATEST_VERSION=$(INDEX_OUTPUT="${INDEX_OUTPUT}" python - <<'PY'
-          import os
-          import re
-
-          output = os.environ["INDEX_OUTPUT"]
-          match = re.search(r"arize-phoenix \(([^)]+)\)", output)
-          if match is None:
-              raise SystemExit(
-                  "Could not determine latest version from `pip index versions` output:\n"
-                  + output
-              )
-          print(match.group(1))
-          PY
-          )
-
-          echo "Latest installer-visible version: ${LATEST_VERSION}"
-
-          INSTALLED_VERSION=$(.pypi-smoke/bin/python - <<'PY'
-          from importlib.metadata import version
-
-          print(version("arize-phoenix"))
-          PY
-          )
-
-          echo "Installed version: ${INSTALLED_VERSION}"
-
           FAIL=0
-          if [ "${INSTALLED_VERSION}" != "${LATEST_VERSION}" ]; then
-            echo "::error::Expected an unpinned PyPI install to resolve ${LATEST_VERSION}, but it resolved ${INSTALLED_VERSION}."
-            FAIL=1
+
+          if [ "${{ matrix.verify_latest }}" = "true" ]; then
+            INDEX_OUTPUT=$(python -m pip index versions arize-phoenix 2>&1)
+            LATEST_VERSION=$(INDEX_OUTPUT="${INDEX_OUTPUT}" python - <<'PY'
+            import os
+            import re
+
+            output = os.environ["INDEX_OUTPUT"]
+            match = re.search(r"arize-phoenix \(([^)]+)\)", output)
+            if match is None:
+                raise SystemExit(
+                    "Could not determine latest version from `pip index versions` output:\n"
+                    + output
+                )
+            print(match.group(1))
+            PY
+            )
+
+            echo "Latest installer-visible version: ${LATEST_VERSION}"
+
+            INSTALLED_VERSION=$(.pypi-smoke/bin/python - <<'PY'
+            from importlib.metadata import version
+
+            print(version("arize-phoenix"))
+            PY
+            )
+
+            echo "Installed version: ${INSTALLED_VERSION}"
+
+            if [ "${INSTALLED_VERSION}" != "${LATEST_VERSION}" ]; then
+              echo "::error::Expected an unpinned PyPI install to resolve ${LATEST_VERSION}, but it resolved ${INSTALLED_VERSION}."
+              FAIL=1
+            fi
           fi
 
           mkdir -p "${PHOENIX_WORKING_DIR}"
-          .pypi-smoke/bin/arize-phoenix serve > "${PHOENIX_SMOKE_LOG}" 2>&1 &
+          bash -lc "${SERVER_CMD}" > "${PHOENIX_SMOKE_LOG}" 2>&1 &
           SERVER_PID=$!
           trap 'kill "${SERVER_PID}" >/dev/null 2>&1 || true' EXIT
 
@@ -132,6 +150,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: pypi-smoke-log-${{ matrix.installer }}
-          path: ${{ runner.temp }}/phoenix-smoke-${{ matrix.installer }}.log
+          name: pypi-smoke-log-${{ matrix.mode }}
+          path: ${{ runner.temp }}/phoenix-smoke-${{ matrix.mode }}.log
           if-no-files-found: ignore
