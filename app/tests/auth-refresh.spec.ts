@@ -3,7 +3,20 @@ import { expect, test, type Page } from "@playwright/test";
 // These tests exercise the client-side auth refresh paths by forcing GraphQL
 // requests to encounter an expired-session response through the UI.
 
+// reset browser state so that these tests do not poison the auth of other tests
+// without this, all tests take exponentially longer as they hit expiring auth sessions
+test.use({ storageState: { cookies: [], origins: [] } });
+
+async function loginAsMember(page: Page) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("member@localhost.com");
+  await page.getByLabel("Password").fill("member123");
+  await page.getByRole("button", { name: "Log In", exact: true }).click();
+  await page.waitForURL("**/projects");
+}
+
 async function openProjectsPage(page: Page) {
+  await loginAsMember(page);
   await page.goto("/projects");
   await page.waitForURL("**/projects");
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
