@@ -4,15 +4,9 @@ import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
 import { BASH_TOOL_WORKSPACE_ROOT } from "./bashToolFilesystemPolicy";
+import type { BashCustomCommandPolicy } from "./customCommandPolicy";
 
 const DEFAULT_SPILL_THRESHOLD_BYTES = 128 * 1024;
-
-/**
- * Environment variable name checked at runtime to decide whether `phoenix-gql`
- * should accept GraphQL mutations. When the value is `"1"`, the mutation guard
- * is bypassed and the help text reflects the expanded capability.
- */
-export const PHOENIX_GQL_MUTATIONS_ENV_VAR = "PHOENIX_MUTATIONS_ENABLED";
 
 function getHelpText(mutationsEnabled: boolean) {
   const permissionsLine = mutationsEnabled
@@ -217,13 +211,23 @@ function formatGraphqlErrors(errors: Array<{ message: string }>) {
   return `GraphQL errors:\n${errors.map((error) => `- ${error.message}`).join("\n")}\n`;
 }
 
-export const phoenixGqlCommand = defineCommand(
-  "phoenix-gql",
-  async (args, ctx) => {
+function getGraphqlMutationPolicy({
+  getPolicy,
+}: {
+  getPolicy: () => BashCustomCommandPolicy;
+}) {
+  return getPolicy().graphql.allowMutations;
+}
+
+export const createPhoenixGqlCommand = ({
+  getPolicy,
+}: {
+  getPolicy: () => BashCustomCommandPolicy;
+}) =>
+  defineCommand("phoenix-gql", async (args, ctx) => {
     try {
       const parsedArgs = parseArgs(args);
-      const mutationsEnabled =
-        ctx.env.get(PHOENIX_GQL_MUTATIONS_ENV_VAR) === "1";
+      const mutationsEnabled = getGraphqlMutationPolicy({ getPolicy });
 
       if (parsedArgs.showHelp) {
         return {
@@ -348,5 +352,4 @@ export const phoenixGqlCommand = defineCommand(
         exitCode: 1,
       };
     }
-  }
-);
+  });

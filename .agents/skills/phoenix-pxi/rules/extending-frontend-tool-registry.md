@@ -28,14 +28,16 @@ The request body includes `agentToolDefinitions`, and tool calls returning from 
 3. Implement a runtime handler for the tool's browser-side behavior.
 4. Register the tool in `app/src/agent/extensions/toolRegistry.ts`.
 5. If the tool depends on runtime policy or user-controlled permissions, add or update capability metadata in `app/src/agent/extensions/capabilities.ts`.
-6. If the model needs to understand that capability state, ensure the system-prompt summary remains accurate in `buildAgentChatRequestBody.ts`.
+6. If privileged behavior must reach a browser runtime or custom shell command, translate capabilities into a trusted runtime policy object at the execution boundary instead of reading authorization from mutable shell state such as environment variables.
+7. If the model needs to understand that capability state, ensure the system-prompt summary remains accurate in `buildAgentChatRequestBody.ts`.
 
 ## Edit A Frontend Tool
 
 1. Start in the tool module itself for schema, parsing, or runtime behavior changes.
 2. Update `toolRegistry.ts` only if registration, gating, or dispatch behavior changes.
 3. Update `capabilities.ts` if the tool's permissions, labels, or control surfaces change.
-4. Check `buildAgentChatRequestBody.ts` if the model-facing runtime context should change.
+4. If runtime permissions are involved, verify the execution path consumes trusted runtime policy rather than shell-controlled values.
+5. Check `buildAgentChatRequestBody.ts` if the model-facing runtime context should change.
 
 ## Remove A Frontend Tool
 
@@ -48,5 +50,6 @@ The request body includes `agentToolDefinitions`, and tool calls returning from 
 
 - Keep tool-specific behavior in the tool module or registry entry, not in React components.
 - Prefer capability metadata over hardcoded UI toggles when a tool needs runtime policy.
+- Keep capability metadata declarative. Translate capabilities into trusted runtime policy near the execution boundary rather than embedding authorization checks in mutable shell state.
 - Keep `handleAgentToolCall.ts` thin; registry-backed dispatch should stay the main extension seam.
 - When adding a new concept, make the story readable top-to-bottom: metadata, helpers, then exported entry points.

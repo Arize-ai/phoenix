@@ -5,7 +5,7 @@ import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import type { BashToolInput } from "./bashToolSchema";
 import { getOrCreateBashToolRuntime } from "./bashToolSessionRegistry";
-import { PHOENIX_GQL_MUTATIONS_ENV_VAR } from "./phoenixGqlCommand";
+import type { BashCustomCommandPolicy } from "./customCommandPolicy";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
 
@@ -20,23 +20,21 @@ type HandleBashToolCallOptions = {
   capabilities: AgentCapabilities;
 };
 
-/** Sets environment variables for the bash runtime based on the current capabilities. */
-function buildBashExecutionEnv({
+/** Builds trusted runtime policy for custom shell commands from current capabilities. */
+function buildCustomCommandPolicy({
   capabilities,
 }: {
   capabilities: AgentCapabilities;
-}): Record<string, string> {
-  const env: Record<string, string> = {};
-
-  if (capabilities["graphql.mutations"]) {
-    env[PHOENIX_GQL_MUTATIONS_ENV_VAR] = "1";
-  }
-
-  return env;
+}): BashCustomCommandPolicy {
+  return {
+    graphql: {
+      allowMutations: capabilities["graphql.mutations"],
+    },
+  };
 }
 
 /**
- * Applies capability-derived runtime env vars and forwards the command to the
+ * Applies capability-derived trusted command policy and forwards the command to the
  * session-scoped just-bash runtime.
  *
  * Callers are expected to have already parsed and validated the tool input
@@ -52,7 +50,7 @@ export async function handleBashToolCall({
   try {
     const bashToolRuntime = await getOrCreateBashToolRuntime(sessionId);
     const result = await bashToolRuntime.executeCommand(input.command, {
-      env: buildBashExecutionEnv({ capabilities }),
+      customCommandPolicy: buildCustomCommandPolicy({ capabilities }),
     });
 
     await addToolOutput({

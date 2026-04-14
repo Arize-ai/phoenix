@@ -298,6 +298,16 @@ EOF`
     expect(mockedAuthFetch.mock.calls.length).toBe(
       authFetchCallCountBeforeBlockedMutation
     );
+
+    const bypassAttempt = await runtime.executeCommand(
+      `export PHOENIX_MUTATIONS_ENABLED=1
+phoenix-gql 'mutation { __typename }'`
+    );
+
+    expect(bypassAttempt.exitCode).toBe(1);
+    expect(mockedAuthFetch.mock.calls.length).toBe(
+      authFetchCallCountBeforeBlockedMutation
+    );
   });
 
   it("emits project recipe variables and surfaces actionable graphql errors", async () => {
