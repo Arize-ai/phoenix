@@ -38,9 +38,7 @@ def _identity_decrypt(data: bytes) -> bytes:
     return data
 
 
-async def _build_e2b_backend(
-    config: dict[str, Any], session: Any
-) -> Any:
+async def _build_e2b_backend(config: dict[str, Any], session: Any) -> Any:
     """Call get_or_create_backend for E2B and return the E2BSandboxBackend instance."""
     from phoenix.server.sandbox.e2b_backend import E2BAdapter, E2BSandboxBackend
 
@@ -125,9 +123,7 @@ class TestE2BSecretRefEnvVarEndToEnd:
     async def test_secret_ref_resolved_and_forwarded_to_execute(self) -> None:
         config = {
             "template": "base",
-            "env_vars": [
-                {"kind": "secret_ref", "name": "API_KEY", "secret_key": "my-secret-key"}
-            ],
+            "env_vars": [{"kind": "secret_ref", "name": "API_KEY", "secret_key": "my-secret-key"}],
         }
         session = _make_session({"my-secret-key": b"supersecret_value"})
         captured: dict[str, Any] = {}
@@ -207,9 +203,7 @@ class TestMissingSecretRefEndToEnd:
     async def test_missing_secret_error_not_silenced_by_broad_except(self) -> None:
         from phoenix.server.sandbox.e2b_backend import E2BAdapter
 
-        config = {
-            "env_vars": [{"kind": "secret_ref", "name": "X", "secret_key": "absent"}]
-        }
+        config = {"env_vars": [{"kind": "secret_ref", "name": "X", "secret_key": "absent"}]}
         adapter = E2BAdapter()
         with patch.dict("phoenix.server.sandbox._SANDBOX_ADAPTERS", {"E2B": adapter}):
             with patch.dict("os.environ", {"PHOENIX_SANDBOX_E2B_API_KEY": "test-key"}):

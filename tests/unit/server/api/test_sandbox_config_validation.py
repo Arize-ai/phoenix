@@ -45,7 +45,9 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
         language = "PYTHON"
         config_model = config_model_cls
 
-        def build_backend(self, config: dict[str, Any]) -> Any:
+        def build_backend(
+            self, config: dict[str, Any], user_env: dict[str, str] | None = None
+        ) -> Any:
             return None
 
     return _ConcreteAdapter()
