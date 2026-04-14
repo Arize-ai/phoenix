@@ -152,16 +152,10 @@ def balance_labels(
     print(f"Available traces: {len(pass_traces)} PASS, {len(fail_traces)} FAIL")
 
     # Sample to get balanced dataset
-    selected_pass = pass_traces.sample(
-        n=min(target_positive, len(pass_traces)), random_state=42
-    )
-    selected_fail = fail_traces.sample(
-        n=min(target_negative, len(fail_traces)), random_state=42
-    )
+    selected_pass = pass_traces.sample(n=min(target_positive, len(pass_traces)), random_state=42)
+    selected_fail = fail_traces.sample(n=min(target_negative, len(fail_traces)), random_state=42)
 
-    balanced_df = pd.concat([selected_pass, selected_fail]).sample(
-        frac=1, random_state=42
-    )
+    balanced_df = pd.concat([selected_pass, selected_fail]).sample(frac=1, random_state=42)
 
     print(f"Balanced dataset: {len(selected_pass)} PASS, {len(selected_fail)} FAIL")
 
