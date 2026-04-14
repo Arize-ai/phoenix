@@ -12,7 +12,20 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import type { SpanWithAnnotations } from "../trace";
-import { formatSpansOutput, type OutputFormat } from "./formatSpans";
+import {
+  buildAnnotationMutationResult,
+  getAnnotationMutationHelpText,
+  getResponseErrorMessage,
+  normalizeAnnotationInput,
+} from "./annotationMutationUtils";
+import {
+  formatAnnotationMutationOutput,
+  type OutputFormat as AnnotationMutationOutputFormat,
+} from "./formatAnnotationMutation";
+import {
+  formatSpansOutput,
+  type OutputFormat as SpanOutputFormat,
+} from "./formatSpans";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
@@ -21,7 +34,7 @@ interface SpanListOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
-  format?: OutputFormat;
+  format?: SpanOutputFormat;
   progress?: boolean;
   limit?: number;
   lastNMinutes?: number;
@@ -32,6 +45,18 @@ interface SpanListOptions {
   traceId?: string[];
   parentId?: string;
   includeAnnotations?: boolean;
+}
+
+interface SpanAnnotateOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: AnnotationMutationOutputFormat;
+  progress?: boolean;
+  name?: string;
+  label?: string;
+  score?: string;
+  explanation?: string;
+  annotatorKind?: string;
 }
 
 /**
@@ -297,6 +322,116 @@ export function createSpanListCommand(): Command {
     .action(spanListHandler);
 }
 
+/**
+ * Handler for `span annotate`
+ */
+async function spanAnnotateHandler(
+  spanId: string,
+  options: SpanAnnotateOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const annotationInput = normalizeAnnotationInput({
+      targetType: "span",
+      name: options.name,
+      label: options.label,
+      score: options.score,
+      explanation: options.explanation,
+      annotatorKind: options.annotatorKind,
+    });
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Annotating span ${spanId}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.POST("/v1/span_annotations", {
+      params: {
+        query: {
+          sync: true,
+        },
+      },
+      body: {
+        data: [
+          {
+            span_id: spanId,
+            name: annotationInput.name,
+            annotator_kind: annotationInput.annotatorKind,
+            result: annotationInput.result,
+            identifier: "",
+          },
+        ],
+      },
+    });
+
+    if (response.error) {
+      throw new Error(getResponseErrorMessage(response.error));
+    }
+
+    const insertedAnnotation = response.data?.data?.[0];
+    if (!insertedAnnotation) {
+      throw new Error(
+        "Phoenix did not return the inserted span annotation ID."
+      );
+    }
+
+    const annotation = buildAnnotationMutationResult({
+      id: insertedAnnotation.id,
+      targetType: "span",
+      targetId: spanId,
+      annotationInput,
+    });
+
+    const output = formatAnnotationMutationOutput({
+      annotation,
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error annotating span: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSpanAnnotateCommand(): Command {
+  return new Command("annotate")
+    .description("Annotate a span by OpenTelemetry span ID")
+    .argument("<span-id>", "OpenTelemetry span ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--name <name>", "Annotation name")
+    .option("--label <label>", "Annotation label")
+    .option("--score <number>", "Annotation score")
+    .option("--explanation <text>", "Annotation explanation")
+    .option("--annotator-kind <kind>", "Annotation kind: HUMAN, LLM, or CODE")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText("after", getAnnotationMutationHelpText("span"))
+    .action(spanAnnotateHandler);
+}
+
 interface SpanDeleteOptions {
   endpoint?: string;
   apiKey?: string;
@@ -383,6 +518,7 @@ export function createSpanCommand(): Command {
   const command = new Command("span");
   command.description("Manage Phoenix spans");
   command.addCommand(createSpanListCommand());
+  command.addCommand(createSpanAnnotateCommand());
   command.addCommand(createSpanDeleteCommand());
   return command;
 }

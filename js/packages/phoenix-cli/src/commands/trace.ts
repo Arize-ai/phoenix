@@ -13,8 +13,21 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { buildTrace, groupSpansByTrace, type Trace } from "../trace";
-import { formatTraceOutput, type OutputFormat } from "./formatTraces";
-import { formatTracesOutput } from "./formatTraces";
+import {
+  buildAnnotationMutationResult,
+  getAnnotationMutationHelpText,
+  getResponseErrorMessage,
+  normalizeAnnotationInput,
+} from "./annotationMutationUtils";
+import {
+  formatAnnotationMutationOutput,
+  type OutputFormat as AnnotationMutationOutputFormat,
+} from "./formatAnnotationMutation";
+import {
+  formatTraceOutput,
+  formatTracesOutput,
+  type OutputFormat as TraceOutputFormat,
+} from "./formatTraces";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
@@ -23,7 +36,7 @@ interface TraceGetOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
-  format?: OutputFormat;
+  format?: TraceOutputFormat;
   progress?: boolean;
   file?: string;
   includeAnnotations?: boolean;
@@ -33,13 +46,25 @@ interface TraceListOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
-  format?: OutputFormat;
+  format?: TraceOutputFormat;
   progress?: boolean;
   limit?: number;
   lastNMinutes?: number;
   since?: string;
   maxConcurrent?: number;
   includeAnnotations?: boolean;
+}
+
+interface TraceAnnotateOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: AnnotationMutationOutputFormat;
+  progress?: boolean;
+  name?: string;
+  label?: string;
+  score?: string;
+  explanation?: string;
+  annotatorKind?: string;
 }
 
 /**
@@ -351,7 +376,7 @@ async function traceGetHandler(
     const trace = buildTrace({ spans });
 
     // Output trace
-    const outputFormat: OutputFormat = options.file
+    const outputFormat: TraceOutputFormat = options.file
       ? "json"
       : options.format || "pretty";
 
@@ -584,6 +609,116 @@ export function createTraceListCommand(): Command {
     .action(traceListHandler);
 }
 
+/**
+ * Handler for `trace annotate`
+ */
+async function traceAnnotateHandler(
+  traceId: string,
+  options: TraceAnnotateOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const annotationInput = normalizeAnnotationInput({
+      targetType: "trace",
+      name: options.name,
+      label: options.label,
+      score: options.score,
+      explanation: options.explanation,
+      annotatorKind: options.annotatorKind,
+    });
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Annotating trace ${traceId}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.POST("/v1/trace_annotations", {
+      params: {
+        query: {
+          sync: true,
+        },
+      },
+      body: {
+        data: [
+          {
+            trace_id: traceId,
+            name: annotationInput.name,
+            annotator_kind: annotationInput.annotatorKind,
+            result: annotationInput.result,
+            identifier: "",
+          },
+        ],
+      },
+    });
+
+    if (response.error) {
+      throw new Error(getResponseErrorMessage(response.error));
+    }
+
+    const insertedAnnotation = response.data?.data?.[0];
+    if (!insertedAnnotation) {
+      throw new Error(
+        "Phoenix did not return the inserted trace annotation ID."
+      );
+    }
+
+    const annotation = buildAnnotationMutationResult({
+      id: insertedAnnotation.id,
+      targetType: "trace",
+      targetId: traceId,
+      annotationInput,
+    });
+
+    const output = formatAnnotationMutationOutput({
+      annotation,
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error annotating trace: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceAnnotateCommand(): Command {
+  return new Command("annotate")
+    .description("Annotate a trace by OpenTelemetry trace ID")
+    .argument("<trace-id>", "OpenTelemetry trace ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--name <name>", "Annotation name")
+    .option("--label <label>", "Annotation label")
+    .option("--score <number>", "Annotation score")
+    .option("--explanation <text>", "Annotation explanation")
+    .option("--annotator-kind <kind>", "Annotation kind: HUMAN, LLM, or CODE")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText("after", getAnnotationMutationHelpText("trace"))
+    .action(traceAnnotateHandler);
+}
+
 interface TraceDeleteOptions {
   endpoint?: string;
   apiKey?: string;
@@ -674,6 +809,7 @@ export function createTraceCommand(): Command {
   command.description("Manage Phoenix traces");
   command.addCommand(createTraceListCommand());
   command.addCommand(createTraceGetCommand());
+  command.addCommand(createTraceAnnotateCommand());
   command.addCommand(createTraceDeleteCommand());
   return command;
 }

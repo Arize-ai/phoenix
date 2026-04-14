@@ -118,6 +118,19 @@ px trace get abc123def456 --file trace.json
 
 ---
 
+### `px trace annotate <trace-id>`
+
+Create or update a human trace annotation by OpenTelemetry trace ID.
+
+```bash
+px trace annotate abc123def456 --name reviewer --label pass
+px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
+px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
+px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+---
+
 ### `px span list [file]`
 
 Fetch spans for the configured project with filtering options. Output is JSON.
@@ -157,6 +170,19 @@ px span list --span-kind LLM --format raw --no-progress | \
 
 # Root spans only, sorted by name
 px span list --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
+```
+
+---
+
+### `px span annotate <span-id>`
+
+Create or update a human span annotation by OpenTelemetry span ID.
+
+```bash
+px span annotate 7e2f08cb43bbf521 --name reviewer --label pass
+px span annotate 7e2f08cb43bbf521 --name reviewer --score 0.9 --format raw --no-progress
+px span annotate 7e2f08cb43bbf521 --name checker --score 1 --annotator-kind CODE
+px span annotate 7e2f08cb43bbf521 --name reviewer --explanation "looks good"
 ```
 
 ---
