@@ -18,7 +18,32 @@ function createChunkStream(chunks: UIMessageChunk[]) {
   });
 }
 
-describe("assistantMessageMetadata", () => {
+describe("assistantMessageMetadataSchema", () => {
+  it("accepts the streamed assistant metadata shape", () => {
+    const parsed = assistantMessageMetadataSchema.parse({
+      traceId: "0123456789abcdef0123456789abcdef",
+      rootSpanId: "0123456789abcdef",
+      sessionId: "session-1",
+    });
+
+    expect(parsed).toEqual({
+      traceId: "0123456789abcdef0123456789abcdef",
+      rootSpanId: "0123456789abcdef",
+      sessionId: "session-1",
+    });
+  });
+
+  it("rejects incomplete assistant metadata", () => {
+    expect(() =>
+      assistantMessageMetadataSchema.parse({
+        traceId: "0123456789abcdef0123456789abcdef",
+        rootSpanId: "0123456789abcdef",
+      })
+    ).toThrow();
+  });
+});
+
+describe("assistant chat metadata", () => {
   it("attaches streamed trace metadata to the assistant message", async () => {
     const transport: ChatTransport<AssistantUIMessage> = {
       sendMessages: async () =>
