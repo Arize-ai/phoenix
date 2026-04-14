@@ -91,7 +91,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         list[Received[_PrecursorT]],
     ]: ...
 
-    async def insert(self) -> Optional[list[_DmlEventT]]:
+    async def insert(self, session: Optional[AsyncSession] = None) -> Optional[list[_DmlEventT]]:
         if not self._queue:
             return None
         parcels = self._queue.copy()
@@ -99,12 +99,22 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         # avoid potential race conditions when appending postponed items to the queue.
         self._queue.clear()
         events: list[_DmlEventT] = []
-        async with self._db() as session:
+
+        # Use provided session or create a new one
+        use_own_session = session is None
+        if use_own_session:
+            session = await self._db().__aenter__()
+
+        try:
             to_insert, to_postpone, _ = await self._partition(session, *parcels)
             if to_insert:
                 events, to_retry, _ = await self._insert(session, *to_insert)
                 if to_retry:
                     to_postpone.extend(to_retry)
+        finally:
+            if use_own_session:
+                await session.__aexit__(None, None, None)
+
         if to_postpone:
             loop = asyncio.get_running_loop()
             loop.call_later(self._retry_delay_sec, self._add_postponed_to_queue, to_postpone)
