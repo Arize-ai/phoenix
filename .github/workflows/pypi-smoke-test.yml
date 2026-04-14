@@ -153,3 +153,19 @@ jobs:
           name: pypi-smoke-log-${{ matrix.mode }}
           path: ${{ runner.temp }}/phoenix-smoke-${{ matrix.mode }}.log
           if-no-files-found: ignore
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    if: ${{ always() && github.event_name != 'pull_request' && needs.smoke-test.result == 'failure' }}
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: PyPI smoke test failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
