@@ -81,6 +81,7 @@ class VercelSandboxBackend(SandboxBackend):
         project_id: Optional[str] = None,
         team_id: Optional[str] = None,
         language: str = _DEFAULT_LANGUAGE,
+        user_env: Optional[dict[str, str]] = None,
     ) -> None:
         self._use_oidc_env = use_oidc_env
         self._token = token
@@ -92,13 +93,14 @@ class VercelSandboxBackend(SandboxBackend):
                 "token, project_id, and team_id."
             )
         self._language = language.upper() if language else _DEFAULT_LANGUAGE
+        self._user_env: dict[str, str] = user_env or {}
         self._sessions: dict[str, Any] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
 
     def _lang_cfg(self) -> dict[str, Any]:
         return _LANGUAGE_CONFIGS.get(self._language, _LANGUAGE_CONFIGS[_DEFAULT_LANGUAGE])
 
-    async def _create_sandbox(self, env: Optional[dict[str, str]] = None) -> Any:
+    async def _create_sandbox(self) -> Any:
         from vercel.sandbox import AsyncSandbox
 
         runtime: str = self._lang_cfg()["runtime"]
@@ -107,8 +109,6 @@ class VercelSandboxBackend(SandboxBackend):
             create_kwargs["token"] = self._token
             create_kwargs["project_id"] = self._project_id
             create_kwargs["team_id"] = self._team_id
-        if env:
-            create_kwargs["env"] = env
         return await AsyncSandbox.create(**create_kwargs)
 
     async def start_session(self, session_key: str) -> None:
@@ -132,12 +132,20 @@ class VercelSandboxBackend(SandboxBackend):
                 logger.debug(f"Error stopping Vercel session '{session_key}'", exc_info=True)
             logger.debug(f"Stopped Vercel session '{session_key}'")
 
-    async def _exec_code(self, sandbox: Any, code: str) -> ExecutionResult:
+    async def _exec_code(
+        self,
+        sandbox: Any,
+        code: str,
+        env: Optional[dict[str, str]] = None,
+    ) -> ExecutionResult:
         """Run code in a sandbox and collect stdout/stderr."""
         lang_cfg = self._lang_cfg()
         cmd: str = lang_cfg["cmd"]
         args: list[str] = lang_cfg["args_prefix"] + [code]
-        result = await sandbox.run_command(cmd, args)
+        run_kwargs: dict[str, Any] = {}
+        if env:
+            run_kwargs["env"] = env
+        result = await sandbox.run_command(cmd, args, **run_kwargs)
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
@@ -160,14 +168,16 @@ class VercelSandboxBackend(SandboxBackend):
                 "set timeout at sandbox creation time via start_session"
             )
         try:
+            # Merge user_env (base) with per-call env; passed to run_command at execute-time.
+            merged_env: Optional[dict[str, str]] = {**self._user_env, **(env or {})} or None
             sandbox = self._sessions.get(session_key)
             if sandbox is not None:
-                return await self._exec_code(sandbox, code)
+                return await self._exec_code(sandbox, code, env=merged_env)
             else:
                 # Ephemeral: create, exec, stop.
-                sandbox = await self._create_sandbox(env=env)
+                sandbox = await self._create_sandbox()
                 try:
-                    return await self._exec_code(sandbox, code)
+                    return await self._exec_code(sandbox, code, env=merged_env)
                 finally:
                     try:
                         await sandbox.stop()
@@ -200,9 +210,13 @@ class VercelPythonAdapter(SandboxAdapter):
     language = "PYTHON"
     config_model = VercelPythonConfig
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> SandboxBackend:
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
-            return VercelSandboxBackend(use_oidc_env=True, language="PYTHON")
+            return VercelSandboxBackend(use_oidc_env=True, language="PYTHON", user_env=user_env)
 
         token = _resolve_vercel_access_token(config)
         project_id = _resolve_vercel_project_id(config)
@@ -213,6 +227,7 @@ class VercelPythonAdapter(SandboxAdapter):
                 project_id=project_id,
                 team_id=team_id,
                 language="PYTHON",
+                user_env=user_env,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
@@ -228,9 +243,13 @@ class VercelTypescriptAdapter(SandboxAdapter):
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> SandboxBackend:
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
-            return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT")
+            return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT", user_env=user_env)
 
         token = _resolve_vercel_access_token(config)
         project_id = _resolve_vercel_project_id(config)
@@ -241,6 +260,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
                 project_id=project_id,
                 team_id=team_id,
                 language="TYPESCRIPT",
+                user_env=user_env,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "

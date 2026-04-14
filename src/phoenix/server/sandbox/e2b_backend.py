@@ -37,11 +37,13 @@ class E2BSandboxBackend(SandboxBackend):
         template: str = "base",
         cwd: Optional[str] = None,
         metadata: Optional[str] = None,
+        user_env: Optional[dict[str, str]] = None,
     ) -> None:
         self._api_key = api_key
         self._template = template
         self._cwd = cwd
         self._metadata = metadata
+        self._user_env: dict[str, str] = user_env or {}
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
@@ -83,10 +85,10 @@ class E2BSandboxBackend(SandboxBackend):
         env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        AsyncSandbox = self._get_sandbox_cls()
         try:
             sandbox = self._sessions.get(session_key)
-            run_kwargs: dict[str, Any] = {"envs": env or {}}
+            merged_env = {**self._user_env, **(env or {})}
+            run_kwargs: dict[str, Any] = {"envs": merged_env}
             if timeout is not None:
                 run_kwargs["timeout"] = timeout
             if self._cwd is not None:
@@ -95,6 +97,7 @@ class E2BSandboxBackend(SandboxBackend):
                 execution = await sandbox.run_code(code, **run_kwargs)
             else:
                 # Ephemeral: spin up a fresh sandbox, run, then close.
+                AsyncSandbox = self._get_sandbox_cls()
                 async with await AsyncSandbox.create(**self._create_kwargs()) as sb:
                     execution = await sb.run_code(code, **run_kwargs)
 
@@ -125,7 +128,11 @@ class E2BAdapter(SandboxAdapter):
     language = "PYTHON"
     config_model = E2BConfig
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> SandboxBackend:
         api_key: str = (
             config.get("PHOENIX_SANDBOX_E2B_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_E2B_API_KEY")
@@ -135,4 +142,6 @@ class E2BAdapter(SandboxAdapter):
         template: str = config.get("template", "base")
         cwd: Optional[str] = config.get("cwd") or None
         metadata: Optional[str] = config.get("metadata") or None
-        return E2BSandboxBackend(api_key=api_key, template=template, cwd=cwd, metadata=metadata)
+        return E2BSandboxBackend(
+            api_key=api_key, template=template, cwd=cwd, metadata=metadata, user_env=user_env
+        )

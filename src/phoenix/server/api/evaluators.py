@@ -841,8 +841,11 @@ async def get_evaluators(
                             **sandbox_provider.config,
                             **sandbox_config.config,
                         }
-                        backend = get_or_create_backend(
-                            sandbox_provider.backend_type, config=merged_config
+                        backend = await get_or_create_backend(
+                            sandbox_provider.backend_type,
+                            config=merged_config,
+                            session=session,
+                            decrypt=decrypt,
                         )
 
             # Resolve evaluator base row for name/description/metadata

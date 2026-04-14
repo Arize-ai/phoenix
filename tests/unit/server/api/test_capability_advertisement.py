@@ -1,0 +1,238 @@
+"""Tests for capability advertisement via sandboxBackends and env_vars config round-trip."""
+
+from __future__ import annotations
+
+from sqlalchemy import select
+from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
+
+_SANDBOX_BACKENDS_QUERY = """
+  query {
+    sandboxBackends {
+      backendType
+      displayName
+      supportedLanguages
+      status
+      dependencyHints
+      supportsEnvVars
+      internetAccess
+      dependenciesLanguage
+      configFieldSpecs {
+        key
+        fieldType
+      }
+    }
+  }
+"""
+
+_CREATE = """
+mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+    createSandboxConfig(input: $input) {
+        sandboxConfig {
+            id
+            config
+        }
+    }
+}
+"""
+
+_QUERY_PROVIDER_CONFIGS = """
+query SandboxProviders {
+    sandboxProviders {
+        id
+        backendType
+        configs {
+            id
+            config
+        }
+    }
+}
+"""
+
+
+def _provider_global_id(provider_id: int) -> str:
+    return str(GlobalID("SandboxProvider", str(provider_id)))
+
+
+async def test_sandbox_backends_full_ui_query_shape(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    """UI-style query with all capability fields resolves without errors."""
+    response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+
+    assert set(backends.keys()) == {
+        "WASM",
+        "E2B",
+        "DAYTONA_PYTHON",
+        "VERCEL_PYTHON",
+        "VERCEL_TYPESCRIPT",
+        "DENO",
+        "MODAL",
+    }
+
+    for bt, backend in backends.items():
+        assert "supportsEnvVars" in backend, bt
+        assert "internetAccess" in backend, bt
+        assert "dependenciesLanguage" in backend, bt
+        assert backend["internetAccess"] == "NONE", bt
+
+
+async def test_sandbox_backends_capability_flags_per_adapter(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    """Each adapter advertises the correct capability flags per the capability matrix."""
+    response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+
+    assert backends["WASM"]["supportsEnvVars"] is False
+    assert backends["WASM"]["dependenciesLanguage"] is None
+
+    assert backends["E2B"]["supportsEnvVars"] is True
+    assert backends["E2B"]["dependenciesLanguage"] is None
+
+    assert backends["DAYTONA_PYTHON"]["supportsEnvVars"] is True
+    assert backends["DAYTONA_PYTHON"]["dependenciesLanguage"] == "PYTHON"
+
+    assert backends["VERCEL_PYTHON"]["supportsEnvVars"] is True
+    assert backends["VERCEL_PYTHON"]["dependenciesLanguage"] is None
+
+    assert backends["VERCEL_TYPESCRIPT"]["supportsEnvVars"] is True
+    assert backends["VERCEL_TYPESCRIPT"]["dependenciesLanguage"] is None
+
+    assert backends["DENO"]["supportsEnvVars"] is True
+    assert backends["DENO"]["dependenciesLanguage"] is None
+
+    assert backends["MODAL"]["supportsEnvVars"] is False
+    assert backends["MODAL"]["dependenciesLanguage"] is None
+
+
+async def test_sandbox_config_with_env_vars_persists_through_mutation(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    seed_sandbox_providers: None,
+) -> None:
+    """A SandboxConfig with env_vars in config round-trips through createSandboxConfig."""
+    async with db() as session:
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+        )
+    assert provider is not None
+
+    env_vars_payload = [
+        {"kind": "literal", "name": "MY_VAR", "value": "hello"},
+    ]
+    result = await gql_client.execute(
+        _CREATE,
+        variables={
+            "input": {
+                "sandboxProviderId": _provider_global_id(provider.id),
+                "name": "e2b-with-env-vars",
+                "config": {"env_vars": env_vars_payload},
+            }
+        },
+    )
+    assert result.data and not result.errors
+    cfg = result.data["createSandboxConfig"]["sandboxConfig"]
+    persisted_config = cfg["config"]
+    assert persisted_config["env_vars"] == env_vars_payload
+
+    reload_result = await gql_client.execute(query=_QUERY_PROVIDER_CONFIGS)
+    assert reload_result.data and not reload_result.errors
+    e2b_provider = next(
+        p for p in reload_result.data["sandboxProviders"] if p["backendType"] == "E2B"
+    )
+    reloaded_config = next(
+        c for c in e2b_provider["configs"] if c["config"].get("env_vars") == env_vars_payload
+    )
+    assert reloaded_config["config"]["env_vars"] == env_vars_payload
+
+
+async def test_sandbox_config_secret_ref_env_var_round_trips(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    seed_sandbox_providers: None,
+) -> None:
+    """A secret_ref env var entry persists through create without leaking the secret value."""
+    async with db() as session:
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+        )
+    assert provider is not None
+
+    secret_ref_payload = [
+        {"kind": "secret_ref", "name": "API_TOKEN", "secret_key": "my_secret_key"},
+    ]
+    result = await gql_client.execute(
+        _CREATE,
+        variables={
+            "input": {
+                "sandboxProviderId": _provider_global_id(provider.id),
+                "name": "e2b-with-secret-ref",
+                "config": {"env_vars": secret_ref_payload},
+            }
+        },
+    )
+    assert result.data and not result.errors
+    cfg = result.data["createSandboxConfig"]["sandboxConfig"]
+    persisted_env_vars = cfg["config"]["env_vars"]
+    assert persisted_env_vars == secret_ref_payload
+    for entry in persisted_env_vars:
+        assert "value" not in entry or entry.get("kind") != "literal"
+
+
+async def test_internet_access_advertised_as_none_for_all_adapters(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    """All adapters advertise internetAccess=NONE — no SDK exposes a network-policy API.
+
+    The frontend should hide the internet-access editor for every adapter until a
+    future phase ships a verifiable deny/allow control.
+    """
+    response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    for backend in response.data["sandboxBackends"]:
+        assert backend["internetAccess"] == "NONE", (
+            f"{backend['backendType']} unexpectedly advertises internet_access != NONE"
+        )
+
+
+async def test_dependencies_language_only_set_for_daytona(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    """Only DAYTONA_PYTHON advertises dependenciesLanguage — the only adapter with runtime install.
+
+    All other adapters advertise dependenciesLanguage=None, meaning the frontend
+    should hide the dependencies editor for them until Phase 5 ships verified support.
+    """
+    response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+
+    assert backends["DAYTONA_PYTHON"]["dependenciesLanguage"] == "PYTHON"
+
+    no_deps_backends = [
+        "WASM",
+        "E2B",
+        "VERCEL_PYTHON",
+        "VERCEL_TYPESCRIPT",
+        "DENO",
+        "MODAL",
+    ]
+    for bt in no_deps_backends:
+        assert backends[bt]["dependenciesLanguage"] is None, (
+            f"{bt} unexpectedly advertises a dependenciesLanguage"
+        )

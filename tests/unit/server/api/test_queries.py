@@ -2900,3 +2900,42 @@ class TestModelInvocationParameters:
         assert not response.errors
         assert response.data is not None
         assert response.data["modelInvocationParameters"] == []
+
+
+async def test_sandbox_backends_capability_flags(
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    query = """
+      query {
+        sandboxBackends {
+          backendType
+          supportsEnvVars
+          internetAccess
+          dependenciesLanguage
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+
+    assert backends["WASM"]["supportsEnvVars"] is False
+    assert backends["WASM"]["internetAccess"] == "NONE"
+    assert backends["WASM"]["dependenciesLanguage"] is None
+
+    assert backends["E2B"]["supportsEnvVars"] is True
+    assert backends["E2B"]["internetAccess"] == "NONE"
+    assert backends["E2B"]["dependenciesLanguage"] is None
+
+    assert backends["DAYTONA_PYTHON"]["supportsEnvVars"] is True
+    assert backends["DAYTONA_PYTHON"]["internetAccess"] == "NONE"
+    assert backends["DAYTONA_PYTHON"]["dependenciesLanguage"] == "PYTHON"
+
+    assert backends["VERCEL_PYTHON"]["supportsEnvVars"] is True
+    assert backends["VERCEL_TYPESCRIPT"]["supportsEnvVars"] is True
+    assert backends["DENO"]["supportsEnvVars"] is True
+
+    assert backends["MODAL"]["supportsEnvVars"] is False
+    assert backends["MODAL"]["dependenciesLanguage"] is None

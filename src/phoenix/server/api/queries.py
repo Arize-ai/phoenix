@@ -1799,9 +1799,9 @@ class Query:
             return await session.scalar(stmt) or 0
 
     @strawberry.field
-    def sandbox_backends(self) -> list[SandboxBackendInfo]:
+    async def sandbox_backends(self) -> list[SandboxBackendInfo]:
         """Return static + runtime info for all known sandbox backends."""
-        return get_sandbox_backend_info()
+        return await get_sandbox_backend_info()
 
     @strawberry.field
     async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:

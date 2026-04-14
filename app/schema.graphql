@@ -2079,6 +2079,12 @@ type IntInvocationParameter implements InvocationParameterBase {
   defaultValue: Int
 }
 
+enum InternetAccessMode {
+  NONE
+  BOOLEAN
+  ALLOWLIST
+}
+
 enum InvocationInputField {
   value_int
   value_float
@@ -3104,6 +3110,9 @@ type SandboxBackendInfo {
   status: SandboxBackendStatus!
   dependencyHints: [String!]!
   configFieldSpecs: [ConfigFieldSpecType!]!
+  supportsEnvVars: Boolean!
+  internetAccess: InternetAccessMode!
+  dependenciesLanguage: Language
 }
 
 enum SandboxBackendStatus {

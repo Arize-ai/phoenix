@@ -316,8 +316,13 @@ class ChatCompletionMutationMixin:
                         if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
                     ]
 
-                if backend_type is not None:
-                    sandbox_backend = get_or_create_backend(backend_type, config=merged_config)
+                    if backend_type is not None:
+                        sandbox_backend = await get_or_create_backend(
+                            backend_type,
+                            config=merged_config,
+                            session=session,
+                            decrypt=info.context.decrypt,
+                        )
                 if sandbox_backend is None:
                     raise BadRequest(
                         f"No sandbox backend configured for language '{language}'. "

@@ -51,11 +51,13 @@ class ModalSandboxBackend(SandboxBackend):
         timeout: int = _DEFAULT_TIMEOUT,
         idle_timeout: int = _DEFAULT_IDLE_TIMEOUT,
         app_name: str = "phoenix-sandbox",
+        user_env: Optional[dict[str, str]] = None,
     ) -> None:
         import modal  # type: ignore[import-not-found]
 
         self._timeout = timeout
         self._idle_timeout = idle_timeout
+        self._user_env: dict[str, str] = user_env or {}
         self._sessions: dict[str, Any] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._app = modal.App.lookup(app_name, create_if_missing=True)
@@ -64,12 +66,15 @@ class ModalSandboxBackend(SandboxBackend):
     async def _create_sandbox(self) -> Any:
         import modal
 
-        sandbox = await modal.Sandbox.create.aio(
-            app=self._app,
-            image=self._image,
-            timeout=self._timeout,
-            idle_timeout=self._idle_timeout,
-        )
+        kwargs: dict[str, Any] = {
+            "app": self._app,
+            "image": self._image,
+            "timeout": self._timeout,
+            "idle_timeout": self._idle_timeout,
+        }
+        if self._user_env:
+            kwargs["env_dict"] = self._user_env
+        sandbox = await modal.Sandbox.create.aio(**kwargs)
         return sandbox
 
     async def start_session(self, session_key: str) -> None:
@@ -143,8 +148,14 @@ class ModalAdapter(SandboxAdapter):
     language = "PYTHON"
     config_model = ModalConfig
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> SandboxBackend:
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
         idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
         app_name: str = config.get("app_name", "phoenix-sandbox")
-        return ModalSandboxBackend(timeout=timeout, idle_timeout=idle_timeout, app_name=app_name)
+        return ModalSandboxBackend(
+            timeout=timeout, idle_timeout=idle_timeout, app_name=app_name, user_env=user_env
+        )

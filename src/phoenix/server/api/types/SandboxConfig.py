@@ -54,6 +54,13 @@ class SandboxBackendStatus(Enum):
     """Optional dependency for this backend is not installed."""
 
 
+@strawberry.enum
+class InternetAccessMode(Enum):
+    NONE = "none"
+    BOOLEAN = "boolean"
+    ALLOWLIST = "allowlist"
+
+
 @strawberry.type
 class SandboxBackendInfo:
     """
@@ -69,6 +76,9 @@ class SandboxBackendInfo:
     status: SandboxBackendStatus
     dependency_hints: list[str]
     config_field_specs: list[ConfigFieldSpecType]
+    supports_env_vars: bool
+    internet_access: InternetAccessMode
+    dependencies_language: Optional[Language]
 
 
 @strawberry.type
@@ -260,7 +270,7 @@ def to_gql_sandbox_provider(row: models.SandboxProvider) -> SandboxProvider:
     return SandboxProvider(id=row.id, db_record=row)
 
 
-def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
+async def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
     """
     Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
     with runtime status derived from get_or_create_backend().
@@ -276,7 +286,7 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
             # Adapter registration and backend construction can still over-report
             # availability when runtime prerequisites are only checked later
             # (for example, missing binaries, API keys, or first-use downloads).
-            backend = get_or_create_backend(backend_type)
+            backend = await get_or_create_backend(backend_type)
             status = (
                 SandboxBackendStatus.AVAILABLE
                 if backend is not None
@@ -301,6 +311,11 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
                     )
                     for s in raw_specs
                 ],
+                supports_env_vars=meta.supports_env_vars,
+                internet_access=InternetAccessMode(meta.internet_access),
+                dependencies_language=(
+                    Language(meta.dependencies_language) if meta.dependencies_language else None
+                ),
             )
         )
     return infos
