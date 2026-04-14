@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 
 import httpx
@@ -30,6 +31,7 @@ class TestChatRouter:
         body = {
             "trigger": "submit-message",
             "id": "test-session-1",
+            "sessionId": "test-session-1",
             "messages": [
                 {
                     "id": "test-msg-1",
@@ -64,6 +66,15 @@ class TestChatRouter:
             event for event in events if isinstance(event, dict) and event.get("type") == "finish"
         )
         assert finish_event["finishReason"] == "stop"
+
+        start_event = next(
+            event for event in events if isinstance(event, dict) and event.get("type") == "start"
+        )
+        message_metadata = start_event.get("messageMetadata")
+        assert message_metadata is not None
+        assert re.fullmatch(r"[0-9a-f]{32}", message_metadata["traceId"])
+        assert re.fullmatch(r"[0-9a-f]{16}", message_metadata["rootSpanId"])
+        assert message_metadata["sessionId"] == "test-session-1"
 
         # Verify text-start, text-delta, text-end all share the same stream ID
         text_events = [

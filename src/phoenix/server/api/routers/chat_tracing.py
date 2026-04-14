@@ -28,7 +28,7 @@ import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, TypedDict, cast
 
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -39,7 +39,14 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.context import Context as OtelContext
-from opentelemetry.trace import Span, Status, StatusCode, set_span_in_context
+from opentelemetry.trace import (
+    Span,
+    Status,
+    StatusCode,
+    format_span_id,
+    format_trace_id,
+    set_span_in_context,
+)
 from sqlalchemy import select
 
 from phoenix.config import get_env_phoenix_pxi_project_name
@@ -56,6 +63,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ChatMessageMetadata(TypedDict):
+    traceId: str
+    rootSpanId: str
+    sessionId: str
+
+
 @dataclass
 class StreamAccumulator:
     """Accumulates text and tool call content during streaming for tracing."""
@@ -68,6 +81,17 @@ class StreamAccumulator:
     @property
     def accumulated_text(self) -> str:
         return "".join(self.text_parts)
+
+
+def get_chat_message_metadata(span: Span, *, session_id: str) -> ChatMessageMetadata:
+    """Return AI SDK message metadata for the root AGENT span."""
+
+    context = span.get_span_context()
+    return ChatMessageMetadata(
+        traceId=format_trace_id(context.trace_id),
+        rootSpanId=format_span_id(context.span_id),
+        sessionId=session_id,
+    )
 
 
 class TracingContext:

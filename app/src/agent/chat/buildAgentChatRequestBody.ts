@@ -1,5 +1,3 @@
-import type { UIMessage } from "ai";
-
 /**
  * For the workflow to add, edit, or remove a frontend tool, see
  * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
@@ -10,6 +8,7 @@ import {
 } from "@phoenix/agent/extensions/capabilities";
 
 import { agentToolDefinitions } from "./chatTools";
+import type { PxiUIMessage } from "./messageMetadata";
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
@@ -17,7 +16,7 @@ type BuildAgentChatRequestBodyOptions = {
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
-  messages: UIMessage[];
+  messages: PxiUIMessage[];
   /** Reason the transport is sending this request. */
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
@@ -35,7 +34,7 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
-  messages: UIMessage[];
+  messages: PxiUIMessage[];
   /** Reason the transport is sending this request. */
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
