@@ -436,7 +436,17 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "uniqueItems": True,
-                                "description": "Column names for auto-assigning examples to splits",
+                                "description": (
+                                    "Deprecated: use split_key instead. "
+                                    "Column names for auto-assigning examples to splits"
+                                ),
+                            },
+                            "split_key": {
+                                "type": "string",
+                                "description": (
+                                    "Single column name containing split names "
+                                    "(plain string or JSON list) per row"
+                                ),
                             },
                             "flatten_keys[]": {
                                 "type": "array",
@@ -495,6 +505,7 @@ async def upload_dataset(
                     output_keys,
                     metadata_keys,
                     split_keys,
+                    split_key,
                     span_id_key,
                     example_id_key,
                     flatten_keys,
@@ -511,25 +522,27 @@ async def upload_dataset(
             if file_content_type is FileContentType.CSV:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
                 examples = await _process_csv(
-                    content,
-                    encoding,
-                    input_keys,
-                    output_keys,
-                    metadata_keys,
-                    split_keys,
-                    span_id_key,
-                    example_id_key,
-                    flatten_keys,
+                    content=content,
+                    content_encoding=encoding,
+                    input_keys=input_keys,
+                    output_keys=output_keys,
+                    metadata_keys=metadata_keys,
+                    split_keys=split_keys,
+                    span_id_key=span_id_key,
+                    example_id_key=example_id_key,
+                    flatten_keys=flatten_keys,
+                    split_key=split_key,
                 )
             elif file_content_type is FileContentType.PYARROW:
                 examples = await _process_pyarrow(
-                    content,
-                    input_keys,
-                    output_keys,
-                    metadata_keys,
-                    split_keys,
-                    span_id_key,
-                    example_id_key,
+                    content=content,
+                    input_keys=input_keys,
+                    output_keys=output_keys,
+                    metadata_keys=metadata_keys,
+                    split_keys=split_keys,
+                    span_id_key=span_id_key,
+                    example_id_key=example_id_key,
+                    split_key=split_key,
                 )
             elif file_content_type is FileContentType.JSONL:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
@@ -543,6 +556,7 @@ async def upload_dataset(
                     span_id_key,
                     example_id_key,
                     flatten_keys,
+                    split_key=split_key,
                 )
             else:
                 assert_never(file_content_type)
@@ -646,11 +660,14 @@ InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
 SplitKeys: TypeAlias = frozenset[str]
+SplitKey: TypeAlias = Optional[str]
+SplitName: TypeAlias = str
 SpanIdKey: TypeAlias = Optional[str]
 ExampleIdKey: TypeAlias = Optional[str]
 FlattenKeys: TypeAlias = frozenset[str]
 SplitsProvided: TypeAlias = bool
 DatasetId: TypeAlias = int
+DatasetExampleId: TypeAlias = int
 DatasetName: TypeAlias = str
 Examples: TypeAlias = Iterator[ExampleContent]
 
@@ -902,6 +919,7 @@ def _process_json(
 
 
 async def _process_csv(
+    *,
     content: bytes,
     content_encoding: FileContentEncoding,
     input_keys: InputKeys,
@@ -911,6 +929,7 @@ async def _process_csv(
     span_id_key: SpanIdKey,
     example_id_key: ExampleIdKey = None,
     flatten_keys: FlattenKeys = frozenset(),
+    split_key: SplitKey = None,
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -933,6 +952,7 @@ async def _process_csv(
         split_keys,
         span_id_key,
         example_id_key,
+        split_key=split_key,
     )
 
     uses_dotted_keys = any(
@@ -949,11 +969,7 @@ async def _process_csv(
                         input=_build_bucket_from_dotted_keys(row, input_keys, "input"),
                         output=_build_bucket_from_dotted_keys(row, output_keys, "output"),
                         metadata=_build_bucket_from_dotted_keys(row, metadata_keys, "metadata"),
-                        splits=frozenset(
-                            str(v).strip()
-                            for k in split_keys
-                            if (v := row.get(k)) and str(v).strip()
-                        ),
+                        splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
                         span_id=_get_span_id(row, span_id_key),
                         external_id=_get_example_id(row, example_id_key),
                     )
@@ -993,9 +1009,7 @@ async def _process_csv(
                     input=input_plan.project(row),
                     output=output_plan.project(row),
                     metadata=metadata_plan.project(row),
-                    splits=frozenset(
-                        str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-                    ),
+                    splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
                     span_id=_get_span_id(row, span_id_key),
                     external_id=_get_example_id(row, example_id_key),
                 )
@@ -1007,6 +1021,7 @@ async def _process_csv(
 
 
 async def _process_pyarrow(
+    *,
     content: bytes,
     input_keys: InputKeys,
     output_keys: OutputKeys,
@@ -1014,6 +1029,7 @@ async def _process_pyarrow(
     split_keys: SplitKeys,
     span_id_key: SpanIdKey,
     example_id_key: ExampleIdKey = None,
+    split_key: SplitKey = None,
 ) -> Examples:
     try:
         reader = pa.ipc.open_stream(content)
@@ -1028,6 +1044,7 @@ async def _process_pyarrow(
         split_keys,
         span_id_key,
         example_id_key,
+        split_key=split_key,
     )
 
     def get_examples() -> Iterator[ExampleContent]:
@@ -1036,9 +1053,7 @@ async def _process_pyarrow(
                 input={k: row.get(k) for k in input_keys},
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
-                splits=frozenset(
-                    str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip()
-                ),  # Only include non-empty, non-whitespace split values
+                splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
                 span_id=_get_span_id(row, span_id_key),
                 external_id=_get_example_id(row, example_id_key),
             )
@@ -1056,6 +1071,7 @@ async def _process_jsonl(
     span_id_key: SpanIdKey,
     example_id_key: ExampleIdKey = None,
     flatten_keys: FlattenKeys = frozenset(),
+    split_key: SplitKey = None,
 ) -> Examples:
     if encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -1081,9 +1097,7 @@ async def _process_jsonl(
                 input=input_plan.project(obj),
                 output=output_plan.project(obj),
                 metadata=metadata_plan.project(obj),
-                splits=frozenset(
-                    str(v).strip() for k in split_keys if (v := obj.get(k)) and str(v).strip()
-                ),
+                splits=_get_splits(row=obj, split_key=split_key, split_keys=split_keys),
                 span_id=_get_span_id(obj, span_id_key),
                 external_id=_get_example_id(obj, example_id_key),
             )
@@ -1094,6 +1108,38 @@ async def _process_jsonl(
     return iter(examples)
 
 
+def _get_splits(
+    *,
+    row: Mapping[Any, Any],
+    split_key: SplitKey,
+    split_keys: SplitKeys,
+) -> frozenset[str]:
+    if split_key:
+        return _parse_split_value(row.get(split_key, ""))
+    # split_keys will be deprecated in favor of the single split_key
+    return frozenset(str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip())
+
+
+def _parse_split_value(raw: Any) -> frozenset[str]:
+    """Parse a split column value into a frozenset of split names.
+
+    Accepts a JSON list (e.g. '["train", "v1"]') or a plain string (e.g. 'train').
+    If the value is already a list (e.g. from JSONL), it is used directly.
+    """
+    if isinstance(raw, list):
+        return frozenset(str(s).strip() for s in raw if s and str(s).strip())
+    stripped = str(raw).strip() if raw else ""
+    if not stripped:
+        return frozenset()
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, list):
+            return frozenset(str(s).strip() for s in parsed if s and str(s).strip())
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return frozenset([stripped])
+
+
 def _check_keys_exist(
     column_headers: frozenset[str],
     input_keys: InputKeys,
@@ -1102,6 +1148,7 @@ def _check_keys_exist(
     split_keys: SplitKeys,
     span_id_key: SpanIdKey = None,
     example_id_key: ExampleIdKey = None,
+    split_key: SplitKey = None,
 ) -> None:
     for desc, keys in (
         ("input", input_keys),
@@ -1115,6 +1162,8 @@ def _check_keys_exist(
         raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
     if example_id_key and example_id_key not in column_headers:
         raise ValueError(f"example_id_key '{example_id_key}' not found in column headers")
+    if split_key and split_key not in column_headers:
+        raise ValueError(f"split_key '{split_key}' not found in column headers")
 
 
 def _get_span_id(row: Mapping[Any, Any], span_id_key: SpanIdKey) -> Optional[str]:
@@ -1153,6 +1202,7 @@ async def _parse_form_data(
     OutputKeys,
     MetadataKeys,
     SplitKeys,
+    SplitKey,
     SpanIdKey,
     ExampleIdKey,
     FlattenKeys,
@@ -1170,6 +1220,12 @@ async def _parse_form_data(
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
     split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
+    split_key = cast(Optional[str], form.get("split_key")) or None
+    if split_keys and split_key:
+        raise ValueError(
+            "Cannot specify both 'split_keys[]' and 'split_key'. "
+            "Use 'split_key' for a single column with JSON-encoded split lists."
+        )
     span_id_key = cast(Optional[str], form.get("span_id_key")) or None
     example_id_key = cast(Optional[str], form.get("example_id_key")) or None
     flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
@@ -1181,6 +1237,7 @@ async def _parse_form_data(
         output_keys,
         metadata_keys,
         split_keys,
+        split_key,
         span_id_key,
         example_id_key,
         flatten_keys,
@@ -1407,9 +1464,11 @@ async def get_dataset_csv(
             revisions = await _get_dataset_example_revisions(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
+            example_ids = [rev.dataset_example_id for rev in revisions]
+            split_names_by_example_id = await _get_split_names_by_example_id(session, example_ids)
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_csv, revisions)
+    content = await run_in_threadpool(_get_content_csv, revisions, split_names_by_example_id)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
@@ -1466,26 +1525,10 @@ async def get_dataset_jsonl(
                 session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
             example_ids = [rev.dataset_example_id for rev in revisions]
-            # Fetch splits
-            splits: dict[int, list[str]] = {}
-            if example_ids:
-                splits_stmt = (
-                    select(
-                        models.DatasetSplitDatasetExample.dataset_example_id,
-                        models.DatasetSplit.name,
-                    )
-                    .join(
-                        models.DatasetSplit,
-                        models.DatasetSplitDatasetExample.dataset_split_id
-                        == models.DatasetSplit.id,
-                    )
-                    .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
-                )
-                async for example_id, split_name in await session.stream(splits_stmt):
-                    splits.setdefault(example_id, []).append(split_name)
+            split_names_by_example_id = await _get_split_names_by_example_id(session, example_ids)
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl, revisions, splits)
+    content = await run_in_threadpool(_get_content_jsonl, revisions, split_names_by_example_id)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -1619,7 +1662,10 @@ def _flatten_for_csv(obj: dict[str, Any], prefix: str) -> Iterator[tuple[str, An
             yield full_key, value
 
 
-def _get_content_csv(revisions: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_csv(
+    revisions: list[models.DatasetExampleRevision],
+    split_names_by_example_id: Optional[dict[DatasetExampleId, list[SplitName]]],
+) -> bytes:
     records = []
     for revision in revisions:
         record: dict[str, Any] = {
@@ -1634,13 +1680,16 @@ def _get_content_csv(revisions: list[models.DatasetExampleRevision]) -> bytes:
         record.update(_flatten_for_csv(revision.input, "input"))
         record.update(_flatten_for_csv(revision.output, "output"))
         record.update(_flatten_for_csv(revision.metadata_, "metadata"))
+        if split_names_by_example_id is not None:
+            example_splits = split_names_by_example_id.get(revision.dataset_example_id, [])
+            record["splits"] = json.dumps(example_splits, ensure_ascii=False)
         records.append(record)
     return pd.DataFrame.from_records(records).to_csv(index=False).encode()
 
 
 def _get_content_jsonl(
     revisions: list[models.DatasetExampleRevision],
-    splits: dict[int, list[str]],
+    split_names_by_example_id: Optional[dict[DatasetExampleId, list[SplitName]]],
 ) -> bytes:
     records = io.BytesIO()
     for revision in revisions:
@@ -1650,13 +1699,14 @@ def _get_content_jsonl(
                 node_id=str(revision.dataset_example_id),
             )
         )
-        record = {
+        record: dict[str, Any] = {
             "id": example_id,
             "input": revision.input,
             "output": revision.output,
             "metadata": revision.metadata_,
-            "splits": splits.get(revision.dataset_example_id, []),
         }
+        if split_names_by_example_id is not None:
+            record["splits"] = split_names_by_example_id.get(revision.dataset_example_id, [])
         records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
     records.seek(0)
     return records.read()
@@ -1720,6 +1770,33 @@ async def _get_dataset_name(*, session: Any, dataset_id: int) -> DatasetName:
     if not dataset_name:
         raise ValueError("Dataset does not exist.")
     return dataset_name
+
+
+async def _get_split_names_by_example_id(
+    session: Any,
+    example_ids: list[int],
+) -> Optional[dict[DatasetExampleId, list[SplitName]]]:
+    if not example_ids:
+        return None
+    result: dict[DatasetExampleId, list[SplitName]] = {}
+    stmt = (
+        select(
+            models.DatasetSplitDatasetExample.dataset_example_id,
+            models.DatasetSplit.name,
+        )
+        .join(
+            models.DatasetSplit,
+            models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id,
+        )
+        .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
+        .order_by(
+            models.DatasetSplitDatasetExample.dataset_example_id,
+            models.DatasetSplit.name,
+        )
+    )
+    async for example_id, split_name in await session.stream(stmt):
+        result.setdefault(example_id, []).append(split_name)
+    return result or None
 
 
 async def _get_dataset_example_revisions(

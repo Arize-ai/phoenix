@@ -37,13 +37,12 @@ import {
   isAutoSplitColumn,
 } from "./ColumnAssigner";
 import { computeBucketCollapseConflicts } from "./ColumnAssigner/collapseUtils";
-import { ColumnMultiSelector } from "./ColumnMultiSelector";
 import { ColumnSingleSelector } from "./ColumnSingleSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
 type AutoAssignmentResult = ColumnAssignerValue & {
-  split: string[];
+  splitKey: string | null;
   exampleIdKey: string | null;
 };
 
@@ -55,15 +54,15 @@ function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
     input: [],
     output: [],
     metadata: [],
-    split: [],
+    splitKey: null,
     exampleIdKey: null,
   };
   for (const column of columns) {
     if (isAutoSplitColumn(column)) {
-      result.split.push(column);
+      result.splitKey ??= column; // first match wins
     }
-    if (result.exampleIdKey === null && isAutoIdColumn(column)) {
-      result.exampleIdKey = column;
+    if (isAutoIdColumn(column)) {
+      result.exampleIdKey ??= column; // first match wins
     }
     const bucket = getAutoAssignment(column);
     if (bucket === "input") {
@@ -86,7 +85,7 @@ type CreateDatasetFromFileParams = {
   input_keys: string[];
   output_keys: string[];
   metadata_keys: string[];
-  split_keys: string[];
+  split_key: string | null;
   example_id_key: string | null;
   name: string;
   description: string;
@@ -251,7 +250,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       input_keys: [],
       output_keys: [],
       metadata_keys: [],
-      split_keys: [],
+      split_key: null,
       example_id_key: null,
       description: "",
       metadata: {},
@@ -262,6 +261,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const inputKeys = watch("input_keys");
   const outputKeys = watch("output_keys");
   const metadataKeys = watch("metadata_keys");
+  const splitKey = watch("split_key");
+  const exampleIdKey = watch("example_id_key");
 
   // Compute the keys that can be flattened within their assigned bucket.
   const { keysToCollapse, collapseConflicts } = useMemo(() => {
@@ -355,7 +356,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       resetField("input_keys");
       resetField("output_keys");
       resetField("metadata_keys");
-      resetField("split_keys");
+      resetField("split_key");
       setColumns([]);
       setPreviewRows([]);
       setTotalRowCount(null);
@@ -407,7 +408,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             setValue("metadata_keys", autoAssigned.metadata, {
               shouldDirty: true,
             });
-            setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+            setValue("split_key", autoAssigned.splitKey, { shouldDirty: true });
             setValue("example_id_key", autoAssigned.exampleIdKey, {
               shouldDirty: true,
             });
@@ -434,7 +435,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               setValue("metadata_keys", autoAssigned.metadata, {
                 shouldDirty: true,
               });
-              setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+              setValue("split_key", autoAssigned.splitKey, {
+                shouldDirty: true,
+              });
               setValue("example_id_key", autoAssigned.exampleIdKey, {
                 shouldDirty: true,
               });
@@ -491,7 +494,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     resetField("input_keys");
     resetField("output_keys");
     resetField("metadata_keys");
-    resetField("split_keys");
+    resetField("split_key");
     resetField("example_id_key");
     resetField("name");
     setErrorMessage(null);
@@ -509,7 +512,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     setValue("input_keys", [], { shouldDirty: true, shouldValidate: true });
     setValue("output_keys", [], { shouldDirty: true });
     setValue("metadata_keys", [], { shouldDirty: true });
-    setValue("split_keys", [], { shouldDirty: true });
+    setValue("split_key", null, { shouldDirty: true });
     setValue("example_id_key", null, { shouldDirty: true });
   }, [setValue]);
 
@@ -521,7 +524,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     });
     setValue("output_keys", autoAssigned.output, { shouldDirty: true });
     setValue("metadata_keys", autoAssigned.metadata, { shouldDirty: true });
-    setValue("split_keys", autoAssigned.split, { shouldDirty: true });
+    setValue("split_key", autoAssigned.splitKey, { shouldDirty: true });
     setValue("example_id_key", autoAssigned.exampleIdKey, {
       shouldDirty: true,
     });
@@ -574,9 +577,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       data.metadata_keys.forEach((key) => {
         formData.append("metadata_keys[]", key);
       });
-      data.split_keys.forEach((key) => {
-        formData.append("split_keys[]", key);
-      });
+      if (data.split_key) {
+        formData.append("split_key", data.split_key);
+      }
       // Send flatten_keys if collapse is enabled
       if (collapseKeys && keysToCollapse.length > 0) {
         keysToCollapse.forEach((key) => {
@@ -766,6 +769,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                     metadataColumns={metadataKeys}
                     collapseKeys={collapseKeys}
                     keysToCollapse={keysToCollapse}
+                    splitColumn={splitKey}
+                    exampleIdColumn={exampleIdKey}
                   />
                 </div>
               </TabPanel>
@@ -805,19 +810,17 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               )}
             />
             <Controller
-              name="split_keys"
+              name="split_key"
               control={control}
               render={({
                 field: { value, onChange },
                 fieldState: { error },
               }) => (
-                <ColumnMultiSelector
+                <ColumnSingleSelector
                   label="Split Column (optional)"
-                  description={`Select one or more ${
-                    fileType === "csv" ? "column" : "key"
-                  }s to automatically assign examples to splits`}
+                  description={`Select a ${fileType === "csv" ? "column" : "key"} containing split names (plain string or JSON list)`}
                   columns={columns}
-                  selectedColumns={value}
+                  selectedColumn={value}
                   onChange={onChange}
                   errorMessage={error?.message}
                   isDisabled={isSubmitting || isParsing}

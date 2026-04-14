@@ -12,18 +12,13 @@ import { Text } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import { CompactJSONCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
-import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
+import { safelyParseJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 const containerCSS = css`
   min-height: 0;
 `;
 
-const headerColumnCSS = css`
-  width: 33.33%;
-`;
-
 const dataColumnCSS = css`
-  width: 33.33%;
   padding: 0 !important;
   vertical-align: top;
 `;
@@ -40,9 +35,11 @@ const noAssignmentsCSS = css`
 `;
 
 type DatasetPreviewRow = {
+  exampleId: string | null;
   input: Record<string, unknown>;
   output: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  splits: string[];
 };
 
 // Hoisted outside component - createColumnHelper returns a stateless factory
@@ -65,6 +62,29 @@ function PreviewCell(
   );
 }
 
+/**
+ * Parse a split column value into a string array.
+ * Accepts a JSON array (e.g. '["train", "v1"]'), a plain string, or an actual array.
+ */
+export function parseSplitValue(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map(String);
+  }
+  if (typeof raw !== "string" || !raw.trim()) {
+    return [];
+  }
+  const trimmed = raw.trim();
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.map(String);
+    }
+  } catch {
+    // not JSON
+  }
+  return [trimmed];
+}
+
 export type DatasetPreviewTableProps = {
   /** All column names from the file */
   columns: string[];
@@ -80,6 +100,10 @@ export type DatasetPreviewTableProps = {
   collapseKeys?: boolean;
   /** Keys that will be collapsed (their children promoted to top-level) */
   keysToCollapse?: string[];
+  /** Column containing split names */
+  splitColumn?: string | null;
+  /** Column containing example IDs */
+  exampleIdColumn?: string | null;
 };
 
 /**
@@ -94,12 +118,16 @@ export function DatasetPreviewTable({
   metadataColumns,
   collapseKeys = false,
   keysToCollapse = [],
+  splitColumn,
+  exampleIdColumn,
 }: DatasetPreviewTableProps) {
   "use no memo";
   const keysToCollapseSet = useMemo(
     () => new Set(keysToCollapse),
     [keysToCollapse]
   );
+
+  const hasSplitColumn = !!splitColumn;
 
   // Transform raw rows into dataset preview format
   const previewData = useMemo(() => {
@@ -173,6 +201,8 @@ export function DatasetPreviewTable({
       const input: Record<string, unknown> = {};
       const output: Record<string, unknown> = {};
       const metadata: Record<string, unknown> = {};
+      let splits: string[] = [];
+      let exampleId: string | null = null;
 
       if (Array.isArray(row)) {
         // CSV row - array of strings
@@ -181,10 +211,17 @@ export function DatasetPreviewTable({
           // For CSV, try to parse JSON strings so they render as objects
           // instead of escaped JSON with backslashes
           if (typeof value === "string") {
-            const parsed = safelyParseJSONString(value);
-            if (isPlainObject(parsed)) {
+            const parsed = safelyParseJSONObjectString(value);
+            if (parsed !== undefined) {
               value = parsed;
             }
+          }
+          if (splitColumn && col === splitColumn) {
+            splits = parseSplitValue(row[idx]);
+          }
+          if (exampleIdColumn && col === exampleIdColumn) {
+            const raw = row[idx];
+            exampleId = raw ? String(raw) : null;
           }
           if (inputColumns.includes(col)) {
             addToBucket(input, getBucketKey(col, "input"), value);
@@ -198,6 +235,13 @@ export function DatasetPreviewTable({
         });
       } else {
         // JSONL row - object
+        if (splitColumn && splitColumn in row) {
+          splits = parseSplitValue(row[splitColumn]);
+        }
+        if (exampleIdColumn && exampleIdColumn in row) {
+          const raw = row[exampleIdColumn];
+          exampleId = raw != null ? String(raw) : null;
+        }
         for (const col of inputColumns) {
           if (col in row) {
             addToBucket(input, getBucketKey(col, "input"), row[col]);
@@ -215,7 +259,7 @@ export function DatasetPreviewTable({
         }
       }
 
-      return { input, output, metadata };
+      return { exampleId, input, output, metadata, splits };
     });
   }, [
     rows,
@@ -225,10 +269,33 @@ export function DatasetPreviewTable({
     metadataColumns,
     collapseKeys,
     keysToCollapseSet,
+    splitColumn,
+    exampleIdColumn,
   ]);
 
-  const tableColumns = useMemo(
-    () => [
+  const tableColumns = useMemo(() => {
+    const hasExampleId = previewData.some((row) => row.exampleId != null);
+    return [
+      ...(hasExampleId
+        ? [
+            columnHelper.accessor("exampleId", {
+              id: "exampleId",
+              header: () => <>Example ID</>,
+              cell: ({ getValue }) => {
+                const value = getValue();
+                return (
+                  <div css={contentCSS}>
+                    {value == null ? (
+                      <Text color="text-500">--</Text>
+                    ) : (
+                      <Text>{value}</Text>
+                    )}
+                  </div>
+                );
+              },
+            }),
+          ]
+        : []),
       columnHelper.accessor("input", {
         header: () => (
           <>
@@ -253,9 +320,37 @@ export function DatasetPreviewTable({
         ),
         cell: (row) => <PreviewCell {...row} />,
       }),
-    ],
-    [inputColumns.length, outputColumns.length, metadataColumns.length]
-  );
+      ...(hasSplitColumn
+        ? [
+            columnHelper.display({
+              id: "splits",
+              header: () => <>Splits</>,
+              cell: ({ row }) => {
+                const splits = row.original.splits;
+                if (splits.length === 0) {
+                  return (
+                    <div css={contentCSS}>
+                      <Text color="text-500">--</Text>
+                    </div>
+                  );
+                }
+                return (
+                  <div css={contentCSS}>
+                    <Text>{JSON.stringify(splits)}</Text>
+                  </div>
+                );
+              },
+            }),
+          ]
+        : []),
+    ];
+  }, [
+    inputColumns.length,
+    outputColumns.length,
+    metadataColumns.length,
+    hasSplitColumn,
+    previewData,
+  ]);
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
@@ -284,7 +379,7 @@ export function DatasetPreviewTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id} css={headerColumnCSS}>
+                <th key={header.id}>
                   {flexRender(
                     header.column.columnDef.header,
                     header.getContext()

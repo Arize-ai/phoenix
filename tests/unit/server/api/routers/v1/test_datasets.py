@@ -1944,6 +1944,213 @@ class TestBuildFlattenPlan:
             )
 
 
+async def test_post_dataset_upload_csv_with_split_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with split_key (singular), supporting JSON lists and plain strings."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train"", ""v1""]"\nQ2,A2,test\nQ3,A3,\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 3
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        # JSON list: ["train", "v1"]
+        assert await get_example_splits(examples[0].id) == {"train", "v1"}
+        # Plain string: test
+        assert await get_example_splits(examples[1].id) == {"test"}
+        # Empty: no splits
+        assert await get_example_splits(examples[2].id) == set()
+
+
+async def test_post_dataset_upload_split_key_and_split_keys_conflict(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that providing both split_key and split_keys[] returns 422."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer,split\nQ1,A1,train\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["split"],
+            "split_key": "split",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_get_dataset_csv_includes_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that CSV download includes a splits column when splits exist."""
+    name = inspect.stack()[0][3]
+    # Upload with splits
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train""]"\nQ2,A2,"[""test"", ""v1""]"\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.content.decode()))
+    assert "splits" in df.columns
+    # Verify splits are JSON-encoded sorted lists
+    splits_values = df["splits"].tolist()
+    assert json.loads(splits_values[0]) == ["train"]
+    assert sorted(json.loads(splits_values[1])) == ["test", "v1"]
+
+
+async def test_get_dataset_csv_omits_splits_when_none(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that CSV download omits splits column when no splits exist."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer\nQ1,A1\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.content.decode()))
+    assert "splits" not in df.columns
+
+
+async def test_csv_roundtrip_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that uploading a CSV with splits, downloading, and re-uploading preserves splits."""
+    name = inspect.stack()[0][3]
+    # Upload with splits
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train""]"\nQ2,A2,"[""test"", ""v1""]"\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    downloaded_csv = response.content
+
+    # Re-upload the downloaded CSV as a new dataset
+    name2 = name + "_roundtrip"
+    reupload = gzip.compress(downloaded_csv)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", reupload, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name2,
+            "input_keys[]": ["input.question"],
+            "output_keys[]": ["output.answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data2 := response.json().get("data"))
+    assert (dataset_id2 := data2.get("dataset_id"))
+
+    # Verify splits are preserved
+    async with db() as session:
+        dataset_db_id2 = int(GlobalID.from_id(dataset_id2).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id2)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train"}
+        assert await get_example_splits(examples[1].id) == {"test", "v1"}
+
+
 async def test_post_dataset_upload_csv_with_flatten_keys(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -2375,10 +2582,10 @@ async def test_create_empty_examples_list_creates_empty_version(
         pytest.param(
             [ExampleContent(input={"a": 1}, output={})],
             [ExampleContent(input={"a": 1}, output={}, external_id="new-id")],
-            1,
-            1,
-            ["CREATE"],
-            id="adding_id_without_changing_content_does_not_create_new_version",
+            2,
+            2,
+            ["CREATE", "DELETE", "CREATE"],
+            id="adding_id_without_changing_content_replaces_example",
         ),
         pytest.param(
             [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
@@ -2480,6 +2687,84 @@ async def test_deleting_and_creating_examples_with_the_same_content(
     kinds = [r.revision_kind for r in revisions]
     assert kinds.count("CREATE") == 2
     assert kinds.count("DELETE") == 1
+
+
+async def test_append_with_changed_external_id_same_content_creates_new_example(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Append with a different external_id must not dedupe by content_hash."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 2
+    assert {e.external_id for e in examples} == {"e1", "e2"}
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "CREATE"]
+
+
+async def test_append_adding_external_id_to_unided_example_creates_new_example(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Providing an external_id on a new example must not pair it with an un-ID'd example via content_hash."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 2
+    assert {e.external_id for e in examples} == {None, "e1"}
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "CREATE"]
+
+
+async def test_create_with_changed_external_id_same_content_deletes_old_and_creates_new(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Under CREATE (upsert) semantics, a changed external_id removes the old example and adds the new one."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _create(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "DELETE", "CREATE"]
+
+    examples = await _get_examples(db, name)
+    assert len(examples) == 2
+    examples_by_id = {e.id: e for e in examples}
+    deleted_revision = next(r for r in revisions if r.revision_kind == "DELETE")
+    final_create_revision = [r for r in revisions if r.revision_kind == "CREATE"][-1]
+    assert examples_by_id[deleted_revision.dataset_example_id].external_id == "e1"
+    assert examples_by_id[final_create_revision.dataset_example_id].external_id == "e2"
+
+
+async def test_append_with_same_external_id_different_content_still_patches(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Regression guard: matching external_id + different content must still PATCH, not create a new example."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 1
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "PATCH"]
 
 
 # ---------------------------------------------------------------------------

@@ -557,7 +557,15 @@ def _get_dataset_example_node_id(s: str) -> Optional[DatasetExampleId]:
 class _ExampleMatcher:
     """Indexes previous examples and matches incoming examples against them.
 
-    Priority: node_id match > external_id match > content_hash match > no match.
+    An incoming external_id is treated as an opt-in to identity matching: when it
+    is provided, the matcher only looks for a node_id or external_id match and
+    never falls back to content_hash. When the incoming example has no
+    external_id, the matcher uses content_hash to pair it with a previous
+    example (for dedup of ID-less uploads such as re-uploaded CSVs).
+
+    Priority:
+      - If external_id is provided:  node_id match > external_id match > no match
+      - If external_id is absent:    content_hash match > no match
     """
 
     def __init__(self, previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]]) -> None:
@@ -580,6 +588,7 @@ class _ExampleMatcher:
                 return self._example_info_by_db_id.get(db_id)
             if external_id in self._example_info_by_external_id:
                 return self._example_info_by_external_id[external_id]
+            return None
         for candidate_id in self._example_ids_by_content_hash.get(incoming.content_hash, []):
             if candidate_id not in self._already_matched:
                 return ExistingExampleInfo(candidate_id, incoming.content_hash)
@@ -595,8 +604,12 @@ def _diff_examples(
     """Diff incoming examples against the previous version to classify as CREATE, PATCH, or DELETE.
 
     Matching rules (applied per incoming example, in order):
-      1. If the incoming example has an external_id that matches a previous example, pair them.
-      2. Otherwise, pair with the first unmatched previous example sharing the same content_hash.
+      1. If the incoming example has an external_id, pair only by that external_id
+         (or node_id if it decodes as a DatasetExample GlobalID). An incoming
+         external_id that does not match any previous example is treated as a new
+         example, even if another previous example happens to share its content_hash.
+      2. If the incoming example has no external_id, pair with the first unmatched
+         previous example sharing the same content_hash.
       3. If no match is found, the incoming example is a CREATE.
 
     After matching:

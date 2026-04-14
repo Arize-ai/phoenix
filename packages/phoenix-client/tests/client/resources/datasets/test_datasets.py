@@ -211,6 +211,39 @@ class TestDatasetKeys:
         assert keys.split == frozenset()
         assert set(keys) == {"a", "b", "c"}
 
+    def test_split_key_singular(self) -> None:
+        """Test DatasetKeys with split_key (singular)."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            split_key="splits",
+        )
+        assert keys.split_key == "splits"
+        assert keys.split == frozenset(["splits"])
+        assert "splits" in set(keys)
+
+    def test_split_key_and_split_keys_conflict(self) -> None:
+        """Test that providing both split_key and split_keys raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                split_keys=frozenset(["split"]),
+                split_key="splits",
+            )
+
+    def test_split_key_overlap_with_input(self) -> None:
+        """Test that split_key cannot overlap with input keys."""
+        with pytest.raises(ValueError, match="Input and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a", "splits"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                split_key="splits",
+            )
+
 
 class TestHelperFunctions:
     def test_parse_datetime(self) -> None:
