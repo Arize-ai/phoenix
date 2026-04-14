@@ -2373,14 +2373,13 @@ class TestValidateManagedIdentityConfig:
         with pytest.raises(ValueError, match="Cannot enable both"):
             _validate_managed_identity_config()
 
-    def test_missing_host_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """MI enabled without a host raises ValueError."""
+    def test_missing_host_returns_early(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled without a host silently returns (supports PHOENIX_SQL_DATABASE_URL path)."""
         self._clear_mi_env(monkeypatch)
         monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
         monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
 
-        with pytest.raises(ValueError, match="PHOENIX_POSTGRES_HOST"):
-            _validate_managed_identity_config()
+        _validate_managed_identity_config()
 
     def test_missing_user_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """MI enabled with a host but no user raises ValueError."""
@@ -2398,7 +2397,7 @@ class TestValidateManagedIdentityConfig:
         monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
         monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
         # Simulate azure-identity not being installed
-        monkeypatch.setitem(sys.modules, "azure.identity.aio", None)  # type: ignore[arg-type]
+        monkeypatch.setitem(sys.modules, "azure.identity.aio", None)
 
         with pytest.raises(ImportError, match="azure-identity is required"):
             _validate_managed_identity_config()
