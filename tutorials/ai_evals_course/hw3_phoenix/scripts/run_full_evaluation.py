@@ -5,8 +5,8 @@ This script runs the finalized judge on all traces and uses judgy to compute
 the corrected success rate with confidence intervals.
 """
 
-import asyncio
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -14,27 +14,15 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
-from judgy import estimate_success_rate  # type: ignore[import-untyped]
+from judgy import estimate_success_rate
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
-from phoenix.evals import (
-    LLM,
-    ClassificationEvaluator,
-    async_evaluate_dataframe,
-)
-from phoenix.evals.utils import to_annotation_dataframe
+from phoenix.evals import OpenAIModel, llm_generate
 from rich.console import Console
 
 load_dotenv()
 
 console = Console()
-
-# Mapping from dotted Phoenix column names to clean template variable names
-COLUMN_TO_VARIABLE: Dict[str, str] = {
-    "attributes.query": "query",
-    "attributes.dietary_restriction": "dietary_restriction",
-    "attributes.output.value": "output",
-}
 
 
 def load_traces_from_phoenix() -> pd.DataFrame:
@@ -44,14 +32,12 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        px_client = Client()
-        trace_df = px_client.spans.get_spans_dataframe(
-            query=query, project_identifier="recipe-agent"
-        )
+        client = Client()
+        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
 
         if trace_df.empty:
             console.print("[red]No traces found in Phoenix!")
-            return pd.DataFrame()
+            return []
 
         console.print(f"[green]Loaded {len(trace_df)} traces from Phoenix")
         return trace_df
@@ -59,7 +45,7 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     except Exception as e:
         console.print(f"[red]Error loading traces from Phoenix: {str(e)}")
         console.print("[yellow]Please check your Phoenix configuration and ensure traces exist.")
-        return pd.DataFrame()
+        return []
 
 
 def load_judge_prompt(prompt_path: str) -> str:
@@ -75,104 +61,84 @@ def load_test_data(judgy_path: str) -> Tuple[List[int], List[int]]:
     return data["test_labels"], data["test_preds"]
 
 
-def _normalize_prompt_variables(prompt: str) -> str:
-    """Replace dotted Phoenix column placeholders with clean variable names.
+def output_parser(output: str, row_index: int) -> Dict[str, Any]:
+    """Output parser function for Phoenix evals."""
+    label_pattern = r'"label":\s*"([^"]*)"'
+    explanation_pattern = r'"explanation":\s*"([^"]*)"'
 
-    The judge prompt file uses {attributes.query} etc. which need to become
-    {query} etc. for the ClassificationEvaluator template.
-    """
-    for dotted, clean in COLUMN_TO_VARIABLE.items():
-        prompt = prompt.replace(f"{{{dotted}}}", f"{{{clean}}}")
-    return prompt
+    label_match = re.search(label_pattern, output, re.IGNORECASE)
+    explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
 
-
-def _strip_json_format_instruction(prompt: str) -> str:
-    """Remove JSON format instructions from the judge prompt file.
-
-    ClassificationEvaluator uses tool calling to structure output,
-    so explicit JSON formatting instructions are unnecessary.
-    """
-    prompt = re.sub(
-        r"MAKE SURE TO RETURN YOUR EVALUATION IN THE FOLLOWING JSON FORMAT:.*",
-        "Return a label of PASS or FAIL and your explanation.",
-        prompt,
-        flags=re.DOTALL,
-    )
-    return prompt.strip()
+    return {
+        "label": label_match.group(1) if label_match else None,
+        "explanation": explanation_match.group(1) if explanation_match else None,
+    }
 
 
 def run_judge_on_traces(
     judge_prompt: str, traces_df: pd.DataFrame
 ) -> Tuple[List[int], pd.DataFrame]:
-    """Run the judge on all traces and return binary predictions."""
+    """Run the judge on all traces using Phoenix evals and return binary predictions."""
 
     console.print(f"[yellow]Running judge on {len(traces_df)} traces with Phoenix evals...")
 
-    # Normalize the prompt: replace dotted column names with clean variables,
-    # and remove JSON format instructions (ClassificationEvaluator uses tool
-    # calling)
-    clean_prompt = _normalize_prompt_variables(judge_prompt)
-    clean_prompt = _strip_json_format_instruction(clean_prompt)
-
-    # Set up ClassificationEvaluator with score mapping:
-    # PASS=1.0, FAIL=0.0 so Score.score can be used directly as binary pred
-    model = LLM(provider="openai", model="gpt-4o")
-
-    evaluator = ClassificationEvaluator(
-        name="judge",
-        llm=model,
-        prompt_template=clean_prompt,
-        choices={"PASS": 1.0, "FAIL": 0.0},
+    # Run the evaluation using Phoenix
+    predictions = llm_generate(
+        dataframe=traces_df,
+        template=judge_prompt,
+        model=OpenAIModel(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
+        verbose=True,
+        output_parser=output_parser,
+        include_prompt=True,
+        include_response=True,
     )
 
-    # Rename dotted column names so evaluator template variables resolve
-    eval_df = traces_df.rename(columns={k: v for k, v in COLUMN_TO_VARIABLE.items()})
+    predictions = pd.merge(predictions, traces_df, left_index=True, right_index=True)
 
-    # Run evaluation (async for better performance)
-    results_df = asyncio.get_event_loop().run_until_complete(
-        async_evaluate_dataframe(
-            dataframe=eval_df,
-            evaluators=[evaluator],
-        )
-    )
+    console.print(f"[green]Completed labeling of {len(predictions)} traces")
 
-    console.print(f"[green]Completed labeling of {len(results_df)} traces")
+    predictions.set_index(traces_df.index)
 
-    # Convert to annotation format and log to Phoenix
-    annotations_df = to_annotation_dataframe(dataframe=results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
-        dataframe=annotations_df,
+        dataframe=predictions,
         annotation_name="LLM-as-Judge Evaluation",
         annotator_kind="LLM",
     )
 
+    predictions.rename(
+        columns={"label": "llm_as_judge_label", "confidence": "llm_as_judge_confidence"},
+        inplace=True,
+    )
+
     console.print("[green]Completed LLM-as-Judge Evaluation, logged to Phoenix")
 
-    # Convert to binary predictions for judgy using Score.score directly
-    # (choices mapped PASS=1.0, FAIL=0.0)
-    score_data = results_df["judge_score"]
-    binary_predictions: List[int] = [
-        int(s.get("score", 0)) if isinstance(s, dict) else 0 for s in score_data
-    ]
+    # Convert to binary predictions for judgy
+    binary_predictions = []
+    for label in predictions["llm_as_judge_label"]:
+        if label == "PASS":
+            binary_predictions.append(1)
+        elif label == "FAIL":
+            binary_predictions.append(0)
+        else:
+            # Default to FAIL for unknown/error cases
+            binary_predictions.append(0)
 
-    return binary_predictions, results_df
+    return binary_predictions, predictions
 
 
 def compute_metrics_with_judgy(
-    test_labels: List[int],
-    test_preds: List[int],
-    unlabeled_preds: List[int],
+    test_labels: List[int], test_preds: List[int], unlabeled_preds: List[int]
 ) -> Tuple[float, float, float, float]:
     """Compute corrected success rate and confidence interval using judgy."""
 
+    # Estimate true success rate with judgy
     theta_hat, lower_bound, upper_bound = estimate_success_rate(
-        test_labels=test_labels,
-        test_preds=test_preds,
-        unlabeled_preds=unlabeled_preds,
+        test_labels=test_labels, test_preds=test_preds, unlabeled_preds=unlabeled_preds
     )
 
-    raw_success_rate = float(np.mean(unlabeled_preds))
+    # Also compute raw observed success rate
+    raw_success_rate = np.mean(unlabeled_preds)
 
     return theta_hat, lower_bound, upper_bound, raw_success_rate
 
@@ -187,35 +153,28 @@ def save_final_results(
 ) -> None:
     """Save final evaluation results."""
 
-    results: Dict[str, Any] = {
+    results = {
         "final_evaluation": {
             "total_traces_evaluated": total_traces,
             "raw_observed_success_rate": raw_success_rate,
             "corrected_success_rate": theta_hat,
-            "confidence_interval_95": {
-                "lower_bound": lower_bound,
-                "upper_bound": upper_bound,
-            },
+            "confidence_interval_95": {"lower_bound": lower_bound, "upper_bound": upper_bound},
             "interpretation": {
-                "description": ("Corrected success rate accounts for judge errors (TPR/TNR)"),
-                "raw_vs_corrected": (
-                    f"Raw rate: {raw_success_rate:.3f}, Corrected rate: {theta_hat:.3f}"
-                ),
+                "description": "Corrected success rate accounts for judge errors (TPR/TNR)",
+                "raw_vs_corrected": f"""Raw rate: {raw_success_rate:.3f}
+                Corrected rate: {theta_hat:.3f}""",
             },
         }
     }
 
-    results_path = results_dir / "final_evaluation.json"
+    results_path = results_dir + "/final_evaluation.json"
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
     console.print(f"[green]Saved final results to {results_path}")
 
 
 def print_interpretation(
-    theta_hat: float,
-    lower_bound: float,
-    upper_bound: float,
-    raw_success_rate: float,
+    theta_hat: float, lower_bound: float, upper_bound: float, raw_success_rate: float
 ) -> None:
     """Print interpretation of results."""
 
@@ -233,6 +192,6 @@ def print_interpretation(
 
     correction_magnitude = abs(raw_success_rate - theta_hat)
     console.print(
-        f"[cyan]Correction Applied: {correction_magnitude:.3f} "
-        f"({correction_magnitude * 100:.1f} percentage points)"
+        f"""[cyan]Correction Applied: {correction_magnitude:.3f}
+        ({correction_magnitude * 100:.1f} percentage points)"""
     )

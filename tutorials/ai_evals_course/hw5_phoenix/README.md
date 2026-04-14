@@ -56,8 +56,9 @@ Load the generated traces from Phoenix for analysis. You should:
 Use Phoenix's evaluation framework to automatically detect failures. You should:
 
 - Load the evaluation prompt from the provided `eval.txt` file
-- Set up a `ClassificationEvaluator` with the pipeline states as choices
-- Use `async_evaluate_dataframe` to evaluate all traces (output parsing is handled automatically via tool calling)
+- Set up an LLM evaluation model (e.g., GPT-4) with appropriate parameters
+- Write a parser function to extract failure state and explanation from LLM responses
+- Use Phoenix's `llm_generate` function to evaluate all traces
 - Log the evaluation results back to Phoenix for visualization
 
 ### Step 4: Analyze Failure Patterns
@@ -177,32 +178,26 @@ def load_traces() -> pd.DataFrame:
 ### LLM-Based Evaluation
 
 ```python
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals import llm_generate, OpenAIModel
 
-eval_model = LLM(provider="openai", model="gpt-4o")
+def parser(response: str, row_index: int) -> dict:
+    """Parse evaluation results"""
+    failure_state = r'"failure_state":\s*"([^"]*)"'
+    explanation = r'"explanation":\s*"([^"]*)"'
+    failure_state_match = re.search(failure_state, response, re.IGNORECASE).group(1)
+    explanation_match = re.search(explanation, response, re.IGNORECASE).group(1)
+    return {
+        "label": failure_state_match,
+        "explanation": explanation_match
+    }
 
-# Load the evaluation prompt (uses clean variable names like {input} and {output})
-eval_prompt = open("evaluators/parse_request_eval.txt").read()
-
-# Create ClassificationEvaluator — output parsing is handled automatically via tool calling
-evaluator = ClassificationEvaluator(
-    name="failure_state",
-    llm=eval_model,
-    prompt_template=eval_prompt,
-    choices=["ParseRequest", "PlanToolCalls", "GenRecipeArgs",
-             "GetRecipes", "GenWebArgs", "GetWebInfo", "ComposeResponse"],
-)
-
-# Rename dotted column names so evaluator template variables resolve correctly
-eval_df = traces_df.rename(columns={
-    "attributes.input.value": "input",
-    "attributes.output.value": "output",
-})
-
-# Run evaluation
-failure_analysis = await async_evaluate_dataframe(
-    dataframe=eval_df,
-    evaluators=[evaluator],
+# Generate evaluations
+failure_analysis = llm_generate(
+    dataframe=traces_df,
+    template=eval_prompt,
+    model=eval_model,
+    output_parser=parser,
+    concurrency=10,
 )
 
 # Log evaluations

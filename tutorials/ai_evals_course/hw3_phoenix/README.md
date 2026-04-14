@@ -212,7 +212,7 @@ This repository contains a complete reference implementation showing one approac
 ### Phoenix Integration
 - Use `phoenix.otel` for automatic instrumentation of your Recipe Bot
 - Use `SpanQuery().where("span_kind == 'CHAIN'")` to retrieve traces
-- Use `async_evaluate_dataframe` from `phoenix.evals` for scalable evaluation
+- Use `llm_generate` from `phoenix.evals` for scalable evaluation
 - Use the new client API to log evaluation results back to Phoenix
 
 > **📚 Complete Guide**: For detailed Phoenix API usage, examples, and best practices, see [phoenix_methods_guide.md](phoenix_methods_guide.md)

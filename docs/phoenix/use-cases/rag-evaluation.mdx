@@ -161,10 +161,13 @@ Remember that we are using Phoenix Tracing to capture all the data we need to ev
 print("phoenix URL", px.active_session().url)
 ```
 
-We can access the traces by directly pulling the spans from the phoenix session.
+We can access the traces by pulling spans from Phoenix using the Client.
 
 ```python
-spans_df = px.active_session().get_spans_dataframe()
+from phoenix.client import Client
+
+client = Client()
+spans_df = client.spans.get_spans_dataframe()
 ```
 
 ```python
@@ -212,7 +215,7 @@ In a RAG system, evaluation focuses on two critical aspects:
 
 For the evaluation of a RAG system, it's essential to have queries that can fetch the correct context and subsequently generate an appropriate response.
 
-For this tutorial, let's use Phoenix's `llm_generate` to help us create the question-context pairs.
+For this tutorial, let's use Phoenix's `LLM` to help us create the question-context pairs.
 
 First, let's create a dataframe of all the document chunks that we have indexed.
 
@@ -478,7 +481,9 @@ hit = pd.DataFrame(
 Let's now view the results in a combined dataframe.
 
 ```python
-retrievals_df = px.active_session().get_spans_dataframe("span_kind == 'RETRIEVER'")
+retrievals_df = client.spans.get_spans_dataframe(
+    query=SpanQuery().where("span_kind == 'RETRIEVER'")
+)
 rag_evaluation_dataframe = pd.concat(
     [
         retrievals_df["attributes.input.value"],

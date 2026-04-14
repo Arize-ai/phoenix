@@ -605,11 +605,11 @@ For each session, build a transcript and run the evaluators:
             continue
         
         # Run coherence evaluator
-        coherence_result = conversation_coherence_evaluator.evaluate({"input": transcript})
+        coherence_result = conversation_coherence_evaluator.evaluate(eval_input={"input": transcript})
         coherence_score = coherence_result[0] if isinstance(coherence_result, list) else coherence_result
         
         # Run resolution evaluator
-        resolution_result = resolution_evaluator.evaluate({"input": transcript})
+        resolution_result = resolution_evaluator.evaluate(eval_input={"input": transcript})
         resolution_score = resolution_result[0] if isinstance(resolution_result, list) else resolution_result
         
         # Collect annotations

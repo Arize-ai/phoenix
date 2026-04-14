@@ -18,7 +18,6 @@ This guide contains the grail of essential Phoenix methods and how to use them f
 ### [Using Phoenix OTEL](https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel)
 
 ```python
-import phoenix as px
 from phoenix.otel import register
 
 # Register tracer with Phoenix
@@ -79,15 +78,14 @@ def my_function(input_text: str) -> str:
 ### [Basic Span Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
 
 ```python
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 # Get all spans
-all_spans = px.Client().get_spans_dataframe()
+all_spans = Client().spans.get_spans_dataframe()
 
 # Query specific spans
 query = SpanQuery().where("span_kind == 'CHAIN'")
-chain_spans = px.Client().query_spans(query, project_name='recipe-agent')
+chain_spans = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 ```
 
 ### [Advanced Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
@@ -114,17 +112,21 @@ query = SpanQuery().where(
 #### Selecting Specific Attributes
 
 ```python
-# Select input and output values with renamed columns
+# Select input and output values
 query = SpanQuery().where("span_kind == 'LLM'").select(
-    input="input.value",
-    output="output.value"
+    "input.value",
+    "output.value"
 )
+# Then rename after querying:
+# df = client.spans.get_spans_dataframe(query=query)
+# df = df.rename(columns={"input.value": "input", "output.value": "output"})
 
-# Rename columns using keyword arguments
+# Rename columns to custom names
 query = SpanQuery().select(
-    user_query="input.value",
-    bot_response="output.value"
+    "input.value",
+    "output.value"
 )
+# df = df.rename(columns={"input.value": "user_query", "output.value": "bot_response"})
 ```
 
 ## [Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/quickstart-datasets)
@@ -136,7 +138,6 @@ Phoenix datasets are the foundation for running experiments. You upload your dat
 #### Basic Dataset Upload
 
 ```python
-import phoenix as px
 from phoenix.client import Client
 
 # Set up Phoenix client
@@ -144,7 +145,7 @@ phoenix_client = Client()
 
 # Upload dataset with key mappings
 dataset = phoenix_client.datasets.create_dataset(
-    dataframe=your_dataframe,  # CSV or Pandas DataFrame
+    dataframe=your_dataframe, #CSV or Pandas Dataframe
     name="my_dataset",
     input_keys=["query"],  # Columns that serve as inputs
     output_keys=[],        # Columns that serve as outputs (empty for evaluation)
@@ -219,6 +220,7 @@ experiment = run_experiment(
     dataset=dataset,
     task=task,
     evaluators=[accuracy],
+    concurrency=3  # Number of parallel workers
 )
 ```
 
@@ -333,6 +335,7 @@ def run_llm_evaluation(dataset, judge_prompt: str):
         dataset=dataset,
         task=task,
         evaluators=evaluators,
+        concurrency=3
     )
 
     # Get results
@@ -372,14 +375,10 @@ def process_experiment_results(results):
 
 ## [Evaluation Methods](https://arize.com/docs/phoenix/evaluation/how-to-evals/bring-your-own-evaluator)
 
-### Categorical Evaluation (ClassificationEvaluator)
-
-Use `ClassificationEvaluator` for any evaluation that classifies outputs into discrete labels (PASS/FAIL, correct/incorrect, etc.). The evaluator uses tool calling to structure LLM output — no custom output parsers needed.
+### Categorical Evaluation (`llm_classify`)
 
 ```python
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
-
-llm = LLM(provider="openai", model="gpt-4o")
+from phoenix.evals import llm_classify, OpenAIModel
 
 # Define template
 template = """
@@ -388,74 +387,75 @@ Question: {query}
 Dietary Restriction: {dietary_restriction}
 Recipe Response: {output}
 
-Return a label of PASS or FAIL and your explanation.
+Return only: PASS or FAIL
 """
 
-# Create evaluator with label-to-score mapping
-evaluator = ClassificationEvaluator(
-    name="dietary_adherence",
-    llm=llm,
-    prompt_template=template,
-    choices={"PASS": 1.0, "FAIL": 0.0},
-)
-
-# Run evaluation on a DataFrame
-results = await async_evaluate_dataframe(
+# Run evaluation
+results = llm_classify(
     dataframe=your_dataframe,
-    evaluators=[evaluator],
+    template=template,
+    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    rails=["PASS", "FAIL"]
 )
 ```
 
-### Numeric Scoring with ClassificationEvaluator
-
-For numeric scoring (e.g., 1-10), use `ClassificationEvaluator` with string choices mapped to integer scores:
+### Numeric Evaluation (`llm_generate`)
 
 ```python
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals import llm_generate, OpenAIModel
+import re
 
-llm = LLM(provider="openai", model="gpt-4o")
-
+# Define template
 template = """
 Evaluate the quality of this recipe response on a scale of 1-10.
 Question: {query}
 Response: {output}
 
-Return a score from 1 to 10 and your explanation.
+Return only: "score: X" where X is a number 1-10
 """
 
-evaluator = ClassificationEvaluator(
-    name="quality_score",
-    llm=llm,
-    prompt_template=template,
-    choices={
-        "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
-        "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
-    },
-)
+# Output parser function
+def score_parser(output: str, row_index: int):
+    pattern = r"score:\s*(\d+)"
+    match = re.search(pattern, output, re.IGNORECASE)
+    return {"score": int(match.group(1)) if match else None}
 
-results = await async_evaluate_dataframe(
+# Run evaluation
+results = llm_generate(
     dataframe=your_dataframe,
-    evaluators=[evaluator],
+    template=template,
+    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    output_parser=score_parser,
+    include_prompt=True,
+    include_response=True
 )
 ```
 
-### Free-form Text Generation (AsyncExecutor)
-
-Use `AsyncExecutor` **only** for non-evaluation tasks such as synthetic data generation. For evaluations, always prefer `ClassificationEvaluator` with `async_evaluate_dataframe`.
+### Evaluation with Custom Parser
 
 ```python
-from phoenix.evals import LLM
-from phoenix.evals.executors import AsyncExecutor
+def output_parser(output: str, row_index: int) -> Dict[str, Any]:
+    """Parse LLM output to extract structured data."""
+    label_pattern = r'"label":\s*"([^"]*)"'
+    explanation_pattern = r'"explanation":\s*"([^"]*)"'
 
-llm = LLM(provider="openai", model="gpt-4o")
+    label_match = re.search(label_pattern, output, re.IGNORECASE)
+    explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
 
-# Example: Generate rephrased queries for synthetic data (not an evaluation)
-async def rephrase_query(row):
-    prompt = f"Rephrase this query in a different way: {row['query']}"
-    return await llm.async_generate_text(prompt)
+    return {
+        "label": label_match.group(1) if label_match else None,
+        "explanation": explanation_match.group(1) if explanation_match else None,
+    }
 
-executor = AsyncExecutor(generation_fn=rephrase_query, concurrency=10)
-rephrased, _ = await executor.execute([row.to_dict() for _, row in df.iterrows()])
+# Use in evaluation
+results = llm_generate(
+    dataframe=df,
+    template=your_template,
+    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    output_parser=output_parser,
+    include_prompt=True,
+    include_response=True
+)
 ```
 
 ---
@@ -465,15 +465,12 @@ rephrased, _ = await executor.execute([row.to_dict() for _, row in df.iterrows()
 ### Logging Evaluations to Phoenix
 
 ```python
-import phoenix as px
+# Log evaluation results
 from phoenix.client import Client
-from phoenix.evals.utils import to_annotation_dataframe
 
-# Convert evaluate_dataframe results to annotation format, then log
-annotations = to_annotation_dataframe(results)
 px_client = Client()
 px_client.spans.log_span_annotations_dataframe(
-    dataframe=annotations,
+    dataframe=results,
     annotation_name="LLM-as-Judge Evaluation",
     annotator_kind="LLM",
 )
@@ -487,53 +484,58 @@ px_client.spans.log_span_annotations_dataframe(
 
 ```python
 import phoenix as px
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
-from phoenix.evals.utils import to_annotation_dataframe
-from phoenix.trace.dsl import SpanQuery
-from phoenix.client import Client
+from phoenix.evals import llm_generate, OpenAIModel
+from phoenix.client.types.spans import SpanQuery
 import pandas as pd
+import os
 
 # 1. Load traces from Phoenix
 query = SpanQuery().where("span_kind == 'CHAIN'")
-px_client = Client()
-traces_df = px_client.spans.get_spans_dataframe(query=query, project_identifier='recipe-agent')
+traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 
 # 2. Define evaluation template
 template = """
 Evaluate this recipe response for dietary adherence.
-Query: {query}
-Dietary Restriction: {dietary_restriction}
-Response: {output}
+Query: {attributes.query}
+Dietary Restriction: {attributes.dietary_restriction}
+Response: {attributes.output.value}
 
-Return a label of PASS or FAIL and your explanation.
+Return: {"label": "PASS/FAIL", "explanation": "your reasoning"}
 """
 
-# 3. Set up ClassificationEvaluator
-llm = LLM(provider="openai", model="gpt-4o")
+# 3. Define output parser
+def output_parser(output: str, row_index: int):
+    import re
+    label_pattern = r'"label":\s*"([^"]*)"'
+    explanation_pattern = r'"explanation":\s*"([^"]*)"'
 
-evaluator = ClassificationEvaluator(
-    name="dietary_adherence",
-    llm=llm,
-    prompt_template=template,
-    choices={"PASS": 1.0, "FAIL": 0.0},
+    label_match = re.search(label_pattern, output, re.IGNORECASE)
+    explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
+
+    return {
+        "label": label_match.group(1) if label_match else None,
+        "explanation": explanation_match.group(1) if explanation_match else None,
+    }
+
+# 4. Run evaluation
+results = llm_generate(
+    dataframe=traces_df,
+    template=template,
+    model=OpenAIModel('gpt-4o', api_key=os.getenv("OPENAI_API_KEY")),
+    output_parser=output_parser,
+    include_prompt=True,
+    include_response=True
 )
 
-# 4. Rename dotted column names so evaluator template variables resolve correctly
-eval_df = traces_df.rename(columns={
-    "attributes.query": "query",
-    "attributes.dietary_restriction": "dietary_restriction",
-    "attributes.output.value": "output",
-})
+# 5. Merge with original data
+final_results = pd.merge(results, traces_df, left_index=True, right_index=True)
 
-results = await async_evaluate_dataframe(
-    dataframe=eval_df,
-    evaluators=[evaluator],
-)
+# 6. Log to Phoenix
+from phoenix.client import Client
 
-# 5. Convert to annotations and log to Phoenix
-annotations = to_annotation_dataframe(results)
+px_client = Client()
 px_client.spans.log_span_annotations_dataframe(
-    dataframe=annotations,
+    dataframe=final_results,
     annotation_name="Dietary Adherence Evaluation",
     annotator_kind="LLM",
 )

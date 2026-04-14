@@ -5,19 +5,16 @@ This script uses Phoenix evals with GPT-4o to create ground truth labels
 for whether Recipe Bot responses properly adhere to dietary restrictions.
 """
 
-import asyncio
+import os
+import re
 from pathlib import Path
+from typing import Any, Dict
 
 import pandas as pd
 from dotenv import load_dotenv
 from phoenix.client import Client
 from phoenix.client.types.spans import SpanQuery
-from phoenix.evals import (
-    LLM,
-    ClassificationEvaluator,
-    async_evaluate_dataframe,
-)
-from phoenix.evals.utils import to_annotation_dataframe
+from phoenix.evals import OpenAIModel, llm_generate
 
 load_dotenv()
 
@@ -25,7 +22,7 @@ script_dir = Path(__file__).parent
 hw3_dir = script_dir.parent
 data_dir = hw3_dir / "data"
 
-# Labeling prompt for GPT-4o
+# Labeling prompt for GPT-4o (adapted for Phoenix evals)
 LABELING_PROMPT = """You are an expert nutritionist and dietary specialist. Your task is to evaluate
 whether a recipe response properly adheres to the specified dietary restriction.
 
@@ -56,11 +53,13 @@ and preparation methods
 
 Please analyze the query, dietary restriction, and recipe response, then provide your evaluation.
 
-Query: {query}
-Dietary Restriction: {dietary_restriction}
-Recipe Response: {output}
+Query: {attributes.query}
+Dietary Restriction: {attributes.dietary_restriction}
+Recipe Response: {attributes.output.value}
 
-Return a label of PASS or FAIL and your explanation.
+Return your response in this exact format:
+"explanation": "Detailed explanation of your evaluation, citing specific ingredients or methods",
+"label": "PASS" or "FAIL",
 """
 
 
@@ -69,10 +68,8 @@ def load_traces_from_phoenix() -> pd.DataFrame:
     try:
         query = SpanQuery().where("span_kind == 'CHAIN'")
 
-        px_client = Client()
-        trace_df = px_client.spans.get_spans_dataframe(
-            query=query, project_identifier="recipe-agent"
-        )
+        client = Client()
+        trace_df = client.spans.get_spans_dataframe(query=query, project_identifier="recipe-agent")
         print("Loaded traces from Phoenix")
         return trace_df
     except Exception as e:
@@ -80,10 +77,24 @@ def load_traces_from_phoenix() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def output_parser(output: str, row_index: int) -> Dict[str, Any]:
+    """Output parser function for Phoenix evals."""
+    label_pattern = r'"label":\s*"([^"]*)"'
+    explanation_pattern = r'"explanation":\s*"([^"]*)"'
+
+    label_match = re.search(label_pattern, output, re.IGNORECASE)
+    explanation_match = re.search(explanation_pattern, output, re.IGNORECASE)
+
+    return {
+        "label": label_match.group(1) if label_match else None,
+        "explanation": explanation_match.group(1) if explanation_match else None,
+    }
+
+
 def generate_phoenix_labels(
     trace_df: pd.DataFrame, prompt: str, sample_size: int = 600
 ) -> pd.DataFrame:
-    """Label traces using Phoenix evals ClassificationEvaluator."""
+    """Label traces using Phoenix evals."""
     # Sample traces for labeling
     if len(trace_df) > sample_size:
         sampled_df = trace_df.sample(n=sample_size, random_state=42)
@@ -92,52 +103,35 @@ def generate_phoenix_labels(
 
     print(f"Labeling {len(sampled_df)} traces with Phoenix evals...")
 
-    # Set up ClassificationEvaluator
-    llm = LLM(provider="openai", model="gpt-4o")
-
-    evaluator = ClassificationEvaluator(
-        name="ground_truth",
-        llm=llm,
-        prompt_template=prompt,
-        choices={"PASS": 1.0, "FAIL": 0.0},
+    # Run the evaluation using Phoenix
+    test_results = llm_generate(
+        dataframe=sampled_df,
+        template=prompt,
+        model=OpenAIModel(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY")),
+        output_parser=output_parser,
+        include_prompt=True,
     )
 
-    # Rename dotted column names so the evaluator template variables resolve correctly
-    eval_df = sampled_df.rename(
-        columns={
-            "attributes.query": "query",
-            "attributes.dietary_restriction": "dietary_restriction",
-            "attributes.output.value": "output",
-        },
-    )
+    test_results = pd.merge(test_results, sampled_df, left_index=True, right_index=True)
 
-    # Run evaluation
-    results_df = asyncio.get_event_loop().run_until_complete(
-        async_evaluate_dataframe(
-            dataframe=eval_df,
-            evaluators=[evaluator],
-        )
-    )
+    print(f"Completed labeling of {len(test_results)} traces")
 
-    print(f"Completed labeling of {len(results_df)} traces")
+    test_results.set_index(sampled_df.index)
 
-    # Convert to annotation format and log to Phoenix
-    annotations_df = to_annotation_dataframe(dataframe=results_df)
     px_client = Client()
     px_client.spans.log_span_annotations_dataframe(
-        dataframe=annotations_df,
+        dataframe=test_results,
         annotation_name="Ground Truth Labels",
         annotator_kind="LLM",
     )
 
-    # Extract ground truth labels for downstream use (balance_labels needs these)
-    score_data = results_df["ground_truth_score"]
-    results_df["ground_truth_label"] = score_data.apply(
-        lambda x: x.get("label") if isinstance(x, dict) else None
+    test_results.rename(
+        columns={"label": "ground_truth_label", "explanation": "ground_truth_explanation"},
+        inplace=True,
     )
 
     print("Logged evaluations to Phoenix")
-    return results_df  # type: ignore[no-any-return]
+    return test_results
 
 
 def balance_labels(

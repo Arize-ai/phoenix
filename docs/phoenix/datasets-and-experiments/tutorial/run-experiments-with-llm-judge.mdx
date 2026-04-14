@@ -99,7 +99,7 @@ def call_actionability_judge(input, output):
     Wrapper function for the actionability judge evaluator.
     This is needed because run_experiment expects a function, not an evaluator object.
     """
-    results = actionability_judge.evaluate({
+    results = actionability_judge.evaluate(eval_input={
         "input": input,
         "output": output
     })

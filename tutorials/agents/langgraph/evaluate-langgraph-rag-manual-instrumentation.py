@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 """
 LangGraph RAG Agent with Manual Phoenix Instrumentation and Evaluation
 
@@ -29,20 +28,18 @@ from langchain_pinecone import PineconeVectorStore
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import AnyMessage, add_messages
 from opentelemetry.trace import Status, StatusCode
-from phoenix.evals import LLM, async_evaluate_dataframe  # type: ignore[attr-defined]
-from phoenix.evals.metrics import (  # type: ignore[attr-defined]
-    CorrectnessEvaluator,
-    DocumentRelevanceEvaluator,
-    FaithfulnessEvaluator,
+from phoenix.client import Client as _PhoenixClient
+from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
+from phoenix.evals import (
+    HallucinationEvaluator,
+    OpenAIModel,
+    QAEvaluator,
+    RelevanceEvaluator,
+    run_evals,
 )
-from phoenix.evals.utils import to_annotation_dataframe  # type: ignore[attr-defined]
 
 # Phoenix tracing and evaluation imports
 from phoenix.otel import register
-from phoenix.session.evaluation import get_qa_with_reference, get_retrieved_documents
-
-import phoenix as px
-from phoenix.trace import DocumentEvaluations
 
 nest_asyncio.apply()
 
@@ -451,7 +448,7 @@ def create_rag_agent() -> StateGraph:
 
 
 # Phoenix evaluation functions
-async def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
+def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
     """Extract retrieval evaluation data from Phoenix traces"""
 
     print("📋 Extracting retrieval documents from Phoenix traces...")
@@ -460,7 +457,7 @@ async def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFram
         # Extract retrieved documents from traces
         retrieved_documents_df = get_retrieved_documents(
             phoenix_client, project_name=PHOENIX_PROJECT_NAME
-        )
+        ).rename(columns={"document": "reference"})
 
         if retrieved_documents_df.empty:
             print("⚠️  No retrieved documents found in traces")
@@ -470,13 +467,14 @@ async def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFram
 
         # Run relevance evaluation on retrieved documents
         print("🧮 Running relevance evaluation on retrieved documents...")
-        llm = LLM(provider="openai", model="gpt-4o")
-        relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
+        relevance_evaluator = RelevanceEvaluator(OpenAIModel(model="gpt-4o"))
 
-        relevance_results = await async_evaluate_dataframe(
-            dataframe=retrieved_documents_df,
+        relevance_results = run_evals(
             evaluators=[relevance_evaluator],
-        )
+            dataframe=retrieved_documents_df,
+            provide_explanation=True,
+            concurrency=5,
+        )[0]
 
         return {
             "retrieved_documents": retrieved_documents_df,
@@ -488,39 +486,40 @@ async def extract_retrieval_evaluations(phoenix_client) -> Dict[str, pd.DataFram
         return {}
 
 
-async def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
+def extract_qa_evaluations(phoenix_client) -> Dict[str, pd.DataFrame]:
     """Extract Q&A evaluation data from Phoenix traces"""
 
     print("📋 Extracting Q&A data from Phoenix traces...")
 
     try:
         # Extract Q&A with reference from traces
-        qa_with_reference_df = get_qa_with_reference(
+        qa_with_reference_df = get_input_output_context(
             phoenix_client, project_name=PHOENIX_PROJECT_NAME
         )
 
-        if qa_with_reference_df.empty:
+        if qa_with_reference_df is None or qa_with_reference_df.empty:
             print("⚠️  No Q&A interactions found in traces")
             return {}
 
+        qa_with_reference_df = qa_with_reference_df.rename(columns={"context": "reference"})
         print(f"Found {len(qa_with_reference_df)} Q&A interactions")
 
         # Run Q&A and hallucination evaluations
         print("🧮 Running Q&A correctness and hallucination evaluations...")
-        llm = LLM(provider="openai", model="gpt-4o")
-        correctness_evaluator = CorrectnessEvaluator(llm=llm)
-        # FaithfulnessEvaluator: high score = faithful (inverted from HallucinationEvaluator)
-        faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
+        qa_evaluator = QAEvaluator(OpenAIModel(model="gpt-4o"))
+        hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model="gpt-4o"))
 
-        all_results = await async_evaluate_dataframe(
+        qa_results, hallucination_results = run_evals(
+            evaluators=[qa_evaluator, hallucination_evaluator],
             dataframe=qa_with_reference_df,
-            evaluators=[correctness_evaluator, faithfulness_evaluator],
+            provide_explanation=True,
+            concurrency=5,
         )
 
         return {
             "qa_with_reference": qa_with_reference_df,
-            "qa_correctness": all_results,
-            "hallucination": all_results,
+            "qa_correctness": qa_results,
+            "hallucination": hallucination_results,
         }
 
     except Exception as e:
@@ -536,10 +535,10 @@ async def run_phoenix_evaluations(
     print("\n🔍 Starting Phoenix evaluation pipeline...")
 
     # Extract and evaluate retrieval performance
-    retrieval_results = await extract_retrieval_evaluations(phoenix_client)
+    retrieval_results = extract_retrieval_evaluations(phoenix_client)
 
     # Extract and evaluate Q&A performance
-    qa_results = await extract_qa_evaluations(phoenix_client)
+    qa_results = extract_qa_evaluations(phoenix_client)
 
     return retrieval_results, qa_results
 
@@ -562,13 +561,13 @@ async def main():
 
     if "PHOENIX_API_KEY" in os.environ:
         tracer_provider = register(project_name=PHOENIX_PROJECT_NAME)
-        phoenix_client = px.Client()
+        phoenix_client = _PhoenixClient()
     else:
         # Use local Phoenix
         tracer_provider = register(
             endpoint="http://127.0.0.1:6006/v1/traces", project_name=PHOENIX_PROJECT_NAME
         )
-        phoenix_client = px.Client(endpoint="http://127.0.0.1:6006")
+        phoenix_client = _PhoenixClient(base_url="http://127.0.0.1:6006")
 
     # Get tracer for manual instrumentation
     tracer = tracer_provider.get_tracer(__name__)
@@ -637,22 +636,29 @@ async def main():
     # Log evaluations back to Phoenix
     print("\n📤 Logging evaluation results back to Phoenix...")
     if retrieval_results and "retrieval_relevance" in retrieval_results:
-        px.Client().log_evaluations(
-            DocumentEvaluations(
-                eval_name="Retrieval Relevance", dataframe=retrieval_results["retrieval_relevance"]
-            )
+        phoenix_client.spans.log_document_annotations_dataframe(
+            dataframe=retrieval_results["retrieval_relevance"],
+            annotation_name="Retrieval Relevance",
+            annotator_kind="LLM",
         )
         print("✅ Logged retrieval relevance evaluations")
 
-    if qa_results and "qa_correctness" in qa_results:
-        from phoenix.client import Client
-
-        annotations_df = to_annotation_dataframe(qa_results["qa_correctness"])
-        px_client = Client()
-        px_client.spans.log_span_annotations_dataframe(
-            dataframe=annotations_df,
-        )
-        print("✅ Logged Q&A correctness and faithfulness evaluations")
+    if qa_results:
+        px_client = phoenix_client
+        if "qa_correctness" in qa_results:
+            px_client.spans.log_span_annotations_dataframe(
+                dataframe=qa_results["qa_correctness"],
+                annotation_name="Q&A Correctness",
+                annotator_kind="LLM",
+            )
+            print("✅ Logged Q&A correctness evaluations")
+        if "hallucination" in qa_results:
+            px_client.spans.log_span_annotations_dataframe(
+                dataframe=qa_results["hallucination"],
+                annotation_name="Hallucination",
+                annotator_kind="LLM",
+            )
+            print("✅ Logged hallucination evaluations")
 
     print("\n🎉 LangGraph RAG Agent with manual instrumentation complete!")
     print("\n📈 Check the Phoenix UI for detailed tracing information:")
