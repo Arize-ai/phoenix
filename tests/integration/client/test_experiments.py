@@ -9,11 +9,12 @@ from unittest.mock import patch
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from strawberry.relay import GlobalID
+
 from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from strawberry.relay import GlobalID
 
 from .._helpers import (  # pyright: ignore[reportPrivateUsage]
     _AppInfo,
@@ -1400,7 +1401,7 @@ class TestExperimentsIntegration:
         received_trace_ids: list[str] = []
 
         def task(input: Dict[str, Any]) -> str:
-            return input["text"].upper()
+            return cast(str, input["text"].upper())
 
         def evaluator(output: str, trace_id: Optional[str] = None) -> float:
             assert trace_id is not None
@@ -1421,7 +1422,7 @@ class TestExperimentsIntegration:
 
         assert len(received_trace_ids) == len(task_run_trace_ids) == 2
         assert all(trace_id is not None for trace_id in task_run_trace_ids)
-        assert received_trace_ids == cast(list[str], task_run_trace_ids)
+        assert received_trace_ids == task_run_trace_ids
 
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_task_dynamic_parameter_binding(
