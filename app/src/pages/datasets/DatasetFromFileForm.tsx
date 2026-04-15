@@ -222,7 +222,10 @@ const rowCountCSS = css`
  */
 export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onCancel, mode } = props;
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "create" | "append" | null
+  >(null);
+  const isSubmitting = pendingAction !== null;
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewData>([]);
@@ -531,12 +534,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [columns, setValue]);
 
   const onSubmit = useCallback(
-    (data: CreateDatasetFromFileParams) => {
+    (data: CreateDatasetFromFileParams, action: "create" | "append") => {
       if (!data.file) {
         return;
       }
 
-      setIsSubmitting(true);
+      setPendingAction(action);
       const formData = new FormData();
 
       switch (fileType) {
@@ -558,9 +561,9 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           invariant(false, `Invalid file type: ${fileType}`);
       }
 
+      formData.append("action", action);
       if (mode === "append") {
         formData.append("name", props.datasetName);
-        formData.append("action", "append");
       } else if (mode === "create") {
         formData.append("name", data.name);
         formData.append("description", data.description);
@@ -631,11 +634,14 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           setErrorMessage(error instanceof Error ? error.message : fallback);
         })
         .finally(() => {
-          setIsSubmitting(false);
+          setPendingAction(null);
         });
     },
     [fileType, collapseKeys, keysToCollapse, mode, props]
   );
+
+  const handleSubmitCreate = handleSubmit((data) => onSubmit(data, "create"));
+  const handleSubmitAppend = handleSubmit((data) => onSubmit(data, "append"));
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
 
@@ -671,7 +677,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   };
 
   return (
-    <Form css={formContainerCSS} onSubmit={handleSubmit(onSubmit)}>
+    <Form css={formContainerCSS}>
       <div css={formBodyCSS}>
         {errorMessage && (
           <Alert variant="danger" banner>
@@ -744,7 +750,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               <div css={previewTabHeaderCSS}>
                 <TabList>
                   <Tab id="file">File Preview</Tab>
-                  <Tab id="dataset">Dataset Preview</Tab>
+                  <Tab id="dataset">Examples Preview</Tab>
                 </TabList>
                 <span css={rowCountCSS}>
                   {totalRowCount !== null && totalRowCount > previewRows.length
@@ -852,28 +858,59 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         <Button
           variant="default"
           size="S"
+          type="button"
           onPress={onCancel}
           isDisabled={isSubmitting}
         >
           Cancel
         </Button>
-        <Button
-          variant="primary"
-          size="S"
-          type="submit"
-          isDisabled={!isValid || isSubmitting || isParsing}
-          leadingVisual={
-            isSubmitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
-          }
-        >
-          {isSubmitting
-            ? mode === "append"
-              ? "Adding..."
-              : "Creating..."
-            : mode === "append"
-              ? "Add Examples"
-              : "Create Dataset"}
-        </Button>
+        {mode === "append" ? (
+          <>
+            <Button
+              variant="default"
+              size="S"
+              type="button"
+              onPress={() => handleSubmitCreate()}
+              isDisabled={!isValid || isSubmitting || isParsing}
+              leadingVisual={
+                pendingAction === "create" ? (
+                  <Icon svg={<Icons.LoadingOutline />} />
+                ) : undefined
+              }
+            >
+              {pendingAction === "create" ? "Replacing..." : "Replace Examples"}
+            </Button>
+            <Button
+              variant="primary"
+              size="S"
+              type="button"
+              onPress={() => handleSubmitAppend()}
+              isDisabled={!isValid || isSubmitting || isParsing}
+              leadingVisual={
+                pendingAction === "append" ? (
+                  <Icon svg={<Icons.LoadingOutline />} />
+                ) : undefined
+              }
+            >
+              {pendingAction === "append" ? "Adding..." : "Add Examples"}
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="primary"
+            size="S"
+            type="button"
+            onPress={() => handleSubmitCreate()}
+            isDisabled={!isValid || isSubmitting || isParsing}
+            leadingVisual={
+              pendingAction === "create" ? (
+                <Icon svg={<Icons.LoadingOutline />} />
+              ) : undefined
+            }
+          >
+            {pendingAction === "create" ? "Creating..." : "Create Dataset"}
+          </Button>
+        )}
       </DialogFooter>
     </Form>
   );
