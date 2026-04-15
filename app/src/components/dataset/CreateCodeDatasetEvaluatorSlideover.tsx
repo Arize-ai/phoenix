@@ -198,7 +198,7 @@ const CreateCodeEvaluatorDialog = ({
     payload: {
       language: "PYTHON" | "TYPESCRIPT";
       sourceCode: string;
-      sandboxConfigId: number | null;
+      sandboxConfigId: string | null;
     }
   ) => {
     setError(undefined);
@@ -244,6 +244,7 @@ const CreateCodeEvaluatorDialog = ({
               title: "Evaluator created",
               message: "The code evaluator has been added to the dataset.",
             });
+            onDirtyChange?.(false);
             onClose();
           },
           onError: (mutationError) => {

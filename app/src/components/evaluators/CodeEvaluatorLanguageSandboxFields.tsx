@@ -18,7 +18,7 @@ import {
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 export type SandboxConfigOption = {
-  id: number;
+  id: string;
   name: string;
   description?: string | null;
   providerLabel: string;
@@ -64,10 +64,10 @@ export type CodeEvaluatorSandboxFieldProps = {
   sandboxConfigs: SandboxConfigOption[];
   /** Current language to filter configs by */
   language: CodeEvaluatorLanguage;
-  /** Currently selected sandbox config ID (numeric) */
-  selectedSandboxConfigId: number | null;
+  /** Currently selected sandbox config Relay ID */
+  selectedSandboxConfigId: string | null;
   /** Callback when selection changes */
-  onSelectionChange: (sandboxConfigId: number | null) => void;
+  onSelectionChange: (sandboxConfigId: string | null) => void;
   /** Optional size variant */
   size?: "M" | "L";
   /** Whether to show the helper text below the field */
@@ -123,7 +123,7 @@ export const CodeEvaluatorSandboxField = ({
         selectedKey={validSelectedId != null ? String(validSelectedId) : null}
         onSelectionChange={(key) => {
           if (typeof key === "string") {
-            onSelectionChange(Number(key));
+            onSelectionChange(key);
           } else {
             onSelectionChange(null);
           }
@@ -168,15 +168,6 @@ export const CodeEvaluatorSandboxField = ({
       )}
     </View>
   );
-};
-
-/**
- * Decodes a Relay GlobalID to extract the numeric database ID.
- */
-export const decodeRelayNodeId = (globalId: string): number => {
-  const decoded = globalThis.atob(globalId);
-  const [, rawId = ""] = decoded.split(":", 2);
-  return Number(rawId);
 };
 
 const BACKEND_TYPE_LABELS: Record<string, string> = {
@@ -226,7 +217,7 @@ export const mapSandboxConfigOptions = (
     )
     .flatMap((provider) =>
       provider.configs.map((config) => ({
-        id: decodeRelayNodeId(config.id),
+        id: config.id,
         name: config.name,
         description: config.description,
         providerLanguage: provider.language,

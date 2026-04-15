@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<02dd3e4c4452e113e602dc70df251404>>
+ * @generated SignedSource<<e4e05e09b43a52bbe91219f37c48bca9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,7 @@ export type UpdateCodeEvaluatorInput = {
   language?: Language | null;
   name?: string | null;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
-  sandboxConfigId?: number | null;
+  sandboxConfigId?: string | null;
   sourceCode?: string | null;
 };
 export type AnnotationConfigInput = {

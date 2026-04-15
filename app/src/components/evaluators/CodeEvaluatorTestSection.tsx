@@ -99,20 +99,13 @@ function computePositiveOptimization({
   });
 }
 
-/**
- * Encode a numeric ID to a Relay GlobalID string.
- */
-function encodeGlobalId(typeName: string, id: number): string {
-  return globalThis.btoa(`${typeName}:${id}`);
-}
-
 export type CodeEvaluatorTestSectionProps = {
   /** The evaluator's source code */
   sourceCode: string;
   /** The language (PYTHON or TYPESCRIPT) */
   language: CodeEvaluatorLanguage;
-  /** The sandbox config ID (numeric) if selected */
-  sandboxConfigId: number | null;
+  /** The sandbox config Relay ID if selected */
+  sandboxConfigId: string | null;
 };
 
 /**
@@ -182,11 +175,6 @@ export const CodeEvaluatorTestSection = ({
     }
 
     const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
-    const sandboxConfigGlobalId = encodeGlobalId(
-      "SandboxConfig",
-      sandboxConfigId
-    );
-
     testEvaluator({
       variables: {
         input: {
@@ -200,7 +188,7 @@ export const CodeEvaluatorTestSection = ({
                   language,
                   sourceCode,
                   outputConfigs: gqlOutputConfigs,
-                  sandboxConfigId: sandboxConfigGlobalId,
+                  sandboxConfigId,
                 },
               },
               inputMapping,

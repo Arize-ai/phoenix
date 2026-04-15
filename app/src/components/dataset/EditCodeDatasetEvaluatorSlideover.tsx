@@ -13,10 +13,7 @@ import {
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
-import {
-  decodeRelayNodeId,
-  mapSandboxConfigOptions,
-} from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
   createDefaultContinuousOutputConfig,
   EditCodeEvaluatorDialogContent,
@@ -225,9 +222,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     sandboxBackends
   );
   const sandboxConfigGlobalId = evaluator.sandboxConfig?.id;
-  const initialSandboxConfigId = sandboxConfigGlobalId
-    ? decodeRelayNodeId(sandboxConfigGlobalId)
-    : null;
+  const initialSandboxConfigId = sandboxConfigGlobalId ?? null;
 
   const [updateCodeEvaluator, isUpdatingCodeEvaluator] =
     useMutation<EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation>(graphql`
@@ -302,7 +297,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     payload: {
       language: "PYTHON" | "TYPESCRIPT";
       sourceCode: string;
-      sandboxConfigId: number | null;
+      sandboxConfigId: string | null;
     }
   ) => {
     setError(undefined);
@@ -341,6 +336,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           },
           onCompleted: () => {
             notifySuccess({ title: "Evaluator updated" });
+            onDirtyChange?.(false);
             onClose();
             onUpdate?.();
           },

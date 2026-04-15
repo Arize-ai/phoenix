@@ -95,7 +95,7 @@ export const EditCodeEvaluatorDialogContent = ({
   onSubmit: (payload: {
     language: CodeEvaluatorLanguage;
     sourceCode: string;
-    sandboxConfigId: number | null;
+    sandboxConfigId: string | null;
   }) => void;
   /**
    * Called when the user clicks Cancel. Parent overlays can use this to
@@ -112,14 +112,14 @@ export const EditCodeEvaluatorDialogContent = ({
   initialLanguage: CodeEvaluatorLanguage;
   initialSourceCode: string;
   sandboxConfigs: SandboxConfigOption[];
-  initialSandboxConfigId?: number | null;
+  initialSandboxConfigId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
     useState<CodeEvaluatorLanguage>(initialLanguage);
-  const [sandboxConfigId, setSandboxConfigId] = useState<number | null>(
+  const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialSandboxConfigId ?? null
   );
   const [localValidationError, setLocalValidationError] = useState<
@@ -416,8 +416,8 @@ const CompactHeaderBar = ({
   language: CodeEvaluatorLanguage;
   onLanguageChange: (language: CodeEvaluatorLanguage) => void;
   sandboxConfigs: SandboxConfigOption[];
-  selectedSandboxConfigId: number | null;
-  onSandboxChange: (sandboxConfigId: number | null) => void;
+  selectedSandboxConfigId: string | null;
+  onSandboxChange: (sandboxConfigId: string | null) => void;
 }) => {
   const evaluatorName = useEvaluatorStore(
     (state) => state.evaluator.name || ""

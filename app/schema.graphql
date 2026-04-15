@@ -594,7 +594,7 @@ input CreateCodeEvaluatorInput {
   sourceCode: String!
   language: Language!
   description: String = null
-  sandboxConfigId: Int = null
+  sandboxConfigId: ID = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
 }
@@ -3877,7 +3877,7 @@ input UpdateCodeEvaluatorInput {
   sourceCode: String
   language: Language
   description: String
-  sandboxConfigId: Int
+  sandboxConfigId: ID
   outputConfigs: [AnnotationConfigInput!]
   inputMapping: EvaluatorInputMappingInput
 }
