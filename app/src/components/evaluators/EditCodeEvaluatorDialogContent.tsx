@@ -365,8 +365,14 @@ export const EditCodeEvaluatorDialogContent = ({
                     </DisclosureTrigger>
                     <DisclosurePanel>
                       <div css={accordionContentCSS}>
-                        <View paddingX="size-200">
-                          <OutputConfigSection />
+                        <View paddingX="size-200" paddingTop="size-100">
+                          <Text color="text-500" size="XS">
+                            Define the output type and optimization direction
+                            for your evaluator.
+                          </Text>
+                          <View marginTop="size-100">
+                            <OutputConfigSection />
+                          </View>
                         </View>
                       </div>
                     </DisclosurePanel>
@@ -381,9 +387,9 @@ export const EditCodeEvaluatorDialogContent = ({
                     </DisclosureTrigger>
                     <DisclosurePanel>
                       <div css={accordionContentCSS}>
-                        <View paddingX="size-200">
+                        <View paddingX="size-200" paddingTop="size-100">
                           <Text color="text-500" size="XS">
-                            Map evaluator arguments to dataset fields. Variables
+                            Map evaluator arguments to dataset fields. Arguments
                             are auto-detected from your code.
                           </Text>
                           <View marginTop="size-100">
@@ -607,6 +613,10 @@ const OutputConfigSection = () => {
       <TextField isDisabled value={outputConfig.name}>
         <Label>Annotation name</Label>
         <Input />
+        <Text slot="description">
+          The name of the annotation that will be created by this evaluator.
+          Fixed to the evaluator name.
+        </Text>
       </TextField>
 
       <Select
@@ -632,6 +642,10 @@ const OutputConfigSection = () => {
           <SelectValue />
           <SelectChevronUpDownIcon />
         </Button>
+        <Text slot="description">
+          The type of output that will be created by this evaluator. Your code
+          should return a numerical score or a categorical label.
+        </Text>
         <Popover>
           <ListBox>
             {outputTypeOptions.map((option) => (
@@ -929,7 +943,7 @@ const typeFooterCSS = css`
 
 const choiceGridCSS = css`
   display: grid;
-  grid-template-columns: 1fr 80px 32px;
+  grid-template-columns: 1fr 100px 32px;
   gap: var(--global-dimension-size-50);
-  align-items: end;
+  align-items: center;
 `;

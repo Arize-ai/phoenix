@@ -65,11 +65,8 @@ export function generateTypeScriptTypes(
   mappingSource: EvaluatorMappingSource
 ): string {
   const lines: string[] = [
-    "",
-    "// ─────────────────────────────────────────────────────────────────────────────",
     "// Auto-generated types from dataset example (read-only)",
     "// These types reflect the structure of your dataset",
-    "",
   ];
 
   // Generate type for each mapping source field if it has data
@@ -198,12 +195,9 @@ export function generatePythonTypes(
   mappingSource: EvaluatorMappingSource
 ): string {
   const lines: string[] = [
-    "",
-    "# ─────────────────────────────────────────────────────────────────────────────",
     '"""',
     "Auto-generated type information from dataset example (read-only)",
     "These types reflect the structure of your dataset",
-    "",
   ];
 
   const fields: Array<{ name: string; data: unknown }> = [
