@@ -1312,7 +1312,7 @@ def evaluate_entity_correctness(output: str, input: str) -> bool:
         choices={"correct": 1.0, "incorrect": 0.0},
     )
     result = entity_evaluator.evaluate(eval_input={"query": input.get("question"), "response": output.get("final_output")})
-    return result.label == "correct"
+    return result[0].label == "correct"
 ````
 
 ```python expandable

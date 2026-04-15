@@ -50,7 +50,8 @@ results_df = await async_evaluate_dataframe(
 | Symbol | Description |
 | :----- | :---------- |
 | `LLM(provider=..., model=...)` | Unified LLM wrapper for all supported providers |
-| `async_evaluate_dataframe(dataframe, evaluators)` | Run evaluators over a DataFrame with concurrency control |
+| `evaluate_dataframe(dataframe, evaluators)` | Run evaluators over a DataFrame (sync) |
+| `async_evaluate_dataframe(dataframe, evaluators)` | Async variant with concurrency control |
 | `ClassificationEvaluator(name, llm, prompt_template, choices)` | LLM-as-a-judge classification evaluator |
 | `create_evaluator(name, kind=...)` | Decorator to turn a function into an `Evaluator` |
 | `bind_evaluator(evaluator, input_mapping)` | Bind field mappings to an evaluator |

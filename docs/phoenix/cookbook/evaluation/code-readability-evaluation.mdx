@@ -100,13 +100,10 @@ confusion_matrix.plot(
 
 ## Get Explanations
 
-When evaluating a dataset for readability, it can be useful to know why the LLM classified text as readable or not. The following code block runs the classifier with explanations included so that we can inspect why the LLM made the classification it did. There is a speed tradeoff since more tokens are being generated but it can be highly informative when troubleshooting.
+`ClassificationEvaluator` produces explanations by default, so we can extract them directly from the results DataFrame returned by `async_evaluate_dataframe` — no need to re-run the evaluation.
 
 ```python
-readability_classifications_df = await async_evaluate_dataframe(
-    dataframe=df.sample(n=5),
-    evaluators=[readability_evaluator],
-)
+# Explanations are already included in the results from the evaluation above
 readability_classifications_df["label"] = readability_classifications_df["code_readability_score"].str["label"]
 readability_classifications_df["explanation"] = readability_classifications_df[
     "code_readability_score"
