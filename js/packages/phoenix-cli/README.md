@@ -135,7 +135,7 @@ px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
 
 ### `px trace add-note <trace-id>`
 
-Add a human note to a trace by OpenTelemetry trace ID.
+Add a note to a trace by OpenTelemetry trace ID.
 
 ```bash
 px trace add-note abc123def456 --text "needs follow-up"
@@ -203,7 +203,7 @@ px span annotate 7e2f08cb43bbf521 --name reviewer --explanation "looks good"
 
 ### `px span add-note <span-id>`
 
-Add a human note to a span by OpenTelemetry span ID.
+Add a note to a span by OpenTelemetry span ID.
 
 ```bash
 px span add-note 7e2f08cb43bbf521 --text "double-check tool output"

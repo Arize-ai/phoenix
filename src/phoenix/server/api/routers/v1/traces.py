@@ -358,7 +358,7 @@ async def annotate_traces(
     if any(data.name == "note" for data in request_body.data):
         raise HTTPException(
             status_code=400,
-            detail="Trace notes are not supported in this endpoint.",
+            detail="The name 'note' is reserved for trace and span notes",
         )
 
     user_id: Optional[int] = None

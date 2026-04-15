@@ -129,7 +129,7 @@ async def test_rest_trace_annotation_rejects_note_name(
 
     response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
     assert response.status_code == 400
-    assert "Trace notes are not supported in this endpoint." in response.text
+    assert "The name 'note' is reserved for trace and span notes" in response.text
 
 
 async def test_rest_create_trace_note(

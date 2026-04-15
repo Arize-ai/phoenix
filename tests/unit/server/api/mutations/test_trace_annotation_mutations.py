@@ -252,4 +252,4 @@ class TestTraceAnnotationMutations:
 
         assert response.data is None
         assert response.errors
-        assert "Trace notes are not supported in this endpoint." in response.errors[0].message
+        assert "The name 'note' is reserved for trace and span notes" in response.errors[0].message

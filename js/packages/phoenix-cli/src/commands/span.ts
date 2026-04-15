@@ -33,12 +33,12 @@ import {
 } from "./formatSpans";
 import {
   buildNoteMutationResult,
+  NOTE_ANNOTATION_NAME,
   normalizeNoteText,
 } from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
-const NOTE_ANNOTATION_NAME = "note";
 
 interface SpanListOptions {
   endpoint?: string;

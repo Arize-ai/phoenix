@@ -40,6 +40,7 @@ import {
 } from "./formatTraces";
 import {
   buildNoteMutationResult,
+  NOTE_ANNOTATION_NAME,
   normalizeNoteText,
 } from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
@@ -49,7 +50,6 @@ import {
 } from "./traceAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
-const NOTE_ANNOTATION_NAME = "note";
 
 function attachSpanAnnotationsToSpans(
   spans: SpanWithAnnotations[],
