@@ -396,9 +396,6 @@ importers:
 
   packages/phoenix-cli:
     dependencies:
-      '@clack/prompts':
-        specifier: ^1.0.1
-        version: 1.0.1
       '@arizeai/openinference-semantic-conventions':
         specifier: ^1.1.0
         version: 1.1.0
@@ -408,6 +405,9 @@ importers:
       '@arizeai/phoenix-config':
         specifier: workspace:*
         version: link:../phoenix-config
+      '@clack/prompts':
+        specifier: ^1.0.1
+        version: 1.0.1
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -458,6 +458,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^3.0.29
         version: 3.0.29(zod@4.3.6)
+      '@anthropic-ai/sdk':
+        specifier: ^0.35.0
+        version: 0.35.0
       '@arizeai/phoenix-evals':
         specifier: workspace:*
         version: link:../phoenix-evals
@@ -473,6 +476,12 @@ importers:
       '@types/node':
         specifier: ^20.17.22
         version: 20.19.33
+      ai:
+        specifier: ^6.0.90
+        version: 6.0.90(zod@4.3.6)
+      openai:
+        specifier: ^6.10.0
+        version: 6.22.0(ws@8.19.0)(zod@4.3.6)
       openapi-typescript:
         specifier: ^7.6.1
         version: 7.13.0(typescript@6.0.2)
@@ -482,16 +491,6 @@ importers:
       vitest:
         specifier: ^4.1.0
         version: 4.1.2(@opentelemetry/api@1.9.0)(@types/node@20.19.33)(msw@2.12.10(@types/node@20.19.33)(typescript@6.0.2))(vite@8.0.3(@types/node@20.19.33)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
-    optionalDependencies:
-      '@anthropic-ai/sdk':
-        specifier: ^0.35.0
-        version: 0.35.0
-      ai:
-        specifier: ^6.0.90
-        version: 6.0.90(zod@4.3.6)
-      openai:
-        specifier: ^6.10.0
-        version: 6.22.0(ws@8.19.0)(zod@4.3.6)
 
   packages/phoenix-config:
     devDependencies:
@@ -5377,7 +5376,6 @@ snapshots:
       node-fetch: 2.7.0
     transitivePeerDependencies:
       - encoding
-    optional: true
 
   '@arizeai/openinference-core@1.0.3':
     dependencies:

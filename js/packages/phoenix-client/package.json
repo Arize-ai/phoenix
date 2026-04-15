@@ -108,10 +108,21 @@
     "tsx": "^4.19.3",
     "vitest": "^4.1.0"
   },
-  "optionalDependencies": {
+  "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^6.0.90",
     "openai": "^6.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18"
