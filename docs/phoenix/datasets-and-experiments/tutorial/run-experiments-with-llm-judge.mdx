@@ -58,7 +58,6 @@ We create an LLM as a Judge evaluator that assesses whether the agent's response
 ```python Python
 # Define LLM Judge Evaluator checking for Actionable Responses
 from phoenix.evals import ClassificationEvaluator, LLM
-from phoenix.client.resources.experiments.types import EvaluationResult
 
 # Define Prompt Template
 support_response_actionability_judge = """
@@ -86,29 +85,13 @@ Agent Response:
 Return only one label: "correct" or "incorrect".
 """
 
-# Create Evaluator
+# Create Evaluator — can be passed directly to run_experiment
 actionability_judge = ClassificationEvaluator(
     name="actionability-judge",
     llm=LLM(model="gpt-5", provider="openai"),
     prompt_template=support_response_actionability_judge,
     choices={"correct": 1.0, "incorrect": 0.0},
 )
-
-def call_actionability_judge(input, output):
-    """
-    Wrapper function for the actionability judge evaluator.
-    This is needed because run_experiment expects a function, not an evaluator object.
-    """
-    results = actionability_judge.evaluate(eval_input={
-        "input": input,
-        "output": output
-    })
-    result = results[0]
-    return EvaluationResult(
-        score=result.score,
-        label=result.label,
-        explanation=result.explanation
-    )
 ```
 
 ```typescript TypeScript
@@ -159,12 +142,13 @@ Run the experiment on your dataset.
 <CodeGroup>
 
 ```python Python
-from phoenix.client.experiments import run_experiment
+from phoenix.client import Client
 
-experiment = run_experiment(
+client = Client()
+experiment = client.experiments.run_experiment(
     dataset=dataset,
     task=my_support_agent_task,
-    evaluators=[call_actionability_judge],
+    evaluators=[actionability_judge],
     experiment_name="support agent",
     experiment_description="Initial support agent evaluation using actionability judge to measure how actionable and helpful the agent's responses are",
 )

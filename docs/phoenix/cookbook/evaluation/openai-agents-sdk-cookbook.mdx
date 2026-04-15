@@ -107,42 +107,39 @@ result = asyncio.run(solve_math_problem(dataset_row))
 print(result)
 ```
 
-Next, we create our evaluator.
+Next, we create our evaluator. The `ClassificationEvaluator` can be passed directly to `run_experiment` — no wrapper function needed. We use `bind_evaluator` to map the dataset and task output fields to the evaluator's prompt template variables.
 
 ```python expandable
-from phoenix.evals import LLM, ClassificationEvaluator
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
+# Template for evaluating math problem solutions
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
-def correctness_eval(input, output):
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
-
-    # Run the evaluation
-    llm = LLM(provider="openai", model="gpt-4.1")
-    evaluator = ClassificationEvaluator(
+# Create the evaluator and bind input mappings
+correctness_eval = bind_evaluator(
+    ClassificationEvaluator(
         name="math_correctness",
-        llm=llm,
+        llm=LLM(provider="openai", model="gpt-4.1"),
         prompt_template=MATH_EVAL_TEMPLATE,
         choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    result = evaluator.evaluate(eval_input={"question": input["question"], "response": output["final_output"]})
-    score = 1 if result[0].label == "correct" else 0
-    return score
+    ),
+    input_mapping={"question": "input.question", "response": "output.final_output"},
+)
 ```
 
 ## Create synthetic dataset of questions
@@ -220,9 +217,7 @@ print(dataset)
 ```
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset,
     task=solve_math_problem,
     evaluators=[correctness_eval],
@@ -259,43 +254,35 @@ After importing the necessary libraries, we set up a tracer object to enable spa
 tracer = tracer_provider.get_tracer(__name__)
 ```
 
-Next, we update our correctness evaluator to return both a label and an explanation, enabling metadata to be captured during tracing.
-
-We also revise the task function to include `with` clauses that generate structured spans in Phoenix. These spans capture key details such as input values, output values, and the results of the evaluation.
+We also revise the task function to include `with` clauses that generate structured spans in Phoenix. These spans capture key details such as input values, output values, and the results of the evaluation. The correctness evaluator defined earlier is reused here — we manually call `evaluate` inside a span to capture evaluation metadata in the trace.
 
 ```python expandable
-# This is our modified correctness evaluator.
-def correctness_eval(input, output):
-    from phoenix.evals import LLM, ClassificationEvaluator
+# Create evaluator instance for manual use inside spans
+from phoenix.evals import LLM, ClassificationEvaluator
 
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    # Run the evaluation
-    llm = LLM(provider="openai", model="gpt-4.1")
-    evaluator = ClassificationEvaluator(
-        name="math_correctness",
-        llm=llm,
-        prompt_template=MATH_EVAL_TEMPLATE,
-        choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    result = evaluator.evaluate(eval_input={"question": input["question"], "response": output["final_output"]})
-    return result[0]
+correctness_evaluator = ClassificationEvaluator(
+    name="math_correctness",
+    llm=LLM(provider="openai", model="gpt-4.1"),
+    prompt_template=MATH_EVAL_TEMPLATE,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 ```
 
 ```python expandable
@@ -319,7 +306,10 @@ async def solve_math_problem(dataset_row: dict):
             "correctness-evaluator",
             openinference_span_kind="evaluator",
         ) as eval_span:
-            evaluation_result = correctness_eval(dataset_row, task_result)
+            eval_results = correctness_evaluator.evaluate(
+                eval_input={"question": question, "response": result.final_output}
+            )
+            evaluation_result = eval_results[0]
             eval_span.set_attribute("eval.label", evaluation_result.label)
             if evaluation_result.explanation:
                 eval_span.set_attribute("eval.explanation", evaluation_result.explanation)
@@ -357,9 +347,7 @@ print(result)
 Finally, we run an experiment to simulate traces in production.
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset,
     task=solve_math_problem,
     experiment_description="Solve Math Problems",

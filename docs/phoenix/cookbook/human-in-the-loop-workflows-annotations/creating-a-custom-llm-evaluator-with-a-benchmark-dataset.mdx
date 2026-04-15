@@ -170,12 +170,12 @@ def evaluate_response(output, metadata):
     return 1 if expected_label == predicted_label else 0
 ```
 ```py
-from phoenix.client.experiments import run_experiment
-
 from phoenix.client import Client
-dataset = Client().datasets.get_dataset(dataset="annotated-receipts")
 
-initial_experiment = run_experiment(
+client = Client()
+dataset = client.datasets.get_dataset(dataset="annotated-receipts")
+
+initial_experiment = client.experiments.run_experiment(
     dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="initial template"
 )
 ```
@@ -217,7 +217,7 @@ INPUT RECEIPT: """,
 ```
 
 ```py
-initial_experiment = run_experiment(
+initial_experiment = client.experiments.run_experiment(
     dataset=dataset, task=task_function, evaluators=[evaluate_response], experiment_name="improved template"
 )
 ```

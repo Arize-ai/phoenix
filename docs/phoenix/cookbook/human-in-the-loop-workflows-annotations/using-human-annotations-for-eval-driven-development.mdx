@@ -184,7 +184,9 @@ def updated_task(example: Example) -> str:
 ```
 
 ```python
+import json
 from phoenix.evals import LLM, ClassificationEvaluator
+from phoenix.evals.utils import bind_evaluator
 
 llm = LLM(provider="openai", model="gpt-4.1")
 rhyme_evaluator = ClassificationEvaluator(
@@ -198,14 +200,15 @@ def evaluate_response(input, output):
     raw_input_value = input["attributes.input.value"]
     data = json.loads(raw_input_value)
     question = data["messages"][1]["content"]
+    # Score.score returns the float value from the choices dict (1.0 or 0.0)
     result = rhyme_evaluator.evaluate(eval_input={"question": question, "answer": output})
-    return 0 if result[0].label == "incorrect" else 1
+    return result[0].score
 ```
 
 Here, we expect to see improvements in our experiment. The evaluator should flag significantly fewer nonsensical answers as you have refined your system prompt.
 
-```javascript
-experiment = run_experiment(
+```python
+experiment = client.experiments.run_experiment(
     dataset=dataset,
     task=updated_task,
     evaluators=[evaluate_response],
@@ -236,22 +239,22 @@ def complete_task(question) -> str:
     return response.choices[0].message.content
 
 
-def evaluate_all_responses(input, output):
-    full_llm = LLM(provider="openai", model="gpt-4o")
-    full_evaluator = ClassificationEvaluator(
-        name="rhyme",
-        llm=full_llm,
-        prompt_template=RHYME_PROMPT_TEMPLATE,
-        choices={"correct": 1.0, "incorrect": 0.0},
-    )
-    result = full_evaluator.evaluate(eval_input={"question": input["Questions"], "answer": output})
-    return 0 if result[0].label == "incorrect" else 1
+full_llm = LLM(provider="openai", model="gpt-4o")
+full_evaluator = ClassificationEvaluator(
+    name="rhyme",
+    llm=full_llm,
+    prompt_template=RHYME_PROMPT_TEMPLATE,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 
+# bind_evaluator maps evaluator template variables to dataset/output fields
+# "question" comes from the dataset's "Questions" column, "answer" comes from the task output
+bound_evaluator = bind_evaluator(full_evaluator, input_mapping={"question": "Questions", "answer": "output"})
 
-experiment = run_experiment(
-    dataset=dataset, #full dataset of questions
+experiment = client.experiments.run_experiment(
+    dataset=dataset,  # full dataset of questions
     task=complete_task,
-    evaluators=[evaluate_all_responses],
+    evaluators=[bound_evaluator],
     experiment_name="modified-system-prompt-full-dataset",
 )
 ```

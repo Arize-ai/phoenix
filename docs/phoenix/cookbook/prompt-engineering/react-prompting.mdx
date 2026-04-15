@@ -65,7 +65,6 @@ from phoenix.evals import (
     ClassificationEvaluator,
     bind_evaluator,
 )
-from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
 nest_asyncio.apply()
@@ -311,7 +310,7 @@ tool_calling_evaluator = bind_evaluator(
 #### Experiment
 
 ```python
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset,
     task=prompt_task,
     evaluators=[tool_calling_evaluator],
@@ -396,7 +395,7 @@ tool_calling_evaluator = bind_evaluator(
 #### Experiment
 
 ```python
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset,
     task=prompt_task,
     evaluators=[tool_calling_evaluator],

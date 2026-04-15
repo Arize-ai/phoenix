@@ -166,11 +166,12 @@ empathy_evaluator = ClassificationEvaluator(
     name="empathy",
     llm=llm,
     prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-    choices=list(map(str, range(1, 11))),
+    choices={str(i): float(i) for i in range(1, 11)},
 )
 
 
 def initial_prompt(input):
+    result = empathy_evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
     score = result[0].label
     return int(score)
 
@@ -184,11 +185,9 @@ def evaluate_response(input, output):
 ```py
 import nest_asyncio
 
-from phoenix.client.experiments import run_experiment
-
 nest_asyncio.apply()
 
-initial_experiment = run_experiment(
+initial_experiment = px_client.experiments.run_experiment(
     dataset, task=initial_prompt, evaluators=[evaluate_response], experiment_name="initial_prompt"
 )
 ```
@@ -233,14 +232,14 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices=list(map(str, range(1, 11))),
+        choices={str(i): float(i) for i in range(1, 11)},
     )
     result = evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 
-experiment = run_experiment(
+experiment = px_client.experiments.run_experiment(
     dataset,
     task=llm_as_a_judge,
     evaluators=[evaluate_response],
@@ -299,14 +298,14 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices=list(map(str, range(1, 11))),
+        choices={str(i): float(i) for i in range(1, 11)},
     )
     result = evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 
-experiment = run_experiment(
+experiment = px_client.experiments.run_experiment(
     dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="style_invariant"
 )
 ```
@@ -373,14 +372,14 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
-        choices=list(map(str, range(1, 11))),
+        choices={str(i): float(i) for i in range(1, 11)},
     )
     result = evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 
-experiment = run_experiment(
+experiment = px_client.experiments.run_experiment(
     dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="condensed_prompt"
 )
 ```
@@ -421,14 +420,14 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices=list(map(str, range(1, 11))),
+        choices={str(i): float(i) for i in range(1, 11)},
     )
     result = evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 
-experiment = run_experiment(
+experiment = px_client.experiments.run_experiment(
     dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="self_refinement"
 )
 ```
@@ -451,14 +450,14 @@ def llm_as_a_judge(input):
         name="empathy",
         llm=llm,
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        choices=list(map(str, range(1, 11))),
+        choices={str(i): float(i) for i in range(1, 11)},
     )
     result = evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 
-experiment = run_experiment(
+experiment = px_client.experiments.run_experiment(
     dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="combined"
 )
 ```
