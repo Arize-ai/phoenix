@@ -20,7 +20,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useInterval } from "@phoenix/hooks";
 import {
   fetchQuery,
   graphql,
@@ -61,6 +60,7 @@ import {
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
+import { useInterval } from "@phoenix/hooks";
 import type {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
