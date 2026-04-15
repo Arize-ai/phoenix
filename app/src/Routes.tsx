@@ -3,6 +3,7 @@ import {
   createRoutesFromElements,
   Navigate,
   Route,
+  type ShouldRevalidateFunction,
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
@@ -104,6 +105,20 @@ import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 
+// Skip loader revalidation when only the URL search params or hash change.
+// Why: some pages persist view state (e.g. a selected row) via setSearchParams,
+// and react-router's default behavior is to re-run every matched loader on any
+// navigation — including search-param-only updates — which causes avoidable
+// network fetches on trivial UI interactions.
+const revalidateOnPathChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.pathname === nextUrl.pathname) return false;
+  return defaultShouldRevalidate;
+};
+
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
@@ -127,8 +142,16 @@ const router = createBrowserRouter(
         element={<ResetPasswordWithTokenPage />}
       />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
-        <Route element={<Layout />} loader={layoutLoader}>
+      <Route
+        element={<AuthenticatedRoot />}
+        loader={authenticatedRootLoader}
+        shouldRevalidate={revalidateOnPathChange}
+      >
+        <Route
+          element={<Layout />}
+          loader={layoutLoader}
+          shouldRevalidate={revalidateOnPathChange}
+        >
           <Route
             path="/profile"
             handle={{ crumb: () => "profile" }}
@@ -144,6 +167,7 @@ const router = createBrowserRouter(
             <Route
               path=":projectId"
               loader={projectLoader}
+              shouldRevalidate={revalidateOnPathChange}
               handle={{
                 crumb: (data: ProjectLoaderData) => data?.project?.name,
                 copy: (data: ProjectLoaderData) => [
@@ -174,6 +198,7 @@ const router = createBrowserRouter(
                     path=":sessionId"
                     element={<SessionPage />}
                     loader={sessionLoader}
+                    shouldRevalidate={revalidateOnPathChange}
                   />
                 </Route>
                 <Route path="config" element={<ProjectConfigPage />} />
