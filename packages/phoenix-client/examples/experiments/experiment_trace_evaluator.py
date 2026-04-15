@@ -21,10 +21,10 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+import phoenix.otel
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import trace
 
-import phoenix.otel
 from phoenix.client import Client
 from phoenix.client.resources.experiments.evaluators import create_evaluator
 
