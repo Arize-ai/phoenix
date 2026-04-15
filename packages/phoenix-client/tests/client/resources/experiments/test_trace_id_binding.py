@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 import inspect
 from typing import Any, Optional
 
