@@ -289,9 +289,7 @@ class Trace(Node):
         sort: Optional[TraceAnnotationSort] = UNSET,
         filter: Optional[AnnotationFilter] = None,
     ) -> list[TraceAnnotation]:
-        annotations = list(
-            await info.context.data_loaders.trace_annotations_by_trace.load(self.id)
-        )
+        annotations = list(await info.context.data_loaders.trace_annotations_by_trace.load(self.id))
         sort_key = TraceAnnotationColumn.name.value
         sort_descending = False
         if filter:
