@@ -14,14 +14,14 @@ Need to install extra dependency `mistralai`
 ```python
 from phoenix.evals import LLM
 
-model = LLM(provider="mistral", model="mistral-large-latest")
+model = LLM(provider="litellm", model="mistral/mistral-large-latest")
 ```
 
 ## **Usage**
 
 ```python
 # model = Instantiate your LLM here
-model("Hello there, how are you?")
+model.generate_text(prompt="Hello there, how are you?")
 # Output: "As an artificial intelligence, I don't have feelings, 
 #          but I'm here and ready to assist you. How can I help you today?"
 ```
