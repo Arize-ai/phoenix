@@ -47,7 +47,12 @@ import type {
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
-import { languageLabel, parseConfigText, toPrettyJSONObject } from "./utils";
+import {
+  formValuesToConfigPatch,
+  languageLabel,
+  parseConfigText,
+  toPrettyJSONObject,
+} from "./utils";
 
 type SandboxConfigDialogTriggerProps =
   | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
@@ -128,6 +133,8 @@ type SandboxConfigDialogContentProps = (
     }
 ) & { onClose: () => void };
 
+const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
+
 function defaultConfigName(provider: ProviderRow): string {
   return `${provider.backend.displayName}`;
 }
@@ -172,52 +179,6 @@ function configToFormValues(config: SandboxConfig["config"]): {
     : "";
 
   return { envVars, internetAccessEnabled, dependenciesText: packages };
-}
-
-function formValuesToConfigPatch(
-  values: SandboxConfigFormValues,
-  backend: BackendInfo | undefined
-): Record<string, unknown> {
-  const base = parseConfigText(values.configText).config ?? {};
-
-  if (backend?.supportsEnvVars && values.envVars.length > 0) {
-    base["env_vars"] = values.envVars.map((entry) => {
-      if (entry.kind === "secret_ref") {
-        return {
-          kind: "secret_ref",
-          name: entry.name,
-          secret_key: entry.secret_key,
-        };
-      }
-      return { kind: "literal", name: entry.name, value: entry.value };
-    });
-  } else {
-    delete base["env_vars"];
-  }
-
-  if (backend?.internetAccess === "BOOLEAN") {
-    base["internet_access"] = {
-      mode: values.internetAccessEnabled ? "allow" : "deny",
-    };
-  } else {
-    delete base["internet_access"];
-  }
-
-  if (backend?.dependenciesLanguage != null) {
-    const packages = values.dependenciesText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (packages.length > 0) {
-      base["dependencies"] = { packages };
-    } else {
-      delete base["dependencies"];
-    }
-  } else {
-    delete base["dependencies"];
-  }
-
-  return base;
 }
 
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
@@ -322,7 +283,11 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
       return;
     }
 
-    const finalConfig = formValuesToConfigPatch(values, activeBackend);
+    const finalConfig = formValuesToConfigPatch(
+      values,
+      activeBackend,
+      (existingConfig?.config as Record<string, unknown>) ?? {}
+    );
 
     const onCompleted = () => {
       onClose();
@@ -518,7 +483,15 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   ))
                 )}
               </Flex>
+            ) : activeBackend != null ? (
+              <Flex direction="column" gap="size-100">
+                <Label>Environment Variables</Label>
+                <Text color="text-700" size="S">
+                  {NOT_SUPPORTED_COPY}
+                </Text>
+              </Flex>
             ) : null}
+            {/* "ALLOWLIST" mode is reserved for future use — not user-selectable here. */}
             {activeBackend?.internetAccess === "BOOLEAN" ? (
               <Controller
                 name="internetAccessEnabled"
@@ -529,6 +502,13 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   </Switch>
                 )}
               />
+            ) : activeBackend != null ? (
+              <Flex direction="column" gap="size-100">
+                <Label>Internet Access</Label>
+                <Text color="text-700" size="S">
+                  {NOT_SUPPORTED_COPY}
+                </Text>
+              </Flex>
             ) : null}
             {activeBackend?.dependenciesLanguage != null ? (
               <Controller
@@ -554,6 +534,13 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   </TextField>
                 )}
               />
+            ) : activeBackend != null ? (
+              <Flex direction="column" gap="size-100">
+                <Label>Dependencies</Label>
+                <Text color="text-700" size="S">
+                  {NOT_SUPPORTED_COPY}
+                </Text>
+              </Flex>
             ) : null}
             <Controller
               name="configText"

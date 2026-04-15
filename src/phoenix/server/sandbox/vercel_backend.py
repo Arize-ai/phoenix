@@ -31,6 +31,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
     VercelPythonConfig,
     VercelTypescriptConfig,
 )
@@ -241,6 +242,25 @@ class VercelPythonAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        if packages:
+            raise UnsupportedOperation(
+                "Vercel Python backend does not support dependency installation. "
+                "Use a pre-baked template or switch to a backend that supports dependencies."
+            )
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "Vercel Python backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
             return VercelSandboxBackend(use_oidc_env=True, language="PYTHON", user_env=user_env)
 
@@ -275,6 +295,25 @@ class VercelTypescriptAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        if packages:
+            raise UnsupportedOperation(
+                "Vercel TypeScript backend does not support dependency installation. "
+                "Use a pre-baked template or switch to a backend that supports dependencies."
+            )
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "Vercel TypeScript backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
             return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT", user_env=user_env)
 

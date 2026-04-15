@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -84,36 +86,25 @@ async def test_sandbox_backends_full_ui_query_shape(
         assert backend["internetAccess"] == "NONE", bt
 
 
+@pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
 async def test_sandbox_backends_capability_flags_per_adapter(
+    backend_type: str,
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
-    """Each adapter advertises the correct capability flags per the capability matrix."""
+    """Each adapter advertises capability flags consistent with SANDBOX_ADAPTER_METADATA."""
+    meta = SANDBOX_ADAPTER_METADATA[backend_type]
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
     assert response.data is not None
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+    assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
+    backend = backends[backend_type]
 
-    assert backends["WASM"]["supportsEnvVars"] is False
-    assert backends["WASM"]["dependenciesLanguage"] is None
-
-    assert backends["E2B"]["supportsEnvVars"] is True
-    assert backends["E2B"]["dependenciesLanguage"] is None
-
-    assert backends["DAYTONA_PYTHON"]["supportsEnvVars"] is True
-    assert backends["DAYTONA_PYTHON"]["dependenciesLanguage"] == "PYTHON"
-
-    assert backends["VERCEL_PYTHON"]["supportsEnvVars"] is True
-    assert backends["VERCEL_PYTHON"]["dependenciesLanguage"] is None
-
-    assert backends["VERCEL_TYPESCRIPT"]["supportsEnvVars"] is True
-    assert backends["VERCEL_TYPESCRIPT"]["dependenciesLanguage"] is None
-
-    assert backends["DENO"]["supportsEnvVars"] is True
-    assert backends["DENO"]["dependenciesLanguage"] is None
-
-    assert backends["MODAL"]["supportsEnvVars"] is False
-    assert backends["MODAL"]["dependenciesLanguage"] is None
+    assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
+    assert backend["internetAccess"] == meta.internet_access.upper(), backend_type
+    expected_deps_lang = meta.dependencies_language
+    assert backend["dependenciesLanguage"] == expected_deps_lang, backend_type
 
 
 async def test_sandbox_config_with_env_vars_persists_through_mutation(

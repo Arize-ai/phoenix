@@ -171,6 +171,11 @@ class DenoConfig(BaseModel):
         title="Environment Variables",
         description="User-defined environment variables injected at execution time.",
     )
+    internet_access: Optional[InternetAccessConfig] = Field(
+        default=None,
+        title="Internet Access",
+        description="Controls whether the sandbox can reach the internet.",
+    )
 
 
 class _VercelConfigBase(BaseModel):
@@ -180,6 +185,11 @@ class _VercelConfigBase(BaseModel):
         default_factory=list,
         title="Environment Variables",
         description="User-defined environment variables injected at execution time.",
+    )
+    internet_access: Optional[InternetAccessConfig] = Field(
+        default=None,
+        title="Internet Access",
+        description="Controls whether the sandbox can reach the internet.",
     )
 
 
@@ -336,14 +346,22 @@ class SandboxAdapter(ABC):
     ) -> SandboxBackend:
         """Construct and return a SandboxBackend from the provided config.
 
+        The canonical capability contract is defined on AdapterMetadata
+        (phoenix.server.sandbox.AdapterMetadata). Each flag on that class
+        specifies the runtime obligation for this method:
+
+        - supports_env_vars: if True, forward user_env to the backend at
+          execute-time or creation-time as appropriate. If False, MUST raise
+          UnsupportedOperation when user_env is non-empty.
+        - internet_access: if "none", MUST raise UnsupportedOperation when
+          config.get("internet_access") resolves to a non-"none" mode.
+        - dependencies_language: if None, MUST raise UnsupportedOperation when
+          config.get("dependencies") contains non-empty packages.
+
         user_env is a pre-resolved plaintext dict of user-supplied environment
         variables (name → value). It is passed as a sibling argument — NOT
         merged into config — to prevent collision with PHOENIX_SANDBOX_*
-        credential keys that adapters read from config. Adapters that support
-        env var injection (supports_env_vars=True) forward user_env to their
-        SDK at execute-time or creation-time as appropriate. Adapters that do
-        not support env var injection MUST raise UnsupportedOperation if
-        user_env is non-empty.
+        credential keys that adapters read from config.
         """
         ...
 
@@ -353,6 +371,12 @@ class SandboxAdapter(ABC):
 
         Returns the validated config dict (unknown keys preserved per D9).
         Raises ValueError on constraint violations (D3).
+
+        Capability-gated fields (env_vars, internet_access, dependencies) may
+        be rejected at build_backend time by adapters that advertise the
+        corresponding flag as unsupported in AdapterMetadata. This method
+        performs structural validation only; capability enforcement is the
+        responsibility of build_backend.
         """
         from pydantic import ValidationError
 

@@ -336,6 +336,17 @@ class TestModalUserEnvForwarding:
         assert captured.get("env_dict") == {"MY_KEY": "my_val"}
 
     @pytest.mark.asyncio
+    async def test_execute_per_call_env_raises_unsupported_operation(self) -> None:
+        """Per-call execute(env=...) must raise UnsupportedOperation for Modal."""
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        modal_mock = MagicMock()
+        with patch.dict("sys.modules", {"modal": modal_mock}):
+            backend = ModalSandboxBackend(user_env=None)
+            with pytest.raises(UnsupportedOperation):
+                await backend.execute("print('hi')", "s1", env={"KEY": "val"})
+
+    @pytest.mark.asyncio
     async def test_no_user_env_omits_env_dict_from_create(self) -> None:
         """When user_env is empty, env_dict is NOT passed to Sandbox.create.aio."""
         from phoenix.server.sandbox.modal_backend import ModalSandboxBackend

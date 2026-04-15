@@ -101,14 +101,80 @@ def _config_field_specs_from_model(
 
 @dataclass
 class AdapterMetadata:
-    """Static metadata for a sandbox adapter (no runtime deps)."""
+    """Unified config contract for a sandbox adapter.
+
+    This dataclass is the canonical source of truth for capability advertisement.
+    Every consumer — the GQL resolver, the frontend, tests, and adapter
+    implementers — reads capability flags from here. New capabilities MUST be
+    added here first; per-adapter implementations follow.
+
+    ## Capability naming convention
+
+    - ``bool``: use only for truly binary capabilities that will never grow
+      variants (e.g. ``supports_env_vars``).
+    - ``Literal['none', 'basic', ...]`` tri-state: use for any capability that
+      may later gain modes or levels. The string ``'none'`` always means
+      "not supported". The first non-none value names the base supported mode.
+    - ``Optional[Literal[...]]``: use when the "supported" value is also a
+      meaningful parameter (e.g., ``dependencies_language`` — ``None`` means
+      unsupported; a language name means supported *and* specifies which
+      language).
+
+    ## Per-capability contracts
+
+    **supports_env_vars** — session-level user-defined environment variables.
+    When ``True``, the adapter's ``build_backend`` MUST forward ``user_env``
+    (the pre-resolved plaintext name→value dict) to the underlying runtime at
+    session-create time or execute time as appropriate. When ``False``,
+    ``build_backend`` MUST raise ``UnsupportedOperation`` if ``user_env`` is
+    non-empty. Note: per-call ``SandboxBackend.execute(env=...)`` overrides are
+    a separate backend API; when unsupported they MUST also raise
+    ``UnsupportedOperation`` rather than warn or silently drop input.
+
+    **internet_access** — controls whether the sandbox can reach the internet.
+    ``'none'``: adapter does not support this capability; if the stored config
+    contains a non-"none" ``internet_access.mode``, ``build_backend`` MUST
+    raise ``UnsupportedOperation``. ``'boolean'``: adapter supports a simple
+    allow/deny toggle. ``'allowlist'``: adapter supports a per-domain allowlist
+    (reserved for future use; not currently user-selectable).
+
+    **dependencies_language** — package installation before code execution.
+    ``None``: adapter does not support pre-installing dependencies; if the
+    stored config contains a non-empty ``dependencies.packages`` list,
+    ``build_backend`` MUST raise ``UnsupportedOperation``. A language string
+    (``'PYTHON'`` or ``'TYPESCRIPT'``) means the adapter installs packages in
+    that ecosystem and MUST execute the install step before running user code.
+    """
 
     display_name: str
     language: str = ""
     dependency_hints: list[str] = field(default_factory=list)
     config_field_specs: list[ConfigFieldSpec] = field(default_factory=list)
+
+    # True/False semantics: True → build_backend MUST forward user_env (the
+    # pre-resolved name→value dict) to the runtime at session-create or
+    # execute time; per-call execute(env=...) overrides are a separate surface
+    # and MUST also raise UnsupportedOperation when unsupported. False →
+    # build_backend MUST raise UnsupportedOperation when user_env is non-empty.
+    # UI: True → render the Env Vars editor; False → render a muted
+    # "Not supported by the selected backend." placeholder.
     supports_env_vars: bool = False
+
+    # Value semantics: 'none' → capability not supported; build_backend MUST
+    # raise UnsupportedOperation when config carries a non-"none"
+    # internet_access.mode. 'boolean' → simple allow/deny toggle supported.
+    # 'allowlist' → per-domain allowlist reserved for future use; not currently
+    # user-selectable via the UI.
+    # UI: 'none' → render muted placeholder; 'boolean' → render toggle;
+    # 'allowlist' → reserved, do not expose in structured UI or JSON editor.
     internet_access: Literal["none", "boolean", "allowlist"] = "none"
+
+    # Value semantics: None → capability not supported; build_backend MUST
+    # raise UnsupportedOperation when config carries non-empty
+    # dependencies.packages. 'PYTHON'/'TYPESCRIPT' → adapter installs packages
+    # in that ecosystem before running user code.
+    # UI: None → render muted placeholder; non-None → render the Dependencies
+    # editor scoped to the appropriate package ecosystem.
     dependencies_language: Optional[Literal["PYTHON", "TYPESCRIPT"]] = None
 
 
@@ -195,7 +261,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Install Phoenix with the `modal` extra.",
             "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
         ],
-        supports_env_vars=False,
+        supports_env_vars=True,
         internet_access="none",
         dependencies_language=None,
     ),

@@ -21,6 +21,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,18 @@ class DenoAdapter(SandboxAdapter):
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "Deno backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         api_key: str = (
             config.get("PHOENIX_SANDBOX_DENO_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_DENO_API_KEY")

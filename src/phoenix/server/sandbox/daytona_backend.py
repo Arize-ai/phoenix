@@ -19,6 +19,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -136,6 +137,18 @@ class DaytonaPythonAdapter(SandboxAdapter):
             or os.environ.get(ENV_PHOENIX_SANDBOX_TOKEN)
             or ""
         )
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "Daytona backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         server_url: str = config.get("server_url", "")
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []

@@ -31,6 +31,7 @@ from .types import (
     ModalConfig,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,7 +120,10 @@ class ModalSandboxBackend(SandboxBackend):
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         if env:
-            logger.warning("ModalSandboxBackend: env vars are not supported per-call; ignoring env")
+            raise UnsupportedOperation(
+                "ModalSandboxBackend does not support per-call env overrides; "
+                "pass user_env at session-creation time via build_backend instead."
+            )
         if timeout is not None:
             logger.warning(
                 "ModalSandboxBackend: per-call timeout not supported; using sandbox-level timeout"
@@ -166,6 +170,25 @@ class ModalAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        if packages:
+            raise UnsupportedOperation(
+                "Modal backend does not support dependency installation. "
+                "Use a pre-baked image or switch to a backend that supports dependencies."
+            )
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "Modal backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
         idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
         app_name: str = config.get("app_name", "phoenix-sandbox")
