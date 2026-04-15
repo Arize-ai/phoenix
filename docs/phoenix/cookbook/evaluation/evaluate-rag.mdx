@@ -267,9 +267,11 @@ Output the questions in JSON format with the keys question_1, question_2, questi
 import json
 
 from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
 
-llm = LLM(provider="openai", model="gpt-3.5-turbo")
+llm = LLM(provider="openai", model="gpt-4o")
 
 
 def output_parser(response: str):
@@ -279,16 +281,26 @@ def output_parser(response: str):
         return {"__error__": str(e)}
 
 
-questions_df = document_chunks_df.copy()
-for col in ["question_1", "question_2", "question_3"]:
-    questions_df[col] = None
-
-for idx, row in document_chunks_df.iterrows():
+async def generate_questions(row):
     prompt = generate_questions_template.format(text=row["text"])
-    response = llm.generate_text(prompt=prompt)
-    parsed = output_parser(response)
-    for col in ["question_1", "question_2", "question_3"]:
-        questions_df.at[idx, col] = parsed.get(col)
+    response = await llm.async_generate_text(prompt=prompt)
+    return output_parser(response)
+
+
+executor = AsyncExecutor(
+    generation_fn=generate_questions,
+    concurrency=10,
+    tqdm_bar_format=default_tqdm_progress_bar_formatter("Generating questions"),
+)
+results, details = await executor.execute(
+    [row.to_dict() for _, row in document_chunks_df.iterrows()]
+)
+
+questions_df = document_chunks_df.copy()
+for i, parsed in enumerate(results):
+    if isinstance(parsed, dict):
+        for col in ["question_1", "question_2", "question_3"]:
+            questions_df.at[i, col] = parsed.get(col)
 ```
 
 ```py

@@ -212,7 +212,7 @@ In a RAG system, evaluation focuses on two critical aspects:
 
 For the evaluation of a RAG system, it's essential to have queries that can fetch the correct context and subsequently generate an appropriate response.
 
-For this tutorial, let's use Phoenix's `llm_generate` to help us create the question-context pairs.
+For this tutorial, let's use Phoenix's `LLM` and `AsyncExecutor` to help us create the question-context pairs.
 
 First, let's create a dataframe of all the document chunks that we have indexed.
 
@@ -257,20 +257,31 @@ Output the questions in JSON format with the keys question_1, question_2, questi
 import json
 
 from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
 llm = LLM(provider="openai", model="gpt-4o")
 
 
-def generate_questions(row):
+async def generate_questions(row):
     prompt = generate_questions_template.format(context=row["text"])
-    response = llm.generate_text(prompt=prompt)
+    response = await llm.async_generate_text(prompt=prompt)
     try:
         return json.loads(response)
     except json.JSONDecodeError as e:
         return {"__error__": str(e)}
 
 
-questions_df = document_chunks_df.apply(generate_questions, axis=1, result_type="expand")
+executor = AsyncExecutor(
+    generation_fn=generate_questions,
+    concurrency=10,
+    tqdm_bar_format=default_tqdm_progress_bar_formatter("Generating questions"),
+)
+results, details = await executor.execute(
+    [row.to_dict() for _, row in document_chunks_df.iterrows()]
+)
+
+questions_df = pd.DataFrame(results)
 ```
 
 ```python

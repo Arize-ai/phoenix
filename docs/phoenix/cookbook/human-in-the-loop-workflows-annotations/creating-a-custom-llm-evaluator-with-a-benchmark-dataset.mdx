@@ -106,42 +106,20 @@ dataset = Client().datasets.create_dataset(
 Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function calls `evaluator.evaluate()` directly with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
 
 ```py expandable
-from phoenix.evals.templates import (
-    ClassificationTemplate,
-    PromptPartTemplate,
-    PromptPartContentType,
-)
 choices = ["accurate", "almost accurate", "inaccurate"]
-classification_template = ClassificationTemplate(
-    rails=choices,  # Specify the valid output labels
-    template=[
-        # Prompt part 1: Task description
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
+prompt_template = """You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
 Below is the model’s generated expense report and the input image:
 ---
 MODEL OUTPUT (Expense Report): {output}
 
 ---
-INPUT RECEIPT: """,
-        ),
-        # Prompt part 2: Insert the image data
-        PromptPartTemplate(
-            content_type=PromptPartContentType.IMAGE,
-            template="{image}",  # Placeholder for the image URL
-        ),
-        # Prompt part 3: Define the response format
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" Evaluate the following three aspects and assign one of the following labels for each. Only include the label:
+INPUT RECEIPT: {image}
+
+Evaluate the following three aspects and assign one of the following labels for each. Only include the label:
 - **"accurate"** – Fully correct
 - **"almost accurate"** – Mostly correct
 - **"inaccurate"** – Substantially wrong
-            """,
-        ),
-    ],
-)
+"""
 ```
 ```py expandable
 import json
@@ -150,7 +128,7 @@ from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 llm = LLM(provider="openai", model="gpt-4o")
 receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
-    prompt_template=classification_template,
+    prompt_template=prompt_template,
     llm=llm,
     choices=choices,
 )
@@ -186,35 +164,25 @@ initial_experiment = run_experiment(
 Next, we’ll refine our evaluation prompt template by adding more specific instructions to classification rules. We can add these rules based on gaps we saw in the previous iteration. This additional guidance helps improve accuracy and ensures the evaluator's judgments better align with human expectations.
 
 ```py expandable
-classification_template = ClassificationTemplate(
-    rails=choices,  # Specify the valid output labels
-    template=[
-        # Prompt part 1: Task description
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
+prompt_template = """You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
 Below is the model’s generated expense report and the input image:
 ---
 MODEL OUTPUT (Expense Report): {output}
 
 ---
-INPUT RECEIPT: """,
-        ),
-        # Prompt part 2: Insert the audio data
-        PromptPartTemplate(
-            content_type=PromptPartContentType.IMAGE,
-            template="{image}",  # Placeholder for the image URL
-        ),
-        # Prompt part 3: Define the response format
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" Evaluate the following and assign one of the following labels for each. Only include the label:
+INPUT RECEIPT: {image}
+
+Evaluate the following and assign one of the following labels for each. Only include the label:
 - **"accurate"** – Total price, itemized list, and expense category are all accurate. All three must be correct to get this label.
 - **"almost accurate"** – Mostly correct but with small issues. For example, expense category is too vague.
 - **"inaccurate"** – Substantially wrong or missing information. For example, incorrect total price.
-            """,
-        ),
-    ],
+"""
+
+receipt_evaluator = ClassificationEvaluator(
+    name="receipt_accuracy",
+    prompt_template=prompt_template,
+    llm=llm,
+    choices=choices,
 )
 ```
 
