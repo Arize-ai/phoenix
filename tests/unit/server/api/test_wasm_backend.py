@@ -119,7 +119,7 @@ class TestEngineCaching:
         cache_key = str(fake_path)
         _MODULE_CACHE.pop(cache_key, None)
 
-        import wasmtime  # type: ignore[import-not-found]
+        import wasmtime
 
         with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
             engine1, mod1 = _get_engine_and_module(fake_path)

@@ -306,8 +306,8 @@ class TestEvaluateSuccessPath:
 
         call_args = backend.execute.call_args
         code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
-        assert '"output":{"answer":"a"}' in code_arg
-        assert '"reference":{"answer":"a"}' in code_arg
+        assert '"output": {"answer": "a"}' in code_arg
+        assert '"reference": {"answer": "a"}' in code_arg
 
 
 class TestEvaluateErrorPaths:
@@ -430,12 +430,14 @@ class TestBackendConfiguration:
     async def test_typescript_language_uses_typescript_harness(self) -> None:
         """Runner selects TypeScript harness when language is TYPESCRIPT."""
         runner, backend = _make_runner(
-            source_code="function evaluate(x) { return 1; }",
+            source_code=(
+                "function evaluate({ output }: EvaluatorParams) { return output ? 1 : 0; }"
+            ),
             language="TYPESCRIPT",
             backend_stdout="1",
         )
         await runner.evaluate(
-            context={},
+            context={"output": {"answer": "a"}},
             input_mapping=_EMPTY_MAPPING,
             name="test",
             output_configs=[_continuous_config()],

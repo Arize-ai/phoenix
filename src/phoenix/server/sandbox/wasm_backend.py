@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
 
-import wasmtime  # type: ignore[import-not-found]
+import wasmtime
 
 from .types import (
     BaseNoSessionBackend,

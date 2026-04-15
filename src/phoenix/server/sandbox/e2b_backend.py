@@ -45,7 +45,7 @@ class E2BSandboxBackend(SandboxBackend):
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
-        from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-not-found]
+        from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-untyped]
 
         return AsyncSandbox
 
