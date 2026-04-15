@@ -25,9 +25,10 @@ import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMuta
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { DEFAULT_CODE_EVALUATOR_SOURCE } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import { createDefaultContinuousOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
-// IDE Layout prototype - swap back to EditCodeEvaluatorDialogContent to revert
-import { EditCodeEvaluatorDialogContentIDELayout as EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContentIDELayout";
+import {
+  createDefaultContinuousOutputConfig,
+  EditCodeEvaluatorDialogContent,
+} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";

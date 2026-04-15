@@ -17,8 +17,10 @@ import {
   decodeRelayNodeId,
   mapSandboxConfigOptions,
 } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
-import { createDefaultContinuousOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
-import { EditCodeEvaluatorDialogContentIDELayout } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContentIDELayout";
+import {
+  createDefaultContinuousOutputConfig,
+  EditCodeEvaluatorDialogContent,
+} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -363,7 +365,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) => (
-        <EditCodeEvaluatorDialogContentIDELayout
+        <EditCodeEvaluatorDialogContent
           onSubmit={(payload) => onSubmit(store, payload)}
           onCancel={onClose}
           onDirtyChange={onDirtyChange}
