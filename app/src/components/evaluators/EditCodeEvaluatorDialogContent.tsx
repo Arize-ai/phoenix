@@ -3,7 +3,7 @@ import { python } from "@codemirror/lang-python";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -136,22 +136,6 @@ export const EditCodeEvaluatorDialogContent = ({
   // Track last reported dirty state to avoid redundant callbacks
   const lastDirtyRef = useRef(false);
 
-  // Track current local state in refs for dirty checking without re-creating callback
-  const sourceCodeRef = useRef(sourceCode);
-  const languageRef = useRef(language);
-  const sandboxConfigIdRef = useRef(sandboxConfigId);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    sourceCodeRef.current = sourceCode;
-  }, [sourceCode]);
-  useEffect(() => {
-    languageRef.current = language;
-  }, [language]);
-  useEffect(() => {
-    sandboxConfigIdRef.current = sandboxConfigId;
-  }, [sandboxConfigId]);
-
   useEffect(() => {
     // Capture initial store state on mount for dirty comparison
     const state = store.getState();
@@ -162,50 +146,51 @@ export const EditCodeEvaluatorDialogContent = ({
     };
   }, [store]);
 
-  const computeIsDirty = useCallback(() => {
+  const reportDirtyState = useEffectEvent((isDirty: boolean) => {
+    onDirtyChange?.(isDirty);
+  });
+
+  const checkForDirtyChanges = useEffectEvent(() => {
     const initial = initialStoreStateRef.current;
-    if (!initial) return false;
+    if (!initial) {
+      return;
+    }
 
     const state = store.getState();
-    const codeChanged = sourceCodeRef.current !== initialSourceCode;
-    const languageChanged = languageRef.current !== initialLanguage;
-    const sandboxChanged =
-      sandboxConfigIdRef.current !== (initialSandboxConfigId ?? null);
+    const codeChanged = sourceCode !== initialSourceCode;
+    const languageChanged = language !== initialLanguage;
+    const sandboxChanged = sandboxConfigId !== (initialSandboxConfigId ?? null);
     const nameChanged = state.evaluator.name !== initial.name;
     const outputConfigsChanged =
       JSON.stringify(state.outputConfigs) !== initial.outputConfigs;
     const inputMappingChanged =
       JSON.stringify(state.evaluator.inputMapping) !== initial.inputMapping;
 
-    return (
+    const isDirty =
       codeChanged ||
       languageChanged ||
       sandboxChanged ||
       nameChanged ||
       outputConfigsChanged ||
-      inputMappingChanged
-    );
-  }, [store, initialSourceCode, initialLanguage, initialSandboxConfigId]);
+      inputMappingChanged;
+
+    if (isDirty !== lastDirtyRef.current) {
+      lastDirtyRef.current = isDirty;
+      reportDirtyState(isDirty);
+    }
+  });
 
   // Notify parent of dirty state changes from local state
   useEffect(() => {
-    const isDirty = computeIsDirty();
-    if (isDirty !== lastDirtyRef.current) {
-      lastDirtyRef.current = isDirty;
-      onDirtyChange?.(isDirty);
-    }
-  }, [sourceCode, language, sandboxConfigId, onDirtyChange, computeIsDirty]);
+    checkForDirtyChanges();
+  }, [sourceCode, language, sandboxConfigId]);
 
   // Subscribe to store changes to notify parent of dirty state
   useEffect(() => {
     return store.subscribe(() => {
-      const isDirty = computeIsDirty();
-      if (isDirty !== lastDirtyRef.current) {
-        lastDirtyRef.current = isDirty;
-        onDirtyChange?.(isDirty);
-      }
+      checkForDirtyChanges();
     });
-  }, [store, onDirtyChange, computeIsDirty]);
+  }, [store]);
 
   const handleCancel = () => {
     onCancel?.();
