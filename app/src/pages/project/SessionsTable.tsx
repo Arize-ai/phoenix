@@ -43,6 +43,7 @@ import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 
 import {
   CellWithControlsWrap,
@@ -228,6 +229,21 @@ export function SessionsTable(props: SessionsTableProps) {
     }));
   }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
+
+  const setSessionSequence = useSessionPagination()?.setSessionSequence;
+  useEffect(() => {
+    if (!setSessionSequence) {
+      return;
+    }
+    setSessionSequence(
+      data.sessions.edges.map(({ session }) => ({
+        sessionId: session.id,
+      }))
+    );
+    return () => {
+      setSessionSequence([]);
+    };
+  }, [data.sessions.edges, setSessionSequence]);
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
