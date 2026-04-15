@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.6.2
+
+### Patch Changes
+
+- 8444575: Move `@anthropic-ai/sdk`, `openai`, and `ai` from `optionalDependencies` to optional `peerDependencies`. Consumers no longer get these provider SDKs installed automatically — they are only installed if the consumer already depends on them.
+
 ## 6.6.1
 
 ### Patch Changes
