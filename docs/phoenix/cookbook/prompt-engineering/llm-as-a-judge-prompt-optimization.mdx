@@ -171,8 +171,7 @@ empathy_evaluator = ClassificationEvaluator(
 
 
 def initial_prompt(input):
-    result = empathy_evaluator.evaluate(eval_input={"AI_Response": input["AI_Response"]})
-    score = result.label
+    score = result[0].label
     return int(score)
 
 

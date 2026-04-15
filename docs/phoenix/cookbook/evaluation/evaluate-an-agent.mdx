@@ -1245,8 +1245,7 @@ def function_calling_eval(input: str, output: str) -> float:
                 "input": input.get("question"),
                 "tool_selection": tool_selection,
                 "available_tools": available_tools_str,
-            })
-            scores.append(1 if result.label == "correct" else 0)
+            scores.append(1 if result[0].label == "correct" else 0)
         return sum(scores) / len(scores)
     else:
         return 0
@@ -1302,8 +1301,7 @@ def evaluate_clarity(output: str, input: str) -> bool:
         prompt_template=CLARITY_LLM_JUDGE_PROMPT,
         choices={"clear": 1.0, "unclear": 0.0},
     )
-    result = clarity_evaluator.evaluate(eval_input={"query": input.get("question"), "response": output.get("final_output")})
-    return result.label == "clear"
+    return result[0].label == "clear"
 
 
 def evaluate_entity_correctness(output: str, input: str) -> bool:
