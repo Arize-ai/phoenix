@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
+
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.config import get_env_postgres_azure_scope
 
@@ -12,23 +14,50 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def create_azure_token_connection_creator(
-    base_url: URL,
+def create_azure_engine(
+    url: URL,
     connect_args: dict[str, Any],
-) -> Callable[[], Awaitable[asyncpg.Connection]]:
+    **engine_kwargs: Any,
+) -> AsyncEngine:
     """
-    Creates an async connection creator that uses Azure managed-identity access tokens.
+    Build an `AsyncEngine` that authenticates to PostgreSQL via Azure
+    managed identity.
 
-    One `DefaultAzureCredential` instance is reused for the factory lifetime so
-    each connection attempt can call `credential.get_token(scope)` while relying
-    on azure-identity's built-in in-memory cache and refresh behavior.
+    Each call constructs its own `DefaultAzureCredential` and ties its
+    lifecycle to the returned engine: `await engine.dispose()` will also
+    close the credential. The extra `**engine_kwargs` are forwarded verbatim
+    to `sqlalchemy.ext.asyncio.create_async_engine` so the caller controls
+    pool class, pre-ping, recycle, echo, etc. `async_creator` is supplied
+    by this function and must not be passed in `engine_kwargs`.
+
+    Event-loop affinity: `azure.identity.aio` credentials lazily construct
+    an `aiohttp.ClientSession` on first `get_token`, and that session is
+    bound to whichever event loop was running at the time. The credential
+    therefore must be *closed* on the same loop that first used it. Because
+    this function hooks the credential's `close` into `engine.dispose()`,
+    the usual `await engine.dispose()` shutdown path handles that cleanup
+    automatically — provided `dispose` is awaited on the loop that opened
+    the connections.
+
+    The practical implication for callers that run both a migration engine
+    (inside a throwaway `asyncio.run(...)` loop) and a long-lived server
+    engine (inside uvicorn's loop): **call `create_azure_engine` twice**,
+    once per engine, so each engine owns its own credential bound to its
+    own loop. Sharing a single credential across the two loops is the bug
+    documented in `internal_docs/specs/postgres-cloud-auth-pooling.md`
+    (section "Event-loop affinity of azure.identity.aio credentials") and
+    surfaces as `RuntimeError: Event loop is closed` on the server's first
+    connection-open.
 
     Args:
-        base_url: SQLAlchemy URL with asyncpg driver
-        connect_args: SSL and other connection arguments for asyncpg
+        url: SQLAlchemy URL with asyncpg driver.
+        connect_args: SSL and other connection arguments for asyncpg.
+        **engine_kwargs: Forwarded to `create_async_engine` (pool class,
+            `pool_pre_ping`, `pool_recycle`, `echo`, `json_serializer`, ...).
 
     Returns:
-        An async callable that creates asyncpg connections with fresh Azure access tokens
+        A fully configured `AsyncEngine` whose `dispose()` tears down the
+        pool *and* closes the underlying Azure credential.
     """
     import asyncpg
 
@@ -40,10 +69,10 @@ def create_azure_token_connection_creator(
             "Install it with: pip install 'arize-phoenix[azure]'"
         ) from e
 
-    host = base_url.host
-    port = base_url.port or 5432
-    database = base_url.database
-    username = base_url.query.get("user") or base_url.username
+    host = url.host
+    port = url.port or 5432
+    database = url.database
+    username = url.query.get("user") or url.username
 
     if not host:
         raise ValueError("Database host is required for Azure managed identity authentication")
@@ -53,12 +82,6 @@ def create_azure_token_connection_creator(
         raise ValueError("Database username is required for Azure managed identity authentication")
 
     scope = get_env_postgres_azure_scope()
-
-    # One credential is reused for the factory's lifetime: constructing a new
-    # DefaultAzureCredential per connection would re-probe every auth source and
-    # add token-fetch latency. The credential is intentionally not closed on
-    # shutdown — engine.dispose() only tears down DB connections, and wiring a
-    # dedicated lifecycle hook isn't worth it for a process-lifetime singleton.
     credential = DefaultAzureCredential()
 
     async def async_creator() -> asyncpg.Connection:
@@ -73,4 +96,22 @@ def create_azure_token_connection_creator(
             **connect_args,
         )
 
-    return async_creator
+    engine = create_async_engine(url=url, async_creator=async_creator, **engine_kwargs)
+
+    # Monkey-patch `engine.dispose` on this instance (not the class) so
+    # shutting down the engine also closes our credential on whatever loop
+    # the dispose is awaited on. Instance-dict assignment shadows the class
+    # method via normal attribute lookup; it only works if SQLAlchemy always
+    # invokes dispose via `engine.dispose(...)` rather than
+    # `type(engine).dispose(engine)`, which is true today.
+    original_dispose = engine.dispose
+
+    async def dispose_and_close_credential(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return await original_dispose(*args, **kwargs)
+        finally:
+            await credential.close()
+
+    engine.dispose = dispose_and_close_credential  # type: ignore[method-assign]
+
+    return engine

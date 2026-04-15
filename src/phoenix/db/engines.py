@@ -4,7 +4,7 @@ import asyncio
 import logging
 from enum import Enum
 from sqlite3 import Connection
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import Any
 
 import aiosqlite
 import numpy as np
@@ -18,9 +18,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
-
-if TYPE_CHECKING:
-    import asyncpg  # type: ignore[import-untyped]
 
 sqlean.extensions.enable("text", "stats")
 
@@ -187,24 +184,22 @@ def aio_postgresql_engine(
         )
     asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
 
-    azure_creator: Callable[[], Awaitable[asyncpg.Connection]] | None = None
-    aws_creator: Callable[[], Awaitable[asyncpg.Connection]] | None = None
-    # pool_pre_ping is enabled on every branch. SQLAlchemy executes the
-    # dialect's do_ping (a `SELECT 1` for the asyncpg/PG dialect, inherited
-    # from DefaultDialect.do_ping) on each pool checkout, and if it fails
-    # discards the connection and asks the pool/creator for a fresh one.
-    # The ping is skipped on connections that were just created — see
-    # sqlalchemy.pool.base where _ConnectionRecord.fresh is set after
-    # _invoke_creator and the checkout path skips the ping when fresh.
-    # The check runs once per checkout — i.e. once per `async with
+    # pool_pre_ping is enabled on every non-migration branch. SQLAlchemy
+    # executes the dialect's do_ping (a `SELECT 1` for the asyncpg/PG
+    # dialect, inherited from DefaultDialect.do_ping) on each pool checkout,
+    # and if it fails discards the connection and asks the pool/creator for
+    # a fresh one. The ping is skipped on connections that were just created
+    # — see sqlalchemy.pool.base where _ConnectionRecord.fresh is set after
+    # _invoke_creator and the checkout path skips the ping when fresh. The
+    # check runs once per checkout — i.e. once per `async with
     # info.context.db.read()/write() as session` block — not once per
     # executed statement. Phoenix GraphQL resolvers follow the pattern of
     # opening their own session block (see src/phoenix/server/api/types/),
     # so a single request can trigger multiple pool checkouts. We accept
     # that per-checkout cost because the alternative is that the first
-    # query on a silently-dropped connection (idle-timeout eviction from
-    # an upstream LB/proxy, server-side failover, DBA-initiated
-    # termination) raises a connection error to the caller.
+    # query on a silently-dropped connection (idle-timeout eviction from an
+    # upstream LB/proxy, server-side failover, DBA-initiated termination)
+    # raises a connection error to the caller.
     #
     # Managed-identity branch specifically: pool_recycle is not load-bearing
     # for token validity. PostgreSQL validates the access-token-as-password
@@ -212,30 +207,28 @@ def aio_postgresql_engine(
     # the life of the session, and Azure Database for PostgreSQL has no
     # server-side setting that terminates user sessions when their access
     # token expires (per Microsoft Learn Q&A guidance — not formal docs).
-    # Token freshness for *newly opened* connections is handled inside
-    # azure_creator via DefaultAzureCredential.get_token(...), which relies
+    # Token freshness for *newly opened* connections is handled inside the
+    # Azure creator via DefaultAzureCredential.get_token(...), which relies
     # on azure-identity's built-in cache and refresh logic.
     if use_azure:
-        from phoenix.db.azure_auth import create_azure_token_connection_creator
+        from phoenix.db.azure_auth import create_azure_engine
 
         logger.info("Azure managed identity enabled for PostgreSQL connections")
-        azure_creator = create_azure_token_connection_creator(asyncpg_url, asyncpg_args)
-        engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=azure_creator,
+        engine = create_azure_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
     elif use_aws:
-        from phoenix.db.aws_auth import create_aws_iam_token_connection_creator
+        from phoenix.db.aws_auth import create_aws_engine
 
         logger.info("AWS IAM authentication enabled for PostgreSQL connections")
-        aws_creator = create_aws_iam_token_connection_creator(asyncpg_url, asyncpg_args)
-        engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=aws_creator,
+        engine = create_aws_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
             pool_pre_ping=True,
@@ -259,27 +252,37 @@ def aio_postgresql_engine(
     # pool_recycle are therefore intentionally omitted: SQLAlchemy's
     # checkout path skips the ping when _ConnectionRecord.fresh is True
     # (see sqlalchemy.pool.base), and with NullPool every checkout creates
-    # a new record so the ping would never run anyway; pool_recycle has
-    # no long-lived connection to age out. For cloud-auth branches, each
-    # migration checkout invokes the same creator as the main engine —
-    # Azure goes through azure-identity (which consults its own cached
-    # token and refreshes via IMDS when needed) and AWS regenerates a
-    # SigV4 token via aioboto3 — so migrations always authenticate with a
-    # current token without any pool-level machinery.
+    # a new record so the ping would never run anyway; pool_recycle has no
+    # long-lived connection to age out.
+    #
+    # Azure specifically builds a *second* engine via create_azure_engine
+    # here, which means a second DefaultAzureCredential. The migration
+    # engine runs inside the throwaway asyncio.run(...) loop that
+    # migrate_in_thread creates, and `azure.identity.aio` lazily pins its
+    # internal aiohttp.ClientSession to whichever loop first calls
+    # get_token(). Sharing one credential between this engine and the
+    # uvicorn-loop primary engine would therefore raise `RuntimeError:
+    # Event loop is closed` on the first server-side connection. Each
+    # engine owning its own credential — and `create_azure_engine`'s
+    # dispose-patch closing it on the same loop that used it — avoids the
+    # bug. See internal_docs/specs/postgres-cloud-auth-pooling.md, section
+    # "Event-loop affinity of azure.identity.aio credentials".
     if use_azure:
-        assert azure_creator is not None
-        migration_engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=azure_creator,
+        from phoenix.db.azure_auth import create_azure_engine
+
+        migration_engine = create_azure_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
             poolclass=NullPool,
         )
     elif use_aws:
-        assert aws_creator is not None
-        migration_engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=aws_creator,
+        from phoenix.db.aws_auth import create_aws_engine
+
+        migration_engine = create_aws_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
             poolclass=NullPool,

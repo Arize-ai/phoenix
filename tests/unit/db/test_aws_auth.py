@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy import URL
 
-from phoenix.db.aws_auth import create_aws_iam_token_connection_creator
+from phoenix.db.aws_auth import create_aws_engine
 
 
 def _make_url(
@@ -41,35 +41,65 @@ def _make_aioboto3_session(rds_client: MagicMock) -> MagicMock:
     return session
 
 
-class TestCreateAwsIamTokenConnectionCreatorValidation:
-    """Input validation before the async creator is returned."""
+def _make_mock_engine() -> MagicMock:
+    engine = MagicMock()
+    engine.dispose = AsyncMock()
+    return engine
+
+
+class TestCreateAwsEngineValidation:
+    """Input validation before any engine is constructed."""
 
     def test_missing_host_raises(self) -> None:
         url = URL.create("postgresql+asyncpg", database="mydb", username="user")
         with pytest.raises(ValueError, match="host is required"):
-            create_aws_iam_token_connection_creator(url, {})
+            create_aws_engine(url, {})
 
     def test_missing_username_raises(self) -> None:
         url = URL.create("postgresql+asyncpg", host="db.example.com", database="mydb")
         with pytest.raises(ValueError, match="user is required"):
-            create_aws_iam_token_connection_creator(url, {})
+            create_aws_engine(url, {})
 
 
-class TestConnectionCreatorBehavior:
-    """Structural behavior of the factory itself (not the async inner function)."""
+class TestEngineWiring:
+    """`create_aws_engine` forwards extra kwargs to `create_async_engine` and
+    wires an async_creator that uses aioboto3 for token generation."""
 
-    async def test_connect_args_forwarded_to_asyncpg(self) -> None:
-        """Arbitrary connect_args are forwarded unchanged to asyncpg.connect."""
-        mock_connect = AsyncMock(return_value=MagicMock())
-        connect_args = {"ssl": "require", "timeout": 30}
-        rds_client = _make_rds_client()
-        session = _make_aioboto3_session(rds_client)
+    async def test_engine_kwargs_forwarded_to_create_async_engine(self) -> None:
+        session = _make_aioboto3_session(_make_rds_client())
+        mock_cae = MagicMock(return_value=_make_mock_engine())
 
         with (
             patch("aioboto3.Session", return_value=session),
+            patch("phoenix.db.aws_auth.create_async_engine", mock_cae),
+        ):
+            create_aws_engine(
+                _make_url(),
+                {"ssl": "require"},
+                echo=True,
+                pool_pre_ping=True,
+                pool_recycle=3300,
+            )
+
+        cae_kwargs = mock_cae.call_args.kwargs
+        assert cae_kwargs["echo"] is True
+        assert cae_kwargs["pool_pre_ping"] is True
+        assert cae_kwargs["pool_recycle"] == 3300
+        assert callable(cae_kwargs["async_creator"])
+
+    async def test_connect_args_forwarded_to_asyncpg(self) -> None:
+        mock_connect = AsyncMock(return_value=MagicMock())
+        connect_args = {"ssl": "require", "timeout": 30}
+        session = _make_aioboto3_session(_make_rds_client())
+        mock_cae = MagicMock(return_value=_make_mock_engine())
+
+        with (
+            patch("aioboto3.Session", return_value=session),
+            patch("phoenix.db.aws_auth.create_async_engine", mock_cae),
             patch("asyncpg.connect", mock_connect),
         ):
-            creator = create_aws_iam_token_connection_creator(_make_url(), connect_args)
+            create_aws_engine(_make_url(), connect_args)
+            creator = mock_cae.call_args.kwargs["async_creator"]
             await creator()
 
         call_kwargs = mock_connect.call_args.kwargs
@@ -88,12 +118,15 @@ class TestConnectionCreatorBehavior:
         rds_client = _make_rds_client()
         session = _make_aioboto3_session(rds_client)
         mock_connect = AsyncMock(return_value=MagicMock())
+        mock_cae = MagicMock(return_value=_make_mock_engine())
 
         with (
             patch("aioboto3.Session", return_value=session),
+            patch("phoenix.db.aws_auth.create_async_engine", mock_cae),
             patch("asyncpg.connect", mock_connect),
         ):
-            creator = create_aws_iam_token_connection_creator(url, {})
+            create_aws_engine(url, {})
+            creator = mock_cae.call_args.kwargs["async_creator"]
             await creator()
 
         assert rds_client.generate_db_auth_token.call_args.kwargs["Port"] == 5432
@@ -112,12 +145,15 @@ class TestTokenGenerationBehavior:
         rds_client.generate_db_auth_token = AsyncMock(side_effect=["token_1", "token_2"])
         session = _make_aioboto3_session(rds_client)
         mock_connect = AsyncMock(return_value=MagicMock())
+        mock_cae = MagicMock(return_value=_make_mock_engine())
 
         with (
             patch("aioboto3.Session", return_value=session),
+            patch("phoenix.db.aws_auth.create_async_engine", mock_cae),
             patch("asyncpg.connect", mock_connect),
         ):
-            creator = create_aws_iam_token_connection_creator(_make_url(), {})
+            create_aws_engine(_make_url(), {})
+            creator = mock_cae.call_args.kwargs["async_creator"]
             await creator()
             await creator()
 
@@ -137,12 +173,15 @@ class TestTokenGenerationBehavior:
         rds_client = _make_rds_client()
         session = _make_aioboto3_session(rds_client)
         mock_connect = AsyncMock(return_value=MagicMock())
+        mock_cae = MagicMock(return_value=_make_mock_engine())
 
         with (
             patch("aioboto3.Session", return_value=session),
+            patch("phoenix.db.aws_auth.create_async_engine", mock_cae),
             patch("asyncpg.connect", mock_connect),
         ):
-            creator = create_aws_iam_token_connection_creator(url, {})
+            create_aws_engine(url, {})
+            creator = mock_cae.call_args.kwargs["async_creator"]
             await creator()
 
         call_kwargs = rds_client.generate_db_auth_token.call_args.kwargs

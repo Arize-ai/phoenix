@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 from contextlib import AbstractAsyncContextManager
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
+
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 if TYPE_CHECKING:
     import asyncpg  # type: ignore[import-untyped]
@@ -12,29 +14,45 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def create_aws_iam_token_connection_creator(
-    base_url: URL,
+def create_aws_engine(
+    url: URL,
     connect_args: dict[str, Any],
-) -> Callable[[], Awaitable[asyncpg.Connection]]:
+    **engine_kwargs: Any,
+) -> AsyncEngine:
     """
-    Creates an async connection creator that uses AWS RDS IAM authentication tokens.
+    Build an `AsyncEngine` that authenticates to PostgreSQL via AWS RDS IAM.
 
-    A fresh IAM token is generated per connection via aioboto3's generate_db_auth_token,
-    which performs a client-side SigV4 signing operation over a canonical request
-    using the AWS credentials already loaded in the aioboto3 session. No HTTP traffic
-    happens inside that call, so per-connection generation is cheap (microseconds)
-    and no application-level caching layer is needed. RDS still verifies the
-    signature on the server side through AWS's internal IAM machinery when the
-    connection is opened, but that round-trip is paid by RDS, not by the client.
-    See internal_docs/specs/postgres-cloud-auth-pooling.md for the full security
-    and caching model.
+    Each connection attempt generates a fresh IAM token via aioboto3's
+    `generate_db_auth_token`, which performs a client-side SigV4 signing
+    operation over a canonical request using the AWS credentials already
+    loaded in the aioboto3 session. No HTTP traffic happens inside that
+    call, so per-connection generation is cheap (microseconds) and no
+    application-level caching layer is needed. RDS verifies the signature
+    on the server side through AWS's internal IAM machinery when the
+    connection is opened, but that round-trip is paid by RDS, not by the
+    client. See `internal_docs/specs/postgres-cloud-auth-pooling.md` for
+    the full security and caching model.
+
+    `**engine_kwargs` are forwarded verbatim to `create_async_engine` so
+    the caller controls pool class, pre-ping, recycle, echo, etc.
+    `async_creator` is supplied by this function and must not be passed
+    in `engine_kwargs`.
+
+    Unlike Azure managed identity, aioboto3 has no event-loop affinity:
+    the aiohttp-bearing RDS client is built and torn down inside each
+    per-connection `async with session.client("rds")` block, so the
+    long-lived `aioboto3.Session` captured in the closure holds no
+    loop-bound resources. A single session can safely be reused across
+    multiple loops, though this function builds a new session per engine
+    anyway for lifecycle cleanliness.
 
     Args:
-        base_url: SQLAlchemy URL with asyncpg driver
-        connect_args: SSL and other connection arguments for asyncpg
+        url: SQLAlchemy URL with asyncpg driver.
+        connect_args: SSL and other connection arguments for asyncpg.
+        **engine_kwargs: Forwarded to `create_async_engine`.
 
     Returns:
-        An async callable that creates asyncpg connections with fresh AWS RDS IAM tokens
+        A fully configured `AsyncEngine` authenticated via AWS RDS IAM.
     """
     import asyncpg
 
@@ -46,24 +64,24 @@ def create_aws_iam_token_connection_creator(
             "Install it with: pip install 'arize-phoenix[aws]'"
         ) from e
 
-    host = base_url.host
-    port = base_url.port or 5432
-    database = base_url.database or "postgres"
-    username = base_url.username
+    host = url.host
+    port = url.port or 5432
+    database = url.database or "postgres"
+    username = url.username
 
     if not host:
         raise ValueError("Database host is required for AWS RDS IAM authentication")
     if not username:
         raise ValueError("Database user is required for AWS RDS IAM authentication")
 
-    # Reuse one aioboto3 session for the factory's lifetime.
     session = aioboto3.Session()
 
     async def async_creator() -> asyncpg.Connection:
         logger.debug(f"Generating AWS RDS IAM auth token for user '{username}' at {host}:{port}")
-        # aioboto3 returns a single-use async context wrapper here; reusing the
-        # same object across calls raises "cannot reuse already awaited coroutine",
-        # so create a fresh client context for each connection attempt.
+        # aioboto3 returns a single-use async context wrapper here; reusing
+        # the same object across calls raises "cannot reuse already awaited
+        # coroutine", so create a fresh client context for each connection
+        # attempt.
         rds_client_context = cast(
             "AbstractAsyncContextManager[RDSClient]",
             session.client("rds"),
@@ -84,4 +102,4 @@ def create_aws_iam_token_connection_creator(
             **connect_args,
         )
 
-    return async_creator
+    return create_async_engine(url=url, async_creator=async_creator, **engine_kwargs)
