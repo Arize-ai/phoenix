@@ -234,13 +234,6 @@ evals_df = await async_evaluate_dataframe(
     dataframe=response_df,
     evaluators=[router_evaluator, function_selection_evaluator, parameter_extraction_evaluator],
 )
-router_eval_df = pd.DataFrame(evals_df["router_eval_score"].tolist(), index=evals_df.index)
-function_selection_eval_df = pd.DataFrame(
-    evals_df["function_selection_eval_score"].tolist(), index=evals_df.index
-)
-parameter_extraction_eval_df = pd.DataFrame(
-    evals_df["parameter_extraction_eval_score"].tolist(), index=evals_df.index
-)
 ```
 
 ## Create and Run an Experiment
