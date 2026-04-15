@@ -17,7 +17,7 @@ Simple string templates with variable placeholders.
         name="sentiment",
         llm=llm,
         prompt_template="Classify the sentiment: {text}",
-        choices=["positive", "negative", "neutral"]
+        choices={"positive": 1.0, "negative": 0.0, "neutral": 0.5}
     )
     ```
   </Tab>
@@ -53,7 +53,7 @@ Arrays of message objects with `role` and `content` fields.
             {"role": "system", "content": "Evaluate the answer helpfulness."},
             {"role": "user", "content": "Question: {question}\nAnswer: {answer}"}
         ],
-        choices=["helpful", "somewhat_helpful", "not_helpful"]
+        choices={"helpful": 1.0, "somewhat_helpful": 0.5, "not_helpful": 0.0}
     )
     ```
 
@@ -111,7 +111,7 @@ Messages with multiple content parts, useful for separating different pieces of 
                 ]
             }
         ],
-        choices=["relevant", "not_relevant"]
+        choices={"relevant": 1.0, "not_relevant": 0.0}
     )
     ```
   </Tab>
@@ -170,7 +170,7 @@ evaluator = ClassificationEvaluator(
     name="recipe_quality",
     llm=LLM(provider="openai", model="gpt-4o-mini"),
     prompt_template=prompt_template,
-    choices=["good", "bad"],
+    choices={"good": 1.0, "bad": 0.0},
 )
 ```
 
@@ -237,7 +237,7 @@ A complete example showing evaluator setup and usage:
             {"role": "system", "content": "You evaluate response helpfulness."},
             {"role": "user", "content": "Question: {question}\nAnswer: {answer}"}
         ],
-        choices=["helpful", "somewhat_helpful", "not_helpful"]
+        choices={"helpful": 1.0, "somewhat_helpful": 0.5, "not_helpful": 0.0}
     )
 
     result = evaluator.evaluate({

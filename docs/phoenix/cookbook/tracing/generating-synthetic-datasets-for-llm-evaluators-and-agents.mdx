@@ -108,7 +108,7 @@ def task_function(input, reference):
         name="llm_judge",
         prompt_template=llm_judge_template,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"input": input["input"], "output": reference["output"]}]),
@@ -225,7 +225,7 @@ def task_function(input, reference):
         name="llm_judge",
         prompt_template=llm_judge_template,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"query": input["user_query"], "intent": reference["intent"]}]),

@@ -140,7 +140,7 @@ def correctness_eval(input, output):
         name="math_correctness",
         prompt_template=MATH_EVAL_TEMPLATE,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     eval_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
@@ -297,7 +297,7 @@ def correctness_eval(input, output):
         name="math_correctness",
         prompt_template=MATH_EVAL_TEMPLATE,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     eval_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),

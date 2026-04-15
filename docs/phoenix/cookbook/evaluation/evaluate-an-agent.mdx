@@ -1306,7 +1306,7 @@ def evaluate_clarity(output: str, input: str) -> bool:
         name="clarity",
         prompt_template=CLARITY_LLM_JUDGE_PROMPT,
         llm=eval_llm,
-        choices=["clear", "unclear"],
+        choices={"clear": 1.0, "unclear": 0.0},
     )
     result = evaluate_dataframe(dataframe=df, evaluators=[clarity_classifier])
     return result["clarity_score"].iloc[0]["label"] == "clear"
@@ -1318,7 +1318,7 @@ def evaluate_entity_correctness(output: str, input: str) -> bool:
         name="entity_correctness",
         prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
         llm=eval_llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     result = evaluate_dataframe(dataframe=df, evaluators=[entity_classifier])
     return result["entity_correctness_score"].iloc[0]["label"] == "correct"

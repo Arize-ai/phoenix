@@ -191,7 +191,7 @@ rhyme_classifier = create_classifier(
     name="rhyme",
     prompt_template=RHYME_PROMPT_TEMPLATE,
     llm=llm,
-    choices=["correct", "incorrect"],
+    choices={"correct": 1.0, "incorrect": 0.0},
 )
 
 def evaluate_response(input, output):
@@ -245,7 +245,7 @@ def evaluate_all_responses(input, output):
         name="rhyme",
         prompt_template=RHYME_PROMPT_TEMPLATE,
         llm=full_llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "answer": output}]),

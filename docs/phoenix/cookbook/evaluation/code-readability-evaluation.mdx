@@ -69,7 +69,7 @@ readability_classifier = create_classifier(
     name="code_readability",
     prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
     llm=llm,
-    choices=["readable", "unreadable"],
+    choices={"readable": 1.0, "unreadable": 0.0},
 )
 
 evals_df = evaluate_dataframe(dataframe=df, evaluators=[readability_classifier])

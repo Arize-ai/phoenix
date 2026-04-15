@@ -37,14 +37,11 @@ For more information about prompt templates, [Eval Prompt Templates](/docs/phoen
 
 While the prompt template contains instructions for the LLM, the label choices tell it how to format its response.
 
-The `choices` of a `ClassificationEvaluator` can be structured in a couple of ways:
-
-1. A list of string labels only: `choices=["relevant", "irrelevant"]` **\***
-2. String labels mapped to numeric scores: `choices = {"irrelevant": 0, "relevant": 1}`
-
-**\*Note:** if no score mapping is provided, the returned `Score` objects will have a `label` but not a numeric `score` component.
+The `choices` of a `ClassificationEvaluator` map string labels to numeric scores: `choices = {"irrelevant": 0, "relevant": 1}`
 
 The `ClassificationEvaluator` also supports multi-class labels and scores, for example: `choices = {"good": 1.0, "bad": 0.0, "neutral": 0.5}`
+
+**Note:** A list of string labels (e.g. `choices=["relevant", "irrelevant"]`) is also accepted, but in that case the returned `Score` objects will have a `label` without a numeric `score` component. We recommend using the dict form for most use cases.
 
 There is no limit to the number of label choices you can provide, and you can specify any numeric scores (not limited to values between 0 and 1). For example, you can set `choices = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}` for a numeric rating task.
 

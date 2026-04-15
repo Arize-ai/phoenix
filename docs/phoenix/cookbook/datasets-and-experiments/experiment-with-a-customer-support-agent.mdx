@@ -213,21 +213,21 @@ router_classifier = create_classifier(
     name="router_eval",
     prompt_template=ROUTER_EVAL_TEMPLATE,
     llm=llm,
-    choices=["incorrect", "correct"],
+    choices={"incorrect": 0.0, "correct": 1.0},
 )
 
 function_selection_classifier = create_classifier(
     name="function_selection_eval",
     prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
     llm=llm,
-    choices=["incorrect", "correct"],
+    choices={"incorrect": 0.0, "correct": 1.0},
 )
 
 parameter_extraction_classifier = create_classifier(
     name="parameter_extraction_eval",
     prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
     llm=llm,
-    choices=["incorrect", "correct"],
+    choices={"incorrect": 0.0, "correct": 1.0},
 )
 
 evals_df = evaluate_dataframe(
@@ -264,7 +264,7 @@ def generic_eval(input, output, prompt_template):
     from phoenix.evals import LLM, create_classifier, evaluate_dataframe
 
     df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
-    choices = ["correct", "incorrect"]
+    choices = {"correct": 1.0, "incorrect": 0.0}
     llm = LLM(provider="openai", model="gpt-4o")
     classifier = create_classifier(
         name="eval",
@@ -275,7 +275,7 @@ def generic_eval(input, output, prompt_template):
     eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[classifier])
     eval_result = eval_df["eval_score"].iloc[0]
     label = eval_result["label"]
-    score = 1 if label == choices[0] else 0
+    score = 1 if label == "correct" else 0
     explanation = eval_result.get("explanation")
     return EvaluationResult(score=score, label=label, explanation=explanation)
 
