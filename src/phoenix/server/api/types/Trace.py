@@ -289,7 +289,9 @@ class Trace(Node):
         sort: Optional[TraceAnnotationSort] = UNSET,
         filter: Optional[AnnotationFilter] = None,
     ) -> list[TraceAnnotation]:
-        annotations = await info.context.data_loaders.trace_annotations_by_trace.load(self.id)
+        annotations = list(
+            await info.context.data_loaders.trace_annotations_by_trace.load(self.id)
+        )
         sort_key = TraceAnnotationColumn.name.value
         sort_descending = False
         if filter:
@@ -299,8 +301,10 @@ class Trace(Node):
         if sort:
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc
-        annotations.sort(
-            key=lambda annotation: getattr(annotation, sort_key), reverse=sort_descending
+        annotations = sorted(
+            annotations,
+            key=lambda annotation: (getattr(annotation, sort_key), annotation.id),
+            reverse=sort_descending,
         )
         return [
             TraceAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
