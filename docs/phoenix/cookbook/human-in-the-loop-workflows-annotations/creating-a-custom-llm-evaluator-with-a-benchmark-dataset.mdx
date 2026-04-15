@@ -103,7 +103,7 @@ dataset = Client().datasets.create_dataset(
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
-Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `async_evaluate_dataframe` with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function calls `evaluator.evaluate()` directly with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
 
 ```py expandable
 from phoenix.evals.templates import (
@@ -145,7 +145,7 @@ INPUT RECEIPT: """,
 ```
 ```py expandable
 import json
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
 receipt_evaluator = ClassificationEvaluator(
@@ -155,18 +155,15 @@ receipt_evaluator = ClassificationEvaluator(
     choices=choices,
 )
 
-async def task_function(input, reference):
+def task_function(input, reference):
     parsed = json.loads(input['attributes.input.value'])
     image_url = parsed['messages'][0]['content'][1]['image_url']['url']
     output = reference['attributes.llm.output_messages'][0]['message.content']
 
-    result_df = await async_evaluate_dataframe(
-        dataframe=pd.DataFrame([{"image": image_url, "output": output}]),
-        evaluators=[receipt_evaluator],
-        concurrency=10,
+    result = receipt_evaluator.evaluate(
+        eval_input={"image": image_url, "output": output}
     )
-    label = result_df["receipt_accuracy_score"].iloc[0]["label"]
-    return label
+    return result[0].label
 
 
 def evaluate_response(output, metadata):

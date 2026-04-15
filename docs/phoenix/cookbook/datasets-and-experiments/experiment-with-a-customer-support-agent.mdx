@@ -261,36 +261,49 @@ dataset = px_client.datasets.create_dataset(
 ```
 
 ```python expandable
-async def generic_eval(input, output, prompt_template):
-    from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
-    df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
-    choices = {"correct": 1.0, "incorrect": 0.0}
-    llm = LLM(provider="openai", model="gpt-4o")
-    evaluator = ClassificationEvaluator(
-        name="eval",
-        prompt_template=prompt_template,
+llm = LLM(provider="openai", model="gpt-4o")
+choices = {"correct": 1.0, "incorrect": 0.0}
+
+routing_eval = bind_evaluator(
+    ClassificationEvaluator(
+        name="routing_eval",
+        prompt_template=ROUTER_EVAL_TEMPLATE,
         llm=llm,
         choices=choices,
-    )
-    eval_df = await async_evaluate_dataframe(dataframe=df_in, evaluators=[evaluator], concurrency=10)
-    eval_result = eval_df["eval_score"].iloc[0]
-    label = eval_result["label"]
-    score = 1 if label == "correct" else 0
-    explanation = eval_result.get("explanation")
-    return EvaluationResult(score=score, label=label, explanation=explanation)
+    ),
+    input_mapping={
+        "question": "input.question",
+        "response": lambda x: str(x["output"]),
+    },
+)
 
+function_call_eval = bind_evaluator(
+    ClassificationEvaluator(
+        name="function_call_eval",
+        prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
+        llm=llm,
+        choices=choices,
+    ),
+    input_mapping={
+        "question": "input.question",
+        "response": lambda x: str(x["output"]),
+    },
+)
 
-async def routing_eval(input, output):
-    return await generic_eval(input, output, ROUTER_EVAL_TEMPLATE)
-
-
-async def function_call_eval(input, output):
-    return await generic_eval(input, output, FUNCTION_SELECTION_EVAL_TEMPLATE)
-
-
-async def parameter_extraction_eval(input, output):
-    return await generic_eval(input, output, PARAMETER_EXTRACTION_EVAL_TEMPLATE)
+parameter_extraction_eval = bind_evaluator(
+    ClassificationEvaluator(
+        name="parameter_extraction_eval",
+        prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
+        llm=llm,
+        choices=choices,
+    ),
+    input_mapping={
+        "question": "input.question",
+        "response": lambda x: str(x["output"]),
+    },
+)
 ```
 
 ```python

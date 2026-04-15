@@ -1230,31 +1230,30 @@ available_tools_str = json.dumps(tools)
 ```
 
 ````python expandable
-from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator
+from phoenix.evals.metrics import ToolSelectionEvaluator
 
 eval_llm = LLM(provider="openai", model="gpt-4o-mini")
+tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
 
 
 async def function_calling_eval(input: str, output: str) -> float:
+    """Complex eval with loop logic — iterates over multiple tool calls,
+    so we keep a wrapper but use evaluator.evaluate() directly."""
     function_calls = output.get("tool_calls")
     if function_calls:
-        eval_df = pd.DataFrame(
-            {"input": [input.get("question")] * len(function_calls), "tool_selection": function_calls}
-        )
-        eval_df["available_tools"] = available_tools_str
-
-        from phoenix.evals.metrics import ToolSelectionEvaluator
-        tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
-        tool_call_eval = await async_evaluate_dataframe(
-            dataframe=eval_df,
-            evaluators=[tool_selection_evaluator],
-            concurrency=10,
-        )
-
-        tool_call_eval["score"] = (
-            tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
-        )
-        return tool_call_eval["score"].mean()
+        scores = []
+        for tool_call in function_calls:
+            result = tool_selection_evaluator.evaluate(
+                eval_input={
+                    "input": input.get("question"),
+                    "tool_selection": tool_call,
+                    "available_tools": available_tools_str,
+                }
+            )
+            score = 1 if result[0].label == "correct" else 0
+            scores.append(score)
+        return sum(scores) / len(scores)
     else:
         return 0
 
@@ -1302,28 +1301,34 @@ def evaluate_sql_result(output, expected) -> bool:
     return result_nums == expected_nums
 
 
+clarity_evaluator = ClassificationEvaluator(
+    name="clarity",
+    prompt_template=CLARITY_LLM_JUDGE_PROMPT,
+    llm=eval_llm,
+    choices={"clear": 1.0, "unclear": 0.0},
+)
+
+
 async def evaluate_clarity(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    clarity_evaluator = ClassificationEvaluator(
-        name="clarity",
-        prompt_template=CLARITY_LLM_JUDGE_PROMPT,
-        llm=eval_llm,
-        choices={"clear": 1.0, "unclear": 0.0},
+    result = clarity_evaluator.evaluate(
+        eval_input={"query": input.get("question"), "response": output.get("final_output")}
     )
-    result = await async_evaluate_dataframe(dataframe=df, evaluators=[clarity_evaluator], concurrency=10)
-    return result["clarity_score"].iloc[0]["label"] == "clear"
+    return result[0].label == "clear"
+
+
+entity_evaluator = ClassificationEvaluator(
+    name="entity_correctness",
+    prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
+    llm=eval_llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 
 
 async def evaluate_entity_correctness(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    entity_evaluator = ClassificationEvaluator(
-        name="entity_correctness",
-        prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
-        llm=eval_llm,
-        choices={"correct": 1.0, "incorrect": 0.0},
+    result = entity_evaluator.evaluate(
+        eval_input={"query": input.get("question"), "response": output.get("final_output")}
     )
-    result = await async_evaluate_dataframe(dataframe=df, evaluators=[entity_evaluator], concurrency=10)
-    return result["entity_correctness_score"].iloc[0]["label"] == "correct"
+    return result[0].label == "correct"
 ````
 
 ```python expandable
