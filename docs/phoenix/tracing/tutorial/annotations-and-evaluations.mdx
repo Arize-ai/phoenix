@@ -363,7 +363,7 @@ for (const span of llmSpans) {
   <Tab title="Python" icon="python">
     ```python wrap
     import json
-    from phoenix.evals import LLM, create_classifier
+    from phoenix.evals import LLM, ClassificationEvaluator
     from phoenix.client.resources.spans import SpanAnnotationData
 
     # Filter for retrieval spans (RETRIEVER kind) - FAQ retrieval
@@ -375,7 +375,7 @@ for (const span of llmSpans) {
     # Create an LLM-as-Judge evaluator that determines if retrieved context was relevant
     llm = LLM(provider="openai", model="gpt-4o-mini")
 
-    retrieval_relevance_evaluator = create_classifier(
+    retrieval_relevance_evaluator = ClassificationEvaluator(
         name="retrieval_relevance",
         prompt_template="""You are evaluating whether the retrieved context is relevant to answering the user's prompt.
 

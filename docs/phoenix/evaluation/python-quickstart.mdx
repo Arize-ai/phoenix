@@ -108,9 +108,9 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     Now we want to define our Classification Evaluator
 
     ```python
-    from phoenix.evals import create_classifier
+    from phoenix.evals import ClassificationEvaluator
 
-    correctness_evaluator = create_classifier(
+    correctness_evaluator = ClassificationEvaluator(
         name="correctness",
         prompt_template=CORRECTNESS_TEMPLATE,
         llm=llm,

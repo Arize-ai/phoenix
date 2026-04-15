@@ -1229,7 +1229,7 @@ available_tools_str = json.dumps(tools)
 ```
 
 ````python expandable
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 eval_llm = LLM(provider="openai", model="gpt-4o-mini")
 
@@ -1302,25 +1302,25 @@ def evaluate_sql_result(output, expected) -> bool:
 
 def evaluate_clarity(output: str, input: str) -> bool:
     df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    clarity_classifier = create_classifier(
+    clarity_evaluator = ClassificationEvaluator(
         name="clarity",
         prompt_template=CLARITY_LLM_JUDGE_PROMPT,
         llm=eval_llm,
         choices={"clear": 1.0, "unclear": 0.0},
     )
-    result = evaluate_dataframe(dataframe=df, evaluators=[clarity_classifier])
+    result = evaluate_dataframe(dataframe=df, evaluators=[clarity_evaluator])
     return result["clarity_score"].iloc[0]["label"] == "clear"
 
 
 def evaluate_entity_correctness(output: str, input: str) -> bool:
     df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    entity_classifier = create_classifier(
+    entity_evaluator = ClassificationEvaluator(
         name="entity_correctness",
         prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
         llm=eval_llm,
         choices={"correct": 1.0, "incorrect": 0.0},
     )
-    result = evaluate_dataframe(dataframe=df, evaluators=[entity_classifier])
+    result = evaluate_dataframe(dataframe=df, evaluators=[entity_evaluator])
     return result["entity_correctness_score"].iloc[0]["label"] == "correct"
 ````
 

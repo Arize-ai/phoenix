@@ -10,7 +10,7 @@ Phoenix Evals provides:
 * Built-in evaluators for common tasks (faithfulness, correctness, relevance, conciseness, and more)
 * A unified `LLM` wrapper supporting OpenAI, Anthropic, Google, LiteLLM, and other providers
 * Batch evaluation over pandas DataFrames with `evaluate_dataframe`
-* Custom evaluator creation via `create_evaluator` decorator or `create_classifier` factory
+* Custom evaluator creation via `create_evaluator` decorator or `ClassificationEvaluator`
 * Benchmark datasets for testing evaluator accuracy
 
 ## Installation
@@ -53,7 +53,7 @@ results_df = evaluate_dataframe(
 | `evaluate_dataframe(dataframe, evaluators)` | Run evaluators over a DataFrame (sync) |
 | `async_evaluate_dataframe(dataframe, evaluators)` | Async variant with concurrency control |
 | `create_evaluator(name, kind=...)` | Decorator to turn a function into an `Evaluator` |
-| `create_classifier(name, prompt_template, llm, choices)` | Factory for `ClassificationEvaluator` instances |
+| `ClassificationEvaluator(name, prompt_template, llm, choices)` | Custom classification evaluator for LLM-as-a-judge tasks |
 | `bind_evaluator(evaluator, input_mapping)` | Bind field mappings to an evaluator |
 
 ## Built-in evaluators

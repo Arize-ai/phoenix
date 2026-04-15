@@ -205,25 +205,25 @@ The parameters extracted from the question must match the JSON below exactly.
 Let's run evaluations using Phoenix's `evaluate_dataframe` function for our responses dataframe we generated above!
 
 ```python expandable
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4o")
 
-router_classifier = create_classifier(
+router_evaluator = ClassificationEvaluator(
     name="router_eval",
     prompt_template=ROUTER_EVAL_TEMPLATE,
     llm=llm,
     choices={"incorrect": 0.0, "correct": 1.0},
 )
 
-function_selection_classifier = create_classifier(
+function_selection_evaluator = ClassificationEvaluator(
     name="function_selection_eval",
     prompt_template=FUNCTION_SELECTION_EVAL_TEMPLATE,
     llm=llm,
     choices={"incorrect": 0.0, "correct": 1.0},
 )
 
-parameter_extraction_classifier = create_classifier(
+parameter_extraction_evaluator = ClassificationEvaluator(
     name="parameter_extraction_eval",
     prompt_template=PARAMETER_EXTRACTION_EVAL_TEMPLATE,
     llm=llm,
@@ -232,7 +232,7 @@ parameter_extraction_classifier = create_classifier(
 
 evals_df = evaluate_dataframe(
     dataframe=response_df,
-    evaluators=[router_classifier, function_selection_classifier, parameter_extraction_classifier],
+    evaluators=[router_evaluator, function_selection_evaluator, parameter_extraction_evaluator],
 )
 router_eval_df = pd.DataFrame(evals_df["router_eval_score"].tolist(), index=evals_df.index)
 function_selection_eval_df = pd.DataFrame(
@@ -261,18 +261,18 @@ dataset = px_client.datasets.create_dataset(
 
 ```python expandable
 def generic_eval(input, output, prompt_template):
-    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+    from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
 
     df_in = pd.DataFrame({"question": [str(input["question"])], "response": [str(output)]})
     choices = {"correct": 1.0, "incorrect": 0.0}
     llm = LLM(provider="openai", model="gpt-4o")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="eval",
         prompt_template=prompt_template,
         llm=llm,
         choices=choices,
     )
-    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[classifier])
+    eval_df = evaluate_dataframe(dataframe=df_in, evaluators=[evaluator])
     eval_result = eval_df["eval_score"].iloc[0]
     label = eval_result["label"]
     score = 1 if label == "correct" else 0

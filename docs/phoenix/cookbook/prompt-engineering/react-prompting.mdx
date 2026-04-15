@@ -62,7 +62,7 @@ from phoenix.client import Client as PhoenixClient
 from phoenix.client.types import PromptVersion
 from phoenix.evals import (
     LLM,
-    create_classifier,
+    ClassificationEvaluator,
     evaluate_dataframe,
 )
 
@@ -298,7 +298,7 @@ def prompt_task(input):
 
 def evaluate_response(input, output):
     llm = LLM(provider="openai", model="gpt-3.5-turbo")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="tool_calling",
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         llm=llm,
@@ -306,7 +306,7 @@ def evaluate_response(input, output):
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```
@@ -385,7 +385,7 @@ def prompt_task(input):
 
 def evaluate_response(input, output):
     llm = LLM(provider="openai", model="gpt-3.5-turbo")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="tool_calling",
         prompt_template=TOOL_CALLING_PROMPT_TEMPLATE,
         llm=llm,
@@ -393,7 +393,7 @@ def evaluate_response(input, output):
     )
     result_df = evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
     )
     return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```
