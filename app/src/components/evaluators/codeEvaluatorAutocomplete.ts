@@ -6,39 +6,7 @@ import type {
 import { autocompletion } from "@codemirror/autocomplete";
 
 import type { EvaluatorMappingSource } from "@phoenix/types";
-
-/**
- * Flattens a nested object into dot-notation paths with their values and types.
- */
-function flattenObject(
-  obj: Record<string, unknown>,
-  prefix = ""
-): Array<{ path: string; value: unknown; type: string }> {
-  const results: Array<{ path: string; value: unknown; type: string }> = [];
-
-  for (const [key, value] of Object.entries(obj)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-
-    if (value === null) {
-      results.push({ path, value, type: "null" });
-    } else if (Array.isArray(value)) {
-      results.push({ path, value, type: "array" });
-      // Also add indexed access for first element if it exists
-      if (value.length > 0 && typeof value[0] === "object" && value[0]) {
-        results.push(
-          ...flattenObject(value[0] as Record<string, unknown>, `${path}[0]`)
-        );
-      }
-    } else if (typeof value === "object") {
-      results.push({ path, value, type: "object" });
-      results.push(...flattenObject(value as Record<string, unknown>, path));
-    } else {
-      results.push({ path, value, type: typeof value });
-    }
-  }
-
-  return results;
-}
+import { flattenObject } from "@phoenix/utils/jsonUtils";
 
 /**
  * Generates a human-readable type description for a value.
@@ -67,10 +35,13 @@ function getTypeDescription(value: unknown): string {
 /**
  * Creates autocomplete options from the evaluator mapping source.
  */
-function createCompletionOptions(
-  mappingSource: EvaluatorMappingSource,
-  language: "PYTHON" | "TYPESCRIPT"
-): Completion[] {
+export function createCompletionOptions({
+  mappingSource,
+  language,
+}: {
+  mappingSource: EvaluatorMappingSource;
+  language: "PYTHON" | "TYPESCRIPT";
+}): Completion[] {
   const options: Completion[] = [];
 
   // Add top-level parameter completions
@@ -107,8 +78,13 @@ function createCompletionOptions(
 
     // Add nested field completions
     if (data && typeof data === "object" && Object.keys(data).length > 0) {
-      const flattened = flattenObject(data as Record<string, unknown>, name);
-      for (const { path, value } of flattened) {
+      const flattened = flattenObject({
+        obj: data as Record<string, unknown>,
+        parentKey: name,
+        keepNonTerminalValues: true,
+        formatIndices: true,
+      }) as Record<string, unknown>;
+      for (const [path, value] of Object.entries(flattened)) {
         options.push({
           label: path,
           type: "property",
@@ -173,7 +149,7 @@ function createEvaluatorCompletions(
     // Don't autocomplete if we're not at a word boundary or explicit
     if (word.from === word.to && !context.explicit) return null;
 
-    const options = createCompletionOptions(mappingSource, language);
+    const options = createCompletionOptions({ mappingSource, language });
 
     // Filter options based on what's typed
     const typed = word.text.toLowerCase();
