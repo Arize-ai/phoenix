@@ -1147,7 +1147,6 @@
               {
                 "group": "04.2026",
                 "pages": [
-                  "docs/phoenix/release-notes/04-2026/04-14-2026-assistant-agent-improvements",
                   "docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands",
                   "docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0",
                   "docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects",
