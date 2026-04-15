@@ -44,7 +44,7 @@ export interface LinkQualityEvaluatorOptions {
 }
 
 export function createLinkQualityEvaluator(
-  options: LinkQualityEvaluatorOptions = {},
+  options: LinkQualityEvaluatorOptions = {}
 ) {
   const allowedPrefixes =
     options.allowedPrefixes ?? DEFAULT_ALLOWED_ABSOLUTE_PREFIXES;
@@ -55,7 +55,7 @@ export function createLinkQualityEvaluator(
     evaluate: ({ output }) => {
       const text = typeof output === "string" ? output : "";
       const absoluteMarkdown = [...text.matchAll(MARKDOWN_LINK_RE)].map(
-        (m) => m[2],
+        (m) => m[2]
       );
       const relativeMarkdown = [
         ...text.matchAll(RELATIVE_MARKDOWN_LINK_RE),
@@ -85,7 +85,7 @@ export function createLinkQualityEvaluator(
         };
       }
       const offenders = absoluteUrls.filter(
-        (url) => !allowedPrefixes.some((prefix) => url.startsWith(prefix)),
+        (url) => !allowedPrefixes.some((prefix) => url.startsWith(prefix))
       );
       if (offenders.length > 0) {
         return {
