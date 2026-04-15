@@ -3564,7 +3564,7 @@ type Trace implements Node {
   spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """Annotations associated with the trace."""
-  traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the trace"""
   traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
