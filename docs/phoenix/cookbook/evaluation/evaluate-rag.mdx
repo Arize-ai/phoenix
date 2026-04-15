@@ -387,15 +387,16 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
 relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-retrieved_documents_relevance_df = evaluate_dataframe(
+retrieved_documents_relevance_df = await async_evaluate_dataframe(
     dataframe=retrieved_documents_df,
     evaluators=[relevance_evaluator],
+    concurrency=10,
 )
 ```
 
@@ -558,16 +559,17 @@ qa_with_reference_df
 Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
 qa_evaluator = CorrectnessEvaluator(llm=llm)
 hallucination_evaluator = FaithfulnessEvaluator(llm=llm)
 
-evals_df = evaluate_dataframe(
+evals_df = await async_evaluate_dataframe(
     dataframe=qa_with_reference_df,
     evaluators=[qa_evaluator, hallucination_evaluator],
+    concurrency=10,
 )
 qa_correctness_eval_df = pd.concat(
     [

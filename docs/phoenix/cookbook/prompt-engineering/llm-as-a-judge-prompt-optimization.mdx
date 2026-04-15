@@ -161,7 +161,7 @@ Finally, we run our experiment. With this setup, we can measure how well our pro
 ```python expandable
 import pandas as pd
 
-from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4")
 empathy_evaluator = ClassificationEvaluator(
@@ -172,10 +172,11 @@ empathy_evaluator = ClassificationEvaluator(
 )
 
 
-def initial_prompt(input):
-    result_df = evaluate_dataframe(
+async def initial_prompt(input):
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[empathy_evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -232,16 +233,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 ```
 
 ```python
-def llm_as_a_judge(input):
+async def llm_as_a_judge(input):
     evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -301,16 +303,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 ```
 
 ```python
-def llm_as_a_judge(input):
+async def llm_as_a_judge(input):
     evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -378,16 +381,17 @@ print(EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED)
 ```
 
 ```python expandable
-def llm_as_a_judge(input):
+async def llm_as_a_judge(input):
     evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -429,16 +433,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 ```
 
 ```python
-def llm_as_a_judge(input):
+async def llm_as_a_judge(input):
     evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)
@@ -462,16 +467,17 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = (
 ```
 
 ```python
-def llm_as_a_judge(input):
+async def llm_as_a_judge(input):
     evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     score = result_df["empathy_score"].iloc[0]["label"]
     return int(score)

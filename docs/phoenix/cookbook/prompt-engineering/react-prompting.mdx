@@ -63,7 +63,7 @@ from phoenix.client.types import PromptVersion
 from phoenix.evals import (
     LLM,
     ClassificationEvaluator,
-    evaluate_dataframe,
+    async_evaluate_dataframe,
 )
 
 TOOL_CALLING_CHOICES = ["correct", "incorrect"]
@@ -296,7 +296,7 @@ def prompt_task(input):
     return resp
 
 
-def evaluate_response(input, output):
+async def evaluate_response(input, output):
     llm = LLM(provider="openai", model="gpt-3.5-turbo")
     evaluator = ClassificationEvaluator(
         name="tool_calling",
@@ -304,9 +304,10 @@ def evaluate_response(input, output):
         llm=llm,
         choices=TOOL_CALLING_CHOICES,
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```
@@ -383,7 +384,7 @@ def prompt_task(input):
     return resp
 
 
-def evaluate_response(input, output):
+async def evaluate_response(input, output):
     llm = LLM(provider="openai", model="gpt-3.5-turbo")
     evaluator = ClassificationEvaluator(
         name="tool_calling",
@@ -391,9 +392,10 @@ def evaluate_response(input, output):
         llm=llm,
         choices=TOOL_CALLING_CHOICES,
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "tool_calls": output}]),
         evaluators=[evaluator],
+        concurrency=10,
     )
     return 0 if result_df["tool_calling_score"].iloc[0]["label"] == "incorrect" else 1
 ```

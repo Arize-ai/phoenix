@@ -15,7 +15,7 @@ from urllib.request import urlopen
 
 from phoenix.client import AsyncClient, Client
 from phoenix.client.helpers.spans import get_input_output_context, get_retrieved_documents
-from phoenix.evals.evaluators import async_evaluate_dataframe
+from phoenix.evals import async_evaluate_dataframe
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import (  # type: ignore[attr-defined]
     CorrectnessEvaluator,

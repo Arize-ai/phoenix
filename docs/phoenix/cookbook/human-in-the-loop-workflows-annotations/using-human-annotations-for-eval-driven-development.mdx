@@ -184,7 +184,7 @@ def updated_task(example: Example) -> str:
 ```
 
 ```python
-from phoenix.evals import LLM, ClassificationEvaluator, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
 llm = LLM(provider="openai", model="gpt-4.1")
 rhyme_evaluator = ClassificationEvaluator(
@@ -194,13 +194,14 @@ rhyme_evaluator = ClassificationEvaluator(
     choices={"correct": 1.0, "incorrect": 0.0},
 )
 
-def evaluate_response(input, output):
+async def evaluate_response(input, output):
     raw_input_value = input["attributes.input.value"]
     data = json.loads(raw_input_value)
     question = data["messages"][1]["content"]
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": question, "answer": output}]),
         evaluators=[rhyme_evaluator],
+        concurrency=10,
     )
     return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
 ```
@@ -239,7 +240,7 @@ def complete_task(question) -> str:
     return response.choices[0].message.content
 
 
-def evaluate_all_responses(input, output):
+async def evaluate_all_responses(input, output):
     full_llm = LLM(provider="openai", model="gpt-4o")
     full_evaluator = ClassificationEvaluator(
         name="rhyme",
@@ -247,9 +248,10 @@ def evaluate_all_responses(input, output):
         llm=full_llm,
         choices={"correct": 1.0, "incorrect": 0.0},
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"question": input["Questions"], "answer": output}]),
         evaluators=[full_evaluator],
+        concurrency=10,
     )
     return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
 
