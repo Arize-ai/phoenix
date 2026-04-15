@@ -15,9 +15,10 @@ Before changing PXI behavior, identify which layer you are working in and read t
 
 Read the relevant file(s) based on the task:
 
-| Rule file                                   | When to read                                                                                                                                          |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rules/extending-frontend-tool-registry.md` | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
+| Rule file                                     | When to read                                                                                                                                          |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rules/extending-frontend-tool-registry.md`   | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
+| `rules/system-prompt-xml-conventions.md`      | Adding to, editing, or reviewing the PXI agent system prompt, any `*ToolCapabilities.ts` module, or cross-cutting output-format guidance              |
 
 ## Verification
 

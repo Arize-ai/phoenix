@@ -40,7 +40,6 @@
     "@ai-sdk/react": "^3.0.136",
     "@apollo/client": "^4.1.6",
     "@arizeai/openinference-semantic-conventions": "^2.1.7",
-    "@arizeai/phoenix-client": "^6.6.0",
     "@codemirror/autocomplete": "6.20.1",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-javascript": "^6.2.5",
@@ -102,6 +101,10 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^3.0.69",
+    "@ai-sdk/mcp": "1.0.26",
+    "@arizeai/phoenix-client": "^6.6.0",
+    "@arizeai/phoenix-evals": "^1.0.2",
     "@chromatic-com/storybook": "^5.0.2",
     "@emotion/react": "^11.14.0",
     "@eslint/js": "^9.39.4",
