@@ -981,7 +981,8 @@
                 "group": "Configuration",
                 "pages": [
                   "docs/phoenix/self-hosting/configuration",
-                  "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
+                  "docs/phoenix/self-hosting/configuration/using-amazon-aurora",
+                  "docs/phoenix/self-hosting/configuration/using-azure-managed-identity"
                 ]
               }
             ]

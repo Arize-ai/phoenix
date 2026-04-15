@@ -141,9 +141,6 @@ data:
   {{- if .Values.database.postgres.useAwsIamAuth }}
   PHOENIX_POSTGRES_USE_AWS_IAM_AUTH: {{ .Values.database.postgres.useAwsIamAuth | quote }}
   {{- end }}
-  {{- if .Values.database.postgres.awsIamTokenLifetimeSeconds }}
-  PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS: {{ .Values.database.postgres.awsIamTokenLifetimeSeconds | quote }}
-  {{- end }}
   {{- end }}
   {{- if .Values.database.readReplicaUrl }}
   PHOENIX_SQL_DATABASE_READ_REPLICA_URL: {{ .Values.database.readReplicaUrl | quote }}

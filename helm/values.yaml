@@ -293,11 +293,6 @@ database:
     # IMPORTANT: When enabled, do not set database.postgres.password
     useAwsIamAuth: false
 
-    # -- Token lifetime in seconds for AWS RDS IAM authentication pool recycling (PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS)
-    # AWS RDS IAM tokens are valid for 15 minutes (900 seconds). Set slightly lower to ensure tokens
-    # are refreshed before expiration. Only used when useAwsIamAuth is true.
-    awsIamTokenLifetimeSeconds: 840
-
   # -- Full database connection URL (overrides postgres settings if provided)
   # IMPORTANT: Only set this for external databases (Strategy 3)
   # - When using SQLite (Strategy 1): MUST be empty - SQLite auto-uses persistent volume

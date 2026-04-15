@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-11T14:35:26.33229Z"
+exclude-newer = "2026-04-12T16:13:40.850553Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -292,7 +292,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "0.93.0"
+version = "0.94.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -304,9 +304,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/70/2429d6f7c2516db99fb342c3ad89575ab3e0cd31d3d2f6cba5fdf5e9c65b/anthropic-0.93.0.tar.gz", hash = "sha256:fea8376f7d5cdf99d5e8e85a48fe7a7bd8ab307cdfee4b1e8283a18b1c0ce1b5", size = 654155, upload-time = "2026-04-09T18:13:53.522Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/60/d7/11a649b986da06aaeb81334632f1843d70e3797f54ca4a9c5d604b7987d0/anthropic-0.94.0.tar.gz", hash = "sha256:dde8c57de73538c5136c1bca9b16da92e75446b53a73562cc911574e4934435c", size = 654236, upload-time = "2026-04-10T22:27:59.853Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/7b/5b2c11902707c49c7a99418eb027ed3eb63876193fee5c80b5c878e3a673/anthropic-0.93.0-py3-none-any.whl", hash = "sha256:2c20b2ce6d305564c66a6cbaedddee8efdd3b9753098bf314093fcf4c662d04c", size = 627482, upload-time = "2026-04-09T18:13:51.606Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/ac/7185750e8688f6ff79b0e3d6a61372c88b81ba81fcda8798c70598e18aca/anthropic-0.94.0-py3-none-any.whl", hash = "sha256:42550b401eed8fcd7f6654234560f99c428306301bca726d32bca4bfb6feb748", size = 627519, upload-time = "2026-04-10T22:27:57.541Z" },
 ]
 
 [[package]]
@@ -477,6 +477,10 @@ dependencies = [
 aws = [
     { name = "aioboto3" },
 ]
+azure = [
+    { name = "aiohttp" },
+    { name = "azure-identity" },
+]
 container = [
     { name = "aioboto3" },
     { name = "aiohttp" },
@@ -577,6 +581,7 @@ dev = [
     { name = "twine" },
     { name = "ty" },
     { name = "types-aiobotocore-bedrock-runtime" },
+    { name = "types-aiobotocore-rds" },
     { name = "types-beautifulsoup4" },
     { name = "types-cachetools" },
     { name = "types-jmespath" },
@@ -599,6 +604,7 @@ dev = [
 requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
+    { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },
     { name = "aiosqlite" },
@@ -609,7 +615,8 @@ requires-dist = [
     { name = "arize-phoenix-otel", editable = "packages/phoenix-otel" },
     { name = "asyncpg", marker = "extra == 'pg'" },
     { name = "authlib" },
-    { name = "azure-identity", marker = "extra == 'container'" },
+    { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
+    { name = "azure-identity", marker = "extra == 'container'", specifier = ">=1.18.0" },
     { name = "cachetools" },
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.135.2" },
@@ -665,7 +672,7 @@ requires-dist = [
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
     { name = "wrapt", specifier = ">=1.17.2,<2" },
 ]
-provides-extras = ["aws", "container", "evals", "experimental", "pg"]
+provides-extras = ["aws", "azure", "container", "evals", "experimental", "pg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -676,7 +683,7 @@ dev = [
     { name = "arize", specifier = ">=8.1.0" },
     { name = "asgi-lifespan" },
     { name = "asyncpg" },
-    { name = "azure-identity" },
+    { name = "azure-identity", specifier = ">=1.18.0" },
     { name = "beautifulsoup4" },
     { name = "boto3" },
     { name = "check-wheel-contents" },
@@ -742,7 +749,8 @@ dev = [
     { name = "tiktoken" },
     { name = "twine" },
     { name = "ty" },
-    { name = "types-aiobotocore-bedrock-runtime", specifier = ">=3.1.1" },
+    { name = "types-aiobotocore-bedrock-runtime", specifier = ">=3.4.0" },
+    { name = "types-aiobotocore-rds", specifier = ">=3.4.0" },
     { name = "types-beautifulsoup4" },
     { name = "types-cachetools" },
     { name = "types-jmespath" },
@@ -2377,11 +2385,11 @@ grpc = [
 
 [[package]]
 name = "graphql-core"
-version = "3.3.0a12"
+version = "3.2.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e4/d2/ed926fe3d491604bf23e5c9b33e0185dfa15ae3b26fe8a15797314d66df8/graphql_core-3.3.0a12.tar.gz", hash = "sha256:be79996d640f67b2a240fede0eceb1fd1eb367aaab374747886a9eba75e64f22", size = 555400, upload-time = "2026-03-05T16:22:56.788Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/68/c5/36aa96205c3ecbb3d34c7c24189e4553c7ca2ebc7e1dd07432339b980272/graphql_core-3.2.8.tar.gz", hash = "sha256:015457da5d996c924ddf57a43f4e959b0b94fb695b85ed4c29446e508ed65cf3", size = 513181, upload-time = "2026-03-05T19:55:37.332Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/3f/7f4c3becebb10bd5669acb60bd024b8493e47475d8bf8a66b54e49784e5c/graphql_core-3.3.0a12-py3-none-any.whl", hash = "sha256:54bb48350641861fac2b2c851d1aeeaef2891972865979ce6972284123e4d124", size = 234105, upload-time = "2026-03-05T16:22:55.199Z" },
+    { url = "https://files.pythonhosted.org/packages/86/41/cb887d9afc5dabd78feefe6ccbaf83ff423c206a7a1b7aeeac05120b2125/graphql_core-3.2.8-py3-none-any.whl", hash = "sha256:cbee07bee1b3ed5e531723685369039f32ff815ef60166686e0162f540f1520c", size = 207349, upload-time = "2026-03-05T19:55:35.911Z" },
 ]
 
 [[package]]
@@ -6504,15 +6512,15 @@ wheels = [
 
 [[package]]
 name = "rich"
-version = "14.3.3"
+version = "15.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/c6/f3b320c27991c46f43ee9d856302c70dc2d0fb2dba4842ff739d5f46b393/rich-14.3.3.tar.gz", hash = "sha256:b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b", size = 230582, upload-time = "2026-02-19T17:23:12.474Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/25/b208c5683343959b670dc001595f2f3737e051da617f66c31f7c4fa93abc/rich-14.3.3-py3-none-any.whl", hash = "sha256:793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d", size = 310458, upload-time = "2026-02-19T17:23:13.732Z" },
+    { url = "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb", size = 310654, upload-time = "2026-04-12T08:24:02.83Z" },
 ]
 
 [[package]]
@@ -7602,6 +7610,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e7/5d/93fa11cd47d06075f575deb8d10aa4b80b87b8cbb549dcade0e361f799d8/types_aiobotocore_bedrock_runtime-3.4.0.tar.gz", hash = "sha256:b6bb41551192b0e0c59c446ed108c79d5609da9428226e590d0dbb6f5ae7646b", size = 30082, upload-time = "2026-04-08T02:42:31.417Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7d/45/72f2f96965655e538e4d130f41866a5dd089096c2c976457cae757afe056/types_aiobotocore_bedrock_runtime-3.4.0-py3-none-any.whl", hash = "sha256:6164b84251ee83146b9b382567da6577e4e7e1404163ca4bcfd4fdd32ff02849", size = 36682, upload-time = "2026-04-08T02:42:30.12Z" },
+]
+
+[[package]]
+name = "types-aiobotocore-rds"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/15/c40a12794d02ba62d51eacc09a86b168a3b733ab75811add9321adf82250/types_aiobotocore_rds-3.4.0.tar.gz", hash = "sha256:d9a69baba35291349e96765e709789403efa8f60e516d75750f14c63f9c60800", size = 86361, upload-time = "2026-04-08T02:45:21.048Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/37/2698250b9f1dcb1a1f8c10a6aa0a584a63d40bd18fad0f6828a307ef9510/types_aiobotocore_rds-3.4.0-py3-none-any.whl", hash = "sha256:3e01f51ddcc768355365a17ac3eb4b4e5068f0f44ac9c787335797275b75ddc2", size = 93832, upload-time = "2026-04-08T02:45:20.045Z" },
 ]
 
 [[package]]

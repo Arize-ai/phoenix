@@ -86,7 +86,6 @@ Phoenix is an open-source AI observability platform designed for experimentation
 | auth.useSecureCookies | bool | `false` | Enable secure cookies (should be true when using HTTPS) |
 | database.allocatedStorageGiB | int | `20` | Storage allocation in GiB for the database persistent volume |
 | database.defaultRetentionPolicyDays | int | `0` | Default retention policy for traces in days (PHOENIX_DEFAULT_RETENTION_POLICY_DAYS) Set to 0 to disable automatic trace cleanup. When set to a positive value, traces older than this many days will be automatically removed from the database. |
-| database.postgres.awsIamTokenLifetimeSeconds | int | `840` | Token lifetime in seconds for AWS RDS IAM authentication pool recycling (PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS) AWS RDS IAM tokens are valid for 15 minutes (900 seconds). Set slightly lower to ensure tokens are refreshed before expiration. Only used when useAwsIamAuth is true. |
 | database.postgres.db | string | `"phoenix"` | Name of the PostgreSQL database (PHOENIX_POSTGRES_DB) |
 | database.postgres.host | string | `""` | Postgres Host (PHOENIX_POSTGRES_HOST) Default points to the groundhog2k PostgreSQL service when postgresql.enabled=true IMPORTANT: Only change this when using external PostgreSQL (postgresql.enabled=false, database.url empty) Examples: "localhost", "postgres.example.com", "your-rds-endpoint.region.rds.amazonaws.com" |
 | database.postgres.password | string | `"postgres"` | PostgreSQL password (should match auth.secret."PHOENIX_POSTGRES_PASSWORD", PHOENIX_POSTGRES_PASSWORD) |

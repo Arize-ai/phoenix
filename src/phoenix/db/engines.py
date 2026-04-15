@@ -4,7 +4,7 @@ import asyncio
 import logging
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 import aiosqlite
 import numpy as np
@@ -19,9 +19,30 @@ from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
 
+if TYPE_CHECKING:
+    import asyncpg  # type: ignore[import-untyped]
+
 sqlean.extensions.enable("text", "stats")
 
 logger = logging.getLogger(__name__)
+
+# Maximum age of a pooled connection before SQLAlchemy discards it on
+# checkout and opens a fresh one. This is a hygiene cap, not a correctness
+# requirement: PostgreSQL authenticates the client during the startup
+# message exchange and does not re-validate the credential again for the
+# life of the session, so a pooled connection remains valid for as long
+# as the underlying TCP connection survives, regardless of any token
+# lifetime. 55 minutes was originally chosen to sit under the up-to-
+# 60-minute lifetime of Entra ID access tokens issued for the Azure
+# PostgreSQL scope (https://ossrdbms-aad.database.windows.net/.default).
+# That coupling is no longer load-bearing: token freshness on *new*
+# connections is handled by the Azure Identity SDK when the
+# managed-identity creator calls `DefaultAzureCredential.get_token(...)`,
+# and existing pooled connections are unaffected by later token expiry.
+# Liveness detection (idle-timeout drops, failovers, TCP resets) is
+# handled separately by pool_pre_ping; pool_recycle cannot detect those
+# because it is age-based.
+_POOL_RECYCLE_SECONDS = 3300
 
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
@@ -153,42 +174,72 @@ def aio_postgresql_engine(
     log_migrations: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
-        get_env_postgres_iam_token_lifetime,
-        get_env_postgres_use_iam_auth,
+        get_env_postgres_use_aws_iam_auth,
+        get_env_postgres_use_azure_managed_identity,
     )
 
-    use_iam_auth = get_env_postgres_use_iam_auth()
-    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_iam_auth)
+    use_aws = get_env_postgres_use_aws_iam_auth()
+    use_azure = get_env_postgres_use_azure_managed_identity()
+    if use_aws and use_azure:
+        raise ValueError(
+            "Cannot enable both AWS IAM and Azure managed identity authentication simultaneously. "
+            "Set only one."
+        )
+    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
 
-    if use_iam_auth:
-        if not (host := url.host):
-            raise ValueError("Database host is required for IAM authentication")
-        if not (user := url.username):
-            raise ValueError("Database user is required for IAM authentication")
-        port = url.port or 5432
-        database = url.database or "postgres"
+    azure_creator: Callable[[], Awaitable[asyncpg.Connection]] | None = None
+    aws_creator: Callable[[], Awaitable[asyncpg.Connection]] | None = None
+    # pool_pre_ping is enabled on every branch. SQLAlchemy executes the
+    # dialect's do_ping (a `SELECT 1` for the asyncpg/PG dialect, inherited
+    # from DefaultDialect.do_ping) on each pool checkout, and if it fails
+    # discards the connection and asks the pool/creator for a fresh one.
+    # The ping is skipped on connections that were just created — see
+    # sqlalchemy.pool.base where _ConnectionRecord.fresh is set after
+    # _invoke_creator and the checkout path skips the ping when fresh.
+    # The check runs once per checkout — i.e. once per `async with
+    # info.context.db.read()/write() as session` block — not once per
+    # executed statement. Phoenix GraphQL resolvers follow the pattern of
+    # opening their own session block (see src/phoenix/server/api/types/),
+    # so a single request can trigger multiple pool checkouts. We accept
+    # that per-checkout cost because the alternative is that the first
+    # query on a silently-dropped connection (idle-timeout eviction from
+    # an upstream LB/proxy, server-side failover, DBA-initiated
+    # termination) raises a connection error to the caller.
+    #
+    # Managed-identity branch specifically: pool_recycle is not load-bearing
+    # for token validity. PostgreSQL validates the access-token-as-password
+    # only during the startup packet exchange and never re-checks it for
+    # the life of the session, and Azure Database for PostgreSQL has no
+    # server-side setting that terminates user sessions when their access
+    # token expires (per Microsoft Learn Q&A guidance — not formal docs).
+    # Token freshness for *newly opened* connections is handled inside
+    # azure_creator via DefaultAzureCredential.get_token(...), which relies
+    # on azure-identity's built-in cache and refresh logic.
+    if use_azure:
+        from phoenix.db.azure_auth import create_azure_token_connection_creator
 
-        async def iam_async_creator() -> Any:
-            import asyncpg  # type: ignore
-
-            from phoenix.db.iam_auth import generate_aws_rds_token
-
-            token = generate_aws_rds_token(host=host, port=port, user=user)
-            return await asyncpg.connect(
-                host=host,
-                port=port,
-                user=user,
-                password=token,
-                database=database,
-                **asyncpg_args,
-            )
-
+        logger.info("Azure managed identity enabled for PostgreSQL connections")
+        azure_creator = create_azure_token_connection_creator(asyncpg_url, asyncpg_args)
         engine = create_async_engine(
             url=asyncpg_url,
-            async_creator=iam_async_creator,
+            async_creator=azure_creator,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            pool_recycle=get_env_postgres_iam_token_lifetime(),
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
+        )
+    elif use_aws:
+        from phoenix.db.aws_auth import create_aws_iam_token_connection_creator
+
+        logger.info("AWS IAM authentication enabled for PostgreSQL connections")
+        aws_creator = create_aws_iam_token_connection_creator(asyncpg_url, asyncpg_args)
+        engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=aws_creator,
+            echo=log_to_stdout,
+            json_serializer=_dumps,
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
         )
     else:
         engine = create_async_engine(
@@ -196,19 +247,42 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
         )
 
     if not migrate:
         return engine
 
-    if use_iam_auth:
+    # Migration engines use NullPool, which opens a fresh connection on
+    # every checkout and disposes it on return. pool_pre_ping and
+    # pool_recycle are therefore intentionally omitted: SQLAlchemy's
+    # checkout path skips the ping when _ConnectionRecord.fresh is True
+    # (see sqlalchemy.pool.base), and with NullPool every checkout creates
+    # a new record so the ping would never run anyway; pool_recycle has
+    # no long-lived connection to age out. For cloud-auth branches, each
+    # migration checkout invokes the same creator as the main engine —
+    # Azure goes through azure-identity (which consults its own cached
+    # token and refreshes via IMDS when needed) and AWS regenerates a
+    # SigV4 token via aioboto3 — so migrations always authenticate with a
+    # current token without any pool-level machinery.
+    if use_azure:
+        assert azure_creator is not None
         migration_engine = create_async_engine(
             url=asyncpg_url,
-            async_creator=iam_async_creator,
+            async_creator=azure_creator,
             echo=log_migrations,
             json_serializer=_dumps,
             poolclass=NullPool,
-            pool_recycle=get_env_postgres_iam_token_lifetime(),
+        )
+    elif use_aws:
+        assert aws_creator is not None
+        migration_engine = create_async_engine(
+            url=asyncpg_url,
+            async_creator=aws_creator,
+            echo=log_migrations,
+            json_serializer=_dumps,
+            poolclass=NullPool,
         )
     else:
         migration_engine = create_async_engine(

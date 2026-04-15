@@ -1702,7 +1702,7 @@ class DatabaseValidators:
     """Validators specific to database configuration (beyond PostgreSQL)."""
 
     @staticmethod
-    def aws_iam_auth(enabled: bool, token_lifetime: Optional[int] = None) -> Validator:
+    def aws_iam_auth(enabled: bool) -> Validator:
         """Validate AWS RDS IAM authentication configuration."""
 
         def validator(resources: list[dict[str, Any]]) -> bool:
@@ -1714,12 +1714,6 @@ class DatabaseValidators:
 
             if data.get("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH") != str(enabled).lower():
                 return False
-
-            if token_lifetime is not None and enabled:
-                if data.get("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS") != str(
-                    token_lifetime
-                ):
-                    return False
 
             return True
 
@@ -2182,22 +2176,11 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         TestCase(
             "PostgreSQL with AWS RDS IAM authentication",
-            "--set postgresql.enabled=false --set database.postgres.host=mydb.us-east-1.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix --set database.postgres.db=phoenix --set database.postgres.useAwsIamAuth=true --set database.postgres.awsIamTokenLifetimeSeconds=840",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.us-east-1.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix --set database.postgres.db=phoenix --set database.postgres.useAwsIamAuth=true",
             all_of(
                 no_postgresql,
                 ConfigMapValidators.configmap_has_key("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true"),
-                ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS", "840"
-                ),
-                DatabaseValidators.aws_iam_auth(True, 840),
-            ),
-        ),
-        TestCase(
-            "PostgreSQL with AWS RDS IAM authentication (custom token lifetime)",
-            "--set postgresql.enabled=false --set database.postgres.host=mydb.region.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix_user --set database.postgres.db=phoenix_db --set database.postgres.useAwsIamAuth=true --set database.postgres.awsIamTokenLifetimeSeconds=600",
-            all_of(
-                no_postgresql,
-                DatabaseValidators.aws_iam_auth(True, 600),
+                DatabaseValidators.aws_iam_auth(True),
             ),
         ),
         TestCase(
