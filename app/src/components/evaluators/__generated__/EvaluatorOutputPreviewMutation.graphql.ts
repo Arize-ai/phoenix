@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c3d1c0f71d7aee0d1c7e07898318cea>>
+ * @generated SignedSource<<24debaf7bb672a75d29e86628a268828>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
@@ -25,6 +26,7 @@ export type EvaluatorPreviewItemInput = {
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId?: string | null;
   codeEvaluatorId?: string | null;
+  inlineCodeEvaluator?: InlineCodeEvaluatorInput | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
@@ -127,6 +129,14 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+};
+export type InlineCodeEvaluatorInput = {
+  description?: string | null;
+  language: Language;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sandboxConfigId?: string | null;
+  sourceCode: string;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping?: any;

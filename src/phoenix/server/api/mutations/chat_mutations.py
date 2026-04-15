@@ -278,7 +278,87 @@ class ChatCompletionMutationMixin:
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
+            elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
+                from phoenix.server.api.evaluators import CodeEvaluatorRunner
+                from phoenix.server.sandbox import get_or_create_backend
+
+                language = inline_code_evaluator.language.value
+                evaluator_name = inline_code_evaluator.name
+                evaluator_description = inline_code_evaluator.description
+                source_code = inline_code_evaluator.source_code
+
+                # Convert output configs
+                output_configs = [
+                    c
+                    for c in _convert_output_config_inputs_to_pydantic(
+                        inline_code_evaluator.output_configs
+                    )
+                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
+
+                # Resolve sandbox backend from sandbox_config_id
+                sandbox_backend = None
+                sandbox_timeout = None
+
+                if inline_code_evaluator.sandbox_config_id is not None:
+                    type_name, sandbox_config_db_id = from_global_id(
+                        inline_code_evaluator.sandbox_config_id
+                    )
+                    async with info.context.db() as session:
+                        sandbox_cfg = await session.get(models.SandboxConfig, sandbox_config_db_id)
+                        if sandbox_cfg is not None and sandbox_cfg.enabled:
+                            sandbox_timeout = sandbox_cfg.timeout
+                            provider = await session.get(
+                                models.SandboxProvider, sandbox_cfg.sandbox_provider_id
+                            )
+                            if provider is not None and provider.enabled:
+                                backend_type = provider.backend_type
+                                # Verify language matches
+                                provider_language_row = await session.get(
+                                    models.Language, provider.language_id
+                                )
+                                if (
+                                    provider_language_row is not None
+                                    and provider_language_row.name != language
+                                ):
+                                    raise BadRequest(
+                                        "Sandbox provider language does not match "
+                                        "code evaluator language"
+                                    )
+                                merged_config = {
+                                    **provider.config,
+                                    **sandbox_cfg.config,
+                                }
+                                sandbox_backend = get_or_create_backend(
+                                    backend_type, config=merged_config
+                                )
+
+                if sandbox_backend is None:
+                    raise BadRequest(
+                        f"No sandbox backend configured for language '{language}'. "
+                        "Please select a sandbox configuration for this evaluator."
+                    )
+
+                runner = CodeEvaluatorRunner(
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=source_code,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                )
+                eval_results = await runner.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=evaluator_name,
+                    output_configs=output_configs,
+                    session_key="",
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
             else:
-                raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
+                raise BadRequest("Either evaluator_id or inline evaluator must be provided")
 
         return EvaluatorPreviewsPayload(results=all_results)
