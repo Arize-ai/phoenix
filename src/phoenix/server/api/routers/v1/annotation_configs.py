@@ -391,7 +391,10 @@ def _get_annotation_config_db_id(config_gid: str) -> int:
 def _reserve_note_annotation_name(data: AnnotationConfigData) -> str:
     name = data.name
     if name == "note":
-        raise HTTPException(status_code=409, detail="The name 'note' is reserved for span notes")
+        raise HTTPException(
+            status_code=409,
+            detail="The name 'note' is reserved for trace and span notes",
+        )
     return name
 
 

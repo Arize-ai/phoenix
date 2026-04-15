@@ -91,6 +91,7 @@ px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 | `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
 | `--no-progress`             | Suppress progress output               | —        |
 | `--include-annotations`     | Include span annotations               | —        |
+| `--include-notes`           | Include trace and span notes           | —        |
 
 ```bash
 # Find ERROR traces
@@ -114,6 +115,7 @@ Fetch a single trace by ID.
 px trace get abc123def456
 px trace get abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
 px trace get abc123def456 --file trace.json
+px trace get abc123def456 --include-notes --format raw | jq '.notes'
 ```
 
 ---
@@ -127,6 +129,17 @@ px trace annotate abc123def456 --name reviewer --label pass
 px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
 px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
 px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px trace add-note <trace-id>`
+
+Add a human note to a trace by OpenTelemetry trace ID.
+
+```bash
+px trace add-note abc123def456 --text "needs follow-up"
+px trace add-note abc123def456 --text "agent triage complete" --format raw --no-progress
 ```
 
 ---
@@ -157,6 +170,7 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 | `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
 | `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
 | `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
+| `--include-notes`           | Include span notes in the output                                                                                                 | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                       | `pretty` |
 | `--no-progress`             | Suppress progress output                                                                                                         | —        |
 
@@ -183,6 +197,17 @@ px span annotate 7e2f08cb43bbf521 --name reviewer --label pass
 px span annotate 7e2f08cb43bbf521 --name reviewer --score 0.9 --format raw --no-progress
 px span annotate 7e2f08cb43bbf521 --name checker --score 1 --annotator-kind CODE
 px span annotate 7e2f08cb43bbf521 --name reviewer --explanation "looks good"
+```
+
+---
+
+### `px span add-note <span-id>`
+
+Add a human note to a span by OpenTelemetry span ID.
+
+```bash
+px span add-note 7e2f08cb43bbf521 --text "double-check tool output"
+px span add-note 7e2f08cb43bbf521 --text "verified by agent" --format raw --no-progress
 ```
 
 ---

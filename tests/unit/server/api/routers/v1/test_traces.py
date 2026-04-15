@@ -109,6 +109,132 @@ async def test_rest_trace_annotation(
     assert orm_annotation.user_id is None
 
 
+async def test_rest_trace_annotation_rejects_note_name(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": [
+            {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "name": "note",
+                "annotator_kind": "HUMAN",
+                "result": {
+                    "explanation": "This should fail",
+                },
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
+    assert response.status_code == 400
+    assert "Trace notes are not supported in this endpoint." in response.text
+
+
+async def test_rest_create_trace_note(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_text = fake.pystr()
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": note_text,
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 200
+
+    response_data = response.json()
+    assert "data" in response_data
+    assert "id" in response_data["data"]
+
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.TraceAnnotation).where(
+                models.TraceAnnotation.name == "note",
+                models.TraceAnnotation.explanation == note_text,
+            )
+        )
+
+    assert orm_annotation is not None
+    assert orm_annotation.name == "note"
+    assert orm_annotation.annotator_kind == "HUMAN"
+    assert orm_annotation.explanation == note_text
+    assert orm_annotation.source == "API"
+    assert orm_annotation.identifier.startswith("px-trace-note:")
+    assert orm_annotation.label is None
+    assert orm_annotation.score is None
+    assert orm_annotation.metadata_ == dict()
+
+
+async def test_rest_create_trace_note_not_found(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "nonexistent-trace-id",
+            "note": "This should fail",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+async def test_rest_create_multiple_trace_notes(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_texts = [fake.pystr() for _ in range(3)]
+
+    for note_text in note_texts:
+        request_body = {
+            "data": {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "note": note_text,
+            }
+        }
+        response = await httpx_client.post("v1/trace_notes", json=request_body)
+        assert response.status_code == 200
+
+    async with db() as session:
+        result = await session.execute(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+        )
+        annotations = list(result.scalars().all())
+
+    assert len(annotations) == 3
+    explanations = {annotation.explanation for annotation in annotations}
+    assert explanations == set(note_texts)
+
+    identifiers = [annotation.identifier for annotation in annotations]
+    assert len(identifiers) == len(set(identifiers))
+
+
+async def test_rest_create_trace_note_blank_text_rejected(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": "   ",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 422
+
+
 async def test_traces_endpoint_otlp_compliance(
     httpx_client: httpx.AsyncClient,
 ) -> None:

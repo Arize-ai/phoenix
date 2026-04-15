@@ -603,6 +603,11 @@ class TraceAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class TraceNoteData(TypedDict):
+    trace_id: str
+    note: str
+
+
 class TraceSpanData(TypedDict):
     id: str
     span_id: str
@@ -754,6 +759,14 @@ class CreateSpanNoteRequestBody(TypedDict):
 
 class CreateSpanNoteResponseBody(TypedDict):
     data: InsertedSpanAnnotation
+
+
+class CreateTraceNoteRequestBody(TypedDict):
+    data: TraceNoteData
+
+
+class CreateTraceNoteResponseBody(TypedDict):
+    data: InsertedTraceAnnotation
 
 
 class CreateUserRequestBody(TypedDict):

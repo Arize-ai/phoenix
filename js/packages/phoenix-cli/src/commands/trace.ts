@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -29,10 +30,18 @@ import {
   type OutputFormat as AnnotationMutationOutputFormat,
 } from "./formatAnnotationMutation";
 import {
+  formatNoteMutationOutput,
+  type OutputFormat as NoteMutationOutputFormat,
+} from "./formatNoteMutation";
+import {
   formatTraceOutput,
   formatTracesOutput,
   type OutputFormat as TraceOutputFormat,
 } from "./formatTraces";
+import {
+  buildNoteMutationResult,
+  normalizeNoteText,
+} from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 import {
   fetchTraceAnnotations,
@@ -40,6 +49,7 @@ import {
 } from "./traceAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
+const NOTE_ANNOTATION_NAME = "note";
 
 function attachSpanAnnotationsToSpans(
   spans: SpanWithAnnotations[],
@@ -85,6 +95,50 @@ function attachTraceAnnotationsToTraces(
   }
 }
 
+function attachSpanNotesToSpans(
+  spans: SpanWithAnnotations[],
+  notes: SpanAnnotation[]
+): void {
+  const notesBySpanId = new Map<string, SpanAnnotation[]>();
+  for (const note of notes) {
+    const spanId = note.span_id;
+    if (!notesBySpanId.has(spanId)) {
+      notesBySpanId.set(spanId, []);
+    }
+    notesBySpanId.get(spanId)!.push(note);
+  }
+
+  for (const span of spans) {
+    const spanId = span.context?.span_id;
+    if (!spanId) continue;
+    const spanNotes = notesBySpanId.get(spanId);
+    if (spanNotes) {
+      span.notes = spanNotes;
+    }
+  }
+}
+
+function attachTraceNotesToTraces(
+  traces: Trace[],
+  notes: TraceAnnotation[]
+): void {
+  const notesByTraceId = new Map<string, TraceAnnotation[]>();
+  for (const note of notes) {
+    const traceId = note.trace_id;
+    if (!notesByTraceId.has(traceId)) {
+      notesByTraceId.set(traceId, []);
+    }
+    notesByTraceId.get(traceId)!.push(note);
+  }
+
+  for (const trace of traces) {
+    const traceNotes = notesByTraceId.get(trace.traceId);
+    if (traceNotes) {
+      trace.notes = traceNotes;
+    }
+  }
+}
+
 function getResolvedTraceId(spans: Span[]): string | undefined {
   return spans[0]?.context?.trace_id;
 }
@@ -97,6 +151,7 @@ interface TraceGetOptions {
   progress?: boolean;
   file?: string;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface TraceListOptions {
@@ -110,6 +165,7 @@ interface TraceListOptions {
   since?: string;
   maxConcurrent?: number;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface TraceAnnotateOptions {
@@ -122,6 +178,14 @@ interface TraceAnnotateOptions {
   score?: string;
   explanation?: string;
   annotatorKind?: string;
+}
+
+interface TraceAddNoteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: NoteMutationOutputFormat;
+  progress?: boolean;
+  text?: string;
 }
 
 /**
@@ -401,6 +465,7 @@ async function traceGetHandler(
     const traceSpans: SpanWithAnnotations[] = spans;
     const resolvedTraceId = getResolvedTraceId(spans);
     let traceAnnotations: TraceAnnotation[] | undefined;
+    let traceNotes: TraceAnnotation[] | undefined;
     if (options.includeAnnotations) {
       writeProgress({
         message: "Fetching trace and span annotations...",
@@ -423,11 +488,38 @@ async function traceGetHandler(
       });
       attachSpanAnnotationsToSpans(traceSpans, spanAnnotations);
     }
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching trace and span notes...",
+        noProgress: !options.progress,
+      });
+
+      traceNotes = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+
+      const spanIds = traceSpans
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+      const spanNotes = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+      attachSpanNotesToSpans(traceSpans, spanNotes);
+    }
 
     // Build trace
     const trace = buildTrace({ spans: traceSpans });
     if (traceAnnotations?.length) {
       trace.annotations = traceAnnotations;
+    }
+    if (traceNotes?.length) {
+      trace.notes = traceNotes;
     }
 
     // Output trace
@@ -560,6 +652,37 @@ async function traceListHandler(
         attachSpanAnnotationsToSpans(trace.spans, spanAnnotations);
       }
     }
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching trace and span notes...",
+        noProgress: !options.progress,
+      });
+
+      const traceNotes = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: traces.map((trace) => trace.traceId),
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+        maxConcurrent: options.maxConcurrent,
+      });
+      attachTraceNotesToTraces(traces, traceNotes);
+
+      const spanIds = traces
+        .flatMap((trace) => trace.spans)
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+
+      const spanNotes = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+        maxConcurrent: options.maxConcurrent,
+      });
+      for (const trace of traces) {
+        attachSpanNotesToSpans(trace.spans, spanNotes);
+      }
+    }
 
     if (directory) {
       if (userSpecifiedFormat && options.format && options.format !== "json") {
@@ -612,6 +735,10 @@ export function createTraceGetCommand(): Command {
       "--include-annotations",
       "Include trace and span annotations in the trace export"
     )
+    .option(
+      "--include-notes",
+      "Include trace and span notes in the trace export"
+    )
     .action(traceGetHandler);
 }
 
@@ -649,6 +776,10 @@ export function createTraceListCommand(): Command {
     .option(
       "--include-annotations",
       "Include trace and span annotations in the trace export"
+    )
+    .option(
+      "--include-notes",
+      "Include trace and span notes in the trace export"
     )
     .action(traceListHandler);
 }
@@ -766,6 +897,82 @@ export function createTraceAnnotateCommand(): Command {
     .action(traceAnnotateHandler);
 }
 
+async function traceAddNoteHandler(
+  traceId: string,
+  options: TraceAddNoteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const noteText = normalizeNoteText({
+      targetType: "trace",
+      text: options.text,
+    });
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Adding note to trace ${traceId}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await addTraceNote({
+      client,
+      traceNote: {
+        traceId,
+        note: noteText,
+      },
+    });
+
+    const note = buildNoteMutationResult({
+      id: result.id,
+      targetType: "trace",
+      targetId: traceId,
+      text: noteText,
+    });
+
+    writeOutput({
+      message: formatNoteMutationOutput({
+        note,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error adding trace note: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceAddNoteCommand(): Command {
+  return new Command("add-note")
+    .description("Add a note to a trace by OpenTelemetry trace ID")
+    .argument("<trace-id>", "OpenTelemetry trace ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--text <text>", "Note text")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .action(traceAddNoteHandler);
+}
+
 interface TraceDeleteOptions {
   endpoint?: string;
   apiKey?: string;
@@ -857,6 +1064,7 @@ export function createTraceCommand(): Command {
   command.addCommand(createTraceListCommand());
   command.addCommand(createTraceGetCommand());
   command.addCommand(createTraceAnnotateCommand());
+  command.addCommand(createTraceAddNoteCommand());
   command.addCommand(createTraceDeleteCommand());
   return command;
 }

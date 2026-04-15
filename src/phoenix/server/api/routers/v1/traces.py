@@ -2,7 +2,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -10,8 +10,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
-from pydantic import Field
-from sqlalchemy import delete, or_, select
+from pydantic import BeforeValidator, Field
+from sqlalchemy import delete, insert, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -355,6 +355,11 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail="Trace notes are not supported in this endpoint.",
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -401,6 +406,91 @@ async def annotate_traces(
             InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(id_))))
             for id_ in inserted_ids
         ]
+    )
+
+
+class TraceNoteData(V1RoutesBaseModel):
+    trace_id: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="OpenTelemetry Trace ID (hex format w/o 0x prefix)",
+    )
+    note: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="The note text to add to the trace",
+    )
+
+
+class CreateTraceNoteRequestBody(RequestBody[TraceNoteData]):
+    data: TraceNoteData
+
+
+class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
+    pass
+
+
+@router.post(
+    "/trace_notes",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createTraceNote",
+    summary="Create a trace note",
+    description=(
+        "Add a note annotation to a trace. Notes are special annotations that allow "
+        "multiple entries per trace (unlike regular annotations which are unique by name "
+        "and identifier). Each note gets a unique timestamp-based identifier."
+    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
+    response_description="Trace note created successfully",
+    status_code=200,
+)
+async def create_trace_note(
+    request: Request,
+    request_body: CreateTraceNoteRequestBody,
+) -> CreateTraceNoteResponseBody:
+    note_data = request_body.data
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == note_data.trace_id)
+        )
+
+        if trace_rowid is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trace with ID {note_data.trace_id} not found",
+            )
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        note_identifier = f"px-trace-note:{timestamp}"
+
+        result = await session.execute(
+            insert(models.TraceAnnotation)
+            .values(
+                trace_rowid=trace_rowid,
+                name="note",
+                label=None,
+                score=None,
+                explanation=note_data.note,
+                annotator_kind="HUMAN",
+                metadata_=dict(),
+                identifier=note_identifier,
+                source="API",
+                user_id=user_id,
+            )
+            .returning(models.TraceAnnotation.id)
+        )
+        annotation_id = result.scalar_one()
+
+    request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_id,)))
+    return CreateTraceNoteResponseBody(
+        data=InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(annotation_id))))
     )
 
 

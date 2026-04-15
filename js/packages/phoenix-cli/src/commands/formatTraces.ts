@@ -90,6 +90,7 @@ function formatTracePretty(trace: Trace): string {
   }
 
   renderTraceAnnotations(lines, trace);
+  renderTraceNotes(lines, trace);
   lines.push(`│  Spans:`);
 
   for (let i = 0; i < forest.length; i++) {
@@ -117,6 +118,19 @@ function renderTraceAnnotations(lines: string[], trace: Trace): void {
       ...formatAnnotationResultParts(annotation.result),
     ];
     lines.push(`│  - ${parts.join(" ")}`);
+  }
+  lines.push("│");
+}
+
+function renderTraceNotes(lines: string[], trace: Trace): void {
+  const notes = trace.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Notes:");
+  for (const note of notes) {
+    lines.push(`│  - ${formatNoteText(note.result?.explanation)}`);
   }
   lines.push("│");
 }
@@ -210,6 +224,7 @@ function renderSpanNode(
 
   const nextAncestors = [...opts.ancestors, opts.isLast];
   renderSpanAnnotations(lines, span, nextAncestors);
+  renderSpanNotes(lines, span, nextAncestors);
   for (let i = 0; i < children.length; i++) {
     renderSpanNode(lines, children[i]!, {
       ancestors: nextAncestors,
@@ -251,6 +266,28 @@ function renderSpanAnnotations(
       ...formatAnnotationResultParts(annotation.result),
     ];
     lines.push(`${detailPrefix}- ${parts.join(" ")}`);
+  }
+}
+
+function renderSpanNotes(
+  lines: string[],
+  span: Span,
+  ancestors: boolean[]
+): void {
+  const notes = span.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  const detailPrefix =
+    "│  " +
+    ancestors
+      .map((ancestorIsLast) => (ancestorIsLast ? "   " : "│  "))
+      .join("");
+
+  lines.push(`${detailPrefix}notes:`);
+  for (const note of notes) {
+    lines.push(`${detailPrefix}- ${formatNoteText(note.result?.explanation)}`);
   }
 }
 
@@ -315,4 +352,17 @@ function truncateValue(value: string): string {
     return value;
   }
   return value.slice(0, VALUE_PREVIEW_MAX_CHARS) + "…";
+}
+
+function formatNoteText(text: string | null | undefined): string {
+  if (!text) {
+    return "(empty)";
+  }
+
+  const normalizedText = text.replace(/\s+/g, " ").trim();
+  if (!normalizedText) {
+    return "(empty)";
+  }
+
+  return truncateValue(normalizedText);
 }

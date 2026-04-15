@@ -35,6 +35,8 @@ class TraceAnnotationMutationMixin:
     ) -> TraceAnnotationMutationPayload:
         if not input:
             raise BadRequest("No trace annotations provided.")
+        if any(annotation_input.name == "note" for annotation_input in input):
+            raise BadRequest("Trace notes are not supported in this endpoint.")
 
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None

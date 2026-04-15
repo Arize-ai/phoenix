@@ -458,6 +458,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/trace_notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a trace note
+         * @description Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.
+         */
+        post: operations["createTraceNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/traces/{trace_identifier}": {
         parameters: {
             query?: never;
@@ -1290,6 +1310,14 @@ export interface components {
              * @description Number of spans successfully queued for insertion
              */
             total_queued: number;
+        };
+        /** CreateTraceNoteRequestBody */
+        CreateTraceNoteRequestBody: {
+            data: components["schemas"]["TraceNoteData"];
+        };
+        /** CreateTraceNoteResponseBody */
+        CreateTraceNoteResponseBody: {
+            data: components["schemas"]["InsertedTraceAnnotation"];
         };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
@@ -3382,6 +3410,19 @@ export interface components {
             /** Spans */
             spans?: components["schemas"]["TraceSpanData"][] | null;
         };
+        /** TraceNoteData */
+        TraceNoteData: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry Trace ID (hex format w/o 0x prefix)
+             */
+            trace_id: string;
+            /**
+             * Note
+             * @description The note text to add to the trace
+             */
+            note: string;
+        };
         /** TraceSpanData */
         TraceSpanData: {
             /** Id */
@@ -5051,6 +5092,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnnotateTracesResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createTraceNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTraceNoteRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Trace note created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTraceNoteResponseBody"];
                 };
             };
             /** @description Forbidden */

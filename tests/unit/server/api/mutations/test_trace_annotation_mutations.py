@@ -225,3 +225,31 @@ class TestTraceAnnotationMutations:
         assert (data_delete := res_delete.data)
         deleted = data_delete["deleteTraceAnnotations"]["traceAnnotations"][0]
         assert deleted["id"] == ann4["id"]
+
+    async def test_trace_annotations_reject_reserved_note_name(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+        response = await gql_client.execute(
+            self.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": trace_gid,
+                        "name": "note",
+                        "explanation": "This should fail",
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert "Trace notes are not supported in this endpoint." in response.errors[0].message
