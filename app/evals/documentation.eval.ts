@@ -9,13 +9,12 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { createClient } from "@arizeai/phoenix-client";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
+import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import { generateText, stepCountIs, type ToolSet } from "ai";
 
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
+
+import { linkQualityEvaluator } from "./evaluators/linkQualityEvaluator";
 
 const DATASET_NAME = "phoenix-documentation-questions";
 const MINTLIFY_MCP_URL = "https://arizeai-433a7140.mintlify.app/mcp";
@@ -26,14 +25,6 @@ const QUESTIONS = [
   { question: "How do I create a dataset in Phoenix from existing traces?" },
   { question: "How do I run an experiment with Phoenix evaluators?" },
   { question: "How do I configure Phoenix authentication?" },
-];
-
-const MARKDOWN_LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
-const RELATIVE_MARKDOWN_LINK_RE = /\[([^\]]+)\]\((\/[^\s)]+)\)/g;
-const BARE_URL_RE = /(?<!\]\()https?:\/\/[^\s)]+/g;
-const ALLOWED_ABSOLUTE_PREFIXES = [
-  "https://arize.com/docs/phoenix",
-  "http://localhost:6006",
 ];
 
 const client = createClient();
@@ -69,63 +60,7 @@ async function main() {
         });
         return text;
       },
-      evaluators: [
-        asExperimentEvaluator({
-          name: "link-quality",
-          kind: "CODE",
-          evaluate: ({ output }) => {
-            const text = typeof output === "string" ? output : "";
-            const absoluteMarkdown = [...text.matchAll(MARKDOWN_LINK_RE)].map(
-              (m) => m[2],
-            );
-            const relativeMarkdown = [
-              ...text.matchAll(RELATIVE_MARKDOWN_LINK_RE),
-            ].map((m) => m[2]);
-            const bareUrls = text.match(BARE_URL_RE) ?? [];
-            const absoluteUrls = [...absoluteMarkdown, ...bareUrls];
-
-            if (absoluteUrls.length === 0 && relativeMarkdown.length === 0) {
-              return {
-                score: 0,
-                label: "no-links",
-                explanation: "response contained no links",
-              };
-            }
-            if (absoluteUrls.length === 0) {
-              return {
-                score: 0,
-                label: "relative-only",
-                explanation: `all ${relativeMarkdown.length} links are relative: ${relativeMarkdown.slice(0, 3).join(", ")}`,
-              };
-            }
-            if (bareUrls.length > 0 && absoluteMarkdown.length === 0) {
-              return {
-                score: 0,
-                label: "bare-url",
-                explanation: `${bareUrls.length} bare URL(s), no markdown links`,
-              };
-            }
-            const offenders = absoluteUrls.filter(
-              (url) =>
-                !ALLOWED_ABSOLUTE_PREFIXES.some((prefix) =>
-                  url.startsWith(prefix),
-                ),
-            );
-            if (offenders.length > 0) {
-              return {
-                score: 0,
-                label: "wrong-prefix",
-                explanation: `${offenders.length}/${absoluteUrls.length} urls outside allowed prefixes: ${offenders.slice(0, 3).join(", ")}`,
-              };
-            }
-            return {
-              score: 1,
-              label: "valid",
-              explanation: `absolute=${absoluteMarkdown.length} bare=${bareUrls.length} relative=${relativeMarkdown.length}`,
-            };
-          },
-        }),
-      ],
+      evaluators: [linkQualityEvaluator],
     });
   } finally {
     await mcp.close();
