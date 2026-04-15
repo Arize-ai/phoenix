@@ -35,6 +35,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
   DEFAULT_CODE_EVALUATOR_SOURCE,
   extractCodeEvaluatorVariables,
@@ -72,14 +73,6 @@ export const createDefaultContinuousOutputConfig = (
   lowerBound: 0,
   upperBound: 1,
 });
-
-export type SandboxConfigOption = {
-  id: number;
-  name: string;
-  description?: string | null;
-  providerLabel: string;
-  providerLanguage: CodeEvaluatorLanguage;
-};
 
 export const EditCodeEvaluatorDialogContent = ({
   onSubmit,
@@ -646,47 +639,6 @@ const CodeEvaluatorSandboxField = ({
       </Text>
     </View>
   );
-};
-
-export const mapSandboxConfigOptions = (
-  sandboxProviders: ReadonlyArray<{
-    language: CodeEvaluatorLanguage;
-    backendType: string;
-    configs: ReadonlyArray<{
-      id: string;
-      name: string;
-      description?: string | null;
-    }>;
-  }>
-): SandboxConfigOption[] => {
-  return sandboxProviders.flatMap((provider) =>
-    provider.configs.map((config) => ({
-      id: decodeRelayNodeId(config.id),
-      name: config.name,
-      description: config.description,
-      providerLanguage: provider.language,
-      providerLabel: backendTypeLabel(provider.backendType),
-    }))
-  );
-};
-
-const BACKEND_TYPE_LABELS: Record<string, string> = {
-  WASM: "WebAssembly",
-  E2B: "E2B",
-  DAYTONA_PYTHON: "Daytona",
-  VERCEL_PYTHON: "Vercel",
-  VERCEL_TYPESCRIPT: "Vercel",
-  DENO: "Deno",
-  MODAL: "Modal",
-};
-
-const backendTypeLabel = (backendType: string): string =>
-  BACKEND_TYPE_LABELS[backendType] ?? backendType;
-
-const decodeRelayNodeId = (globalId: string) => {
-  const decoded = globalThis.atob(globalId);
-  const [, rawId = ""] = decoded.split(":", 2);
-  return Number(rawId);
 };
 
 const getCodeEvaluatorValidationError = ({

@@ -5,11 +5,16 @@ export const DEFAULT_CODE_EVALUATOR_SOURCE: Record<
   string
 > = {
   PYTHON: `def evaluate(output, reference=None, input=None, metadata=None):
+    """
+    Evaluate the output against the reference.
+    See the auto-generated type information below for the structure of each parameter.
+    """
     candidate = output.get("answer", "") if isinstance(output, dict) else ""
     expected = reference.get("answer", "") if isinstance(reference, dict) else ""
     return 1 if candidate == expected else 0
 `,
-  TYPESCRIPT: `function evaluate({ output, reference }: { output?: Record<string, unknown>; reference?: Record<string, unknown> }) {
+  TYPESCRIPT: `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  // See the auto-generated type definitions below for the structure of each parameter.
   const candidate = typeof output?.answer === "string" ? output.answer : "";
   const expected = typeof reference?.answer === "string" ? reference.answer : "";
   return candidate === expected ? 1 : 0;
