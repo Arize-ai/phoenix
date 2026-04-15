@@ -7,15 +7,26 @@ import { authFetch } from "@phoenix/authFetch";
 import {
   Alert,
   Button,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+  DialogTrigger,
   FieldError,
+  Flex,
   Form,
   Icon,
   Icons,
   Input,
   Label,
+  Modal,
+  ModalOverlay,
   Text,
   TextField,
+  View,
 } from "@phoenix/components";
 import {
   FileDropZone,
@@ -866,20 +877,71 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         </Button>
         {mode === "append" ? (
           <>
-            <Button
-              variant="default"
-              size="S"
-              type="button"
-              onPress={() => handleSubmitCreate()}
-              isDisabled={!isValid || isSubmitting || isParsing}
-              leadingVisual={
-                pendingAction === "create" ? (
-                  <Icon svg={<Icons.LoadingOutline />} />
-                ) : undefined
-              }
-            >
-              {pendingAction === "create" ? "Replacing..." : "Replace Examples"}
-            </Button>
+            <DialogTrigger>
+              <Button
+                variant="default"
+                size="S"
+                type="button"
+                isDisabled={!isValid || isSubmitting || isParsing}
+                leadingVisual={
+                  pendingAction === "create" ? (
+                    <Icon svg={<Icons.LoadingOutline />} />
+                  ) : undefined
+                }
+              >
+                {pendingAction === "create"
+                  ? "Replacing..."
+                  : "Replace Examples"}
+              </Button>
+              <ModalOverlay isDismissable>
+                <Modal size="S">
+                  <Dialog>
+                    {({ close }) => (
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Replace Examples</DialogTitle>
+                          <DialogTitleExtra>
+                            <DialogCloseButton slot="close" />
+                          </DialogTitleExtra>
+                        </DialogHeader>
+                        <View padding="size-200">
+                          <Text color="danger">
+                            {`Are you sure you want to replace the examples in this dataset? Any existing examples not present in the uploaded file will be deleted.`}
+                          </Text>
+                        </View>
+                        <View
+                          paddingEnd="size-200"
+                          paddingTop="size-100"
+                          paddingBottom="size-100"
+                          borderTopColor="default"
+                          borderTopWidth="thin"
+                        >
+                          <Flex
+                            direction="row"
+                            justifyContent="end"
+                            gap="size-100"
+                          >
+                            <Button slot="close" size="S">
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="S"
+                              onPress={() => {
+                                close();
+                                handleSubmitCreate();
+                              }}
+                            >
+                              Replace Examples
+                            </Button>
+                          </Flex>
+                        </View>
+                      </DialogContent>
+                    )}
+                  </Dialog>
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
             <Button
               variant="primary"
               size="S"
