@@ -103,7 +103,7 @@
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.69",
     "@ai-sdk/mcp": "1.0.26",
-    "@arizeai/phoenix-client": "^6.6.0",
+    "@arizeai/phoenix-client": "^6.6.2",
     "@arizeai/phoenix-evals": "^1.0.2",
     "@chromatic-com/storybook": "^5.0.2",
     "@emotion/react": "^11.14.0",

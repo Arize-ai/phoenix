@@ -1,3 +1,5 @@
 packages:
   - "."
 minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@arizeai/*"
