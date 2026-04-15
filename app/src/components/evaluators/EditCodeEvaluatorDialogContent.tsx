@@ -228,13 +228,10 @@ export const EditCodeEvaluatorDialogContent = ({
     }
     setShowValidationError(false);
     setLocalValidationError(undefined);
-    const finalSandboxConfigId =
-      language === initialLanguage ? sandboxConfigId : selectedSandboxConfigId;
-
     onSubmit({
       language,
       sourceCode,
-      sandboxConfigId: finalSandboxConfigId,
+      sandboxConfigId: selectedSandboxConfigId,
     });
   };
 
