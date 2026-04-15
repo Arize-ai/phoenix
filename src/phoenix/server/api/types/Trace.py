@@ -290,8 +290,8 @@ class Trace(Node):
         filter: Optional[AnnotationFilter] = None,
     ) -> list[TraceAnnotation]:
         annotations = list(await info.context.data_loaders.trace_annotations_by_trace.load(self.id))
-        sort_key = TraceAnnotationColumn.name.value
-        sort_descending = False
+        sort_key = TraceAnnotationColumn.createdAt.value
+        sort_descending = True
         if filter:
             annotations = [
                 annotation for annotation in annotations if satisfies_filter(annotation, filter)
