@@ -1,6 +1,6 @@
 ---
 name: phoenix-pxi
-description: Development guide for the Phoenix PXI agent. Use when modifying PXI-specific frontend or backend behavior, extending PXI tool wiring, updating PXI runtime capabilities, or changing the PXI agent request/dispatch flow. Start here for PXI-specific workflows, then read the relevant rule file for the layer you are changing.
+description: Development guide for the Phoenix PXI agent. Use when modifying PXI-specific frontend or backend behavior, extending PXI tool wiring, updating PXI runtime capabilities, or changing the PXI agent request/dispatch flow. Start here for PXI-specific workflows, then read the relevant resource file for the layer you are changing.
 metadata:
   internal: true
 ---
@@ -9,16 +9,16 @@ metadata:
 
 Composable guidance for extending PXI across the Phoenix codebase.
 
-Before changing PXI behavior, identify which layer you are working in and read the relevant rule file.
+Before changing PXI behavior, identify which layer you are working in and read the relevant resource file.
 
-## Rule Files
+## Resources
 
 Read the relevant file(s) based on the task:
 
-| Rule file                                     | When to read                                                                                                                                          |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rules/extending-frontend-tool-registry.md`   | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
-| `rules/system-prompt-xml-conventions.md`      | Adding to, editing, or reviewing the PXI agent system prompt, any `*ToolCapabilities.ts` module, or cross-cutting output-format guidance              |
+| Resource file                                     | When to read                                                                                                                                          |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resources/extending-frontend-tool-registry.md`   | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
+| `resources/system-prompt-xml-conventions.md`      | Adding to, editing, or reviewing the PXI agent system prompt, any `*ToolCapabilities.ts` module, or cross-cutting output-format guidance              |
 
 ## Verification
 
