@@ -81,6 +81,13 @@ class DenoAdapter(SandboxAdapter):
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        if packages:
+            raise UnsupportedOperation(
+                "Deno backend does not support dependency installation. "
+                "Use a pre-baked template or switch to a backend that supports dependencies."
+            )
         internet_access = config.get("internet_access")
         if internet_access is not None:
             mode = (

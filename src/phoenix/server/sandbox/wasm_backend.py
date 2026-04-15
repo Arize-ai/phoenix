@@ -165,4 +165,23 @@ class WASMAdapter(SandboxAdapter):
                 "Disable env_vars for WASM configs or switch to a backend that "
                 "supports env vars (e.g. E2B)."
             )
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        if packages:
+            raise UnsupportedOperation(
+                "WASM backend does not support dependency installation. "
+                "Use a pre-baked template or switch to a backend that supports dependencies."
+            )
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            if mode is not None:
+                raise UnsupportedOperation(
+                    "WASM backend does not support internet_access configuration. "
+                    "Remove the internet_access field or switch to a backend that supports it."
+                )
         return WASMBackend()
