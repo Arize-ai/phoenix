@@ -201,7 +201,6 @@ async def test_trace_annotations_sort_uses_id_as_tiebreaker(
     db: DbSessionFactory,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
-    trace_id: int
     async with db() as session:
         trace_id = await session.scalar(select(models.Trace.id))
         assert trace_id is not None
