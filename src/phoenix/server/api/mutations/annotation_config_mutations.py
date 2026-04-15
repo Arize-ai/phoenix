@@ -174,7 +174,7 @@ class AnnotationConfigMutationMixin:
             raise BadRequest("No annotation config provided")
 
         if name == "note":
-            raise BadRequest("The name 'note' is reserved for span notes")
+            raise BadRequest("The name 'note' is reserved for trace and span notes")
 
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
@@ -221,7 +221,7 @@ class AnnotationConfigMutationMixin:
             raise BadRequest("No annotation config provided")
 
         if name == "note":
-            raise BadRequest("The name 'note' is reserved for span notes")
+            raise BadRequest("The name 'note' is reserved for trace and span notes")
 
         async with info.context.db() as session:
             annotation_config = await session.get(models.AnnotationConfig, config_id)

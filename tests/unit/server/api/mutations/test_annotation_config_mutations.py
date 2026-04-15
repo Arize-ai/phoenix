@@ -435,7 +435,7 @@ class TestAnnotationConfigMutations:
         assert response.errors
         assert len(response.errors) == 1
         error = response.errors[0]
-        assert "The name 'note' is reserved for span notes" in error.message
+        assert "The name 'note' is reserved for trace and span notes" in error.message
 
     @pytest.mark.parametrize(
         ("update_config", "annotation_type"),
@@ -517,7 +517,7 @@ class TestAnnotationConfigMutations:
         assert update_response.errors
         assert len(update_response.errors) == 1
         error = update_response.errors[0]
-        assert "The name 'note' is reserved for span notes" in error.message
+        assert "The name 'note' is reserved for trace and span notes" in error.message
 
     @pytest.mark.parametrize(
         ("annotation_type", "config"),
