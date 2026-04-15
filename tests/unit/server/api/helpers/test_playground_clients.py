@@ -506,7 +506,7 @@ class TestGetOpenAIClientClass:
 
     def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
-        for model_name in ["o1", "o1-mini", "o3", "o3-mini"]:
+        for model_name in ["o1", "o3", "o3-mini"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,

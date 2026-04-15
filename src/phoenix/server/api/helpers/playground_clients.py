@@ -1988,8 +1988,6 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
-        # preview models
-        "gpt-4.5-preview",
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
@@ -2002,6 +2000,8 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 OPENAI_REASONING_MODELS = [
     "gpt-5.4",
     "gpt-5.4-2026-03-05",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
     "gpt-5.4-pro",
     "gpt-5.4-pro-2026-03-05",
     "gpt-5.3-chat-latest",
@@ -2027,10 +2027,6 @@ OPENAI_REASONING_MODELS = [
     "o1-pro",
     "o1-2024-12-17",
     "o1-pro-2025-03-19",
-    "o1-mini",
-    "o1-mini-2024-09-12",
-    "o1-preview",
-    "o1-preview-2024-09-12",
     "o3",
     "o3-pro",
     "o3-pro-2025-06-10",
@@ -2302,9 +2298,6 @@ class AzureOpenAIReasoningNonStreamingClient(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-5-haiku-latest",
-        "claude-3-5-haiku-20241022",
-        "claude-3-haiku-20240307",
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
@@ -2741,7 +2734,6 @@ ANTHROPIC_REASONING_MODELS = [
     "claude-sonnet-4-20250514",
     "claude-opus-4-0",
     "claude-opus-4-20250514",
-    "claude-3-7-sonnet-latest",
     "claude-3-7-sonnet-20250219",
 ]
 
@@ -2766,8 +2758,8 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
 
 GEMINI_2_0_MODELS = [
     PROVIDER_DEFAULT,
-    "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on March 31, 2026.
-    "gemini-2.0-flash-001",  # Will be deprecated and will be shut down on March 31, 2026.
+    "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on June 1, 2026.
+    "gemini-2.0-flash-001",  # Will be deprecated and will be shut down on June 1, 2026.
 ]
 
 
