@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
@@ -14,10 +14,11 @@ import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@p
 import type { EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
 import {
-  EditCodeEvaluatorDialogContent,
+  decodeRelayNodeId,
   mapSandboxConfigOptions,
-  createDefaultContinuousOutputConfig,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+} from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import { createDefaultContinuousOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { EditCodeEvaluatorDialogContentIDELayout } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContentIDELayout";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -45,10 +46,38 @@ export function EditCodeDatasetEvaluatorSlideover({
   datasetId,
   updateConnectionIds,
   onUpdate,
+  onOpenChange,
+  isOpen,
   ...props
 }: EditCodeDatasetEvaluatorSlideoverProps) {
+  const isDirtyRef = useRef(false);
+
+  // Reset dirty state when slideover opens
+  useEffect(() => {
+    if (isOpen) {
+      isDirtyRef.current = false;
+    }
+  }, [isOpen]);
+
+  const handleOpenChange = useCallback(
+    (nextIsOpen: boolean) => {
+      if (!nextIsOpen && isDirtyRef.current) {
+        const confirmed = window.confirm(
+          "You have unsaved changes. Are you sure you want to close?"
+        );
+        if (!confirmed) return;
+      }
+      onOpenChange?.(nextIsOpen);
+    },
+    [onOpenChange]
+  );
+
+  const handleDirtyChange = useCallback((isDirty: boolean) => {
+    isDirtyRef.current = isDirty;
+  }, []);
+
   return (
-    <ModalOverlay {...props}>
+    <ModalOverlay {...props} isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Modal variant="slideover" size="fullscreen">
         <Dialog aria-label="Edit code evaluator on dataset">
           {({ close }) => (
@@ -63,6 +92,7 @@ export function EditCodeDatasetEvaluatorSlideover({
                 <EditCodeDatasetEvaluatorSlideoverContent
                   datasetEvaluatorId={datasetEvaluatorId}
                   onClose={close}
+                  onDirtyChange={handleDirtyChange}
                   datasetId={datasetId}
                   updateConnectionIds={updateConnectionIds}
                   onUpdate={onUpdate}
@@ -79,12 +109,14 @@ export function EditCodeDatasetEvaluatorSlideover({
 function EditCodeDatasetEvaluatorSlideoverContent({
   datasetEvaluatorId,
   onClose,
+  onDirtyChange,
   datasetId,
   updateConnectionIds,
   onUpdate,
 }: {
   datasetEvaluatorId: string;
   onClose: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
   datasetId: string;
   updateConnectionIds?: string[];
   onUpdate?: () => void;
@@ -160,18 +192,23 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           sandboxProviders {
             backendType
             language
+            enabled
             configs {
               id
               name
               description
             }
           }
+          sandboxBackends {
+            backendType
+            status
+          }
         }
       `,
       { datasetEvaluatorId, datasetId },
       { fetchPolicy: "network-only" }
     );
-  const { dataset, sandboxProviders } = data;
+  const { dataset, sandboxProviders, sandboxBackends } = data;
   invariant(dataset, "dataset is required");
   const datasetEvaluator = dataset.datasetEvaluator;
   invariant(datasetEvaluator, "dataset evaluator is required");
@@ -181,16 +218,13 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   invariant(evaluator.sourceCode, "code evaluator source code is required");
   const evaluatorLanguage = evaluator.language;
   const evaluatorSourceCode = evaluator.sourceCode;
-  const sandboxConfigs = useMemo(
-    () => mapSandboxConfigOptions(sandboxProviders),
-    [sandboxProviders]
+  const sandboxConfigs = mapSandboxConfigOptions(
+    sandboxProviders,
+    sandboxBackends
   );
   const sandboxConfigGlobalId = evaluator.sandboxConfig?.id;
   const initialSandboxConfigId = sandboxConfigGlobalId
-    ? (sandboxConfigs.find(
-        (config) =>
-          String(config.id) === atob(sandboxConfigGlobalId).split(":", 2)[1]
-      )?.id ?? null)
+    ? decodeRelayNodeId(sandboxConfigGlobalId)
     : null;
 
   const [updateCodeEvaluator, isUpdatingCodeEvaluator] =
@@ -226,63 +260,40 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       }
     `);
 
-  const loadedOutputConfigs = useMemo(
-    () =>
-      (datasetEvaluator.outputConfigs?.length
-        ? datasetEvaluator.outputConfigs
-        : evaluator.outputConfigs?.length
-          ? evaluator.outputConfigs
-          : [
-              createDefaultContinuousOutputConfig(datasetEvaluator.name ?? ""),
-            ]) as Mutable<
-        | ContinuousEvaluatorAnnotationConfig
-        | ClassificationEvaluatorAnnotationConfig
-      >[],
-    [
-      datasetEvaluator.name,
-      datasetEvaluator.outputConfigs,
-      evaluator.outputConfigs,
-    ]
-  );
-  const initialState = useMemo(
-    () =>
-      ({
-        evaluator: {
-          id: evaluator.id,
-          globalName: evaluator.name ?? datasetEvaluator.name ?? "",
-          name: datasetEvaluator.name ?? evaluator.name ?? "",
-          description:
-            datasetEvaluator.description ?? evaluator.description ?? "",
-          inputMapping: datasetEvaluator.inputMapping,
-          kind: "CODE",
-          isBuiltin: false,
-          includeExplanation: false,
-        },
-        datasetEvaluator: {
-          id: datasetEvaluatorId,
-        },
-        outputConfigs: loadedOutputConfigs,
-        dataset: {
-          readonly: true,
-          id: datasetId,
-          selectedExampleId: null,
-          selectedSplitIds: [],
-        },
-        evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
-        showPromptPreview: false,
-      }) satisfies EvaluatorStoreProps,
-    [
-      datasetEvaluator.description,
-      datasetEvaluator.inputMapping,
-      datasetEvaluator.name,
-      datasetEvaluatorId,
-      datasetId,
-      evaluator.description,
-      evaluator.id,
-      evaluator.name,
-      loadedOutputConfigs,
-    ]
-  );
+  const loadedOutputConfigs = (
+    datasetEvaluator.outputConfigs?.length
+      ? datasetEvaluator.outputConfigs
+      : evaluator.outputConfigs?.length
+        ? evaluator.outputConfigs
+        : [createDefaultContinuousOutputConfig(datasetEvaluator.name ?? "")]
+  ) as Mutable<
+    | ContinuousEvaluatorAnnotationConfig
+    | ClassificationEvaluatorAnnotationConfig
+  >[];
+  const initialState: EvaluatorStoreProps = {
+    evaluator: {
+      id: evaluator.id,
+      globalName: evaluator.name ?? datasetEvaluator.name ?? "",
+      name: datasetEvaluator.name ?? evaluator.name ?? "",
+      description: datasetEvaluator.description ?? evaluator.description ?? "",
+      inputMapping: datasetEvaluator.inputMapping,
+      kind: "CODE",
+      isBuiltin: false,
+      includeExplanation: false,
+    },
+    datasetEvaluator: {
+      id: datasetEvaluatorId,
+    },
+    outputConfigs: loadedOutputConfigs,
+    dataset: {
+      readonly: true,
+      id: datasetId,
+      selectedExampleId: null,
+      selectedSplitIds: [],
+    },
+    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    showPromptPreview: false,
+  };
 
   const onSubmit = (
     store: EvaluatorStoreInstance,
@@ -352,8 +363,10 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) => (
-        <EditCodeEvaluatorDialogContent
+        <EditCodeEvaluatorDialogContentIDELayout
           onSubmit={(payload) => onSubmit(store, payload)}
+          onCancel={onClose}
+          onDirtyChange={onDirtyChange}
           isSubmitting={
             isUpdatingCodeEvaluator || isUpdatingDatasetCodeEvaluator
           }

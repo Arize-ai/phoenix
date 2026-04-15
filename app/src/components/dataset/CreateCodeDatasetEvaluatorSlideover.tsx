@@ -1,20 +1,33 @@
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
-import { Dialog } from "@phoenix/components/core/dialog";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+} from "@phoenix/components";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import type { CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";
+import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { DEFAULT_CODE_EVALUATOR_SOURCE } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import {
-  EditCodeEvaluatorDialogContent,
-  mapSandboxConfigOptions,
-  createDefaultContinuousOutputConfig,
-} from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { createDefaultContinuousOutputConfig } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+// IDE Layout prototype - swap back to EditCodeEvaluatorDialogContent to revert
+import { EditCodeEvaluatorDialogContentIDELayout as EditCodeEvaluatorDialogContent } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContentIDELayout";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -29,20 +42,49 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
   onEvaluatorCreated,
+  onOpenChange,
+  isOpen,
   ...props
 }: {
   datasetId: string;
   updateConnectionIds?: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
 } & ModalOverlayProps) => {
+  const isDirtyRef = useRef(false);
+
+  // Reset dirty state when slideover opens
+  useEffect(() => {
+    if (isOpen) {
+      isDirtyRef.current = false;
+    }
+  }, [isOpen]);
+
+  const handleOpenChange = useCallback(
+    (nextIsOpen: boolean) => {
+      if (!nextIsOpen && isDirtyRef.current) {
+        const confirmed = window.confirm(
+          "You have unsaved changes. Are you sure you want to close?"
+        );
+        if (!confirmed) return;
+      }
+      onOpenChange?.(nextIsOpen);
+    },
+    [onOpenChange]
+  );
+
+  const handleDirtyChange = useCallback((isDirty: boolean) => {
+    isDirtyRef.current = isDirty;
+  }, []);
+
   return (
-    <ModalOverlay {...props}>
+    <ModalOverlay {...props} isOpen={isOpen} onOpenChange={handleOpenChange}>
       <Modal variant="slideover" size="fullscreen">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               <CreateCodeEvaluatorDialog
                 onClose={close}
+                onDirtyChange={handleDirtyChange}
                 datasetId={datasetId}
                 updateConnectionIds={updateConnectionIds}
                 onEvaluatorCreated={onEvaluatorCreated}
@@ -57,11 +99,13 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
 
 const CreateCodeEvaluatorDialog = ({
   onClose,
+  onDirtyChange,
   datasetId,
   updateConnectionIds,
   onEvaluatorCreated,
 }: {
   onClose: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
   datasetId: string;
   updateConnectionIds?: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
@@ -74,19 +118,24 @@ const CreateCodeEvaluatorDialog = ({
         sandboxProviders {
           backendType
           language
+          enabled
           configs {
             id
             name
             description
           }
         }
+        sandboxBackends {
+          backendType
+          status
+        }
       }
     `,
     {}
   );
-  const sandboxConfigs = useMemo(
-    () => mapSandboxConfigOptions(data.sandboxProviders),
-    [data.sandboxProviders]
+  const sandboxConfigs = mapSandboxConfigOptions(
+    data.sandboxProviders,
+    data.sandboxBackends
   );
   const [createCodeEvaluator, isCreatingCodeEvaluator] =
     useMutation<CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation>(graphql`
@@ -119,33 +168,29 @@ const CreateCodeEvaluatorDialog = ({
         }
       }
     `);
-  const initialState = useMemo(
-    () =>
-      ({
-        evaluator: {
-          globalName: "",
-          name: "",
-          description: "",
-          inputMapping: {
-            literalMapping: {},
-            pathMapping: {},
-          },
-          kind: "CODE",
-          isBuiltin: false,
-          includeExplanation: false,
-        },
-        outputConfigs: [createDefaultContinuousOutputConfig("")],
-        dataset: {
-          readonly: true,
-          id: datasetId,
-          selectedExampleId: null,
-          selectedSplitIds: [],
-        },
-        evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
-        showPromptPreview: false,
-      }) satisfies EvaluatorStoreProps,
-    [datasetId]
-  );
+  const initialState: EvaluatorStoreProps = {
+    evaluator: {
+      globalName: "",
+      name: "",
+      description: "",
+      inputMapping: {
+        literalMapping: {},
+        pathMapping: {},
+      },
+      kind: "CODE",
+      isBuiltin: false,
+      includeExplanation: false,
+    },
+    outputConfigs: [createDefaultContinuousOutputConfig("")],
+    dataset: {
+      readonly: true,
+      id: datasetId,
+      selectedExampleId: null,
+      selectedSplitIds: [],
+    },
+    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+    showPromptPreview: false,
+  };
 
   const onSubmit = (
     store: EvaluatorStoreInstance,
@@ -218,11 +263,51 @@ const CreateCodeEvaluatorDialog = ({
     });
   };
 
+  // Show empty state if no sandbox configs are available
+  if (sandboxConfigs.length === 0) {
+    return (
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Evaluator</DialogTitle>
+          <DialogTitleExtra>
+            <Button slot="close">Cancel</Button>
+          </DialogTitleExtra>
+        </DialogHeader>
+        <Flex
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          flex="1"
+          gap="size-200"
+        >
+          <Icon svg={<Icons.CubeOutline />} />
+          <Flex direction="column" alignItems="center" gap="size-100">
+            <Text weight="heavy" size="L">
+              No Sandbox Available
+            </Text>
+            <Text color="text-700">
+              Code evaluators require a sandbox environment to run safely.
+            </Text>
+            <Text color="text-700">
+              Configure a sandbox provider in Settings to get started.
+            </Text>
+          </Flex>
+          <LinkButton to="/settings/sandboxes" variant="primary">
+            Configure Sandbox
+            <Icon svg={<Icons.ArrowIosForwardOutline />} />
+          </LinkButton>
+        </Flex>
+      </DialogContent>
+    );
+  }
+
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) => (
         <EditCodeEvaluatorDialogContent
           onSubmit={(payload) => onSubmit(store, payload)}
+          onCancel={onClose}
+          onDirtyChange={onDirtyChange}
           isSubmitting={
             isCreatingCodeEvaluator || isCreatingDatasetCodeEvaluator
           }
