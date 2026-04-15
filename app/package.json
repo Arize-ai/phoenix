@@ -40,6 +40,7 @@
     "@ai-sdk/react": "^3.0.136",
     "@apollo/client": "^4.1.6",
     "@arizeai/openinference-semantic-conventions": "^2.1.7",
+    "@arizeai/phoenix-client": "^6.6.0",
     "@codemirror/autocomplete": "6.20.1",
     "@codemirror/commands": "^6.10.3",
     "@codemirror/lang-javascript": "^6.2.5",
