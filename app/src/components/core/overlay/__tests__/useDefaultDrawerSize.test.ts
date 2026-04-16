@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useDefaultDrawerSize } from "../useDefaultDrawerSize";
 
 const DRAWER_STORAGE_KEY = "arize-phoenix-drawer-trace-details-size";
-const LEGACY_MODAL_STORAGE_KEY = "arize-phoenix-modal-trace-details-size";
 
 function TestComponent({
   storage,
@@ -53,23 +52,6 @@ describe("useDefaultDrawerSize", () => {
 
     expect(onRender).toHaveBeenLastCalledWith({
       defaultSize: "42%",
-      onSizeChange: expect.any(Function),
-    });
-  });
-
-  it("does not read legacy modal-prefixed values", () => {
-    const storage = window.localStorage;
-    const onRender = vi.fn();
-
-    storage.clear();
-    storage.setItem(LEGACY_MODAL_STORAGE_KEY, "42");
-
-    act(() => {
-      root.render(createElement(TestComponent, { storage, onRender }));
-    });
-
-    expect(onRender).toHaveBeenLastCalledWith({
-      defaultSize: undefined,
       onSizeChange: expect.any(Function),
     });
   });
