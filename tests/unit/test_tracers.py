@@ -375,9 +375,7 @@ class TestTracer:
             captured_endpoint = endpoint
             return FakeRemoteExporter()
 
-        monkeypatch.setenv(
-            "PHOENIX_AGENT_TRACES_COLLECTOR_ENDPOINT", "https://env-collector.example"
-        )
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
 
         Tracer(
             span_cost_calculator=span_cost_calculator,
@@ -409,9 +407,7 @@ class TestTracer:
             captured_endpoint = endpoint
             return FakeRemoteExporter()
 
-        monkeypatch.setenv(
-            "PHOENIX_AGENT_TRACES_COLLECTOR_ENDPOINT", "https://env-collector.example"
-        )
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
 
         Tracer(
             span_cost_calculator=span_cost_calculator,
