@@ -20,7 +20,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -80,12 +80,15 @@ const TableBody = <T extends { id: string }>({
 }) => {
   "use no memo";
   const navigate = useNavigate();
+  const { sessionId } = useParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected = row.original.id === sessionId;
         return (
           <tr
             key={row.id}
+            data-selected={isSelected}
             onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
           >
             {row.getVisibleCells().map((cell) => {
