@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-11T14:35:26.33229Z"
+exclude-newer = "2026-04-13T00:19:33.900695Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -454,6 +454,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pyarrow" },
     { name = "pydantic" },
+    { name = "pydantic-ai" },
     { name = "pystache" },
     { name = "python-dateutil" },
     { name = "python-multipart" },
@@ -555,7 +556,6 @@ dev = [
     { name = "py-grpc-prometheus" },
     { name = "pyarrow-stubs" },
     { name = "pydantic" },
-    { name = "pydantic-ai" },
     { name = "pyjwt" },
     { name = "pypistats" },
     { name = "pyright", extra = ["nodejs"] },
@@ -646,6 +646,7 @@ requires-dist = [
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
+    { name = "pydantic-ai", specifier = ">=1.62.0" },
     { name = "pystache" },
     { name = "python-dateutil" },
     { name = "python-multipart" },
@@ -721,7 +722,6 @@ dev = [
     { name = "py-grpc-prometheus" },
     { name = "pyarrow-stubs" },
     { name = "pydantic", specifier = ">=1.0,!=2.0.*,<3" },
-    { name = "pydantic-ai", specifier = ">=1.62.0" },
     { name = "pyjwt" },
     { name = "pypistats" },
     { name = "pyright", extras = ["nodejs"], specifier = "==1.1.394" },

@@ -61,6 +61,7 @@ dependencies = [
   "arize-phoenix-otel>=0.15.0",
   "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic-ai>=1.62.0",
   "authlib",
   "arize-phoenix-client>=2.1.0",
   "email-validator",
@@ -125,7 +126,6 @@ dev = [
   "pyarrow-stubs",
   "pydantic>=1.0,!=2.0.*,<3",
   "mcp>=1.26.0",
-  "pydantic-ai>=1.62.0",
   "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages
   "pyright[nodejs]==1.1.394",
