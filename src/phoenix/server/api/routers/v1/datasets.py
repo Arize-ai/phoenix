@@ -1675,7 +1675,7 @@ def _get_content_csv(
             )
         )
         record: dict[str, Any] = {
-            "example_id": revision.dataset_example.external_id or node_id,
+            "id": revision.dataset_example.external_id or node_id,
             "node_id": node_id,
         }
         record.update(_flatten_for_csv(revision.input, "input"))

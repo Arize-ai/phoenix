@@ -348,7 +348,7 @@ async def test_get_dataset_download_latest_version(
     example_5_gid = str(GlobalID("DatasetExample", "5"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,node_id,input.in,metadata.info,output.out\n"
+            "id,node_id,input.in,metadata.info,output.out\n"
             f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
             f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
             f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
@@ -380,7 +380,7 @@ async def test_get_dataset_download_specific_version(
     example_7_gid = str(GlobalID("DatasetExample", "7"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,node_id,input.in,metadata.info,output.out\n"
+            "id,node_id,input.in,metadata.info,output.out\n"
             f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
             f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
             f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
