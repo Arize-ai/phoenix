@@ -13,11 +13,11 @@ import {
 } from "@phoenix/components/core/overlay/ModalContext";
 import { classNames } from "@phoenix/utils/classNames";
 
-const DEFAULT_RESIZABLE_WIDTH = 480;
-const DEFAULT_RESIZABLE_MIN_WIDTH = 320;
-// Leave ~200px of the underlying page visible so users can still click
+const DEFAULT_RESIZABLE_WIDTH = 960;
+const DEFAULT_RESIZABLE_MIN_WIDTH = 500;
+// Leave enough of the underlying page visible so users can still click
 // through to it when the drawer is dragged as wide as it will go.
-const DEFAULT_RESIZABLE_MAX_WIDTH_INSET = 200;
+const DEFAULT_RESIZABLE_MAX_WIDTH_INSET = 100;
 const RESIZE_HANDLE_WIDTH_PX = 4;
 
 const modalSlideover = keyframes`
@@ -125,6 +125,11 @@ const modalCSS = css`
   }
 
   &[data-resizable="true"] {
+    // React Aria's Modal renders inside a full-viewport underlay that blocks
+    // pointer events. We neutralize the underlay via a ref callback (see
+    // ResizableSlideoverModal) and restore events on the modal itself here.
+    pointer-events: auto;
+
     .modal__resize-handle {
       position: absolute;
       left: 0;
@@ -339,6 +344,20 @@ function ResizableSlideoverModal({
     }
   };
 
+  // React Aria's Modal renders inside a full-viewport underlay container
+  // (position: fixed; inset: 0) that captures all pointer events — even
+  // without ModalOverlay. Neutralize it so the page behind the drawer stays
+  // interactive, then let the modal surface itself re-enable pointer-events
+  // via the CSS rule above (`pointer-events: auto` on [data-resizable]).
+  const mergeRef = (el: HTMLDivElement | null) => {
+    if (el?.parentElement) {
+      el.parentElement.style.pointerEvents = "none";
+    }
+    if (typeof ref === "function") ref(el);
+    else if (ref)
+      (ref as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
+
   const style = { "--modal-width": `${width}px` } as CSSProperties;
 
   return (
@@ -348,7 +367,7 @@ function ResizableSlideoverModal({
       data-resizable="true"
       data-dragging={isDragging ? "true" : undefined}
       style={style}
-      ref={ref}
+      ref={mergeRef}
       css={modalCSS}
     >
       {(renderValues) => (
