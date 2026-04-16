@@ -2,14 +2,7 @@ import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import { useState } from "react";
 
-import {
-  Button,
-  Dialog,
-  Drawer,
-  Flex,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Button, Dialog, Drawer, Flex, Text, View } from "@phoenix/components";
 import { Heading } from "@phoenix/components/core/content";
 import {
   DialogCloseButton,

@@ -2,12 +2,7 @@ import { Suspense } from "react";
 import { useNavigate, useParams, useRouteLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import {
-  Dialog,
-  Drawer,
-  Flex,
-  Loading,
-} from "@phoenix/components";
+import { Dialog, Drawer, Flex, Loading } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
