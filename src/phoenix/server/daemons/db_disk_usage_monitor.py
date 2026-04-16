@@ -95,10 +95,21 @@ class DbDiskUsageMonitor(DaemonTask):
             current_usage_bytes = (page_count - freelist_count) * page_size
         elif self._db.dialect is SupportedSQLDialect.POSTGRESQL:
             nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
+            # Scale each relation's on-disk size by the live-tuple fraction
+            # so deletions free capacity in the monitor before VACUUM FULL
+            # physically reclaims the pages. Without this, large deletes
+            # leave should_not_insert_or_update stuck at True until an
+            # out-of-band VACUUM runs.
             stmt = text("""\
-                SELECT sum(pg_total_relation_size(c.oid))
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
+                SELECT COALESCE(SUM(
+                    pg_total_relation_size(c.oid)
+                    * (COALESCE(s.n_live_tup, 0)::float8
+                       / NULLIF(COALESCE(s.n_live_tup, 0) + COALESCE(s.n_dead_tup, 0), 0))
+                ), 0)
+                FROM pg_class AS c
+                INNER JOIN pg_namespace AS n ON n.oid = c.relnamespace
+                LEFT JOIN pg_stat_user_tables AS s
+                    ON s.schemaname = n.nspname AND s.relname = c.relname
                 WHERE c.relkind = 'r'
                 AND n.nspname = :nspname;
             """).bindparams(nspname=nspname)
