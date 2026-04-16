@@ -23,15 +23,12 @@ sqlean.extensions.enable("text", "stats")
 
 logger = logging.getLogger(__name__)
 
-# Maximum age of a pooled connection before SQLAlchemy discards it on
-# checkout and opens a fresh one. This is a hygiene cap, not a correctness
-# requirement: PostgreSQL authenticates the client during the startup
-# message exchange and does not re-validate the credential again for the
-# life of the session, so a pooled connection remains valid for as long
-# as the underlying TCP connection survives, regardless of any token
-# lifetime. Liveness detection (idle-timeout drops, failovers, TCP resets)
-# is handled separately by pool_pre_ping; pool_recycle cannot detect those
-# because it is age-based.
+# Recycle pooled connections after ~55 minutes so server-side changes
+# (revoked roles, rotated certs, rebalanced managed-Postgres LB backends)
+# eventually propagate into the pool. Liveness is handled separately by
+# pool_pre_ping; this knob is purely for bounded staleness, not
+# correctness — PostgreSQL authenticates only at session startup and
+# does not re-validate the credential for the life of the session.
 _POOL_RECYCLE_SECONDS = 3300
 
 
