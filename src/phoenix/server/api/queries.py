@@ -20,6 +20,8 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
+    get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_collector_endpoint,
     getenv,
 )
 from phoenix.db import models
@@ -70,6 +72,7 @@ from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSor
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
+from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Dataset import Dataset
@@ -1590,6 +1593,13 @@ class Query:
     ) -> ServerStatus:
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+        )
+
+    @strawberry.field
+    def agents_config(self) -> AgentsConfig:
+        return AgentsConfig(
+            collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
+            assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
         )
 
     @strawberry.field

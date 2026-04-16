@@ -77,6 +77,18 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+type AgentsConfig {
+  """
+  The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
+  """
+  collectorEndpoint: String
+
+  """
+  The project name used for assistant agent traces. Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable.
+  """
+  assistantProjectName: String!
+}
+
 interface Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -2958,6 +2970,7 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
+  agentsConfig: AgentsConfig!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace

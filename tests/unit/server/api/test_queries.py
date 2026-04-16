@@ -465,6 +465,52 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
 
 
+async def test_agents_config_returns_env_values(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    query = """
+      query {
+        agentsConfig {
+          collectorEndpoint
+          assistantProjectName
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["agentsConfig"] == {
+        "collectorEndpoint": "http://collector.example:4318",
+        "assistantProjectName": "custom_assistant",
+    }
+
+
+async def test_agents_config_defaults_when_env_unset(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", raising=False)
+    monkeypatch.delenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", raising=False)
+    query = """
+      query {
+        agentsConfig {
+          collectorEndpoint
+          assistantProjectName
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["agentsConfig"] == {
+        "collectorEndpoint": None,
+        "assistantProjectName": "assistant_agent",
+    }
+
+
 @pytest.fixture
 async def prompts_for_filtering(
     db: DbSessionFactory,
