@@ -11222,6 +11222,7 @@
         "properties": {
           "trace_id": {
             "type": "string",
+            "minLength": 1,
             "title": "Trace Id",
             "description": "OpenTelemetry Trace ID (hex format w/o 0x prefix)"
           },
