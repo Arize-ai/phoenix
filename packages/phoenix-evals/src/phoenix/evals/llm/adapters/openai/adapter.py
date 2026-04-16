@@ -53,6 +53,7 @@ class OpenAIAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
+        self._preferred_method: ObjectGenerationMethod | None = None
 
     @classmethod
     def client_name(cls) -> str:
@@ -132,32 +133,39 @@ class OpenAIAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_structured_output = self._supports_structured_output()
-        supports_tool_calls = self._supports_tool_calls()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured output"
-                )
             return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"OpenAI model {self.model_name} does not support tool calls")
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            # Discovery: try structured output first, fall back to tool calling
+            try:
+                result = self._generate_with_structured_output(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
+                return result
+            except Exception as structured_error:
+                logger.debug(
+                    f"Structured output failed for {self.model_name}, falling back "
+                    f"to tool calling: {structured_error}"
+                )
+                try:
+                    result = self._generate_with_tool_calling(prompt, schema, **kwargs)
+                    self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
+                    return result
+                except Exception as tool_error:
+                    raise ValueError(
+                        f"OpenAI model {self.model_name} failed with both structured "
+                        f"output and tool calling. Structured output error: "
+                        f"{structured_error}. Tool calling error: {tool_error}"
+                    ) from tool_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -176,32 +184,39 @@ class OpenAIAdapter(BaseLLMAdapter):
             )
         self._validate_schema(schema)
 
-        supports_structured_output = self._supports_structured_output()
-        supports_tool_calls = self._supports_tool_calls()
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured output"
-                )
             return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"OpenAI model {self.model_name} does not support tool calls")
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"OpenAI model {self.model_name} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            # Discovery: try structured output first, fall back to tool calling
+            try:
+                result = await self._async_generate_with_structured_output(prompt, schema, **kwargs)
+                self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
+                return result
+            except Exception as structured_error:
+                logger.debug(
+                    f"Structured output failed for {self.model_name}, falling back "
+                    f"to tool calling: {structured_error}"
+                )
+                try:
+                    result = await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+                    self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
+                    return result
+                except Exception as tool_error:
+                    raise ValueError(
+                        f"OpenAI model {self.model_name} failed with both structured "
+                        f"output and tool calling. Structured output error: "
+                        f"{structured_error}. Tool calling error: {tool_error}"
+                    ) from tool_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -336,17 +351,6 @@ class OpenAIAdapter(BaseLLMAdapter):
             return str(self.client._default_params["model"])
         else:
             return "openai-model"
-
-    def _supports_structured_output(self) -> bool:
-        model_name = self.model_name.lower()
-        structured_output_models = ["gpt-4o", "gpt-4o-mini", "gpt-4o-2024", "chatgpt-4o-latest"]
-        return any(model in model_name for model in structured_output_models)
-
-    def _supports_tool_calls(self) -> bool:
-        model_name = self.model_name.lower()
-        if any(model in model_name for model in ["o1-preview", "o1-mini", "o1", "o3"]):
-            return False
-        return True
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
