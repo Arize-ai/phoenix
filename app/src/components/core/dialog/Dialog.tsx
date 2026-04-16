@@ -13,7 +13,7 @@ import { Heading } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import type { FlexProps } from "@phoenix/components/core/layout";
 import { Flex } from "@phoenix/components/core/layout";
-import { ModalContext } from "@phoenix/components/core/overlay/ModalContext";
+import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 export type DialogProps = AriaDialogProps;
@@ -163,8 +163,8 @@ export const DialogCloseButton = ({
   onPress,
   ...props
 }: DialogCloseButtonProps) => {
-  const { isResizable } = useContext(ModalContext);
-  const defaultIcon = isResizable ? (
+  const isDrawer = useContext(DrawerContext);
+  const defaultIcon = isDrawer ? (
     <Icons.ArrowheadRightOutline />
   ) : (
     <Icons.CloseOutline />

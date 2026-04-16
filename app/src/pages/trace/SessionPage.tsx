@@ -3,18 +3,17 @@ import invariant from "tiny-invariant";
 
 import {
   Dialog,
+  Drawer,
   ErrorBoundary,
   Flex,
-  Modal,
-  ModalOverlay,
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   TitleWithID,
 } from "@phoenix/components";
-import { SLIDEOVER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultModalSize } from "@phoenix/components/core/overlay/useDefaultModalSize";
+import { DRAWER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
@@ -30,31 +29,24 @@ export function SessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const { defaultSize, onSizeChange } = useDefaultModalSize({
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "session-details",
   });
 
   return (
-    <ModalOverlay
+    <Drawer
       isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          navigate(`${rootPath}/${tab}`);
-        }
-      }}
+      onClose={() => navigate(`${rootPath}/${tab}`)}
+      defaultSize={defaultSize}
+      minSize={DRAWER_MIN_SIZE}
+      onResize={onSizeChange}
     >
-      <Modal
-        variant="slideover"
-        isResizable
-        defaultSize={defaultSize}
-        minSize={SLIDEOVER_MIN_SIZE}
-        onResize={onSizeChange}
-      >
-        <Dialog>
+      <Dialog>
+        {({ close }) => (
           <DialogContent>
             <DialogHeader>
               <Flex direction="row" gap="size-200" alignItems="center">
-                <DialogCloseButton slot="close" />
+                <DialogCloseButton close={close} />
                 <SessionDetailsPaginator currentId={sessionId} />
                 <DialogTitle>
                   <TitleWithID
@@ -68,8 +60,8 @@ export function SessionPage() {
               <SessionDetails sessionId={sessionId as string} />
             </ErrorBoundary>
           </DialogContent>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+        )}
+      </Dialog>
+    </Drawer>
   );
 }

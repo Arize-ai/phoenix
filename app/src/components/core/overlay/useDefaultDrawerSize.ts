@@ -2,9 +2,11 @@ import { useState } from "react";
 
 import type { SizeValue } from "@phoenix/types/sizing";
 
+// Keep the storage key prefix unchanged so existing persisted sizes are
+// picked up after the rename from useDefaultModalSize → useDefaultDrawerSize.
 const STORAGE_KEY_PREFIX = "arize-phoenix-modal";
 
-export interface UseDefaultModalSizeOptions {
+export interface UseDefaultDrawerSizeOptions {
   /**
    * Stable identifier used to namespace the persisted size. Treat this like
    * a layout key — it must not change between renders of the same drawer.
@@ -18,15 +20,15 @@ export interface UseDefaultModalSizeOptions {
   storage?: Storage;
 }
 
-export interface UseDefaultModalSizeResult {
+export interface UseDefaultDrawerSizeResult {
   /**
    * The previously persisted size as a viewport percentage string (e.g.
    * `"50%"`), or `undefined` if nothing has been stored yet under this `id`.
-   * Pass into `<Modal defaultSize={...} />`.
+   * Pass into `<Drawer defaultSize={...} />`.
    */
   defaultSize: SizeValue | undefined;
   /**
-   * Call to persist a new size. Wire into `<Modal onResize={...} />` so
+   * Call to persist a new size. Wire into `<Drawer onResize={...} />` so
    * every drag commit gets saved.
    */
   onSizeChange: (sizePercent: number) => void;
@@ -43,35 +45,35 @@ const resolveStorage = (override?: Storage): Storage | null => {
 };
 
 /**
- * Persist a resizable `<Modal>`'s size between visits. The value is stored
- * as a viewport percentage (e.g. `50` for 50%) and returned as a
+ * Persist a `<Drawer>`'s size between visits. The value is stored as a
+ * viewport percentage (e.g. `50` for 50%) and returned as a
  * {@link SizeValue} string (e.g. `"50%"`).
  *
  * ```tsx
- * const { defaultSize, onSizeChange } = useDefaultModalSize({
+ * const { defaultSize, onSizeChange } = useDefaultDrawerSize({
  *   id: "span-details",
  * });
  *
- * <Modal
- *   variant="slideover"
- *   isResizable
+ * <Drawer
+ *   isOpen={selectedId != null}
+ *   onClose={() => setSelectedId(null)}
  *   defaultSize={defaultSize}
  *   onResize={onSizeChange}
  * >
  *   ...
- * </Modal>
+ * </Drawer>
  * ```
  */
-export function useDefaultModalSize({
+export function useDefaultDrawerSize({
   id,
   storage,
-}: UseDefaultModalSizeOptions): UseDefaultModalSizeResult {
+}: UseDefaultDrawerSizeOptions): UseDefaultDrawerSizeResult {
   const key = `${STORAGE_KEY_PREFIX}-${id}-size`;
   const resolvedStorage = resolveStorage(storage);
 
   // Lazy init — read the persisted size exactly once on first render and
-  // treat it as the `defaultSize` for the modal. Subsequent storage reads
-  // are not needed because Modal drives size from its own state once mounted.
+  // treat it as the `defaultSize` for the drawer. Subsequent storage reads
+  // are not needed because Drawer drives size from its own state once mounted.
   const [defaultSize] = useState<SizeValue | undefined>(() => {
     if (!resolvedStorage) return undefined;
     try {
@@ -79,7 +81,7 @@ export function useDefaultModalSize({
       if (!raw) return undefined;
       const parsed = Number(raw);
       // Valid percentages are in (0, 100]. Values outside this range are
-      // invalid — return undefined so the modal falls back to its default.
+      // invalid — return undefined so the drawer falls back to its default.
       if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100)
         return undefined;
       return `${parsed}%`;
