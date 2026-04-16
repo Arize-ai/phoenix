@@ -6,7 +6,6 @@
 ### Features
 
 * **db:** add Azure managed identity authentication for PostgreSQL ([#12687](https://github.com/Arize-ai/phoenix/issues/12687)) ([6c53e48](https://github.com/Arize-ai/phoenix/commit/6c53e48b8fd52ddfd99e7f914051eebeb63c39a9))
-* **db:** Azure managed identity authentication for PostgreSQL ([6c53e48](https://github.com/Arize-ai/phoenix/commit/6c53e48b8fd52ddfd99e7f914051eebeb63c39a9))
 
 ## [14.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.6.0...arize-phoenix-v14.7.0) (2026-04-16)
 
