@@ -262,7 +262,7 @@ export function ExamplesTable({
         },
       },
       {
-        header: "example id",
+        header: "id",
         accessorKey: "id",
         size: 180,
         cell: ({ row }) => {
