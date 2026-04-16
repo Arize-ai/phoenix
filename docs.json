@@ -679,6 +679,13 @@
                 ]
               },
               {
+                "group": "Restate",
+                "pages": [
+                  "docs/phoenix/integrations/python/restate",
+                  "docs/phoenix/integrations/python/restate/restate-tracing"
+                ]
+              },
+              {
                 "group": "Strands Agents",
                 "pages": [
                   "docs/phoenix/integrations/python/strands-agents",

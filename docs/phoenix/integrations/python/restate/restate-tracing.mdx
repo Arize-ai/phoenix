@@ -1,0 +1,115 @@
+---
+title: "Restate Tracing"
+description: "Trace durable AI agent executions powered by Restate with Phoenix for full observability into LLM calls, tool invocations, and workflow steps."
+---
+
+[Restate](https://restate.dev/) is a durable execution platform that makes AI agents and workflows resilient and resumable. It handles retries, recovery, orchestration, agent-to-agent communication, human-in-the-loop approvals, and task control (cancel/kill/rollback) out of the box.
+
+Restate exports its execution traces (workflow steps, durable tool steps, human approvals, etc.) as OpenTelemetry spans. By wrapping your tracer with Restate's `RestateTracerProvider`, AI-specific spans from your agent framework appear under Restate's parent span, giving you a single unified trace in Phoenix that covers both agentic and workflow steps.
+
+## Install
+
+This example uses the [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) with Restate. You can use any agent framework that has an [OpenInference instrumentor](https://github.com/Arize-ai/openinference/tree/main).
+
+```bash
+pip install restate-sdk openai-agents arize-phoenix-otel openinference-instrumentation-openai-agents
+```
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=https://app.phoenix.arize.com/s/your-account-name
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+export PHOENIX_PROJECT_ID=[your_phoenix_project_id]
+```
+
+Initialize Phoenix and wrap the tracer with `RestateTracerProvider` to correlate AI spans with Restate's execution journal:
+
+```python
+from phoenix.otel import register
+from opentelemetry import trace as trace_api
+from openinference.instrumentation import OITracer, TraceConfig
+from openinference.instrumentation.openai_agents._processor import (
+    OpenInferenceTracingProcessor,
+)
+from agents import set_trace_processors
+from restate.ext.tracing import RestateTracerProvider
+
+# Initialize Phoenix (sets up the global OTel tracer provider + exporter)
+register()
+
+tracer = OITracer(
+    RestateTracerProvider(trace_api.get_tracer_provider()).get_tracer(
+        "openinference.openai_agents"
+    ),
+    config=TraceConfig(),
+)
+set_trace_processors([OpenInferenceTracingProcessor(tracer)])
+```
+
+<Info>
+  The `RestateTracerProvider` nests the agent framework spans under Restate's parent span, so the trace hierarchy in Phoenix mirrors the actual execution flow. Both agentic steps (LLM calls, tool invocations) and durable workflow steps (e.g. side effects, state updates, retries) appear in the same trace.
+</Info>
+
+## Run Restate Agent
+
+Define an agent service with durable tool execution using [Restate's OpenAI Agents SDK integration](https://docs.restate.dev/ai/sdk-integrations/openai-agents-sdk):
+
+```python expandable
+import restate
+from agents import Agent
+from restate.ext.openai import restate_context, DurableRunner, durable_function_tool
+
+
+# Durable tool — retried and recovered on failure
+@durable_function_tool
+async def get_weather(city: str) -> dict:
+    """Get the current weather for a given city."""
+
+    # Do durable steps using the Restate context
+    async def call_weather_api(city: str) -> dict:
+        return {"temperature": 23, "description": "Sunny and warm."}
+
+    return await restate_context().run_typed("Get weather", call_weather_api, city=city)
+
+
+weather_agent = Agent(
+    name="WeatherAgent",
+    instructions="You are a helpful agent that provides weather updates.",
+    tools=[get_weather],
+)
+
+agent_service = restate.Service("agent")
+
+
+# Serve your agent as an HTTP handler
+@agent_service.handler()
+async def run(_ctx: restate.Context, message: str) -> str:
+    result = await DurableRunner.run(weather_agent, message)
+    return result.final_output
+
+
+# Run the agent as an ASGI app
+app = restate.app(services=[agent_service])
+```
+
+You can find the instructions to run the agent in the [Restate Phoenix documentation](https://docs.restate.dev/ai/ecosystem-integrations/arize-phoenix#run-the-example).
+
+## Observe
+
+Now that you have tracing set up, all agent invocations, including LLM calls, tool executions, and durable workflow steps, will be streamed to Phoenix for observability and evaluation. You can inspect inputs, outputs, model configuration, and token usage for each LLM call, alongside Restate's execution journal entries.
+
+## Other Agent Frameworks
+
+This example uses the OpenAI Agents SDK, but Restate supports multiple agent frameworks (Pydantic AI, Google ADK, and more). Swap out the [OpenInference instrumentor](https://github.com/Arize-ai/openinference/tree/main) for your framework. The `RestateTracerProvider` setup stays the same.
+
+See the [Restate AI documentation](https://docs.restate.dev/ai) for the full list of supported frameworks.
+
+## Resources
+
+* [Restate AI documentation](https://docs.restate.dev/ai)
+
+* [Restate + Phoenix example](https://github.com/restatedev/ai-examples/tree/main/openai-agents/examples/arize_phoenix)
