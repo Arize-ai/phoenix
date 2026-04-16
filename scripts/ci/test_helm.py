@@ -1720,6 +1720,33 @@ class DatabaseValidators:
         return validator
 
     @staticmethod
+    def azure_managed_identity(enabled: bool, scope: Optional[str] = None) -> Validator:
+        """Validate Azure managed identity authentication configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            if enabled:
+                if data.get("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY") != "true":
+                    return False
+            elif "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY" in data:
+                return False
+
+            if scope is not None:
+                if data.get("PHOENIX_POSTGRES_AZURE_SCOPE") != scope:
+                    return False
+            elif "PHOENIX_POSTGRES_AZURE_SCOPE" in data:
+                return False
+
+            return True
+
+        return validator
+
+    @staticmethod
     def sqlite_in_memory_url() -> Validator:
         """Validate that PHOENIX_SQL_DATABASE_URL is set to sqlite:///:memory:"""
 
@@ -2181,6 +2208,27 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 no_postgresql,
                 ConfigMapValidators.configmap_has_key("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true"),
                 DatabaseValidators.aws_iam_auth(True),
+            ),
+        ),
+        TestCase(
+            "PostgreSQL with Azure managed identity authentication",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.postgres.database.azure.com --set database.postgres.port=5432 --set database.postgres.user=mi-user --set database.postgres.db=phoenix --set database.postgres.useAzureManagedIdentity=true",
+            all_of(
+                no_postgresql,
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true"
+                ),
+                DatabaseValidators.azure_managed_identity(True),
+            ),
+        ),
+        TestCase(
+            "PostgreSQL with Azure managed identity and custom scope",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.postgres.database.usgovcloudapi.net --set database.postgres.port=5432 --set database.postgres.user=mi-user --set database.postgres.db=phoenix --set database.postgres.useAzureManagedIdentity=true --set database.postgres.azureScope=https://ossrdbms-aad.database.usgovcloudapi.net/.default",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.azure_managed_identity(
+                    True, scope="https://ossrdbms-aad.database.usgovcloudapi.net/.default"
+                ),
             ),
         ),
         TestCase(

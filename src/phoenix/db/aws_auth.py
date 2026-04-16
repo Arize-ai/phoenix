@@ -67,7 +67,10 @@ def create_aws_engine(
     host = url.host
     port = url.port or 5432
     database = url.database or "postgres"
-    username = url.username
+    # `get_async_db_url` moves username/password into the query string when both
+    # are present, so check there first before falling back to `url.username`.
+    query_user = url.query.get("user")
+    username = query_user if isinstance(query_user, str) else url.username
 
     if not host:
         raise ValueError("Database host is required for AWS RDS IAM authentication")

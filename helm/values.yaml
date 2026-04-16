@@ -289,9 +289,23 @@ database:
 
     # -- Enable AWS RDS IAM authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH)
     # When enabled, Phoenix will use AWS IAM credentials to generate short-lived authentication tokens
-    # instead of using a static password. Requires boto3 to be installed: pip install 'arize-phoenix[aws]'
+    # instead of using a static password. Requires aioboto3 to be installed: pip install 'arize-phoenix[aws]'
     # IMPORTANT: When enabled, do not set database.postgres.password
     useAwsIamAuth: false
+
+    # -- Enable Azure managed identity authentication for PostgreSQL (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY)
+    # When enabled, Phoenix will use Azure DefaultAzureCredential to obtain short-lived authentication
+    # tokens instead of using a static password. Requires azure-identity to be installed:
+    # pip install 'arize-phoenix[azure]'. Cannot be used with useAwsIamAuth.
+    # IMPORTANT: When enabled, do not set database.postgres.password
+    useAzureManagedIdentity: false
+
+    # -- Azure scope URL for PostgreSQL access token requests (PHOENIX_POSTGRES_AZURE_SCOPE)
+    # When empty, Phoenix uses the default Azure Database for PostgreSQL - Flexible Server scope
+    # (https://ossrdbms-aad.database.windows.net/.default). Override for sovereign clouds such as
+    # Azure Government (https://ossrdbms-aad.database.usgovcloudapi.net/.default).
+    # Only used when useAzureManagedIdentity is true.
+    azureScope: ""
 
   # -- Full database connection URL (overrides postgres settings if provided)
   # IMPORTANT: Only set this for external databases (Strategy 3)
