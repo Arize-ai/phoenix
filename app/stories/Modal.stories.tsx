@@ -240,10 +240,10 @@ const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
           <Dialog>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{selectedItem.title}</DialogTitle>
-                <DialogTitleExtra>
+                <Flex direction="row" gap="size-200" alignItems="center">
                   <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
+                  <DialogTitle>{selectedItem.title}</DialogTitle>
+                </Flex>
               </DialogHeader>
               <View padding="size-200">
                 <Flex direction="column" gap="size-200">

@@ -146,7 +146,6 @@ const modalCSS = css`
     &[data-dragging="true"] {
       user-select: none;
     }
-
   }
 
   .react-aria-Dialog {
