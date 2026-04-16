@@ -1668,14 +1668,15 @@ def _get_content_csv(
 ) -> bytes:
     records = []
     for revision in revisions:
+        node_id = str(
+            GlobalID(
+                type_name=DatasetExampleNodeType.__name__,
+                node_id=str(revision.dataset_example_id),
+            )
+        )
         record: dict[str, Any] = {
-            "example_id": revision.dataset_example.external_id
-            or str(
-                GlobalID(
-                    type_name=DatasetExampleNodeType.__name__,
-                    node_id=str(revision.dataset_example_id),
-                )
-            ),
+            "example_id": revision.dataset_example.external_id or node_id,
+            "node_id": node_id,
         }
         record.update(_flatten_for_csv(revision.input, "input"))
         record.update(_flatten_for_csv(revision.output, "output"))
@@ -1693,12 +1694,13 @@ def _get_content_jsonl(
 ) -> bytes:
     records = io.BytesIO()
     for revision in revisions:
-        example_id: str = revision.dataset_example.external_id or str(
+        node_id: str = str(
             GlobalID(
                 type_name=DatasetExampleNodeType.__name__,
                 node_id=str(revision.dataset_example_id),
             )
         )
+        example_id: str = revision.dataset_example.external_id or node_id
         splits = (
             split_names_by_example_id.get(revision.dataset_example_id, [])
             if split_names_by_example_id is not None
@@ -1706,6 +1708,7 @@ def _get_content_jsonl(
         )
         record: dict[str, Any] = {
             "id": example_id,
+            "node_id": node_id,
             "input": revision.input,
             "output": revision.output,
             "metadata": revision.metadata_,

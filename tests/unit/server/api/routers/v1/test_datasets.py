@@ -343,12 +343,15 @@ async def test_get_dataset_download_latest_version(
         == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    example_4_gid = str(GlobalID("DatasetExample", "4"))
+    example_5_gid = str(GlobalID("DatasetExample", "5"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,input.in,metadata.info,output.out\n"
-            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
-            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
-            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
+            "example_id,node_id,input.in,metadata.info,output.out\n"
+            f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
+            f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
+            f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
@@ -371,13 +374,17 @@ async def test_get_dataset_download_specific_version(
         == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    example_4_gid = str(GlobalID("DatasetExample", "4"))
+    example_5_gid = str(GlobalID("DatasetExample", "5"))
+    example_7_gid = str(GlobalID("DatasetExample", "7"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,input.in,metadata.info,output.out\n"
-            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
-            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
-            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
-            "RGF0YXNldEV4YW1wbGU6Nw==,look at me,a newer example,i have all the answers\n"
+            "example_id,node_id,input.in,metadata.info,output.out\n"
+            f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
+            f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
+            f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
+            f"{example_7_gid},{example_7_gid},look at me,a newer example,i have all the answers\n"
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
@@ -471,7 +478,10 @@ async def test_get_dataset_jsonl_latest_version(
     json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
     assert len(json_lines) == 3
     for line in json_lines:
-        assert set(line.keys()) == {"id", "input", "output", "metadata", "splits"}
+        assert set(line.keys()) == {"id", "node_id", "input", "output", "metadata", "splits"}
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    assert json_lines[0]["id"] == example_3_gid
+    assert json_lines[0]["node_id"] == example_3_gid
     assert json_lines[0]["input"] == {"in": "foo"}
     assert json_lines[0]["output"] == {"out": "bar"}
     assert json_lines[0]["metadata"] == {"info": "first revision"}
@@ -504,19 +514,25 @@ async def test_get_dataset_jsonl_with_splits(
     assert response.status_code == 200
     json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
     assert len(json_lines) == 3
+    for line in json_lines:
+        assert set(line.keys()) == {"id", "node_id", "input", "output", "metadata", "splits"}
     by_id = {line["id"]: line for line in json_lines}
     # Example 100 has external_id "ext-1" and is in train split
     assert by_id["ext-1"]["splits"] == ["train"]
     assert by_id["ext-1"]["input"] == {"question": "hello"}
     assert by_id["ext-1"]["output"] == {"answer": "world"}
     assert by_id["ext-1"]["metadata"] == {"source": "test"}
+    # node_id is the Phoenix GlobalID regardless of external_id
+    assert by_id["ext-1"]["node_id"] == str(GlobalID("DatasetExample", str(100)))
     # Example 101 has no external_id (uses GlobalID) and is in train+test splits
     example_101_gid = str(GlobalID("DatasetExample", str(101)))
     assert sorted(by_id[example_101_gid]["splits"]) == ["test", "train"]
+    assert by_id[example_101_gid]["node_id"] == example_101_gid
     # Example 102 has no splits
     example_102_gid = str(GlobalID("DatasetExample", str(102)))
     assert by_id[example_102_gid]["splits"] == []
     assert by_id[example_102_gid]["metadata"] == {"note": "no splits"}
+    assert by_id[example_102_gid]["node_id"] == example_102_gid
 
 
 async def test_post_dataset_upload_json_create_then_append(
