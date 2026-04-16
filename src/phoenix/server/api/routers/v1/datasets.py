@@ -1699,12 +1699,18 @@ def _get_content_jsonl(
                 node_id=str(revision.dataset_example_id),
             )
         )
-        record: dict[str, Any] = {"id": example_id}
-        record.update(revision.input)
-        record.update(revision.output)
-        record.update(revision.metadata_)
-        if split_names_by_example_id is not None:
-            record["splits"] = split_names_by_example_id.get(revision.dataset_example_id, [])
+        splits = (
+            split_names_by_example_id.get(revision.dataset_example_id, [])
+            if split_names_by_example_id is not None
+            else []
+        )
+        record: dict[str, Any] = {
+            "id": example_id,
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
+            "splits": splits,
+        }
         records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
     records.seek(0)
     return records.read()
