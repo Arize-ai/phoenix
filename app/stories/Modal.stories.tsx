@@ -130,3 +130,83 @@ const NoOverlayTemplate: StoryFn<ModalProps> = (args) => (
 export const NoOverlay = {
   render: NoOverlayTemplate,
 };
+
+const SlideoverResizableTemplate: StoryFn<ModalProps> = () => (
+  <Flex direction="column" gap="size-200">
+    <Text>
+      Click the button behind the slideover to confirm the background stays
+      interactive. Drag the left edge of the slideover to resize.
+    </Text>
+    <Flex direction="row" gap="size-200">
+      <Button
+        onPress={() => {
+          // eslint-disable-next-line no-console
+          console.log("background button clicked");
+        }}
+      >
+        Background button (should stay clickable)
+      </Button>
+      <DialogTrigger>
+        <Button>Open Resizable Slideover</Button>
+        <Modal variant="slideover" isResizable defaultWidth={480}>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Resizable Slideover</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Text>
+                  This slideover has no backdrop and a draggable left edge. Grab
+                  the thin strip at the left border and drag horizontally to
+                  resize.
+                </Text>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      </DialogTrigger>
+    </Flex>
+  </Flex>
+);
+
+export const SlideoverResizable = {
+  render: SlideoverResizableTemplate,
+};
+
+// Type-level tests for the `ModalProps` discriminated union. These aren't rendered;
+// they exist so `tsc --noEmit` fails loudly if someone weakens the union and the
+// invalid combinations below start being accepted.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _ModalPropsTypeTests() {
+  return (
+    <>
+      {/* ok: default variant, no resize props */}
+      <Modal />
+      {/* ok: slideover variant, existing behavior */}
+      <Modal variant="slideover" size="L" />
+      {/* ok: resizable slideover with all resize props */}
+      <Modal
+        variant="slideover"
+        isResizable
+        defaultWidth={500}
+        minWidth={300}
+        maxWidth={900}
+        onResize={() => {}}
+      />
+
+      {/* @ts-expect-error isResizable requires variant="slideover" */}
+      <Modal isResizable />
+      {/* @ts-expect-error isResizable is not allowed on variant="default" */}
+      <Modal variant="default" isResizable />
+      {/* @ts-expect-error defaultWidth requires isResizable */}
+      <Modal variant="slideover" defaultWidth={500} />
+      {/* @ts-expect-error onResize requires isResizable */}
+      <Modal variant="slideover" isResizable={false} onResize={() => {}} />
+      {/* @ts-expect-error minWidth requires isResizable */}
+      <Modal variant="slideover" minWidth={300} />
+    </>
+  );
+}

@@ -1,5 +1,6 @@
 import { css, keyframes } from "@emotion/react";
-import type { Ref } from "react";
+import type { CSSProperties, PointerEvent, Ref } from "react";
+import { createContext, useRef, useState } from "react";
 import type { ModalOverlayProps as AriaModalOverlayProps } from "react-aria-components";
 import {
   Modal as AriaModal,
@@ -7,6 +8,33 @@ import {
 } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils/classNames";
+
+/**
+ * Shared modal state that descendants can read to adapt their rendering.
+ * Currently carries whether we're inside a resizable slideover (which
+ * `DialogCloseButton` uses to swap in a right-pointing arrowhead). Add more
+ * fields here as other descendants need to react to modal-level state.
+ */
+export type ModalContextValue = {
+  isResizable: boolean;
+};
+
+const DEFAULT_MODAL_CONTEXT: ModalContextValue = {
+  isResizable: false,
+};
+
+const RESIZABLE_MODAL_CONTEXT: ModalContextValue = {
+  isResizable: true,
+};
+
+export const ModalContext = createContext<ModalContextValue>(
+  DEFAULT_MODAL_CONTEXT
+);
+
+const DEFAULT_RESIZABLE_WIDTH = 480;
+const DEFAULT_RESIZABLE_MIN_WIDTH = 320;
+const DEFAULT_RESIZABLE_MAX_WIDTH_INSET = 200;
+const RESIZE_HANDLE_WIDTH_PX = 4;
 
 const modalSlideover = keyframes`
   from {
@@ -112,6 +140,45 @@ const modalCSS = css`
     }
   }
 
+  &[data-resizable="true"] {
+    .modal__resize-handle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: ${RESIZE_HANDLE_WIDTH_PX}px;
+      cursor: ew-resize;
+      z-index: 2;
+      touch-action: none;
+      background-color: transparent;
+      transition: background-color 150ms ease-out;
+    }
+
+    .modal__resize-handle:hover,
+    .modal__resize-handle[data-dragging="true"] {
+      background-color: var(--global-border-color-default);
+    }
+
+    &[data-dragging="true"] {
+      user-select: none;
+    }
+
+    // Resizable slideovers lead with the close button so it sits at the
+    // leftmost edge of the drawer, flush with the resize handle, with the
+    // title clustered immediately next to it (not pushed to the far end).
+    // DialogHeader wraps children in a Flex that sets justify-content via an
+    // inline style, so we need !important to override from outside.
+    .dialog__header > .flex {
+      justify-content: flex-start !important;
+    }
+    .dialog__header .dialog__title-extra {
+      order: 1;
+    }
+    .dialog__header .dialog__title {
+      order: 2;
+    }
+  }
+
   .react-aria-Dialog {
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
     width: var(--modal-width);
@@ -131,20 +198,204 @@ const modalCSS = css`
 
 export type ModalSize = "S" | "M" | "L" | "fullscreen";
 
-export interface ModalProps extends AriaModalOverlayProps {
-  variant?: "default" | "slideover";
+type BaseModalProps = AriaModalOverlayProps & {
   size?: ModalSize;
-}
+};
+
+type DefaultVariantProps = {
+  variant?: "default";
+  isResizable?: never;
+  defaultWidth?: never;
+  minWidth?: never;
+  maxWidth?: never;
+  onResize?: never;
+};
+
+type NonResizableSlideoverProps = {
+  variant: "slideover";
+  isResizable?: false;
+  defaultWidth?: never;
+  minWidth?: never;
+  maxWidth?: never;
+  onResize?: never;
+};
+
+type ResizableSlideoverProps = {
+  variant: "slideover";
+  isResizable: true;
+  defaultWidth?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  onResize?: (width: number) => void;
+};
+
+export type ModalProps = BaseModalProps &
+  (DefaultVariantProps | NonResizableSlideoverProps | ResizableSlideoverProps);
 
 function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", variant = "default", ...otherProps } = props;
+  const { size = "M", variant = "default" } = props;
+  const resizable =
+    variant === "slideover" &&
+    "isResizable" in props &&
+    props.isResizable === true;
+
+  if (resizable) {
+    return (
+      <ResizableSlideoverModal
+        {...(props as ResizableSlideoverProps)}
+        ref={ref}
+        size={size}
+      />
+    );
+  }
+
+  const {
+    isResizable: _ir,
+    defaultWidth: _dw,
+    minWidth: _mw,
+    maxWidth: _xw,
+    onResize: _or,
+    ...rest
+  } = props as ResizableSlideoverProps;
+
   return (
     <AriaModal
-      {...otherProps}
+      {...rest}
       data-size={size}
       data-variant={variant}
       ref={ref}
       css={modalCSS}
+    />
+  );
+}
+
+type ResizableSlideoverModalProps = BaseModalProps &
+  ResizableSlideoverProps & {
+    size: ModalSize;
+    ref?: Ref<HTMLDivElement>;
+  };
+
+function ResizableSlideoverModal({
+  ref,
+  size,
+  defaultWidth,
+  minWidth,
+  maxWidth,
+  onResize,
+  variant: _variant,
+  isResizable: _isResizable,
+  children,
+  ...ariaRest
+}: ResizableSlideoverModalProps) {
+  const resolvedMin = minWidth ?? DEFAULT_RESIZABLE_MIN_WIDTH;
+  const [width, setWidth] = useState<number>(
+    defaultWidth ?? DEFAULT_RESIZABLE_WIDTH
+  );
+  const [isDragging, setIsDragging] = useState(false);
+
+  const clamp = (value: number) => {
+    const max =
+      maxWidth ?? window.innerWidth - DEFAULT_RESIZABLE_MAX_WIDTH_INSET;
+    const effectiveMax = Math.max(resolvedMin, max);
+    return Math.min(Math.max(value, resolvedMin), effectiveMax);
+  };
+
+  const handleWidthChange = (nextWidth: number) => {
+    const clamped = clamp(nextWidth);
+    setWidth(clamped);
+    onResize?.(clamped);
+  };
+
+  const style = { "--modal-width": `${width}px` } as CSSProperties;
+
+  return (
+    <AriaModal
+      {...ariaRest}
+      data-size={size}
+      data-variant="slideover"
+      data-resizable="true"
+      data-dragging={isDragging ? "true" : undefined}
+      style={style}
+      ref={ref}
+      css={modalCSS}
+    >
+      {(renderValues) => (
+        <>
+          <ResizeHandle
+            width={width}
+            minWidth={resolvedMin}
+            maxWidth={maxWidth}
+            isDragging={isDragging}
+            onDraggingChange={setIsDragging}
+            onWidthChange={handleWidthChange}
+          />
+          <ModalContext.Provider value={RESIZABLE_MODAL_CONTEXT}>
+            {typeof children === "function" ? children(renderValues) : children}
+          </ModalContext.Provider>
+        </>
+      )}
+    </AriaModal>
+  );
+}
+
+type ResizeHandleProps = {
+  width: number;
+  minWidth: number;
+  maxWidth: number | undefined;
+  isDragging: boolean;
+  onDraggingChange: (dragging: boolean) => void;
+  onWidthChange: (width: number) => void;
+};
+
+function ResizeHandle({
+  width,
+  minWidth,
+  maxWidth,
+  isDragging,
+  onDraggingChange,
+  onWidthChange,
+}: ResizeHandleProps) {
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    startXRef.current = event.clientX;
+    startWidthRef.current = width;
+    onDraggingChange(true);
+    event.preventDefault();
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    // Slideover is pinned to the right edge — dragging left (negative delta)
+    // increases width; dragging right decreases it.
+    const deltaX = event.clientX - startXRef.current;
+    onWidthChange(startWidthRef.current - deltaX);
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    onDraggingChange(false);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize panel"
+      aria-valuenow={width}
+      aria-valuemin={minWidth}
+      aria-valuemax={maxWidth}
+      className="modal__resize-handle"
+      data-dragging={isDragging ? "true" : undefined}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     />
   );
 }
