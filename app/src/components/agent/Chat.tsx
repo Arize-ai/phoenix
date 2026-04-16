@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
-import { useEffect, useRef } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type {
@@ -20,6 +19,7 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { useStickToBottom } from "@phoenix/hooks/useStickToBottom";
 
 import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
@@ -147,25 +147,12 @@ export function ChatView({
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
 }) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const scrollRequestAnimationFrameRef = useRef<number>(0);
-
-  // Coalesce rapid message/status updates into a single smooth scroll.
-  useEffect(() => {
-    cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
-    scrollRequestAnimationFrameRef.current = requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
-  }, [messages, status]);
-
-  useEffect(() => {
-    return () => cancelAnimationFrame(scrollRequestAnimationFrameRef.current);
-  }, []);
+  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
 
   return (
     <div css={chatCSS}>
-      <div className="chat__scroll">
-        <div className="chat__messages">
+      <div className="chat__scroll" ref={scrollRef}>
+        <div className="chat__messages" ref={contentRef}>
           {messages.length === 0 && <EmptyState />}
           {messages.map((message, index) => {
             if (message.role === "user") {
@@ -185,7 +172,6 @@ export function ChatView({
           })}
           {status === "submitted" && <Loading />}
           {error && <ErrorMessage error={error} />}
-          <div ref={bottomRef} />
         </div>
       </div>
       <div className="chat__input">
@@ -194,13 +180,19 @@ export function ChatView({
             <PromptInput status={status} isDisabled mode="elicitation">
               <ElicitationCarousel
                 questions={pendingElicitation.questions}
-                onSubmit={handleElicitationSubmit}
+                onSubmit={(output) => {
+                  void scrollToBottom();
+                  handleElicitationSubmit(output);
+                }}
                 onCancel={handleElicitationCancel}
               />
             </PromptInput>
           ) : (
             <PromptInput
-              onSubmit={(text) => sendMessage({ text })}
+              onSubmit={(text) => {
+                void scrollToBottom();
+                sendMessage({ text });
+              }}
               status={status}
             >
               <PromptInputBody>
