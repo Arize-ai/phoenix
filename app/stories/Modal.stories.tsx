@@ -18,6 +18,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
 
 const meta: Meta = {
   title: "Core/Overlays/Modal",
@@ -131,46 +132,61 @@ export const NoOverlay = {
   render: NoOverlayTemplate,
 };
 
-const SlideoverResizableTemplate: StoryFn<ModalProps> = () => (
-  <Flex direction="column" gap="size-200">
-    <Text>
-      Click the button behind the slideover to confirm the background stays
-      interactive. Drag the left edge of the slideover to resize.
-    </Text>
-    <Flex direction="row" gap="size-200">
-      <Button
-        onPress={() => {
-          // eslint-disable-next-line no-console
-          console.log("background button clicked");
-        }}
-      >
-        Background button (should stay clickable)
-      </Button>
-      <DialogTrigger>
-        <Button>Open Resizable Slideover</Button>
-        <Modal variant="slideover" isResizable defaultWidth={480}>
-          <Dialog>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Resizable Slideover</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton slot="close" />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <View padding="size-200">
-                <Text>
-                  This slideover has no backdrop and a draggable left edge. Grab
-                  the thin strip at the left border and drag horizontally to
-                  resize.
-                </Text>
-              </View>
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </DialogTrigger>
+const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
+  // Demonstrates the `react-resizable-panels`-style hook pattern: the caller
+  // owns persistence, the hook reads the stored width on first render and
+  // returns an `onWidthChange` that writes back on every commit. Drag the
+  // drawer, reload the Storybook frame, and the width should stick.
+  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+    id: "storybook-slideover-resizable",
+  });
+  return (
+    <Flex direction="column" gap="size-200">
+      <Text>
+        Click the button behind the slideover to confirm the background stays
+        interactive. Drag the left edge of the slideover to resize — the width
+        is persisted via <code>useDefaultModalWidth</code>.
+      </Text>
+      <Flex direction="row" gap="size-200">
+        <Button
+          onPress={() => {
+            // eslint-disable-next-line no-console
+            console.log("background button clicked");
+          }}
+        >
+          Background button (should stay clickable)
+        </Button>
+        <DialogTrigger>
+          <Button>Open Resizable Slideover</Button>
+          <Modal
+            variant="slideover"
+            isResizable
+            defaultWidth={defaultWidth}
+            onResize={onWidthChange}
+          >
+            <Dialog>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Resizable Slideover</DialogTitle>
+                  <DialogTitleExtra>
+                    <DialogCloseButton slot="close" />
+                  </DialogTitleExtra>
+                </DialogHeader>
+                <View padding="size-200">
+                  <Text>
+                    This slideover has no backdrop and a draggable left edge.
+                    Grab the thin strip at the left border and drag horizontally
+                    to resize.
+                  </Text>
+                </View>
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </DialogTrigger>
+      </Flex>
     </Flex>
-  </Flex>
-);
+  );
+};
 
 export const SlideoverResizable = {
   render: SlideoverResizableTemplate,
