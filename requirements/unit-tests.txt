@@ -26,4 +26,4 @@ vcrpy
 pytest-smtpd
 freezegun
 aiosqlite<0.22.0  # new version is causing tests to hang
-azure-identity  # required for test_azure_auth.py
+azure-identity>1.18.0
