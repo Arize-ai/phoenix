@@ -26,7 +26,7 @@ function resolveToPixels(value: SizeValue): number {
 
 const DEFAULT_SIZE: SizeValue = "35%";
 const DEFAULT_MIN_SIZE: SizeValue = "35%";
-// Always leave 15% of the viewport visible so users can click through to
+// Always leave 5% of the viewport visible so users can click through to
 // dismiss the slideover.
 const DEFAULT_MAX_SIZE: SizeValue = "95%";
 // Absolute pixel floor — the slideover never shrinks below this regardless
@@ -210,7 +210,7 @@ type ResizableSlideoverProps = {
   defaultSize?: SizeValue;
   /** Minimum size. Pixels (number) or percentage of viewport (e.g. "50%"). */
   minSize?: SizeValue;
-  /** Maximum size. Pixels (number) or percentage of viewport (e.g. "85%"). */
+  /** Maximum size. Pixels (number) or percentage of viewport (e.g. "95%"). */
   maxSize?: SizeValue;
   /**
    * Fires on every rAF-throttled drag update and on drag end with the
@@ -274,15 +274,17 @@ function ResizableSlideoverModal({
     return Math.max(maxPx, resolveMin());
   };
 
-  /** Clamp a pixel value between resolved min and max, return as viewport %. */
-  const clampToPercent = (px: number) => {
-    const clamped = Math.min(Math.max(px, resolveMin()), resolveMax());
-    return (clamped / window.innerWidth) * 100;
+  /** Clamp a viewport percentage between the resolved min and max bounds. */
+  const clampPercent = (pct: number) => {
+    const vw = window.innerWidth;
+    const minPct = (resolveMin() / vw) * 100;
+    const maxPct = (resolveMax() / vw) * 100;
+    return Math.min(Math.max(pct, minPct), maxPct);
   };
 
   const [sizePercent, setSizePercent] = useState<number>(() => {
     const initialPx = resolveToPixels(defaultSize ?? DEFAULT_SIZE);
-    return clampToPercent(initialPx);
+    return clampPercent((initialPx / window.innerWidth) * 100);
   });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -318,13 +320,13 @@ function ResizableSlideoverModal({
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
     // Slideover is pinned to the right edge — dragging left (negative delta)
-    // increases width; dragging right decreases it. Convert pixel delta to
-    // a percentage of the viewport so the result is resolution-independent.
-    const deltaX = event.clientX - startXRef.current;
-    const deltaPct = (deltaX / window.innerWidth) * 100;
-    const newPx =
-      ((startPercentRef.current - deltaPct) / 100) * window.innerWidth;
-    pendingPercentRef.current = clampToPercent(newPx);
+    // increases width; dragging right decreases it. Work entirely in
+    // viewport percentages to avoid unnecessary pixel round-tripping.
+    const deltaPct =
+      ((event.clientX - startXRef.current) / window.innerWidth) * 100;
+    pendingPercentRef.current = clampPercent(
+      startPercentRef.current - deltaPct
+    );
     if (rafIdRef.current == null) {
       rafIdRef.current = requestAnimationFrame(flushPendingSize);
     }
