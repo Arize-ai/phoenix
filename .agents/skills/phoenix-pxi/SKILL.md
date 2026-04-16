@@ -7,6 +7,8 @@ metadata:
 
 # Phoenix PXI Development
 
+Phoenix has a built-in AI assistant named **PXI** (pronounced "pixie"). PXI is the user-facing name for the assistant feature — backend configuration (env vars, project names) uses generic `agents`/`assistant` naming, not "PXI".
+
 Composable guidance for extending PXI across the Phoenix codebase.
 
 Before changing PXI behavior, identify which layer you are working in and read the relevant resource file.
