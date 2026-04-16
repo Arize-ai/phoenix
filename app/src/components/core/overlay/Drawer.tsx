@@ -1,6 +1,12 @@
 import { css, keyframes } from "@emotion/react";
-import type { CSSProperties, PointerEvent, ReactNode, Ref } from "react";
-import { useRef, useState } from "react";
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  PointerEvent,
+  ReactNode,
+  Ref,
+} from "react";
+import { useId, useRef, useState } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -24,6 +30,7 @@ const DEFAULT_MAX_SIZE: SizeValue = "95%";
 // what the percentage resolves to on a small viewport.
 const HARD_MIN_SIZE_PX = 320;
 const RESIZE_HANDLE_WIDTH_PX = 4;
+const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 
 const drawerSlideIn = keyframes`
   from {
@@ -61,8 +68,14 @@ const drawerCSS = css`
   }
 
   .drawer__resize-handle:hover,
-  .drawer__resize-handle[data-dragging="true"] {
+  .drawer__resize-handle[data-dragging="true"],
+  .drawer__resize-handle:focus-visible {
     background-color: var(--global-border-color-default);
+  }
+
+  .drawer__resize-handle:focus-visible {
+    outline: 2px solid var(--global-color-primary);
+    outline-offset: 2px;
   }
 
   &[data-dragging="true"] {
@@ -143,6 +156,7 @@ export function Drawer({
   onResize,
   children,
 }: DrawerProps) {
+  const drawerId = useId();
   const resolvedMinSize = minSize ?? DEFAULT_MIN_SIZE;
   const resolvedMaxSize = maxSize ?? DEFAULT_MAX_SIZE;
 
@@ -240,6 +254,33 @@ export function Drawer({
     }
   };
 
+  const commitSize = (nextPercent: number) => {
+    const next = clampPercent(nextPercent);
+    setSizePercent(next);
+    onResize?.(next);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    switch (event.key) {
+      case "ArrowLeft":
+        event.preventDefault();
+        commitSize(sizePercent + KEYBOARD_RESIZE_STEP_PERCENT);
+        break;
+      case "ArrowRight":
+        event.preventDefault();
+        commitSize(sizePercent - KEYBOARD_RESIZE_STEP_PERCENT);
+        break;
+      case "Home":
+        event.preventDefault();
+        commitSize((resolveMin() / window.innerWidth) * 100);
+        break;
+      case "End":
+        event.preventDefault();
+        commitSize((resolveMax() / window.innerWidth) * 100);
+        break;
+    }
+  };
+
   // Global Escape listener — works regardless of where focus is so the
   // drawer can be dismissed while interacting with the content behind it.
   useHotkeys("Escape", () => onClose?.(), { enabled: isOpen });
@@ -271,6 +312,7 @@ export function Drawer({
       <OverlayTriggerStateContext.Provider value={overlayState}>
         <div
           role="complementary"
+          id={drawerId}
           aria-label="Detail drawer"
           css={drawerCSS}
           data-dragging={isDragging ? "true" : undefined}
@@ -279,6 +321,8 @@ export function Drawer({
         >
           <div
             role="separator"
+            tabIndex={0}
+            aria-controls={drawerId}
             aria-orientation="vertical"
             aria-label="Resize drawer"
             aria-valuenow={Math.round(sizePercent)}
@@ -290,6 +334,7 @@ export function Drawer({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onKeyDown={handleKeyDown}
           />
           {children}
         </div>
