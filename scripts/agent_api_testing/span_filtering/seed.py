@@ -32,7 +32,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
 from phoenix.client import Client
 
 PROJECT_NAME = "agent-trial-attribute-filter"
