@@ -339,13 +339,24 @@ class OpenAIAdapter(BaseLLMAdapter):
 
     def _supports_structured_output(self) -> bool:
         model_name = self.model_name.lower()
-        structured_output_models = ["gpt-4o", "gpt-4o-mini", "gpt-4o-2024", "chatgpt-4o-latest"]
+        structured_output_models = [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4o-2024",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "chatgpt-4o-latest",
+            "o1",
+            "o3",
+            "o4-mini",
+        ]
         return any(model in model_name for model in structured_output_models)
 
     def _supports_tool_calls(self) -> bool:
-        model_name = self.model_name.lower()
-        if any(model in model_name for model in ["o1-preview", "o1-mini", "o1", "o3"]):
-            return False
+        # All current OpenAI models (GPT-4o, GPT-4.1, o1, o3, o4-mini) support
+        # tool calls. The previous blocklist for o1/o3 is stale — OpenAI added
+        # tool call support to reasoning models.
         return True
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -374,16 +385,12 @@ class OpenAIAdapter(BaseLLMAdapter):
         return tool_definition
 
     def _system_role(self) -> str:
-        # OpenAI uses different semantics for "system" roles for different models
-        if "gpt" in self.model_name:
-            return "system"
-        if "o1-mini" in self.model_name:
-            return "user"  # o1-mini does not support either "system" or "developer" roles
-        if "o1-preview" in self.model_name:
-            return "user"  # o1-preview does not support "system" or "developer" roles
-        if "o1" in self.model_name:
-            return "developer"
-        if "o3" in self.model_name:
+        # GPT-series models use the "system" role.
+        # Reasoning models (o1, o3, o4-mini, etc.) use "developer" — OpenAI
+        # updated all o-series models to accept "developer" as of early 2025.
+        # The previous special-casing of o1-mini/o1-preview to "user" is stale.
+        model = self.model_name.lower()
+        if model.startswith(("o1", "o3", "o4")):
             return "developer"
         return "system"
 
