@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { SizeValue } from "@phoenix/components/core/overlay/Modal";
+import type { SizeValue } from "@phoenix/types/sizing";
 
 const STORAGE_KEY_PREFIX = "arize-phoenix-modal";
 

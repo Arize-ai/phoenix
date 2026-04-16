@@ -1,4 +1,4 @@
-import type { SizeValue } from "@phoenix/components/core/overlay/Modal";
+import type { SizeValue } from "@phoenix/types/sizing";
 
 /**
  * Minimum size for fullscreen-style resizable slideovers (e.g. trace,

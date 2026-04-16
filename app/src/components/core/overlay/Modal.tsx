@@ -11,10 +11,8 @@ import {
   ModalContext,
   RESIZABLE_MODAL_CONTEXT,
 } from "@phoenix/components/core/overlay/ModalContext";
+import type { SizeValue } from "@phoenix/types/sizing";
 import { classNames } from "@phoenix/utils/classNames";
-
-/** Pixel value (number) or percentage of viewport (string, e.g. "50%"). */
-export type SizeValue = number | `${number}%`;
 
 /**
  * Resolve a {@link SizeValue} to pixels using the current viewport width.
