@@ -1,5 +1,25 @@
 # Changelog
 
+## [14.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.6.0...arize-phoenix-v14.7.0) (2026-04-16)
+
+
+### Features
+
+* session pagination ([#12695](https://github.com/Arize-ai/phoenix/issues/12695)) ([465ff59](https://github.com/Arize-ai/phoenix/commit/465ff595105ae4344d3854762770874d22060cd7))
+* trace annotation dataloader ([#12699](https://github.com/Arize-ai/phoenix/issues/12699)) ([8e2effd](https://github.com/Arize-ai/phoenix/commit/8e2effd4312ce6e08e8a2851fcbdb9e654a6303c))
+* **ui:** refresh projects page on mount and on 60s interval ([#12694](https://github.com/Arize-ai/phoenix/issues/12694)) ([3f05e80](https://github.com/Arize-ai/phoenix/commit/3f05e80f0d2cd3cb9b02fcb882a2cba472ff3735))
+
+
+### Bug Fixes
+
+* allow wrapt v2 (&lt;3 upper bound) ([#12714](https://github.com/Arize-ai/phoenix/issues/12714)) ([d6b0135](https://github.com/Arize-ai/phoenix/commit/d6b013518020b2ff6ba5f2666d74f24d6016da66))
+* **ui:** simplify onboarding to use only phoenix-otel for TypeScript ([#12708](https://github.com/Arize-ai/phoenix/issues/12708)) ([1dd5f5f](https://github.com/Arize-ai/phoenix/commit/1dd5f5f6e00bcee1e0108e7838ece0ba3e335652))
+
+
+### Documentation
+
+* fix phoenix.client.experiments docs/tutorials ([#12645](https://github.com/Arize-ai/phoenix/issues/12645)) ([9ce9e18](https://github.com/Arize-ai/phoenix/commit/9ce9e1859d5712f992bdae830385f11ccca022be))
+
 ## [14.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.5.0...arize-phoenix-v14.6.0) (2026-04-15)
 
 
