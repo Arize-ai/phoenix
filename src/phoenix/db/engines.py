@@ -23,12 +23,14 @@ sqlean.extensions.enable("text", "stats")
 
 logger = logging.getLogger(__name__)
 
-# Recycle pooled connections after ~55 minutes so server-side changes
-# (revoked roles, rotated certs, rebalanced managed-Postgres LB backends)
-# eventually propagate into the pool. Liveness is handled separately by
+# Recycle pooled connections so server-side changes (revoked roles,
+# rotated certs, rebalanced managed-Postgres LB backends) eventually
+# propagate into the pool. Liveness is handled separately by
 # pool_pre_ping; this knob is purely for bounded staleness, not
 # correctness — PostgreSQL authenticates only at session startup and
 # does not re-validate the credential for the life of the session.
+# The specific value is arbitrary within the 30-minute-to-few-hours
+# range where connection churn is cheap and staleness stays bounded.
 _POOL_RECYCLE_SECONDS = 3300
 
 
