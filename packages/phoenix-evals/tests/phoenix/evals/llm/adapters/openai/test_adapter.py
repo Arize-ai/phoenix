@@ -9,7 +9,9 @@ method for subsequent calls.
 import json
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
+from openai import APIConnectionError, APITimeoutError, BadRequestError, RateLimitError
 
 from phoenix.evals.llm.adapters.openai.adapter import OpenAIAdapter
 from phoenix.evals.llm.types import ObjectGenerationMethod
@@ -21,6 +23,20 @@ SIMPLE_SCHEMA = {
     },
     "required": ["label"],
 }
+
+
+def _bad_request(message: str) -> BadRequestError:
+    """Construct a BadRequestError for simulating OpenAI capability-mismatch responses."""
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx.Response(400, request=request)
+    return BadRequestError(message, response=response, body=None)
+
+
+def _rate_limit(message: str = "rate limited") -> RateLimitError:
+    """Construct a RateLimitError for simulating 429 responses."""
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx.Response(429, request=request)
+    return RateLimitError(message, response=response, body=None)
 
 
 def _make_sync_client(model: str = "test-model") -> MagicMock:
@@ -69,13 +85,13 @@ class TestGenerateObjectAutoFallback:
         call_kwargs = client.chat.completions.create.call_args.kwargs
         assert "response_format" in call_kwargs
 
-    def test_auto_falls_back_to_tool_calling(self) -> None:
-        """When structured output fails, fall back to tool calling."""
+    def test_auto_falls_back_to_tool_calling_on_bad_request(self) -> None:
+        """When structured output raises BadRequestError, fall back to tool calling."""
         client = _make_sync_client("o3-mini")
 
-        # First call (structured output) fails, second call (tool calling) succeeds
+        # First call (structured output) raises BadRequestError, second call succeeds
         client.chat.completions.create.side_effect = [
-            Exception("model does not support response_format"),
+            _bad_request("model does not support response_format"),
             _make_tool_calling_response("no"),
         ]
         adapter = OpenAIAdapter(client, "o3-mini")
@@ -85,12 +101,12 @@ class TestGenerateObjectAutoFallback:
         assert result == {"label": "no"}
         assert client.chat.completions.create.call_count == 2
 
-    def test_auto_raises_when_both_fail(self) -> None:
-        """When both methods fail, raise ValueError with combined error info."""
+    def test_auto_raises_when_both_fail_with_bad_request(self) -> None:
+        """When both methods raise BadRequestError, raise ValueError with combined info."""
         client = _make_sync_client("unknown-model")
         client.chat.completions.create.side_effect = [
-            Exception("structured output not supported"),
-            Exception("tool calling not supported"),
+            _bad_request("structured output not supported"),
+            _bad_request("tool calling not supported"),
         ]
         adapter = OpenAIAdapter(client, "unknown-model")
 
@@ -101,8 +117,8 @@ class TestGenerateObjectAutoFallback:
         """The combined error includes details from both failed attempts."""
         client = _make_sync_client("unknown-model")
         client.chat.completions.create.side_effect = [
-            Exception("bad response_format"),
-            Exception("tools param rejected"),
+            _bad_request("bad response_format"),
+            _bad_request("tools param rejected"),
         ]
         adapter = OpenAIAdapter(client, "unknown-model")
 
@@ -112,6 +128,79 @@ class TestGenerateObjectAutoFallback:
         message = str(exc_info.value)
         assert "bad response_format" in message
         assert "tools param rejected" in message
+
+
+class TestGenerateObjectAutoErrorPropagation:
+    """Test that non-capability errors propagate without triggering fallback or caching.
+
+    Regression coverage for: the previous bare ``except Exception`` swallowed
+    rate-limit, timeout, and connection errors, converted them into a ValueError
+    (which the outer RateLimiter could not recognize for retry), and in some
+    cases silently cached a downgrade to tool calling.
+    """
+
+    def test_rate_limit_error_propagates_uncaught(self) -> None:
+        """RateLimitError must propagate so the outer RateLimiter can back off."""
+        client = _make_sync_client("gpt-4o")
+        client.chat.completions.create.side_effect = _rate_limit()
+        adapter = OpenAIAdapter(client, "gpt-4o")
+
+        # The original RateLimitError must propagate — not be wrapped in ValueError
+        with pytest.raises(RateLimitError):
+            adapter.generate_object("test prompt", SIMPLE_SCHEMA)
+
+        # Must NOT have attempted tool calling (that would burn a second billable call)
+        assert client.chat.completions.create.call_count == 1
+        # Must NOT have cached a method — this was a transient failure
+        assert adapter._preferred_method is None
+
+    def test_api_timeout_error_propagates_uncaught(self) -> None:
+        """APITimeoutError from structured output must propagate — not trigger fallback."""
+        client = _make_sync_client("gpt-4o")
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        client.chat.completions.create.side_effect = APITimeoutError(request=request)
+        adapter = OpenAIAdapter(client, "gpt-4o")
+
+        with pytest.raises(APITimeoutError):
+            adapter.generate_object("test prompt", SIMPLE_SCHEMA)
+
+        assert client.chat.completions.create.call_count == 1
+        assert adapter._preferred_method is None
+
+    def test_api_connection_error_propagates_uncaught(self) -> None:
+        """APIConnectionError from structured output must propagate — not trigger fallback."""
+        client = _make_sync_client("gpt-4o")
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        client.chat.completions.create.side_effect = APIConnectionError(request=request)
+        adapter = OpenAIAdapter(client, "gpt-4o")
+
+        with pytest.raises(APIConnectionError):
+            adapter.generate_object("test prompt", SIMPLE_SCHEMA)
+
+        assert client.chat.completions.create.call_count == 1
+        assert adapter._preferred_method is None
+
+    def test_rate_limit_from_tool_calling_propagates(self) -> None:
+        """If tool-calling fallback hits a rate limit, the error must propagate uncaught.
+
+        Previously this was wrapped in ValueError and the outer RateLimiter
+        couldn't retry — now it propagates so backoff fires.
+        """
+        client = _make_sync_client("o3-mini")
+        client.chat.completions.create.side_effect = [
+            _bad_request("structured output not supported"),
+            _rate_limit("429 on tool calling"),
+        ]
+        adapter = OpenAIAdapter(client, "o3-mini")
+
+        with pytest.raises(RateLimitError):
+            adapter.generate_object("test prompt", SIMPLE_SCHEMA)
+
+        # We did try both, but the rate-limit from the second is what propagates
+        assert client.chat.completions.create.call_count == 2
+        # And tool calling was not cached — the rate limit is transient, not
+        # a capability signal
+        assert adapter._preferred_method is None
 
 
 class TestGenerateObjectMethodCache:
@@ -132,12 +221,12 @@ class TestGenerateObjectMethodCache:
         assert client.chat.completions.create.call_count == 2  # 1 + 1, not 1 + 2
 
     def test_caches_tool_calling_after_fallback(self) -> None:
-        """After falling back to tool calling, subsequent calls go directly there."""
+        """After falling back to tool calling on BadRequestError, subsequent calls go directly there."""
         client = _make_sync_client("o3-mini")
 
-        # First call: structured output fails, tool calling succeeds
+        # First call: structured output raises BadRequestError, tool calling succeeds
         client.chat.completions.create.side_effect = [
-            Exception("not supported"),
+            _bad_request("not supported"),
             _make_tool_calling_response(),
         ]
         adapter = OpenAIAdapter(client, "o3-mini")
@@ -153,11 +242,11 @@ class TestGenerateObjectMethodCache:
         assert client.chat.completions.create.call_count == 3
 
     def test_no_cache_when_both_fail(self) -> None:
-        """When both methods fail, preferred_method stays None."""
+        """When both methods fail with BadRequestError, preferred_method stays None."""
         client = _make_sync_client("bad-model")
         client.chat.completions.create.side_effect = [
-            Exception("nope"),
-            Exception("also nope"),
+            _bad_request("nope"),
+            _bad_request("also nope"),
         ]
         adapter = OpenAIAdapter(client, "bad-model")
 
@@ -225,11 +314,11 @@ class TestAsyncGenerateObjectFallback:
 
     @pytest.mark.asyncio
     async def test_async_auto_falls_back_to_tool_calling(self) -> None:
-        """Async AUTO mode falls back from structured output to tool calling."""
+        """Async AUTO mode falls back from structured output to tool calling on BadRequestError."""
         client, adapter = _make_async_adapter("o3-mini")
         client.chat.completions.create = AsyncMock(
             side_effect=[
-                Exception("structured output not supported"),
+                _bad_request("structured output not supported"),
                 _make_tool_calling_response("no"),
             ]
         )
@@ -253,14 +342,39 @@ class TestAsyncGenerateObjectFallback:
 
     @pytest.mark.asyncio
     async def test_async_auto_raises_when_both_fail(self) -> None:
-        """Async AUTO mode raises ValueError with combined error when both fail."""
+        """Async AUTO mode raises ValueError with combined error when both fail with BadRequestError."""
         client, adapter = _make_async_adapter("bad-model")
         client.chat.completions.create = AsyncMock(
             side_effect=[
-                Exception("structured nope"),
-                Exception("tools nope"),
+                _bad_request("structured nope"),
+                _bad_request("tools nope"),
             ]
         )
 
         with pytest.raises(ValueError, match="failed with both structured output and tool calling"):
             await adapter.async_generate_object("test prompt", SIMPLE_SCHEMA)
+
+    @pytest.mark.asyncio
+    async def test_async_rate_limit_error_propagates_uncaught(self) -> None:
+        """Async: RateLimitError must propagate so the outer RateLimiter can back off."""
+        client, adapter = _make_async_adapter("gpt-4o")
+        client.chat.completions.create = AsyncMock(side_effect=_rate_limit())
+
+        with pytest.raises(RateLimitError):
+            await adapter.async_generate_object("test prompt", SIMPLE_SCHEMA)
+
+        assert client.chat.completions.create.call_count == 1
+        assert adapter._preferred_method is None
+
+    @pytest.mark.asyncio
+    async def test_async_api_timeout_error_propagates_uncaught(self) -> None:
+        """Async: APITimeoutError must propagate — not trigger fallback."""
+        client, adapter = _make_async_adapter("gpt-4o")
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        client.chat.completions.create = AsyncMock(side_effect=APITimeoutError(request=request))
+
+        with pytest.raises(APITimeoutError):
+            await adapter.async_generate_object("test prompt", SIMPLE_SCHEMA)
+
+        assert client.chat.completions.create.call_count == 1
+        assert adapter._preferred_method is None

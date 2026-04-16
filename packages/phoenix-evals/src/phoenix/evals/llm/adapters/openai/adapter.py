@@ -146,21 +146,27 @@ class OpenAIAdapter(BaseLLMAdapter):
             if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
-            # Discovery: try structured output first, fall back to tool calling
+            # Discovery: try structured output first, fall back to tool calling only
+            # on a genuine capability-mismatch signal (BadRequestError). Rate-limit
+            # and transient errors propagate so the outer RateLimiter can retry and
+            # so we don't cache a downgrade to tool calling based on a transient
+            # failure (which would silently drop server-side schema enforcement).
+            from openai import BadRequestError as _OpenAIBadRequestError
+
             try:
                 result = self._generate_with_structured_output(prompt, schema, **kwargs)
                 self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
                 return result
-            except Exception as structured_error:
+            except _OpenAIBadRequestError as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.model_name}, falling back "
+                    f"Structured output rejected by {self.model_name}, falling back "
                     f"to tool calling: {structured_error}"
                 )
                 try:
                     result = self._generate_with_tool_calling(prompt, schema, **kwargs)
                     self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
                     return result
-                except Exception as tool_error:
+                except _OpenAIBadRequestError as tool_error:
                     raise ValueError(
                         f"OpenAI model {self.model_name} failed with both structured "
                         f"output and tool calling. Structured output error: "
@@ -197,21 +203,27 @@ class OpenAIAdapter(BaseLLMAdapter):
             if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
-            # Discovery: try structured output first, fall back to tool calling
+            # Discovery: try structured output first, fall back to tool calling only
+            # on a genuine capability-mismatch signal (BadRequestError). Rate-limit
+            # and transient errors propagate so the outer RateLimiter can retry and
+            # so we don't cache a downgrade to tool calling based on a transient
+            # failure (which would silently drop server-side schema enforcement).
+            from openai import BadRequestError as _OpenAIBadRequestError
+
             try:
                 result = await self._async_generate_with_structured_output(prompt, schema, **kwargs)
                 self._preferred_method = ObjectGenerationMethod.STRUCTURED_OUTPUT
                 return result
-            except Exception as structured_error:
+            except _OpenAIBadRequestError as structured_error:
                 logger.debug(
-                    f"Structured output failed for {self.model_name}, falling back "
+                    f"Structured output rejected by {self.model_name}, falling back "
                     f"to tool calling: {structured_error}"
                 )
                 try:
                     result = await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
                     self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
                     return result
-                except Exception as tool_error:
+                except _OpenAIBadRequestError as tool_error:
                     raise ValueError(
                         f"OpenAI model {self.model_name} failed with both structured "
                         f"output and tool calling. Structured output error: "

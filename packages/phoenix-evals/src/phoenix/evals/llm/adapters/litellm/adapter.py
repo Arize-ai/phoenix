@@ -60,6 +60,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._import_litellm()
+        self._preferred_method: ObjectGenerationMethod | None = None
 
     @classmethod
     def client_name(cls) -> str:
@@ -113,6 +114,33 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM async completion failed: {e}")
             raise
 
+    def _prefers_tool_calling_first(self) -> bool:
+        """Use LiteLLM's provider-param introspection as a *hint* for which
+        method to try first in AUTO mode.
+
+        LiteLLM's ``get_supported_openai_params`` returns the set of OpenAI-style
+        params the underlying provider understands. We use it to decide the
+        probe order only — the API itself remains the source of truth via the
+        BadRequestError fallback path. If introspection fails or is unavailable,
+        we default to trying structured output first (matches OpenAI adapter).
+        """
+        try:
+            supported_params = getattr(
+                self._litellm,
+                "get_supported_openai_params",
+                lambda model: ["response_format", "tools"],
+            )(model=self.client.model)
+            if not isinstance(supported_params, list):
+                return False
+        except Exception:
+            return False
+
+        supports_structured_output = "response_format" in supported_params
+        supports_tool_calls = "tools" in supported_params
+        # Only re-order if SO is unavailable and tool calling is — otherwise
+        # keep the default "structured output first" probe order.
+        return not supports_structured_output and supports_tool_calls
+
     def generate_object(
         self,
         prompt: PromptLike,
@@ -122,46 +150,65 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        try:
-            supported_params = getattr(
-                self._litellm,
-                "get_supported_openai_params",
-                lambda model: ["response_format", "tools"],
-            )(model=self.client.model)
-            supported_params_list = (
-                supported_params
-                if isinstance(supported_params, list)
-                else ["response_format", "tools"]
-            )
-        except Exception:
-            supported_params_list = ["response_format", "tools"]
-
-        supports_structured_output = "response_format" in supported_params_list
-        supports_tool_calls = "tools" in supported_params_list
-
+        # Explicit methods go straight to the API — if the model doesn't support
+        # the requested method, the provider will surface the real error instead
+        # of us guessing from a (potentially stale) capability list.
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured output"
-                )
             return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            # Discovery: probe the API, falling back on a genuine capability-mismatch
+            # signal (BadRequestError). Rate-limit and transient errors propagate so
+            # the outer RateLimiter can retry, and so we don't silently cache a
+            # downgrade based on a transient failure.
+            from litellm import BadRequestError as _LiteLLMBadRequestError
+
+            prefers_tool_calling = self._prefers_tool_calling_first()
+            primary = (
+                ObjectGenerationMethod.TOOL_CALLING
+                if prefers_tool_calling
+                else ObjectGenerationMethod.STRUCTURED_OUTPUT
+            )
+            fallback = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if prefers_tool_calling
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+
+            def _run(m: ObjectGenerationMethod) -> Dict[str, Any]:
+                if m == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                    return self._generate_with_structured_output(prompt, schema, **kwargs)
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            try:
+                result = _run(primary)
+                self._preferred_method = primary
+                return result
+            except _LiteLLMBadRequestError as primary_error:
+                logger.debug(
+                    f"{primary.value} rejected by {self.client.model}, falling back "
+                    f"to {fallback.value}: {primary_error}"
+                )
+                try:
+                    result = _run(fallback)
+                    self._preferred_method = fallback
+                    return result
+                except _LiteLLMBadRequestError as fallback_error:
+                    raise ValueError(
+                        f"LiteLLM model {self.client.model} failed with both "
+                        f"{primary.value} and {fallback.value}. "
+                        f"{primary.value} error: {primary_error}. "
+                        f"{fallback.value} error: {fallback_error}"
+                    ) from fallback_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
@@ -175,47 +222,60 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        try:
-            supported_params = getattr(
-                self._litellm,
-                "get_supported_openai_params",
-                lambda model: ["response_format", "tools"],
-            )(model=self.client.model)
-            supported_params_list = (
-                supported_params
-                if isinstance(supported_params, list)
-                else ["response_format", "tools"]
-            )
-        except Exception:
-            # If the function doesn't exist or fails, assume both are supported
-            supported_params_list = ["response_format", "tools"]
-
-        supports_structured_output = "response_format" in supported_params_list
-        supports_tool_calls = "tools" in supported_params_list
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured output"
-                )
             return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            from litellm import BadRequestError as _LiteLLMBadRequestError
+
+            prefers_tool_calling = self._prefers_tool_calling_first()
+            primary = (
+                ObjectGenerationMethod.TOOL_CALLING
+                if prefers_tool_calling
+                else ObjectGenerationMethod.STRUCTURED_OUTPUT
+            )
+            fallback = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if prefers_tool_calling
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+
+            async def _run(m: ObjectGenerationMethod) -> Dict[str, Any]:
+                if m == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                    return await self._async_generate_with_structured_output(
+                        prompt, schema, **kwargs
+                    )
+                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            try:
+                result = await _run(primary)
+                self._preferred_method = primary
+                return result
+            except _LiteLLMBadRequestError as primary_error:
+                logger.debug(
+                    f"{primary.value} rejected by {self.client.model}, falling back "
+                    f"to {fallback.value}: {primary_error}"
+                )
+                try:
+                    result = await _run(fallback)
+                    self._preferred_method = fallback
+                    return result
+                except _LiteLLMBadRequestError as fallback_error:
+                    raise ValueError(
+                        f"LiteLLM model {self.client.model} failed with both "
+                        f"{primary.value} and {fallback.value}. "
+                        f"{primary.value} error: {primary_error}. "
+                        f"{fallback.value} error: {fallback_error}"
+                    ) from fallback_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
