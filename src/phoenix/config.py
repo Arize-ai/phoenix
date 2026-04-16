@@ -64,20 +64,19 @@ ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 The endpoint traces and evals are sent to. This must be set if the Phoenix
 server is running on a remote instance.
 """
-ENV_PHOENIX_PXI_COLLECTOR_ENDPOINT = "PHOENIX_PXI_COLLECTOR_ENDPOINT"
+ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT = "PHOENIX_AGENTS_COLLECTOR_ENDPOINT"
 """
-Optional HTTP collector endpoint used by the server-side pxi tracer pipeline to
-mirror spans to a remote Phoenix collector in addition to local persistence.
+Optional HTTP collector endpoint used by the server-side agents to
+export traces to a remote collector. This is in addition to local persistence.
 """
-ENV_PHOENIX_PXI_COLLECTOR_API_KEY = "PHOENIX_PXI_COLLECTOR_API_KEY"
+ENV_PHOENIX_AGENTS_COLLECTOR_API_KEY = "PHOENIX_AGENTS_COLLECTOR_API_KEY"
 """
-Optional bearer token paired with PHOENIX_PXI_COLLECTOR_ENDPOINT for exporting
-PXI traces to a remote collector.
+Optional bearer token paired with PHOENIX_AGENTS_COLLECTOR_ENDPOINT for exporting
+agent traces to a remote collector.
 """
-ENV_PHOENIX_PXI_PROJECT_NAME = "PHOENIX_PXI_PROJECT_NAME"
+ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME"
 """
-Project name used for PXI chat traces locally and when mirrored to a remote
-collector.
+Project name used for assistant agent traces.
 """
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
@@ -1244,16 +1243,16 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
 
-def get_env_phoenix_pxi_collector_endpoint() -> Optional[str]:
-    return getenv(ENV_PHOENIX_PXI_COLLECTOR_ENDPOINT)
+def get_env_phoenix_agents_collector_endpoint() -> Optional[str]:
+    return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT)
 
 
-def get_env_phoenix_pxi_collector_api_key() -> Optional[str]:
-    return getenv(ENV_PHOENIX_PXI_COLLECTOR_API_KEY)
+def get_env_phoenix_agents_collector_api_key() -> Optional[str]:
+    return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_API_KEY)
 
 
-def get_env_phoenix_pxi_project_name() -> str:
-    return getenv(ENV_PHOENIX_PXI_PROJECT_NAME, "pxi_agent")
+def get_env_phoenix_agents_assistant_project_name() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
 
 
 class AuthSettings(NamedTuple):
