@@ -16,6 +16,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { SLIDEOVER_MIN_WIDTH } from "@phoenix/components/core/overlay/constants";
+import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
 
@@ -33,6 +35,9 @@ export function EvaluatorTracePage() {
     EVALUATOR_DETAILS_ROUTE_ID
   );
   const projectId = loaderData?.projectId;
+  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+    id: "evaluator-trace-details",
+  });
 
   invariant(traceId, "traceId is required");
   invariant(projectId, "projectId is required");
@@ -48,12 +53,19 @@ export function EvaluatorTracePage() {
         }
       }}
     >
-      <Modal variant="slideover" size="fullscreen">
+      <Modal
+        variant="slideover"
+        isResizable
+        defaultWidth={defaultWidth}
+        minWidth={SLIDEOVER_MIN_WIDTH}
+        onResize={onWidthChange}
+      >
         <Dialog>
           {({ close }) => (
             <DialogContent>
               <DialogHeader>
-                <Flex direction="row" gap="size-200" justifyContent="center">
+                <Flex direction="row" gap="size-200" alignItems="center">
+                  <DialogCloseButton close={close} />
                   <DialogTitle>Trace Details</DialogTitle>
                 </Flex>
                 <DialogTitleExtra>
@@ -63,7 +75,6 @@ export function EvaluatorTracePage() {
                     tooltipText="Copy trace link to clipboard"
                     successText="Trace link copied to clipboard"
                   />
-                  <DialogCloseButton close={close} />
                 </DialogTitleExtra>
               </DialogHeader>
               <Suspense fallback={<Loading />}>

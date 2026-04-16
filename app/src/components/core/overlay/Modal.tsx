@@ -147,20 +147,6 @@ const modalCSS = css`
       user-select: none;
     }
 
-    // Resizable slideovers lead with the close button so it sits at the
-    // leftmost edge of the drawer, flush with the resize handle, with the
-    // title clustered immediately next to it (not pushed to the far end).
-    // DialogHeader wraps children in a Flex that sets justify-content via an
-    // inline style, so we need !important to override from outside.
-    .dialog__header > .flex {
-      justify-content: flex-start !important;
-    }
-    .dialog__header .dialog__title-extra {
-      order: 1;
-    }
-    .dialog__header .dialog__title {
-      order: 2;
-    }
   }
 
   .react-aria-Dialog {

@@ -15,8 +15,11 @@ import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
+  DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { SLIDEOVER_MIN_WIDTH } from "@phoenix/components/core/overlay/constants";
+import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -37,6 +40,9 @@ export function TracePage() {
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+    id: "trace-details",
+  });
 
   // if we are focused on a particular span, use that as the subjectId
   // otherwise, use the traceId
@@ -51,14 +57,23 @@ export function TracePage() {
         }
       }}
     >
-      <Modal variant="slideover" size="fullscreen">
+      <Modal
+        variant="slideover"
+        isResizable
+        defaultWidth={defaultWidth}
+        minWidth={SLIDEOVER_MIN_WIDTH}
+        onResize={onWidthChange}
+      >
         <Dialog>
           {({ close }) => (
             <DialogContent>
               <DialogHeader>
-                <Flex direction="row" gap="size-200" justifyContent="center">
+                <Flex direction="row" gap="size-200" alignItems="center">
+                  <DialogCloseButton close={close} />
                   <TraceDetailsPaginator currentId={paginationSubjectId} />
-                  <TitleWithID title="Trace" id={traceId as string} />
+                  <DialogTitle>
+                    <TitleWithID title="Trace" id={traceId as string} />
+                  </DialogTitle>
                 </Flex>
                 <DialogTitleExtra>
                   {isAgentsEnabled ? (
@@ -79,7 +94,6 @@ export function TracePage() {
                     tooltipText="Copy trace link to clipboard"
                     successText="Trace link copied to clipboard"
                   />
-                  <DialogCloseButton close={close} />
                 </DialogTitleExtra>
               </DialogHeader>
               <Suspense fallback={<Loading />}>
