@@ -29,15 +29,8 @@ logger = logging.getLogger(__name__)
 # message exchange and does not re-validate the credential again for the
 # life of the session, so a pooled connection remains valid for as long
 # as the underlying TCP connection survives, regardless of any token
-# lifetime. 55 minutes was originally chosen to sit under the up-to-
-# 60-minute lifetime of Entra ID access tokens issued for the Azure
-# PostgreSQL scope (https://ossrdbms-aad.database.windows.net/.default).
-# That coupling is no longer load-bearing: token freshness on *new*
-# connections is handled by the Azure Identity SDK when the
-# managed-identity creator calls `DefaultAzureCredential.get_token(...)`,
-# and existing pooled connections are unaffected by later token expiry.
-# Liveness detection (idle-timeout drops, failovers, TCP resets) is
-# handled separately by pool_pre_ping; pool_recycle cannot detect those
+# lifetime. Liveness detection (idle-timeout drops, failovers, TCP resets)
+# is handled separately by pool_pre_ping; pool_recycle cannot detect those
 # because it is age-based.
 _POOL_RECYCLE_SECONDS = 3300
 
@@ -184,32 +177,11 @@ def aio_postgresql_engine(
         )
     asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
 
-    # pool_pre_ping is enabled on every non-migration branch. SQLAlchemy
-    # executes the dialect's do_ping (a `SELECT 1` for the asyncpg/PG
-    # dialect, inherited from DefaultDialect.do_ping) on each pool checkout,
-    # and if it fails discards the connection and asks the pool/creator for
-    # a fresh one. The ping is skipped on connections that were just created
-    # — see sqlalchemy.pool.base where _ConnectionRecord.fresh is set after
-    # _invoke_creator and the checkout path skips the ping when fresh. The
-    # check runs once per checkout — i.e. once per `async with
-    # info.context.db.read()/write() as session` block — not once per
-    # executed statement. Phoenix GraphQL resolvers follow the pattern of
-    # opening their own session block (see src/phoenix/server/api/types/),
-    # so a single request can trigger multiple pool checkouts. We accept
-    # that per-checkout cost because the alternative is that the first
-    # query on a silently-dropped connection (idle-timeout eviction from an
-    # upstream LB/proxy, server-side failover, DBA-initiated termination)
-    # raises a connection error to the caller.
-    #
-    # Managed-identity branch specifically: pool_recycle is not load-bearing
-    # for token validity. PostgreSQL validates the access-token-as-password
-    # only during the startup packet exchange and never re-checks it for
-    # the life of the session, and Azure Database for PostgreSQL has no
-    # server-side setting that terminates user sessions when their access
-    # token expires (per Microsoft Learn Q&A guidance — not formal docs).
-    # Token freshness for *newly opened* connections is handled inside the
-    # Azure creator via DefaultAzureCredential.get_token(...), which relies
-    # on azure-identity's built-in cache and refresh logic.
+    # pool_pre_ping issues a `SELECT 1` on each pool checkout and discards
+    # the connection if it fails, so callers don't get a stale connection
+    # that was silently dropped by an upstream LB, a server failover, or a
+    # DBA-initiated termination. The ping is skipped on freshly-created
+    # connections, so the cost is paid only on reused ones.
     if use_azure:
         from phoenix.db.azure_auth import create_azure_engine
 
@@ -247,26 +219,13 @@ def aio_postgresql_engine(
     if not migrate:
         return engine
 
-    # Migration engines use NullPool, which opens a fresh connection on
-    # every checkout and disposes it on return. pool_pre_ping and
-    # pool_recycle are therefore intentionally omitted: SQLAlchemy's
-    # checkout path skips the ping when _ConnectionRecord.fresh is True
-    # (see sqlalchemy.pool.base), and with NullPool every checkout creates
-    # a new record so the ping would never run anyway; pool_recycle has no
-    # long-lived connection to age out.
-    #
-    # Azure specifically builds a *second* engine via create_azure_engine
-    # here, which means a second DefaultAzureCredential. The migration
-    # engine runs inside the throwaway asyncio.run(...) loop that
-    # migrate_in_thread creates, and `azure.identity.aio` lazily pins its
-    # internal aiohttp.ClientSession to whichever loop first calls
-    # get_token(). Sharing one credential between this engine and the
-    # uvicorn-loop primary engine would therefore raise `RuntimeError:
-    # Event loop is closed` on the first server-side connection. Each
-    # engine owning its own credential — and `create_azure_engine`'s
-    # dispose-patch closing it on the same loop that used it — avoids the
-    # bug. See internal_docs/specs/postgres-cloud-auth-pooling.md, section
-    # "Event-loop affinity of azure.identity.aio credentials".
+    # Migration engines use NullPool: every checkout opens a fresh
+    # connection and disposes it on return, so pool_pre_ping and
+    # pool_recycle have no role — there is no reused or long-lived
+    # connection to guard. The Azure branch deliberately constructs a
+    # second engine (not shares the primary) so each engine owns its own
+    # `DefaultAzureCredential` bound to the loop that will use it; see
+    # `create_azure_engine` for the affinity invariant.
     if use_azure:
         from phoenix.db.azure_auth import create_azure_engine
 

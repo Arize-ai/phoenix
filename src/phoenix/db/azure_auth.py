@@ -24,40 +24,27 @@ def create_azure_engine(
     managed identity.
 
     Each call constructs its own `DefaultAzureCredential` and ties its
-    lifecycle to the returned engine: `await engine.dispose()` will also
-    close the credential. The extra `**engine_kwargs` are forwarded verbatim
-    to `sqlalchemy.ext.asyncio.create_async_engine` so the caller controls
-    pool class, pre-ping, recycle, echo, etc. `async_creator` is supplied
-    by this function and must not be passed in `engine_kwargs`.
+    lifecycle to the returned engine: `await engine.dispose()` also closes
+    the credential. `**engine_kwargs` are forwarded to `create_async_engine`
+    so the caller controls pool class, pre-ping, recycle, echo, etc.
+    `async_creator` is supplied by this function and must not be passed in
+    `engine_kwargs`.
 
-    Event-loop affinity: `azure.identity.aio` credentials lazily construct
-    an `aiohttp.ClientSession` on first `get_token`, and that session is
-    bound to whichever event loop was running at the time. The credential
-    therefore must be *closed* on the same loop that first used it. Because
-    this function hooks the credential's `close` into `engine.dispose()`,
-    the usual `await engine.dispose()` shutdown path handles that cleanup
-    automatically — provided `dispose` is awaited on the loop that opened
-    the connections.
-
-    The practical implication for callers that run both a migration engine
-    (inside a throwaway `asyncio.run(...)` loop) and a long-lived server
-    engine (inside uvicorn's loop): **call `create_azure_engine` twice**,
-    once per engine, so each engine owns its own credential bound to its
-    own loop. Sharing a single credential across the two loops is the bug
-    documented in `internal_docs/specs/postgres-cloud-auth-pooling.md`
-    (section "Event-loop affinity of azure.identity.aio credentials") and
-    surfaces as `RuntimeError: Event loop is closed` on the server's first
-    connection-open.
+    Event-loop affinity: `azure.identity.aio` lazily pins its internal
+    `aiohttp.ClientSession` to the loop running at first `get_token()` and
+    must be *closed* on that same loop. Callers that build both a migration
+    engine (throwaway `asyncio.run(...)` loop) and a server engine (uvicorn
+    loop) must therefore call this function **once per engine** so each
+    engine owns a credential bound to its own loop.
 
     Args:
         url: SQLAlchemy URL with asyncpg driver.
         connect_args: SSL and other connection arguments for asyncpg.
-        **engine_kwargs: Forwarded to `create_async_engine` (pool class,
-            `pool_pre_ping`, `pool_recycle`, `echo`, `json_serializer`, ...).
+        **engine_kwargs: Forwarded to `create_async_engine`.
 
     Returns:
-        A fully configured `AsyncEngine` whose `dispose()` tears down the
-        pool *and* closes the underlying Azure credential.
+        An `AsyncEngine` whose `dispose()` tears down the pool and closes
+        the underlying Azure credential.
     """
     import asyncpg
 
@@ -101,12 +88,10 @@ def create_azure_engine(
 
     engine = create_async_engine(url=url, async_creator=async_creator, **engine_kwargs)
 
-    # Monkey-patch `engine.dispose` on this instance (not the class) so
-    # shutting down the engine also closes our credential on whatever loop
-    # the dispose is awaited on. Instance-dict assignment shadows the class
-    # method via normal attribute lookup; it only works if SQLAlchemy always
-    # invokes dispose via `engine.dispose(...)` rather than
-    # `type(engine).dispose(engine)`, which is true today.
+    # Patch `dispose` on this instance so shutting down the engine also
+    # closes the credential on the loop that awaited dispose. Relies on
+    # callers invoking `engine.dispose(...)` (instance attribute lookup)
+    # rather than `type(engine).dispose(engine)` (class lookup).
     original_dispose = engine.dispose
 
     async def dispose_and_close_credential(*args: Any, **kwargs: Any) -> Any:
