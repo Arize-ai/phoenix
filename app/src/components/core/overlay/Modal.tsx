@@ -258,9 +258,16 @@ function ResizableSlideoverModal({
   ...ariaRest
 }: BaseModalProps & ResizableSlideoverProps & { ref?: Ref<HTMLDivElement> }) {
   const resolvedMin = minWidth ?? DEFAULT_RESIZABLE_MIN_WIDTH;
+  const resolvedMax = Math.max(
+    resolvedMin,
+    maxWidth ?? window.innerWidth - DEFAULT_RESIZABLE_MAX_WIDTH_INSET
+  );
 
   const [width, setWidth] = useState<number>(
-    defaultWidth ?? DEFAULT_RESIZABLE_WIDTH
+    Math.min(
+      Math.max(defaultWidth ?? DEFAULT_RESIZABLE_WIDTH, resolvedMin),
+      resolvedMax
+    )
   );
   const [isDragging, setIsDragging] = useState(false);
 
@@ -275,12 +282,8 @@ function ResizableSlideoverModal({
   const pendingWidthRef = useRef<number | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
-  const clamp = (value: number) => {
-    const max =
-      maxWidth ?? window.innerWidth - DEFAULT_RESIZABLE_MAX_WIDTH_INSET;
-    const effectiveMax = Math.max(resolvedMin, max);
-    return Math.min(Math.max(value, resolvedMin), effectiveMax);
-  };
+  const clamp = (value: number) =>
+    Math.min(Math.max(value, resolvedMin), resolvedMax);
 
   const flushPendingWidth = () => {
     rafIdRef.current = null;
