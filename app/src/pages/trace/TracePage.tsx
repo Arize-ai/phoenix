@@ -18,8 +18,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { SLIDEOVER_MIN_WIDTH } from "@phoenix/components/core/overlay/constants";
-import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
+import { SLIDEOVER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultModalSize } from "@phoenix/components/core/overlay/useDefaultModalSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -40,7 +40,7 @@ export function TracePage() {
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+  const { defaultSize, onSizeChange } = useDefaultModalSize({
     id: "trace-details",
   });
 
@@ -60,9 +60,9 @@ export function TracePage() {
       <Modal
         variant="slideover"
         isResizable
-        defaultWidth={defaultWidth}
-        minWidth={SLIDEOVER_MIN_WIDTH}
-        onResize={onWidthChange}
+        defaultSize={defaultSize}
+        minSize={SLIDEOVER_MIN_SIZE}
+        onResize={onSizeChange}
       >
         <Dialog>
           {({ close }) => (

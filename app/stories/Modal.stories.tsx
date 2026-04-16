@@ -21,7 +21,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
+import { useDefaultModalSize } from "@phoenix/components/core/overlay/useDefaultModalSize";
 
 const meta: Meta = {
   title: "Core/Overlays/Modal",
@@ -181,7 +181,7 @@ const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedItem = MOCK_ITEMS.find((item) => item.id === selectedId);
 
-  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+  const { defaultSize, onSizeChange } = useDefaultModalSize({
     id: "storybook-slideover-resizable",
   });
 
@@ -231,8 +231,8 @@ const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
           variant="slideover"
           isResizable
           isOpen
-          defaultWidth={defaultWidth}
-          onResize={onWidthChange}
+          defaultSize={defaultSize}
+          onResize={onSizeChange}
           onOpenChange={(isOpen) => {
             if (!isOpen) setSelectedId(null);
           }}
@@ -275,7 +275,7 @@ const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
                       Click other rows in the list to navigate between traces
                       while the drawer stays open. Drag the left edge to resize.
                       The width persists across page reloads via the{" "}
-                      <code>useDefaultModalWidth</code> hook.
+                      <code>useDefaultModalSize</code> hook.
                     </Text>
                   </View>
                 </Flex>
@@ -307,9 +307,9 @@ function _ModalPropsTypeTests() {
       <Modal
         variant="slideover"
         isResizable
-        defaultWidth={500}
-        minWidth={300}
-        maxWidth={900}
+        defaultSize="35%"
+        minSize={300}
+        maxSize="85%"
         onResize={() => {}}
       />
 
@@ -317,12 +317,12 @@ function _ModalPropsTypeTests() {
       <Modal isResizable />
       {/* @ts-expect-error isResizable is not allowed on variant="default" */}
       <Modal variant="default" isResizable />
-      {/* @ts-expect-error defaultWidth requires isResizable */}
-      <Modal variant="slideover" defaultWidth={500} />
+      {/* @ts-expect-error defaultSize requires isResizable */}
+      <Modal variant="slideover" defaultSize="35%" />
       {/* @ts-expect-error onResize requires isResizable */}
       <Modal variant="slideover" isResizable={false} onResize={() => {}} />
-      {/* @ts-expect-error minWidth requires isResizable */}
-      <Modal variant="slideover" minWidth={300} />
+      {/* @ts-expect-error minSize requires isResizable */}
+      <Modal variant="slideover" minSize={300} />
     </>
   );
 }

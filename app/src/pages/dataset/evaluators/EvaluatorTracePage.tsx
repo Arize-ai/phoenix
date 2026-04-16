@@ -16,8 +16,8 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { SLIDEOVER_MIN_WIDTH } from "@phoenix/components/core/overlay/constants";
-import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
+import { SLIDEOVER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultModalSize } from "@phoenix/components/core/overlay/useDefaultModalSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
 
@@ -35,7 +35,7 @@ export function EvaluatorTracePage() {
     EVALUATOR_DETAILS_ROUTE_ID
   );
   const projectId = loaderData?.projectId;
-  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+  const { defaultSize, onSizeChange } = useDefaultModalSize({
     id: "evaluator-trace-details",
   });
 
@@ -56,9 +56,9 @@ export function EvaluatorTracePage() {
       <Modal
         variant="slideover"
         isResizable
-        defaultWidth={defaultWidth}
-        minWidth={SLIDEOVER_MIN_WIDTH}
-        onResize={onWidthChange}
+        defaultSize={defaultSize}
+        minSize={SLIDEOVER_MIN_SIZE}
+        onResize={onSizeChange}
       >
         <Dialog>
           {({ close }) => (

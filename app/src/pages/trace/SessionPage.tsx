@@ -13,8 +13,8 @@ import {
   DialogTitle,
   TitleWithID,
 } from "@phoenix/components";
-import { SLIDEOVER_MIN_WIDTH } from "@phoenix/components/core/overlay/constants";
-import { useDefaultModalWidth } from "@phoenix/components/core/overlay/useDefaultModalWidth";
+import { SLIDEOVER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultModalSize } from "@phoenix/components/core/overlay/useDefaultModalSize";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
@@ -30,7 +30,7 @@ export function SessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const { defaultWidth, onWidthChange } = useDefaultModalWidth({
+  const { defaultSize, onSizeChange } = useDefaultModalSize({
     id: "session-details",
   });
 
@@ -46,9 +46,9 @@ export function SessionPage() {
       <Modal
         variant="slideover"
         isResizable
-        defaultWidth={defaultWidth}
-        minWidth={SLIDEOVER_MIN_WIDTH}
-        onResize={onWidthChange}
+        defaultSize={defaultSize}
+        minSize={SLIDEOVER_MIN_SIZE}
+        onResize={onSizeChange}
       >
         <Dialog>
           <DialogContent>

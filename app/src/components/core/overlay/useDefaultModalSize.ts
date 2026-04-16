@@ -1,0 +1,101 @@
+import { useState } from "react";
+
+import type { SizeValue } from "@phoenix/components/core/overlay/Modal";
+
+const STORAGE_KEY_PREFIX = "arize-phoenix-modal";
+
+export interface UseDefaultModalSizeOptions {
+  /**
+   * Stable identifier used to namespace the persisted size. Treat this like
+   * a layout key — it must not change between renders of the same drawer.
+   */
+  id: string;
+  /**
+   * Storage backend. Defaults to `localStorage`. Pass `sessionStorage` for
+   * per-tab persistence, or any object implementing the Web Storage interface
+   * (e.g. a test fake) to redirect writes.
+   */
+  storage?: Storage;
+}
+
+export interface UseDefaultModalSizeResult {
+  /**
+   * The previously persisted size as a viewport percentage string (e.g.
+   * `"50%"`), or `undefined` if nothing has been stored yet under this `id`.
+   * Pass into `<Modal defaultSize={...} />`.
+   */
+  defaultSize: SizeValue | undefined;
+  /**
+   * Call to persist a new size. Wire into `<Modal onResize={...} />` so
+   * every drag commit gets saved.
+   */
+  onSizeChange: (sizePercent: number) => void;
+}
+
+const resolveStorage = (override?: Storage): Storage | null => {
+  if (override !== undefined) return override;
+  try {
+    return typeof localStorage !== "undefined" ? localStorage : null;
+  } catch {
+    // Accessing `localStorage` throws under some privacy settings.
+    return null;
+  }
+};
+
+/**
+ * Persist a resizable `<Modal>`'s size between visits. The value is stored
+ * as a viewport percentage (e.g. `50` for 50%) and returned as a
+ * {@link SizeValue} string (e.g. `"50%"`).
+ *
+ * ```tsx
+ * const { defaultSize, onSizeChange } = useDefaultModalSize({
+ *   id: "span-details",
+ * });
+ *
+ * <Modal
+ *   variant="slideover"
+ *   isResizable
+ *   defaultSize={defaultSize}
+ *   onResize={onSizeChange}
+ * >
+ *   ...
+ * </Modal>
+ * ```
+ */
+export function useDefaultModalSize({
+  id,
+  storage,
+}: UseDefaultModalSizeOptions): UseDefaultModalSizeResult {
+  const key = `${STORAGE_KEY_PREFIX}-${id}-size`;
+  const resolvedStorage = resolveStorage(storage);
+
+  // Lazy init — read the persisted size exactly once on first render and
+  // treat it as the `defaultSize` for the modal. Subsequent storage reads
+  // are not needed because Modal drives size from its own state once mounted.
+  const [defaultSize] = useState<SizeValue | undefined>(() => {
+    if (!resolvedStorage) return undefined;
+    try {
+      const raw = resolvedStorage.getItem(key);
+      if (!raw) return undefined;
+      const parsed = Number(raw);
+      // Valid percentages are in (0, 100]. Values outside this range are
+      // invalid — return undefined so the modal falls back to its default.
+      if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100)
+        return undefined;
+      return `${parsed}%`;
+    } catch {
+      return undefined;
+    }
+  });
+
+  const onSizeChange = (sizePercent: number) => {
+    if (!resolvedStorage) return;
+    try {
+      resolvedStorage.setItem(key, String(sizePercent));
+    } catch {
+      // Quota exceeded, private mode, etc. — degrade silently.
+    }
+  };
+
+  return { defaultSize, onSizeChange };
+}
