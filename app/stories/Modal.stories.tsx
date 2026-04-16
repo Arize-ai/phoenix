@@ -1,4 +1,6 @@
+import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
+import { useState } from "react";
 
 import type { ModalProps } from "@phoenix/components";
 import {
@@ -11,6 +13,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { Heading } from "@phoenix/components/core/content";
 import {
   DialogCloseButton,
   DialogContent,
@@ -132,59 +135,156 @@ export const NoOverlay = {
   render: NoOverlayTemplate,
 };
 
+const MOCK_ITEMS = [
+  { id: "trace-001", title: "POST /api/chat", latency: "1.2s", status: "ok" },
+  {
+    id: "trace-002",
+    title: "POST /api/chat",
+    latency: "3.4s",
+    status: "error",
+  },
+  { id: "trace-003", title: "GET /api/spans", latency: "0.8s", status: "ok" },
+  {
+    id: "trace-004",
+    title: "POST /api/evaluate",
+    latency: "5.1s",
+    status: "ok",
+  },
+  { id: "trace-005", title: "POST /api/chat", latency: "2.0s", status: "ok" },
+  {
+    id: "trace-006",
+    title: "GET /api/datasets",
+    latency: "0.3s",
+    status: "ok",
+  },
+];
+
+const listItemCSS = css`
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  border-bottom: 1px solid var(--global-border-color-default);
+  cursor: pointer;
+  &:hover {
+    background: var(--global-background-color-hover);
+  }
+  &[data-selected="true"] {
+    background: var(--global-background-color-active);
+  }
+`;
+
+/**
+ * Simulates the master-detail pattern used on pages like SessionPage and
+ * TracePage — a list of items behind a resizable, non-masking slideover.
+ * Click a row to open (or change) the detail drawer; drag the left edge to
+ * resize. The width persists across reloads via `useDefaultModalWidth`.
+ */
 const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
-  // Demonstrates the `react-resizable-panels`-style hook pattern: the caller
-  // owns persistence, the hook reads the stored width on first render and
-  // returns an `onWidthChange` that writes back on every commit. Drag the
-  // drawer, reload the Storybook frame, and the width should stick.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedItem = MOCK_ITEMS.find((item) => item.id === selectedId);
+
   const { defaultWidth, onWidthChange } = useDefaultModalWidth({
     id: "storybook-slideover-resizable",
   });
+
   return (
-    <Flex direction="column" gap="size-200">
-      <Text>
-        Click the button behind the slideover to confirm the background stays
-        interactive. Drag the left edge of the slideover to resize — the width
-        is persisted via <code>useDefaultModalWidth</code>.
-      </Text>
-      <Flex direction="row" gap="size-200">
-        <Button
-          onPress={() => {
-            // eslint-disable-next-line no-console
-            console.log("background button clicked");
+    <View height="100%">
+      <Flex direction="column" gap="size-0">
+        <View
+          padding="size-200"
+          borderBottomWidth="thin"
+          borderBottomColor="default"
+        >
+          <Heading level={3}>Traces</Heading>
+        </View>
+        {MOCK_ITEMS.map((item) => (
+          <div
+            key={item.id}
+            css={listItemCSS}
+            data-selected={item.id === selectedId ? "true" : undefined}
+            onClick={() => setSelectedId(item.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") setSelectedId(item.id);
+            }}
+          >
+            <Flex justifyContent="space-between" alignItems="center">
+              <Flex direction="column" gap="size-25">
+                <Text weight="heavy">{item.title}</Text>
+                <Text color="text-700">{item.id}</Text>
+              </Flex>
+              <Flex gap="size-200" alignItems="center">
+                <Text color="text-700">{item.latency}</Text>
+                <Text
+                  color={item.status === "error" ? "danger" : "success"}
+                  weight="heavy"
+                >
+                  {item.status}
+                </Text>
+              </Flex>
+            </Flex>
+          </div>
+        ))}
+      </Flex>
+
+      {selectedItem && (
+        <Modal
+          variant="slideover"
+          isResizable
+          isOpen
+          defaultWidth={defaultWidth}
+          onResize={onWidthChange}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setSelectedId(null);
           }}
         >
-          Background button (should stay clickable)
-        </Button>
-        <DialogTrigger>
-          <Button>Open Resizable Slideover</Button>
-          <Modal
-            variant="slideover"
-            isResizable
-            defaultWidth={defaultWidth}
-            onResize={onWidthChange}
-          >
-            <Dialog>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Resizable Slideover</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <View padding="size-200">
-                  <Text>
-                    This slideover has no backdrop and a draggable left edge.
-                    Grab the thin strip at the left border and drag horizontally
-                    to resize.
-                  </Text>
-                </View>
-              </DialogContent>
-            </Dialog>
-          </Modal>
-        </DialogTrigger>
-      </Flex>
-    </Flex>
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{selectedItem.title}</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-200">
+                <Flex direction="column" gap="size-200">
+                  <Flex direction="column" gap="size-50">
+                    <Text weight="heavy">Trace ID</Text>
+                    <Text color="text-700">{selectedItem.id}</Text>
+                  </Flex>
+                  <Flex direction="column" gap="size-50">
+                    <Text weight="heavy">Latency</Text>
+                    <Text color="text-700">{selectedItem.latency}</Text>
+                  </Flex>
+                  <Flex direction="column" gap="size-50">
+                    <Text weight="heavy">Status</Text>
+                    <Text
+                      color={
+                        selectedItem.status === "error" ? "danger" : "success"
+                      }
+                    >
+                      {selectedItem.status}
+                    </Text>
+                  </Flex>
+                  <View
+                    padding="size-200"
+                    borderWidth="thin"
+                    borderColor="default"
+                    borderRadius="medium"
+                  >
+                    <Text color="text-700">
+                      Click other rows in the list to navigate between traces
+                      while the drawer stays open. Drag the left edge to resize.
+                      The width persists across page reloads via the{" "}
+                      <code>useDefaultModalWidth</code> hook.
+                    </Text>
+                  </View>
+                </Flex>
+              </View>
+            </DialogContent>
+          </Dialog>
+        </Modal>
+      )}
+    </View>
   );
 };
 
