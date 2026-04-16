@@ -266,7 +266,6 @@ Next, we define our correctness evaluator. In the task function below, we call `
 We also revise the task function to include `with` clauses that generate structured spans in Phoenix. These spans capture key details such as input values, output values, and the results of the evaluation.
 
 ```python expandable
-# This is our modified correctness evaluator using direct single-record eval.
 from phoenix.evals import LLM, ClassificationEvaluator
 
 # Template for evaluating math problem solutions
@@ -327,11 +326,10 @@ async def solve_math_problem(dataset_row: dict):
 
         # Logging our evaluation
         span_id = format_span_id(eval_span.get_span_context().span_id)
-        score = 1 if evaluation_result[0].label == "correct" else 0
         eval_data = {
             "span_id": span_id,
             "label": evaluation_result[0].label,
-            "score": score,
+            "score": evaluation_result[0].score,
         }
         if evaluation_result[0].explanation:
             eval_data["explanation"] = evaluation_result[0].explanation

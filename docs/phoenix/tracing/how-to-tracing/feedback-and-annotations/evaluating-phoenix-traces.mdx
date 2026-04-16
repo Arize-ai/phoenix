@@ -185,7 +185,7 @@ nerdy_evaluator = ClassificationEvaluator(
     name="nerdiness",
     llm=LLM(provider="openai", model="gpt-4o-mini"),
     prompt_template=prompt_template,
-    choices={"nerdy": 1.0, "not nerdy": 0.0}, # map labels to scores for consistent evaluation results
+    choices=["nerdy", "not nerdy"], # you could map these labels to scores, but we refrain from judgement here
 )
 ```
 

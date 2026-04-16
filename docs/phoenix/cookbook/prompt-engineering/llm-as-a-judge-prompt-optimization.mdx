@@ -159,20 +159,25 @@ Now that we have our baseline prompt, we need to set up two key components:
 Finally, we run our experiment. With this setup, we can measure how well our prompt initially performs.
 
 ```python expandable
-from phoenix.evals import LLM, ClassificationEvaluator
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
 llm = LLM(provider="openai", model="gpt-4")
-empathy_evaluator = ClassificationEvaluator(
-    name="empathy",
-    prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-    llm=llm,
-    choices=list(map(str, range(1, 11))),
+empathy_evaluator = bind_evaluator(
+    evaluator=ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
+    ),
+    input_mapping={
+        "AI_Response": "AI_Response",
+    },
 )
 
 
 def initial_prompt(input):
     result = empathy_evaluator.evaluate(
-        eval_input={"AI_Response": input["AI_Response"]}
+        eval_input=input,
     )
     return int(result[0].label)
 
