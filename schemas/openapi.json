@@ -1258,7 +1258,11 @@
                       "type": "string"
                     },
                     "uniqueItems": true,
-                    "description": "Column names for auto-assigning examples to splits"
+                    "description": "Deprecated: use split_key instead. Column names for auto-assigning examples to splits"
+                  },
+                  "split_key": {
+                    "type": "string",
+                    "description": "Single column name containing split names (plain string or JSON list) per row"
                   },
                   "flatten_keys[]": {
                     "type": "array",
