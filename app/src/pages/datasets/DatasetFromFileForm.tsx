@@ -412,6 +412,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             setErrorMessage(null);
             // Store collapsible columns for collapse feature
             setCollapsibleKeys(result.collapsibleColumns);
+            setCollapseKeys(result.collapsibleColumns.length > 0);
             // Auto-assign columns based on name heuristics
             const autoAssigned = computeAutoAssignment(result.columns);
             setValue("input_keys", autoAssigned.input, {
@@ -437,6 +438,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               setErrorMessage(null);
               // Store collapsible keys for collapse feature
               setCollapsibleKeys(result.collapsibleKeys);
+              setCollapseKeys(result.collapsibleKeys.length > 0);
               // Auto-assign columns based on name heuristics
               const autoAssigned = computeAutoAssignment(result.keys);
               setValue("input_keys", autoAssigned.input, {
@@ -798,6 +800,42 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         {columns.length > 0 && (
           <div css={sectionCSS}>
             <Controller
+              name="example_id_key"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnSingleSelector
+                  label="Example ID Column (optional)"
+                  description={`Select a ${fileType === "csv" ? "column" : "key"} to use as a unique identifier for upserting examples`}
+                  columns={columns}
+                  selectedColumn={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                  isDisabled={isSubmitting || isParsing}
+                />
+              )}
+            />
+            <Controller
+              name="split_key"
+              control={control}
+              render={({
+                field: { value, onChange },
+                fieldState: { error },
+              }) => (
+                <ColumnSingleSelector
+                  label="Split Column (optional)"
+                  description={`Select a ${fileType === "csv" ? "column" : "key"} containing split names (plain string or JSON list)`}
+                  columns={columns}
+                  selectedColumn={value}
+                  onChange={onChange}
+                  errorMessage={error?.message}
+                  isDisabled={isSubmitting || isParsing}
+                />
+              )}
+            />
+            <Controller
               name="input_keys"
               control={control}
               rules={{
@@ -824,42 +862,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                     </Text>
                   )}
                 </>
-              )}
-            />
-            <Controller
-              name="split_key"
-              control={control}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnSingleSelector
-                  label="Split Column (optional)"
-                  description={`Select a ${fileType === "csv" ? "column" : "key"} containing split names (plain string or JSON list)`}
-                  columns={columns}
-                  selectedColumn={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                  isDisabled={isSubmitting || isParsing}
-                />
-              )}
-            />
-            <Controller
-              name="example_id_key"
-              control={control}
-              render={({
-                field: { value, onChange },
-                fieldState: { error },
-              }) => (
-                <ColumnSingleSelector
-                  label="Example ID Column (optional)"
-                  description={`Select a ${fileType === "csv" ? "column" : "key"} to use as a unique identifier for upserting examples`}
-                  columns={columns}
-                  selectedColumn={value}
-                  onChange={onChange}
-                  errorMessage={error?.message}
-                  isDisabled={isSubmitting || isParsing}
-                />
               )}
             />
           </div>
