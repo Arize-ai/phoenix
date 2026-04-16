@@ -2,9 +2,7 @@ import { useState } from "react";
 
 import type { SizeValue } from "@phoenix/types/sizing";
 
-// Keep the storage key prefix unchanged so existing persisted sizes are
-// picked up after the rename from useDefaultModalSize → useDefaultDrawerSize.
-const STORAGE_KEY_PREFIX = "arize-phoenix-modal";
+const STORAGE_KEY_PREFIX = "arize-phoenix-drawer";
 
 export interface UseDefaultDrawerSizeOptions {
   /**
