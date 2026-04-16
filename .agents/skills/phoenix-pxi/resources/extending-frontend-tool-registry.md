@@ -1,6 +1,6 @@
 # Extending The Frontend Tool Registry
 
-Use this guide when working on frontend-executed PXI tools in `app/src/agent/`.
+PXI ("pixie") is Phoenix's built-in AI assistant. Use this guide when working on frontend-executed PXI tools in `app/src/agent/`.
 
 ## Mental Model
 

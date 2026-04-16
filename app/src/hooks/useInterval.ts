@@ -3,28 +3,51 @@ import { useEffect, useRef } from "react";
 type Callback = () => void;
 
 /**
- * Custom hook to use setInterval with React hooks
- * @param callback
- * @param {number | null} delay - if set to null, no interval will be set
+ * setInterval that automatically pauses when the page tab is hidden
+ * and fires immediately upon becoming visible again.
+ * @param callback - function to call on each tick
+ * @param delay - interval in ms, or null to disable
  */
 export function useInterval(callback: Callback, delay: number | null) {
   const savedCallback = useRef<Callback | null>(null);
 
-  // Remember the latest callback.
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
 
-  // Set up the interval.
   useEffect(() => {
+    if (typeof delay !== "number") return;
+
+    const intervalMs = delay;
+
     function tick() {
-      if (savedCallback.current) {
-        savedCallback.current();
+      savedCallback.current?.();
+    }
+
+    let id: ReturnType<typeof setInterval> | null = setInterval(
+      tick,
+      intervalMs
+    );
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        if (id != null) {
+          clearInterval(id);
+          id = null;
+        }
+      } else {
+        if (id == null) {
+          tick();
+          id = setInterval(tick, intervalMs);
+        }
       }
     }
-    if (typeof delay === "number") {
-      const id = setInterval(tick, delay);
-      return () => clearInterval(id);
-    }
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      if (id != null) clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [delay]);
 }

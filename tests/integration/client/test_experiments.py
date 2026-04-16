@@ -1371,6 +1371,59 @@ class TestExperimentsIntegration:
             assert eval_run.result.get("label") == "has_example"
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_evaluator_receives_task_run_trace_id(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=f"test_trace_id_binding_{token_hex(4)}",
+                inputs=[
+                    {"text": "first"},
+                    {"text": "second"},
+                ],
+                outputs=[
+                    {"expected": "FIRST"},
+                    {"expected": "SECOND"},
+                ],
+            )
+        )
+
+        received_trace_ids: list[str] = []
+
+        def task(input: Dict[str, Any]) -> str:
+            return cast(str, input["text"].upper())
+
+        def evaluator(output: str, trace_id: Optional[str] = None) -> float:
+            assert trace_id is not None
+            received_trace_ids.append(trace_id)
+            return 1.0 if trace_id else 0.0
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=task,
+                evaluators=[evaluator],
+                experiment_name=f"test_trace_id_eval_{token_hex(4)}",
+                print_summary=False,
+            )
+        )
+
+        task_run_trace_ids = [run["trace_id"] for run in result["task_runs"]]
+
+        assert len(received_trace_ids) == len(task_run_trace_ids) == 2
+        assert all(trace_id is not None for trace_id in task_run_trace_ids)
+        assert received_trace_ids == task_run_trace_ids
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_task_dynamic_parameter_binding(
         self,
         is_async: bool,

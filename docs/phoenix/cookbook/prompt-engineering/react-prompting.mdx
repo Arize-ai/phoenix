@@ -67,7 +67,6 @@ from phoenix.evals import (
 )
 
 TOOL_CALLING_CHOICES = ["correct", "incorrect"]
-from phoenix.client.experiments import run_experiment
 from phoenix.otel import register
 
 nest_asyncio.apply()
@@ -315,8 +314,8 @@ def evaluate_response(input, output):
 #### Experiment
 
 ```python
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=dataset,
     task=prompt_task,
     evaluators=[evaluate_response],
     experiment_description="Customer Support Prompt",
@@ -402,8 +401,8 @@ def evaluate_response(input, output):
 #### Experiment
 
 ```python
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=dataset,
     task=prompt_task,
     evaluators=[evaluate_response],
     experiment_description="Customer Support Prompt",

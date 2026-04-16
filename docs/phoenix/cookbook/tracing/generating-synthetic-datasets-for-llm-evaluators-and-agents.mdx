@@ -122,10 +122,8 @@ def evaluate_response(output, reference):
     predicted_label = output
     return 1 if expected_label == predicted_label else 0
 
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
-    df,
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=df,
     task=task_function,
     evaluators=[evaluate_response],
     experiment_name="evaluator performance"
@@ -244,11 +242,8 @@ def evaluate_response(output, reference):
 ```
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-
-initial_experiment = run_experiment(
-    df, task=task_function, evaluators=[evaluate_response], experiment_name="evaluator performance"
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=df, task=task_function, evaluators=[evaluate_response], experiment_name="evaluator performance"
 )
 ```
 

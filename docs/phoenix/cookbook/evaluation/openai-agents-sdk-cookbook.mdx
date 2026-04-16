@@ -211,13 +211,14 @@ Let's create this dataset and upload it into the platform.
 ```python
 import uuid
 
-from phoenix.client import Client
+from phoenix.client import AsyncClient
 
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-px_client = Client()
-dataset = px_client.datasets.create_dataset(
+# Use AsyncClient here because the agent task is asynchronous.
+px_client = AsyncClient()
+dataset = await px_client.datasets.create_dataset(
     dataframe=math_problems_df,
     input_keys=["question"],
     name=f"math-questions-{unique_id}",
@@ -226,10 +227,8 @@ print(dataset)
 ```
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = await px_client.experiments.run_experiment(
+    dataset=dataset,
     task=solve_math_problem,
     evaluators=[correctness_eval],
     experiment_description="Solve Math Problems",
@@ -367,10 +366,8 @@ print(result)
 Finally, we run an experiment to simulate traces in production.
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = await px_client.experiments.run_experiment(
+    dataset=dataset,
     task=solve_math_problem,
     experiment_description="Solve Math Problems",
     experiment_name=f"solve-math-questions-{str(uuid.uuid4())[:5]}",
@@ -382,4 +379,3 @@ initial_experiment = run_experiment(
 <Frame caption="">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evaluating_openai_agents.gif" />
 </Frame>
-

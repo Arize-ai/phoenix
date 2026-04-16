@@ -60,6 +60,7 @@ import {
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
+import { useInterval } from "@phoenix/hooks";
 import type {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
@@ -81,6 +82,7 @@ import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
+const PROJECTS_POLL_INTERVAL_MS = 60_000;
 
 const useProjectSortQueryParams = () => {
   const { projectSortOrder } = usePreferencesContext((state) => ({
@@ -120,7 +122,8 @@ export function ProjectsPage() {
       first: PAGE_SIZE,
       filter: { value: "", col: "name" },
       ...queryParams,
-    }
+    },
+    { fetchPolicy: "store-and-network" }
   );
 
   return (
@@ -222,6 +225,8 @@ export function ProjectsPageContent({
     },
     [_refetch, queryArgs]
   );
+
+  useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
 
   const projects = projectsData?.projects.edges.map((p) => p.project);
 

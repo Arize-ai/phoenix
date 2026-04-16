@@ -1,5 +1,19 @@
 # Changelog
 
+## [14.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.5.0...arize-phoenix-v14.6.0) (2026-04-15)
+
+
+### Features
+
+* **agent:** fix docs URL formatting in PXI system prompt + add eval harness ([#12677](https://github.com/Arize-ai/phoenix/issues/12677)) ([5dd794b](https://github.com/Arize-ai/phoenix/commit/5dd794bbd6d4153b8a1ea0c6ead881e93fff95f0))
+* **app:** list-detail layout for session turns ([#12674](https://github.com/Arize-ai/phoenix/issues/12674)) ([f5951fb](https://github.com/Arize-ai/phoenix/commit/f5951fbf15edaf79c65da37a363113a692a2882e))
+
+
+### Bug Fixes
+
+* **ci:** make sync-models self-contained, add slack alerts, refresh model lists ([#12679](https://github.com/Arize-ai/phoenix/issues/12679)) ([b96d21f](https://github.com/Arize-ai/phoenix/commit/b96d21f8a90dba890bca33864a509d8fcddbc0e3))
+* **playground:** track eval failures separately from completions ([#12675](https://github.com/Arize-ai/phoenix/issues/12675)) ([03172f3](https://github.com/Arize-ai/phoenix/commit/03172f3fe957ba27b169dc10fef496777613e8f7))
+
 ## [14.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.4.0...arize-phoenix-v14.5.0) (2026-04-14)
 
 

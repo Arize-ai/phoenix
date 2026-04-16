@@ -1915,6 +1915,7 @@ class Experiments:
                     input=example["input"],
                     metadata=example["metadata"],
                     example=example,
+                    trace_id=experiment_run.get("trace_id"),
                 )
             except BaseException as exc:
                 span.record_exception(exc)
@@ -3669,6 +3670,7 @@ class AsyncExperiments:
                     input=example["input"],
                     metadata=example["metadata"],
                     example=example,
+                    trace_id=experiment_run.get("trace_id"),
                 )
             except BaseException as exc:
                 span.record_exception(exc)

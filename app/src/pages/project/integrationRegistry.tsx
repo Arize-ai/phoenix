@@ -119,7 +119,7 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://github.com/Arize-ai/openinference/tree/f897cd19ef39a15fea9ee3a8f5a6e929d7a54bf1/python/openinference-instrumentation",
       },
       TypeScript: {
-        packages: ["@arizeai/phoenix-otel", "@arizeai/openinference-core"],
+        packages: ["@arizeai/phoenix-otel"],
         getImplementationCode: getOtelInitCodeTypescript,
         docsHref:
           "https://arize.com/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#typescript",

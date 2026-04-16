@@ -190,12 +190,10 @@ def evaluate_response(input, output):
 ```py
 import nest_asyncio
 
-from phoenix.client.experiments import run_experiment
-
 nest_asyncio.apply()
 
-initial_experiment = run_experiment(
-    dataset, task=initial_prompt, evaluators=[evaluate_response], experiment_name="initial_prompt"
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=initial_prompt, evaluators=[evaluate_response], experiment_name="initial_prompt"
 )
 ```
 
@@ -249,8 +247,8 @@ def llm_as_a_judge(input):
     return int(score)
 
 
-experiment = run_experiment(
-    dataset,
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset,
     task=llm_as_a_judge,
     evaluators=[evaluate_response],
     experiment_name="few_shot_examples",
@@ -318,8 +316,8 @@ def llm_as_a_judge(input):
     return int(score)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="style_invariant"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="style_invariant"
 )
 ```
 
@@ -395,8 +393,8 @@ def llm_as_a_judge(input):
     return int(score)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="condensed_prompt"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="condensed_prompt"
 )
 ```
 
@@ -446,8 +444,8 @@ def llm_as_a_judge(input):
     return int(score)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="self_refinement"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="self_refinement"
 )
 ```
 
@@ -479,8 +477,8 @@ def llm_as_a_judge(input):
     return int(score)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="combined"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="combined"
 )
 ```
 

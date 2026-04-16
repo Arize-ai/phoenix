@@ -375,7 +375,7 @@ class TestTracer:
             captured_endpoint = endpoint
             return FakeRemoteExporter()
 
-        monkeypatch.setenv("PHOENIX_PXI_COLLECTOR_ENDPOINT", "https://env-collector.example")
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
 
         Tracer(
             span_cost_calculator=span_cost_calculator,
@@ -407,7 +407,7 @@ class TestTracer:
             captured_endpoint = endpoint
             return FakeRemoteExporter()
 
-        monkeypatch.setenv("PHOENIX_PXI_COLLECTOR_ENDPOINT", "https://env-collector.example")
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
 
         Tracer(
             span_cost_calculator=span_cost_calculator,
@@ -430,7 +430,7 @@ class TestTracer:
                 captured_headers = headers
 
         monkeypatch.setattr(otlp_http_trace_exporter, "OTLPSpanExporter", FakeOTLPSpanExporter)
-        monkeypatch.setenv("PHOENIX_PXI_COLLECTOR_API_KEY", "test-api-key")
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_API_KEY", "test-api-key")
 
         _build_remote_http_span_exporter("collector.example")
 
@@ -443,11 +443,12 @@ class TestTracer:
     ) -> None:
         tracer = Tracer(
             span_cost_calculator=span_cost_calculator,
-            project_name="pxi_agent",
+            project_name="assistant_agent",
         )
 
         assert (
-            tracer._self_provider.resource.attributes["openinference.project.name"] == "pxi_agent"
+            tracer._self_provider.resource.attributes["openinference.project.name"]
+            == "assistant_agent"
         )
 
     @pytest.mark.asyncio

@@ -422,7 +422,7 @@ async def stream_text(
     # Maximum backend tool loop iterations to prevent runaway loops.
     _MAX_BACKEND_TOOL_LOOPS = 5
 
-    from phoenix.config import get_env_phoenix_pxi_project_name
+    from phoenix.config import get_env_phoenix_agents_assistant_project_name
     from phoenix.server.api.routers.chat_tracing import (
         StreamAccumulator,
         create_agent_span,
@@ -452,7 +452,7 @@ async def stream_text(
                 tracer = Tracer(
                     span_cost_calculator=request.app.state.span_cost_calculator,
                     enable_remote_export=True,
-                    project_name=get_env_phoenix_pxi_project_name(),
+                    project_name=get_env_phoenix_agents_assistant_project_name(),
                 )
                 project_id = await ensure_project_exists(request.app.state.db)
                 agent_span = create_agent_span(

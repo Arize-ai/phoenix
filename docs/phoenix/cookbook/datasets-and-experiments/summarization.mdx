@@ -47,9 +47,10 @@ Launch Phoenix and follow the instructions in the cell output to open the Phoeni
 
 ```py
 import phoenix as px
-from phoenix.client import Client
+from phoenix.client import AsyncClient
 
-px_client = Client()
+# Use AsyncClient here because the experiment task makes network-bound LLM calls.
+px_client = AsyncClient()
 px.launch_app()
 ```
 
@@ -88,8 +89,7 @@ df = (
     .rename(columns={"highlights": "summary"})
 )
 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-px_client = Client()
-dataset = px_client.datasets.create_dataset(
+dataset = await px_client.datasets.create_dataset(
     dataframe=df,
     input_keys=["article"],
     output_keys=["summary"],
@@ -219,11 +219,9 @@ EVALUATORS = [rouge_1_f1_score, rouge_1_precision, rouge_1_recall, num_tokens]
 Run your first experiment and follow the link in the cell output to inspect the task outputs (generated summaries) and evaluations.
 
 ```py
-from phoenix.client.experiments import run_experiment
-
-experiment_results = run_experiment(
-    dataset,
-    task,
+experiment_results = await px_client.experiments.run_experiment(
+    dataset=dataset,
+    task=task,
     experiment_name="initial-template",
     experiment_description="first experiment using a simple prompt template",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -245,9 +243,9 @@ SUMMARY
 =======
 """
 task = partial(summarize_article_openai, prompt_template=template, model=gpt_4o)
-experiment_results = run_experiment(
-    dataset,
-    task,
+experiment_results = await px_client.experiments.run_experiment(
+    dataset=dataset,
+    task=task,
     experiment_name="concise-template",
     experiment_description="explicitly instuct the llm to be concise",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -316,9 +314,9 @@ Now run the experiment.
 
 ```python
 task = partial(summarize_article_openai, prompt_template=template, model=gpt_4o)
-experiment_results = run_experiment(
-    dataset,
-    task,
+experiment_results = await px_client.experiments.run_experiment(
+    dataset=dataset,
+    task=task,
     experiment_name="few-shot-template",
     experiment_description="include examples",
     experiment_metadata={"vendor": "openai", "model": gpt_4o},
@@ -367,9 +365,9 @@ async def summarize_article_anthropic(example: Example, prompt_template: str, mo
 claude_35_sonnet = "claude-3-5-sonnet-20240620"
 task = partial(summarize_article_anthropic, prompt_template=template, model=claude_35_sonnet)
 
-experiment_results = run_experiment(
-    dataset,
-    task,
+experiment_results = await px_client.experiments.run_experiment(
+    dataset=dataset,
+    task=task,
     experiment_name="anthropic-few-shot",
     experiment_description="anthropic",
     experiment_metadata={"vendor": "anthropic", "model": claude_35_sonnet},
@@ -396,5 +394,3 @@ Congrats! In this tutorial, you have:
 * Iteratively improved a prompt template to produce more concise summaries with balanced ROUGE-1 precision and recall
 
 As next steps, you can continue to iterate on your prompt template. If you find that you are unable to improve your summaries with further prompt engineering, you can export your dataset from Phoenix and use the [OpenAI fine-tuning API](https://platform.openai.com/docs/guides/fine-tuning/create-a-fine-tuned-model) to train a bespoke model for your needs.
-
-

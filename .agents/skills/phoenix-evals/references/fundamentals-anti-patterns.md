@@ -15,8 +15,11 @@ Common mistakes and fixes.
 ## Quantify Changes
 
 ```python
-baseline = run_experiment(dataset, old_prompt, evaluators)
-improved = run_experiment(dataset, new_prompt, evaluators)
+from phoenix.client import Client
+
+client = Client()
+baseline = client.experiments.run_experiment(dataset=dataset, task=old_prompt, evaluators=evaluators)
+improved = client.experiments.run_experiment(dataset=dataset, task=new_prompt, evaluators=evaluators)
 print(f"Improvement: {improved.pass_rate - baseline.pass_rate:+.1%}")
 ```
 
