@@ -175,7 +175,7 @@ const listItemCSS = css`
  * Simulates the master-detail pattern used on pages like SessionPage and
  * TracePage — a list of items behind a resizable, non-masking slideover.
  * Click a row to open (or change) the detail drawer; drag the left edge to
- * resize. The width persists across reloads via `useDefaultModalWidth`.
+ * resize. The size persists across reloads via `useDefaultModalSize`.
  */
 const SlideoverResizableTemplate: StoryFn<ModalProps> = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
