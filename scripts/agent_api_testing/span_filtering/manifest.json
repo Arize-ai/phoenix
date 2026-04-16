@@ -1,0 +1,81 @@
+{
+  "base_url": "http://localhost:6006",
+  "expected_matches": {
+    "find_premium_tier_metadata": [
+      "span-metadata-nested"
+    ],
+    "find_session_with_colons": [
+      "span-session-colon"
+    ],
+    "find_spans_by_iso_timestamp": [
+      "span-iso-timestamp"
+    ],
+    "find_spans_with_tag_prod": [
+      "span-tag-list"
+    ],
+    "find_user_by_id_numeric_string": [
+      "span-user-string-numeric"
+    ],
+    "find_user_by_id_string": [
+      "span-user-string"
+    ]
+  },
+  "project_name": "agent-trial-attribute-filter",
+  "seed_spans": [
+    {
+      "attributes": {
+        "openinference.span.kind": "LLM",
+        "user.id": "user-42"
+      },
+      "description": "user.id as a plain string value.",
+      "name": "span-user-string"
+    },
+    {
+      "attributes": {
+        "openinference.span.kind": "LLM",
+        "user.id": "12345"
+      },
+      "description": "user.id forced to the string '12345' \u2014 exposes the type-coercion footgun where agents unquote numeric-looking strings.",
+      "name": "span-user-string-numeric"
+    },
+    {
+      "attributes": {
+        "openinference.span.kind": "CHAIN",
+        "session.id": "sess:abc:123"
+      },
+      "description": "session.id with multiple internal colons.",
+      "name": "span-session-colon"
+    },
+    {
+      "attributes": {
+        "metadata.count": 5,
+        "metadata.flag": true,
+        "metadata.ratio": 0.7,
+        "metadata.tier": "premium",
+        "openinference.span.kind": "CHAIN"
+      },
+      "description": "nested metadata.* with mixed primitive types.",
+      "name": "span-metadata-nested"
+    },
+    {
+      "attributes": {
+        "openinference.span.kind": "CHAIN",
+        "tag.tags": [
+          "prod",
+          "experimental"
+        ]
+      },
+      "description": "tag.tags stored as a list of strings.",
+      "name": "span-tag-list"
+    },
+    {
+      "attributes": {
+        "metadata.start_time": "2026-04-16T10:30:00Z",
+        "openinference.span.kind": "CHAIN"
+      },
+      "description": "metadata.start_time as an ISO-8601 timestamp string.",
+      "name": "span-iso-timestamp"
+    }
+  ],
+  "spans_observed": 6
+}

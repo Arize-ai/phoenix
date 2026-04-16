@@ -1531,6 +1531,24 @@ async def project_with_attributed_spans(db: DbSessionFactory) -> None:
                     "config": {"endpoint": "http://example.com"},
                 },
             ),
+            (
+                "span-session-colon",
+                {
+                    "session": {"id": "sess:abc:123"},
+                },
+            ),
+            (
+                "span-http-url",
+                {
+                    "http_url": "http://example.com/path?q=1",
+                },
+            ),
+            (
+                "span-iso-timestamp",
+                {
+                    "metadata": {"start_time": "2026-04-16T10:30:00Z"},
+                },
+            ),
         ]
         for i, (name, attrs) in enumerate(spans_attrs):
             session.add(
@@ -1660,6 +1678,101 @@ async def test_span_search_filter_by_attribute_value_with_colon(
     spans = [Span.model_validate(s) for s in resp.json()["data"]]
     assert len(spans) == 1
     assert spans[0].name == "span-colon-value"
+
+
+async def test_span_search_filter_by_quoted_session_id_with_internal_colons(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Quoted JSON string value with multiple internal colons matches stored string.
+
+    The server performs ``filter_str.split(':', 1)`` so only the FIRST colon is
+    treated as the key/value delimiter; the value portion is then parsed with
+    ``json.loads()``. A quoted JSON string preserves the full ``sess:abc:123``
+    payload and is compared as a string.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": 'session.id:"sess:abc:123"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-session-colon"
+
+
+async def test_span_search_filter_by_unquoted_session_id_with_internal_colons(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Unquoted colon-bearing value falls back to raw string and still matches.
+
+    ``session.id:sess:abc:123`` splits to key=``session.id`` / value=
+    ``sess:abc:123``. ``json.loads('sess:abc:123')`` raises, so the value
+    falls back to the raw string and is matched via the string branch.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": "session.id:sess:abc:123"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-session-colon"
+
+
+async def test_span_search_filter_by_url_value_with_query_string(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """URL value containing ``:``, ``/``, and ``?`` is preserved end-to-end."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": 'http_url:"http://example.com/path?q=1"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-http-url"
+
+
+async def test_span_search_filter_by_unquoted_url_value(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Unquoted URL value falls back to raw string and still matches."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": "http_url:http://example.com/path?q=1"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-http-url"
+
+
+async def test_span_search_filter_by_iso_timestamp_string(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Quoted ISO-8601 timestamp string with multiple colons matches stored string."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": 'metadata.start_time:"2026-04-16T10:30:00Z"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-iso-timestamp"
+
+
+async def test_span_search_filter_by_unquoted_iso_timestamp_string(
+    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+) -> None:
+    """Unquoted ISO-8601 timestamp falls back to raw string and still matches."""
+    resp = await httpx_client.get(
+        "v1/projects/attr-filter-test/spans",
+        params={"attribute": "metadata.start_time:2026-04-16T10:30:00Z"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-iso-timestamp"
 
 
 async def test_otlp_span_search_filter_by_attribute_malformed(
@@ -1870,5 +1983,662 @@ async def test_attribute_empty_value_returns_422(
     resp = await httpx_client.get(
         "v1/projects/typed-attr-test/spans",
         params={"attribute": "llm.model_name:"},
+    )
+    assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Forced-string-quoting round-trip + bool-before-int dispatch pinning tests
+# ---------------------------------------------------------------------------
+#
+# These tests pin the current semantics of type-aware dispatch in
+# parse_attribute_filter (spans.py): json.loads(value) drives the code path,
+# with bool checked BEFORE int/float/str so `isinstance(True, int) is True`
+# does not misroute booleans into the numeric CAST path. For each pinned
+# behavior we seed two spans sharing the same key but storing values of
+# different JSON types, then assert each filter form matches EXACTLY one span.
+
+
+@pytest.fixture
+async def project_with_dispatch_pinning_spans(db: DbSessionFactory) -> None:
+    """Insert pairs of spans sharing a key but storing values of different JSON types.
+
+    - user.id: int 12345 vs string "12345"   -> forced-string-quoting round-trip
+    - llm.stream_flag: bool True vs string "true" -> bool-before-int dispatch
+    """
+    async with db() as session:
+        project = models.Project(name="dispatch-pin-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-02-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracedispatch000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_attrs: list[tuple[str, dict[str, Any]]] = [
+            ("span-user-id-int", {"user": {"id": 12345}}),
+            ("span-user-id-str", {"user": {"id": "12345"}}),
+            ("span-stream-flag-bool", {"llm": {"stream_flag": True}}),
+            ("span-stream-flag-str", {"llm": {"stream_flag": "true"}}),
+        ]
+        for i, (name, attrs) in enumerate(spans_attrs):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"disp{i:05d}000",
+                    parent_id=None,
+                    name=name,
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes=attrs,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_attribute_bare_numeric_matches_stored_int_not_string(
+    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+) -> None:
+    """Bare `user.id:12345` dispatches as int and matches stored int 12345 only."""
+    resp = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": "user.id:12345"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-user-id-int"
+
+
+async def test_attribute_quoted_numeric_matches_stored_string_not_int(
+    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+) -> None:
+    """Quoted `user.id:"12345"` (forced-string escape hatch) matches stored string "12345" only."""
+    resp = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": 'user.id:"12345"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-user-id-str"
+
+
+async def test_attribute_numeric_quoted_vs_unquoted_are_disjoint(
+    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+) -> None:
+    """Quoted and unquoted numeric filters have disjoint match sets (pin distinct behaviors)."""
+    resp_bare = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": "user.id:12345"},
+    )
+    resp_quoted = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": 'user.id:"12345"'},
+    )
+    assert resp_bare.is_success
+    assert resp_quoted.is_success
+    bare_names = {s["name"] for s in resp_bare.json()["data"]}
+    quoted_names = {s["name"] for s in resp_quoted.json()["data"]}
+    assert bare_names == {"span-user-id-int"}
+    assert quoted_names == {"span-user-id-str"}
+    assert bare_names.isdisjoint(quoted_names)
+
+
+async def test_attribute_bare_true_matches_stored_bool_true(
+    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+) -> None:
+    """Bare `flag:true` dispatches via .as_boolean() and always matches stored bool True.
+
+    Pins that bool is checked BEFORE int/float/str in parse_attribute_filter —
+    otherwise `isinstance(True, int) is True` would misroute booleans into the
+    CAST(col AS TEXT) == json.dumps(value) path.
+
+    Note: on postgresql, `.as_boolean()` ALSO coerces stored JSON string "true"
+    to bool True (dialect divergence — see the per-dialect pinning test below).
+    """
+    resp = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": "llm.stream_flag:true"},
+    )
+    assert resp.is_success
+    names = {s["name"] for s in resp.json()["data"]}
+    assert "span-stream-flag-bool" in names
+
+
+async def test_attribute_quoted_true_matches_stored_string_true_only(
+    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+) -> None:
+    """Quoted `flag:"true"` dispatches as string and matches stored string "true" only.
+
+    Consistent across dialects: CAST(col, Text) == '"true"' is exact on both.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": 'llm.stream_flag:"true"'},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-stream-flag-str"
+
+
+async def test_attribute_bool_vs_bool_string_dispatch_pinned_per_dialect(
+    httpx_client: httpx.AsyncClient,
+    project_with_dispatch_pinning_spans: None,
+    dialect: str,
+) -> None:
+    """Pin the CURRENT per-dialect behavior of bool-vs-bool-string dispatch.
+
+    - sqlite: `.as_boolean()` does NOT coerce JSON strings — bare `flag:true`
+      matches ONLY the stored-bool span; quoted `flag:"true"` matches ONLY the
+      stored-string span; the two sets are disjoint.
+    - postgresql: `.as_boolean()` coerces the stored JSON string "true" to
+      boolean true, so bare `flag:true` matches BOTH the stored-bool span and
+      the stored-string span. Quoted `flag:"true"` still matches the
+      stored-string span only (CAST(col, Text) is exact).
+
+    This divergence is analogous to the documented JSON-list-subscript skew
+    on SQLite and is expected. Pin the behavior so future changes surface it.
+    """
+    resp_bare = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": "llm.stream_flag:true"},
+    )
+    resp_quoted = await httpx_client.get(
+        "v1/projects/dispatch-pin-test/spans",
+        params={"attribute": 'llm.stream_flag:"true"'},
+    )
+    assert resp_bare.is_success
+    assert resp_quoted.is_success
+    bare_names = {s["name"] for s in resp_bare.json()["data"]}
+    quoted_names = {s["name"] for s in resp_quoted.json()["data"]}
+
+    assert quoted_names == {"span-stream-flag-str"}
+    if dialect == "sqlite":
+        assert bare_names == {"span-stream-flag-bool"}
+        assert bare_names.isdisjoint(quoted_names)
+    else:
+        assert dialect == "postgresql"
+        assert bare_names == {"span-stream-flag-bool", "span-stream-flag-str"}
+        assert quoted_names.issubset(bare_names)
+
+
+# ---------------------------------------------------------------------------
+# Silent-behavior documentation tests (plan D3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def project_with_container_shaped_attributes(db: DbSessionFactory) -> None:
+    """Insert spans with list-valued and nested-object stored attributes."""
+    async with db() as session:
+        project = models.Project(name="container-attr-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracecontain0000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_attrs: list[tuple[str, dict[str, Any]]] = [
+            (
+                "span-list-tags",
+                {"tag": {"tags": ["a", "b", "c"]}},
+            ),
+            (
+                "span-nested-metadata",
+                {"metadata": {"tier": "premium"}},
+            ),
+        ]
+        for i, (name, attrs) in enumerate(spans_attrs):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"cont{i:05d}",
+                    parent_id=None,
+                    name=name,
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes=attrs,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_attribute_filter_into_list_valued_attribute_returns_zero_rows(
+    httpx_client: httpx.AsyncClient,
+    project_with_container_shaped_attributes: None,
+) -> None:
+    """Filtering into a list-valued stored attribute returns 200 with 0 rows.
+
+    The span stores ``{"tag": {"tags": ["a", "b", "c"]}}``; filtering with
+    ``attribute=tag.tags:"a"`` compares ``CAST(list_value AS TEXT)`` (the
+    full JSON array text) against ``'"a"'`` (JSON-encoded single string),
+    which never matches. This pins the current silent-failure contract
+    (plan D3) — documented behavior, NOT a bug to fix in this work item.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/container-attr-test/spans",
+        params={"attribute": 'tag.tags:"a"'},
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["data"]) == 0
+
+
+async def test_attribute_filter_nested_object_path_matches(
+    httpx_client: httpx.AsyncClient,
+    project_with_container_shaped_attributes: None,
+) -> None:
+    """Nested-object paths (no array indices) work on both sqlite and postgresql.
+
+    Span stores ``{"metadata": {"tier": "premium"}}``; filter
+    ``attribute=metadata.tier:premium`` resolves via dot-path JSON access
+    and returns the span on both dialects.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/container-attr-test/spans",
+        params={"attribute": "metadata.tier:premium"},
+    )
+    assert resp.status_code == 200
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-nested-metadata"
+
+
+# ---------------------------------------------------------------------------
+# Array-indexed attribute path dialect asymmetry (plan D3 / Open Question)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def project_with_array_indexed_attributes(db: DbSessionFactory) -> None:
+    """Insert a span whose attributes contain a list of objects.
+
+    The stored shape ``{"retrieval": {"documents": [{"document": {"id":
+    "doc-42"}}]}}`` requires array indexing (``documents.0``) to reach the
+    nested ``id`` field via a dot-path attribute filter.
+    """
+    async with db() as session:
+        project = models.Project(name="array-attr-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracearrayidx000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        session.add(
+            models.Span(
+                trace_rowid=trace.id,
+                span_id="arrayidx00000",
+                parent_id=None,
+                name="span-array-indexed",
+                span_kind="CHAIN",
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=30),
+                attributes={
+                    "retrieval": {
+                        "documents": [{"document": {"id": "doc-42"}}],
+                    },
+                },
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        await session.flush()
+
+
+async def test_attribute_filter_array_indexed_path_silent_zero_rows_on_sqlite(
+    httpx_client: httpx.AsyncClient,
+    project_with_array_indexed_attributes: None,
+    dialect: str,
+) -> None:
+    """Array-indexed dot-path filter returns 0 rows on sqlite (silent failure).
+
+    SQLAlchemy's JSON list-subscript on a sqlite column generates
+    ``json_extract(attributes, '$.retrieval.documents.0.document.id')``.
+    SQLite's ``$.a.b.0.c`` dot-path does NOT treat numeric segments as array
+    indices — it looks for an object key literally named ``"0"``. The stored
+    value is a list, so the path does not resolve and the row is filtered
+    out. This pins the current behavior per plan D3 (document, do not fix).
+    """
+    if dialect != "sqlite":
+        pytest.skip("sqlite-only: postgres behavior covered by companion test")
+    resp = await httpx_client.get(
+        "v1/projects/array-attr-test/spans",
+        params={"attribute": 'retrieval.documents.0.document.id:"doc-42"'},
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["data"]) == 0
+
+
+async def test_attribute_filter_array_indexed_path_on_postgresql(
+    httpx_client: httpx.AsyncClient,
+    project_with_array_indexed_attributes: None,
+    dialect: str,
+) -> None:
+    """Array-indexed dot-path filter behavior on postgresql (empirical pin).
+
+    PostgreSQL's JSON ``->`` / ``->>`` operators treat a numeric text key as
+    an array index when applied to a JSON array, which in theory lets
+    SQLAlchemy's list-subscript reach into ``documents[0]``. Empirical
+    result: the filter returns exactly one row (``span-array-indexed``) on
+    postgresql, confirming the plan's knowledge entry.
+
+    If a future change breaks this (regression to 0 rows), this test
+    will flag the divergence so the Open Question summary can be updated.
+    """
+    if dialect != "postgresql":
+        pytest.skip("postgres-only: sqlite behavior covered by companion test")
+    resp = await httpx_client.get(
+        "v1/projects/array-attr-test/spans",
+        params={"attribute": 'retrieval.documents.0.document.id:"doc-42"'},
+    )
+    assert resp.status_code == 200
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-array-indexed"
+
+
+# ---------------------------------------------------------------------------
+# OpenInference context-attribute shape coverage (Phase 1 ground-truth seed)
+# ---------------------------------------------------------------------------
+#
+# Single shared fixture seeding ONE span per OpenInference context-attribute
+# shape. This is the Phase 1 "ground truth" that Phase 2's agent-trial seed
+# script should mirror, so trial prompts written against these shapes can
+# also be exercised directly by unit tests. Each test below targets exactly
+# one OI shape and asserts filter URL -> expected row count on both the
+# sqlite and postgresql dialects (via the parametrized `dialect` fixture).
+
+
+@pytest.fixture
+async def project_with_oi_context_attributes(db: DbSessionFactory) -> None:
+    """Seed one span per OpenInference context-attribute shape.
+
+    Shapes:
+    - user.id (string) and a second user.id stored as string "12345" for the
+      numeric-vs-string negative case.
+    - session.id (string containing colons).
+    - metadata.* (nested object with mixed types: tier string, count int,
+      ratio float, flag bool).
+    - tag.tags (list of strings — silent-zero-rows case for direct filtering).
+    - start_time (ISO-8601 timestamp string value).
+    """
+    async with db() as session:
+        project = models.Project(name="oi-attr-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="traceoictx000000",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        spans_attrs: list[tuple[str, dict[str, Any]]] = [
+            ("span-user", {"user": {"id": "user-42"}}),
+            ("span-user-numeric-string", {"user": {"id": "12345"}}),
+            ("span-session", {"session": {"id": "sess:abc:123"}}),
+            (
+                "span-metadata",
+                {
+                    "metadata": {
+                        "tier": "premium",
+                        "count": 7,
+                        "ratio": 0.75,
+                        "flag": True,
+                    },
+                },
+            ),
+            ("span-tags", {"tag": {"tags": ["a", "b", "c"]}}),
+            ("span-iso-timestamp", {"start_time": "2026-04-16T10:30:00Z"}),
+        ]
+        for i, (name, attrs) in enumerate(spans_attrs):
+            session.add(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"oictx{i:05d}",
+                    parent_id=None,
+                    name=name,
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(minutes=i),
+                    end_time=base_time + timedelta(minutes=i, seconds=30),
+                    attributes=attrs,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+        await session.flush()
+
+
+async def test_oi_filter_by_user_id_string(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """user.id (string) filter returns exactly the matching span."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "user.id:user-42"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-user"]
+
+
+async def test_oi_filter_by_session_id_with_colons(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """session.id value containing colons is preserved by split(':', 1)."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "session.id:sess:abc:123"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-session"]
+
+
+async def test_oi_filter_by_metadata_nested_string(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """metadata.tier (nested string) filter resolves via dotted path."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "metadata.tier:premium"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-metadata"]
+
+
+async def test_oi_filter_by_metadata_nested_int(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """metadata.count (nested int) matches via type-aware integer dispatch."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "metadata.count:7"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-metadata"]
+
+
+async def test_oi_filter_by_metadata_nested_float(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """metadata.ratio (nested float) matches via type-aware float dispatch."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "metadata.ratio:0.75"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-metadata"]
+
+
+async def test_oi_filter_by_metadata_nested_bool(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """metadata.flag (nested bool) matches via type-aware boolean dispatch."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "metadata.flag:true"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-metadata"]
+
+
+async def test_oi_filter_by_tag_tags_list_returns_zero_rows(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """Filtering into a list-valued stored attribute silently returns no rows.
+
+    Pins the CURRENT contract: ``tag.tags`` is stored as a list, and a
+    scalar filter like ``tag.tags:a`` compares the entire JSON list text
+    against ``json.dumps("a")`` — which never matches. Behavior is a 200
+    with an empty data array, not a 422 and not any of the list-member
+    spans.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "tag.tags:a"},
+    )
+    assert resp.is_success
+    assert resp.json()["data"] == []
+
+
+async def test_oi_filter_by_iso_timestamp_string(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """ISO-8601 timestamp string values filter correctly; colons in the value are preserved."""
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "start_time:2026-04-16T10:30:00Z"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert [s.name for s in spans] == ["span-iso-timestamp"]
+
+
+async def test_oi_filter_numeric_against_string_stored_id_returns_zero(
+    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+) -> None:
+    """Negative case: numeric filter ``user.id:12345`` does NOT match stored string ``"12345"``.
+
+    ``json.loads("12345")`` yields an int, so the server compares
+    ``CAST(col AS TEXT) == json.dumps(12345)`` (i.e. ``'12345'``) — but the
+    stored value's JSON text is ``'"12345"'`` (with quotes), so the
+    comparison fails and zero rows are returned. The forced-string escape
+    hatch ``user.id:"12345"`` is covered by the dispatch-pinning suite.
+    """
+    resp = await httpx_client.get(
+        "v1/projects/oi-attr-test/spans",
+        params={"attribute": "user.id:12345"},
+    )
+    assert resp.is_success
+    assert resp.json()["data"] == []
+
+
+# ---------------------------------------------------------------------------
+# Consolidated 422 coverage for the `attribute` query param
+# ---------------------------------------------------------------------------
+#
+# Pins the six documented 422 cases in `_parse_attribute` (spans.py:79-111) in
+# one auditable suite, against the canonical endpoint plus a parity check on
+# the OTLP endpoint. Other 422 assertions also exist elsewhere in this file
+# (fixture-specific) — this suite is the single place that enumerates every
+# case so coverage is visible at a glance.
+
+
+@pytest.mark.parametrize(
+    ("case_name", "attribute_value"),
+    [
+        ("missing_colon", "no-colon-here"),
+        ("empty_key", ":some-value"),
+        ("empty_value", "key:"),
+        ("list_filter_value", "key:[1,2,3]"),
+        ("dict_filter_value", 'key:{"a":1}'),
+        ("null_filter_value", "key:null"),
+    ],
+)
+async def test_attribute_filter_returns_422(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+    case_name: str,
+    attribute_value: str,
+) -> None:
+    """Each documented `_parse_attribute` error case returns 422 on /spans.
+
+    Covers spans.py:79-111 — missing colon (split-check), empty key / empty
+    value (pre-parse), and null / list / dict filter values (post-json.loads
+    type-check).
+    """
+    resp = await httpx_client.get(
+        "v1/projects/project-name/spans",
+        params={"attribute": attribute_value},
+    )
+    assert resp.status_code == 422, f"case={case_name} body={resp.text!r}"
+
+
+async def test_attribute_filter_dict_value_returns_422_on_otlp(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """Parity: dict filter value also returns 422 on /spans/otlpv1.
+
+    Both endpoints share `_parse_attribute`; this asserts that the parity
+    holds for a case not already covered by the existing OTLP 422 tests
+    (missing colon, empty key).
+    """
+    resp = await httpx_client.get(
+        "v1/projects/project-name/spans/otlpv1",
+        params={"attribute": 'key:{"a":1}'},
     )
     assert resp.status_code == 422

@@ -112,6 +112,20 @@ def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
     return clause
 
 
+_ATTRIBUTE_PARAM_DESCRIPTION = (
+    "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, "
+    "`metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` "
+    "is bool, otherwise string (`k:user-42`). To match a numeric- or "
+    'boolean-looking STRING, JSON-quote it: `user.id:"12345"` '
+    "(URL-encoded `%2212345%22`). Split is on the first `:` only, so "
+    "values may contain colons (`session.id:sess:abc:123`, ISO "
+    "timestamps). Repeat the param to AND filters. List-valued "
+    "attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 "
+    "on malformed input (missing colon, empty key/value, or list/dict/"
+    "null value)."
+)
+
+
 router = APIRouter(tags=["spans"])
 
 
@@ -729,11 +743,7 @@ async def span_search_otlpv1(
     ),
     attribute: Optional[list[str]] = Query(
         default=None,
-        description=(
-            "Filter by attribute key:value pairs (dot-separated keys, "
-            "e.g. llm.model_name:gpt-4). Multiple filters are ANDed. "
-            "Values may contain colons (split is on the first colon only)."
-        ),
+        description=_ATTRIBUTE_PARAM_DESCRIPTION,
     ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
@@ -917,11 +927,7 @@ async def span_search(
     ),
     attribute: Optional[list[str]] = Query(
         default=None,
-        description=(
-            "Filter by attribute key:value pairs (dot-separated keys, "
-            "e.g. llm.model_name:gpt-4). Multiple filters are ANDed. "
-            "Values may contain colons (split is on the first colon only)."
-        ),
+        description=_ATTRIBUTE_PARAM_DESCRIPTION,
     ),
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
