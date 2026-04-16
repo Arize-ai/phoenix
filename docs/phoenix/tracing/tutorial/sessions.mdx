@@ -415,6 +415,8 @@ This evaluator determines if the customer's issue was actually resolved:
 
   <Tab title="Python" icon="python">
     ```python
+    from phoenix.evals import ClassificationEvaluator
+
     resolution_evaluator = ClassificationEvaluator(
         name="resolution_status",
         prompt_template="""You are evaluating whether a customer's issue was resolved in a support conversation.

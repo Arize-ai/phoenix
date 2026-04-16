@@ -509,15 +509,18 @@ tool_calls_df.dropna(subset=["output_messages"], inplace=True)
 
 
 def get_tool_call(outputs):
-    """Extract the full tool call (name + arguments) for evaluation."""
+    """Extract all tool calls in a human-readable format for evaluation."""
     tool_call_data = outputs[0].get("message", {}).get("tool_calls")
-    if tool_call_data:
-        func = tool_call_data[0].get("tool_call", {}).get("function", {})
+    if not tool_call_data:
+        return "No tool used"
+
+    formatted_tool_calls = []
+    for tool_call in tool_call_data:
+        func = tool_call.get("tool_call", {}).get("function", {})
         name = func.get("name", "")
         args = func.get("arguments", "")
-        return f"{name}({args})" if args else name
-    else:
-        return "No tool used"
+        formatted_tool_calls.append(f"{name}({args})" if args else name)
+    return "\n".join(formatted_tool_calls)
 
 
 tool_calls_df["tool_call"] = tool_calls_df["output_messages"].apply(get_tool_call)
@@ -525,9 +528,7 @@ tool_calls_df.head()
 ```
 
 ```python expandable
-tool_calls_df["available_tools"] = (
-    "generate_visualization, lookup_sales_data, analyze_sales_data, run_python_code"
-)
+tool_calls_df["available_tools"] = json.dumps(tools)
 tool_calls_df["tool_selection"] = tool_calls_df["tool_call"]
 
 tool_call_eval = await async_evaluate_dataframe(
@@ -536,7 +537,10 @@ tool_call_eval = await async_evaluate_dataframe(
     concurrency=10,
 )
 
-tool_call_eval["score"] = tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
+tool_call_eval["score"] = (
+    tool_call_eval["tool_selection_score"].str["label"].eq("correct")
+    & tool_call_eval["tool_invocation_score"].str["label"].eq("correct")
+).astype(int)
 
 tool_call_eval.head()
 ```
@@ -1238,36 +1242,36 @@ tool_invocation_evaluator = ToolInvocationEvaluator(llm=eval_llm)
 
 
 async def function_calling_eval(input: str, output: str) -> float:
-    """Evaluates tool selection and invocation for each tool call.
-    Iterates over multiple tool calls, so we keep a wrapper
-    but use the built-in evaluators directly."""
+    """Evaluate tool selection and invocation across the full response."""
     function_calls = output.get("tool_calls")
-    if function_calls:
-        scores = []
-        for tool_call in function_calls:
-            # Evaluate tool selection
-            selection_result = tool_selection_evaluator.evaluate(
-                eval_input={
-                    "input": input.get("question"),
-                    "tool_selection": tool_call,
-                    "available_tools": available_tools_str,
-                }
-            )
-            # Evaluate tool invocation
-            invocation_result = tool_invocation_evaluator.evaluate(
-                eval_input={
-                    "input": input.get("question"),
-                    "tool_selection": tool_call,
-                    "available_tools": available_tools_str,
-                }
-            )
-            # Both must be correct for the tool call to be considered correct
-            selection_ok = 1 if selection_result[0].label == "correct" else 0
-            invocation_ok = 1 if invocation_result[0].label == "correct" else 0
-            scores.append(min(selection_ok, invocation_ok))
-        return sum(scores) / len(scores)
-    else:
+    if not function_calls:
         return 0
+
+    formatted_tool_calls = []
+    for tool_call in function_calls:
+        func = tool_call.get("function", {})
+        name = func.get("name", "")
+        args = func.get("arguments", "")
+        formatted_tool_calls.append(f"{name}({args})" if args else name)
+
+    formatted_tool_selection = "\n".join(formatted_tool_calls)
+    selection_result = tool_selection_evaluator.evaluate(
+        eval_input={
+            "input": input.get("question"),
+            "tool_selection": formatted_tool_selection,
+            "available_tools": available_tools_str,
+        }
+    )
+    invocation_result = tool_invocation_evaluator.evaluate(
+        eval_input={
+            "input": input.get("question"),
+            "tool_selection": formatted_tool_selection,
+            "available_tools": available_tools_str,
+        }
+    )
+    return float(
+        selection_result[0].label == "correct" and invocation_result[0].label == "correct"
+    )
 
 
 def code_is_runnable(output: str) -> bool:
@@ -1371,4 +1375,3 @@ You've now evaluated every aspect of your agent. If you've made it this far, you
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/combined-agent-experiments.png" />
 </Frame>
-
