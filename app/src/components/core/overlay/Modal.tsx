@@ -1,35 +1,17 @@
 import { css, keyframes } from "@emotion/react";
 import type { CSSProperties, PointerEvent, Ref } from "react";
-import { createContext, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { ModalOverlayProps as AriaModalOverlayProps } from "react-aria-components";
 import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
+import {
+  ModalContext,
+  RESIZABLE_MODAL_CONTEXT,
+} from "@phoenix/components/core/overlay/ModalContext";
 import { classNames } from "@phoenix/utils/classNames";
-
-/**
- * Shared modal state that descendants can read to adapt their rendering.
- * Currently carries whether we're inside a resizable slideover (which
- * `DialogCloseButton` uses to swap in a right-pointing arrowhead). Add more
- * fields here as other descendants need to react to modal-level state.
- */
-export type ModalContextValue = {
-  isResizable: boolean;
-};
-
-const DEFAULT_MODAL_CONTEXT: ModalContextValue = {
-  isResizable: false,
-};
-
-const RESIZABLE_MODAL_CONTEXT: ModalContextValue = {
-  isResizable: true,
-};
-
-export const ModalContext = createContext<ModalContextValue>(
-  DEFAULT_MODAL_CONTEXT
-);
 
 const DEFAULT_RESIZABLE_WIDTH = 480;
 const DEFAULT_RESIZABLE_MIN_WIDTH = 320;
@@ -233,30 +215,16 @@ export type ModalProps = BaseModalProps &
   (DefaultVariantProps | NonResizableSlideoverProps | ResizableSlideoverProps);
 
 function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", variant = "default" } = props;
-  const resizable =
-    variant === "slideover" &&
-    "isResizable" in props &&
-    props.isResizable === true;
-
-  if (resizable) {
-    return (
-      <ResizableSlideoverModal
-        {...(props as ResizableSlideoverProps)}
-        ref={ref}
-        size={size}
-      />
-    );
+  if (props.variant === "slideover" && props.isResizable) {
+    return <ResizableSlideoverModal {...props} ref={ref} />;
   }
 
   const {
-    isResizable: _ir,
-    defaultWidth: _dw,
-    minWidth: _mw,
-    maxWidth: _xw,
-    onResize: _or,
+    variant = "default",
+    size = "M",
+    isResizable: _isResizable,
     ...rest
-  } = props as ResizableSlideoverProps;
+  } = props;
 
   return (
     <AriaModal
@@ -269,24 +237,20 @@ function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
   );
 }
 
-type ResizableSlideoverModalProps = BaseModalProps &
-  ResizableSlideoverProps & {
-    size: ModalSize;
-    ref?: Ref<HTMLDivElement>;
-  };
-
 function ResizableSlideoverModal({
   ref,
-  size,
   defaultWidth,
   minWidth,
   maxWidth,
   onResize,
+  // Discarded — width is driven by the drag handle below, so `size` has no
+  // effect and `variant`/`isResizable` are discriminants, not render props.
+  size: _size,
   variant: _variant,
   isResizable: _isResizable,
   children,
   ...ariaRest
-}: ResizableSlideoverModalProps) {
+}: BaseModalProps & ResizableSlideoverProps & { ref?: Ref<HTMLDivElement> }) {
   const resolvedMin = minWidth ?? DEFAULT_RESIZABLE_MIN_WIDTH;
   const [width, setWidth] = useState<number>(
     defaultWidth ?? DEFAULT_RESIZABLE_WIDTH
@@ -311,7 +275,6 @@ function ResizableSlideoverModal({
   return (
     <AriaModal
       {...ariaRest}
-      data-size={size}
       data-variant="slideover"
       data-resizable="true"
       data-dragging={isDragging ? "true" : undefined}
