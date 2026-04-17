@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
+import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type {
@@ -19,7 +20,6 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { useStickToBottom } from "@phoenix/hooks/useStickToBottom";
 
 import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
@@ -181,7 +181,7 @@ export function ChatView({
               <ElicitationCarousel
                 questions={pendingElicitation.questions}
                 onSubmit={(output) => {
-                  void scrollToBottom();
+                  scrollToBottom();
                   handleElicitationSubmit(output);
                 }}
                 onCancel={handleElicitationCancel}
@@ -190,7 +190,7 @@ export function ChatView({
           ) : (
             <PromptInput
               onSubmit={(text) => {
-                void scrollToBottom();
+                scrollToBottom();
                 sendMessage({ text });
               }}
               status={status}
