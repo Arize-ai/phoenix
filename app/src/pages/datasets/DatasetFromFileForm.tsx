@@ -612,20 +612,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       })
         .then((response) => {
           if (!response.ok) {
-            return response
-              .json()
-              .catch(() => null)
-              .then((body) => {
-                const detail =
-                  body && typeof body === "object" && "detail" in body
-                    ? body.detail
-                    : null;
-                throw new Error(
-                  typeof detail === "string"
-                    ? detail
-                    : response.statusText || "Failed to create dataset"
-                );
-              });
+            return response.text().then((text) => {
+              throw new Error(
+                text || response.statusText || "Failed to create dataset"
+              );
+            });
           }
           return response.json();
         })

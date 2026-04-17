@@ -2515,6 +2515,169 @@ async def test_invalid_dataset_upload_request_returns_422(
     assert expected_error in response.text
 
 
+async def test_append_with_nonexistent_node_id_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+    assert create_response.status_code == 200
+
+    bogus_id = str(GlobalID("DatasetExample", "99999"))
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": [bogus_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "must match existing examples" in response.text
+    assert "do not correspond" in response.text
+    assert bogus_id in response.text
+
+
+async def test_append_with_node_id_from_different_dataset_returns_422(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    stack_name = inspect.stack()[0][3]
+    name_a = f"{stack_name}_a"
+    name_b = f"{stack_name}_b"
+
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_a,
+            "inputs": [{"q": "A"}],
+            "outputs": [{"a": "A"}],
+        },
+    )
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_b,
+            "inputs": [{"q": "B"}],
+            "outputs": [{"a": "B"}],
+        },
+    )
+
+    async with db() as session:
+        example_in_a = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name_a)
+            )
+        ).one()
+        cross_dataset_node_id = str(GlobalID("DatasetExample", str(example_in_a.id)))
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name_b,
+            "inputs": [{"q": "new"}],
+            "outputs": [{"a": "new"}],
+            "example_ids": [cross_dataset_node_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "do not correspond" in response.text
+    assert cross_dataset_node_id in response.text
+
+
+async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+
+    bogus_ids = [
+        str(GlobalID("DatasetExample", "99999")),
+        str(GlobalID("DatasetExample", "99998")),
+        str(GlobalID("DatasetExample", "99997")),
+    ]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": f"Q{i}"} for i in range(len(bogus_ids))],
+            "outputs": [{"a": f"A{i}"} for i in range(len(bogus_ids))],
+            "example_ids": bogus_ids,
+        },
+    )
+    assert response.status_code == 422
+    for bogus_id in bogus_ids:
+        assert bogus_id in response.text
+
+
+async def test_append_with_wrong_type_node_id_stored_as_custom_external_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Node IDs of other types (e.g. Span) look like valid GlobalIDs but don't
+    decode as DatasetExample, so they should pass through as custom external IDs
+    rather than trigger the node-id-must-match check."""
+    name = inspect.stack()[0][3]
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+
+    span_shaped_id = str(GlobalID("Span", "1"))
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": [span_shaped_id],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        example = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(
+                    models.Dataset.name == name,
+                    models.DatasetExample.external_id == span_shaped_id,
+                )
+            )
+        ).one()
+        assert example.external_id == span_shaped_id
+
+
 async def test_create_empty_examples_list_creates_empty_version(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

@@ -849,10 +849,11 @@ async def _upsert_dataset_examples(
                 if is_node_id_without_example_record:
                     node_ids_without_example_record.append(external_id)
             if node_ids_without_example_record:
+                formatted_ids = ", ".join(repr(s) for s in node_ids_without_example_record)
                 raise InvalidDatasetExampleIDError(
-                    "Example IDs that look like DatasetExample node IDs "
-                    "must match existing examples, but the following do correspond to any existing "
-                    f"example IDs: {node_ids_without_example_record}"
+                    "Example IDs that look like node IDs "
+                    "must match existing examples, but the following do not correspond to any "
+                    f"existing examples: {formatted_ids}"
                 )
             create_external_ids = [
                 example.content.external_id
