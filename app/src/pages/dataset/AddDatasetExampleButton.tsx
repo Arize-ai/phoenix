@@ -10,14 +10,16 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  Flex,
   Icon,
   Icons,
+  Menu,
+  MenuItem,
+  MenuTrigger,
   Modal,
   ModalOverlay,
-  Tab,
-  TabList,
-  TabPanel,
-  Tabs,
+  Popover,
+  Text,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
@@ -40,10 +42,10 @@ const contentCSS = css`
   min-height: 0;
 `;
 
-const tabPanelCSS = css`
-  flex: 1;
-  min-height: 0;
-`;
+enum ExamplesAction {
+  UPDATE_FROM_FILE = "update-from-file",
+  ADD_MANUALLY = "add-manually",
+}
 
 type AddDatasetExampleButtonProps = {
   datasetId: string;
@@ -53,7 +55,8 @@ type AddDatasetExampleButtonProps = {
 
 export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   const { datasetId, datasetName, onAddExampleCompleted } = props;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isFromFileOpen, setIsFromFileOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
 
   const handleCompleted = useCallback(() => {
@@ -95,63 +98,99 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         message,
       });
       onAddExampleCompleted();
-      setIsOpen(false);
+      setIsFromFileOpen(false);
     },
     [notifySuccess, onAddExampleCompleted]
   );
 
-  const handleCancel = useCallback(() => setIsOpen(false), []);
+  const handleFileCancel = useCallback(() => setIsFromFileOpen(false), []);
 
   return (
-    <DialogTrigger onOpenChange={setIsOpen} isOpen={isOpen}>
-      <Button
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-        size="M"
-        aria-label="Add Dataset Example"
-        variant="primary"
-        onPress={() => setIsOpen(true)}
-      >
-        Examples
-      </Button>
-      <ModalOverlay isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Modal variant="slideover" size="fullscreen">
-          <Dialog css={dialogCSS}>
-            {({ close }) => (
-              <>
-                <DialogHeader>
-                  <DialogTitle>Add Examples</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton slot="close" />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <DialogContent css={contentCSS}>
-                  <Tabs>
-                    <TabList>
-                      <Tab id="fromFile">From file</Tab>
-                      <Tab id="fromScratch">From scratch</Tab>
-                    </TabList>
-                    <TabPanel id="fromFile" css={tabPanelCSS}>
-                      <DatasetFromFileForm
-                        mode="append"
-                        datasetName={datasetName}
-                        onExamplesAdded={handleFileCompleted}
-                        onCancel={handleCancel}
-                      />
-                    </TabPanel>
-                    <TabPanel id="fromScratch">
-                      <AddExampleFromScratchForm
-                        datasetId={datasetId}
-                        onExampleAdded={handleCompleted}
-                        close={close}
-                      />
-                    </TabPanel>
-                  </Tabs>
-                </DialogContent>
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+    <>
+      <MenuTrigger>
+        <Button
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          size="M"
+          aria-label="Add Dataset Example"
+          variant="primary"
+        >
+          Examples
+        </Button>
+        <Popover placement="bottom end">
+          <Menu
+            onAction={(action) => {
+              switch (action) {
+                case ExamplesAction.UPDATE_FROM_FILE:
+                  setIsFromFileOpen(true);
+                  break;
+                case ExamplesAction.ADD_MANUALLY:
+                  setIsManualOpen(true);
+                  break;
+              }
+            }}
+          >
+            <MenuItem id={ExamplesAction.UPDATE_FROM_FILE}>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.FileOutline />} />
+                <Text>Update Dataset From File</Text>
+              </Flex>
+            </MenuItem>
+            <MenuItem id={ExamplesAction.ADD_MANUALLY}>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.EditOutline />} />
+                <Text>Add Example Manually</Text>
+              </Flex>
+            </MenuItem>
+          </Menu>
+        </Popover>
+      </MenuTrigger>
+      <DialogTrigger isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
+        <ModalOverlay isOpen={isFromFileOpen} onOpenChange={setIsFromFileOpen}>
+          <Modal variant="slideover" size="fullscreen">
+            <Dialog css={dialogCSS}>
+              <DialogHeader>
+                <DialogTitle>Update Dataset From File</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <DialogContent css={contentCSS}>
+                <DatasetFromFileForm
+                  mode="append"
+                  datasetName={datasetName}
+                  onExamplesAdded={handleFileCompleted}
+                  onCancel={handleFileCancel}
+                />
+              </DialogContent>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+      <DialogTrigger isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
+        <ModalOverlay isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
+          <Modal variant="slideover" size="fullscreen">
+            <Dialog css={dialogCSS}>
+              {({ close }) => (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>Add Example Manually</DialogTitle>
+                    <DialogTitleExtra>
+                      <DialogCloseButton slot="close" />
+                    </DialogTitleExtra>
+                  </DialogHeader>
+                  <DialogContent css={contentCSS}>
+                    <AddExampleFromScratchForm
+                      datasetId={datasetId}
+                      onExampleAdded={handleCompleted}
+                      close={close}
+                    />
+                  </DialogContent>
+                </>
+              )}
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+    </>
   );
 }
