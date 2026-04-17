@@ -11,7 +11,7 @@ from deepdiff.diff import DeepDiff
 from faker import Faker
 from openai.lib._parsing import type_to_response_format_param
 from openai.lib._tools import pydantic_function_tool
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, create_model
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.openai.chat import (
@@ -302,7 +302,7 @@ class TestResponseFormatJSONSchemaConversion:
     @pytest.mark.parametrize(
         "type_",
         [
-            create_model("Response", ui=(_UI, Field(...))),
+            create_model("Response", ui=_UI),
         ],
     )
     def test_round_trip(self, type_: type[BaseModel]) -> None:
@@ -403,7 +403,7 @@ class TestCompletionCreateParamsBase:
                 "response_format": cast(
                     "ResponseFormat",
                     type_to_response_format_param(
-                        create_model("Response", ui=(_UI, Field(...))),
+                        create_model("Response", ui=_UI),
                     ),
                 ),
                 "temperature": random(),
@@ -439,7 +439,7 @@ class TestCompletionCreateParamsBase:
                 "response_format": cast(
                     "ResponseFormat",
                     type_to_response_format_param(
-                        create_model("Response", ui=(_UI, Field(...))),
+                        create_model("Response", ui=_UI),
                     ),
                 ),
                 "temperature": random(),
