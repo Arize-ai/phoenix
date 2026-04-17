@@ -947,7 +947,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 ) : undefined
               }
             >
-              {pendingAction === "append" ? "Adding..." : "Add Examples"}
+              {pendingAction === "append" ? "Updating..." : "Update Dataset"}
             </Button>
           </>
         ) : (
