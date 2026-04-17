@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.1.0
+
+### Minor Changes
+
+- 7944fe7: Add span note support to `px`. New `px span add-note <span-id>` command creates notes on spans, and `--include-notes` is now supported on `px span list`, `px trace get`, and `px trace list` to fetch and render notes alongside spans.
+
 ## 1.0.5
 
 ### Patch Changes
