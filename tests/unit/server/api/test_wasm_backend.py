@@ -113,17 +113,13 @@ class TestEngineCaching:
     """Engine and module are cached together to avoid cross-engine misuse."""
 
     def test_get_engine_and_module_caches_by_path(self) -> None:
-        from phoenix.server.sandbox.wasm_backend import (
-            _MODULE_CACHE,
-            _get_engine_and_module,
-            _get_wasmtime,
-        )
+        from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
 
         fake_path = Path("/fake/test-cache.wasm")
         cache_key = str(fake_path)
         _MODULE_CACHE.pop(cache_key, None)
 
-        wasmtime = _get_wasmtime()
+        import wasmtime  # type: ignore[import-not-found]
 
         with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
             engine1, mod1 = _get_engine_and_module(fake_path)
@@ -134,18 +130,14 @@ class TestEngineCaching:
         _MODULE_CACHE.pop(cache_key, None)
 
     def test_different_paths_get_different_caches(self) -> None:
-        from phoenix.server.sandbox.wasm_backend import (
-            _MODULE_CACHE,
-            _get_engine_and_module,
-            _get_wasmtime,
-        )
+        from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
 
         path_a = Path("/fake/a.wasm")
         path_b = Path("/fake/b.wasm")
         _MODULE_CACHE.pop(str(path_a), None)
         _MODULE_CACHE.pop(str(path_b), None)
 
-        wasmtime = _get_wasmtime()
+        import wasmtime
 
         with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
             engine_a, _ = _get_engine_and_module(path_a)
@@ -166,9 +158,7 @@ class TestTempFileCleanup:
 
     def test_no_env_inherited_into_sandbox(self) -> None:
         """Verify wasi.inherit_env() is not called — user code gets no server env."""
-        from phoenix.server.sandbox.wasm_backend import _get_wasmtime
-
-        wasmtime = _get_wasmtime()
+        import wasmtime
 
         with patch.object(wasmtime.Module, "from_file"):
             with patch.object(wasmtime.WasiConfig, "inherit_env") as mock_inherit:

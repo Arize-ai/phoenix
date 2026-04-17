@@ -20,6 +20,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
 
+import wasmtime  # type: ignore[import-not-found]
+
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
@@ -38,21 +40,11 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 # Module-level cache: path → (engine, compiled module).
 # Engine and module must be paired — a module compiled with one engine
 # cannot be used with a store from a different engine.
-_MODULE_CACHE: dict[str, tuple[Any, Any]] = {}
+_MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
 
 
-def _get_wasmtime() -> Any:
-    try:
-        import wasmtime
-
-        return wasmtime
-    except ImportError:
-        raise
-
-
-def _get_engine_and_module(binary_path: Path) -> tuple[Any, Any]:
+def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime.Module]:
     """Return a cached (engine, module) pair, compiling on first use."""
-    wasmtime = _get_wasmtime()
     cache_key = str(binary_path)
     if cache_key not in _MODULE_CACHE:
         engine_cfg = wasmtime.Config()
@@ -65,7 +57,6 @@ def _get_engine_and_module(binary_path: Path) -> tuple[Any, Any]:
 
 def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     """Execute *code* in a wasmtime WASI context. Runs in a thread."""
-    wasmtime = _get_wasmtime()
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     stdin_path: str | None = None

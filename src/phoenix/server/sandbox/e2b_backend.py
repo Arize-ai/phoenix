@@ -45,12 +45,9 @@ class E2BSandboxBackend(SandboxBackend):
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
-        try:
-            from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-untyped]
+        from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-not-found]
 
-            return AsyncSandbox
-        except ImportError:
-            raise
+        return AsyncSandbox
 
     def _create_kwargs(self) -> dict[str, Any]:
         """Build kwargs for AsyncSandbox.create().
