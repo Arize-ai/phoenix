@@ -18,6 +18,12 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
+const traceDetailsCSS = css`
+  summary {
+    cursor: pointer;
+  }
+`;
+
 function getProjectRedirectUrl(
   collectorEndpoint: string,
   projectName: string
@@ -64,33 +70,39 @@ function AssistantTraceCollectionInfo() {
 
   return (
     <Flex direction="column" gap="size-200">
-      <Text>Assistant agent traces are collected to the project below.</Text>
-      <CopyField value={assistantProjectName}>
-        <Label>Assistant Project Name</Label>
-        <CopyInput />
-        <Text slot="description">
-          {projectRedirectUrl ? (
-            <>
-              View traces in{" "}
-              <ExternalLink href={projectRedirectUrl}>
-                {assistantProjectName}
-              </ExternalLink>
-            </>
-          ) : (
-            "The project where assistant agent traces are recorded"
-          )}
-        </Text>
-      </CopyField>
-      <CopyField value={collectorEndpoint ?? ""}>
-        <Label>Collector Endpoint</Label>
-        <CopyInput />
-        <Text slot="description">
-          {collectorEndpoint
-            ? "Traces are also exported to this remote collector"
-            : "No remote collector configured — traces are only persisted locally"}
-        </Text>
-      </CopyField>
       <AgentObservabilitySettings />
+      <details css={traceDetailsCSS}>
+        <summary>Tracing Details</summary>
+        <View paddingTop="size-150">
+          <Flex direction="column" gap="size-200">
+            <CopyField value={assistantProjectName}>
+              <Label>Assistant Project Name</Label>
+              <CopyInput />
+              <Text slot="description">
+                {projectRedirectUrl ? (
+                  <>
+                    View traces in{" "}
+                    <ExternalLink href={projectRedirectUrl}>
+                      {assistantProjectName}
+                    </ExternalLink>
+                  </>
+                ) : (
+                  "The project where assistant agent traces are recorded"
+                )}
+              </Text>
+            </CopyField>
+            <CopyField value={collectorEndpoint ?? ""}>
+              <Label>Collector Endpoint</Label>
+              <CopyInput />
+              <Text slot="description">
+                {collectorEndpoint
+                  ? "This is the sharing destination used when trace sharing is turned on."
+                  : "Trace sharing is not configured for this Phoenix app."}
+              </Text>
+            </CopyField>
+          </Flex>
+        </View>
+      </details>
     </Flex>
   );
 }
