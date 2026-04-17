@@ -557,6 +557,10 @@ async def test_post_dataset_upload_json_create_then_append(
     version_id_str = data["version_id"]
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
+    assert data["new_version_created"] is True
+    assert data["num_created_examples"] == 1
+    assert data["num_patched_examples"] == 0
+    assert data["num_deleted_examples"] == 0
     del response, data
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
@@ -575,6 +579,10 @@ async def test_post_dataset_upload_json_create_then_append(
     version_id_str = data["version_id"]
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
+    assert data["new_version_created"] is True
+    assert data["num_created_examples"] == 1
+    assert data["num_patched_examples"] == 0
+    assert data["num_deleted_examples"] == 0
     async with db() as session:
         revisions = list(
             await session.scalars(
@@ -597,6 +605,41 @@ async def test_post_dataset_upload_json_create_then_append(
     db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
     assert db_dataset_version is not None
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+
+
+async def test_post_dataset_upload_json_reupload_reports_no_changes(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    body = {
+        "action": "create",
+        "name": name,
+        "inputs": [{"a": 1}, {"a": 2}],
+        "outputs": [{"b": 1}, {"b": 2}],
+        "metadata": [{}, {}],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert first_response.status_code == 200
+    first_data = first_response.json()["data"]
+    assert first_data["new_version_created"] is True
+    assert first_data["num_created_examples"] == 2
+
+    second_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert second_response.status_code == 200
+    second_data = second_response.json()["data"]
+    assert second_data["dataset_id"] == first_data["dataset_id"]
+    assert second_data["version_id"] == first_data["version_id"]
+    assert second_data["new_version_created"] is False
+    assert second_data["num_created_examples"] == 0
+    assert second_data["num_patched_examples"] == 0
+    assert second_data["num_deleted_examples"] == 0
 
 
 async def test_post_dataset_upload_csv_create_then_append(

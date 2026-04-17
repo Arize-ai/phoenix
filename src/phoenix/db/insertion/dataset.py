@@ -69,6 +69,10 @@ class ExistingExampleInfo:
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
+    new_version_created: bool
+    num_created_examples: int
+    num_patched_examples: int
+    num_deleted_examples: int
 
 
 class InvalidDatasetExampleIDError(ValueError):
@@ -941,7 +945,14 @@ async def _upsert_dataset_examples(
     else:
         assert_never(action)
 
-    return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
+    return DatasetExampleAdditionEvent(
+        dataset_id=dataset_id,
+        dataset_version_id=dataset_version_id,
+        new_version_created=diff.has_changes,
+        num_created_examples=len(diff.create_examples),
+        num_patched_examples=len(diff.patch_examples),
+        num_deleted_examples=len(diff.delete_example_ids),
+    )
 
 
 @dataclass(frozen=True)

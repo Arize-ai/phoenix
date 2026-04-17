@@ -3,7 +3,6 @@ import invariant from "tiny-invariant";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
-import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { AddDatasetExampleButton } from "@phoenix/pages/dataset/AddDatasetExampleButton";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { ExamplesSplitsMenu } from "@phoenix/pages/examples/ExamplesSplitsMenu";
@@ -17,7 +16,6 @@ export const ExamplesFilterBar = () => {
   const refreshLatestVersion = useDatasetContext(
     (state) => state.refreshLatestVersion
   );
-  const notifySuccess = useNotifySuccess();
   return (
     <View
       padding="size-100"
@@ -47,14 +45,7 @@ export const ExamplesFilterBar = () => {
         <AddDatasetExampleButton
           datasetId={datasetId}
           datasetName={datasetName}
-          onAddExampleCompleted={() => {
-            notifySuccess({
-              title: "Example added",
-              message:
-                "The example has been added successfully and the version has been updated.",
-            });
-            refreshLatestVersion();
-          }}
+          onAddExampleCompleted={refreshLatestVersion}
         />
       </Flex>
     </View>

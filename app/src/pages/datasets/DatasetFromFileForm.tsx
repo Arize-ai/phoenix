@@ -52,6 +52,13 @@ import { ColumnSingleSelector } from "./ColumnSingleSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
+export type DatasetUploadSummary = {
+  newVersionCreated: boolean;
+  numCreatedExamples: number;
+  numPatchedExamples: number;
+  numDeletedExamples: number;
+};
+
 type AutoAssignmentResult = ColumnAssignerValue & {
   splitKey: string | null;
   exampleIdKey: string | null;
@@ -106,14 +113,16 @@ type CreateDatasetFromFileParams = {
 type CreateModeProps = {
   mode: "create";
   onCancel: () => void;
-  onDatasetCreated: (dataset: { id: string; name: string }) => void;
+  onDatasetCreated: (
+    dataset: { id: string; name: string } & DatasetUploadSummary
+  ) => void;
 };
 
 type AppendModeProps = {
   mode: "append";
   onCancel: () => void;
   datasetName: string;
-  onExamplesAdded: () => void;
+  onExamplesAdded: (summary: DatasetUploadSummary) => void;
 };
 
 export type DatasetFromFileFormProps = CreateModeProps | AppendModeProps;
@@ -621,12 +630,20 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           return response.json();
         })
         .then((res) => {
+          const payload = res["data"];
+          const summary: DatasetUploadSummary = {
+            newVersionCreated: Boolean(payload["new_version_created"]),
+            numCreatedExamples: Number(payload["num_created_examples"] ?? 0),
+            numPatchedExamples: Number(payload["num_patched_examples"] ?? 0),
+            numDeletedExamples: Number(payload["num_deleted_examples"] ?? 0),
+          };
           if (props.mode === "append") {
-            props.onExamplesAdded();
+            props.onExamplesAdded(summary);
           } else if (mode === "create") {
             props.onDatasetCreated({
               name: data.name,
-              id: res["data"]["dataset_id"],
+              id: payload["dataset_id"],
+              ...summary,
             });
           }
         })

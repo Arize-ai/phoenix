@@ -337,6 +337,10 @@ async def list_dataset_versions(
 class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    new_version_created: bool
+    num_created_examples: int
+    num_patched_examples: int
+    num_deleted_examples: int
 
 
 class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
@@ -619,6 +623,10 @@ async def upload_dataset(
             data=UploadDatasetData(
                 dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
                 version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
+                new_version_created=event.new_version_created,
+                num_created_examples=event.num_created_examples,
+                num_patched_examples=event.num_patched_examples,
+                num_deleted_examples=event.num_deleted_examples,
             )
         )
     try:

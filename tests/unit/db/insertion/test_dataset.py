@@ -5,6 +5,7 @@ from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
+    DatasetAction,
     ExampleContent,
     ExampleWithHash,
     add_dataset_examples,
@@ -402,6 +403,77 @@ async def test_bulk_assign_examples_to_splits_handles_duplicates(
         )
         all_assignments = result.scalars().all()
         assert len(all_assignments) == 1
+
+
+async def test_add_dataset_examples_returns_upsert_counts(
+    db: DbSessionFactory,
+) -> None:
+    initial_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+            ExampleContent(input={"x": 3}, output={"y": 3}, external_id="c"),
+        ]
+    )
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="upsert-counts",
+        )
+    assert first_event.new_version_created is True
+    assert first_event.num_created_examples == 3
+    assert first_event.num_patched_examples == 0
+    assert first_event.num_deleted_examples == 0
+
+    async with db() as session:
+        unchanged_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="upsert-counts",
+            action=DatasetAction.CREATE,
+        )
+    assert unchanged_event.new_version_created is False
+    assert unchanged_event.num_created_examples == 0
+    assert unchanged_event.num_patched_examples == 0
+    assert unchanged_event.num_deleted_examples == 0
+    assert unchanged_event.dataset_version_id == first_event.dataset_version_id
+
+    mixed_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 222}, external_id="b"),
+            ExampleContent(input={"x": 9}, output={"y": 9}, external_id="d"),
+        ]
+    )
+    async with db() as session:
+        create_event = await add_dataset_examples(
+            session=session,
+            examples=mixed_examples,
+            name="upsert-counts",
+            action=DatasetAction.CREATE,
+        )
+    assert create_event.new_version_created is True
+    assert create_event.num_created_examples == 1
+    assert create_event.num_patched_examples == 1
+    assert create_event.num_deleted_examples == 1
+    assert create_event.dataset_version_id != first_event.dataset_version_id
+
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 42}, output={"y": 42}, external_id="e"),
+                ]
+            ),
+            name="upsert-counts",
+            action=DatasetAction.APPEND,
+        )
+    assert append_event.new_version_created is True
+    assert append_event.num_created_examples == 1
+    assert append_event.num_patched_examples == 0
+    assert append_event.num_deleted_examples == 0
 
 
 async def test_add_dataset_examples_with_many_splits(

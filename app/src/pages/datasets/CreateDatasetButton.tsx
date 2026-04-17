@@ -23,7 +23,10 @@ import {
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifySuccess } from "@phoenix/contexts";
 
-import { DatasetFromFileForm } from "./DatasetFromFileForm";
+import {
+  DatasetFromFileForm,
+  type DatasetUploadSummary,
+} from "./DatasetFromFileForm";
 
 const dialogCSS = css`
   display: flex;
@@ -43,7 +46,48 @@ export function CreateDatasetButton({
   const notifySuccess = useNotifySuccess();
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleCreated = useCallback(
+  const handleDatasetCreatedFromFile = useCallback(
+    (newDataset: { id: string; name: string } & DatasetUploadSummary) => {
+      let message: string;
+      if (!newDataset.newVersionCreated) {
+        message = "No examples changed.";
+      } else {
+        const formatPart = (count: number, verb: string) =>
+          `${count} ${count === 1 ? "example was" : "examples were"} ${verb}`;
+        const parts: string[] = [];
+        if (newDataset.numCreatedExamples > 0) {
+          parts.push(formatPart(newDataset.numCreatedExamples, "added"));
+        }
+        if (newDataset.numPatchedExamples > 0) {
+          parts.push(formatPart(newDataset.numPatchedExamples, "updated"));
+        }
+        if (newDataset.numDeletedExamples > 0) {
+          parts.push(formatPart(newDataset.numDeletedExamples, "deleted"));
+        }
+        if (parts.length === 0) {
+          message = "A new dataset version was created.";
+        } else {
+          const joined = parts.join(", ") + ".";
+          message = joined.charAt(0).toUpperCase() + joined.slice(1);
+        }
+      }
+      notifySuccess({
+        title: "Dataset created",
+        message,
+        action: {
+          text: "Go to Dataset",
+          onClick: () => {
+            navigate(`/datasets/${newDataset.id}`);
+          },
+        },
+      });
+      setIsOpen(false);
+      onDatasetCreated();
+    },
+    [navigate, notifySuccess, onDatasetCreated]
+  );
+
+  const handleDatasetCreatedFromScratch = useCallback(
     (newDataset: { id: string; name: string }) => {
       notifySuccess({
         title: "Dataset created",
@@ -104,13 +148,13 @@ export function CreateDatasetButton({
                 >
                   <DatasetFromFileForm
                     mode="create"
-                    onDatasetCreated={handleCreated}
+                    onDatasetCreated={handleDatasetCreatedFromFile}
                     onCancel={handleCancel}
                   />
                 </TabPanel>
                 <TabPanel id="fromScratch">
                   <CreateDatasetForm
-                    onDatasetCreated={handleCreated}
+                    onDatasetCreated={handleDatasetCreatedFromScratch}
                     onCancel={handleCancel}
                   />
                 </TabPanel>
