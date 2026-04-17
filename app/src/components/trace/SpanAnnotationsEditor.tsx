@@ -640,6 +640,7 @@ function SpanAnnotationsList(props: {
               annotatorKind: "HUMAN",
               explanation: data.explanation || null,
               source: "APP",
+              metadata: {},
             },
             name: data.name,
             spanId: spanNodeId,

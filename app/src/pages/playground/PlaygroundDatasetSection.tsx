@@ -4,7 +4,7 @@ import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableMutation.graphql";
+import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   PlaygroundDatasetSection_evaluator$data,
   PlaygroundDatasetSection_evaluator$key,

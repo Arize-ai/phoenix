@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3df647261ea5623e068c2bb19e09e084>>
+ * @generated SignedSource<<b36c75c6d2ab74eb579d885ec1ea704e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,7 @@ export type UpdateDatasetLLMEvaluatorInput = {
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  invocationParameters?: any;
+  invocationParameters: any;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
@@ -120,8 +120,8 @@ export type FreeformAnnotationConfigInput = {
   name: string;
 };
 export type EvaluatorInputMappingInput = {
-  literalMapping?: any;
-  pathMapping?: any;
+  literalMapping: any;
+  pathMapping: any;
 };
 export type EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;

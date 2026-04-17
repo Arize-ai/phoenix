@@ -34,7 +34,6 @@ from phoenix.db.types.prompts import (
     TextContentPart,
     get_raw_invocation_parameters,
 )
-from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -2431,7 +2430,9 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.name.root == "updated-name"
             # Input mapping should revert to default value when not provided
-            assert db_dataset_evaluator.input_mapping == EvaluatorInputMappingInput().to_orm()
+            assert db_dataset_evaluator.input_mapping == InputMapping(
+                literal_mapping={}, path_mapping={}
+            )
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
 

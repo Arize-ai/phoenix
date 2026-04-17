@@ -242,7 +242,7 @@ class ChatPromptVersionInput:
     description: Optional[str] = None
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
-    invocation_parameters: JSON = strawberry.field(default_factory=dict)
+    invocation_parameters: JSON
     tools: Optional[PromptToolsInput] = None
     response_format: Optional[PromptResponseFormatJSONSchemaInput] = None
     model_provider: GenerativeProviderKey

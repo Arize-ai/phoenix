@@ -17,7 +17,7 @@ class UpdateAnnotationInput:
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
-    metadata: JSON = strawberry.field(default_factory=dict)
+    metadata: JSON
     source: AnnotationSource = AnnotationSource.APP
 
     def __post_init__(self) -> None:

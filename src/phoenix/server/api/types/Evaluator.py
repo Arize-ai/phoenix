@@ -51,9 +51,9 @@ class EvaluatorKind(Enum):
 
 @strawberry.type
 class EvaluatorInputMapping:
-    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    literal_mapping: JSON
     """Direct key-value mappings to evaluator inputs."""
-    path_mapping: JSON = strawberry.field(default_factory=dict)
+    path_mapping: JSON
     """JSONPath expressions to extract values from the evaluation context."""
 
 

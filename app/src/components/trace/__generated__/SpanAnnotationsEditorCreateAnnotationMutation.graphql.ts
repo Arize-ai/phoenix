@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<331b2cf3b8343d26eb049d733cd3dd2c>>
+ * @generated SignedSource<<4c3d5177ab6ea794780409039163df35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type CreateSpanAnnotationInput = {
   explanation?: string | null;
   identifier?: string | null;
   label?: string | null;
-  metadata?: any;
+  metadata: any;
   name: string;
   score?: number | null;
   source: AnnotationSource;

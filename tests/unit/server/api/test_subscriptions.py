@@ -2512,6 +2512,7 @@ class TestChatCompletionOverDatasetSubscription:
                         "id": evaluator_gid,
                         "name": "correctness",
                         "inputMapping": {
+                            "literalMapping": {},
                             "pathMapping": {
                                 "input": "$.input",
                                 "output": "$.output",

@@ -545,6 +545,7 @@ class TestProjectSessionAnnotationMutations:
                 "id": str(GlobalID("ProjectSessionAnnotation", "999999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
+                "metadata": {},
             }
         }
         nonexistent_patch_response = await gql_client.execute(
@@ -563,6 +564,7 @@ class TestProjectSessionAnnotationMutations:
                 "id": str(GlobalID("Span", "999")),
                 "name": "should_fail",
                 "label": "DUMMY_LABEL",  # Provide label to satisfy validation
+                "metadata": {},
             }
         }
         invalid_gid_patch_response = await gql_client.execute(
@@ -585,6 +587,7 @@ class TestProjectSessionAnnotationMutations:
                 "score": None,
                 "label": "NULL_SCORE_TEST",  # Provide label to satisfy validation
                 "explanation": "Testing score update to null",
+                "metadata": {},
             }
         }
         score_to_null_response = await gql_client.execute(
@@ -617,13 +620,14 @@ class TestProjectSessionAnnotationMutations:
             assert db_annotation.label == "NULL_SCORE_TEST"
 
         # B5. Update with score=null, label=null, explanation="" should fail validation
-        invalid_all_null_input = {
+        invalid_all_null_input: dict[str, Any] = {
             "input": {
                 "id": created_basic_annotation["id"],
                 "name": "should_fail_validation",
                 "score": None,
                 "label": None,
                 "explanation": "",
+                "metadata": {},
             }
         }
         invalid_all_null_response = await gql_client.execute(
@@ -644,6 +648,7 @@ class TestProjectSessionAnnotationMutations:
                 "id": created_first_metadata_annotation["id"],  # Use annotation with score=0.1
                 "name": created_first_metadata_annotation["name"],  # Keep same name
                 "score": 0.95,  # Change score from 0.1 to 0.95
+                "metadata": {},
             }
         }
         score_only_response = await gql_client.execute(
@@ -669,6 +674,7 @@ class TestProjectSessionAnnotationMutations:
                 "id": created_second_metadata_annotation["id"],  # Use annotation with label="B"
                 "name": created_second_metadata_annotation["name"],  # Keep same name
                 "label": "UPDATED_B_LABEL",  # Change label from "B" to "UPDATED_B_LABEL"
+                "metadata": {},
             }
         }
         label_only_response = await gql_client.execute(
@@ -694,6 +700,7 @@ class TestProjectSessionAnnotationMutations:
                 "id": created_basic_annotation["id"],  # Use basic annotation
                 "name": "explanation_only_test",  # Change name too
                 "explanation": "This is a completely new explanation",  # Change explanation
+                "metadata": {},
             }
         }
         explanation_only_response = await gql_client.execute(
@@ -722,6 +729,7 @@ class TestProjectSessionAnnotationMutations:
                 "name": "label_set_to_null",
                 "label": None,
                 "score": 0.75,  # Provide score to satisfy validation
+                "metadata": {},
             }
         }
         label_to_null_response = await gql_client.execute(
@@ -746,6 +754,7 @@ class TestProjectSessionAnnotationMutations:
                 "name": "explanation_set_to_null",
                 "explanation": None,
                 "label": "EXPLANATION_NULL_TEST",  # Provide label to satisfy validation
+                "metadata": {},
             }
         }
         explanation_to_null_response = await gql_client.execute(
@@ -770,6 +779,7 @@ class TestProjectSessionAnnotationMutations:
                 "name": "annotator_kind_test",
                 "annotatorKind": "LLM",  # Change from HUMAN to LLM
                 "label": "ANNOTATOR_KIND_TEST",  # Provide label to satisfy validation
+                "metadata": {},
             }
         }
         annotator_kind_response = await gql_client.execute(
@@ -796,6 +806,7 @@ class TestProjectSessionAnnotationMutations:
                 "name": "source_test",
                 "source": "API",  # Change from APP to API
                 "explanation": "Testing source update",  # Provide explanation to satisfy validation
+                "metadata": {},
             }
         }
         source_response = await gql_client.execute(
@@ -820,6 +831,7 @@ class TestProjectSessionAnnotationMutations:
                 "name": "code_annotator_test",
                 "annotatorKind": "CODE",  # Test the third enum value
                 "score": 0.88,  # Provide score to satisfy validation
+                "metadata": {},
             }
         }
         code_annotator_response = await gql_client.execute(

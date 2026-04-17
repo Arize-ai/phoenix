@@ -161,7 +161,7 @@ class PromptConfig:
     template: PromptTemplate
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormatJSONSchema] = None
-    invocation_parameters: JSON = strawberry.field(default_factory=dict)
+    invocation_parameters: JSON
     model_provider: GenerativeProviderKey = strawberry.field(
         description="The model provider (OPENAI, ANTHROPIC, etc.)"
     )
