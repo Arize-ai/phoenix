@@ -85,7 +85,9 @@ def test_env_vars_false_raises_for_non_empty_user_env(adapter_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 _ADAPTERS_WITHOUT_INTERNET_ACCESS = [
-    key for key, meta in SANDBOX_ADAPTER_METADATA.items() if meta.internet_access == "none"
+    key
+    for key, meta in SANDBOX_ADAPTER_METADATA.items()
+    if meta.internet_access_capability == "none"
 ]
 
 _INTERNET_ACCESS_CONFIG = {"internet_access": {"mode": "allow"}}

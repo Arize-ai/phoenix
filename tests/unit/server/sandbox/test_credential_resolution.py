@@ -5,7 +5,7 @@ Covers:
 - Env var fallback when no DB secret
 - Missing key omitted (no empty-string entries)
 - Mixed: some from DB, some from env, some missing
-- Empty env_var_specs returns {}
+- Empty credential_specs returns {}
 - session/decrypt=None falls back to env-only
 """
 
@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.server.sandbox import _resolve_sandbox_credentials
-from phoenix.server.sandbox.types import EnvVarSpec
+from phoenix.server.sandbox.types import ProviderCredentialSpec
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
@@ -41,9 +41,9 @@ def _identity_decrypt(data: bytes) -> bytes:
     return data
 
 
-_SPEC_A = EnvVarSpec(key="CRED_A", display_name="Cred A")
-_SPEC_B = EnvVarSpec(key="CRED_B", display_name="Cred B")
-_SPEC_C = EnvVarSpec(key="CRED_C", display_name="Cred C")
+_SPEC_A = ProviderCredentialSpec(key="CRED_A", display_name="Cred A")
+_SPEC_B = ProviderCredentialSpec(key="CRED_B", display_name="Cred B")
+_SPEC_C = ProviderCredentialSpec(key="CRED_C", display_name="Cred C")
 
 
 class TestResolveSandboxCredentials:

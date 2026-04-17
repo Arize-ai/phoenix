@@ -87,6 +87,27 @@ describe("formValuesToConfigPatch — preserve-on-save", () => {
     expect(result["custom_field"]).toBe("api-written");
   });
 
+  it("(d) lockfile preserved when dependenciesLanguage is set and packages edited", () => {
+    const storedConfig: Record<string, unknown> = {
+      dependencies: { packages: ["old-pkg"], lockfile: "old-pkg==1.0.0\n" },
+    };
+    const values: SandboxConfigFormValues = {
+      ...emptyValues,
+      dependenciesText: "new-pkg",
+    };
+
+    const result = formValuesToConfigPatch(
+      values,
+      fullCapabilityBackend as BackendInfo,
+      storedConfig
+    );
+
+    expect(result["dependencies"]).toEqual({
+      packages: ["new-pkg"],
+      lockfile: "old-pkg==1.0.0\n",
+    });
+  });
+
   it("JSON editor cannot inject env_vars, internet_access, or dependencies via configText", () => {
     const storedConfig: Record<string, unknown> = {};
     const valuesWithInjectedKeys: SandboxConfigFormValues = {

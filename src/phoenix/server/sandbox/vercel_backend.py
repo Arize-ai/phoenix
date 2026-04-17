@@ -27,11 +27,10 @@ import os
 from typing import Any, Optional
 
 from .types import (
-    EnvVarSpec,
     ExecutionResult,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
     VercelPythonConfig,
     VercelTypescriptConfig,
 )
@@ -161,7 +160,6 @@ class VercelSandboxBackend(SandboxBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         if timeout is not None:
@@ -170,16 +168,15 @@ class VercelSandboxBackend(SandboxBackend):
                 "set timeout at sandbox creation time via start_session"
             )
         try:
-            # Merge user_env (base) with per-call env; passed to run_command at execute-time.
-            merged_env: Optional[dict[str, str]] = {**self._user_env, **(env or {})} or None
+            session_env: Optional[dict[str, str]] = self._user_env or None
             sandbox = self._sessions.get(session_key)
             if sandbox is not None:
-                return await self._exec_code(sandbox, code, env=merged_env)
+                return await self._exec_code(sandbox, code, env=session_env)
             else:
                 # Ephemeral: create, exec, stop.
                 sandbox = await self._create_sandbox()
                 try:
-                    return await self._exec_code(sandbox, code, env=merged_env)
+                    return await self._exec_code(sandbox, code, env=session_env)
                 finally:
                     try:
                         await sandbox.stop()
@@ -207,22 +204,22 @@ def _resolve_vercel_team_id(config: dict[str, Any]) -> str:
 
 
 _VERCEL_ENV_VAR_SPECS = [
-    EnvVarSpec(
+    ProviderCredentialSpec(
         key="VERCEL_OIDC_TOKEN",
         display_name="Vercel OIDC Token",
         description="OIDC token for Vercel sandbox (e.g. from `vercel env pull`).",
     ),
-    EnvVarSpec(
+    ProviderCredentialSpec(
         key="VERCEL_TOKEN",
         display_name="Vercel Access Token",
         description="Vercel personal access token (used with VERCEL_PROJECT_ID and VERCEL_TEAM_ID).",  # noqa: E501
     ),
-    EnvVarSpec(
+    ProviderCredentialSpec(
         key="VERCEL_PROJECT_ID",
         display_name="Vercel Project ID",
         description="Vercel project ID (used with VERCEL_TOKEN and VERCEL_TEAM_ID).",
     ),
-    EnvVarSpec(
+    ProviderCredentialSpec(
         key="VERCEL_TEAM_ID",
         display_name="Vercel Team ID",
         description="Vercel team ID (used with VERCEL_TOKEN and VERCEL_PROJECT_ID).",
@@ -235,32 +232,14 @@ class VercelPythonAdapter(SandboxAdapter):
     display_name = "Vercel Sandbox (Python)"
     language = "PYTHON"
     config_model = VercelPythonConfig
-    env_var_specs = _VERCEL_ENV_VAR_SPECS
+    credential_specs = _VERCEL_ENV_VAR_SPECS
 
     def build_backend(
         self,
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        if packages:
-            raise UnsupportedOperation(
-                "Vercel Python backend does not support dependency installation. "
-                "Use a pre-baked template or switch to a backend that supports dependencies."
-            )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "Vercel Python backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
+        self._enforce_capabilities(config, user_env)
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
             return VercelSandboxBackend(use_oidc_env=True, language="PYTHON", user_env=user_env)
 
@@ -288,32 +267,14 @@ class VercelTypescriptAdapter(SandboxAdapter):
     display_name = "Vercel Sandbox (TypeScript)"
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
-    env_var_specs = _VERCEL_ENV_VAR_SPECS
+    credential_specs = _VERCEL_ENV_VAR_SPECS
 
     def build_backend(
         self,
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        if packages:
-            raise UnsupportedOperation(
-                "Vercel TypeScript backend does not support dependency installation. "
-                "Use a pre-baked template or switch to a backend that supports dependencies."
-            )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "Vercel TypeScript backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
+        self._enforce_capabilities(config, user_env)
         if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
             return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT", user_env=user_env)
 

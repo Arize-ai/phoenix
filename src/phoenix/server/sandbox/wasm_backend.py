@@ -28,7 +28,6 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
     WASMConfig,
 )
 
@@ -129,11 +128,8 @@ class WASMBackend(BaseNoSessionBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if env:
-            raise UnsupportedOperation("WASM backend does not support environment variables")
         binary_path = self._resolve_binary()
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -159,29 +155,5 @@ class WASMAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
-        if user_env:
-            raise UnsupportedOperation(
-                "WASM backend does not support user-supplied environment variables. "
-                "Disable env_vars for WASM configs or switch to a backend that "
-                "supports env vars (e.g. E2B)."
-            )
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        if packages:
-            raise UnsupportedOperation(
-                "WASM backend does not support dependency installation. "
-                "Use a pre-baked template or switch to a backend that supports dependencies."
-            )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "WASM backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
+        self._enforce_capabilities(config, user_env)
         return WASMBackend()

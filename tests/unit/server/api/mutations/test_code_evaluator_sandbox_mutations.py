@@ -939,6 +939,62 @@ class TestConfigValidationPath:
             )
         assert result.errors
 
+    async def test_create_vercel_token_reserved_name_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Non-PHOENIX_SANDBOX reserved names (adapter-owned credentials like
+        VERCEL_TOKEN) must also be rejected at createSandboxConfig time —
+        reserved-name coverage is derived from every adapter's credential_specs,
+        not just the PHOENIX_SANDBOX_ prefix."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            # env_vars surface
+            env_var_result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-vercel-token-env",
+                        "config": {
+                            "env_vars": [
+                                {
+                                    "kind": "secret_ref",
+                                    "name": "VERCEL_TOKEN",
+                                    "secret_key": "anything",
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
+            # top-level config surface
+            top_level_result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-vercel-token-top",
+                        "config": {"VERCEL_TOKEN": "attacker-value"},
+                    }
+                },
+            )
+        assert env_var_result.errors, (
+            "Expected BadRequest for VERCEL_TOKEN in env_vars; "
+            "reserved-name enforcement may not cover adapter-owned credentials"
+        )
+        assert top_level_result.errors, (
+            "Expected BadRequest for VERCEL_TOKEN as top-level config key; "
+            "reserved-name enforcement may not cover top-level SandboxConfig.config"
+        )
+
     async def test_update_reserved_env_var_name_rejected(
         self,
         gql_client: AsyncGraphQLClient,

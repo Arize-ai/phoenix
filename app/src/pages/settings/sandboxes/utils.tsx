@@ -160,7 +160,12 @@ export function formValuesToConfigPatch(
       .map((s) => s.trim())
       .filter(Boolean);
     if (packages.length > 0) {
-      base["dependencies"] = { packages };
+      base["dependencies"] = {
+        ...(storedConfig["dependencies"] as
+          | Record<string, unknown>
+          | undefined),
+        packages,
+      };
     }
     // Empty packages means the user cleared it intentionally — omit the key.
   } else if (storedConfig["dependencies"] !== undefined) {

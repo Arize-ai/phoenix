@@ -15,11 +15,10 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     E2BConfig,
-    EnvVarSpec,
     ExecutionResult,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -84,13 +83,11 @@ class E2BSandboxBackend(SandboxBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         try:
             sandbox = self._sessions.get(session_key)
-            merged_env = {**self._user_env, **(env or {})}
-            run_kwargs: dict[str, Any] = {"envs": merged_env}
+            run_kwargs: dict[str, Any] = {"envs": self._user_env}
             if timeout is not None:
                 run_kwargs["timeout"] = timeout
             if self._cwd is not None:
@@ -129,8 +126,8 @@ class E2BAdapter(SandboxAdapter):
     display_name = "E2B"
     language = "PYTHON"
     config_model = E2BConfig
-    env_var_specs = [
-        EnvVarSpec(
+    credential_specs = [
+        ProviderCredentialSpec(
             key="PHOENIX_SANDBOX_E2B_API_KEY",
             display_name="E2B API Key",
             description="API key for the E2B sandbox service.",
@@ -142,25 +139,7 @@ class E2BAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        if packages:
-            raise UnsupportedOperation(
-                "E2B backend does not support dependency installation. "
-                "Use a pre-baked template or switch to a backend that supports dependencies."
-            )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "E2B backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
+        self._enforce_capabilities(config, user_env)
         api_key: str = (
             config.get("PHOENIX_SANDBOX_E2B_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_E2B_API_KEY")

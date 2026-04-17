@@ -13,7 +13,7 @@ from phoenix.server.sandbox import (
     get_or_create_backend,
     invalidate_backend_cache,
 )
-from phoenix.server.sandbox.types import EnvVarSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
@@ -39,7 +39,7 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
         key = "STUB"
         display_name = "Stub"
         language = "PYTHON"
-        env_var_specs = [EnvVarSpec(key=cred_key, display_name="Cred X")]
+        credential_specs = [ProviderCredentialSpec(key=cred_key, display_name="Cred X")]
 
         def build_backend(
             self,
@@ -91,9 +91,13 @@ class TestGetOrCreateBackendCredentialMerge:
         assert received["config"].get("CRED_X") == "env-val"
 
     @pytest.mark.asyncio
-    async def test_user_config_wins_over_resolved_credential(
+    async def test_resolved_db_credential_wins_over_user_config(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """Defense-in-depth: a user-supplied config key with a reserved
+        credential name MUST be overridden by the server-resolved DB secret.
+        Reserved-name enforcement at the mutation boundary is the primary
+        defense; the factory merge order is the backstop."""
         received: dict[str, Any] = {}
         adapter = _make_adapter(received, "CRED_X")
         session = _make_session({"CRED_X": b"db-val"})
@@ -101,12 +105,56 @@ class TestGetOrCreateBackendCredentialMerge:
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
             await get_or_create_backend(
                 "STUB",
-                config={"CRED_X": "user-val"},
+                config={"CRED_X": "attacker-val"},
                 session=session,
                 decrypt=_identity_decrypt,
             )
 
-        assert received["config"].get("CRED_X") == "user-val"
+        assert received["config"].get("CRED_X") == "db-val"
+
+    @pytest.mark.asyncio
+    async def test_resolved_env_credential_wins_over_user_config(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Env-var-resolved credential also wins over user config (no DB secret)."""
+        received: dict[str, Any] = {}
+        adapter = _make_adapter(received, "CRED_X")
+        monkeypatch.setenv("CRED_X", "env-val")
+        session = _make_session({})
+
+        with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
+            await get_or_create_backend(
+                "STUB",
+                config={"CRED_X": "attacker-val"},
+                session=session,
+                decrypt=_identity_decrypt,
+            )
+
+        assert received["config"].get("CRED_X") == "env-val"
+
+    @pytest.mark.asyncio
+    async def test_user_config_preserved_when_key_unresolved(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Non-credential user config keys pass through untouched."""
+        received: dict[str, Any] = {}
+        adapter = _make_adapter(received, "CRED_X")
+        monkeypatch.delenv("CRED_X", raising=False)
+        session = _make_session({})
+
+        with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
+            await get_or_create_backend(
+                "STUB",
+                config={"template": "python", "CRED_X": "user-fallback"},
+                session=session,
+                decrypt=_identity_decrypt,
+            )
+
+        # When no DB/env value resolves, user-supplied key remains.
+        # (Reserved-name enforcement at mutation time prevents this for
+        # actual reserved credential keys; this is just shape-agnostic behavior.)
+        assert received["config"].get("template") == "python"
+        assert received["config"].get("CRED_X") == "user-fallback"
 
     @pytest.mark.asyncio
     async def test_no_session_resolves_from_env_only(self, monkeypatch: pytest.MonkeyPatch) -> None:

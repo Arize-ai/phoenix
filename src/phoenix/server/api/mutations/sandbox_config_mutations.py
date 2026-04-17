@@ -16,6 +16,7 @@ layer. Do not add sibling typed-input fields for the new sections.
 from typing import Any
 
 import strawberry
+from pydantic import ValidationError
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -39,23 +40,53 @@ from phoenix.server.api.types.SandboxConfig import (
 from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider as SandboxProviderType,
 )
-from phoenix.server.sandbox import _SANDBOX_ADAPTERS, invalidate_backend_cache
+from phoenix.server.sandbox import (
+    _SANDBOX_ADAPTERS,
+    invalidate_backend_cache,
+    invalidate_backend_cache_for_key,
+    is_reserved_credential_name,
+)
 
-_RESERVED_ENV_VAR_PREFIX = "PHOENIX_SANDBOX_"
 
+def _check_env_var_collision(env_vars: Any, backend_type: str) -> None:
+    """Raise BadRequest if any env_var name collides with a reserved
+    provider-credential key.
 
-def _check_env_var_collision(config_dict: dict[str, Any]) -> None:
-    """Raise BadRequest if any env_var name starts with PHOENIX_SANDBOX_."""
-    env_vars = config_dict.get("env_vars")
+    `env_vars` is the raw list from SandboxConfig.config (dicts or pydantic
+    models); callers pass `config_dict.get("env_vars")`. `backend_type` is
+    included in the error message for caller context. Comparison is
+    case-insensitive (see `is_reserved_credential_name`).
+    """
     if not env_vars:
         return
     for entry in env_vars:
         name = entry.get("name", "") if isinstance(entry, dict) else getattr(entry, "name", "")
-        if name.upper().startswith(_RESERVED_ENV_VAR_PREFIX):
+        if name and is_reserved_credential_name(name):
             raise BadRequest(
-                f"Environment variable name {name!r} is reserved: names starting with "
-                f"'{_RESERVED_ENV_VAR_PREFIX}' are used internally for sandbox credentials "
-                "and cannot be set by users."
+                f"Environment variable name {name!r} is reserved as a sandbox "
+                f"provider credential for {backend_type!r} and cannot be set "
+                "as a user env_var. Choose a different name or store the value "
+                "via setSandboxCredential."
+            )
+
+
+def _check_reserved_top_level_keys(config_dict: dict[str, Any], backend_type: str) -> None:
+    """Raise BadRequest if any top-level key in `config_dict` collides with a
+    reserved provider-credential key.
+
+    Guards against credential-shadowing via `config`'s top-level keys
+    (SandboxConfig.config uses extra="allow", so arbitrary keys pass pydantic
+    validation). `backend_type` is included in the error message for context.
+    Comparison is case-insensitive (see `is_reserved_credential_name`).
+    """
+    if not config_dict:
+        return
+    for key in config_dict:
+        if is_reserved_credential_name(key):
+            raise BadRequest(
+                f"Config key {key!r} is reserved as a sandbox provider "
+                f"credential for {backend_type!r} and cannot be set via "
+                "config. Store the credential via setSandboxCredential instead."
             )
 
 
@@ -108,11 +139,11 @@ class DeleteSandboxCredentialPayload:
 
 
 def _validate_sandbox_credential_key(backend_type: str, key: str) -> None:
-    """Raise BadRequest if backend_type is unknown or key is not in adapter's env_var_specs."""
+    """Raise BadRequest if backend_type is unknown or key is not in adapter's credential_specs."""
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
         raise BadRequest(f"Unknown sandbox backend type: {backend_type!r}")
-    valid_keys = {spec.key for spec in adapter.env_var_specs}
+    valid_keys = {spec.key for spec in adapter.credential_specs}
     if key not in valid_keys:
         raise BadRequest(
             f"Key {key!r} is not a valid credential for backend {backend_type!r}. "
@@ -153,12 +184,13 @@ class SandboxConfigMutationMixin:
 
             values = sandbox_config_from_input(input, provider_id=provider_id)
             config_dict = values.get("config", {}) or {}
-            _check_env_var_collision(config_dict)
+            _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
+            _check_reserved_top_level_keys(config_dict, provider.backend_type)
             adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
             if adapter is not None:
                 try:
                     config_dict = adapter.validate_config(config_dict)
-                except ValueError as exc:
+                except (ValueError, ValidationError) as exc:
                     raise BadRequest(str(exc))
             values["config"] = config_dict
 
@@ -198,13 +230,14 @@ class SandboxConfigMutationMixin:
                 row.description = input.description
             if input.config is not strawberry.UNSET:
                 config_dict = dict(input.config) if input.config is not None else {}
-                _check_env_var_collision(config_dict)
                 provider = await session.scalar(
                     select(models.SandboxProvider).where(
                         models.SandboxProvider.id == row.sandbox_provider_id
                     )
                 )
                 if provider is not None:
+                    _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
+                    _check_reserved_top_level_keys(config_dict, provider.backend_type)
                     adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
                     if adapter is not None:
                         try:
@@ -265,7 +298,9 @@ class SandboxConfigMutationMixin:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
             if input.config is not strawberry.UNSET:
-                row.config = dict(input.config) if input.config is not None else {}
+                config_dict = dict(input.config) if input.config is not None else {}
+                _check_reserved_top_level_keys(config_dict, row.backend_type)
+                row.config = config_dict
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 
@@ -305,6 +340,10 @@ class SandboxConfigMutationMixin:
                     on_conflict=OnConflict.DO_UPDATE,
                 )
             )
+        # Key-level fan-out covers shared credential_specs (e.g., VERCEL_TOKEN
+        # shared between VERCEL_PYTHON and VERCEL_TYPESCRIPT). Per-backend_type
+        # invalidation remains as a defense-in-depth backstop.
+        await invalidate_backend_cache_for_key(key)
         await invalidate_backend_cache(backend_type)
         return SetSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())
 
@@ -323,5 +362,8 @@ class SandboxConfigMutationMixin:
 
         async with info.context.db() as session:
             await session.execute(sa.delete(models.Secret).where(models.Secret.key == key))
+        # Key-level fan-out covers shared credential_specs; per-backend_type call
+        # remains as a defense-in-depth backstop.
+        await invalidate_backend_cache_for_key(key)
         await invalidate_backend_cache(backend_type)
         return DeleteSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())

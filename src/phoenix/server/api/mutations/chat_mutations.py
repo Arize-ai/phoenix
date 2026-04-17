@@ -259,7 +259,8 @@ class ChatCompletionMutationMixin:
                     raise BadRequest(f"Expected code evaluator, got {type_name}")
 
                 from phoenix.server.api.evaluators import CodeEvaluatorRunner
-                from phoenix.server.sandbox import get_or_create_backend
+                from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
+                from phoenix.server.sandbox.types import UnsupportedOperation
 
                 async with info.context.db() as session:
                     code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
@@ -301,9 +302,12 @@ class ChatCompletionMutationMixin:
                                         "Sandbox provider language does not match "
                                         "code evaluator language"
                                     )
+                                # Admin-authored provider config wins over user-authored
+                                # SandboxConfig.config on key collision — consistent with
+                                # the factory's credentials-win merge order.
                                 merged_config = {
-                                    **provider.config,
                                     **sandbox_cfg.config,
+                                    **provider.config,
                                 }
 
                     # Eagerly capture scalar fields before session closes
@@ -317,12 +321,19 @@ class ChatCompletionMutationMixin:
                     ]
 
                     if backend_type is not None:
-                        sandbox_backend = await get_or_create_backend(
-                            backend_type,
-                            config=merged_config,
-                            session=session,
-                            decrypt=info.context.decrypt,
-                        )
+                        try:
+                            sandbox_backend = await get_or_create_backend(
+                                backend_type,
+                                config=merged_config,
+                                session=session,
+                                decrypt=info.context.decrypt,
+                            )
+                        except (
+                            MissingSecretError,
+                            UnsupportedOperation,
+                            ValidationError,
+                        ) as exc:
+                            raise BadRequest(str(exc))
                 if sandbox_backend is None:
                     raise BadRequest(
                         f"No sandbox backend configured for language '{language}'. "

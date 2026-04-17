@@ -102,7 +102,7 @@ async def test_sandbox_backends_capability_flags_per_adapter(
     backend = backends[backend_type]
 
     assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
-    assert backend["internetAccess"] == meta.internet_access.upper(), backend_type
+    assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
     expected_deps_lang = meta.dependencies_language
     assert backend["dependenciesLanguage"] == expected_deps_lang, backend_type
 

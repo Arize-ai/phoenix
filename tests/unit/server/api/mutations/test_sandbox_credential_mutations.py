@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from phoenix.db import models
 from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
-from phoenix.server.sandbox.types import EnvVarSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -44,7 +44,7 @@ class _TestCredAdapter(SandboxAdapter):
     key = _TEST_BACKEND
     display_name = "Test Cred Backend"
     language = "PYTHON"
-    env_var_specs = [EnvVarSpec(key=_TEST_KEY, display_name="Test Credential")]
+    credential_specs = [ProviderCredentialSpec(key=_TEST_KEY, display_name="Test Credential")]
 
     def build_backend(
         self,

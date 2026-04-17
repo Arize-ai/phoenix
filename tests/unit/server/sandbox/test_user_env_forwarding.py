@@ -48,25 +48,6 @@ class TestE2BUserEnvForwarding:
         assert captured["envs"] == {"BASE": "val"}
 
     @pytest.mark.asyncio
-    async def test_call_env_overrides_user_env(self) -> None:
-        backend = self._make_backend(user_env={"KEY": "base"})
-        captured: dict[str, Any] = {}
-
-        async def fake_run_code(code: str, **kwargs: Any) -> Any:
-            captured["envs"] = kwargs.get("envs")
-            result = MagicMock()
-            result.logs = MagicMock(stdout=[], stderr=[])
-            result.error = None
-            return result
-
-        sandbox_mock = MagicMock()
-        sandbox_mock.run_code = fake_run_code
-        backend._sessions["s1"] = sandbox_mock
-
-        await backend.execute("print('hi')", "s1", env={"KEY": "override"})
-        assert captured["envs"] == {"KEY": "override"}
-
-    @pytest.mark.asyncio
     async def test_no_user_env_passes_empty_dict(self) -> None:
         backend = self._make_backend(user_env=None)
         captured: dict[str, Any] = {}
@@ -336,17 +317,6 @@ class TestModalUserEnvForwarding:
         assert captured.get("env_dict") == {"MY_KEY": "my_val"}
 
     @pytest.mark.asyncio
-    async def test_execute_per_call_env_raises_unsupported_operation(self) -> None:
-        """Per-call execute(env=...) must raise UnsupportedOperation for Modal."""
-        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
-
-        modal_mock = MagicMock()
-        with patch.dict("sys.modules", {"modal": modal_mock}):
-            backend = ModalSandboxBackend(user_env=None)
-            with pytest.raises(UnsupportedOperation):
-                await backend.execute("print('hi')", "s1", env={"KEY": "val"})
-
-    @pytest.mark.asyncio
     async def test_no_user_env_omits_env_dict_from_create(self) -> None:
         """When user_env is empty, env_dict is NOT passed to Sandbox.create.aio."""
         from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
@@ -417,26 +387,6 @@ class TestVercelUserEnvForwarding:
 
         await backend.execute("print('hi')", "s1")
         assert captured["env"] == {"MY_VAR": "hello"}
-
-    @pytest.mark.asyncio
-    async def test_call_env_overrides_user_env(self) -> None:
-        backend = self._make_backend(user_env={"KEY": "base"})
-        captured: dict[str, Any] = {}
-
-        async def fake_run_command(cmd: str, args: Any, **kwargs: Any) -> Any:
-            captured["env"] = kwargs.get("env")
-            result = MagicMock()
-            result.stdout = AsyncMock(return_value="")
-            result.stderr = AsyncMock(return_value="")
-            result.exit_code = 0
-            return result
-
-        sandbox_mock = MagicMock()
-        sandbox_mock.run_command = fake_run_command
-        backend._sessions["s1"] = sandbox_mock
-
-        await backend.execute("print('hi')", "s1", env={"KEY": "override"})
-        assert captured["env"] == {"KEY": "override"}
 
     @pytest.mark.asyncio
     async def test_no_user_env_omits_env_from_run_command(self) -> None:

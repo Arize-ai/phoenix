@@ -26,12 +26,11 @@ import logging
 from typing import Any, Optional
 
 from .types import (
-    EnvVarSpec,
     ExecutionResult,
     ModalConfig,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -116,14 +115,8 @@ class ModalSandboxBackend(SandboxBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if env:
-            raise UnsupportedOperation(
-                "ModalSandboxBackend does not support per-call env overrides; "
-                "pass user_env at session-creation time via build_backend instead."
-            )
         if timeout is not None:
             logger.warning(
                 "ModalSandboxBackend: per-call timeout not supported; using sandbox-level timeout"
@@ -152,13 +145,13 @@ class ModalAdapter(SandboxAdapter):
     display_name = "Modal"
     language = "PYTHON"
     config_model = ModalConfig
-    env_var_specs = [
-        EnvVarSpec(
+    credential_specs = [
+        ProviderCredentialSpec(
             key="MODAL_TOKEN_ID",
             display_name="Modal Token ID",
             description="Modal token ID for authentication.",
         ),
-        EnvVarSpec(
+        ProviderCredentialSpec(
             key="MODAL_TOKEN_SECRET",
             display_name="Modal Token Secret",
             description="Modal token secret for authentication.",
@@ -170,25 +163,7 @@ class ModalAdapter(SandboxAdapter):
         config: dict[str, Any],
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        if packages:
-            raise UnsupportedOperation(
-                "Modal backend does not support dependency installation. "
-                "Use a pre-baked image or switch to a backend that supports dependencies."
-            )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "Modal backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
+        self._enforce_capabilities(config, user_env)
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
         idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
         app_name: str = config.get("app_name", "phoenix-sandbox")

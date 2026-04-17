@@ -15,11 +15,10 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
 
 from .types import (
     DaytonaPythonConfig,
-    EnvVarSpec,
     ExecutionResult,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,7 +86,6 @@ class DaytonaSandboxBackend(SandboxBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         if timeout is not None:
@@ -100,8 +98,7 @@ class DaytonaSandboxBackend(SandboxBackend):
             if workspace is None:
                 client = self._get_client()
                 workspace = await client.create()
-            merged_env = {**self._user_env, **(env or {})}
-            result = await workspace.process.code_run(code, envs=merged_env)
+            result = await workspace.process.code_run(code, envs=self._user_env)
             return ExecutionResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
@@ -120,8 +117,8 @@ class DaytonaPythonAdapter(SandboxAdapter):
     display_name = "Daytona (Python)"
     language = "PYTHON"
     config_model = DaytonaPythonConfig
-    env_var_specs = [
-        EnvVarSpec(
+    credential_specs = [
+        ProviderCredentialSpec(
             key="PHOENIX_SANDBOX_DAYTONA_API_KEY",
             display_name="Daytona API Key",
             description="API key for the Daytona sandbox service.",
@@ -131,24 +128,13 @@ class DaytonaPythonAdapter(SandboxAdapter):
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
+        self._enforce_capabilities(config, user_env)
         api_key: str = (
             config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
             or os.environ.get(ENV_PHOENIX_SANDBOX_TOKEN)
             or ""
         )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            if mode is not None:
-                raise UnsupportedOperation(
-                    "Daytona backend does not support internet_access configuration. "
-                    "Remove the internet_access field or switch to a backend that supports it."
-                )
         server_url: str = config.get("server_url", "")
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []

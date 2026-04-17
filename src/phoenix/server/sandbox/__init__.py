@@ -27,9 +27,10 @@ from phoenix.server.sandbox.types import (
     EnvVarSecretRef,
     SandboxAdapter,
     SandboxBackend,
+    UnsupportedOperation,
 )
 from phoenix.server.sandbox.types import (
-    EnvVarSpec as EnvVarSpec,
+    ProviderCredentialSpec as ProviderCredentialSpec,
 )
 
 if TYPE_CHECKING:
@@ -131,12 +132,14 @@ class AdapterMetadata:
     a separate backend API; when unsupported they MUST also raise
     ``UnsupportedOperation`` rather than warn or silently drop input.
 
-    **internet_access** — controls whether the sandbox can reach the internet.
-    ``'none'``: adapter does not support this capability; if the stored config
-    contains a non-"none" ``internet_access.mode``, ``build_backend`` MUST
-    raise ``UnsupportedOperation``. ``'boolean'``: adapter supports a simple
-    allow/deny toggle. ``'allowlist'``: adapter supports a per-domain allowlist
-    (reserved for future use; not currently user-selectable).
+    **internet_access_capability** — controls whether the sandbox can reach
+    the internet. ``'none'``: adapter does not support this capability; if the
+    stored config contains a non-"none" ``internet_access.mode``,
+    ``build_backend`` MUST raise ``UnsupportedOperation``. ``'boolean'``:
+    adapter supports a simple allow/deny toggle. ``'allowlist'``: adapter
+    supports a per-domain allowlist (reserved for future use; not currently
+    user-selectable). Distinct from the runtime ``internet_access`` block on
+    SandboxConfig.config, which is the admin/user-authored runtime mode.
 
     **dependencies_language** — package installation before code execution.
     ``None``: adapter does not support pre-installing dependencies; if the
@@ -167,7 +170,9 @@ class AdapterMetadata:
     # user-selectable via the UI.
     # UI: 'none' → render muted placeholder; 'boolean' → render toggle;
     # 'allowlist' → reserved, do not expose in structured UI or JSON editor.
-    internet_access: Literal["none", "boolean", "allowlist"] = "none"
+    # Note: this is the adapter-level capability flag, distinct from the
+    # runtime `internet_access` block stored on SandboxConfig.config.
+    internet_access_capability: Literal["none", "boolean", "allowlist"] = "none"
 
     # Value semantics: None → capability not supported; build_backend MUST
     # raise UnsupportedOperation when config carries non-empty
@@ -195,7 +200,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             ),
         ],
         supports_env_vars=False,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
     "E2B": AdapterMetadata(
@@ -206,7 +211,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
     "DAYTONA_PYTHON": AdapterMetadata(
@@ -217,7 +222,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language="PYTHON",
     ),
     "VERCEL_PYTHON": AdapterMetadata(
@@ -229,7 +234,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "`VERCEL_TEAM_ID`.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
     "VERCEL_TYPESCRIPT": AdapterMetadata(
@@ -241,7 +246,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "`VERCEL_TEAM_ID`.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
     "DENO": AdapterMetadata(
@@ -251,7 +256,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
     "MODAL": AdapterMetadata(
@@ -262,7 +267,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
         ],
         supports_env_vars=True,
-        internet_access="none",
+        internet_access_capability="none",
         dependencies_language=None,
     ),
 }
@@ -315,7 +320,9 @@ async def invalidate_backend_cache(backend_type: str) -> None:
     """Remove all _BACKEND_CACHE entries for backend_type, closing each backend."""
     evicted = 0
     for key in [k for k in _BACKEND_CACHE if k[0] == backend_type]:
-        backend = _BACKEND_CACHE.pop(key)
+        backend = _BACKEND_CACHE.pop(key, None)
+        if backend is None:
+            continue
         try:
             await backend.close()
         except Exception:
@@ -324,18 +331,54 @@ async def invalidate_backend_cache(backend_type: str) -> None:
     logger.debug(f"Invalidated {evicted} cache entries for backend_type={backend_type!r}")
 
 
+async def invalidate_backend_cache_for_key(key: str) -> None:
+    """Evict cached backends for every adapter whose credential_specs include `key`.
+
+    Used when a secret value changes (Secret row upserted/deleted) to ensure
+    backends holding the pre-rotation plaintext are rebuilt on next access.
+    Walks `_SANDBOX_ADAPTERS` and calls `invalidate_backend_cache(backend_type)`
+    for each matching adapter. Key comparison is exact against the `key` field
+    of each `ProviderCredentialSpec`.
+
+    Broader than `invalidate_backend_cache` because one credential key may be
+    shared by multiple backend_types (e.g. VERCEL_TOKEN across VERCEL_PYTHON
+    and VERCEL_TYPESCRIPT). A per-adapter eviction failure logs and continues —
+    a rotation must not stall because one backend failed to close.
+    """
+    matched = 0
+    for backend_type, adapter in list(_SANDBOX_ADAPTERS.items()):
+        if any(spec.key == key for spec in adapter.credential_specs):
+            matched += 1
+            try:
+                await invalidate_backend_cache(backend_type)
+            except Exception:
+                logger.warning(
+                    f"Error invalidating cache for backend_type={backend_type!r} "
+                    f"after rotation of {key!r}",
+                    exc_info=True,
+                )
+    logger.debug(f"Invalidated cache across {matched} adapter(s) for key={key!r}")
+
+
 class MissingSecretError(Exception):
     """Raised when a secret_ref entry references a Secret key that does not exist."""
 
 
 async def _resolve_user_env(
     raw_env_vars: list[Any],
-    session: AsyncSession,
-    decrypt: Callable[[bytes], bytes],
+    session: Optional[AsyncSession],
+    decrypt: Optional[Callable[[bytes], bytes]],
 ) -> dict[str, str]:
     """Parse env_vars list, resolve secret_refs, return plaintext name→value dict.
 
-    Raises MissingSecretError if any secret_ref key is absent from the Secret table.
+    Literal entries are resolved unconditionally — they never require DB context.
+    Secret refs require both session and decrypt; if either is missing and any
+    secret_ref is present, raises MissingSecretError (fail-closed: silent-drop
+    would strip user-intended env vars and mislead the caller).
+
+    Raises MissingSecretError if any secret_ref key is absent from the Secret
+    table, cannot be decrypted, or if secret_refs are present but no
+    session/decrypt context was supplied.
     """
     from pydantic import TypeAdapter
 
@@ -351,6 +394,15 @@ async def _resolve_user_env(
 
     resolved_secrets: dict[str, str] = {}
     if secret_keys:
+        if session is None or decrypt is None:
+            # Fail-closed: secret_refs require DB context. Silently dropping
+            # them would leave the user-intended env absent at execute() time
+            # with no diagnostic.
+            raise MissingSecretError(
+                "Cannot resolve secret_ref env_vars without a database session "
+                "and decrypt context; referenced secret key(s): "
+                f"{', '.join(sorted(secret_keys))}"
+            )
         import sqlalchemy as sa
 
         from phoenix.db import models
@@ -386,18 +438,18 @@ async def _resolve_user_env(
 async def _resolve_sandbox_credentials(
     session: Optional[AsyncSession],
     decrypt: Optional[Callable[[bytes], bytes]],
-    env_var_specs: list[EnvVarSpec],
+    credential_specs: list[ProviderCredentialSpec],
 ) -> dict[str, str]:
     """Resolve provider credentials via DB secret lookup + env var fallback.
 
-    For each spec in env_var_specs: query the secrets table first, fall back
+    For each spec in credential_specs: query the secrets table first, fall back
     to os.getenv(). Keys absent from both tiers are omitted from the result.
     Safe when session or decrypt are None (returns env-only resolution).
     """
-    if not env_var_specs:
+    if not credential_specs:
         return {}
 
-    keys = [spec.key for spec in env_var_specs]
+    keys = [spec.key for spec in credential_specs]
     db_secrets: dict[str, str] = {}
 
     if session is not None and decrypt is not None:
@@ -454,9 +506,13 @@ async def get_or_create_backend(
 
     # Resolve provider credentials (DB secret → env var fallback) and merge
     # them into a shallow copy of config so adapters see them via config.get().
-    # User-supplied config keys take precedence over resolved credentials.
-    provider_creds = await _resolve_sandbox_credentials(session, decrypt, adapter.env_var_specs)
-    effective_config: dict[str, Any] = {**provider_creds, **(config or {})}
+    # Resolved credentials WIN over user-supplied config keys: the server-side
+    # DB-secret / env-var value is authoritative, and any reserved-credential
+    # key embedded in a user-supplied SandboxConfig.config is defensively
+    # overridden here. Reserved-name rejection at the mutation boundary is the
+    # primary defense; this factory-level override is defense-in-depth.
+    provider_creds = await _resolve_sandbox_credentials(session, decrypt, adapter.credential_specs)
+    effective_config: dict[str, Any] = {**(config or {}), **provider_creds}
 
     cache_key = (backend_type, _config_hash(effective_config))
     if cache_key in _BACKEND_CACHE:
@@ -464,18 +520,31 @@ async def get_or_create_backend(
 
     user_env: Optional[dict[str, str]] = None
     raw_env_vars = effective_config.get("env_vars")
-    if raw_env_vars and session is not None and decrypt is not None:
+    if raw_env_vars:
+        # Literal entries resolve unconditionally; secret_refs require DB
+        # context and raise MissingSecretError when session/decrypt are absent
+        # (fail-closed rather than silent-drop the user-intended env).
         user_env = await _resolve_user_env(raw_env_vars, session, decrypt)
+
+    from pydantic import ValidationError
 
     try:
         backend = adapter.build_backend(effective_config, user_env=user_env)
         _BACKEND_CACHE[cache_key] = backend
         return backend
-    except MissingSecretError:
+    except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):
+        # Fail-closed typed failures that callers MUST surface to users:
+        # - MissingSecretError: a referenced Secret key is missing or undecryptable
+        # - UnsupportedOperation: adapter capability guard rejected the config
+        # - pydantic ValidationError: config shape violated the adapter's schema
+        # - ValueError: adapter-level precondition (e.g. Vercel authentication
+        #   not configured) — intentionally surfaced, not swallowed
         raise
-    except Exception as exc:
+    except ImportError as exc:
+        # Optional adapter dependency missing at backend-construction time.
+        # Fall back to None so the caller can render a "not installed" state.
         logger.warning(
-            f"Failed to create sandbox backend for {backend_type!r}: {exc}",
+            f"Optional dependency unavailable for sandbox backend {backend_type!r}: {exc}",
             exc_info=True,
         )
         return None
@@ -527,3 +596,45 @@ try:
     register_sandbox_adapter(ModalAdapter())
 except ImportError:
     pass
+
+
+# ---------------------------------------------------------------------------
+# Reserved credential names (D2).
+#
+# Names reserved by sandbox adapters for provider credentials. User-supplied
+# env_vars, SandboxConfig top-level keys, and SandboxProvider.config keys
+# matching any of these (case-insensitive) are rejected at mutation time so
+# they cannot shadow resolved credentials in the factory merge.
+#
+# Derived from every registered adapter's credential_specs, unioned with the
+# Phoenix-level fallback env vars that adapters consult before env lookup.
+# Includes the fallbacks explicitly so missing optional extras (e.g. the
+# e2b adapter not registered) cannot narrow the reserved set.
+# ---------------------------------------------------------------------------
+
+_PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS: frozenset[str] = frozenset(
+    {
+        "PHOENIX_SANDBOX_TOKEN",
+        "PHOENIX_SANDBOX_API_KEY",
+    }
+)
+
+
+def _build_reserved_credential_names() -> frozenset[str]:
+    names: set[str] = {key.lower() for key in _PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS}
+    for adapter in _SANDBOX_ADAPTERS.values():
+        for spec in adapter.credential_specs:
+            names.add(spec.key.lower())
+    return frozenset(names)
+
+
+RESERVED_CREDENTIAL_NAMES: frozenset[str] = _build_reserved_credential_names()
+
+
+def is_reserved_credential_name(name: str) -> bool:
+    """Return True if `name` collides with a reserved provider-credential key.
+
+    Comparison is case-insensitive: `VERCEL_TOKEN`, `Vercel_Token`, and
+    `vercel_token` are all reserved.
+    """
+    return name.lower() in RESERVED_CREDENTIAL_NAMES

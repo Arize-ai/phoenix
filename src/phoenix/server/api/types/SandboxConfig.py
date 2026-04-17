@@ -8,6 +8,7 @@ SandboxBackendInfo summarises all known backends including install status.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
@@ -19,7 +20,14 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_or_create_backend
+from phoenix.server.sandbox import (
+    SANDBOX_ADAPTER_METADATA,
+    MissingSecretError,
+    get_or_create_backend,
+)
+from phoenix.server.sandbox.types import UnsupportedOperation
+
+logger = logging.getLogger(__name__)
 
 
 @strawberry.type
@@ -308,12 +316,26 @@ async def _get_sandbox_backend_info_with_session(
             # Adapter registration and backend construction can still over-report
             # availability when runtime prerequisites are only checked later
             # (for example, missing binaries, API keys, or first-use downloads).
-            backend = await get_or_create_backend(backend_type, session=session, decrypt=decrypt)
-            status = (
-                SandboxBackendStatus.AVAILABLE
-                if backend is not None
-                else SandboxBackendStatus.UNAVAILABLE
-            )
+            try:
+                backend = await get_or_create_backend(
+                    backend_type, session=session, decrypt=decrypt
+                )
+                status = (
+                    SandboxBackendStatus.AVAILABLE
+                    if backend is not None
+                    else SandboxBackendStatus.UNAVAILABLE
+                )
+            except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
+                # Adapter is registered but construction failed because a
+                # runtime precondition is not met (auth not configured,
+                # missing user secret, capability mismatch). Surface as
+                # UNAVAILABLE instead of 500ing the whole query — capability
+                # advertisement must continue to work for adapters the admin
+                # hasn't configured yet.
+                logger.debug(
+                    f"sandboxBackends: {backend_type!r} unavailable: {exc}",
+                )
+                status = SandboxBackendStatus.UNAVAILABLE
         raw_specs = getattr(meta, "config_field_specs", [])
         infos.append(
             SandboxBackendInfo(
@@ -334,7 +356,7 @@ async def _get_sandbox_backend_info_with_session(
                     for s in raw_specs
                 ],
                 supports_env_vars=meta.supports_env_vars,
-                internet_access=InternetAccessMode(meta.internet_access),
+                internet_access=InternetAccessMode(meta.internet_access_capability),
                 dependencies_language=(
                     Language(meta.dependencies_language) if meta.dependencies_language else None
                 ),

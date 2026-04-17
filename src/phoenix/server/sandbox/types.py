@@ -83,7 +83,7 @@ class ConfigFieldSpec:
 
 
 @dataclass
-class EnvVarSpec:
+class ProviderCredentialSpec:
     """Describes a provider credential env var required by a sandbox adapter.
 
     Used by _resolve_sandbox_credentials() for DB secret lookup and by
@@ -285,10 +285,14 @@ class SandboxBackend(ABC):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        """Execute code in the sandbox session identified by session_key."""
+        """Execute code in the sandbox session identified by session_key.
+
+        User-supplied environment variables are set at build_backend() time
+        via the `user_env` argument and carried by the adapter for the life
+        of the session. There is no per-call env override by design.
+        """
         ...
 
     @abstractmethod
@@ -336,7 +340,7 @@ class SandboxAdapter(ABC):
     config_field_specs: list["ConfigFieldSpec"] = []
 
     #: Specs for provider credential env vars required by this adapter.
-    env_var_specs: list["EnvVarSpec"] = []
+    credential_specs: list["ProviderCredentialSpec"] = []
 
     @abstractmethod
     def build_backend(
@@ -353,8 +357,8 @@ class SandboxAdapter(ABC):
         - supports_env_vars: if True, forward user_env to the backend at
           execute-time or creation-time as appropriate. If False, MUST raise
           UnsupportedOperation when user_env is non-empty.
-        - internet_access: if "none", MUST raise UnsupportedOperation when
-          config.get("internet_access") resolves to a non-"none" mode.
+        - internet_access_capability: if "none", MUST raise UnsupportedOperation
+          when config.get("internet_access") resolves to a non-"none" mode.
         - dependencies_language: if None, MUST raise UnsupportedOperation when
           config.get("dependencies") contains non-empty packages.
 
@@ -367,16 +371,22 @@ class SandboxAdapter(ABC):
 
     def validate_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """
-        Validate config via the adapter's pydantic config_model.
+        Validate config via the adapter's pydantic config_model, then apply
+        capability gates from AdapterMetadata.
 
         Returns the validated config dict (unknown keys preserved per D9).
-        Raises ValueError on constraint violations (D3).
+        Raises ValueError on struct-validation failures (D3). Raises pydantic
+        ValidationError when the validated config violates an advertised
+        capability (D4):
+          - supports_env_vars is False and config has non-empty env_vars
+          - internet_access_capability == "none" and config has an
+            internet_access block
+          - dependencies_language is None and config.dependencies.packages
+            is non-empty
 
-        Capability-gated fields (env_vars, internet_access, dependencies) may
-        be rejected at build_backend time by adapters that advertise the
-        corresponding flag as unsupported in AdapterMetadata. This method
-        performs structural validation only; capability enforcement is the
-        responsibility of build_backend.
+        The existing per-adapter build_backend capability guards remain in
+        place as defense-in-depth (see _enforce_capabilities template method
+        in Phase 4).
         """
         from pydantic import ValidationError
 
@@ -385,4 +395,213 @@ class SandboxAdapter(ABC):
         except ValidationError as exc:
             raise ValueError(str(exc)) from exc
         # model_dump preserves extra fields because models use extra="allow"
-        return validated.model_dump()
+        validated_dict = validated.model_dump()
+        self._enforce_unique_env_var_names(validated_dict)
+        self._enforce_capability_gates(validated_dict)
+        return validated_dict
+
+    def _enforce_unique_env_var_names(self, config: dict[str, Any]) -> None:
+        """Reject duplicate ``name`` values in config.env_vars.
+
+        Silent last-wins is unsafe: two entries with the same name but
+        different kinds (e.g. literal vs secret_ref) would let one arbitrarily
+        override the other at resolve time. Fail at write time instead so the
+        caller sees a deterministic diagnostic.
+        """
+        from pydantic import ValidationError
+        from pydantic_core import InitErrorDetails, PydanticCustomError
+
+        env_vars = config.get("env_vars") or []
+        seen: set[str] = set()
+        duplicates: list[str] = []
+        for entry in env_vars:
+            name = entry.get("name") if isinstance(entry, dict) else getattr(entry, "name", None)
+            if not isinstance(name, str):
+                continue
+            if name in seen and name not in duplicates:
+                duplicates.append(name)
+            seen.add(name)
+
+        if not duplicates:
+            return
+
+        errors: list[InitErrorDetails] = [
+            InitErrorDetails(
+                type=PydanticCustomError(
+                    "duplicate_env_var_name",
+                    (
+                        "Duplicate env_var name '{name}': env_var names must be "
+                        "unique within a single SandboxConfig."
+                    ),
+                    {"name": name},
+                ),
+                loc=("env_vars",),
+                input=env_vars,
+            )
+            for name in duplicates
+        ]
+        raise ValidationError.from_exception_data(type(self).__name__, errors)
+
+    def _enforce_capability_gates(self, config: dict[str, Any]) -> None:
+        """Raise pydantic ValidationError if config violates AdapterMetadata
+        capability flags.
+
+        Metadata is resolved via a lazy import to avoid a circular dependency
+        between `types.py` and `sandbox.__init__`.
+        """
+        from pydantic import ValidationError
+        from pydantic_core import InitErrorDetails, PydanticCustomError
+
+        try:
+            from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+        except ImportError:
+            return
+        metadata = SANDBOX_ADAPTER_METADATA.get(self.key)
+        if metadata is None:
+            return
+
+        errors: list[InitErrorDetails] = []
+
+        env_vars = config.get("env_vars")
+        if not metadata.supports_env_vars and env_vars:
+            errors.append(
+                InitErrorDetails(
+                    type=PydanticCustomError(
+                        "capability_violation",
+                        (
+                            "{adapter} adapter does not support user-defined "
+                            "environment variables; remove env_vars or switch "
+                            "to an adapter that supports them."
+                        ),
+                        {"adapter": self.key},
+                    ),
+                    loc=("env_vars",),
+                    input=env_vars,
+                )
+            )
+
+        internet_access = config.get("internet_access")
+        if metadata.internet_access_capability == "none" and internet_access is not None:
+            errors.append(
+                InitErrorDetails(
+                    type=PydanticCustomError(
+                        "capability_violation",
+                        (
+                            "{adapter} adapter does not support internet_access "
+                            "configuration; remove the internet_access field or "
+                            "switch to an adapter that supports it."
+                        ),
+                        {"adapter": self.key},
+                    ),
+                    loc=("internet_access",),
+                    input=internet_access,
+                )
+            )
+
+        dependencies = config.get("dependencies")
+        if metadata.dependencies_language is None and dependencies:
+            packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
+            if packages:
+                errors.append(
+                    InitErrorDetails(
+                        type=PydanticCustomError(
+                            "capability_violation",
+                            (
+                                "{adapter} adapter does not support dependency "
+                                "installation; remove dependencies.packages or "
+                                "switch to an adapter that supports it."
+                            ),
+                            {"adapter": self.key},
+                        ),
+                        loc=("dependencies", "packages"),
+                        input=packages,
+                    )
+                )
+
+        if errors:
+            raise ValidationError.from_exception_data(
+                type(self).__name__,
+                errors,
+            )
+
+    def _enforce_capabilities(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> None:
+        """Raise UnsupportedOperation if config/user_env violates this adapter's
+        advertised capabilities per SANDBOX_ADAPTER_METADATA.
+
+        Build-time (second) capability guard. The first guard runs at
+        validate_config time via ``_enforce_capability_gates`` and raises
+        pydantic ValidationError. This method runs at ``build_backend`` time,
+        enforcing the same contract against the effective runtime inputs
+        (including per-execute ``user_env``) and raising UnsupportedOperation
+        so executor surfaces (evaluators, chat_mutations) can surface the
+        violation as an adapter error.
+
+        Contract:
+        - ``supports_env_vars`` is False → config's ``env_vars`` list must be
+          empty AND ``user_env`` must be falsy.
+        - ``internet_access_capability == "none"`` → config must not carry an
+          ``internet_access`` block whose ``mode`` is non-None.
+        - ``dependencies_language is None`` → config must not carry non-empty
+          ``dependencies.packages``.
+
+        ``config`` is a plain dict after validate_config (model_validate →
+        model_dump). Nested shapes are dual-accessed via ``dict.get()`` /
+        ``getattr()`` so callers passing pydantic instances still work.
+        """
+        # Lazy import to avoid circular dependency with sandbox/__init__.py.
+        try:
+            from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+        except ImportError:
+            return
+        metadata = SANDBOX_ADAPTER_METADATA.get(self.key)
+        if metadata is None:
+            return
+
+        if not metadata.supports_env_vars:
+            env_vars = config.get("env_vars") or []
+            if env_vars:
+                raise UnsupportedOperation(
+                    f"{self.display_name} backend does not support user-supplied "
+                    "environment variables. Remove the `env_vars` field or switch "
+                    "to a backend that supports env vars."
+                )
+            if user_env:
+                raise UnsupportedOperation(
+                    f"{self.display_name} backend does not support user-supplied "
+                    "environment variables. Disable env_vars for this config or "
+                    "switch to a backend that supports env vars."
+                )
+
+        if metadata.internet_access_capability == "none":
+            internet_access = config.get("internet_access")
+            if internet_access is not None:
+                mode = (
+                    internet_access.get("mode")
+                    if isinstance(internet_access, dict)
+                    else getattr(internet_access, "mode", None)
+                )
+                if mode is not None:
+                    raise UnsupportedOperation(
+                        f"{self.display_name} backend does not support "
+                        "`internet_access` configuration. Remove the field or "
+                        "switch to a backend that supports it."
+                    )
+
+        if metadata.dependencies_language is None:
+            deps = config.get("dependencies")
+            if deps is not None:
+                packages = (
+                    deps.get("packages")
+                    if isinstance(deps, dict)
+                    else getattr(deps, "packages", None)
+                ) or []
+                if packages:
+                    raise UnsupportedOperation(
+                        f"{self.display_name} backend does not support "
+                        "dependency installation. Remove `dependencies.packages` "
+                        "or switch to a backend that supports dependencies."
+                    )
