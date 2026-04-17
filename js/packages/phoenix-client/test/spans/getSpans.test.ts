@@ -213,11 +213,11 @@ describe("getSpans", () => {
     });
   });
 
-  describe("attribute parameter", () => {
-    it("should send attribute as array when given a single string", async () => {
+  describe("attributes parameter", () => {
+    it("should serialize a single attribute filter", async () => {
       await getSpans({
         project: { projectName: "test-project" },
-        attribute: "llm.model_name:gpt-4",
+        attributes: { "llm.model_name": "gpt-4" },
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -232,10 +232,13 @@ describe("getSpans", () => {
       );
     });
 
-    it("should send attribute as array when given an array", async () => {
+    it("should serialize multiple attribute filters", async () => {
       await getSpans({
         project: { projectName: "test-project" },
-        attribute: ["llm.model_name:gpt-4", "llm.provider:openai"],
+        attributes: {
+          "llm.model_name": "gpt-4",
+          "llm.provider": "openai",
+        },
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -250,7 +253,69 @@ describe("getSpans", () => {
       );
     });
 
-    it("should not send attribute when undefined", async () => {
+    it("should serialize numeric and boolean values without quotes", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          count: 42,
+          cached: true,
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ["count:42", "cached:true"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should quote string values that look like non-string JSON", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          cached: "true",
+          count: "42",
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ['cached:"true"', 'count:"42"'],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should quote empty string values", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          model: "",
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ['model:""'],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should not send attribute when attributes is undefined", async () => {
       await getSpans({
         project: { projectName: "test-project" },
       });
@@ -259,11 +324,21 @@ describe("getSpans", () => {
       expect(callArgs.params.query).not.toHaveProperty("attribute");
     });
 
-    it("should send attribute combined with other filters", async () => {
+    it("should omit attribute when attributes is an empty object", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {},
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("attribute");
+    });
+
+    it("should send attributes combined with other filters", async () => {
       await getSpans({
         project: { projectName: "test-project" },
         spanKind: "LLM",
-        attribute: "llm.model_name:gpt-4",
+        attributes: { "llm.model_name": "gpt-4" },
       });
 
       expect(mockGet).toHaveBeenCalledWith(
@@ -277,6 +352,17 @@ describe("getSpans", () => {
           }),
         })
       );
+    });
+
+    it("should reject non-finite numeric values", async () => {
+      await expect(
+        getSpans({
+          project: { projectName: "test-project" },
+          attributes: {
+            score: Number.NaN,
+          },
+        })
+      ).rejects.toThrow(RangeError);
     });
   });
 

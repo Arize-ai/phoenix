@@ -120,7 +120,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"llm.model": "gpt-4"},
+            attributes={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
@@ -129,7 +129,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"llm.model": "gpt-4", "user.id": "abc"},
+            attributes={"llm.model": "gpt-4", "user.id": "abc"},
         )
         assert len(spans) == 1
 
@@ -157,7 +157,7 @@ class TestGetSpansAttributeFilters:
         spans = Spans(client).get_spans(
             project_identifier="my-project",
             span_kind="LLM",
-            attribute={"llm.model": "gpt-4"},
+            attributes={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
@@ -166,7 +166,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"count": 42},
+            attributes={"count": 42},
         )
         assert len(spans) == 1
 
@@ -175,7 +175,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"score": 3.14},
+            attributes={"score": 3.14},
         )
         assert len(spans) == 1
 
@@ -184,7 +184,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"cached": True},
+            attributes={"cached": True},
         )
         assert len(spans) == 1
 
@@ -193,7 +193,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"cached": False},
+            attributes={"cached": False},
         )
         assert len(spans) == 1
 
@@ -202,7 +202,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"cached": "true"},
+            attributes={"cached": "true"},
         )
         assert len(spans) == 1
 
@@ -211,7 +211,16 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"count": "42"},
+            attributes={"count": "42"},
+        )
+        assert len(spans) == 1
+
+    def test_empty_string_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['model:""']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"model": ""},
         )
         assert len(spans) == 1
 
@@ -220,7 +229,7 @@ class TestGetSpansAttributeFilters:
         client = httpx.Client(transport=transport, base_url="http://test")
         spans = Spans(client).get_spans(
             project_identifier="my-project",
-            attribute={"model": "gpt-4"},
+            attributes={"model": "gpt-4"},
         )
         assert len(spans) == 1
 
@@ -233,12 +242,12 @@ class TestGetSpansAttributeFilters:
         with pytest.raises(ValueError):
             Spans(client).get_spans(
                 project_identifier="my-project",
-                attribute={"score": float("nan")},
+                attributes={"score": float("nan")},
             )
         with pytest.raises(ValueError):
             Spans(client).get_spans(
                 project_identifier="my-project",
-                attribute={"score": math.inf},
+                attributes={"score": math.inf},
             )
 
     def test_non_scalar_value_raises_type_error(self) -> None:
@@ -248,7 +257,7 @@ class TestGetSpansAttributeFilters:
         with pytest.raises(TypeError):
             Spans(client).get_spans(
                 project_identifier="my-project",
-                attribute={"tags": ["a", "b"]},  # type: ignore[dict-item]
+                attributes={"tags": ["a", "b"]},  # type: ignore[dict-item]
             )
 
 
@@ -289,7 +298,7 @@ class TestAsyncGetSpansAttributeFilters:
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attribute={"llm.model": "gpt-4"},
+            attributes={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
@@ -299,7 +308,7 @@ class TestAsyncGetSpansAttributeFilters:
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attribute={"llm.model": "gpt-4", "user.id": "abc"},
+            attributes={"llm.model": "gpt-4", "user.id": "abc"},
         )
         assert len(spans) == 1
 
@@ -329,7 +338,7 @@ class TestAsyncGetSpansAttributeFilters:
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
             span_kind="LLM",
-            attribute={"llm.model": "gpt-4"},
+            attributes={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
 
@@ -339,6 +348,16 @@ class TestAsyncGetSpansAttributeFilters:
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
         spans = await AsyncSpans(client).get_spans(
             project_identifier="my-project",
-            attribute={"cached": "true"},
+            attributes={"cached": "true"},
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_empty_string_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['model:""']})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"model": ""},
         )
         assert len(spans) == 1

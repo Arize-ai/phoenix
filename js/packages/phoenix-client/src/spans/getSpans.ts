@@ -11,6 +11,38 @@ import { resolveProjectIdentifier } from "../types/projects";
 import type { SpanKindFilter, SpanStatusCode } from "../types/spans";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
+export type SpanAttributeFilterValue = string | number | boolean;
+export type SpanAttributeFilters = Record<string, SpanAttributeFilterValue>;
+
+function serializeAttributeValue(value: SpanAttributeFilterValue): string {
+  if (typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(
+        `Non-finite attribute filter values are not supported: ${value}`
+      );
+    }
+    return String(value);
+  }
+  if (value === "") {
+    return JSON.stringify(value);
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === "string" ? value : JSON.stringify(value);
+  } catch {
+    return value;
+  }
+}
+
+function serializeAttributes(attributes: SpanAttributeFilters): string[] {
+  return Object.entries(attributes).map(
+    ([key, value]) => `${key}:${serializeAttributeValue(value)}`
+  );
+}
+
 /**
  * Parameters to get spans from a project using auto-generated types
  */
@@ -35,8 +67,8 @@ export interface GetSpansParams extends ClientFn {
   spanKind?: SpanKindFilter | SpanKindFilter[] | null;
   /** Filter by status code(s) (OK, ERROR, UNSET) */
   statusCode?: SpanStatusCode | SpanStatusCode[] | null;
-  /** Filter by attribute value(s). Format: "attribute.path:value". Type-aware: bare integers/floats/booleans compared as native types; quoted strings forced to string comparison. */
-  attribute?: string | string[] | null;
+  /** Filter by attribute key/value pairs with AND semantics. Serialized as repeated `attribute=key:value` query params. */
+  attributes?: SpanAttributeFilters | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -119,16 +151,22 @@ export async function getSpans({
   name,
   spanKind,
   statusCode,
-  attribute,
+  attributes,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
+  const serializedAttributes =
+    attributes != null ? serializeAttributes(attributes) : undefined;
+  const attributeFilters =
+    serializedAttributes != null && serializedAttributes.length > 0
+      ? serializedAttributes
+      : undefined;
   if (traceIds) {
     await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
   }
   if (name != null || spanKind != null || statusCode != null) {
     await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
   }
-  if (attribute != null) {
+  if (attributeFilters != null) {
     await ensureServerCapability({
       client,
       requirement: GET_SPANS_ATTRIBUTE_FILTER,
@@ -173,8 +211,8 @@ export async function getSpans({
     params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
   }
 
-  if (attribute) {
-    params.attribute = Array.isArray(attribute) ? attribute : [attribute];
+  if (attributeFilters != null) {
+    params.attribute = attributeFilters;
   }
 
   const { data, error } = await client.GET(
