@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
-    GET_SPANS_ATTRIBUTE_V2,
+    GET_SPANS_ATTRIBUTE_FILTERS,
     GET_SPANS_FILTERS,
     GET_SPANS_TRACE_IDS,
 )
@@ -530,7 +530,7 @@ class Spans:
         if name or span_kind or status_code:
             self._guard.require(GET_SPANS_FILTERS)
         if attributes:
-            self._guard.require(GET_SPANS_ATTRIBUTE_V2)
+            self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1806,7 +1806,7 @@ class AsyncSpans:
         if name or span_kind or status_code:
             await self._guard.require(GET_SPANS_FILTERS)
         if attributes:
-            await self._guard.require(GET_SPANS_ATTRIBUTE_V2)
+            await self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
