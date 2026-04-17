@@ -12,7 +12,7 @@ import {
   DialogTitle,
   TitleWithID,
 } from "@phoenix/components";
-import { DRAWER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
@@ -38,7 +38,7 @@ export function SessionPage() {
       isOpen
       onClose={() => navigate(`${rootPath}/${tab}`)}
       defaultSize={defaultSize}
-      minSize={DRAWER_MIN_SIZE}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
       <Dialog>

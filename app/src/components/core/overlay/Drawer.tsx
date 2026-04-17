@@ -14,10 +14,10 @@ import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
 import type { SizeValue } from "@phoenix/types/sizing";
 
 import {
+  DRAWER_DEFAULT_MAX_SIZE,
+  DRAWER_DEFAULT_MIN_SIZE,
   DRAWER_DEFAULT_SIZE,
   DRAWER_HARD_MIN_SIZE_PX,
-  DRAWER_MAX_SIZE,
-  DRAWER_MIN_SIZE,
 } from "./constants";
 
 /**
@@ -136,7 +136,7 @@ export type DrawerProps = {
  *   isOpen={selectedId != null}
  *   onClose={() => setSelectedId(null)}
  *   defaultSize={defaultSize}
- *   minSize={DRAWER_MIN_SIZE}
+ *   minSize={DRAWER_DEFAULT_MIN_SIZE}
  *   onResize={onSizeChange}
  * >
  *   <Dialog>
@@ -156,8 +156,8 @@ export function Drawer({
   children,
 }: DrawerProps) {
   const drawerId = useId();
-  const resolvedMinSize = minSize ?? DRAWER_MIN_SIZE;
-  const resolvedMaxSize = maxSize ?? DRAWER_MAX_SIZE;
+  const resolvedMinSize = minSize ?? DRAWER_DEFAULT_MIN_SIZE;
+  const resolvedMaxSize = maxSize ?? DRAWER_DEFAULT_MAX_SIZE;
 
   /** Resolve min to pixels, enforcing the hard pixel floor. */
   const resolveMin = () =>

@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DRAWER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -52,7 +52,7 @@ export function TracePage() {
       isOpen
       onClose={() => navigate(`${rootPath}/${tab}`)}
       defaultSize={defaultSize}
-      minSize={DRAWER_MIN_SIZE}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
       <Dialog>

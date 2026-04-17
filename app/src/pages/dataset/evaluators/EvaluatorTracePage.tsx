@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DRAWER_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
@@ -45,7 +45,7 @@ export function EvaluatorTracePage() {
         navigate(`/datasets/${datasetId}/evaluators/${evaluatorId}`)
       }
       defaultSize={defaultSize}
-      minSize={DRAWER_MIN_SIZE}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}
     >
       <Dialog>
