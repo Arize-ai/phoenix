@@ -10,6 +10,7 @@ import {
   Button,
   Card,
   Checkbox,
+  DialogFooter,
   FieldError,
   Flex,
   Icon,
@@ -296,44 +297,34 @@ export function AddExampleFromScratchForm(
           </View>
         </Flex>
       </div>
-      <View
-        paddingX="size-400"
-        paddingY="size-200"
-        borderTopColor="default"
-        borderTopWidth="thin"
-        flexShrink={0}
-      >
-        <Flex direction="row" justifyContent="center">
-          <View width="900px" paddingStart="auto" paddingEnd="auto">
-            <Flex direction="row" justifyContent="space-between" gap="size-100">
-              <Checkbox isSelected={createMore} onChange={setCreateMore}>
-                Create more
-              </Checkbox>
-              <Button
-                variant="primary"
-                size="M"
-                isDisabled={!isValid || isCommitting}
-                leadingVisual={
-                  isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
-                }
-                trailingVisual={
-                  <Keyboard>
-                    <VisuallyHidden>{modifierKey}</VisuallyHidden>
-                    <span aria-hidden="true">
-                      {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
-                    </span>
-                    <VisuallyHidden>enter</VisuallyHidden>
-                    <span aria-hidden="true">⏎</span>
-                  </Keyboard>
-                }
-                onPress={() => handleSubmit(onSubmit)()}
-              >
-                {isCommitting ? "Adding Example..." : "Add Example"}
-              </Button>
-            </Flex>
-          </View>
+      <DialogFooter>
+        <Flex gap="size-200" alignItems="center">
+          <Checkbox isSelected={createMore} onChange={setCreateMore}>
+            Create more
+          </Checkbox>
+          <Button
+            variant="primary"
+            size="S"
+            isDisabled={!isValid || isCommitting}
+            leadingVisual={
+              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+            }
+            trailingVisual={
+              <Keyboard>
+                <VisuallyHidden>{modifierKey}</VisuallyHidden>
+                <span aria-hidden="true">
+                  {modifierKey === "Cmd" ? "⌘" : "Ctrl"}
+                </span>
+                <VisuallyHidden>enter</VisuallyHidden>
+                <span aria-hidden="true">⏎</span>
+              </Keyboard>
+            }
+            onPress={() => handleSubmit(onSubmit)()}
+          >
+            {isCommitting ? "Adding Example..." : "Add Example"}
+          </Button>
         </Flex>
-      </View>
+      </DialogFooter>
     </>
   );
 }
