@@ -523,7 +523,6 @@ class Spans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
-            TypeError: If a value in ``attributes`` is not str, int, float, or bool.
             ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
         if trace_ids:
@@ -1800,7 +1799,6 @@ class AsyncSpans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
-            TypeError: If a value in ``attributes`` is not str, int, float, or bool.
             ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
         if trace_ids:

@@ -93,7 +93,7 @@ async function fetchSpansForProject(
     names?: string[];
     spanKinds?: string[];
     statusCodes?: string[];
-    attribute?: string[];
+    attributes?: string[];
     limit: number;
   }
 ): Promise<Span[]> {
@@ -119,7 +119,7 @@ async function fetchSpansForProject(
             name: options.names,
             span_kind: options.spanKinds,
             status_code: options.statusCodes,
-            attribute: options.attribute,
+            attribute: options.attributes,
           },
         },
       }
@@ -219,7 +219,7 @@ async function spanListHandler(
         names: options.name,
         spanKinds: options.spanKind,
         statusCodes: options.statusCode,
-        attribute: options.attribute,
+        attributes: options.attribute,
       }
     );
 

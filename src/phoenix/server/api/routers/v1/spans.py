@@ -69,7 +69,10 @@ def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
 
     The value is parsed with ``json.loads()`` to determine its type:
     - ``bool`` → ``.as_boolean() == val``
-    - ``int``, ``float``, ``str`` (or parse failure) → type-aware JSON text comparison
+    - ``int`` → ``CAST(col, Text) IN ('<n>', '<n>.0')`` so a whole-number
+      query matches both int and whole-number-float storage (the TS client
+      cannot distinguish ``1`` from ``1.0`` on the wire)
+    - ``float``, ``str`` (or parse failure) → type-aware JSON text comparison
     - ``None``, ``list``, or ``dict`` → HTTP 422
 
     Raises :class:`HTTPException` (422) when the separator is missing,

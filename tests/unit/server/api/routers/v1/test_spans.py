@@ -1691,7 +1691,7 @@ async def test_otlp_span_search_filter_by_attribute_empty_key(
 # ---------------------------------------------------------------------------
 #
 # These tests pin the current semantics of type-aware dispatch in
-# parse_attribute_filter (spans.py): json.loads(value) drives the code path,
+# _parse_attribute (spans.py): json.loads(value) drives the code path,
 # with bool checked BEFORE int/float/str so `isinstance(True, int) is True`
 # does not misroute booleans into the numeric CAST path. For each pinned
 # behavior we seed two spans sharing the same key but storing values of
@@ -1802,7 +1802,7 @@ async def test_attribute_bare_true_matches_stored_bool_true(
 ) -> None:
     """Bare `flag:true` dispatches via .as_boolean() and always matches stored bool True.
 
-    Pins that bool is checked BEFORE int/float/str in parse_attribute_filter —
+    Pins that bool is checked BEFORE int/float/str in _parse_attribute —
     otherwise `isinstance(True, int) is True` would misroute booleans into the
     CAST(col AS TEXT) == json.dumps(value) path.
 

@@ -96,6 +96,7 @@ export type GetSpansResult = {
  * @returns A paginated response containing spans and optional next cursor
  *
  * @requires Phoenix server >= 13.9.0 when filtering by `traceIds`
+ * @requires Phoenix server >= 14.9.0 when filtering by `attributes`
  *
  * @example
  * ```ts
