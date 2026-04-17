@@ -37,7 +37,7 @@ dependencies = [
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
-  "wrapt>=1.17.2,<2",
+  "wrapt>=1.17.2,<3",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
@@ -61,6 +61,7 @@ dependencies = [
   "arize-phoenix-otel>=0.15.0",
   "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic-ai>=1.62.0",
   "authlib",
   "arize-phoenix-client>=2.1.0",
   "email-validator",
@@ -87,7 +88,7 @@ dev = [
   "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
-  "azure-identity",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "beautifulsoup4",
   "boto3",
   "debugpy",
@@ -125,7 +126,6 @@ dev = [
   "pyarrow-stubs",
   "pydantic>=1.0,!=2.0.*,<3",
   "mcp>=1.26.0",
-  "pydantic-ai>=1.62.0",
   "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages
   "pyright[nodejs]==1.1.394",
@@ -144,7 +144,8 @@ dev = [
   "tenacity",
   "tiktoken",
   "ty",
-  "types-aiobotocore-bedrock-runtime>=3.1.1",
+  "types-aiobotocore-bedrock-runtime>=3.4.0",
+  "types-aiobotocore-rds>=3.4.0",
   "types-beautifulsoup4",
   "types-cachetools",
   "types-jmespath",
@@ -179,13 +180,17 @@ pg = [
 aws = [
   "aioboto3",
 ]
+azure = [
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
+  "aiohttp",  # required async HTTP transport for azure.identity.aio
+]
 container = [
   "anthropic>=0.78.0",
   "google-genai>=1.50.0 ; python_version >= '3.10'",
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
   "openai>=2.14.0",
-  "azure-identity",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
   # released on the same date (e.g., 1.39.1/0.60b1) to ensure compatibility.

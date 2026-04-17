@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -20,7 +20,9 @@ from phoenix.config import (
     get_env_auth_settings,
     get_env_database_schema,
     get_env_phoenix_admin_secret,
+    get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
+    get_env_postgres_use_azure_managed_identity,
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
@@ -2225,3 +2227,156 @@ class TestValidateEnvAllowedProviders:
 
         with pytest.raises(ValueError, match="INVALID_PROVIDER"):
             validate_env_allowed_providers()
+
+
+class TestPostgresConnectionStringManagedIdentity:
+    """Tests for Azure managed identity path in get_env_postgres_connection_str()."""
+
+    def _clear_pg_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for key in (
+            "PHOENIX_POSTGRES_USER",
+            "PHOENIX_POSTGRES_PASSWORD",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_PORT",
+            "PHOENIX_POSTGRES_DB",
+            "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY",
+            "PHOENIX_POSTGRES_USE_AWS_IAM_AUTH",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_managed_identity_minimal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI with host + user produces a password-free connection string."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert parsed.username == "mi-user"
+        assert parsed.password in (None, "")
+
+    def test_managed_identity_with_port_and_db(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI connection string includes port and database when set."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+        monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert parsed.port == 5432
+        assert parsed.path == "/mydb"
+
+    def test_managed_identity_password_set_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Setting a password alongside MI raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "should-not-be-here")
+
+        with pytest.raises(ValueError, match="must not be set"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_and_iam_mutual_exclusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Enabling both MI and AWS IAM auth simultaneously raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        with pytest.raises(ValueError, match="Cannot enable both"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_no_host_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no host results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_no_user_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no user results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_false_uses_password_auth(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicitly setting MI to false falls back to normal password auth."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "myuser")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "mypassword")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert quote("mypassword") in result
+        assert quote("myuser") in result
+
+    def test_managed_identity_username_with_at_sign_encoded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Usernames containing '@' (common for Azure MI display names) are URL-encoded."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "my-identity@tenant.onmicrosoft.com")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert unquote(parsed.username or "") == "my-identity@tenant.onmicrosoft.com"
+
+
+class TestGetEnvPostgresUseManagedIdentity:
+    """Tests for get_env_postgres_use_azure_managed_identity()."""
+
+    def test_unset_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", raising=False)
+        assert get_env_postgres_use_azure_managed_identity() is False
+
+    def test_true_string_returns_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        assert get_env_postgres_use_azure_managed_identity() is True
+
+    def test_false_string_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        assert get_env_postgres_use_azure_managed_identity() is False
+
+
+class TestGetEnvPostgresAzureScope:
+    """Tests for get_env_postgres_azure_scope()."""
+
+    def test_unset_returns_default_scope(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_AZURE_SCOPE", raising=False)
+        assert (
+            get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
+        )
+
+    def test_custom_scope_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        custom_scope = "https://ossrdbms-aad.database.usgovcloudapi.net/.default"
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_SCOPE", custom_scope)
+        assert get_env_postgres_azure_scope() == custom_scope
+
+    def test_empty_scope_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_SCOPE", "")
+        assert (
+            get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
+        )

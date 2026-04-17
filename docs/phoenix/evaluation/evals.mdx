@@ -59,7 +59,7 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 ```
 
 ```python expandable
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import FaithfulnessEvaluator, CorrectnessEvaluator
 
 # Create an LLM instance
@@ -75,9 +75,10 @@ correctness_evaluator = CorrectnessEvaluator(llm=llm)
 # Each evaluator expects specific columns:
 #   FaithfulnessEvaluator: 'input', 'output', 'context'
 #   CorrectnessEvaluator: 'input', 'output'
-results_df = evaluate_dataframe(
+results_df = await async_evaluate_dataframe(
     dataframe=df,
     evaluators=[faithfulness_evaluator, correctness_evaluator],
+    concurrency=10,
 )
 ```
 
@@ -85,7 +86,7 @@ results_df = evaluate_dataframe(
 
 * **`LLM`** — A unified wrapper over LLM providers (OpenAI, Anthropic, Google, LiteLLM, etc.). Use `LLM(provider="openai", model="gpt-4o")` to create an evaluation model.
 
-* **`evaluate_dataframe`** — Runs a list of evaluators over every row of a DataFrame and returns a new DataFrame with score columns.
+* **`evaluate_dataframe` / `async_evaluate_dataframe`** — Runs a list of evaluators over every row of a DataFrame and returns a new DataFrame with score columns. Use the async variant for concurrent evaluation with a configurable `concurrency` parameter.
 
 * **Built-in evaluators** — `phoenix.evals.metrics` provides ready-to-use evaluators like `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `DocumentRelevanceEvaluator`, `ConcisenessEvaluator`, and more. Each takes an `LLM` instance and returns `Score` objects with a label, numeric score, and explanation.
 

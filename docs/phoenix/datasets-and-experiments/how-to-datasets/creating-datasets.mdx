@@ -76,7 +76,7 @@ One of the quickest ways of getting started is to produce synthetic queries usin
 
     One use case for synthetic data creation is when you want to test your RAG pipeline. You can leverage an LLM to synthesize hypothetical questions about your knowledge base.
 
-    In the below example we will use Phoenix's built-in `llm_generate`, but you can leverage any synthetic dataset creation tool you'd like.
+    In the below example we will use Phoenix's built-in `LLM` and `AsyncExecutor` for efficient batch generation, but you can leverage any synthetic dataset creation tool you'd like.
 
     <Info>
     Before running this example, ensure you've set your `OPENAI_API_KEY` environment variable.
@@ -119,22 +119,33 @@ One of the quickest ways of getting started is to produce synthetic queries usin
     import json
 
     from phoenix.evals import LLM
+    from phoenix.evals.executors import AsyncExecutor
+    from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
     llm = LLM(provider="openai", model="gpt-4o")
 
 
-    def generate_questions(row):
+    async def generate_questions(row):
         prompt = generate_questions_template.format(**row)
-        response = llm.generate_text(prompt=prompt)
+        response = await llm.async_generate_text(prompt=prompt)
         try:
             return json.loads(response)
         except json.JSONDecodeError as e:
             return {"__error__": str(e)}
 
 
+    executor = AsyncExecutor(
+        generation_fn=generate_questions,
+        concurrency=10,
+        tqdm_bar_format=default_tqdm_progress_bar_formatter("Generating questions"),
+    )
+    results, details = await executor.execute(
+        [row.to_dict() for _, row in document_chunks_df.iterrows()]
+    )
+
     questions_df = document_chunks_df.copy()
-    questions_df["generated"] = questions_df.apply(generate_questions, axis=1)
-    questions_df["output"] = [None, None, None]
+    questions_df["generated"] = results
+    questions_df["output"] = [None] * len(questions_df)
     ```
 
     Once we've constructed a collection of synthetic questions, we can upload them to a Phoenix dataset.

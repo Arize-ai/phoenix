@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, Ref } from "react";
+import { useContext } from "react";
 import {
   Dialog as AriaDialog,
   type DialogProps as AriaDialogProps,
@@ -12,6 +13,7 @@ import { Heading } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import type { FlexProps } from "@phoenix/components/core/layout";
 import { Flex } from "@phoenix/components/core/layout";
+import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 export type DialogProps = AriaDialogProps;
@@ -161,11 +163,17 @@ export const DialogCloseButton = ({
   onPress,
   ...props
 }: DialogCloseButtonProps) => {
+  const isDrawer = useContext(DrawerContext);
+  const defaultIcon = isDrawer ? (
+    <Icons.ArrowheadRightOutline />
+  ) : (
+    <Icons.CloseOutline />
+  );
   return (
     <Button
       size="S"
       data-testid="dialog-close-button"
-      leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+      leadingVisual={<Icon svg={defaultIcon} />}
       onPress={(e) => {
         close?.();
         onPress?.(e);

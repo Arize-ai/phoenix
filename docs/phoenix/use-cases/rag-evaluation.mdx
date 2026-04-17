@@ -212,7 +212,7 @@ In a RAG system, evaluation focuses on two critical aspects:
 
 For the evaluation of a RAG system, it's essential to have queries that can fetch the correct context and subsequently generate an appropriate response.
 
-For this tutorial, let's use Phoenix's `llm_generate` to help us create the question-context pairs.
+For this tutorial, let's use Phoenix's `LLM` and `AsyncExecutor` to help us create the question-context pairs.
 
 First, let's create a dataframe of all the document chunks that we have indexed.
 
@@ -257,20 +257,31 @@ Output the questions in JSON format with the keys question_1, question_2, questi
 import json
 
 from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
 llm = LLM(provider="openai", model="gpt-4o")
 
 
-def generate_questions(row):
+async def generate_questions(row):
     prompt = generate_questions_template.format(context=row["text"])
-    response = llm.generate_text(prompt=prompt)
+    response = await llm.async_generate_text(prompt=prompt)
     try:
         return json.loads(response)
     except json.JSONDecodeError as e:
         return {"__error__": str(e)}
 
 
-questions_df = document_chunks_df.apply(generate_questions, axis=1, result_type="expand")
+executor = AsyncExecutor(
+    generation_fn=generate_questions,
+    concurrency=10,
+    tqdm_bar_format=default_tqdm_progress_bar_formatter("Generating questions"),
+)
+results, details = await executor.execute(
+    [row.to_dict() for _, row in document_chunks_df.iterrows()]
+)
+
+questions_df = pd.DataFrame(results)
 ```
 
 ```python
@@ -387,15 +398,16 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain its reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
 relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-retrieved_documents_relevance_df = evaluate_dataframe(
+retrieved_documents_relevance_df = await async_evaluate_dataframe(
     evaluators=[relevance_evaluator],
     dataframe=retrieved_documents_df,
+    concurrency=10,
 )
 ```
 
@@ -568,16 +580,17 @@ qa_with_reference_df
 Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
 correctness_evaluator = CorrectnessEvaluator(llm=llm)
 faithfulness_evaluator = FaithfulnessEvaluator(llm=llm)
 
-results_df = evaluate_dataframe(
+results_df = await async_evaluate_dataframe(
     evaluators=[correctness_evaluator, faithfulness_evaluator],
     dataframe=qa_with_reference_df,
+    concurrency=10,
 )
 ```
 

@@ -57,14 +57,12 @@ const modalCSS = css`
     height: var(--visual-viewport-height);
     position: fixed;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-end;
     z-index: 100;
     top: 0;
     right: 0;
     left: auto;
-    align-items: flex-start;
-    justify-content: flex-end;
 
     &[data-entering] {
       animation: ${modalSlideover} 300ms;
@@ -131,16 +129,17 @@ const modalCSS = css`
 
 export type ModalSize = "S" | "M" | "L" | "fullscreen";
 
-export interface ModalProps extends AriaModalOverlayProps {
-  variant?: "default" | "slideover";
+export type ModalProps = AriaModalOverlayProps & {
   size?: ModalSize;
-}
+  variant?: "default" | "slideover";
+};
 
 function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", variant = "default", ...otherProps } = props;
+  const { variant = "default", size = "M", ...rest } = props;
+
   return (
     <AriaModal
-      {...otherProps}
+      {...rest}
       data-size={size}
       data-variant={variant}
       ref={ref}

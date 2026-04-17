@@ -179,10 +179,10 @@ Once the evaluation dataframe is prepared, you can run evals in batch using the 
 <Tabs>
   <Tab title="Python">
   ```python
-  from phoenix.evals import evaluate_dataframe
+  from phoenix.evals import async_evaluate_dataframe
   from phoenix.trace import suppress_tracing
   with suppress_tracing():
-    results_df = evaluate_dataframe(agent_spans, [bound_evaluator])
+    results_df = await async_evaluate_dataframe(agent_spans, [bound_evaluator], concurrency=10)
   ```
   </Tab>
   <Tab title="TypeScript">

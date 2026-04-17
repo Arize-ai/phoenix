@@ -194,3 +194,67 @@ async def test_annotating_a_trace(
             select(models.TraceAnnotation).where(models.TraceAnnotation.id == annotation_id)
         )
     assert not orm_annotation
+
+
+async def test_trace_annotations_sort_uses_id_as_tiebreaker(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    async with db() as session:
+        trace_id = await session.scalar(select(models.Trace.id))
+        assert trace_id is not None
+        created_at = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+        session.add_all(
+            [
+                models.TraceAnnotation(
+                    trace_rowid=trace_id,
+                    name="same-name",
+                    label="older-id",
+                    score=0.1,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    created_at=created_at,
+                    updated_at=created_at,
+                    identifier="a",
+                    source="API",
+                    user_id=None,
+                ),
+                models.TraceAnnotation(
+                    trace_rowid=trace_id,
+                    name="same-name",
+                    label="newer-id",
+                    score=0.2,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    created_at=created_at,
+                    updated_at=created_at,
+                    identifier="b",
+                    source="API",
+                    user_id=None,
+                ),
+            ]
+        )
+
+    response = await gql_client.execute(
+        query="""
+            query GetTraceAnnotations($id: ID!) {
+                node(id: $id) {
+                    ... on Trace {
+                        traceAnnotations(sort: {col: createdAt, dir: desc}) {
+                            label
+                        }
+                    }
+                }
+            }
+        """,
+        variables={"id": str(GlobalID("Trace", str(trace_id)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["traceAnnotations"] == [
+        {"label": "newer-id"},
+        {"label": "older-id"},
+    ]

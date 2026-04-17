@@ -94,6 +94,17 @@ export interface PromptInputProps
    * @default "prompt"
    */
   mode?: PromptInputMode;
+  /**
+   * Controlled text value. When provided, makes the prompt input a controlled
+   * component — the parent owns the value and must pair this with
+   * `onValueChange`. When omitted, the prompt input manages its own state
+   * internally.
+   */
+  value?: string;
+  /**
+   * Called when the text content changes. Required when `value` is provided.
+   */
+  onValueChange?: (value: string) => void;
 }
 
 /**

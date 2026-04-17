@@ -465,8 +465,8 @@ OpenAIInstrumentor().uninstrument()  # Uninstrument the OpenAI client to avoid c
 import nest_asyncio
 
 from phoenix.client import Client
-from phoenix.evals import LLM, evaluate_dataframe
-from phoenix.evals.metrics import ToolSelectionEvaluator
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import ToolSelectionEvaluator, ToolInvocationEvaluator
 from phoenix.client.experiments import evaluate_experiment, run_experiment
 from phoenix.client.experiments import create_evaluator
 from phoenix.client.__generated__.v1 import DatasetExample as Example
@@ -479,6 +479,7 @@ nest_asyncio.apply()
 px_client = Client()
 llm = LLM(provider="openai", model="gpt-4o-mini")
 tool_selection_evaluator = ToolSelectionEvaluator(llm=llm)
+tool_invocation_evaluator = ToolInvocationEvaluator(llm=llm)
 ```
 
 ## Function Calling Evals using LLM as a Judge
@@ -489,7 +490,7 @@ It follows a standard pattern:
 
 1. Export traces from Phoenix
 2. Prepare those exported traces in a dataframe with the correct columns
-3. Use `evaluate_dataframe` with a `ToolSelectionEvaluator` to classify each row and produce an eval label
+3. Use `async_evaluate_dataframe` with a `ToolSelectionEvaluator` and `ToolInvocationEvaluator` to classify each row and produce eval labels
 4. Upload the results back into Phoenix
 
 ```python expandable
@@ -508,17 +509,18 @@ tool_calls_df.dropna(subset=["output_messages"], inplace=True)
 
 
 def get_tool_call(outputs):
-    if outputs[0].get("message").get("tool_calls"):
-        return (
-            outputs[0]
-            .get("message")
-            .get("tool_calls")[0]
-            .get("tool_call")
-            .get("function")
-            .get("name")
-        )
-    else:
+    """Extract all tool calls in a human-readable format for evaluation."""
+    tool_call_data = outputs[0].get("message", {}).get("tool_calls")
+    if not tool_call_data:
         return "No tool used"
+
+    formatted_tool_calls = []
+    for tool_call in tool_call_data:
+        func = tool_call.get("tool_call", {}).get("function", {})
+        name = func.get("name", "")
+        args = func.get("arguments", "")
+        formatted_tool_calls.append(f"{name}({args})" if args else name)
+    return "\n".join(formatted_tool_calls)
 
 
 tool_calls_df["tool_call"] = tool_calls_df["output_messages"].apply(get_tool_call)
@@ -526,17 +528,19 @@ tool_calls_df.head()
 ```
 
 ```python expandable
-tool_calls_df["available_tools"] = (
-    "generate_visualization, lookup_sales_data, analyze_sales_data, run_python_code"
-)
+tool_calls_df["available_tools"] = json.dumps(tools)
 tool_calls_df["tool_selection"] = tool_calls_df["tool_call"]
 
-tool_call_eval = evaluate_dataframe(
+tool_call_eval = await async_evaluate_dataframe(
     dataframe=tool_calls_df,
-    evaluators=[tool_selection_evaluator],
+    evaluators=[tool_selection_evaluator, tool_invocation_evaluator],
+    concurrency=10,
 )
 
-tool_call_eval["score"] = tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
+tool_call_eval["score"] = (
+    tool_call_eval["tool_selection_score"].str["label"].eq("correct")
+    & tool_call_eval["tool_invocation_score"].str["label"].eq("correct")
+).astype(int)
 
 tool_call_eval.head()
 ```
@@ -1229,32 +1233,50 @@ available_tools_str = json.dumps(tools)
 ```
 
 ````python expandable
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
+from phoenix.evals.metrics import ToolSelectionEvaluator, ToolInvocationEvaluator
 
 eval_llm = LLM(provider="openai", model="gpt-4o-mini")
+tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
+tool_invocation_evaluator = ToolInvocationEvaluator(llm=eval_llm)
 
 
-def function_calling_eval(input: str, output: str) -> float:
+async def function_calling_eval(input: str, output: str) -> float:
+    """Evaluate tool selection and invocation across the full response.
+
+    We wrap the built-in evaluators here because tool_calls need to be
+    extracted from the output and formatted into a human-readable string
+    before they can be passed to the evaluator prompts.
+    """
     function_calls = output.get("tool_calls")
-    if function_calls:
-        eval_df = pd.DataFrame(
-            {"input": [input.get("question")] * len(function_calls), "tool_selection": function_calls}
-        )
-        eval_df["available_tools"] = available_tools_str
-
-        from phoenix.evals.metrics import ToolSelectionEvaluator
-        tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
-        tool_call_eval = evaluate_dataframe(
-            dataframe=eval_df,
-            evaluators=[tool_selection_evaluator],
-        )
-
-        tool_call_eval["score"] = (
-            tool_call_eval["tool_selection_score"].str["label"].eq("correct").astype(int)
-        )
-        return tool_call_eval["score"].mean()
-    else:
+    if not function_calls:
         return 0
+
+    formatted_tool_calls = []
+    for tool_call in function_calls:
+        func = tool_call.get("function", {})
+        name = func.get("name", "")
+        args = func.get("arguments", "")
+        formatted_tool_calls.append(f"{name}({args})" if args else name)
+
+    formatted_tool_selection = "\n".join(formatted_tool_calls)
+    selection_result = tool_selection_evaluator.evaluate(
+        eval_input={
+            "input": input.get("question"),
+            "tool_selection": formatted_tool_selection,
+            "available_tools": available_tools_str,
+        }
+    )
+    invocation_result = tool_invocation_evaluator.evaluate(
+        eval_input={
+            "input": input.get("question"),
+            "tool_selection": formatted_tool_selection,
+            "available_tools": available_tools_str,
+        }
+    )
+    return float(
+        selection_result[0].label == "correct" and invocation_result[0].label == "correct"
+    )
 
 
 def code_is_runnable(output: str) -> bool:
@@ -1300,28 +1322,31 @@ def evaluate_sql_result(output, expected) -> bool:
     return result_nums == expected_nums
 
 
-def evaluate_clarity(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    clarity_classifier = create_classifier(
+clarity_evaluator = bind_evaluator(
+    evaluator=ClassificationEvaluator(
         name="clarity",
         prompt_template=CLARITY_LLM_JUDGE_PROMPT,
         llm=eval_llm,
-        choices=["clear", "unclear"],
-    )
-    result = evaluate_dataframe(dataframe=df, evaluators=[clarity_classifier])
-    return result["clarity_score"].iloc[0]["label"] == "clear"
+        choices={"clear": 1.0, "unclear": 0.0},
+    ),
+    input_mapping={
+        "query": "input.question",
+        "response": "output.final_output",
+    },
+)
 
-
-def evaluate_entity_correctness(output: str, input: str) -> bool:
-    df = pd.DataFrame({"query": [input.get("question")], "response": [output.get("final_output")]})
-    entity_classifier = create_classifier(
+entity_evaluator = bind_evaluator(
+    evaluator=ClassificationEvaluator(
         name="entity_correctness",
         prompt_template=ENTITY_CORRECTNESS_LLM_JUDGE_PROMPT,
         llm=eval_llm,
-        choices=["correct", "incorrect"],
-    )
-    result = evaluate_dataframe(dataframe=df, evaluators=[entity_classifier])
-    return result["entity_correctness_score"].iloc[0]["label"] == "correct"
+        choices={"correct": 1.0, "incorrect": 0.0},
+    ),
+    input_mapping={
+        "query": "input.question",
+        "response": "output.final_output",
+    },
+)
 ````
 
 ```python expandable
@@ -1336,8 +1361,8 @@ experiment = run_experiment(
     evaluators=[
         function_calling_eval,
         evaluate_sql_result,
-        evaluate_clarity,
-        evaluate_entity_correctness,
+        clarity_evaluator,
+        entity_evaluator,
         code_is_runnable,
     ],
     experiment_name="Overall Experiment",
@@ -1352,4 +1377,3 @@ You've now evaluated every aspect of your agent. If you've made it this far, you
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/combined-agent-experiments.png" />
 </Frame>
-

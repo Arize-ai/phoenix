@@ -37,7 +37,7 @@ evaluator = ClassificationEvaluator(
     name="response_quality",
     llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
     prompt_template=prompt_template,
-    choices=["good", "bad"],
+    choices={"good": 1.0, "bad": 0.0},
 )
 ```
 

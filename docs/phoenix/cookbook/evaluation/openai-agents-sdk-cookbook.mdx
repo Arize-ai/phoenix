@@ -110,45 +110,42 @@ print(result)
 Next, we create our evaluator.
 
 ```python expandable
-import pandas as pd
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+# Template for evaluating math problem solutions
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-def correctness_eval(input, output):
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+# Run the evaluation
+llm = LLM(provider="openai", model="gpt-4.1")
+correctness_evaluator = ClassificationEvaluator(
+    name="math_correctness",
+    prompt_template=MATH_EVAL_TEMPLATE,
+    llm=llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
-
-    # Run the evaluation
-    llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
-        name="math_correctness",
-        prompt_template=MATH_EVAL_TEMPLATE,
-        llm=llm,
-        choices=["correct", "incorrect"],
-    )
-    eval_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        evaluators=[classifier],
-    )
-    label = eval_df["math_correctness_score"].iloc[0]["label"]
-    score = 1 if label == "correct" else 0
-    return score
+correctness_eval = bind_evaluator(
+    correctness_evaluator,
+    input_mapping={
+        "question": "input.question",
+        "response": "output.final_output",
+    },
+)
 ```
 
 ## Create synthetic dataset of questions
@@ -264,47 +261,39 @@ After importing the necessary libraries, we set up a tracer object to enable spa
 tracer = tracer_provider.get_tracer(__name__)
 ```
 
-Next, we update our correctness evaluator to return both a label and an explanation, enabling metadata to be captured during tracing.
+Next, we define our correctness evaluator. In the task function below, we call `evaluator.evaluate()` directly to get both a label and an explanation, enabling metadata to be captured during tracing.
 
 We also revise the task function to include `with` clauses that generate structured spans in Phoenix. These spans capture key details such as input values, output values, and the results of the evaluation.
 
 ```python expandable
-# This is our modified correctness evaluator.
-def correctness_eval(input, output):
-    from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator
 
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+# Template for evaluating math problem solutions
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    # Run the evaluation
-    llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
-        name="math_correctness",
-        prompt_template=MATH_EVAL_TEMPLATE,
-        llm=llm,
-        choices=["correct", "incorrect"],
-    )
-    eval_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        evaluators=[classifier],
-    )
-
-    return eval_df["math_correctness_score"].iloc[0]
+# Run the evaluation
+llm = LLM(provider="openai", model="gpt-4.1")
+correctness_evaluator = ClassificationEvaluator(
+    name="math_correctness",
+    prompt_template=MATH_EVAL_TEMPLATE,
+    llm=llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 ```
 
 ```python expandable
@@ -323,26 +312,27 @@ async def solve_math_problem(dataset_row: dict):
             "messages": result.to_input_list(),
         }
 
-        # Evaluation span for correctness
+        # Evaluation span for correctness — use direct single-record eval
         with tracer.start_as_current_span(
             "correctness-evaluator",
             openinference_span_kind="evaluator",
         ) as eval_span:
-            evaluation_result = correctness_eval(dataset_row, task_result)
-            eval_span.set_attribute("eval.label", evaluation_result["label"])
-            if evaluation_result.get("explanation"):
-                eval_span.set_attribute("eval.explanation", evaluation_result["explanation"])
+            evaluation_result = correctness_evaluator.evaluate(
+                eval_input={"question": question, "response": result.final_output}
+            )
+            eval_span.set_attribute("eval.label", evaluation_result[0].label)
+            if evaluation_result[0].explanation:
+                eval_span.set_attribute("eval.explanation", evaluation_result[0].explanation)
 
         # Logging our evaluation
         span_id = format_span_id(eval_span.get_span_context().span_id)
-        score = 1 if evaluation_result["label"] == "correct" else 0
         eval_data = {
             "span_id": span_id,
-            "label": evaluation_result["label"],
-            "score": score,
+            "label": evaluation_result[0].label,
+            "score": evaluation_result[0].score,
         }
-        if evaluation_result.get("explanation"):
-            eval_data["explanation"] = evaluation_result["explanation"]
+        if evaluation_result[0].explanation:
+            eval_data["explanation"] = evaluation_result[0].explanation
         df = pd.DataFrame([eval_data])
 
         from phoenix.client import AsyncClient

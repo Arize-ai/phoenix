@@ -89,7 +89,7 @@ df = px_client.datasets.create_dataset(
 Now let's test how well an LLM-as-a-Judge performs on our synthetic dataset:
 
 ```python expandable
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
 llm_judge_template = """
 You are an evaluator judging whether a model's classification of a customer support query is correct.
@@ -102,17 +102,18 @@ Decide if the model's prediction is correct or incorrect.
 Respond ONLY with one of: "correct" or "incorrect".
 """
 
-def task_function(input, reference):
+async def task_function(input, reference):
     llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="llm_judge",
         prompt_template=llm_judge_template,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"input": input["input"], "output": reference["output"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
+        concurrency=10,
     )
     label = result_df["llm_judge_score"].iloc[0]["label"]
     return label
@@ -217,19 +218,20 @@ Decide if the model's prediction is correct or incorrect.
 Respond ONLY with one of: "correct" or "incorrect".
 """
 
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 
-def task_function(input, reference):
+async def task_function(input, reference):
     llm = LLM(provider="openai", model="gpt-4.1")
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="llm_judge",
         prompt_template=llm_judge_template,
         llm=llm,
-        choices=["correct", "incorrect"],
+        choices={"correct": 1.0, "incorrect": 0.0},
     )
-    result_df = evaluate_dataframe(
+    result_df = await async_evaluate_dataframe(
         dataframe=pd.DataFrame([{"query": input["user_query"], "intent": reference["intent"]}]),
-        evaluators=[classifier],
+        evaluators=[evaluator],
+        concurrency=10,
     )
     label = result_df["llm_judge_score"].iloc[0]["label"]
     return label

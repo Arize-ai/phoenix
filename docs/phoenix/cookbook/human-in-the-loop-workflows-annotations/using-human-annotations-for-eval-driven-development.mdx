@@ -184,25 +184,23 @@ def updated_task(example: Example) -> str:
 ```
 
 ```python
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
 llm = LLM(provider="openai", model="gpt-4.1")
-rhyme_classifier = create_classifier(
+rhyme_evaluator = ClassificationEvaluator(
     name="rhyme",
     prompt_template=RHYME_PROMPT_TEMPLATE,
     llm=llm,
-    choices=["correct", "incorrect"],
+    choices={"correct": 1.0, "incorrect": 0.0},
 )
 
-def evaluate_response(input, output):
-    raw_input_value = input["attributes.input.value"]
-    data = json.loads(raw_input_value)
-    question = data["messages"][1]["content"]
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": question, "answer": output}]),
-        evaluators=[rhyme_classifier],
-    )
-    return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
+evaluate_response = bind_evaluator(
+    rhyme_evaluator,
+    input_mapping={
+        "question": lambda x: json.loads(x["input"]["attributes.input.value"])["messages"][1]["content"],
+        "answer": "output",
+    },
+)
 ```
 
 Here, we expect to see improvements in our experiment. The evaluator should flag significantly fewer nonsensical answers as you have refined your system prompt.
@@ -239,19 +237,21 @@ def complete_task(question) -> str:
     return response.choices[0].message.content
 
 
-def evaluate_all_responses(input, output):
-    full_llm = LLM(provider="openai", model="gpt-4o")
-    full_classifier = create_classifier(
-        name="rhyme",
-        prompt_template=RHYME_PROMPT_TEMPLATE,
-        llm=full_llm,
-        choices=["correct", "incorrect"],
-    )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"question": input["Questions"], "answer": output}]),
-        evaluators=[full_classifier],
-    )
-    return 0 if result_df["rhyme_score"].iloc[0]["label"] == "incorrect" else 1
+full_llm = LLM(provider="openai", model="gpt-4o")
+full_evaluator = ClassificationEvaluator(
+    name="rhyme",
+    prompt_template=RHYME_PROMPT_TEMPLATE,
+    llm=full_llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+
+evaluate_all_responses = bind_evaluator(
+    full_evaluator,
+    input_mapping={
+        "question": "input.Questions",
+        "answer": "output",
+    },
+)
 
 
 experiment = run_experiment(

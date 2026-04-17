@@ -49,13 +49,13 @@ df_sample = df_sample.rename(columns={
 ## Run Relevance Classification
 
 ```python
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4")
 relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-evals_df = evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator])
+evals_df = await async_evaluate_dataframe(dataframe=df_sample, evaluators=[relevance_evaluator], concurrency=10)
 relevance_classifications = evals_df["document_relevance_score"].str["label"].tolist()
 choices = relevance_evaluator.CHOICES
 ```
@@ -83,9 +83,10 @@ confusion_matrix.plot(
 ## Get Explanations
 
 ```python
-relevance_classifications_df = evaluate_dataframe(
+relevance_classifications_df = await async_evaluate_dataframe(
     dataframe=df_sample.sample(n=5),
     evaluators=[relevance_evaluator],
+    concurrency=10,
 )
 relevance_classifications_df["label"] = relevance_classifications_df["document_relevance_score"].str[
     "label"

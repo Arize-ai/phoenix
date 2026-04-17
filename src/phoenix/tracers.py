@@ -19,8 +19,8 @@ from opentelemetry.sdk.trace.export import (
 from opentelemetry.trace import format_span_id, format_trace_id
 
 from phoenix.config import (
-    get_env_phoenix_pxi_collector_api_key,
-    get_env_phoenix_pxi_collector_endpoint,
+    get_env_phoenix_agents_collector_api_key,
+    get_env_phoenix_agents_collector_endpoint,
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
@@ -62,7 +62,7 @@ def _build_remote_http_span_exporter(endpoint: str) -> SpanExporter:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
     headers = {}
-    if api_key := get_env_phoenix_pxi_collector_api_key():
+    if api_key := get_env_phoenix_agents_collector_api_key():
         headers["Authorization"] = f"Bearer {api_key}"
 
     return OTLPSpanExporter(
@@ -123,7 +123,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
         self._self_remote_exporter: Optional[SpanExporter] = None
         remote_collector_endpoint = (
-            remote_collector_endpoint or get_env_phoenix_pxi_collector_endpoint()
+            remote_collector_endpoint or get_env_phoenix_agents_collector_endpoint()
         )
         if enable_remote_export and remote_collector_endpoint:
             exporter_factory = remote_span_exporter_factory or _build_remote_http_span_exporter

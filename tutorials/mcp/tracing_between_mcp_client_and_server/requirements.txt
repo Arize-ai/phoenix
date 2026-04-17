@@ -10,4 +10,4 @@ openinference-semantic-conventions==0.1.17
 pydantic==2.11.2
 psutil==7.0.0
 IPython==9.2.0
-strawberry-graphql[opentelemetry]==0.267.0
+strawberry-graphql[opentelemetry]==0.312.3

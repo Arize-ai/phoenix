@@ -21,11 +21,7 @@ The diagram below provides an overview of the process we will follow in this wal
 
 ## Notebook Walkthrough
 
-We will go through key code snippets on this page. To follow the full tutorial, check out the notebook or video above.
-
-<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/build_benchmark_dataset_and_custom_evaluator.ipynb" horizontal icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico">
-colab.research.google.com
-</Card>
+We will go through key code snippets on this page. To follow the full tutorial, check out the video above.
 
 ## Generate Image Classification Traces
 
@@ -61,7 +57,7 @@ def extract_receipt_data(input):
   return response
 ```
 
-By following the auto-instrumentation setup outlined in the notebook, running the cell below will automatically send traces to Phoenix.
+By following the auto-instrumentation setup, running the code below will automatically send traces to Phoenix.
 
 ```py
 for url in urls:
@@ -103,69 +99,44 @@ dataset = Client().datasets.create_dataset(
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
-Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function uses `evaluate_dataframe` with a `create_classifier` and our evaluator is a comparison between the task output and our annotated labels.
+Next, we’ll create a baseline evaluation template and define both the task and the evaluation function. Once these are set up, we’ll run an experiment to compare the evaluator’s performance against our ground truth annotations. In this case, our task function calls `evaluator.evaluate()` directly with a `ClassificationEvaluator` and our evaluator is a comparison between the task output and our annotated labels.
+
+<Note>
+Phoenix evals does not yet support multimodal inputs (e.g. images). The evaluator below assesses the expense report text output for completeness and structure rather than comparing against the original receipt image.
+</Note>
 
 ```py expandable
-from phoenix.evals.templates import (
-    ClassificationTemplate,
-    PromptPartTemplate,
-    PromptPartContentType,
-)
 choices = ["accurate", "almost accurate", "inaccurate"]
-classification_template = ClassificationTemplate(
-    rails=choices,  # Specify the valid output labels
-    template=[
-        # Prompt part 1: Task description
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
-Below is the model’s generated expense report and the input image:
+prompt_template = """You are an evaluator tasked with assessing the quality of a model-generated expense report.
+The model was instructed to analyze a receipt image and return a brief summary including: category of expense, total cost, and summary of items.
 ---
 MODEL OUTPUT (Expense Report): {output}
 
 ---
-INPUT RECEIPT: """,
-        ),
-        # Prompt part 2: Insert the image data
-        PromptPartTemplate(
-            content_type=PromptPartContentType.IMAGE,
-            template="{image}",  # Placeholder for the image URL
-        ),
-        # Prompt part 3: Define the response format
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" Evaluate the following three aspects and assign one of the following labels for each. Only include the label:
-- **"accurate"** – Fully correct
-- **"almost accurate"** – Mostly correct
-- **"inaccurate"** – Substantially wrong
-            """,
-        ),
-    ],
-)
+Evaluate whether the expense report is complete and well-structured. Assign one of the following labels. Only include the label:
+- **"accurate"** – Includes expense category, total cost, and item summary; all information looks reasonable
+- **"almost accurate"** – Mostly correct but with small issues (e.g., missing one element or vague category)
+- **"inaccurate"** – Substantially wrong or missing critical information
+"""
 ```
 ```py expandable
-import json
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator
 
 llm = LLM(provider="openai", model="gpt-4o")
-receipt_classifier = create_classifier(
+receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
-    prompt_template=classification_template,
+    prompt_template=prompt_template,
     llm=llm,
     choices=choices,
 )
 
 def task_function(input, reference):
-    parsed = json.loads(input['attributes.input.value'])
-    image_url = parsed['messages'][0]['content'][1]['image_url']['url']
-    output = reference['attributes.llm.output_messages'][0]['message.content']
+    output = reference[‘attributes.llm.output_messages’][0][‘message.content’]
 
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"image": image_url, "output": output}]),
-        evaluators=[receipt_classifier],
+    result = receipt_evaluator.evaluate(
+        eval_input={"output": output}
     )
-    label = result_df["receipt_accuracy_score"].iloc[0]["label"]
-    return label
+    return result[0].label
 
 
 def evaluate_response(output, metadata):
@@ -188,35 +159,23 @@ initial_experiment = run_experiment(
 Next, we’ll refine our evaluation prompt template by adding more specific instructions to classification rules. We can add these rules based on gaps we saw in the previous iteration. This additional guidance helps improve accuracy and ensures the evaluator's judgments better align with human expectations.
 
 ```py expandable
-classification_template = ClassificationTemplate(
-    rails=choices,  # Specify the valid output labels
-    template=[
-        # Prompt part 1: Task description
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" You are an evaluator tasked with assessing the quality of a model-generated expense report based on a receipt.
-Below is the model’s generated expense report and the input image:
+prompt_template = """You are an evaluator tasked with assessing the quality of a model-generated expense report.
+The model was instructed to analyze a receipt image and return a brief summary including: category of expense, total cost, and summary of items.
 ---
 MODEL OUTPUT (Expense Report): {output}
 
 ---
-INPUT RECEIPT: """,
-        ),
-        # Prompt part 2: Insert the audio data
-        PromptPartTemplate(
-            content_type=PromptPartContentType.IMAGE,
-            template="{image}",  # Placeholder for the image URL
-        ),
-        # Prompt part 3: Define the response format
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=""" Evaluate the following and assign one of the following labels for each. Only include the label:
-- **"accurate"** – Total price, itemized list, and expense category are all accurate. All three must be correct to get this label.
-- **"almost accurate"** – Mostly correct but with small issues. For example, expense category is too vague.
-- **"inaccurate"** – Substantially wrong or missing information. For example, incorrect total price.
-            """,
-        ),
-    ],
+Evaluate the following and assign one of the following labels. Only include the label:
+- **"accurate"** – Total price, itemized list, and expense category are all present and look reasonable. All three must be present to get this label.
+- **"almost accurate"** – Mostly correct but with small issues. For example, expense category is too vague or one element is missing.
+- **"inaccurate"** – Substantially wrong or missing critical information. For example, missing total price entirely.
+"""
+
+receipt_evaluator = ClassificationEvaluator(
+    name="receipt_accuracy",
+    prompt_template=prompt_template,
+    llm=llm,
+    choices=choices,
 )
 ```
 

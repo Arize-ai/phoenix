@@ -7,6 +7,17 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.14.2026">
+## [04.14.2026: CLI Annotation Commands](/docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands)
+**Available in @arizeai/phoenix-cli 1.0.4+**
+
+`px span annotate` and `px trace annotate` write labels, scores, and explanations to spans and traces from the terminal. Pass `--include-annotations` to `px trace get` or `px span list` to read annotations back alongside the data.
+
+- **`px span annotate <span-id>`** — attach a label, score, or explanation to any span by OTel span ID
+- **`px trace annotate <trace-id>`** — annotate a full trace by OTel trace ID
+- **Annotator kinds** — `HUMAN`, `LLM`, or `CODE`; submitting again with the same name updates the existing entry
+</Update>
+
 <Update label="04.13.2026">
 ## [04.13.2026: @arizeai/phoenix-otel 1.0](/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0)
 **Available in @arizeai/phoenix-otel 1.0.0+**
@@ -19,6 +30,16 @@ GitHub
 - **Attribute builders** — `getLLMAttributes`, `getRetrieverAttributes`, `getEmbeddingAttributes`, `getToolAttributes`, and more for raw OTel spans
 - **Semantic conventions** — `SemanticConventions` and `OpenInferenceSpanKind` re-exported; no second dependency needed
 - **Redaction** — `OITracer` + `traceConfig` or `OPENINFERENCE_HIDE_*` env vars strip sensitive attributes before export
+</Update>
+
+<Update label="04.10.2026">
+## [04.10.2026: Shareable Project URLs](/docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects)
+**Available in arize-phoenix 14.2.0+**
+
+Navigate to `/redirects/projects/{project_name}` and Phoenix resolves the name and redirects to the project page — no internal ID required. Construct stable, bookmarkable links using the project name you already set in `PHOENIX_PROJECT_NAME`.
+
+- **Project by name** — `/redirects/projects/default` resolves and redirects to the project page
+- **Other patterns** — traces, spans, sessions, and prompt tags are also supported via `/redirects/...`
 </Update>
 
 <Update label="04.07.2026">

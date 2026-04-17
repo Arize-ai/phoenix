@@ -152,8 +152,8 @@ spelling_classifier = ClassificationEvaluator(
     name="spelling",
     prompt_template=SCORE_TEMPLATE,
     llm=LLM(provider="openai", model="gpt-4o"),
-    choices=choices
-    direction="minimize" # lower scores = better, so direction = minimize
+    choices=choices,
+    direction="minimize",  # lower scores = better, so direction = minimize
 )
 spelling_classifier.evaluate({"context": "This is a test. There are is some typo in this sentence."})
 >>> [Score(name='spelling', score=2, label="2", explanation="There is one grammatical error ('There are is') and one typo ('typo' instead of 'typos'), which roughly represents 20% of the 10 words in the document.", metadata={'model': 'gpt-4o-mini'}, kind='llm', direction='minimize')]

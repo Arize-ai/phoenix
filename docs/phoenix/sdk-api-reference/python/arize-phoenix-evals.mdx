@@ -9,8 +9,8 @@ Phoenix Evals provides:
 
 * Built-in evaluators for common tasks (faithfulness, correctness, relevance, conciseness, and more)
 * A unified `LLM` wrapper supporting OpenAI, Anthropic, Google, LiteLLM, and other providers
-* Batch evaluation over pandas DataFrames with `evaluate_dataframe`
-* Custom evaluator creation via `create_evaluator` decorator or `create_classifier` factory
+* Batch evaluation over pandas DataFrames with `async_evaluate_dataframe` (or sync `evaluate_dataframe`)
+* Custom evaluator creation via `create_evaluator` decorator or `ClassificationEvaluator`
 * Benchmark datasets for testing evaluator accuracy
 
 ## Installation
@@ -29,7 +29,7 @@ pip install openai  # or anthropic, google-generativeai, litellm, etc.
 
 ```python
 import os
-from phoenix.evals import LLM, evaluate_dataframe
+from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
 os.environ["OPENAI_API_KEY"] = "<your-openai-key>"
@@ -39,9 +39,10 @@ relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
 # DataFrame must have columns matching the evaluator's input schema
 # DocumentRelevanceEvaluator expects: 'input' (query) and 'output' (document)
-results_df = evaluate_dataframe(
+results_df = await async_evaluate_dataframe(
     dataframe=df,
     evaluators=[relevance_evaluator],
+    concurrency=10,
 )
 ```
 
@@ -53,7 +54,7 @@ results_df = evaluate_dataframe(
 | `evaluate_dataframe(dataframe, evaluators)` | Run evaluators over a DataFrame (sync) |
 | `async_evaluate_dataframe(dataframe, evaluators)` | Async variant with concurrency control |
 | `create_evaluator(name, kind=...)` | Decorator to turn a function into an `Evaluator` |
-| `create_classifier(name, prompt_template, llm, choices)` | Factory for `ClassificationEvaluator` instances |
+| `ClassificationEvaluator(name, prompt_template, llm, choices)` | Custom classification evaluator for LLM-as-a-judge tasks |
 | `bind_evaluator(evaluator, input_mapping)` | Bind field mappings to an evaluator |
 
 ## Built-in evaluators

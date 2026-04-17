@@ -136,7 +136,7 @@ DbSessionFactory
 
 - **Schema handling is baked into ORM metadata.** `src/phoenix/db/models.py:633-634` sets `MetaData(schema=get_env_database_schema())`. When `PHOENIX_SQL_DATABASE_SCHEMA` is set, all ORM-generated SQL uses fully-qualified table names (`schema.table`). The replica engine does not need separate `search_path` configuration — the schema is embedded in every query by the ORM. The only place `SET search_path` is called is in `src/phoenix/db/migrations/env.py:99`, which only runs during migrations (primary-only).
 
-- **IAM auth reads from global env vars.** `aio_postgresql_engine()` calls `get_env_postgres_use_iam_auth()` and `get_env_postgres_iam_token_lifetime()` from global config. If the primary uses IAM auth, the replica engine creation will also attempt IAM auth using the same env vars. This is correct for AWS Aurora (same IAM policy covers writer and reader endpoints) but should be verified for other setups.
+- **IAM auth reads from global env vars.** `aio_postgresql_engine()` calls `get_env_postgres_use_aws_iam_auth()` from global config. If the primary uses IAM auth, replica engine creation also attempts IAM auth using the same AWS credentials.
 
 - **`/readyz` checks primary health.** `app.py:707-715` runs `select(1)` against `request.app.state.db()` (which is `__call__()` → primary). This is correct — readiness should reflect the write path. No change needed.
 
@@ -203,7 +203,7 @@ Phoenix also supports component-based PostgreSQL configuration (`PHOENIX_POSTGRE
 
 ### IAM auth interaction
 
-`aio_postgresql_engine()` reads `PHOENIX_POSTGRES_USE_AWS_IAM_AUTH` from global config. When IAM auth is enabled, the replica engine will also use IAM auth with the same credentials. This is correct for AWS Aurora/RDS where the same IAM policy grants access to both writer and reader endpoints, and the IAM user is present on both. For non-AWS setups, the replica URL should include credentials directly.
+`aio_postgresql_engine()` reads `PHOENIX_POSTGRES_USE_AWS_IAM_AUTH` from global config. When IAM auth is enabled, the replica engine also uses IAM auth with the same credentials. This is correct for AWS Aurora/RDS where the same IAM policy grants access to both writer and reader endpoints, and the IAM user is present on both. For non-AWS setups, the replica URL should include credentials directly.
 
 ### What we do not add
 

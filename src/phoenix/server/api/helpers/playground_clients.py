@@ -1453,6 +1453,7 @@ class TogetherStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-opus-4-7",
         "anthropic.claude-opus-4-6-v1",
         "anthropic.claude-sonnet-4-6",
         "anthropic.claude-opus-4-5-20251101-v1:0",
@@ -2298,6 +2299,7 @@ class AzureOpenAIReasoningNonStreamingClient(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
+        "claude-opus-4-7",
     ],
 )
 class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):

@@ -35,9 +35,27 @@ export function PromptInput({
   status = "ready",
   isDisabled = false,
   mode = "prompt",
+  value: controlledValue,
+  onValueChange,
   ...restProps
 }: PromptInputProps) {
-  const [value, setValue] = useState("");
+  // Dual-mode value handling:
+  //   - Controlled (parent passes `value`): rendered value comes from
+  //     `controlledValue`. `internalValue` is unused. Writes are forwarded
+  //     to `onValueChange` only — the parent must update its own state for
+  //     the new value to appear on screen.
+  //   - Uncontrolled (no `value`): we own the state in `internalValue` and
+  //     update it on every write. `onValueChange` still fires as an optional
+  //     change observer for the parent.
+  const [internalValue, setInternalValue] = useState("");
+  const isControlled = controlledValue !== undefined;
+  const value = isControlled ? controlledValue : internalValue;
+  const setValue = (next: string) => {
+    if (!isControlled) {
+      setInternalValue(next);
+    }
+    onValueChange?.(next);
+  };
   const valueRef = useRef(value);
   valueRef.current = value;
 

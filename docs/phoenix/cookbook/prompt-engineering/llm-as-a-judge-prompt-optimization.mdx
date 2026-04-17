@@ -159,26 +159,27 @@ Now that we have our baseline prompt, we need to set up two key components:
 Finally, we run our experiment. With this setup, we can measure how well our prompt initially performs.
 
 ```python expandable
-import pandas as pd
-
-from phoenix.evals import LLM, create_classifier, evaluate_dataframe
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
 llm = LLM(provider="openai", model="gpt-4")
-empathy_classifier = create_classifier(
-    name="empathy",
-    prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-    llm=llm,
-    choices=list(map(str, range(1, 11))),
+empathy_evaluator = bind_evaluator(
+    evaluator=ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
+    ),
+    input_mapping={
+        "AI_Response": "AI_Response",
+    },
 )
 
 
 def initial_prompt(input):
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[empathy_classifier],
+    result = empathy_evaluator.evaluate(
+        eval_input=input,
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 def evaluate_response(input, output):
@@ -233,18 +234,16 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 experiment = px_client.experiments.run_experiment(
@@ -302,18 +301,16 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 experiment = px_client.experiments.run_experiment(
@@ -379,18 +376,16 @@ print(EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED)
 
 ```python expandable
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 experiment = px_client.experiments.run_experiment(
@@ -430,18 +425,16 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 experiment = px_client.experiments.run_experiment(
@@ -463,18 +456,16 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = (
 
 ```python
 def llm_as_a_judge(input):
-    classifier = create_classifier(
+    evaluator = ClassificationEvaluator(
         name="empathy",
         prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
         llm=llm,
         choices=list(map(str, range(1, 11))),
     )
-    result_df = evaluate_dataframe(
-        dataframe=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        evaluators=[classifier],
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
     )
-    score = result_df["empathy_score"].iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 experiment = px_client.experiments.run_experiment(

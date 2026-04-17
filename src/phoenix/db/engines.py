@@ -23,6 +23,16 @@ sqlean.extensions.enable("text", "stats")
 
 logger = logging.getLogger(__name__)
 
+# Recycle pooled connections so server-side changes (revoked roles,
+# rotated certs, rebalanced managed-Postgres LB backends) eventually
+# propagate into the pool. Liveness is handled separately by
+# pool_pre_ping; this knob is purely for bounded staleness, not
+# correctness — PostgreSQL authenticates only at session startup and
+# does not re-validate the credential for the life of the session.
+# The specific value is arbitrary within the 30-minute-to-few-hours
+# range where connection churn is cheap and staleness stays bounded.
+_POOL_RECYCLE_SECONDS = 3300
+
 
 def set_sqlite_pragma(connection: Connection, _: Any) -> None:
     cursor = connection.cursor()
@@ -153,42 +163,47 @@ def aio_postgresql_engine(
     log_migrations: bool = True,
 ) -> AsyncEngine:
     from phoenix.config import (
-        get_env_postgres_iam_token_lifetime,
-        get_env_postgres_use_iam_auth,
+        get_env_postgres_use_aws_iam_auth,
+        get_env_postgres_use_azure_managed_identity,
     )
 
-    use_iam_auth = get_env_postgres_use_iam_auth()
-    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_iam_auth)
+    use_aws = get_env_postgres_use_aws_iam_auth()
+    use_azure = get_env_postgres_use_azure_managed_identity()
+    if use_aws and use_azure:
+        raise ValueError(
+            "Cannot enable both AWS IAM and Azure managed identity authentication simultaneously. "
+            "Set only one."
+        )
+    asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
 
-    if use_iam_auth:
-        if not (host := url.host):
-            raise ValueError("Database host is required for IAM authentication")
-        if not (user := url.username):
-            raise ValueError("Database user is required for IAM authentication")
-        port = url.port or 5432
-        database = url.database or "postgres"
+    # pool_pre_ping issues a `SELECT 1` on each pool checkout and discards
+    # the connection if it fails, so callers don't get a stale connection
+    # that was silently dropped by an upstream LB, a server failover, or a
+    # DBA-initiated termination. The ping is skipped on freshly-created
+    # connections, so the cost is paid only on reused ones.
+    if use_azure:
+        from phoenix.db.azure_auth import create_azure_engine
 
-        async def iam_async_creator() -> Any:
-            import asyncpg  # type: ignore
-
-            from phoenix.db.iam_auth import generate_aws_rds_token
-
-            token = generate_aws_rds_token(host=host, port=port, user=user)
-            return await asyncpg.connect(
-                host=host,
-                port=port,
-                user=user,
-                password=token,
-                database=database,
-                **asyncpg_args,
-            )
-
-        engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=iam_async_creator,
+        logger.info("Azure managed identity enabled for PostgreSQL connections")
+        engine = create_azure_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
-            pool_recycle=get_env_postgres_iam_token_lifetime(),
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
+        )
+    elif use_aws:
+        from phoenix.db.aws_auth import create_aws_engine
+
+        logger.info("AWS IAM authentication enabled for PostgreSQL connections")
+        engine = create_aws_engine(
+            asyncpg_url,
+            asyncpg_args,
+            echo=log_to_stdout,
+            json_serializer=_dumps,
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
         )
     else:
         engine = create_async_engine(
@@ -196,19 +211,39 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            pool_pre_ping=True,
+            pool_recycle=_POOL_RECYCLE_SECONDS,
         )
 
     if not migrate:
         return engine
 
-    if use_iam_auth:
-        migration_engine = create_async_engine(
-            url=asyncpg_url,
-            async_creator=iam_async_creator,
+    # Migration engines use NullPool: every checkout opens a fresh
+    # connection and disposes it on return, so pool_pre_ping and
+    # pool_recycle have no role — there is no reused or long-lived
+    # connection to guard. The Azure branch deliberately constructs a
+    # second engine (not shares the primary) so each engine owns its own
+    # `DefaultAzureCredential` bound to the loop that will use it; see
+    # `create_azure_engine` for the affinity invariant.
+    if use_azure:
+        from phoenix.db.azure_auth import create_azure_engine
+
+        migration_engine = create_azure_engine(
+            asyncpg_url,
+            asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
             poolclass=NullPool,
-            pool_recycle=get_env_postgres_iam_token_lifetime(),
+        )
+    elif use_aws:
+        from phoenix.db.aws_auth import create_aws_engine
+
+        migration_engine = create_aws_engine(
+            asyncpg_url,
+            asyncpg_args,
+            echo=log_migrations,
+            json_serializer=_dumps,
+            poolclass=NullPool,
         )
     else:
         migration_engine = create_async_engine(
