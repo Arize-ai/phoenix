@@ -513,7 +513,7 @@ class Spans:
                 repeated ``attribute=key:value`` query params. Type-aware: int/float use
                 str(v), bool uses json.dumps(v), str values that parse as non-string JSON
                 or are empty are quoted to force string comparison.
-                Requires Phoenix server >= 13.25.0.
+                Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1789,7 +1789,7 @@ class AsyncSpans:
                 repeated ``attribute=key:value`` query params. Type-aware: int/float use
                 str(v), bool uses json.dumps(v), str values that parse as non-string JSON
                 or are empty are quoted to force string comparison.
-                Requires Phoenix server >= 13.25.0.
+                Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 

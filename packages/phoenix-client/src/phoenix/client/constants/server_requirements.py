@@ -54,7 +54,7 @@ GET_SPANS_ATTRIBUTE_V2 = ParameterRequirement(
     parameter_name="attribute",
     parameter_location="query",
     route="GET /v1/projects/{id}/spans",
-    min_server_version=Version(13, 25, 0),
+    min_server_version=Version(14, 9, 0),
 )
 
 LIST_PROJECT_TRACES = RouteRequirement(
