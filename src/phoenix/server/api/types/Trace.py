@@ -19,7 +19,10 @@ from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
-from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
+from phoenix.server.api.input_types.TraceAnnotationSort import (
+    TraceAnnotationColumn,
+    TraceAnnotationSort,
+)
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.pagination import (
@@ -283,19 +286,24 @@ class Trace(Node):
     async def trace_annotations(
         self,
         info: Info[Context, None],
-        sort: Optional[TraceAnnotationSort] = None,
+        sort: Optional[TraceAnnotationSort] = UNSET,
+        filter: Optional[AnnotationFilter] = None,
     ) -> list[TraceAnnotation]:
-        async with info.context.db.read() as session:
-            stmt = select(models.TraceAnnotation).filter_by(trace_rowid=self.id)
-            if sort:
-                sort_col = getattr(models.TraceAnnotation, sort.col.value)
-                if sort.dir is SortDir.desc:
-                    stmt = stmt.order_by(sort_col.desc(), models.TraceAnnotation.id.desc())
-                else:
-                    stmt = stmt.order_by(sort_col.asc(), models.TraceAnnotation.id.asc())
-            else:
-                stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
-            annotations = await session.scalars(stmt)
+        annotations = list(await info.context.data_loaders.trace_annotations_by_trace.load(self.id))
+        sort_key = TraceAnnotationColumn.createdAt.value
+        sort_descending = True
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
+        if sort:
+            sort_key = sort.col.value
+            sort_descending = sort.dir is SortDir.desc
+        annotations = sorted(
+            annotations,
+            key=lambda annotation: (getattr(annotation, sort_key), annotation.id),
+            reverse=sort_descending,
+        )
         return [
             TraceAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]

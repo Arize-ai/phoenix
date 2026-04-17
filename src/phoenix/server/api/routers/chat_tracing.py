@@ -49,7 +49,7 @@ from opentelemetry.trace import (
 )
 from sqlalchemy import select
 
-from phoenix.config import get_env_phoenix_pxi_project_name
+from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.dml_event import SpanInsertEvent
@@ -264,16 +264,16 @@ _TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 
 
 async def ensure_project_exists(db: DbSessionFactory) -> int:
-    """Get or create the configured PXI project. Returns the ``project_id``.
+    """Get or create the configured assistant agent project. Returns the ``project_id``.
 
     Uses an insert-on-conflict path so concurrent first-time requests do not
     race on the unique project name.
     """
-    pxi_project_name = get_env_phoenix_pxi_project_name()
+    agent_project_name = get_env_phoenix_agents_assistant_project_name()
     async with db() as session:
         await session.execute(
             insert_on_conflict(
-                {"name": pxi_project_name},
+                {"name": agent_project_name},
                 table=models.Project,
                 dialect=db.dialect,
                 unique_by=("name",),
@@ -281,10 +281,12 @@ async def ensure_project_exists(db: DbSessionFactory) -> int:
             )
         )
         project_id = await session.scalar(
-            select(models.Project.id).where(models.Project.name == pxi_project_name)
+            select(models.Project.id).where(models.Project.name == agent_project_name)
         )
         if project_id is None:
-            raise RuntimeError(f"Failed to resolve PXI project '{pxi_project_name}' after insert")
+            raise RuntimeError(
+                f"Failed to resolve agent project '{agent_project_name}' after insert"
+            )
     return project_id
 
 

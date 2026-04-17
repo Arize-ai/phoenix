@@ -77,6 +77,18 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+type AgentsConfig {
+  """
+  The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
+  """
+  collectorEndpoint: String
+
+  """
+  The project name used for assistant agent traces. Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable.
+  """
+  assistantProjectName: String!
+}
+
 interface Annotation {
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -396,7 +408,7 @@ input ChatCompletionOverDatasetInput {
   splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
-  experimentMetadata: JSON = {  }
+  experimentMetadata: JSON = {}
   promptName: Identifier = null
   evaluators: [PlaygroundEvaluatorInput!]! = []
 
@@ -445,7 +457,7 @@ input ChatPromptVersionInput {
   description: String = null
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
-  invocationParameters: JSON! = {  }
+  invocationParameters: JSON! = {}
   tools: PromptToolsInput = null
   responseFormat: PromptResponseFormatJSONSchemaInput = null
   modelProvider: GenerativeProviderKey!
@@ -627,7 +639,7 @@ input CreateDocumentAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {  }
+  metadata: JSON! = {}
   source: AnnotationSource!
   identifier: String
 }
@@ -671,7 +683,7 @@ input CreateProjectSessionAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {  }
+  metadata: JSON! = {}
   source: AnnotationSource! = APP
   identifier: String
 }
@@ -701,7 +713,7 @@ input CreateSpanAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {  }
+  metadata: JSON! = {}
   source: AnnotationSource!
   identifier: String
 }
@@ -724,7 +736,7 @@ input CreateTraceAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {  }
+  metadata: JSON! = {}
   source: AnnotationSource!
   identifier: String
 }
@@ -1366,8 +1378,8 @@ type EvaluatorInputMapping {
 }
 
 input EvaluatorInputMappingInput {
-  literalMapping: JSON! = {  }
-  pathMapping: JSON! = {  }
+  literalMapping: JSON! = {}
+  pathMapping: JSON! = {}
 }
 
 enum EvaluatorKind {
@@ -1384,7 +1396,7 @@ input EvaluatorPreviewInput @oneOf {
 input EvaluatorPreviewItemInput {
   evaluator: EvaluatorPreviewInput!
   context: JSON!
-  inputMapping: EvaluatorInputMappingInput! = {  }
+  inputMapping: EvaluatorInputMappingInput! = {}
 }
 
 input EvaluatorPreviewsInput {
@@ -2344,7 +2356,7 @@ input PlaygroundEvaluatorInput {
   id: ID!
   name: Identifier!
   description: String = null
-  inputMapping: EvaluatorInputMappingInput! = {  }
+  inputMapping: EvaluatorInputMappingInput! = {}
   outputConfigs: [AnnotationConfigInput!] = null
 }
 
@@ -2958,6 +2970,7 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
+  agentsConfig: AgentsConfig!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
@@ -3564,7 +3577,7 @@ type Trace implements Node {
   spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
 
   """Annotations associated with the trace."""
-  traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the trace"""
   traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
@@ -3742,7 +3755,7 @@ input UpdateAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {  }
+  metadata: JSON! = {}
   source: AnnotationSource! = APP
 }
 

@@ -13,9 +13,9 @@ class AnthropicBetaInstrumentor(AnthropicInstrumentor):
 
         self._original_beta_messages_create = Messages.create
         wrap_function_wrapper(
-            module="anthropic.resources.beta.messages",
-            name="Messages.create",
-            wrapper=_MessagesWrapper(tracer=self._tracer),
+            "anthropic.resources.beta.messages",
+            "Messages.create",
+            _MessagesWrapper(tracer=self._tracer),
         )
 
     def _uninstrument(self, **kwargs: Any) -> None:

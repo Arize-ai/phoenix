@@ -343,6 +343,7 @@
 - [License](https://arize.com/docs/phoenix/self-hosting/license): Review licensing terms for self-hosted Phoenix instances
 - [Configuration](https://arize.com/docs/phoenix/self-hosting/configuration): Set environment variables, database connections, and deployment parameters
 - [Amazon Aurora](https://arize.com/docs/phoenix/self-hosting/configuration/using-amazon-aurora): Aurora/RDS IAM database authentication
+- [Azure Database for PostgreSQL](https://arize.com/docs/phoenix/self-hosting/configuration/using-azure-managed-identity): Configure managed-identity authentication for Azure PostgreSQL deployments
 
 ### Deployment
 

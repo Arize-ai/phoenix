@@ -141,8 +141,11 @@ data:
   {{- if .Values.database.postgres.useAwsIamAuth }}
   PHOENIX_POSTGRES_USE_AWS_IAM_AUTH: {{ .Values.database.postgres.useAwsIamAuth | quote }}
   {{- end }}
-  {{- if .Values.database.postgres.awsIamTokenLifetimeSeconds }}
-  PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS: {{ .Values.database.postgres.awsIamTokenLifetimeSeconds | quote }}
+  {{- if .Values.database.postgres.useAzureManagedIdentity }}
+  PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY: {{ .Values.database.postgres.useAzureManagedIdentity | quote }}
+  {{- end }}
+  {{- if .Values.database.postgres.azureScope }}
+  PHOENIX_POSTGRES_AZURE_SCOPE: {{ .Values.database.postgres.azureScope | quote }}
   {{- end }}
   {{- end }}
   {{- if .Values.database.readReplicaUrl }}

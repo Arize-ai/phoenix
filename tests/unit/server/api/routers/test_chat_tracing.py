@@ -6,7 +6,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues
 from opentelemetry.trace import format_span_id, format_trace_id
 from sqlalchemy import select
 
-from phoenix.config import get_env_phoenix_pxi_project_name
+from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.server.api.routers.chat_tracing import (
     create_agent_span,
@@ -56,7 +56,7 @@ class TestEnsureProjectExists:
         async with db() as session:
             project = await session.get(models.Project, project_id)
             assert project is not None
-            assert project.name == get_env_phoenix_pxi_project_name()
+            assert project.name == get_env_phoenix_agents_assistant_project_name()
 
     @pytest.mark.asyncio
     async def test_returns_existing_project(self, db: DbSessionFactory) -> None:
@@ -80,7 +80,9 @@ class TestEnsureProjectExists:
             projects = (
                 (
                     await session.execute(
-                        select(models.Project).filter_by(name=get_env_phoenix_pxi_project_name())
+                        select(models.Project).filter_by(
+                            name=get_env_phoenix_agents_assistant_project_name()
+                        )
                     )
                 )
                 .scalars()

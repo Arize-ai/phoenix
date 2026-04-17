@@ -1,6 +1,6 @@
 # PXI System Prompt XML Conventions
 
-Use this guide when adding to, editing, or reviewing the PXI agent system prompt and any module that contributes lines to it.
+PXI ("pixie") is Phoenix's built-in AI assistant. Use this guide when adding to, editing, or reviewing the PXI agent system prompt and any module that contributes lines to it.
 
 ## Why XML
 
