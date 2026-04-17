@@ -1,6 +1,11 @@
 import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
-import { type ReactNode, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useRef,
+  type PropsWithChildren,
+  useState,
+} from "react";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -9,6 +14,7 @@ import type {
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
 import { Icon, Icons, View } from "@phoenix/components";
+import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import {
   PromptInput,
@@ -64,6 +70,14 @@ const chatCSS = css`
   flex: 1;
   min-height: 0;
   overflow: hidden;
+
+  .chat__children {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--global-dimension-static-size-100);
+  }
 
   .chat__scroll {
     flex: 1;
@@ -227,7 +241,9 @@ export function Chat({
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
       emptyStateQuickActions={emptyStateQuickActions}
-    />
+    >
+      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
+    </ChatView>
   );
 }
 
@@ -246,9 +262,10 @@ export function ChatView({
   handleElicitationCancel,
   modelMenuValue,
   onModelChange,
+  children,
   emptyStateSubtext = DEFAULT_EMPTY_STATE_SUBTEXT,
   emptyStateQuickActions = DEFAULT_EMPTY_STATE_QUICK_ACTIONS,
-}: {
+}: PropsWithChildren<{
   messages: AgentUIMessage[];
   sendMessage: (message: { text: string }) => void;
   stop: () => Promise<void>;
@@ -261,7 +278,7 @@ export function ChatView({
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
-}) {
+}>) {
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -349,6 +366,9 @@ export function ChatView({
                   />
                   <AgentDebugMenu />
                 </PromptInputTools>
+                {children ? (
+                  <div className="chat__children">{children}</div>
+                ) : null}
                 <PromptInputActions>
                   <PromptInputSubmit
                     onPress={() => {

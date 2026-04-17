@@ -14,15 +14,19 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from phoenix.server.api.routers.chat_tracing import (
+    AgentMessageMetadata,
+    AgentMessageMetadataUsage,
+    AgentMessageMetadataUsageTokens,
+    StreamAccumulator,
+)
+
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
+    from pydantic_ai.usage import RunUsage
 
-    from phoenix.server.api.routers.chat_tracing import (
-        AgentMessageMetadata,
-        StreamAccumulator,
-    )
     from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
@@ -536,13 +540,13 @@ async def stream_text(
                         iter_text = accumulator.accumulated_text or None
                         if iter_text:
                             final_output_text = iter_text
-
+                        usage: RunUsage = stream.usage()  # type: ignore
                         if llm_span is not None:
                             finalize_llm_span(
                                 llm_span,
                                 output_content=iter_text,
                                 tool_calls=accumulator.tool_calls or None,
-                                usage=stream.usage(),
+                                usage=usage,
                                 model_name=getattr(stream, "model_name", None),
                                 provider=getattr(stream, "provider_name", None),
                             )
@@ -694,7 +698,27 @@ async def stream_text(
                 except Exception:
                     logger.debug("Failed to finalize agent span", exc_info=True)
 
-        yield _sse(FinishChunk(finish_reason=finish_reason))
+        additional_metadata = None
+        if usage:
+            logger.debug(usage)
+            additional_metadata = AgentMessageMetadata(
+                usage=AgentMessageMetadataUsage(
+                    tokens=AgentMessageMetadataUsageTokens(
+                        prompt=usage.input_tokens,
+                        completion=usage.output_tokens,
+                        total=usage.total_tokens,
+                    )
+                )
+            )
+
+        yield _sse(
+            FinishChunk(
+                finish_reason=finish_reason,
+                # whenever new metadata is sent with a chunk, it is merged with
+                # prior metadata objects from previous chunks in the stream
+                message_metadata=additional_metadata,
+            )
+        )
         yield _sse(DoneChunk())
 
         # Persist traces and shut down the tracer to release resources.

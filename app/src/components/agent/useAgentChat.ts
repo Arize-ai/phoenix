@@ -110,7 +110,11 @@ export function useAgentChat({
               },
               sendAutomaticallyWhen:
                 lastAssistantMessageIsCompleteWithToolCalls,
-              onFinish: ({ messages: finalMessages }) => {
+              onFinish: ({ messages: finalMessages, message }) => {
+                const usage = message.metadata?.usage;
+                if (usage != null) {
+                  store.getState().setSessionUsage(sessionId, usage.tokens);
+                }
                 // Finalized history is mirrored into the durable store so idle
                 // runtimes can be reclaimed and later reconstructed from state.
                 if (finalMessages) {

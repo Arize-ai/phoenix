@@ -1,3 +1,4 @@
+import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import { AgentChatHeader, TraceAgentChatFrame } from "./AgentChatPanelView";
@@ -89,7 +90,11 @@ function TraceAgentChatController() {
         handleElicitationCancel={handleElicitationCancel}
         modelMenuValue={menuValue}
         onModelChange={handleModelChange}
-      />
+      >
+        {activeSessionId ? (
+          <ChatSessionUsage sessionId={activeSessionId} />
+        ) : null}
+      </ChatView>
     </TraceAgentChatFrame>
   );
 }

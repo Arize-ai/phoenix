@@ -11,6 +11,15 @@ export const assistantMessageMetadataSchema = z.object({
   traceId: z.string(),
   rootSpanId: z.string(),
   sessionId: z.string(),
+  usage: z
+    .object({
+      tokens: z.object({
+        prompt: z.number().min(0),
+        completion: z.number().min(0),
+        total: z.number().min(0),
+      }),
+    })
+    .optional(),
 });
 
 export type AssistantMessageMetadata = z.infer<
