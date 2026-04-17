@@ -1,6 +1,4 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Card,
@@ -9,15 +7,16 @@ import {
   ExternalLink,
   Flex,
   Label,
-  Loading,
   Switch,
   Text,
   View,
 } from "@phoenix/components";
-import { AgentSettingsForm } from "@phoenix/components/agent";
+import {
+  AgentObservabilitySettings,
+  AgentSettingsForm,
+} from "@phoenix/components/agent";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-
-import type { SettingsAgentsPageQuery } from "./__generated__/SettingsAgentsPageQuery.graphql";
 
 function getProjectRedirectUrl(
   collectorEndpoint: string,
@@ -56,19 +55,9 @@ function AssistantAgentEnabledSwitch() {
 }
 
 function AssistantTraceCollectionInfo() {
-  const data = useLazyLoadQuery<SettingsAgentsPageQuery>(
-    graphql`
-      query SettingsAgentsPageQuery {
-        agentsConfig {
-          collectorEndpoint
-          assistantProjectName
-        }
-      }
-    `,
-    {}
+  const { collectorEndpoint, assistantProjectName } = useAgentContext(
+    (state) => state.agentsConfig
   );
-
-  const { collectorEndpoint, assistantProjectName } = data.agentsConfig;
   const projectRedirectUrl = collectorEndpoint
     ? getProjectRedirectUrl(collectorEndpoint, assistantProjectName)
     : null;
@@ -101,6 +90,7 @@ function AssistantTraceCollectionInfo() {
             : "No remote collector configured — traces are only persisted locally"}
         </Text>
       </CopyField>
+      <AgentObservabilitySettings />
     </Flex>
   );
 }
@@ -124,9 +114,7 @@ export function SettingsAgentsPage() {
             width: 100%;
           `}
         >
-          <Suspense fallback={<Loading />}>
-            <AssistantTraceCollectionInfo />
-          </Suspense>
+          <AssistantTraceCollectionInfo />
           <AgentSettingsForm />
         </Flex>
       </View>

@@ -90,6 +90,10 @@ export function useAgentChat({
                     systemPrompt: store.getState().systemPrompt,
                     sessionId,
                     capabilities: store.getState().capabilities,
+                    observability: store.getState().observability,
+                    hasRemoteCollector: Boolean(
+                      store.getState().agentsConfig.collectorEndpoint
+                    ),
                   }),
                 }),
               }),

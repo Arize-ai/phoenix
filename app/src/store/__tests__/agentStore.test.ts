@@ -84,6 +84,38 @@ describe("agentStore", () => {
     });
   });
 
+  describe("observability", () => {
+    it("updates observability settings without clobbering other fields", () => {
+      const store = createAgentStore();
+
+      store.getState().setObservability({
+        exportRemoteTraces: false,
+      });
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: true,
+        exportRemoteTraces: false,
+        hasAcknowledgedConsent: false,
+      });
+    });
+
+    it("acknowledges consent without changing trace toggles", () => {
+      const store = createAgentStore();
+
+      store.getState().setObservability({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+      });
+      store.getState().acknowledgeConsent();
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+        hasAcknowledgedConsent: true,
+      });
+    });
+  });
+
   describe("setCapability", () => {
     it("updates one capability without clobbering the others", () => {
       const store = createAgentStore();
@@ -144,6 +176,11 @@ describe("agentStore", () => {
         ...createDefaultAgentCapabilities(),
         "bash.retainInactiveSessions": true,
         "graphql.mutations": true,
+      });
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: true,
+        exportRemoteTraces: true,
+        hasAcknowledgedConsent: false,
       });
     });
   });

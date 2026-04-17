@@ -1,5 +1,6 @@
 export { AgentSettingsForm } from "./AgentSettingsForm";
 export type { AgentSettingsFormValues } from "./AgentSettingsForm";
+export { AgentObservabilitySettings } from "./AgentObservabilitySettings";
 export { AgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";

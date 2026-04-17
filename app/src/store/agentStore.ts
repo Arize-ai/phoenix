@@ -32,6 +32,29 @@ export type AgentPosition = "detached" | "pinned";
  */
 export type AgentPanelLocation = "docked" | "trace";
 
+/** Server-provided PXI configuration exposed to the frontend. */
+export type AgentServerConfig = {
+  /** Remote collector used for optional agent trace export. */
+  collectorEndpoint: string | null;
+  /** Local Phoenix project used for PXI trace persistence. */
+  assistantProjectName: string;
+};
+
+/**
+ * Per-user PXI observability preferences persisted in local storage.
+ *
+ * These settings control where PXI traces are sent for the current browser
+ * user and whether the one-time consent gate has been acknowledged.
+ */
+export type AgentObservabilitySettings = {
+  /** Whether PXI traces should be persisted in the current Phoenix instance. */
+  storeLocalTraces: boolean;
+  /** Whether PXI traces should also be exported to a remote collector. */
+  exportRemoteTraces: boolean;
+  /** Whether the user has acknowledged the PXI consent gate. */
+  hasAcknowledgedConsent: boolean;
+};
+
 /**
  * An agent conversation session containing messages, context references,
  * and its own model configuration (initially cloned from the default).
@@ -55,6 +78,17 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
   modelName: "claude-opus-4-6",
   invocationParameters: [],
   supportedInvocationParameters: [],
+};
+
+const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
+  collectorEndpoint: null,
+  assistantProjectName: "assistant_agent",
+};
+
+const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
+  storeLocalTraces: true,
+  exportRemoteTraces: true,
+  hasAcknowledgedConsent: false,
 };
 
 /**
@@ -86,6 +120,10 @@ export interface AgentProps {
    * Defaults to the built-in {@link AGENT_SYSTEM_PROMPT}.
    */
   systemPrompt: string;
+  /** Server-provided PXI config used to describe trace destinations in the UI. */
+  agentsConfig: AgentServerConfig;
+  /** Per-user PXI observability preferences and consent acknowledgement state. */
+  observability: AgentObservabilitySettings;
   /** Typed runtime capabilities that influence tool and session behavior. */
   capabilities: AgentCapabilities;
 }
@@ -112,6 +150,8 @@ export interface AgentState extends AgentProps {
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setSystemPrompt: (systemPrompt: string) => void;
+  setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
+  acknowledgeConsent: () => void;
   clearAllSessions: () => void;
   setCapability: (params: {
     key: AgentCapabilityKey;
@@ -156,6 +196,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     systemPrompt: AGENT_SYSTEM_PROMPT,
+    agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
+    observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
@@ -326,6 +368,27 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     setSystemPrompt: (systemPrompt) => {
       set({ systemPrompt }, false, { type: "setSystemPrompt" });
     },
+    setObservability: (patch) => {
+      set(
+        (state) => ({
+          observability: { ...state.observability, ...patch },
+        }),
+        false,
+        { type: "setObservability" }
+      );
+    },
+    acknowledgeConsent: () => {
+      set(
+        (state) => ({
+          observability: {
+            ...state.observability,
+            hasAcknowledgedConsent: true,
+          },
+        }),
+        false,
+        { type: "acknowledgeConsent" }
+      );
+    },
     clearAllSessions: () => {
       set(
         {
@@ -387,10 +450,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
+          observability?: Partial<AgentObservabilitySettings>;
           systemPrompt?: string;
           debug?: {
             retainInactiveBashSessions?: boolean;
@@ -429,6 +493,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           ...state,
           sessionMap: migratedSessionMap,
           systemPrompt: state.systemPrompt ?? AGENT_SYSTEM_PROMPT,
+          observability: {
+            ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+            ...(state.observability ?? {}),
+          },
           capabilities: migratedCapabilities,
         } as AgentState;
       },
@@ -440,6 +508,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         systemPrompt: state.systemPrompt,
+        observability: state.observability,
         capabilities: state.capabilities,
       }),
     })

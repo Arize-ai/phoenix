@@ -32,7 +32,7 @@ export function AuthenticatedRoot() {
 
   return (
     <ViewerProvider query={loaderData}>
-      <AgentProvider>
+      <AgentProvider agentsConfig={loaderData.agentsConfig}>
         <AgentChatRuntimeProvider>
           <AgentChatWidget />
           <AppAlerts />

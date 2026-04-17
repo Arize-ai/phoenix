@@ -15,6 +15,10 @@ export async function authenticatedRootLoader() {
     graphql`
       query authenticatedRootLoaderQuery {
         ...ViewerContext_viewer
+        agentsConfig {
+          collectorEndpoint
+          assistantProjectName
+        }
         viewer {
           id
           username

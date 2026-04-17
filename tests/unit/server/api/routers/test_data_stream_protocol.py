@@ -26,13 +26,14 @@ class TestParseChatBody:
         body = parse_chat_body(raw)
         assert isinstance(body, ChatBody)
         assert body.session_id is None
+        assert body.export_remote_traces is True
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
         assert body.system is None
         assert body.tools is None
         assert len(body.messages) >= 1
 
-    def test_parses_session_id_and_ingest_traces(self) -> None:
+    def test_parses_session_id_and_trace_destination_flags(self) -> None:
         raw = json.dumps(
             {
                 "trigger": "submit-message",
@@ -45,12 +46,14 @@ class TestParseChatBody:
                     }
                 ],
                 "sessionId": "my-session",
+                "exportRemoteTraces": False,
                 "ingestTraces": False,
                 "traceNameSuffix": "Summary",
             }
         ).encode()
         body = parse_chat_body(raw)
         assert body.session_id == "my-session"
+        assert body.export_remote_traces is False
         assert body.ingest_traces is False
         assert body.trace_name_suffix == "Summary"
 

@@ -21,8 +21,10 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentDebugMenu } from "./AgentDebugMenu";
+import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { PxiGlyph } from "./PxiGlyph";
@@ -263,6 +265,9 @@ export function ChatView({
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
+  const hasAcknowledgedConsent = useAgentContext(
+    (state) => state.observability.hasAcknowledgedConsent
+  );
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -302,7 +307,11 @@ export function ChatView({
       </div>
       <div className="chat__input">
         <View paddingX="size-200">
-          {pendingElicitation ? (
+          {!hasAcknowledgedConsent ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <AgentConsentGate />
+            </PromptInput>
+          ) : pendingElicitation ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <ElicitationCarousel
                 questions={pendingElicitation.questions}

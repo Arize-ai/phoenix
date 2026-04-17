@@ -11,6 +11,7 @@ import {
   MessageToolbar,
 } from "@phoenix/components/ai/message";
 import { useViewer } from "@phoenix/contexts";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 /**
@@ -124,6 +125,9 @@ export function AssistantMessageActions({
   message: AgentUIMessage;
 }) {
   const { viewer } = useViewer();
+  const storeLocalTraces = useAgentContext(
+    (state) => state.observability.storeLocalTraces
+  );
   const [selectedFeedback, setSelectedFeedback] =
     useState<AssistantFeedback | null>(null);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
@@ -132,10 +136,12 @@ export function AssistantMessageActions({
   const hasMessageText = messageText.trim().length > 0;
   const metadata = message.metadata;
   const canAnnotate =
+    storeLocalTraces &&
     typeof metadata?.traceId === "string" &&
     typeof metadata?.rootSpanId === "string" &&
     typeof metadata?.sessionId === "string";
-  const canOpenTrace = typeof metadata?.traceId === "string";
+  const canOpenTrace =
+    storeLocalTraces && typeof metadata?.traceId === "string";
 
   if (!hasMessageText && !canAnnotate && !canOpenTrace) {
     return null;
