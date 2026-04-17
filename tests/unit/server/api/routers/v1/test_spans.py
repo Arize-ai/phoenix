@@ -1937,7 +1937,7 @@ async def test_attribute_bare_int_matches_stored_float_whole_number(
 
 
 # ---------------------------------------------------------------------------
-# Silent-behavior documentation tests (plan D3)
+# Silent-behavior documentation tests
 # ---------------------------------------------------------------------------
 
 
@@ -2000,8 +2000,8 @@ async def test_attribute_filter_into_list_valued_attribute_returns_zero_rows(
     The span stores ``{"tag": {"tags": ["a", "b", "c"]}}``; filtering with
     ``attribute=tag.tags:"a"`` compares ``CAST(list_value AS TEXT)`` (the
     full JSON array text) against ``'"a"'`` (JSON-encoded single string),
-    which never matches. This pins the current silent-failure contract
-    (plan D3) — documented behavior, NOT a bug to fix in this work item.
+    which never matches. This pins the current silent-failure contract —
+    documented behavior, not a bug.
     """
     resp = await httpx_client.get(
         "v1/projects/container-attr-test/spans",
@@ -2032,7 +2032,7 @@ async def test_attribute_filter_nested_object_path_matches(
 
 
 # ---------------------------------------------------------------------------
-# Array-indexed attribute path dialect asymmetry (plan D3 / Open Question)
+# Array-indexed attribute path dialect asymmetry
 # ---------------------------------------------------------------------------
 
 
@@ -2089,7 +2089,7 @@ async def test_attribute_filter_array_indexed_path_dialect_asymmetry(
     project_with_array_indexed_attributes: None,
     dialect: str,
 ) -> None:
-    """Array-indexed dot-path filter has divergent behavior by dialect (plan D3).
+    """Array-indexed dot-path filter has divergent behavior by dialect.
 
     SQLAlchemy's JSON list-subscript generates a dot-path expression. On
     sqlite the ``$.a.b.0.c`` path does NOT treat numeric segments as array
@@ -2113,15 +2113,13 @@ async def test_attribute_filter_array_indexed_path_dialect_asymmetry(
 
 
 # ---------------------------------------------------------------------------
-# OpenInference context-attribute shape coverage (Phase 1 ground-truth seed)
+# OpenInference context-attribute shape coverage
 # ---------------------------------------------------------------------------
 #
 # Single shared fixture seeding ONE span per OpenInference context-attribute
-# shape. This is the Phase 1 "ground truth" that Phase 2's agent-trial seed
-# script should mirror, so trial prompts written against these shapes can
-# also be exercised directly by unit tests. Each test below targets exactly
-# one OI shape and asserts filter URL -> expected row count on both the
-# sqlite and postgresql dialects (via the parametrized `dialect` fixture).
+# shape. Each test below targets exactly one OI shape and asserts filter URL
+# -> expected row count on both the sqlite and postgresql dialects (via the
+# parametrized `dialect` fixture).
 
 
 @pytest.fixture

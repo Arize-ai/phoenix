@@ -379,7 +379,7 @@ export function createSpanListCommand(): Command {
     )
     .option(
       "--attribute <filters...>",
-      'Filter by attribute key-value pairs (e.g., "llm.model_name:gpt-4"). Repeat to AND multiple filters. To match a value that looks like a number or boolean as a string, JSON-quote it (e.g., \'user.id:"12345"\').'
+      'Filter by attribute key-value pairs (e.g., "llm.model_name:gpt-4"). Split is on the first ":" only, so values may contain colons (e.g., "session.id:sess:abc:123"). Repeat to AND multiple filters. To match a value that looks like a number or boolean as a string, JSON-quote it (e.g., \'user.id:"12345"\'). Requires Phoenix server >= 14.9.0.'
     )
     .option("--include-annotations", "Include span annotations in the output")
     .option("--include-notes", "Include span notes in the output")
