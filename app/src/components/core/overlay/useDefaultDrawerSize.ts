@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { SizeValue } from "@phoenix/types/sizing";
 
 const STORAGE_KEY_PREFIX = "arize-phoenix-drawer";
+// Drag emits at rAF rate (~60/sec); wait for motion to settle before
+// writing so we persist once per resize session rather than on every tick.
+const PERSIST_DEBOUNCE_MS = 250;
 
 export interface UseDefaultDrawerSizeOptions {
   /**
@@ -88,13 +91,21 @@ export function useDefaultDrawerSize({
     }
   });
 
+  const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onSizeChange = (sizePercent: number) => {
     if (!resolvedStorage) return;
-    try {
-      resolvedStorage.setItem(key, String(sizePercent));
-    } catch {
-      // Quota exceeded, private mode, etc. — degrade silently.
+    if (pendingTimerRef.current != null) {
+      clearTimeout(pendingTimerRef.current);
     }
+    pendingTimerRef.current = setTimeout(() => {
+      pendingTimerRef.current = null;
+      try {
+        resolvedStorage.setItem(key, String(sizePercent));
+      } catch {
+        // Quota exceeded, private mode, etc. — degrade silently.
+      }
+    }, PERSIST_DEBOUNCE_MS);
   };
 
   return { defaultSize, onSizeChange };
