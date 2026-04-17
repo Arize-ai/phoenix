@@ -100,13 +100,17 @@ def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
         parsed = value
     if isinstance(parsed, bool):
         clause: sa.ColumnElement[bool] = col.as_boolean() == parsed
-    elif isinstance(parsed, (int, float, str)):
+    elif isinstance(parsed, int):
+        clause = sa.cast(col, sa.Text).in_([json.dumps(parsed), json.dumps(float(parsed))])
+    elif isinstance(parsed, (float, str)):
         clause = sa.cast(col, sa.Text) == json.dumps(parsed)
     else:
         raise HTTPException(
             status_code=422,
             detail=(
-                f"Invalid attribute value '{value}': must be a string, integer, float, or boolean"
+                f"Invalid attribute value '{value}': must be a string, integer, float, or boolean."
+                " To match a string that looks like a number or boolean,"
+                ' JSON-quote the value: `key:"12345"`.'
             ),
         )
     return clause

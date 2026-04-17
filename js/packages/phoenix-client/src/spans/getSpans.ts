@@ -1,7 +1,7 @@
 import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import {
-  GET_SPANS_ATTRIBUTE_FILTER,
+  GET_SPANS_BY_ATTRIBUTE,
   GET_SPANS_FILTERS,
   GET_SPANS_TRACE_IDS,
 } from "../constants/serverRequirements";
@@ -11,10 +11,10 @@ import { resolveProjectIdentifier } from "../types/projects";
 import type { SpanKindFilter, SpanStatusCode } from "../types/spans";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
-export type SpanAttributeFilterValue = string | number | boolean;
-export type SpanAttributeFilters = Record<string, SpanAttributeFilterValue>;
+export type SpanAttributeValue = string | number | boolean;
+export type SpanAttributes = Record<string, SpanAttributeValue>;
 
-function serializeAttributeValue(value: SpanAttributeFilterValue): string {
+function serializeAttributeValue(value: SpanAttributeValue): string {
   if (typeof value === "boolean") {
     return JSON.stringify(value);
   }
@@ -37,7 +37,7 @@ function serializeAttributeValue(value: SpanAttributeFilterValue): string {
   }
 }
 
-function serializeAttributes(attributes: SpanAttributeFilters): string[] {
+function serializeAttributes(attributes: SpanAttributes): string[] {
   return Object.entries(attributes).map(
     ([key, value]) => `${key}:${serializeAttributeValue(value)}`
   );
@@ -67,8 +67,12 @@ export interface GetSpansParams extends ClientFn {
   spanKind?: SpanKindFilter | SpanKindFilter[] | null;
   /** Filter by status code(s) (OK, ERROR, UNSET) */
   statusCode?: SpanStatusCode | SpanStatusCode[] | null;
-  /** Filter by attribute key/value pairs with AND semantics. Serialized as repeated `attribute=key:value` query params. */
-  attributes?: SpanAttributeFilters | null;
+  /**
+   * Filter by attribute key/value pairs with AND semantics. The value's JS type
+   * selects how the stored attribute is matched: `{ "user.id": 12345 }` matches
+   * a stored integer, while `{ "user.id": "12345" }` matches a stored string.
+   */
+  attributes?: SpanAttributes | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -169,7 +173,7 @@ export async function getSpans({
   if (attributeFilters != null) {
     await ensureServerCapability({
       client,
-      requirement: GET_SPANS_ATTRIBUTE_FILTER,
+      requirement: GET_SPANS_BY_ATTRIBUTE,
     });
   }
   const projectIdentifier = resolveProjectIdentifier(project);

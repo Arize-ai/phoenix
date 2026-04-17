@@ -424,6 +424,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/projects/{project_identifier}/traces": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List traces for a project */
+    get: operations["listProjectTraces"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/trace_annotations": {
     parameters: {
       query?: never;
@@ -706,6 +723,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a tag from a prompt version
+     * @description Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.
+     */
+    delete: operations["deletePromptVersionTag"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/prompts/{prompt_identifier}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a prompt
+     * @description Delete a prompt and all its versions, tags, and labels by identifier.
+     */
+    delete: operations["deletePrompt"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects": {
     parameters: {
       query?: never;
@@ -769,6 +826,34 @@ export interface paths {
     get: operations["getSession"];
     put?: never;
     post?: never;
+    /**
+     * Delete a session by identifier
+     * @description Delete a session by its identifier. The identifier can be either:
+     *     1. A global ID (base64-encoded)
+     *     2. A user-provided session_id string
+     *
+     *     This will permanently remove the session and all associated traces, spans, and annotations via cascade delete.
+     */
+    delete: operations["deleteSession"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/sessions/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bulk delete sessions
+     * @description Delete multiple sessions by their identifiers (GlobalIDs or session_id strings). All identifiers in a single request must be the same type. Non-existent IDs are silently skipped. All associated traces, spans, and annotations are cascade deleted.
+     */
+    post: operations["deleteSessions"];
     delete?: never;
     options?: never;
     head?: never;
@@ -826,6 +911,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/user": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the authenticated user
+     * @description Returns the profile of the currently authenticated user. When authentication is disabled, returns an anonymous user representation.
+     */
+    get: operations["getViewer"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/users": {
     parameters: {
       query?: never;
@@ -865,6 +970,26 @@ export interface paths {
      * @description Delete an existing user by their unique GlobalID.
      */
     delete: operations["deleteUser"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/secrets": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Upsert or delete secrets
+     * @description Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. The `value` field is required for every entry, and omitting it returns 422. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.
+     */
+    put: operations["upsertOrDeleteSecrets"];
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -934,6 +1059,14 @@ export interface components {
        * @description Explanation of the annotation result
        */
       explanation?: string | null;
+    };
+    /** AnonymousUser */
+    AnonymousUser: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      auth_method: "ANONYMOUS";
     };
     /** CategoricalAnnotationConfig */
     CategoricalAnnotationConfig: {
@@ -1281,6 +1414,14 @@ export interface components {
         | components["schemas"]["ContinuousAnnotationConfig"]
         | components["schemas"]["FreeformAnnotationConfig"];
     };
+    /** DeleteSessionsRequestBody */
+    DeleteSessionsRequestBody: {
+      /**
+       * Session Identifiers
+       * @description List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings.
+       */
+      session_identifiers: string[];
+    };
     /** Experiment */
     Experiment: {
       /**
@@ -1530,6 +1671,13 @@ export interface components {
       /** Next Cursor */
       next_cursor: string | null;
     };
+    /** GetTracesResponseBody */
+    GetTracesResponseBody: {
+      /** Data */
+      data: components["schemas"]["TraceData"][];
+      /** Next Cursor */
+      next_cursor: string | null;
+    };
     /** GetUsersResponseBody */
     GetUsersResponseBody: {
       /** Data */
@@ -1540,6 +1688,15 @@ export interface components {
       )[];
       /** Next Cursor */
       next_cursor: string | null;
+    };
+    /** GetViewerResponseBody */
+    GetViewerResponseBody: {
+      /** Data */
+      data:
+        | components["schemas"]["LocalUser"]
+        | components["schemas"]["OAuth2User"]
+        | components["schemas"]["LDAPUser"]
+        | components["schemas"]["AnonymousUser"];
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -1765,7 +1922,9 @@ export interface components {
       | "CEREBRAS"
       | "FIREWORKS"
       | "GROQ"
-      | "MOONSHOT";
+      | "MOONSHOT"
+      | "PERPLEXITY"
+      | "TOGETHER";
     /** OAuth2User */
     OAuth2User: {
       /** Id */
@@ -2490,6 +2649,43 @@ export interface components {
         | "high"
         | "xhigh";
     };
+    /** PromptPerplexityInvocationParameters */
+    PromptPerplexityInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "perplexity";
+      perplexity: components["schemas"]["PromptPerplexityInvocationParametersContent"];
+    };
+    /** PromptPerplexityInvocationParametersContent */
+    PromptPerplexityInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?:
+        | "none"
+        | "minimal"
+        | "low"
+        | "medium"
+        | "high"
+        | "xhigh";
+    };
     /** PromptResponseFormatJSONSchema */
     PromptResponseFormatJSONSchema: {
       /**
@@ -2532,6 +2728,43 @@ export interface components {
      * @enum {string}
      */
     PromptTemplateType: "STR" | "CHAT";
+    /** PromptTogetherInvocationParameters */
+    PromptTogetherInvocationParameters: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: "together";
+      together: components["schemas"]["PromptTogetherInvocationParametersContent"];
+    };
+    /** PromptTogetherInvocationParametersContent */
+    PromptTogetherInvocationParametersContent: {
+      /** Temperature */
+      temperature?: number;
+      /** Max Tokens */
+      max_tokens?: number;
+      /** Max Completion Tokens */
+      max_completion_tokens?: number;
+      /** Frequency Penalty */
+      frequency_penalty?: number;
+      /** Presence Penalty */
+      presence_penalty?: number;
+      /** Top P */
+      top_p?: number;
+      /** Seed */
+      seed?: number;
+      /**
+       * Reasoning Effort
+       * @enum {string}
+       */
+      reasoning_effort?:
+        | "none"
+        | "minimal"
+        | "low"
+        | "medium"
+        | "high"
+        | "xhigh";
+    };
     /** PromptToolChoiceNone */
     PromptToolChoiceNone: {
       /**
@@ -2632,7 +2865,9 @@ export interface components {
         | components["schemas"]["PromptCerebrasInvocationParameters"]
         | components["schemas"]["PromptFireworksInvocationParameters"]
         | components["schemas"]["PromptGroqInvocationParameters"]
-        | components["schemas"]["PromptMoonshotInvocationParameters"];
+        | components["schemas"]["PromptMoonshotInvocationParameters"]
+        | components["schemas"]["PromptPerplexityInvocationParameters"]
+        | components["schemas"]["PromptTogetherInvocationParameters"];
       tools?: components["schemas"]["PromptTools"] | null;
       /** Response Format */
       response_format?:
@@ -2667,7 +2902,9 @@ export interface components {
         | components["schemas"]["PromptCerebrasInvocationParameters"]
         | components["schemas"]["PromptFireworksInvocationParameters"]
         | components["schemas"]["PromptGroqInvocationParameters"]
-        | components["schemas"]["PromptMoonshotInvocationParameters"];
+        | components["schemas"]["PromptMoonshotInvocationParameters"]
+        | components["schemas"]["PromptPerplexityInvocationParameters"]
+        | components["schemas"]["PromptTogetherInvocationParameters"];
       tools?: components["schemas"]["PromptTools"] | null;
       /** Response Format */
       response_format?:
@@ -2724,6 +2961,23 @@ export interface components {
         | "medium"
         | "high"
         | "xhigh";
+    };
+    /** ResponseBody[UpsertOrDeleteSecretsResult] */
+    ResponseBody_UpsertOrDeleteSecretsResult_: {
+      data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+    };
+    /**
+     * SecretKeyValue
+     * @description A single secret entry specifying a key and a required nullable value.
+     */
+    SecretKeyValue: {
+      /** Key */
+      key: string;
+      /**
+       * Value
+       * @description Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422.
+       */
+      value: string | null;
     };
     /** SessionAnnotation */
     SessionAnnotation: {
@@ -3253,6 +3507,52 @@ export interface components {
       /** Next Cursor */
       next_cursor: string | null;
     };
+    /** TraceData */
+    TraceData: {
+      /** Id */
+      id: string;
+      /** Trace Id */
+      trace_id: string;
+      /** Project Id */
+      project_id: string;
+      /**
+       * Start Time
+       * Format: date-time
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       */
+      end_time: string;
+      /** Spans */
+      spans?: components["schemas"]["TraceSpanData"][] | null;
+    };
+    /** TraceSpanData */
+    TraceSpanData: {
+      /** Id */
+      id: string;
+      /** Span Id */
+      span_id: string;
+      /** Parent Id */
+      parent_id: string | null;
+      /** Name */
+      name: string;
+      /** Span Kind */
+      span_kind: string;
+      /** Status Code */
+      status_code: string;
+      /**
+       * Start Time
+       * Format: date-time
+       */
+      start_time: string;
+      /**
+       * End Time
+       * Format: date-time
+       */
+      end_time: string;
+    };
     /** UpdateAnnotationConfigResponseBody */
     UpdateAnnotationConfigResponseBody: {
       /** Data */
@@ -3342,6 +3642,24 @@ export interface components {
        * @description The ID of the upserted experiment evaluation
        */
       id: string;
+    };
+    /**
+     * UpsertOrDeleteSecretsRequest
+     * @description Request body for the PUT /secrets endpoint.
+     */
+    UpsertOrDeleteSecretsRequest: {
+      /** Secrets */
+      secrets: components["schemas"]["SecretKeyValue"][];
+    };
+    /**
+     * UpsertOrDeleteSecretsResult
+     * @description Result payload listing which keys were upserted and which were deleted.
+     */
+    UpsertOrDeleteSecretsResult: {
+      /** Upserted Keys */
+      upserted_keys: string[];
+      /** Deleted Keys */
+      deleted_keys: string[];
     };
     /** ValidationError */
     ValidationError: {
@@ -3984,6 +4302,8 @@ export interface operations {
           "metadata_keys[]"?: string[];
           /** @description Column names for auto-assigning examples to splits */
           "split_keys[]"?: string[];
+          /** @description Column names whose object values should be flattened into their selected bucket */
+          "flatten_keys[]"?: string[];
           /** @description Column name for span IDs to link examples back to spans */
           span_id_key?: string;
           /** Format: binary */
@@ -4792,6 +5112,73 @@ export interface operations {
       };
     };
   };
+  listProjectTraces: {
+    parameters: {
+      query?: {
+        /** @description Inclusive lower bound on trace start time (ISO 8601) */
+        start_time?: string | null;
+        /** @description Exclusive upper bound on trace start time (ISO 8601) */
+        end_time?: string | null;
+        /** @description Sort field */
+        sort?: "start_time" | "latency_ms";
+        /** @description Sort direction */
+        order?: "asc" | "desc";
+        /** @description Maximum number of traces to return */
+        limit?: number;
+        /** @description Pagination cursor (Trace GlobalID) */
+        cursor?: string | null;
+        /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
+        include_spans?: boolean;
+        /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
+        session_identifier?: string[] | null;
+      };
+      header?: never;
+      path: {
+        /** @description The project identifier: either project ID or project name. */
+        project_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetTracesResponseBody"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
   annotateTraces: {
     parameters: {
       query?: {
@@ -4913,7 +5300,7 @@ export interface operations {
         name?: string[] | null;
         /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
         status_code?: string[] | null;
-        /** @description Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings ("42") are compared as strings. */
+        /** @description Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:"12345"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value). */
         attribute?: string[] | null;
       };
       header?: never;
@@ -4984,7 +5371,7 @@ export interface operations {
         span_kind?: string[] | null;
         /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
         status_code?: string[] | null;
-        /** @description Filter by attribute key:value pairs. Format: key:value (dot-separated keys, e.g. llm.model_name:gpt-4). Multiple filters are ANDed. Values may contain colons (split is on first colon only). Type-aware comparison: bare integers (42), floats (3.14), and booleans (true/false) are compared as their native types; quoted strings ("42") are compared as strings. */
+        /** @description Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:"12345"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value). */
         attribute?: string[] | null;
       };
       header?: never;
@@ -5649,6 +6036,104 @@ export interface operations {
       };
     };
   };
+  deletePromptVersionTag: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The ID of the prompt version. */
+        prompt_version_id: string;
+        /** @description The name of the tag to delete. */
+        tag_name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description No content returned on successful tag deletion */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  deletePrompt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The identifier of the prompt, i.e. name or ID. */
+        prompt_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
   getProjects: {
     parameters: {
       query?: {
@@ -5940,6 +6425,94 @@ export interface operations {
       };
     };
   };
+  deleteSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The session identifier: either a GlobalID or user-provided session_id string. */
+        session_identifier: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  deleteSessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeleteSessionsRequestBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
   listProjectSessions: {
     parameters: {
       query?: {
@@ -6105,6 +6678,44 @@ export interface operations {
       };
     };
   };
+  getViewer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The authenticated user's profile. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetViewerResponseBody"];
+        };
+      };
+      /** @description User not found. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
   getUsers: {
     parameters: {
       query?: {
@@ -6247,6 +6858,57 @@ export interface operations {
       };
       /** @description Unprocessable Entity */
       422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
+  upsertOrDeleteSecrets: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpsertOrDeleteSecretsRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ResponseBody_UpsertOrDeleteSecretsResult_"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Insufficient Storage */
+      507: {
         headers: {
           [name: string]: unknown;
         };

@@ -76,7 +76,7 @@ export const LIST_PROJECT_TRACES: RouteRequirement = {
   minServerVersion: [13, 15, 0],
 };
 
-export const GET_SPANS_ATTRIBUTE_FILTER: ParameterRequirement = {
+export const GET_SPANS_BY_ATTRIBUTE: ParameterRequirement = {
   kind: "parameter",
   parameterName: "attribute",
   parameterLocation: "query",
@@ -98,6 +98,6 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   ANNOTATE_SESSIONS,
   GET_SPANS_TRACE_IDS,
   GET_SPANS_FILTERS,
-  GET_SPANS_ATTRIBUTE_FILTER,
+  GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
 ] as const;

@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
-    GET_SPANS_ATTRIBUTE_FILTERS,
+    GET_SPANS_BY_ATTRIBUTE,
     GET_SPANS_FILTERS,
     GET_SPANS_TRACE_IDS,
 )
@@ -39,11 +39,11 @@ from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
-_AttributeFilterValue: TypeAlias = Union[str, int, float, bool]
-_AttributeFilters: TypeAlias = dict[str, _AttributeFilterValue]
+_AttributeValue: TypeAlias = Union[str, int, float, bool]
+_Attributes: TypeAlias = dict[str, _AttributeValue]
 
 
-def _serialize_attribute_value(v: _AttributeFilterValue) -> str:
+def _serialize_attribute_value(v: _AttributeValue) -> str:
     """Serialize a typed attribute value for the ``attribute=key:value`` query param.
 
     - int/float: str(v). Non-finite floats raise ValueError.
@@ -73,7 +73,7 @@ def _serialize_attribute_value(v: _AttributeFilterValue) -> str:
     return v
 
 
-def _serialize_attribute_filters(attributes: _AttributeFilters) -> list[str]:
+def _serialize_attributes(attributes: _Attributes) -> list[str]:
     return [f"{k}:{_serialize_attribute_value(v)}" for k, v in attributes.items()]
 
 
@@ -484,7 +484,7 @@ class Spans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
-        attributes: Optional[_AttributeFilters] = None,
+        attributes: Optional[_Attributes] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -508,11 +508,12 @@ class Spans:
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
             attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
-                dictionary of attribute key-value pairs to filter by (AND semantics).
-                Serialized as
-                repeated ``attribute=key:value`` query params. Type-aware: int/float use
-                str(v), bool uses json.dumps(v), str values that parse as non-string JSON
-                or are empty are quoted to force string comparison.
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
@@ -530,7 +531,7 @@ class Spans:
         if name or span_kind or status_code:
             self._guard.require(GET_SPANS_FILTERS)
         if attributes:
-            self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
+            self._guard.require(GET_SPANS_BY_ATTRIBUTE)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -560,7 +561,7 @@ class Spans:
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
             if attributes:
-                params["attribute"] = _serialize_attribute_filters(attributes)
+                params["attribute"] = _serialize_attributes(attributes)
             if cursor:
                 params["cursor"] = cursor
 
@@ -1760,7 +1761,7 @@ class AsyncSpans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
-        attributes: Optional[_AttributeFilters] = None,
+        attributes: Optional[_Attributes] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1784,11 +1785,12 @@ class AsyncSpans:
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
             attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
-                dictionary of attribute key-value pairs to filter by (AND semantics).
-                Serialized as
-                repeated ``attribute=key:value`` query params. Type-aware: int/float use
-                str(v), bool uses json.dumps(v), str values that parse as non-string JSON
-                or are empty are quoted to force string comparison.
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
                 Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
@@ -1806,7 +1808,7 @@ class AsyncSpans:
         if name or span_kind or status_code:
             await self._guard.require(GET_SPANS_FILTERS)
         if attributes:
-            await self._guard.require(GET_SPANS_ATTRIBUTE_FILTERS)
+            await self._guard.require(GET_SPANS_BY_ATTRIBUTE)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1836,7 +1838,7 @@ class AsyncSpans:
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
             if attributes:
-                params["attribute"] = _serialize_attribute_filters(attributes)
+                params["attribute"] = _serialize_attributes(attributes)
             if cursor:
                 params["cursor"] = cursor
 

@@ -1876,6 +1876,66 @@ async def test_attribute_bool_vs_bool_string_dispatch_pinned_per_dialect(
         assert quoted_names.issubset(bare_names)
 
 
+@pytest.fixture
+async def project_with_float_temperature_span(db: DbSessionFactory) -> None:
+    """Insert one span with `{llm: {temperature: 1.0}}` for int-vs-float storage matching."""
+    async with db() as session:
+        project = models.Project(name="float-temp-test")
+        session.add(project)
+        await session.flush()
+
+        base_time = datetime.fromisoformat("2021-03-01T00:00:00+00:00")
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="tracefloattemp00",
+            start_time=base_time,
+            end_time=base_time + timedelta(minutes=10),
+        )
+        session.add(trace)
+        await session.flush()
+
+        session.add(
+            models.Span(
+                trace_rowid=trace.id,
+                span_id="floattemp0000",
+                parent_id=None,
+                name="span-temp-float",
+                span_kind="LLM",
+                start_time=base_time,
+                end_time=base_time + timedelta(seconds=30),
+                attributes={"llm": {"temperature": 1.0}},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+        )
+        await session.flush()
+
+
+async def test_attribute_bare_int_matches_stored_float_whole_number(
+    httpx_client: httpx.AsyncClient,
+    project_with_float_temperature_span: None,
+    dialect: str,
+) -> None:
+    """Bare `llm.temperature:1` matches a stored float `1.0` on both dialects.
+
+    The int branch of `_parse_attribute` casts the column to TEXT and compares
+    against both `'1'` and `'1.0'` so that an int-typed query value matches
+    whole-number float storage (a common case for `llm.temperature`).
+    """
+    resp = await httpx_client.get(
+        "v1/projects/float-temp-test/spans",
+        params={"attribute": "llm.temperature:1"},
+    )
+    assert resp.is_success
+    spans = [Span.model_validate(s) for s in resp.json()["data"]]
+    assert len(spans) == 1
+    assert spans[0].name == "span-temp-float"
+
+
 # ---------------------------------------------------------------------------
 # Silent-behavior documentation tests (plan D3)
 # ---------------------------------------------------------------------------

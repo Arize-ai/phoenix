@@ -293,7 +293,7 @@ class TestAsyncGetSpansFilters:
     @pytest.mark.anyio
     async def test_attribute_filter_wired_through_async_client(self) -> None:
         """Async client routes the `attributes` kwarg through the shared
-        `_serialize_attribute_filters` helper — serialization cases live in
+        `_serialize_attributes` helper — serialization cases live in
         the sync suite; this test just pins async wiring."""
         transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4"]})
         client = httpx.AsyncClient(transport=transport, base_url="http://test")
@@ -302,3 +302,40 @@ class TestAsyncGetSpansFilters:
             attributes={"llm.model": "gpt-4"},
         )
         assert len(spans) == 1
+
+
+class _GuardSentinel(Exception):
+    """Distinctive exception to pin the guard call-site for `attributes`."""
+
+
+def test_get_spans_with_attributes_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_BY_ATTRIBUTE
+
+    class _Guard:
+        def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_BY_ATTRIBUTE:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.Client(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        Spans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", attributes={"k": "v"}
+        )
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_with_attributes_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_BY_ATTRIBUTE
+
+    class _Guard:
+        async def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_BY_ATTRIBUTE:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.AsyncClient(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", attributes={"k": "v"}
+        )
