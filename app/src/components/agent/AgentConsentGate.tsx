@@ -59,7 +59,9 @@ export function AgentConsentGate() {
         </Text>
       </div>
       <ul css={consentListCSS}>
-        <li>Review how PXI trace data is saved and shared before you continue.</li>
+        <li>
+          Review how PXI trace data is saved and shared before you continue.
+        </li>
         <li>You can change these settings later from Agent Settings.</li>
       </ul>
       <div css={consentSectionCSS}>

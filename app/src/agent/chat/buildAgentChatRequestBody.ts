@@ -102,8 +102,7 @@ export function buildAgentChatRequestBody({
     tools: agentToolDefinitions,
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
-    exportRemoteTraces:
-      observability.exportRemoteTraces && hasRemoteCollector,
+    exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     ...(sessionId ? { sessionId } : {}),
   };
 }

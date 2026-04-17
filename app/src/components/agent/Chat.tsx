@@ -23,8 +23,8 @@ import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentConsentGate } from "./AgentConsentGate";
+import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { PxiGlyph } from "./PxiGlyph";
