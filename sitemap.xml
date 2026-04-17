@@ -961,6 +961,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/restate</loc>
+    <lastmod>2026-04-17T18:51:49+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/python/restate/restate-tracing</loc>
+    <lastmod>2026-04-17T18:51:49+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/strands-agents</loc>
     <lastmod>2026-04-02T15:57:00+00:00</lastmod>
   </url>
@@ -1669,8 +1677,16 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands</loc>
+    <lastmod>2026-04-17T18:51:49+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0</loc>
     <lastmod>2026-04-13T18:22:08+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects</loc>
+    <lastmod>2026-04-17T18:51:49+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica</loc>
