@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatProjectsOutput } from "../src/commands/formatProjects";
+import { formatSpansOutput } from "../src/commands/formatSpans";
 import {
   formatTraceOutput,
   formatTracesOutput,
@@ -129,6 +130,36 @@ const mockTraceWithAnnotations: Trace = {
   ],
 };
 
+const mockTraceWithSpanNotes: Trace = {
+  traceId: "noted123",
+  spans: [
+    {
+      ...mockSpan1,
+      context: {
+        ...mockSpan1.context,
+        trace_id: "noted123",
+      },
+      notes: [
+        {
+          id: "span-note-1",
+          created_at: "2026-01-13T10:00:01.000Z",
+          updated_at: "2026-01-13T10:00:01.000Z",
+          source: "API",
+          user_id: null,
+          name: "note",
+          annotator_kind: "HUMAN",
+          identifier: "px-span-note:1",
+          metadata: null,
+          span_id: "span1",
+          result: {
+            explanation: "Span note content",
+          },
+        },
+      ],
+    } as unknown as MockSpan,
+  ],
+};
+
 describe("Output Formatting", () => {
   describe("trace output - raw", () => {
     it("should format as compact JSON", () => {
@@ -216,6 +247,16 @@ describe("Output Formatting", () => {
       );
     });
 
+    it("should render span notes when present", () => {
+      const output = formatTraceOutput({
+        trace: mockTraceWithSpanNotes,
+        format: "pretty",
+      });
+
+      expect(output).toContain("notes:");
+      expect(output).toContain("- Span note content");
+    });
+
     it("should format array of traces", () => {
       const output = formatTracesOutput({
         traces: [mockTraceReflection, mockTraceWithError],
@@ -268,6 +309,18 @@ describe("Output Formatting", () => {
       expect(output).toContain("SESSIONS-DEMO");
       expect(output).toContain("UHJvamVjdDo1");
       expect(output).not.toContain("{");
+    });
+  });
+
+  describe("span output - pretty", () => {
+    it("should include a notes column when notes are present", () => {
+      const output = formatSpansOutput({
+        spans: mockTraceWithSpanNotes.spans,
+        format: "pretty",
+      });
+
+      expect(output).toContain("notes");
+      expect(output).toContain("Span note content");
     });
   });
 });

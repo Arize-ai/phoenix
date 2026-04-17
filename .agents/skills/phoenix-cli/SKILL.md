@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 # Phoenix CLI
@@ -25,6 +25,7 @@ px trace get <trace-id>
 px trace annotate <trace-id>
 px span list
 px span annotate <span-id>
+px span add-note <span-id>
 px dataset list
 px dataset get <name>
 px project list
@@ -63,8 +64,10 @@ px trace list --limit 20 --format raw --no-progress | jq .
 px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress | jq .
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
+px trace list --include-notes --format raw --no-progress | jq '.[].spans[].notes'
 px trace get <trace-id> --format raw | jq .
 px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace get <trace-id> --include-notes --format raw | jq '.spans[].notes'
 px trace annotate <trace-id> --name reviewer --label pass
 px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
 ```
@@ -74,10 +77,14 @@ px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progr
 ```
 Trace
   traceId, status ("OK"|"ERROR"), duration (ms), startTime, endTime
+  annotations[] (with --include-annotations, excludes note)
+    name, result { score, label, explanation }
   rootSpan  — top-level span (parent_id: null)
   spans[]
     name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"UNKNOWN")
     status_code ("OK"|"ERROR"|"UNSET"), parent_id, context.span_id
+    notes[] (with --include-notes)
+      name="note", result { explanation }
     attributes
       input.value, output.value          — raw input/output
       llm.model_name, llm.provider
@@ -103,10 +110,12 @@ px span list --trace-id <id> --format raw --no-progress | jq .   # all spans for
 px span list --parent-id null --limit 10                   # only root spans
 px span list --parent-id <span-id> --limit 10              # only children of a span
 px span list --include-annotations --limit 10              # include annotation scores
+px span list --include-notes --limit 10                    # include span notes
 px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
 px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
+px span add-note <span-id> --text "verified by agent"
 ```
 
 ### Span JSON shape
@@ -125,8 +134,10 @@ Span
     llm.output_messages.{N}.message.role/content
     llm.invocation_parameters          — JSON string (temperature, etc.)
     exception.message                  — set if span errored
-  annotations[] (with --include-annotations)
+  annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
+  notes[] (with --include-notes)
+    name="note", result { explanation }
 ```
 
 ## Sessions

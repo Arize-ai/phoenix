@@ -33,6 +33,7 @@ import {
   formatTracesOutput,
   type OutputFormat as TraceOutputFormat,
 } from "./formatTraces";
+import { NOTE_ANNOTATION_NAME } from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 import {
   fetchTraceAnnotations,
@@ -85,6 +86,29 @@ function attachTraceAnnotationsToTraces(
   }
 }
 
+function attachSpanNotesToSpans(
+  spans: SpanWithAnnotations[],
+  notes: SpanAnnotation[]
+): void {
+  const notesBySpanId = new Map<string, SpanAnnotation[]>();
+  for (const note of notes) {
+    const spanId = note.span_id;
+    if (!notesBySpanId.has(spanId)) {
+      notesBySpanId.set(spanId, []);
+    }
+    notesBySpanId.get(spanId)!.push(note);
+  }
+
+  for (const span of spans) {
+    const spanId = span.context?.span_id;
+    if (!spanId) continue;
+    const spanNotes = notesBySpanId.get(spanId);
+    if (spanNotes) {
+      span.notes = spanNotes;
+    }
+  }
+}
+
 function getResolvedTraceId(spans: Span[]): string | undefined {
   return spans[0]?.context?.trace_id;
 }
@@ -97,6 +121,7 @@ interface TraceGetOptions {
   progress?: boolean;
   file?: string;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface TraceListOptions {
@@ -110,6 +135,7 @@ interface TraceListOptions {
   since?: string;
   maxConcurrent?: number;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface TraceAnnotateOptions {
@@ -411,6 +437,7 @@ async function traceGetHandler(
         client,
         projectIdentifier: projectId,
         traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
       });
 
       const spanIds = traceSpans
@@ -420,8 +447,26 @@ async function traceGetHandler(
         client,
         projectIdentifier: projectId,
         spanIds,
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
       });
       attachSpanAnnotationsToSpans(traceSpans, spanAnnotations);
+    }
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching span notes...",
+        noProgress: !options.progress,
+      });
+
+      const spanIds = traceSpans
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+      const spanNotes = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+      attachSpanNotesToSpans(traceSpans, spanNotes);
     }
 
     // Build trace
@@ -541,6 +586,7 @@ async function traceListHandler(
         client,
         projectIdentifier: projectId,
         traceIds: traces.map((trace) => trace.traceId),
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
         maxConcurrent: options.maxConcurrent,
       });
       attachTraceAnnotationsToTraces(traces, traceAnnotations);
@@ -554,10 +600,33 @@ async function traceListHandler(
         client,
         projectIdentifier: projectId,
         spanIds,
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
         maxConcurrent: options.maxConcurrent,
       });
       for (const trace of traces) {
         attachSpanAnnotationsToSpans(trace.spans, spanAnnotations);
+      }
+    }
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching span notes...",
+        noProgress: !options.progress,
+      });
+
+      const spanIds = traces
+        .flatMap((trace) => trace.spans)
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+
+      const spanNotes = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+        maxConcurrent: options.maxConcurrent,
+      });
+      for (const trace of traces) {
+        attachSpanNotesToSpans(trace.spans, spanNotes);
       }
     }
 
@@ -612,6 +681,7 @@ export function createTraceGetCommand(): Command {
       "--include-annotations",
       "Include trace and span annotations in the trace export"
     )
+    .option("--include-notes", "Include span notes in the trace export")
     .action(traceGetHandler);
 }
 
@@ -650,6 +720,7 @@ export function createTraceListCommand(): Command {
       "--include-annotations",
       "Include trace and span annotations in the trace export"
     )
+    .option("--include-notes", "Include span notes in the trace export")
     .action(traceListHandler);
 }
 

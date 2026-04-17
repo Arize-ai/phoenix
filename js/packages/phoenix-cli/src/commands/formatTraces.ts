@@ -210,6 +210,7 @@ function renderSpanNode(
 
   const nextAncestors = [...opts.ancestors, opts.isLast];
   renderSpanAnnotations(lines, span, nextAncestors);
+  renderSpanNotes(lines, span, nextAncestors);
   for (let i = 0; i < children.length; i++) {
     renderSpanNode(lines, children[i]!, {
       ancestors: nextAncestors,
@@ -251,6 +252,28 @@ function renderSpanAnnotations(
       ...formatAnnotationResultParts(annotation.result),
     ];
     lines.push(`${detailPrefix}- ${parts.join(" ")}`);
+  }
+}
+
+function renderSpanNotes(
+  lines: string[],
+  span: Span,
+  ancestors: boolean[]
+): void {
+  const notes = span.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  const detailPrefix =
+    "│  " +
+    ancestors
+      .map((ancestorIsLast) => (ancestorIsLast ? "   " : "│  "))
+      .join("");
+
+  lines.push(`${detailPrefix}notes:`);
+  for (const note of notes) {
+    lines.push(`${detailPrefix}- ${formatNoteText(note.result?.explanation)}`);
   }
 }
 
@@ -315,4 +338,17 @@ function truncateValue(value: string): string {
     return value;
   }
   return value.slice(0, VALUE_PREVIEW_MAX_CHARS) + "…";
+}
+
+function formatNoteText(text: string | null | undefined): string {
+  if (!text) {
+    return "(empty)";
+  }
+
+  const normalizedText = text.replace(/\s+/g, " ").trim();
+  if (!normalizedText) {
+    return "(empty)";
+  }
+
+  return truncateValue(normalizedText);
 }

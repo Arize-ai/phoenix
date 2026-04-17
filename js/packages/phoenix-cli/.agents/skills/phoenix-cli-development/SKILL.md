@@ -10,7 +10,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "2.0.0"
+  version: "2.1.0"
   internal: true
 ---
 
@@ -303,7 +303,9 @@ px project --endpoint http://my-server:6006 list
 10. Run `pnpm test` — fix any failures before proceeding
 11. Run `pnpm build` — fix any type errors before proceeding
 12. Update `README.md` with usage examples showing both human and agent-friendly invocations
-13. If the command prompts for input or confirmation, support `--no-input` (see `InteractiveCommandOptions`)
-14. Add at least one example to `--help` via `.addHelpText('after', ...)`
-15. Mutating commands return the affected resource on stdout (not just a success message)
-16. Run manually with `--format raw` and `--no-input` to verify agents get clean, parseable output
+13. Update the external Phoenix CLI skill at `.agents/skills/phoenix-cli/SKILL.md` when commands, flags, examples, or output shapes change
+14. Keep skill updates concise: document the new capability with the smallest useful examples and output-shape notes rather than repeating the full README
+15. If the command prompts for input or confirmation, support `--no-input` (see `InteractiveCommandOptions`)
+16. Add at least one example to `--help` via `.addHelpText('after', ...)`
+17. Mutating commands return the affected resource on stdout (not just a success message)
+18. Run manually with `--format raw` and `--no-input` to verify agents get clean, parseable output

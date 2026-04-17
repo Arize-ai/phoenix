@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -23,9 +24,18 @@ import {
   type OutputFormat as AnnotationMutationOutputFormat,
 } from "./formatAnnotationMutation";
 import {
+  formatNoteMutationOutput,
+  type OutputFormat as NoteMutationOutputFormat,
+} from "./formatNoteMutation";
+import {
   formatSpansOutput,
   type OutputFormat as SpanOutputFormat,
 } from "./formatSpans";
+import {
+  buildNoteMutationResult,
+  NOTE_ANNOTATION_NAME,
+  normalizeNoteText,
+} from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 
 type Span = componentsV1["schemas"]["Span"];
@@ -45,6 +55,7 @@ interface SpanListOptions {
   traceId?: string[];
   parentId?: string;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface SpanAnnotateOptions {
@@ -57,6 +68,14 @@ interface SpanAnnotateOptions {
   score?: string;
   explanation?: string;
   annotatorKind?: string;
+}
+
+interface SpanAddNoteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: NoteMutationOutputFormat;
+  progress?: boolean;
+  text?: string;
 }
 
 /**
@@ -228,6 +247,7 @@ async function spanListHandler(
         client,
         projectIdentifier: projectId,
         spanIds,
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
       });
 
       const annotationsBySpanId = new Map<string, SpanAnnotation[]>();
@@ -245,6 +265,41 @@ async function spanListHandler(
         const spanAnnotations = annotationsBySpanId.get(spanId);
         if (spanAnnotations) {
           span.annotations = spanAnnotations;
+        }
+      }
+    }
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching span notes...",
+        noProgress: !options.progress,
+      });
+
+      const spanIds = spans
+        .map((span) => span.context?.span_id)
+        .filter((spanId): spanId is string => Boolean(spanId));
+
+      const notes = await fetchSpanAnnotations({
+        client,
+        projectIdentifier: projectId,
+        spanIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+
+      const notesBySpanId = new Map<string, SpanAnnotation[]>();
+      for (const note of notes) {
+        const spanId = note.span_id;
+        if (!notesBySpanId.has(spanId)) {
+          notesBySpanId.set(spanId, []);
+        }
+        notesBySpanId.get(spanId)!.push(note);
+      }
+
+      for (const span of spans) {
+        const spanId = span.context?.span_id;
+        if (!spanId) continue;
+        const spanNotes = notesBySpanId.get(spanId);
+        if (spanNotes) {
+          span.notes = spanNotes;
         }
       }
     }
@@ -319,6 +374,7 @@ export function createSpanListCommand(): Command {
       'Filter by parent span ID (use "null" for root spans only)'
     )
     .option("--include-annotations", "Include span annotations in the output")
+    .option("--include-notes", "Include span notes in the output")
     .action(spanListHandler);
 }
 
@@ -432,6 +488,82 @@ export function createSpanAnnotateCommand(): Command {
     .action(spanAnnotateHandler);
 }
 
+async function spanAddNoteHandler(
+  spanId: string,
+  options: SpanAddNoteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const noteText = normalizeNoteText({
+      targetType: "span",
+      text: options.text,
+    });
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Adding note to span ${spanId}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await addSpanNote({
+      client,
+      spanNote: {
+        spanId,
+        note: noteText,
+      },
+    });
+
+    const note = buildNoteMutationResult({
+      id: result.id,
+      targetType: "span",
+      targetId: spanId,
+      text: noteText,
+    });
+
+    writeOutput({
+      message: formatNoteMutationOutput({
+        note,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error adding span note: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSpanAddNoteCommand(): Command {
+  return new Command("add-note")
+    .description("Add a note to a span by OpenTelemetry span ID")
+    .argument("<span-id>", "OpenTelemetry span ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--text <text>", "Note text")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .action(spanAddNoteHandler);
+}
+
 interface SpanDeleteOptions {
   endpoint?: string;
   apiKey?: string;
@@ -519,6 +651,7 @@ export function createSpanCommand(): Command {
   command.description("Manage Phoenix spans");
   command.addCommand(createSpanListCommand());
   command.addCommand(createSpanAnnotateCommand());
+  command.addCommand(createSpanAddNoteCommand());
   command.addCommand(createSpanDeleteCommand());
   return command;
 }

@@ -29,6 +29,7 @@ function formatSpansPretty(spans: SpanWithAnnotations[]): string {
   const hasAnnotations = spans.some(
     (s) => s.annotations && s.annotations.length > 0
   );
+  const hasNotes = spans.some((s) => s.notes && s.notes.length > 0);
 
   const rows = spans.map((span) => {
     const statusCode = span.status_code || "UNSET";
@@ -45,6 +46,9 @@ function formatSpansPretty(spans: SpanWithAnnotations[]): string {
 
     if (hasAnnotations) {
       row.annotations = formatAnnotations(span.annotations);
+    }
+    if (hasNotes) {
+      row.notes = formatNotes(span.notes);
     }
 
     return row;
@@ -83,4 +87,12 @@ function formatAnnotations(annotations: SpanAnnotation[] | undefined): string {
       return pieces.join("");
     })
     .join(", ");
+}
+
+function formatNotes(notes: SpanAnnotation[] | undefined): string {
+  if (!notes || notes.length === 0) return "";
+  return notes
+    .map((note) => note.result?.explanation?.replace(/\s+/g, " ").trim() || "")
+    .filter((noteText) => noteText.length > 0)
+    .join(" | ");
 }

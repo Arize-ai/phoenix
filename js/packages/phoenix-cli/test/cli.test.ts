@@ -74,6 +74,9 @@ describe("Phoenix CLI", () => {
     expect(spanCommand?.commands.map((command) => command.name())).toContain(
       "annotate"
     );
+    expect(spanCommand?.commands.map((command) => command.name())).toContain(
+      "add-note"
+    );
     expect(
       program.commands.find((command) => command.name() === "spans")
     ).toBeUndefined();
