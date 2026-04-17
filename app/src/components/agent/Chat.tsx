@@ -44,14 +44,14 @@ const DEFAULT_EMPTY_STATE_QUICK_ACTIONS: EmptyStateQuickAction[] = [
     prompt: "How do I use Phoenix?",
   },
   {
-    icon: <Icons.SearchOutline />,
+    icon: <Icons.BookOutline />,
     label: "Explain a concept",
     prompt: "Explain a Phoenix concept to me.",
   },
   {
-    icon: <Icons.MessageSquareOutline />,
-    label: "Help me debug",
-    prompt: "Help me debug an issue in my LLM application.",
+    icon: <Icons.Trace />,
+    label: "Find critical issues",
+    prompt: "Find critical issues in my traces.",
   },
 ];
 
