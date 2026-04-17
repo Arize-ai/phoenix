@@ -13,6 +13,13 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
 import type { SizeValue } from "@phoenix/types/sizing";
 
+import {
+  DRAWER_DEFAULT_SIZE,
+  DRAWER_HARD_MIN_SIZE_PX,
+  DRAWER_MAX_SIZE,
+  DRAWER_MIN_SIZE,
+} from "./constants";
+
 /**
  * Resolve a {@link SizeValue} to pixels using the current viewport width.
  */
@@ -21,14 +28,6 @@ function resolveToPixels(value: SizeValue): number {
   return (parseFloat(value) / 100) * window.innerWidth;
 }
 
-const DEFAULT_SIZE: SizeValue = "35%";
-const DEFAULT_MIN_SIZE: SizeValue = "35%";
-// Always leave 5% of the viewport visible so users can interact with content
-// behind the drawer.
-const DEFAULT_MAX_SIZE: SizeValue = "95%";
-// Absolute pixel floor — the drawer never shrinks below this regardless of
-// what the percentage resolves to on a small viewport.
-const HARD_MIN_SIZE_PX = 320;
 const RESIZE_HANDLE_WIDTH_PX = 4;
 const KEYBOARD_RESIZE_STEP_PERCENT = 5;
 
@@ -157,12 +156,12 @@ export function Drawer({
   children,
 }: DrawerProps) {
   const drawerId = useId();
-  const resolvedMinSize = minSize ?? DEFAULT_MIN_SIZE;
-  const resolvedMaxSize = maxSize ?? DEFAULT_MAX_SIZE;
+  const resolvedMinSize = minSize ?? DRAWER_MIN_SIZE;
+  const resolvedMaxSize = maxSize ?? DRAWER_MAX_SIZE;
 
   /** Resolve min to pixels, enforcing the hard pixel floor. */
   const resolveMin = () =>
-    Math.max(resolveToPixels(resolvedMinSize), HARD_MIN_SIZE_PX);
+    Math.max(resolveToPixels(resolvedMinSize), DRAWER_HARD_MIN_SIZE_PX);
 
   /** Resolve max to pixels, capped by the viewport width so the drawer
    *  can never exceed it regardless of what `maxSize` resolves to. */
@@ -180,7 +179,7 @@ export function Drawer({
   };
 
   const [sizePercent, setSizePercent] = useState<number>(() => {
-    const initialPx = resolveToPixels(defaultSize ?? DEFAULT_SIZE);
+    const initialPx = resolveToPixels(defaultSize ?? DRAWER_DEFAULT_SIZE);
     return clampPercent((initialPx / window.innerWidth) * 100);
   });
   const [isDragging, setIsDragging] = useState(false);
