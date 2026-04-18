@@ -615,7 +615,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         formData.append("example_id_key", data.example_id_key);
       }
 
-      return authFetch(prependBasename("/v1/datasets/upload?sync=true"), {
+      const uploadUrl =
+        mode === "create"
+          ? "/v1/datasets/upload?sync=true&strict=true"
+          : "/v1/datasets/upload?sync=true";
+      return authFetch(prependBasename(uploadUrl), {
         method: "POST",
         body: formData,
       })

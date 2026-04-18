@@ -37,6 +37,7 @@ from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_name
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
+    DatasetNameConflictError,
     ExampleContent,
     ExampleWithHash,
     InvalidDatasetExampleIDError,
@@ -479,6 +480,13 @@ async def upload_dataset(
         default=False,
         description="If true, fulfill request synchronously and return JSON containing dataset_id.",
     ),
+    strict: bool = Query(
+        default=False,
+        description=(
+            "If true, fail with 409 when action=create and a dataset with the "
+            "given name already exists."
+        ),
+    ),
 ) -> Optional[UploadDatasetResponseBody]:
     request_content_type = request.headers.get("content-type")
     if not request_content_type:
@@ -608,6 +616,7 @@ async def upload_dataset(
             description=description,
             user_id=user_id,
             splits_provided=splits_provided,
+            strict_create=strict,
         ),
     )
     if sync:
@@ -616,6 +625,8 @@ async def upload_dataset(
                 event = await operation(session)
                 dataset_id = event.dataset_id
                 version_id = event.dataset_version_id
+        except DatasetNameConflictError as e:
+            raise HTTPException(detail=str(e), status_code=409)
         except InvalidDatasetExampleIDError as e:
             raise HTTPException(detail=str(e), status_code=422)
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))

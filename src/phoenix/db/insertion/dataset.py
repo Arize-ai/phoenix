@@ -80,6 +80,10 @@ class InvalidDatasetExampleIDError(ValueError):
     do not match any existing examples."""
 
 
+class DatasetNameConflictError(ValueError):
+    """Raised when a strict-create upload targets an already-used dataset name."""
+
+
 class RevisionKind(Enum):
     CREATE = "CREATE"
     PATCH = "PATCH"
@@ -500,6 +504,7 @@ async def add_dataset_examples(
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
+    strict_create: bool = False,
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
@@ -519,6 +524,8 @@ async def add_dataset_examples(
         except Exception:
             logger.exception(f"Failed to insert dataset: {name=}")
             raise
+    elif strict_create and action is DatasetAction.CREATE:
+        raise DatasetNameConflictError(f'A dataset named "{name}" already exists.')
 
     return await _upsert_dataset_examples(
         session=session,

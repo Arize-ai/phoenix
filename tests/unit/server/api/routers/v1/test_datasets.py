@@ -642,6 +642,39 @@ async def test_post_dataset_upload_json_reupload_reports_no_changes(
     assert second_data["num_deleted_examples"] == 0
 
 
+async def test_post_dataset_upload_strict_create_conflicts_with_existing_name(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    body = {
+        "action": "create",
+        "name": name,
+        "inputs": [{"a": 1}],
+        "outputs": [{"b": 1}],
+        "metadata": [{}],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert first_response.status_code == 200
+
+    conflict_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true&strict=true",
+        json=body,
+    )
+    assert conflict_response.status_code == 409
+    assert name in conflict_response.text
+
+    # Without strict=true, the same request still upserts into the existing dataset.
+    permissive_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert permissive_response.status_code == 200
+
+
 async def test_post_dataset_upload_csv_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

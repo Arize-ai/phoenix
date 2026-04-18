@@ -6,6 +6,7 @@ from sqlalchemy import insert, select
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
     DatasetAction,
+    DatasetNameConflictError,
     ExampleContent,
     ExampleWithHash,
     add_dataset_examples,
@@ -474,6 +475,51 @@ async def test_add_dataset_examples_returns_upsert_counts(
     assert append_event.num_created_examples == 1
     assert append_event.num_patched_examples == 0
     assert append_event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_strict_create_raises_on_name_conflict(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples([ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a")])
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="strict-create",
+        )
+
+    async with db() as session:
+        with pytest.raises(DatasetNameConflictError, match='"strict-create"'):
+            await add_dataset_examples(
+                session=session,
+                examples=examples,
+                name="strict-create",
+                action=DatasetAction.CREATE,
+                strict_create=True,
+            )
+
+    # Without strict_create, the existing upsert-on-CREATE semantics still apply.
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="strict-create",
+            action=DatasetAction.CREATE,
+        )
+    assert event.new_version_created is False
+
+    # strict_create must not block APPEND on an existing dataset.
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b")]
+            ),
+            name="strict-create",
+            action=DatasetAction.APPEND,
+            strict_create=True,
+        )
+    assert append_event.num_created_examples == 1
 
 
 async def test_add_dataset_examples_with_many_splits(
