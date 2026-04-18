@@ -27,7 +27,6 @@ from phoenix.evals.llm.adapters.litellm.adapter import LiteLLMAdapter
 from phoenix.evals.llm.adapters.openai.adapter import OpenAIAdapter
 from phoenix.evals.llm.prompts import Message, MessageRole
 
-
 # ---------------------------------------------------------------------------
 # Helpers — construct adapters without going through their client validators.
 # ---------------------------------------------------------------------------
