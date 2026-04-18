@@ -3444,6 +3444,14 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
+            /** New Version Created */
+            new_version_created: boolean;
+            /** Num Created Examples */
+            num_created_examples: number;
+            /** Num Patched Examples */
+            num_patched_examples: number;
+            /** Num Deleted Examples */
+            num_deleted_examples: number;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
@@ -4140,6 +4148,8 @@ export interface operations {
             query?: {
                 /** @description If true, fulfill request synchronously and return JSON containing dataset_id. */
                 sync?: boolean;
+                /** @description If true, fail with 409 when action=create and a dataset with the given name already exists. */
+                strict?: boolean;
             };
             header?: never;
             path?: never;
@@ -4170,8 +4180,10 @@ export interface operations {
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];
-                    /** @description Column names for auto-assigning examples to splits */
+                    /** @description Deprecated: use split_key instead. Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Single column name containing split names (plain string or JSON list) per row */
+                    split_key?: string;
                     /** @description Column names whose object values should be flattened into their selected bucket */
                     "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */

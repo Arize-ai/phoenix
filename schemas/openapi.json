@@ -1074,6 +1074,18 @@
               "title": "Sync"
             },
             "description": "If true, fulfill request synchronously and return JSON containing dataset_id."
+          },
+          {
+            "name": "strict",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, fail with 409 when action=create and a dataset with the given name already exists.",
+              "default": false,
+              "title": "Strict"
+            },
+            "description": "If true, fail with 409 when action=create and a dataset with the given name already exists."
           }
         ],
         "responses": {
@@ -11338,12 +11350,32 @@
           "version_id": {
             "type": "string",
             "title": "Version Id"
+          },
+          "new_version_created": {
+            "type": "boolean",
+            "title": "New Version Created"
+          },
+          "num_created_examples": {
+            "type": "integer",
+            "title": "Num Created Examples"
+          },
+          "num_patched_examples": {
+            "type": "integer",
+            "title": "Num Patched Examples"
+          },
+          "num_deleted_examples": {
+            "type": "integer",
+            "title": "Num Deleted Examples"
           }
         },
         "type": "object",
         "required": [
           "dataset_id",
-          "version_id"
+          "version_id",
+          "new_version_created",
+          "num_created_examples",
+          "num_patched_examples",
+          "num_deleted_examples"
         ],
         "title": "UploadDatasetData"
       },
