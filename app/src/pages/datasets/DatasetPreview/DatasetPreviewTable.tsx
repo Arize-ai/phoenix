@@ -141,10 +141,6 @@ export function DatasetPreviewTable({
       value: unknown
     ) => {
       const parts = key.split(".");
-      if (parts.length === 1) {
-        obj[key] = value;
-        return;
-      }
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
