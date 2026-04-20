@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-mcp",
-  "version": "4.0.5",
+  "version": "4.0.6",
   "description": "A MCP server for Arize Phoenix",
   "keywords": [
     "arize-phoenix",
