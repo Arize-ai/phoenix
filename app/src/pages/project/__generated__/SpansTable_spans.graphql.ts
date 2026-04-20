@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89c9739e796e912a4b5ad684ad0076cc>>
+ * @generated SignedSource<<f2fad9d116055f5b06fd1e27f4ca177b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -59,6 +59,14 @@ export type SpansTable_spans$data = {
         }>;
         readonly spanId: string;
         readonly spanKind: SpanKind;
+        readonly spanNotes: ReadonlyArray<{
+          readonly createdAt: string;
+          readonly explanation: string | null;
+          readonly id: string;
+          readonly user: {
+            readonly username: string;
+          } | null;
+        }>;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal?: number | null;
@@ -185,7 +193,14 @@ v6 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-];
+],
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -457,6 +472,44 @@ return {
                   "args": null,
                   "concreteType": "SpanAnnotation",
                   "kind": "LinkedField",
+                  "name": "spanNotes",
+                  "plural": true,
+                  "selections": [
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "explanation",
+                      "storageKey": null
+                    },
+                    (v7/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "User",
+                      "kind": "LinkedField",
+                      "name": "user",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "username",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanAnnotation",
+                  "kind": "LinkedField",
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
@@ -477,13 +530,7 @@ return {
                       "name": "annotatorKind",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "createdAt",
-                      "storageKey": null
-                    }
+                    (v7/*: any*/)
                   ],
                   "storageKey": null
                 },
@@ -607,6 +654,6 @@ return {
 };
 })();
 
-(node as any).hash = "01c3943d46350c5362b1c7d07cfb63bc";
+(node as any).hash = "b7a9f5bc218bfcd661f2b1e85b801502";
 
 export default node;

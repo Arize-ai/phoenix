@@ -78,6 +78,7 @@ import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
 import { spansTableCSS } from "./styles";
@@ -261,6 +262,14 @@ export function SpansTable(props: SpansTableProps) {
                 }
                 output {
                   value: truncatedValue
+                }
+                spanNotes {
+                  id
+                  explanation
+                  createdAt
+                  user {
+                    username
+                  }
                 }
                 spanAnnotations {
                   id
@@ -609,6 +618,18 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "output.value",
       cell: TextCell,
       enableSorting: false,
+    },
+    {
+      header: "notes",
+      accessorKey: "spanNotes",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const notes = getValue();
+        if (!Array.isArray(notes)) {
+          return <>{"--"}</>;
+        }
+        return <SpanNotesTableCell notes={notes} />;
+      },
     },
     {
       header: "metadata",
