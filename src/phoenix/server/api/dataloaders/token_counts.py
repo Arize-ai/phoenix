@@ -111,6 +111,11 @@ def _get_stmt(
             total.label("total"),
         )
         .join_from(models.Trace, models.Span)
+        # Aggregate only leaf LLM spans.  Frameworks like smolagents
+        # propagate token counts up through wrapping agent/tool spans,
+        # so summing every span multi-counts the same tokens (e.g. the
+        # dashboard reported 3x the detailed-trace total in #12768).
+        .where(func.upper(models.Span.span_kind) == "LLM")
         .group_by(pid)
     )
     if start_time:
