@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
@@ -704,7 +705,11 @@ async def stream_text(
                 )
             finally:
                 try:
-                    tracer.shutdown()
+                    # BatchSpanProcessor.shutdown() blocks on _worker_thread.join()
+                    # for up to the SDK default of 30 seconds.  Running it inline
+                    # in this async generator's finally stalls the whole uvicorn
+                    # worker event loop when the span exporter is slow.
+                    await asyncio.to_thread(tracer.shutdown)
                 except Exception:
                     logger.debug("Failed to shut down tracer", exc_info=True)
 
