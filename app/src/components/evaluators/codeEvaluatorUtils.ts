@@ -70,17 +70,12 @@ function extractTypeScriptVariables(sourceCode: string) {
       .map((part) => part.trim())
       .filter(Boolean)
       .map((part) => part.split(":")[0]?.trim() ?? "")
+      .map((part) => part.split("=")[0]?.trim() ?? "")
+      .map((part) => part.replace(/\?$/, "").trim())
       .filter(Boolean)
       .filter(unique);
   }
-  const firstParam = params.split(",")[0]?.trim() ?? "";
-  const paramName = firstParam.split(":")[0]?.trim() ?? "";
-  if (!paramName) {
-    return [];
-  }
-  const accessPattern = new RegExp(`${paramName}\\.([a-zA-Z_$][\\w$]*)`, "g");
-  const matches = sourceCode.matchAll(accessPattern);
-  return Array.from(matches, (match) => match[1]).filter(unique);
+  return [];
 }
 
 function unique(value: string, index: number, values: string[]) {

@@ -3,21 +3,7 @@ import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  LinkButton,
-  Text,
-} from "@phoenix/components";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
+import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
 import type { CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
@@ -198,7 +184,7 @@ const CreateCodeEvaluatorDialog = ({
     payload: {
       language: "PYTHON" | "TYPESCRIPT";
       sourceCode: string;
-      sandboxConfigId: string | null;
+      sandboxConfigId?: string | null;
     }
   ) => {
     setError(undefined);
@@ -264,44 +250,6 @@ const CreateCodeEvaluatorDialog = ({
       },
     });
   };
-
-  // Show empty state if no sandbox configs are available
-  if (sandboxConfigs.length === 0) {
-    return (
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Evaluator</DialogTitle>
-          <DialogTitleExtra>
-            <Button slot="close">Cancel</Button>
-          </DialogTitleExtra>
-        </DialogHeader>
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          flex="1"
-          gap="size-200"
-        >
-          <Icon svg={<Icons.CubeOutline />} />
-          <Flex direction="column" alignItems="center" gap="size-100">
-            <Text weight="heavy" size="L">
-              No Sandbox Available
-            </Text>
-            <Text color="text-700">
-              Code evaluators require a sandbox environment to run safely.
-            </Text>
-            <Text color="text-700">
-              Configure a sandbox provider in Settings to get started.
-            </Text>
-          </Flex>
-          <LinkButton to="/settings/sandboxes" variant="primary">
-            Configure Sandbox
-            <Icon svg={<Icons.ArrowIosForwardOutline />} />
-          </LinkButton>
-        </Flex>
-      </DialogContent>
-    );
-  }
 
   return (
     <EvaluatorStoreProvider initialState={initialState}>

@@ -297,7 +297,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     payload: {
       language: "PYTHON" | "TYPESCRIPT";
       sourceCode: string;
-      sandboxConfigId: string | null;
+      sandboxConfigId?: string | null;
     }
   ) => {
     setError(undefined);

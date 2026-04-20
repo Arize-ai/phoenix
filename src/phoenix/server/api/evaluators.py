@@ -2425,7 +2425,6 @@ def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], l
         return ([], [])
 
     parameter_names: list[str] = []
-    required_names: list[str] = []
     for raw_part in destructured.group(1).split(","):
         part = raw_part.strip()
         if not part:
@@ -2433,14 +2432,11 @@ def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], l
         part = part.split(":", 1)[0].strip()
         if not part:
             continue
-        is_optional = "=" in part or part.endswith("?")
         name = part.split("=", 1)[0].rstrip("?").strip()
         if not name:
             continue
         parameter_names.append(name)
-        if not is_optional:
-            required_names.append(name)
-    return (parameter_names, required_names)
+    return (parameter_names, [])
 
 
 def _infer_typescript_evaluate_input_schema(

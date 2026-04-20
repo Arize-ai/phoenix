@@ -48,6 +48,7 @@ import {
   DEFAULT_CODE_EVALUATOR_SOURCE,
   extractCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
@@ -96,7 +97,7 @@ export const EditCodeEvaluatorDialogContent = ({
   onSubmit: (payload: {
     language: CodeEvaluatorLanguage;
     sourceCode: string;
-    sandboxConfigId: string | null;
+    sandboxConfigId?: string | null;
   }) => void;
   /**
    * Called when the user clicks Cancel. Parent overlays can use this to
@@ -215,6 +216,12 @@ export const EditCodeEvaluatorDialogContent = ({
   )
     ? sandboxConfigId
     : null;
+  const hasUnavailableSandboxSelection =
+    sandboxConfigId != null && selectedSandboxConfigId == null;
+  const unavailableSandboxSelectionMessage = hasUnavailableSandboxSelection
+    ? "The previously selected sandbox is no longer available. Save to keep the existing sandbox, or choose a new one to update it."
+    : undefined;
+  const hasNoSandboxConfigs = sandboxConfigs.length === 0;
 
   const handleSubmit = async () => {
     const isValid = await store.getState().validateAll();
@@ -229,10 +236,18 @@ export const EditCodeEvaluatorDialogContent = ({
     }
     setShowValidationError(false);
     setLocalValidationError(undefined);
+    const hasSandboxChanged =
+      sandboxConfigId !== (initialSandboxConfigId ?? null);
+    const nextSandboxConfigId =
+      selectedSandboxConfigId != null
+        ? selectedSandboxConfigId
+        : mode === "create" || hasSandboxChanged
+          ? null
+          : undefined;
     onSubmit({
       language,
       sourceCode,
-      sandboxConfigId: selectedSandboxConfigId,
+      sandboxConfigId: nextSandboxConfigId,
     });
   };
 
@@ -288,6 +303,12 @@ export const EditCodeEvaluatorDialogContent = ({
             {error}
           </Alert>
         )}
+        {hasNoSandboxConfigs ? (
+          <Alert variant="warning" title="No sandboxes configured">
+            You can still draft and save this evaluator now. Select a sandbox
+            later to test or execute it.
+          </Alert>
+        ) : null}
 
         {/* Compact inline header bar */}
         <CompactHeaderBar
@@ -302,9 +323,11 @@ export const EditCodeEvaluatorDialogContent = ({
               return nextLanguage;
             });
           }}
-          sandboxConfigs={compatibleSandboxConfigs}
+          sandboxConfigs={sandboxConfigs}
           selectedSandboxConfigId={selectedSandboxConfigId}
           onSandboxChange={setSandboxConfigId}
+          unavailableSelectionMessage={unavailableSandboxSelectionMessage}
+          showSandboxHelperText={hasNoSandboxConfigs}
         />
 
         <CodeEvaluatorInputVariablesProvider variables={variables}>
@@ -416,41 +439,54 @@ const CompactHeaderBar = ({
   sandboxConfigs,
   selectedSandboxConfigId,
   onSandboxChange,
+  unavailableSelectionMessage,
+  showSandboxHelperText,
 }: {
   language: CodeEvaluatorLanguage;
   onLanguageChange: (language: CodeEvaluatorLanguage) => void;
   sandboxConfigs: SandboxConfigOption[];
   selectedSandboxConfigId: string | null;
   onSandboxChange: (sandboxConfigId: string | null) => void;
+  unavailableSelectionMessage?: string;
+  showSandboxHelperText?: boolean;
 }) => {
   return (
-    <div css={headerBarCSS}>
-      {/* Name field */}
-      <div
-        css={headerFieldCSS}
-        style={{ flex: "1 1 180px", minWidth: 140, maxWidth: 500 }}
-      >
-        <EvaluatorNameInput />
-      </div>
+    <Flex direction="column" gap="size-100">
+      <div css={headerBarCSS}>
+        {/* Name field */}
+        <div
+          css={headerFieldCSS}
+          style={{ flex: "1 1 180px", minWidth: 140, maxWidth: 500 }}
+        >
+          <EvaluatorNameInput />
+        </div>
 
-      {/* Language selector */}
-      <div css={headerFieldCSS} style={{ flex: "0 0 auto", width: 130 }}>
-        <CodeEvaluatorLanguageField
-          language={language}
-          onChange={onLanguageChange}
-        />
-      </div>
+        {/* Description field */}
+        <div css={headerFieldCSS} style={{ flex: "1 1 240px", minWidth: 180 }}>
+          <EvaluatorDescriptionInput />
+        </div>
 
-      {/* Sandbox selector */}
-      <div css={headerFieldCSS} style={{ flex: "0 1 200px", minWidth: 150 }}>
-        <CodeEvaluatorSandboxField
-          sandboxConfigs={sandboxConfigs}
-          language={language}
-          selectedSandboxConfigId={selectedSandboxConfigId}
-          onSelectionChange={onSandboxChange}
-        />
+        {/* Language selector */}
+        <div css={headerFieldCSS} style={{ flex: "0 0 auto", width: 130 }}>
+          <CodeEvaluatorLanguageField
+            language={language}
+            onChange={onLanguageChange}
+          />
+        </div>
+
+        {/* Sandbox selector */}
+        <div css={headerFieldCSS} style={{ flex: "0 1 240px", minWidth: 180 }}>
+          <CodeEvaluatorSandboxField
+            sandboxConfigs={sandboxConfigs}
+            language={language}
+            selectedSandboxConfigId={selectedSandboxConfigId}
+            onSelectionChange={onSandboxChange}
+            showHelperText={showSandboxHelperText}
+            unavailableSelectionMessage={unavailableSelectionMessage}
+          />
+        </div>
       </div>
-    </div>
+    </Flex>
   );
 };
 
@@ -706,6 +742,7 @@ const CategoricalChoicesEditor = ({
           <Button
             type="button"
             variant="quiet"
+            aria-label="Remove choice"
             size="S"
             isDisabled={values.length <= 2}
             onPress={() => {

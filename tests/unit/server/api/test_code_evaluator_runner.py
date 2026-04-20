@@ -148,7 +148,7 @@ class TestInputSchemaInference:
                 "input": {},
                 "metadata": {},
             },
-            "required": ["output", "reference", "input", "metadata"],
+            "required": [],
         }
 
     def test_python_input_schema_returns_error_when_evaluate_is_missing(self) -> None:

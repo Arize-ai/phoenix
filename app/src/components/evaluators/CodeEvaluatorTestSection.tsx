@@ -269,7 +269,11 @@ export const CodeEvaluatorTestSection = ({
                   title="Evaluator Result"
                   width="100%"
                   extra={
-                    <IconButton size="S" onPress={() => setPreviewResults([])}>
+                    <IconButton
+                      aria-label="Dismiss evaluator result"
+                      size="S"
+                      onPress={() => setPreviewResults([])}
+                    >
                       <Icon svg={<Icons.CloseOutline />} />
                     </IconButton>
                   }

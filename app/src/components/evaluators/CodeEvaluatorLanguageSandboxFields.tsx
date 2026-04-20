@@ -72,6 +72,8 @@ export type CodeEvaluatorSandboxFieldProps = {
   size?: "M" | "L";
   /** Whether to show the helper text below the field */
   showHelperText?: boolean;
+  /** Optional warning shown when a saved selection is no longer available */
+  unavailableSelectionMessage?: string;
 };
 
 /**
@@ -85,6 +87,7 @@ export const CodeEvaluatorSandboxField = ({
   onSelectionChange,
   size = "L",
   showHelperText = false,
+  unavailableSelectionMessage,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
@@ -166,6 +169,11 @@ export const CodeEvaluatorSandboxField = ({
           in Settings if none are available here.
         </Text>
       )}
+      {unavailableSelectionMessage ? (
+        <Text color="danger" size="S">
+          {unavailableSelectionMessage}
+        </Text>
+      ) : null}
     </View>
   );
 };
