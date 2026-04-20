@@ -48,7 +48,7 @@ from phoenix.server.api.types.Evaluator import (
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
-from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -316,7 +316,7 @@ class CreateCodeEvaluatorInput:
     source_code: str
     language: Language
     description: Optional[str] = None
-    sandbox_config_id: Optional[int] = None
+    sandbox_config_id: Optional[GlobalID] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
 
@@ -328,7 +328,7 @@ class UpdateCodeEvaluatorInput:
     source_code: Optional[str] = UNSET
     language: Optional[Language] = UNSET
     description: Optional[str] = UNSET
-    sandbox_config_id: Optional[int] = UNSET
+    sandbox_config_id: Optional[GlobalID] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
 
@@ -1189,9 +1189,13 @@ class EvaluatorMutationMixin:
                 if language_id is None:
                     raise BadRequest(f"Unknown language: {input.language!r}")
 
+                sandbox_config_id = None
                 if input.sandbox_config_id is not None:
+                    sandbox_config_id = from_global_id_with_expected_type(
+                        input.sandbox_config_id, SandboxConfig.__name__
+                    )
                     await _validate_language_matches_sandbox(
-                        language_id, input.sandbox_config_id, session
+                        language_id, sandbox_config_id, session
                     )
 
                 row = models.CodeEvaluator(
@@ -1199,7 +1203,7 @@ class EvaluatorMutationMixin:
                     description=input.description,
                     source_code=input.source_code,
                     language_id=language_id,
-                    sandbox_config_id=input.sandbox_config_id,
+                    sandbox_config_id=sandbox_config_id,
                     output_configs=output_configs,
                     input_mapping=input_mapping_orm,
                     user_id=user_id,
@@ -1253,7 +1257,13 @@ class EvaluatorMutationMixin:
                     row.description = input.description
 
                 if input.sandbox_config_id is not UNSET:
-                    row.sandbox_config_id = input.sandbox_config_id
+                    row.sandbox_config_id = (
+                        None
+                        if input.sandbox_config_id is None
+                        else from_global_id_with_expected_type(
+                            input.sandbox_config_id, SandboxConfig.__name__
+                        )
+                    )
 
                 if input.output_configs is not UNSET and input.output_configs is not None:
                     row.output_configs = list(
