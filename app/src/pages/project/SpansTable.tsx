@@ -69,6 +69,7 @@ import type {
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
+import { ProjectStats } from "./ProjectPageHeader";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -202,6 +203,7 @@ export function SpansTable(props: SpansTableProps) {
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
+          ...ProjectPageHeader_stats
           ...SpanColumnSelector_annotations
           spans(
             first: $first
@@ -897,9 +899,12 @@ export function SpansTable(props: SpansTableProps) {
             }}
           >
             <View padding="size-200" height="100%" overflow="auto">
-              <Heading level={3} weight="heavy">
-                Stats
-              </Heading>
+              <Flex direction="column" gap="size-200">
+                <Heading level={3} weight="heavy">
+                  Stats
+                </Heading>
+                <ProjectStats project={data} direction="column" />
+              </Flex>
             </View>
           </Panel>
         </>
