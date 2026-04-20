@@ -46,6 +46,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -164,6 +165,10 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const showTableAside = useProjectContext((state) => state.showTableAside);
+  const setShowTableAside = useProjectContext(
+    (state) => state.setShowTableAside
+  );
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -703,6 +708,16 @@ export function SpansTable(props: SpansTableProps) {
           </ToggleButtonGroup>
           <SpanColumnSelector columns={computedColumns} query={data} />
           <ProjectFilterConfigButton />
+          <ToggleButton
+            size="M"
+            aria-label={
+              showTableAside ? "Hide aside panel" : "Show aside panel"
+            }
+            isSelected={showTableAside}
+            onPress={() => setShowTableAside(!showTableAside)}
+          >
+            <Icon svg={<Icons.SlideOut />} />
+          </ToggleButton>
         </Flex>
       </View>
       <div
