@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agents";
+type FeatureFlag = "agents" | "tracing_ux";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -22,6 +22,7 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   // TODO: when this flag is removed, update agentStore.ts by resetting / removing the persistence migration
   agents: false,
+  tracing_ux: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
