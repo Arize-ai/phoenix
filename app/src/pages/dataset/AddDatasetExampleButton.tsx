@@ -59,7 +59,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   const [isManualOpen, setIsManualOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
 
-  const handleCompleted = useCallback(() => {
+  const handleManualExampleAdded = useCallback(() => {
     notifySuccess({
       title: "Dataset Updated",
       message:
@@ -68,7 +68,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
     onAddExampleCompleted();
   }, [notifySuccess, onAddExampleCompleted]);
 
-  const handleFileCompleted = useCallback(
+  const handleFileUploadCompleted = useCallback(
     (summary: DatasetUploadSummary) => {
       let message: string;
       if (!summary.newVersionCreated) {
@@ -158,7 +158,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                 <DatasetFromFileForm
                   mode="append"
                   datasetName={datasetName}
-                  onExamplesAdded={handleFileCompleted}
+                  onExamplesAdded={handleFileUploadCompleted}
                   onCancel={handleFileCancel}
                 />
               </DialogContent>
@@ -181,7 +181,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
                   <DialogContent css={contentCSS}>
                     <AddExampleFromScratchForm
                       datasetId={datasetId}
-                      onExampleAdded={handleCompleted}
+                      onExampleAdded={handleManualExampleAdded}
                       close={close}
                     />
                   </DialogContent>
