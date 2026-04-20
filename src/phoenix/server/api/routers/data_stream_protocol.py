@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
-    from pydantic_ai.usage import RunUsage
+    from pydantic_ai.usage import RequestUsage
 
     from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
@@ -499,6 +499,7 @@ async def stream_text(
         # ---------------------------------------------------------------
         loop_count = 0
         final_output_text: str | None = None
+        usage: RequestUsage | None = None
         try:
             while loop_count < _MAX_BACKEND_TOOL_LOOPS:
                 loop_count += 1
@@ -540,7 +541,7 @@ async def stream_text(
                         iter_text = accumulator.accumulated_text or None
                         if iter_text:
                             final_output_text = iter_text
-                        usage: RunUsage = stream.usage()  # type: ignore
+                        usage = stream.usage()
                         if llm_span is not None:
                             finalize_llm_span(
                                 llm_span,
