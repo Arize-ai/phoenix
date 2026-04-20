@@ -98,7 +98,8 @@ async def _resolve_inline_code_evaluator_backend(
     sandbox_config_id: Optional[strawberry.relay.GlobalID],
     language: str,
 ) -> tuple[Any, Optional[int]]:
-    from phoenix.server.sandbox import get_or_create_backend
+    from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
+    from phoenix.server.sandbox.types import UnsupportedOperation
 
     if sandbox_config_id is None:
         raise BadRequest(
@@ -140,12 +141,27 @@ async def _resolve_inline_code_evaluator_backend(
         if provider_language_row is not None and provider_language_row.name != language:
             raise BadRequest("Sandbox provider language does not match code evaluator language")
 
+        # Admin-authored provider config wins over user-authored
+        # SandboxConfig.config on key collision — consistent with
+        # the factory's credentials-win merge order.
         merged_config = {
-            **provider.config,
             **sandbox_cfg.config,
+            **provider.config,
         }
         backend_type = provider.backend_type
-        sandbox_backend = get_or_create_backend(backend_type, config=merged_config)
+        try:
+            sandbox_backend = await get_or_create_backend(
+                backend_type,
+                config=merged_config,
+                session=session,
+                decrypt=info.context.decrypt,
+            )
+        except (
+            MissingSecretError,
+            UnsupportedOperation,
+            ValidationError,
+        ) as exc:
+            raise BadRequest(str(exc))
 
     if sandbox_backend is None:
         raise BadRequest(
