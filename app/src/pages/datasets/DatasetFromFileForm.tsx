@@ -48,7 +48,7 @@ import {
   isAutoSplitColumn,
 } from "./ColumnAssigner";
 import { computeBucketCollapseConflicts } from "./ColumnAssigner/collapseUtils";
-import { ColumnSingleSelector } from "./ColumnSingleSelector";
+import { ColumnSelector } from "./ColumnSelector";
 import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
@@ -818,7 +818,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 field: { value, onChange },
                 fieldState: { error },
               }) => (
-                <ColumnSingleSelector
+                <ColumnSelector
                   label="Example ID Column (optional)"
                   description={`Select a ${fileType === "csv" ? "column" : "key"} to use as a unique identifier for upserting examples`}
                   columns={columns}
@@ -836,7 +836,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 field: { value, onChange },
                 fieldState: { error },
               }) => (
-                <ColumnSingleSelector
+                <ColumnSelector
                   label="Split Column (optional)"
                   description={`Select a ${fileType === "csv" ? "column" : "key"} containing split names (plain string or JSON list)`}
                   columns={columns}

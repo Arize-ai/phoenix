@@ -14,7 +14,7 @@ import {
 
 const NONE_KEY = "__none__";
 
-export function ColumnSingleSelector(props: {
+export function ColumnSelector(props: {
   description?: string;
   errorMessage?: string;
   label: string;
