@@ -44,6 +44,8 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
+_MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
+
 
 @strawberry.type
 class DatasetMutationPayload:
@@ -302,39 +304,60 @@ class DatasetMutationMixin:
                 }
 
             DatasetExample = models.DatasetExample
-            try:
-                dataset_example_rowids = (
-                    await session.scalars(
-                        insert(DatasetExample).returning(DatasetExample.id),
-                        [
-                            {
-                                DatasetExample.dataset_id.key: dataset_rowid,
-                                DatasetExample.span_rowid.key: from_global_id_with_expected_type(
-                                    global_id=example.span_id,
-                                    expected_type_name=Span.__name__,
-                                )
-                                if example.span_id
-                                else None,
-                                DatasetExample.external_id.key: example.external_id
-                                if example.external_id
-                                else None,
-                            }
-                            for example in input.examples
-                        ],
+
+            input_external_ids = [
+                example.external_id for example in input.examples if example.external_id
+            ]
+            seen_external_ids: set[str] = set()
+            for external_id in input_external_ids:
+                if external_id in seen_external_ids:
+                    raise Conflict(
+                        f"Custom ID {external_id!r} appears more than once in the input."
                     )
-                ).all()
+                seen_external_ids.add(external_id)
+
+            dataset_examples = [
+                DatasetExample(
+                    dataset_id=dataset_rowid,
+                    span_rowid=from_global_id_with_expected_type(
+                        global_id=example.span_id,
+                        expected_type_name=Span.__name__,
+                    )
+                    if example.span_id
+                    else None,
+                    external_id=example.external_id if example.external_id else None,
+                )
+                for example in input.examples
+            ]
+            try:
+                async with session.begin_nested():
+                    session.add_all(dataset_examples)
+                    await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 error_message = str(error)
                 has_external_id_conflict = (
                     "dataset_id" in error_message and "external_id" in error_message
                 )
-                if has_external_id_conflict:
-                    duplicate_ids = [e.external_id for e in input.examples if e.external_id]
-                    raise Conflict(
-                        f"An example with custom ID {duplicate_ids[0]!r} already exists "
-                        f"in this dataset."
-                    )
+                if has_external_id_conflict and input_external_ids:
+                    existing_external_ids = [
+                        external_id
+                        for external_id in (
+                            await session.scalars(
+                                select(models.DatasetExample.external_id)
+                                .where(models.DatasetExample.dataset_id == dataset_rowid)
+                                .where(models.DatasetExample.external_id.in_(input_external_ids))
+                                .limit(_MAX_REPORTED_EXTERNAL_ID_CONFLICTS)
+                            )
+                        ).all()
+                        if external_id is not None
+                    ]
+                    if existing_external_ids:
+                        raise Conflict(
+                            f"Examples with custom IDs {existing_external_ids!r} "
+                            f"already exist in this dataset."
+                        )
                 raise
+            dataset_example_rowids = [example.id for example in dataset_examples]
             assert len(dataset_example_rowids) == len(input.examples)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision

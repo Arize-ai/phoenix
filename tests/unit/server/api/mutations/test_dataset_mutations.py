@@ -510,7 +510,7 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     assert f"Unknown dataset: {dataset_id}" in errors[0].message
 
 
-async def test_add_example_with_duplicate_external_id_returns_conflict_error(
+async def test_add_examples_with_intra_batch_duplicate_external_id_returns_conflict_error(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
 ) -> None:
@@ -524,22 +524,73 @@ async def test_add_example_with_duplicate_external_id_returns_conflict_error(
         }
       }
     """
-    variables = {
-        "input": {
-            "datasetId": dataset_id,
-            "examples": [
-                {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "abc"},
-            ],
-        }
-    }
-    # First call should succeed
-    response = await gql_client.execute(query=mutation, variables=variables)
-    assert not response.errors
-    # Second call with the same externalId should return a conflict error
-    response = await gql_client.execute(query=mutation, variables=variables)
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "dup"},
+                    {"input": {"x": 2}, "output": {"y": 2}, "metadata": {}, "externalId": "dup"},
+                ],
+            }
+        },
+    )
     assert (errors := response.errors)
     assert len(errors) == 1
-    assert errors[0].message == ("An example with custom ID 'abc' already exists in this dataset.")
+    assert errors[0].message == "Custom ID 'dup' appears more than once in the input."
+
+
+async def test_add_examples_reports_all_conflicting_external_ids(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
+    mutation = """
+      mutation ($input: AddExamplesToDatasetInput!) {
+        addExamplesToDataset(input: $input) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    seed = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "a"},
+                    {"input": {"x": 2}, "output": {"y": 2}, "metadata": {}, "externalId": "b"},
+                    {"input": {"x": 3}, "output": {"y": 3}, "metadata": {}, "externalId": "c"},
+                ],
+            }
+        },
+    )
+    assert not seed.errors
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 4}, "output": {"y": 4}, "metadata": {}, "externalId": "a"},
+                    {"input": {"x": 5}, "output": {"y": 5}, "metadata": {}, "externalId": "b"},
+                    {"input": {"x": 6}, "output": {"y": 6}, "metadata": {}, "externalId": "novel"},
+                    {"input": {"x": 7}, "output": {"y": 7}, "metadata": {}, "externalId": "c"},
+                ],
+            }
+        },
+    )
+    assert (errors := response.errors)
+    assert len(errors) == 1
+    message = errors[0].message
+    assert message.startswith("Examples with custom IDs [")
+    assert message.endswith("] already exist in this dataset.")
+    for conflicting_id in ("a", "b", "c"):
+        assert repr(conflicting_id) in message
+    assert repr("novel") not in message
 
 
 @pytest.fixture
