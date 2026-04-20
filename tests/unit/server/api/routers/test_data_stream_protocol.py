@@ -26,7 +26,7 @@ class TestParseChatBody:
         body = parse_chat_body(raw)
         assert isinstance(body, ChatBody)
         assert body.session_id is None
-        assert body.export_remote_traces is True
+        assert body.export_remote_traces is False
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
         assert body.system is None
