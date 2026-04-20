@@ -79,7 +79,7 @@ class ChatBody:
     output_tools: list[FrontendTool] | None = None
     system: str | None = None
     session_id: str | None = None
-    export_remote_traces: bool = True
+    export_remote_traces: bool = False
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
     raw_tools: list[dict[str, Any]] = field(default_factory=list)
