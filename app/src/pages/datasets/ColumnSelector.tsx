@@ -44,8 +44,8 @@ export function ColumnSelector(props: {
     <Select
       isDisabled={noColumns || isDisabled}
       placeholder="Select a column"
-      selectedKey={selectedColumn ?? NONE_KEY}
-      onSelectionChange={(key) => {
+      value={selectedColumn ?? NONE_KEY}
+      onChange={(key) => {
         onChange(key === NONE_KEY ? null : (key as string));
       }}
     >
