@@ -25,5 +25,5 @@ typing-extensions
 vcrpy
 pytest-smtpd
 freezegun
-aiosqlite<0.22.0  # new version is causing tests to hang
+aiosqlite>=0.22.1
 azure-identity>1.18.0
