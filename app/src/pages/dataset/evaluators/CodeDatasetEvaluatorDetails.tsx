@@ -7,7 +7,7 @@ import { graphql } from "relay-runtime";
 import { Flex, Heading, Text } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
-import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
+import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 
 const boxCSS = css`
