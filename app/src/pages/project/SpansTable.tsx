@@ -54,6 +54,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -173,6 +174,7 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   const showTableAside = useProjectContext((state) => state.showTableAside);
   const setShowTableAside = useProjectContext(
     (state) => state.setShowTableAside
@@ -733,32 +735,33 @@ export function SpansTable(props: SpansTableProps) {
               </ToggleButtonGroup>
               <SpanColumnSelector columns={computedColumns} query={data} />
               <ProjectFilterConfigButton />
-              <div css={asideToggleSpacerCSS} />
-              <Button
-                size="M"
-                aria-label={
-                  showTableAside ? "Hide aside panel" : "Show aside panel"
-                }
-                leadingVisual={
-                  <Icon
-                    svg={
-                      showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
-                    }
-                  />
-                }
-                onPress={() => {
-                  const next = !showTableAside;
-                  setShowTableAside(next);
-                  const panel = asidePanelRef.current;
-                  if (panel) {
-                    if (next) {
-                      panel.expand();
-                    } else {
-                      panel.collapse();
-                    }
+              {isTracingUxEnabled ? (
+                <Button
+                  size="M"
+                  aria-label={
+                    showTableAside ? "Hide aside panel" : "Show aside panel"
                   }
-                }}
-              />
+                  leadingVisual={
+                    <Icon
+                      svg={
+                        showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
+                      }
+                    />
+                  }
+                  onPress={() => {
+                    const next = !showTableAside;
+                    setShowTableAside(next);
+                    const panel = asidePanelRef.current;
+                    if (panel) {
+                      if (next) {
+                        panel.expand();
+                      } else {
+                        panel.collapse();
+                      }
+                    }
+                  }}
+                />
+              ) : null}
             </Flex>
           </View>
           <div
@@ -873,30 +876,34 @@ export function SpansTable(props: SpansTableProps) {
           ) : null}
         </div>
       </Panel>
-      <Separator
-        css={compactResizeHandleCSS}
-        disabled={!showTableAside}
-        style={showTableAside ? undefined : { display: "none" }}
-      />
-      <Panel
-        panelRef={asidePanelRef}
-        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
-        collapsedSize={0}
-        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
-        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
-        collapsible
-        onResize={(panelSize) => {
-          if (panelSize.asPercentage === 0) {
-            setShowTableAside(false);
-          }
-        }}
-      >
-        <View padding="size-200" height="100%" overflow="auto">
-          <Heading level={3} weight="heavy">
-            Stats
-          </Heading>
-        </View>
-      </Panel>
+      {isTracingUxEnabled ? (
+        <>
+          <Separator
+            css={compactResizeHandleCSS}
+            disabled={!showTableAside}
+            style={showTableAside ? undefined : { display: "none" }}
+          />
+          <Panel
+            panelRef={asidePanelRef}
+            defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+            collapsedSize={0}
+            minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
+            maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+            collapsible
+            onResize={(panelSize) => {
+              if (panelSize.asPercentage === 0) {
+                setShowTableAside(false);
+              }
+            }}
+          >
+            <View padding="size-200" height="100%" overflow="auto">
+              <Heading level={3} weight="heavy">
+                Stats
+              </Heading>
+            </View>
+          </Panel>
+        </>
+      ) : null}
     </Group>
   );
 }
@@ -904,7 +911,3 @@ export function SpansTable(props: SpansTableProps) {
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
 const ASIDE_PANEL_MIN_SIZE_PIXELS = 280;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
-
-const asideToggleSpacerCSS = css`
-  flex: 1 1 auto;
-`;
