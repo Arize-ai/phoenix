@@ -24,6 +24,7 @@ import {
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
+  Button,
   CopyToClipboardButton,
   Flex,
   Heading,
@@ -733,12 +734,18 @@ export function SpansTable(props: SpansTableProps) {
               <SpanColumnSelector columns={computedColumns} query={data} />
               <ProjectFilterConfigButton />
               <div css={asideToggleSpacerCSS} />
-              <ToggleButton
+              <Button
                 size="M"
                 aria-label={
                   showTableAside ? "Hide aside panel" : "Show aside panel"
                 }
-                isSelected={showTableAside}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
+                    }
+                  />
+                }
                 onPress={() => {
                   const next = !showTableAside;
                   setShowTableAside(next);
@@ -751,9 +758,7 @@ export function SpansTable(props: SpansTableProps) {
                     }
                   }
                 }}
-              >
-                <Icon svg={<Icons.SlideOut />} />
-              </ToggleButton>
+              />
             </Flex>
           </View>
           <div
