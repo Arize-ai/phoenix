@@ -332,12 +332,6 @@ class DatasetKeys:
                 "Cannot specify both split_key and split_keys. "
                 "Use split_key (singular) for a single split column."
             )
-        if split_keys:
-            warnings.warn(
-                "split_keys is deprecated, use split_key instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
@@ -796,9 +790,10 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
             split_key: Optional single column name used for assigning examples to splits.
-                Mutually exclusive with split_keys.
+                Mutually exclusive with ``split_keys``.
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
@@ -838,6 +833,13 @@ class Datasets:
                 span_id_key="context.span_id"
             )
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -932,9 +934,10 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
             split_key: Optional single column name used for assigning examples to splits.
-                Mutually exclusive with split_keys.
+                Mutually exclusive with ``split_keys``.
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
@@ -951,6 +954,13 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if not resolved_name:
@@ -1624,9 +1634,10 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
             split_key: Optional single column name used for assigning examples to splits.
-                Mutually exclusive with split_keys.
+                Mutually exclusive with ``split_keys``.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1641,6 +1652,13 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -1735,9 +1753,10 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
             split_key: Optional single column name used for assigning examples to splits.
-                Mutually exclusive with split_keys.
+                Mutually exclusive with ``split_keys``.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1751,6 +1770,13 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
         if not resolved_name:
