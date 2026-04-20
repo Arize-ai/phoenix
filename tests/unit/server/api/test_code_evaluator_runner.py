@@ -111,6 +111,90 @@ class TestHarnessGeneration:
         assert "JSON.stringify" in harness
 
 
+class TestInputSchemaInference:
+    def test_python_input_schema_infers_top_level_parameters(self) -> None:
+        runner, _ = _make_runner(
+            source_code=(
+                "def evaluate(output, reference=None, input=None, *, metadata=None):\n"
+                "    return 1\n"
+            )
+        )
+
+        assert runner.input_schema == {
+            "type": "object",
+            "properties": {
+                "output": {},
+                "reference": {},
+                "input": {},
+                "metadata": {},
+            },
+            "required": ["output"],
+        }
+
+    def test_typescript_input_schema_infers_destructured_parameters(self) -> None:
+        runner, _ = _make_runner(
+            source_code=(
+                "function evaluate({ output, reference, input, metadata }: EvaluatorParams) "
+                "{ return 1; }"
+            ),
+            language="TYPESCRIPT",
+        )
+
+        assert runner.input_schema == {
+            "type": "object",
+            "properties": {
+                "output": {},
+                "reference": {},
+                "input": {},
+                "metadata": {},
+            },
+            "required": [],
+        }
+
+    def test_python_input_schema_returns_error_when_evaluate_is_missing(self) -> None:
+        runner, _ = _make_runner(source_code="def not_evaluate(output):\n    return 1\n")
+
+        schema, error = runner._infer_input_schema()
+        assert schema == {}
+        assert error is not None
+        assert "no top-level `evaluate(...)` function was found" in error
+
+    def test_typescript_input_schema_returns_error_for_non_destructured_signature(self) -> None:
+        runner, _ = _make_runner(
+            source_code="function evaluate(output: EvaluatorParams) { return 1; }",
+            language="TYPESCRIPT",
+        )
+
+        schema, error = runner._infer_input_schema()
+        assert schema == {}
+        assert error is not None
+        assert "Use a destructured object parameter" in error
+
+    def test_python_input_schema_returns_error_for_unsupported_parameter_names(self) -> None:
+        runner, _ = _make_runner(
+            source_code="def evaluate(outputs, reference=None):\n    return 1\n"
+        )
+
+        schema, error = runner._infer_input_schema()
+        assert schema == {}
+        assert error is not None
+        assert "unsupported parameter names: `outputs`" in error
+
+    def test_typescript_input_schema_returns_error_for_unsupported_parameter_names(self) -> None:
+        runner, _ = _make_runner(
+            source_code=(
+                "function evaluate({ outputs, reference, input, metadata }: EvaluatorParams) "
+                "{ return 1; }"
+            ),
+            language="TYPESCRIPT",
+        )
+
+        schema, error = runner._infer_input_schema()
+        assert schema == {}
+        assert error is not None
+        assert "unsupported parameter names: `outputs`" in error
+
+
 class TestEvaluateSuccessPath:
     async def test_returns_label_from_stdout(self) -> None:
         runner, _ = _make_runner(backend_stdout='"pass"')
@@ -191,8 +275,99 @@ class TestEvaluateSuccessPath:
         call_kwargs = backend.execute.call_args
         assert call_kwargs.kwargs.get("timeout") is None
 
+    async def test_python_evaluate_auto_passes_context_keys_matching_signature(self) -> None:
+        runner, backend = _make_runner(source_code="def evaluate(output, reference=None): return 1")
+
+        await runner.evaluate(
+            context={"output": {"answer": "a"}, "reference": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        assert '"output": {"answer": "a"}' in code_arg
+        assert '"reference": {"answer": "a"}' in code_arg
+
+    async def test_typescript_evaluate_auto_passes_context_keys_matching_signature(self) -> None:
+        runner, backend = _make_runner(
+            source_code=("function evaluate({ output, reference }: EvaluatorParams) { return 1; }"),
+            language="TYPESCRIPT",
+            backend_stdout="1",
+        )
+
+        await runner.evaluate(
+            context={"output": {"answer": "a"}, "reference": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        assert '"output": {"answer": "a"}' in code_arg
+        assert '"reference": {"answer": "a"}' in code_arg
+
 
 class TestEvaluateErrorPaths:
+    async def test_inference_failure_returns_human_readable_python_error(self) -> None:
+        runner, backend = _make_runner(source_code="def not_evaluate(output): return 1")
+
+        results = await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test_py",
+            output_configs=[_categorical_config()],
+        )
+
+        assert len(results) == 1
+        assert results[0]["error"] is not None
+        assert "no top-level `evaluate(...)` function was found" in results[0]["error"]
+        backend.execute.assert_not_called()
+
+    async def test_inference_failure_returns_human_readable_typescript_error(self) -> None:
+        runner, backend = _make_runner(
+            source_code="function evaluate(output: EvaluatorParams) { return 1; }",
+            language="TYPESCRIPT",
+        )
+
+        results = await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test_ts",
+            output_configs=[_categorical_config()],
+        )
+
+        assert len(results) == 1
+        assert results[0]["error"] is not None
+        assert "Use a destructured object parameter" in results[0]["error"]
+        backend.execute.assert_not_called()
+
+    async def test_inference_failure_returns_human_readable_error_for_renamed_typescript_param(
+        self,
+    ) -> None:
+        runner, backend = _make_runner(
+            source_code=(
+                "function evaluate({ outputs, reference, input, metadata }: EvaluatorParams) { "
+                "const candidate = typeof output?.answer === 'string' ? output.answer : ''; "
+                "return 1; }"
+            ),
+            language="TYPESCRIPT",
+        )
+
+        results = await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="pytest",
+            output_configs=[_categorical_config()],
+        )
+
+        assert len(results) == 1
+        assert results[0]["error"] is not None
+        assert "unsupported parameter names: `outputs`" in results[0]["error"]
+        backend.execute.assert_not_called()
+
     async def test_input_mapping_failure_returns_error_result(self) -> None:
         runner, _ = _make_runner()
         bad_mapping = InputMapping(
@@ -255,12 +430,14 @@ class TestBackendConfiguration:
     async def test_typescript_language_uses_typescript_harness(self) -> None:
         """Runner selects TypeScript harness when language is TYPESCRIPT."""
         runner, backend = _make_runner(
-            source_code="function evaluate(x) { return 1; }",
+            source_code=(
+                "function evaluate({ output }: EvaluatorParams) { return output ? 1 : 0; }"
+            ),
             language="TYPESCRIPT",
             backend_stdout="1",
         )
         await runner.evaluate(
-            context={},
+            context={"output": {"answer": "a"}},
             input_mapping=_EMPTY_MAPPING,
             name="test",
             output_configs=[_continuous_config()],

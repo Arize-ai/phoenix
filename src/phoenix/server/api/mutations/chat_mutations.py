@@ -35,7 +35,8 @@ from phoenix.server.api.mutations.evaluator_mutations import (
 )
 from phoenix.server.api.types.Evaluator import BuiltInEvaluator, CodeEvaluator
 from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
-from phoenix.server.api.types.node import from_global_id
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.SandboxConfig import SandboxConfig
 from phoenix.server.api.types.Trace import Trace
 
 logger = logging.getLogger(__name__)
@@ -89,6 +90,70 @@ def _to_evaluation_result(
         annotation=_to_annotation(eval_result),
         trace=trace,
     )
+
+
+async def _resolve_inline_code_evaluator_backend(
+    *,
+    info: Info[Context, None],
+    sandbox_config_id: Optional[strawberry.relay.GlobalID],
+    language: str,
+) -> tuple[Any, Optional[int]]:
+    from phoenix.server.sandbox import get_or_create_backend
+
+    if sandbox_config_id is None:
+        raise BadRequest(
+            f"No sandbox configuration selected for language '{language}'. "
+            "Choose a sandbox configuration before testing this evaluator."
+        )
+
+    sandbox_config_db_id = from_global_id_with_expected_type(
+        sandbox_config_id, SandboxConfig.__name__
+    )
+
+    async with info.context.db() as session:
+        sandbox_cfg = await session.get(models.SandboxConfig, sandbox_config_db_id)
+        if sandbox_cfg is None:
+            raise BadRequest(f"Sandbox configuration with id {sandbox_config_id} was not found")
+        if not sandbox_cfg.enabled:
+            raise BadRequest(
+                (
+                    f"Sandbox configuration '{sandbox_cfg.name}' is disabled. Enable it before "
+                    "testing this evaluator."
+                )
+            )
+
+        sandbox_timeout = sandbox_cfg.timeout
+        provider = await session.get(models.SandboxProvider, sandbox_cfg.sandbox_provider_id)
+        if provider is None:
+            raise BadRequest(
+                f"Sandbox provider for configuration '{sandbox_cfg.name}' was not found"
+            )
+        if not provider.enabled:
+            raise BadRequest(
+                (
+                    f"Sandbox provider '{provider.backend_type}' is disabled. Enable it before "
+                    "testing this evaluator."
+                )
+            )
+
+        provider_language_row = await session.get(models.Language, provider.language_id)
+        if provider_language_row is not None and provider_language_row.name != language:
+            raise BadRequest("Sandbox provider language does not match code evaluator language")
+
+        merged_config = {
+            **provider.config,
+            **sandbox_cfg.config,
+        }
+        backend_type = provider.backend_type
+        sandbox_backend = get_or_create_backend(backend_type, config=merged_config)
+
+    if sandbox_backend is None:
+        raise BadRequest(
+            f"Sandbox backend '{backend_type}' is unavailable for language '{language}'. "
+            "Ensure the backend is installed and configured."
+        )
+
+    return sandbox_backend, sandbox_timeout
 
 
 @strawberry.type
@@ -278,7 +343,49 @@ class ChatCompletionMutationMixin:
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
+            elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
+                from phoenix.server.api.evaluators import CodeEvaluatorRunner
+
+                language = inline_code_evaluator.language.value
+                evaluator_name = inline_code_evaluator.name
+                evaluator_description = inline_code_evaluator.description
+                source_code = inline_code_evaluator.source_code
+
+                # Convert output configs
+                output_configs = [
+                    c
+                    for c in _convert_output_config_inputs_to_pydantic(
+                        inline_code_evaluator.output_configs
+                    )
+                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
+
+                sandbox_backend, sandbox_timeout = await _resolve_inline_code_evaluator_backend(
+                    info=info,
+                    sandbox_config_id=inline_code_evaluator.sandbox_config_id,
+                    language=language,
+                )
+
+                runner = CodeEvaluatorRunner(
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=source_code,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                )
+                eval_results = await runner.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=evaluator_name,
+                    output_configs=output_configs,
+                    session_key="",
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+
             else:
-                raise BadRequest("Either evaluator_id or inline_llm_evaluator must be provided")
+                raise BadRequest("Either evaluator_id or inline evaluator must be provided")
 
         return EvaluatorPreviewsPayload(results=all_results)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c38f050031ba21ec0e9cb14dfc8d57b8>>
+ * @generated SignedSource<<d589612e4782ee646f647d49093c152a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -146,10 +146,10 @@ export type GenerativeCredentialInput = {
   envVarName: string;
   value: string;
 };
-export type EvaluatorOutputPreviewMutation$variables = {
+export type CodeEvaluatorTestSectionMutation$variables = {
   input: EvaluatorPreviewsInput;
 };
-export type EvaluatorOutputPreviewMutation$data = {
+export type CodeEvaluatorTestSectionMutation$data = {
   readonly evaluatorPreviews: {
     readonly results: ReadonlyArray<{
       readonly annotation: {
@@ -164,9 +164,9 @@ export type EvaluatorOutputPreviewMutation$data = {
     }>;
   };
 };
-export type EvaluatorOutputPreviewMutation = {
-  response: EvaluatorOutputPreviewMutation$data;
-  variables: EvaluatorOutputPreviewMutation$variables;
+export type CodeEvaluatorTestSectionMutation = {
+  response: CodeEvaluatorTestSectionMutation$data;
+  variables: CodeEvaluatorTestSectionMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -272,7 +272,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EvaluatorOutputPreviewMutation",
+    "name": "CodeEvaluatorTestSectionMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -281,20 +281,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EvaluatorOutputPreviewMutation",
+    "name": "CodeEvaluatorTestSectionMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "21c50ac32de88b602547d5fb2308de53",
+    "cacheID": "880a87909fde069d7330f259c8cea2a2",
     "id": null,
     "metadata": {},
-    "name": "EvaluatorOutputPreviewMutation",
+    "name": "CodeEvaluatorTestSectionMutation",
     "operationKind": "mutation",
-    "text": "mutation EvaluatorOutputPreviewMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        explanation\n        label\n        score\n        name\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "mutation CodeEvaluatorTestSectionMutation(\n  $input: EvaluatorPreviewsInput!\n) {\n  evaluatorPreviews(input: $input) {\n    results {\n      evaluatorName\n      annotation {\n        explanation\n        label\n        score\n        name\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cde83044fc6975f7c5f9879bbce9bf41";
+(node as any).hash = "51564928488b73ce3754b374762baa5a";
 
 export default node;

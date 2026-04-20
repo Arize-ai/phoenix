@@ -602,7 +602,7 @@ input CreateCodeEvaluatorInput {
   sourceCode: String!
   language: Language!
   description: String = null
-  sandboxConfigId: Int = null
+  sandboxConfigId: ID = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
 }
@@ -1448,6 +1448,7 @@ input EvaluatorPreviewInput @oneOf {
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
   codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
 }
 
 input EvaluatorPreviewItemInput {
@@ -2052,6 +2053,15 @@ input GoogleGenAIHttpOptionsInput {
 }
 
 scalar Identifier
+
+input InlineCodeEvaluatorInput {
+  name: String!
+  language: Language!
+  sourceCode: String!
+  outputConfigs: [AnnotationConfigInput!]!
+  sandboxConfigId: ID = null
+  description: String = null
+}
 
 input InlineLLMEvaluatorInput {
   name: String!
@@ -3877,7 +3887,7 @@ input UpdateCodeEvaluatorInput {
   sourceCode: String
   language: Language
   description: String
-  sandboxConfigId: Int
+  sandboxConfigId: ID
   outputConfigs: [AnnotationConfigInput!]
   inputMapping: EvaluatorInputMappingInput
 }
