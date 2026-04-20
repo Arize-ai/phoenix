@@ -11,6 +11,7 @@ from phoenix.server.api.input_types.AnnotationConfigInput import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.types.SandboxConfig import Language
 
 
 @strawberry.input
@@ -23,16 +24,29 @@ class InlineLLMEvaluatorInput:
     description: Optional[str] = None
 
 
+@strawberry.input
+class InlineCodeEvaluatorInput:
+    """Defines an inline code evaluator without requiring persistence."""
+
+    name: str
+    language: Language
+    source_code: str
+    output_configs: list[AnnotationConfigInput]
+    sandbox_config_id: Optional[GlobalID] = None
+    description: Optional[str] = None
+
+
 @strawberry.input(one_of=True)
 class EvaluatorPreviewInput:
     """
     Input for previewing an evaluator. Either provide an existing evaluator ID
-    or an inline LLM evaluator definition.
+    or an inline evaluator definition.
     """
 
     built_in_evaluator_id: Optional[GlobalID] = UNSET
     inline_llm_evaluator: Optional[InlineLLMEvaluatorInput] = UNSET
     code_evaluator_id: Optional[GlobalID] = UNSET
+    inline_code_evaluator: Optional[InlineCodeEvaluatorInput] = UNSET
 
 
 @strawberry.input
