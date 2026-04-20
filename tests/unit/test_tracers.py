@@ -5,7 +5,6 @@ from typing import Sequence
 import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
-from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import select
@@ -297,61 +296,6 @@ class TestTracer:
         tracer.clear()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 0
-
-    def test_remote_exporter_is_flushed_when_building_db_traces(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        span_cost_calculator: SpanCostCalculator,
-    ) -> None:
-        exported_span_names: list[str] = []
-        captured_endpoint: str | None = None
-        flush_timeout_millis: int | None = None
-
-        class FakeRemoteExporter(SpanExporter):
-            def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
-                exported_span_names.extend(span.name for span in spans)
-                return SpanExportResult.SUCCESS
-
-            def shutdown(self) -> None:
-                return None
-
-            def force_flush(self, timeout_millis: int = 30_000) -> bool:
-                nonlocal flush_timeout_millis
-                flush_timeout_millis = timeout_millis
-                return True
-
-        def make_remote_exporter(endpoint: str) -> SpanExporter:
-            nonlocal captured_endpoint
-            captured_endpoint = endpoint
-            return FakeRemoteExporter()
-
-        tracer = Tracer(
-            span_cost_calculator=span_cost_calculator,
-            enable_remote_export=True,
-            remote_collector_endpoint="https://collector.example",
-            remote_span_exporter_factory=make_remote_exporter,
-        )
-
-        original_force_flush = tracer.force_flush
-
-        def capture_force_flush(timeout_millis: int = 30_000) -> bool:
-            nonlocal flush_timeout_millis
-            flush_timeout_millis = timeout_millis
-            return original_force_flush(timeout_millis)
-
-        monkeypatch.setattr(tracer, "force_flush", capture_force_flush)
-
-        with tracer.start_as_current_span(
-            "span",
-            attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
-        ):
-            pass
-
-        tracer.get_db_traces(project_id=1)
-
-        assert captured_endpoint == "https://collector.example"
-        assert exported_span_names == ["span"]
-        assert flush_timeout_millis == 1_000
 
     def test_remote_exporter_uses_env_endpoint_only_when_enabled(
         self,

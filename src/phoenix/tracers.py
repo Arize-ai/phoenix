@@ -30,8 +30,6 @@ from phoenix.trace.attributes import get_attribute_value, unflatten
 
 logger = logging.getLogger(__name__)
 
-_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS = 1_000
-
 
 class _BufferedSpanExporter(SpanExporter):
     def __init__(self) -> None:
@@ -157,8 +155,6 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             A list of models.Trace instances, or an empty list if no
             spans have been captured.
         """
-        if not self.force_flush(timeout_millis=_REQUEST_PATH_FORCE_FLUSH_TIMEOUT_MILLIS):
-            logger.debug("Tracer force_flush timed out before building DB traces")
         otel_spans = self._self_exporter.get_finished_spans()
         if not otel_spans:
             return []
