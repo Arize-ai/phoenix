@@ -28,7 +28,7 @@ const settingSwitchCSS = css`
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    gap: var(--global-dimension-size-50);
+    gap: var(--global-dimension-size-75);
     min-width: 0;
   }
 `;
@@ -64,13 +64,14 @@ export function AgentObservabilitySettings() {
         >
           <span className="agent-observability__label">
             <Text weight="heavy" size="M">
-              Save PXI traces in this Phoenix app
+              Save PXI session traces in this Phoenix app
             </Text>
             <Text color="text-500">
-              This keeps traces in the{" "}
+              Stores full, unredacted session recordings (prompts, replies, tool
+              calls, tool results, and any Phoenix data PXI read) in the{" "}
               <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
-              project so you can review how PXI worked. If you run into an
-              issue, you can share these traces with the Phoenix dev team.
+              project, visible to anyone with project access. Browser-only
+              setting.
             </Text>
           </span>
         </Switch>
@@ -89,14 +90,14 @@ export function AgentObservabilitySettings() {
         >
           <span className="agent-observability__label">
             <Text weight="heavy" size="M">
-              Share PXI traces with the team improving PXI
+              Share PXI session traces with the team improving PXI
             </Text>
             <Text color="text-500">
               {agentsConfig.collectorEndpoint ? (
                 <>
-                  If enabled, PXI traces are also sent to the team working on
-                  improving PXI. Sending destination:{" "}
-                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>
+                  Transmits the same unredacted traces to{" "}
+                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+                  Browser-only setting.
                 </>
               ) : (
                 "Sharing to the PXI improvement team is not configured for this Phoenix app."

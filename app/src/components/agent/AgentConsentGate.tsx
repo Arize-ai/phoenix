@@ -60,17 +60,14 @@ export function AgentConsentGate() {
       </div>
       <ul css={consentListCSS}>
         <li>
-          Review how PXI trace data is saved and shared before you continue.
+          Review how your PXI session traces are saved and shared before you
+          continue.
         </li>
         <li>You can change these settings later from Agent Settings.</li>
       </ul>
       <div css={consentSectionCSS}>
         <Text elementType="h4" size="M" weight="heavy">
           Tracing
-        </Text>
-        <Text color="text-700">
-          These settings control where PXI traces are saved and whether they are
-          also shared.
         </Text>
       </div>
       <AgentObservabilitySettings />

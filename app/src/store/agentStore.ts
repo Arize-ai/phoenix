@@ -87,7 +87,7 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   storeLocalTraces: true,
-  exportRemoteTraces: true,
+  exportRemoteTraces: false,
   hasAcknowledgedConsent: false,
 };
 

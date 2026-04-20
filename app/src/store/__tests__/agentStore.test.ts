@@ -179,7 +179,7 @@ describe("agentStore", () => {
       });
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,
-        exportRemoteTraces: true,
+        exportRemoteTraces: false,
         hasAcknowledgedConsent: false,
       });
     });
