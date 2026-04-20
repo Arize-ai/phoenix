@@ -52,6 +52,7 @@ import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/Evaluato
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
@@ -422,23 +423,14 @@ const CompactHeaderBar = ({
   selectedSandboxConfigId: string | null;
   onSandboxChange: (sandboxConfigId: string | null) => void;
 }) => {
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.name || ""
-  );
-  const setName = useEvaluatorStore((state) => state.setEvaluatorName);
-
   return (
     <div css={headerBarCSS}>
       {/* Name field */}
-      <div css={headerFieldCSS} style={{ flex: "1 1 180px", minWidth: 140 }}>
-        <TextField
-          value={evaluatorName}
-          onChange={setName}
-          aria-label="Evaluator name"
-        >
-          <Label>Name</Label>
-          <Input placeholder="e.g. correctness_evaluator" />
-        </TextField>
+      <div
+        css={headerFieldCSS}
+        style={{ flex: "1 1 180px", minWidth: 140, maxWidth: 500 }}
+      >
+        <EvaluatorNameInput />
       </div>
 
       {/* Language selector */}
@@ -822,7 +814,7 @@ const fieldsetCSS = css`
 const headerBarCSS = css`
   display: flex;
   flex-direction: row;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--global-dimension-size-150);
   padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
   border-bottom: 1px solid var(--global-border-color-default);
@@ -918,7 +910,6 @@ const typeFooterCSS = css`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  opacity: 0.7;
 
   & .cm-theme {
     height: 100% !important;
