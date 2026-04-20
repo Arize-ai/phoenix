@@ -107,9 +107,12 @@ async def _resolve_inline_code_evaluator_backend(
             "Choose a sandbox configuration before testing this evaluator."
         )
 
-    sandbox_config_db_id = from_global_id_with_expected_type(
-        sandbox_config_id, SandboxConfig.__name__
-    )
+    try:
+        sandbox_config_db_id = from_global_id_with_expected_type(
+            sandbox_config_id, SandboxConfig.__name__
+        )
+    except ValueError as exc:
+        raise BadRequest(str(exc))
 
     async with info.context.db() as session:
         sandbox_cfg = await session.get(models.SandboxConfig, sandbox_config_db_id)
