@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import URL
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from phoenix.db.azure_auth import create_azure_engine
 
@@ -32,10 +33,11 @@ def _make_token_response(token: str = "test_token_jwt") -> MagicMock:
 
 def _make_mock_engine() -> MagicMock:
     """Build a MagicMock that stands in for the AsyncEngine returned by
-    `sqlalchemy.ext.asyncio.create_async_engine`. `dispose` is an AsyncMock so
-    the credential-lifecycle patching in `create_azure_engine` can wrap it."""
+    `sqlalchemy.ext.asyncio.create_async_engine`. The mock's `sync_engine`
+    sub-mock has `dialect.is_async = True` so it passes the compatibility
+    check in `AsyncEngine.__init__` when `_AzureAsyncEngine` wraps it."""
     engine = MagicMock()
-    engine.dispose = AsyncMock()
+    engine.sync_engine.dialect.is_async = True
     return engine
 
 
@@ -134,38 +136,40 @@ class TestTokenFetchingBehavior:
 
 
 class TestCredentialLifecycle:
-    """`create_azure_engine` patches `engine.dispose` so it also closes the
-    underlying `DefaultAzureCredential`. This is load-bearing for the Azure
-    migration-engine path, which must close its credential on the migration
-    event loop before `asyncio.run` tears the loop down. See
+    """`create_azure_engine` returns an `_AzureAsyncEngine` whose `dispose`
+    also closes the underlying `DefaultAzureCredential`. This is load-bearing
+    for the Azure migration-engine path, which must close its credential on the
+    migration event loop before `asyncio.run` tears the loop down. See
     internal_docs/specs/postgres-cloud-auth-pooling.md, section
     'Event-loop affinity of azure.identity.aio credentials'."""
 
     async def test_dispose_also_closes_credential(self) -> None:
         mock_credential = AsyncMock()
         mock_credential.close = AsyncMock()
-        mock_engine = _make_mock_engine()
-        original_dispose = mock_engine.dispose
 
         with (
             patch("azure.identity.aio.DefaultAzureCredential", return_value=mock_credential),
-            patch("phoenix.db.azure_auth.create_async_engine", return_value=mock_engine),
+            patch("phoenix.db.azure_auth.create_async_engine", return_value=_make_mock_engine()),
+            patch.object(AsyncEngine, "dispose", new_callable=AsyncMock) as mock_parent_dispose,
         ):
             engine = create_azure_engine(_make_url(), {})
             await engine.dispose()
 
-        original_dispose.assert_awaited_once()
+        mock_parent_dispose.assert_awaited_once()
         mock_credential.close.assert_awaited_once()
 
     async def test_credential_closed_even_if_dispose_raises(self) -> None:
         mock_credential = AsyncMock()
         mock_credential.close = AsyncMock()
-        mock_engine = _make_mock_engine()
-        mock_engine.dispose = AsyncMock(side_effect=RuntimeError("boom"))
 
         with (
             patch("azure.identity.aio.DefaultAzureCredential", return_value=mock_credential),
-            patch("phoenix.db.azure_auth.create_async_engine", return_value=mock_engine),
+            patch("phoenix.db.azure_auth.create_async_engine", return_value=_make_mock_engine()),
+            patch.object(
+                AsyncEngine,
+                "dispose",
+                AsyncMock(side_effect=RuntimeError("boom")),
+            ),
         ):
             engine = create_azure_engine(_make_url(), {})
             with pytest.raises(RuntimeError, match="boom"):
@@ -188,9 +192,7 @@ class TestCredentialLifecycle:
             credentials.append(cred)
             return cred
 
-        mock_engine_a = _make_mock_engine()
-        mock_engine_b = _make_mock_engine()
-        mock_cae = MagicMock(side_effect=[mock_engine_a, mock_engine_b])
+        mock_cae = MagicMock(side_effect=[_make_mock_engine(), _make_mock_engine()])
 
         with (
             patch(
@@ -198,6 +200,7 @@ class TestCredentialLifecycle:
                 side_effect=fresh_credential,
             ),
             patch("phoenix.db.azure_auth.create_async_engine", mock_cae),
+            patch.object(AsyncEngine, "dispose", new_callable=AsyncMock),
         ):
             engine_a = create_azure_engine(_make_url(), {})
             engine_b = create_azure_engine(_make_url(), {})

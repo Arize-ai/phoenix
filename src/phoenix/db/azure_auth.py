@@ -11,6 +11,28 @@ if TYPE_CHECKING:
     import asyncpg  # type: ignore[import-untyped]
     from sqlalchemy import URL
 
+
+class _AzureAsyncEngine(AsyncEngine):
+    """AsyncEngine subclass that closes the Azure credential when disposed.
+
+    ``AsyncEngine.__slots__ = "sync_engine"`` prevents instance-level
+    attribute assignment, so the credential close cannot be wired via
+    monkey-patching.  Subclassing and overriding ``dispose`` avoids that
+    restriction while keeping the engine API identical.
+    """
+
+    __slots__ = ("_azure_credential",)
+
+    def __init__(self, sync_engine: Any, credential: Any) -> None:
+        super().__init__(sync_engine)
+        self._azure_credential = credential
+
+    async def dispose(self, close: bool = True) -> None:
+        try:
+            await super().dispose(close=close)
+        finally:
+            await self._azure_credential.close()
+
 logger = logging.getLogger(__name__)
 
 
@@ -88,18 +110,9 @@ def create_azure_engine(
 
     engine = create_async_engine(url=url, async_creator=async_creator, **engine_kwargs)
 
-    # Patch `dispose` on this instance so shutting down the engine also
-    # closes the credential on the loop that awaited dispose. Relies on
-    # callers invoking `engine.dispose(...)` (instance attribute lookup)
-    # rather than `type(engine).dispose(engine)` (class lookup).
-    original_dispose = engine.dispose
-
-    async def dispose_and_close_credential(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return await original_dispose(*args, **kwargs)
-        finally:
-            await credential.close()
-
-    engine.dispose = dispose_and_close_credential  # type: ignore[method-assign]
-
-    return engine
+    # ``AsyncEngine.__slots__ = "sync_engine"`` prevents instance-level
+    # attribute assignment, so we use _AzureAsyncEngine (a subclass that
+    # overrides ``dispose``) constructed with the same sync_engine that
+    # ``create_async_engine`` built.  This preserves the full pool
+    # configuration while cleanly tying credential close to engine dispose.
+    return _AzureAsyncEngine(engine.sync_engine, credential)
