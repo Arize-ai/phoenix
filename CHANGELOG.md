@@ -1,5 +1,31 @@
 # Changelog
 
+## [14.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.8.0...arize-phoenix-v14.9.0) (2026-04-20)
+
+
+### Features
+
+* Add PXI consent and trace-sharing controls ([#12740](https://github.com/Arize-ai/phoenix/issues/12740)) ([ebc9997](https://github.com/Arize-ai/phoenix/commit/ebc9997d0edacfbe53756f340ccf69bbab1a7bbe))
+* **agent:** empty-state screen for PXI chat ([#12726](https://github.com/Arize-ai/phoenix/issues/12726)) ([0a5a180](https://github.com/Arize-ai/phoenix/commit/0a5a1804cb435d6c9d532613dcecf1d9af999734))
+* **agents:** vendor use-stick-to-bottom for PXI chat ([#12715](https://github.com/Arize-ai/phoenix/issues/12715)) ([3f2571d](https://github.com/Arize-ai/phoenix/commit/3f2571d735bd99d4062c6dff54c3e98206dab902))
+* **cli:** split out span note support ([#12739](https://github.com/Arize-ai/phoenix/issues/12739)) ([aa8b34b](https://github.com/Arize-ai/phoenix/commit/aa8b34b2799d896942aaaff038bd436335301bd8))
+* **playground:** add Claude Opus 4.7 ([#12738](https://github.com/Arize-ai/phoenix/issues/12738)) ([9f149c6](https://github.com/Arize-ai/phoenix/commit/9f149c62e11c84deefb9438251f437fdeee0cf2a))
+* **rest-api:** add type-aware attribute filter to GET /v1/spans ([#12524](https://github.com/Arize-ai/phoenix/issues/12524)) ([c0badfa](https://github.com/Arize-ai/phoenix/commit/c0badfaa0a5f71a7415f339459d5977df77fb619))
+* **ui:** expose agentsConfig via GraphQL and surface on settings page ([#12723](https://github.com/Arize-ai/phoenix/issues/12723)) ([9b43f53](https://github.com/Arize-ai/phoenix/commit/9b43f53f9341be81cae69eb8f26cb74f60db315b))
+* **ui:** resizable Drawer component with Modal simplification ([#12707](https://github.com/Arize-ai/phoenix/issues/12707)) ([f7b37b1](https://github.com/Arize-ai/phoenix/commit/f7b37b1458cd66fec218e06f27e96b5573ac4c33))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#12728](https://github.com/Arize-ai/phoenix/issues/12728)) ([2532320](https://github.com/Arize-ai/phoenix/commit/2532320a973bc78810ed742cb2cf9a470865768f))
+* **graphql:** remove default_factory=dict on Strawberry JSON fields to fix introspection ([#12727](https://github.com/Arize-ai/phoenix/issues/12727)) ([e5e7f1a](https://github.com/Arize-ai/phoenix/commit/e5e7f1a5ae2609e54ac297705119fdc0e806eae5))
+* remove force_flush from get_db_traces ([#12766](https://github.com/Arize-ai/phoenix/issues/12766)) ([0bf480c](https://github.com/Arize-ai/phoenix/commit/0bf480cdf2c6abfbcc9faba4d9f1eaf4d00b0ff4))
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-08-2026 through 04-14-2026 ([#12683](https://github.com/Arize-ai/phoenix/issues/12683)) ([fce6ea7](https://github.com/Arize-ai/phoenix/commit/fce6ea7380d97419e095799d47b605f1eb657d77))
+
 ## [14.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.7.0...arize-phoenix-v14.8.0) (2026-04-16)
 
 
