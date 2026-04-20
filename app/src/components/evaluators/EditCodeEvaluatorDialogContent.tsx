@@ -228,6 +228,8 @@ export const EditCodeEvaluatorDialogContent = ({
     const configError = getCodeEvaluatorValidationError({
       outputConfigs: store.getState().outputConfigs,
       sourceCode,
+      mode,
+      sandboxConfigId: selectedSandboxConfigId,
     });
     if (!isValid || configError) {
       setShowValidationError(true);
@@ -813,15 +815,23 @@ const ContinuousBoundsEditor = ({
 const getCodeEvaluatorValidationError = ({
   outputConfigs,
   sourceCode,
+  mode,
+  sandboxConfigId,
 }: {
   outputConfigs: AnnotationConfig[];
   sourceCode: string;
+  mode: "create" | "update";
+  sandboxConfigId: string | null;
 }) => {
   if (sourceCode.trim().length === 0) {
     return "Source code is required.";
   }
   if (outputConfigs.length === 0) {
     return "At least one output config is required.";
+  }
+  // Require sandbox selection when creating a new evaluator
+  if (mode === "create" && sandboxConfigId == null) {
+    return "Please select a sandbox configuration.";
   }
   const outputConfig = outputConfigs[0];
   if ("values" in outputConfig) {

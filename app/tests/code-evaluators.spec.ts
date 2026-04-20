@@ -161,11 +161,13 @@ async function createCustomCodeEvaluator({
   evaluatorName,
   language,
   sandboxName,
+  description,
 }: {
   page: Page;
   evaluatorName: string;
   language: "Python" | "TypeScript";
-  sandboxName: string;
+  sandboxName?: string;
+  description?: string;
 }) {
   await page.getByRole("button", { name: "Add evaluator" }).click();
   await page
@@ -178,14 +180,23 @@ async function createCustomCodeEvaluator({
   ).toBeVisible();
 
   await dialog
-    .getByRole("textbox", { name: "Evaluator name" })
+    .getByRole("textbox", { name: "Name", exact: true })
     .fill(evaluatorName);
+
+  if (description) {
+    await dialog
+      .getByRole("textbox", { name: /Description/i })
+      .fill(description);
+  }
 
   if (language === "TypeScript") {
     await selectLanguage(page, dialog, "TypeScript");
   }
 
-  await selectComboboxOption(page, "Sandbox", sandboxName, dialog);
+  if (sandboxName) {
+    await selectComboboxOption(page, "Sandbox", sandboxName, dialog);
+  }
+
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
 }
@@ -261,7 +272,8 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     const nameInput = dialog.getByRole("textbox", {
-      name: "Evaluator name",
+      name: "Name",
+      exact: true,
     });
     await expect(nameInput).toHaveValue(pythonEvaluatorName);
 
@@ -275,7 +287,9 @@ test.describe.serial("Code Evaluators", () => {
 
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
     await expect(
-      page.getByRole("dialog").getByRole("textbox", { name: "Evaluator name" })
+      page
+        .getByRole("dialog")
+        .getByRole("textbox", { name: "Name", exact: true })
     ).toHaveValue(updatedPythonEvaluatorName);
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -330,6 +344,233 @@ test.describe.serial("Code Evaluators", () => {
     await expect(
       page.getByRole("dialog").getByRole("combobox", { name: "Sandbox" })
     ).toHaveValue("");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  // Store names for additional test cases
+  const evaluatorWithDescriptionName = `eval-with-desc-${randomUUID().slice(0, 8)}`;
+  const evaluatorWithDescriptionDesc = "This evaluator checks output quality";
+  const updatedDescription = "Updated description for testing";
+
+  test("can create code evaluator with description and verify it persists", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    await createCustomCodeEvaluator({
+      page,
+      evaluatorName: evaluatorWithDescriptionName,
+      language: "Python",
+      sandboxName: pythonSandboxName,
+      description: evaluatorWithDescriptionDesc,
+    });
+
+    await expect(
+      page.getByRole("cell", {
+        name: evaluatorWithDescriptionName,
+        exact: true,
+      })
+    ).toBeVisible();
+
+    // Reopen editor and verify description persisted
+    await openEvaluatorEditor(page, evaluatorWithDescriptionName);
+    const dialog = page.getByRole("dialog");
+    const descriptionInput = dialog.getByRole("textbox", {
+      name: /Description/i,
+    });
+    await expect(descriptionInput).toHaveValue(evaluatorWithDescriptionDesc);
+
+    // Update the description
+    await descriptionInput.fill(updatedDescription);
+    await page.getByRole("button", { name: "Update" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+
+    // Verify updated description persisted
+    await openEvaluatorEditor(page, evaluatorWithDescriptionName);
+    await expect(
+      page.getByRole("dialog").getByRole("textbox", { name: /Description/i })
+    ).toHaveValue(updatedDescription);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  test("cannot create code evaluator without selecting a sandbox", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new code evaluator" })
+      .click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    await dialog
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill("test-no-sandbox-eval");
+
+    // Don't select a sandbox - verify sandbox field is empty
+    const sandboxCombobox = dialog.getByRole("combobox", { name: "Sandbox" });
+    await expect(sandboxCombobox).toHaveValue("");
+
+    // Attempt to create - should show validation error
+    await page.getByRole("button", { name: "Create" }).click();
+
+    // Verify validation error is shown
+    await expect(
+      dialog.getByText("Please select a sandbox configuration.")
+    ).toBeVisible();
+
+    // Dialog should still be open (not created)
+    await expect(dialog).toBeVisible();
+
+    // Verify the error alert header is also shown
+    await expect(
+      dialog.getByRole("heading", {
+        name: "Invalid code evaluator configuration",
+      })
+    ).toBeVisible();
+  });
+
+  test("can open test evaluator section and verify UI elements", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+    await openEvaluatorEditor(page, evaluatorWithDescriptionName);
+
+    const dialog = page.getByRole("dialog");
+
+    // Ensure sandbox is set for testing
+    const sandboxCombobox = dialog.getByRole("combobox", { name: "Sandbox" });
+    if ((await sandboxCombobox.inputValue()) === "") {
+      await selectComboboxOption(page, "Sandbox", pythonSandboxName, dialog);
+    }
+
+    // Expand the Test Evaluator section
+    const testSectionTrigger = dialog.getByRole("button", {
+      name: "Test Evaluator",
+    });
+    await testSectionTrigger.click();
+
+    // Verify the Test button is visible (exact match to avoid matching "Test Evaluator")
+    const testButton = dialog.getByRole("button", {
+      name: "Test",
+      exact: true,
+    });
+    await expect(testButton).toBeVisible();
+
+    // Verify the test section description is visible
+    await expect(
+      dialog.getByText(
+        "Run your evaluator against the example data to verify it works correctly"
+      )
+    ).toBeVisible();
+
+    // Note: Actually running the test requires a working sandbox backend.
+    // The dismiss button test is skipped as it depends on sandbox execution.
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  const categoricalEvaluatorName = `categorical-eval-${randomUUID().slice(0, 8)}`;
+
+  test("can configure categorical choices in code evaluator", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new code evaluator" })
+      .click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    await dialog
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill(categoricalEvaluatorName);
+
+    await selectComboboxOption(page, "Sandbox", pythonSandboxName, dialog);
+
+    // Expand Output Configuration section
+    const outputConfigTrigger = dialog.getByRole("button", {
+      name: "Output Configuration",
+    });
+    // Click only if section is collapsed (check if panel is not visible)
+    const outputConfigPanel = dialog.getByText(
+      "Define the output type and optimization direction"
+    );
+    if (!(await outputConfigPanel.isVisible())) {
+      await outputConfigTrigger.click();
+    }
+    await expect(outputConfigPanel).toBeVisible();
+
+    // Change output type from Continuous to Categorical
+    const outputTypeSelect = dialog.getByRole("button", {
+      name: /Continuous score|Categorical label/,
+    });
+    await outputTypeSelect.click();
+    await page
+      .getByRole("option", { name: "Categorical label", exact: true })
+      .click();
+
+    // Verify Choices section appears with default two choices
+    await expect(dialog.getByText("Choices", { exact: true })).toBeVisible();
+
+    // Fill in the first choice
+    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
+    await expect(choiceInputs.first()).toBeVisible();
+    await choiceInputs.first().fill("Good");
+
+    // Fill in the second choice
+    await choiceInputs.nth(1).fill("Bad");
+
+    // Add a third choice
+    await dialog.getByRole("button", { name: "+ Add choice" }).click();
+    await choiceInputs.nth(2).fill("Neutral");
+
+    // Verify the third choice was added
+    await expect(choiceInputs).toHaveCount(3);
+
+    // Remove the third choice using the aria-labeled button
+    const removeButtons = dialog.getByRole("button", { name: "Remove choice" });
+    await expect(removeButtons).toHaveCount(3);
+    await removeButtons.last().click();
+
+    // Verify we're back to two choices
+    await expect(choiceInputs).toHaveCount(2);
+
+    // Verify remove is disabled when only 2 choices remain
+    const remainingRemoveButtons = dialog.getByRole("button", {
+      name: "Remove choice",
+    });
+    await expect(remainingRemoveButtons.first()).toBeDisabled();
+    await expect(remainingRemoveButtons.last()).toBeDisabled();
+
+    // Create the evaluator
+    await page.getByRole("button", { name: "Create" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+
+    // Verify the evaluator was created
+    await expect(
+      page.getByRole("cell", { name: categoricalEvaluatorName, exact: true })
+    ).toBeVisible();
+
+    // Reopen and verify categorical config persisted
+    await openEvaluatorEditor(page, categoricalEvaluatorName);
+    await expect(dialog.getByText("Choices", { exact: true })).toBeVisible();
+    await expect(choiceInputs.first()).toHaveValue("Good");
+    await expect(choiceInputs.last()).toHaveValue("Bad");
+
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
