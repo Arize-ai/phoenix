@@ -25,6 +25,10 @@ export function ProjectFilterConfigButton() {
   const setTreatOrphansAsRoots = useProjectContext(
     (state) => state.setTreatOrphansAsRoots
   );
+  const showTableAside = useProjectContext((state) => state.showTableAside);
+  const setShowTableAside = useProjectContext(
+    (state) => state.setShowTableAside
+  );
   return (
     <DialogTrigger>
       <Button
@@ -46,6 +50,16 @@ export function ProjectFilterConfigButton() {
                 }}
               >
                 Treat Orphan Spans as Roots
+              </Switch>
+              <Switch
+                isSelected={showTableAside}
+                onChange={(isSelected) => {
+                  startTransition(() => {
+                    setShowTableAside(isSelected);
+                  });
+                }}
+              >
+                Show Table Aside
               </Switch>
             </Flex>
           </View>
