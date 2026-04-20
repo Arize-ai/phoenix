@@ -15,6 +15,12 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import {
+  Group,
+  Panel,
+  type PanelImperativeHandle,
+  Separator,
+} from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -33,6 +39,7 @@ import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/Ann
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { CellWithControlsWrap, LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -169,6 +176,16 @@ export function SpansTable(props: SpansTableProps) {
   const setShowTableAside = useProjectContext(
     (state) => state.setShowTableAside
   );
+  const asidePanelRef = useRef<PanelImperativeHandle>(null);
+  useEffect(() => {
+    const panel = asidePanelRef.current;
+    if (!panel) return;
+    if (showTableAside && panel.isCollapsed()) {
+      panel.expand();
+    } else if (!showTableAside && !panel.isCollapsed()) {
+      panel.collapse();
+    }
+  }, [showTableAside]);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -668,161 +685,221 @@ export function SpansTable(props: SpansTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
-    <div css={spansTableCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+    <Group orientation="horizontal" id="spans-table-layout">
+      <Panel>
+        <div css={spansTableCSS}>
+          <View
+            paddingTop="size-100"
+            paddingBottom="size-100"
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            borderBottomColor="default"
+            borderBottomWidth="thin"
+            flex="none"
+          >
+            <Flex
+              direction="row"
+              gap="size-100"
+              width="100%"
+              alignItems="center"
+            >
+              <SpanFilterConditionField onValidCondition={setFilterCondition} />
 
-          <ToggleButtonGroup
-            aria-label="Toggle between root and all spans"
-            selectionMode="single"
-            selectedKeys={[rootSpansOnly ? "root" : "all"]}
-            onSelectionChange={(selection) => {
-              if (selection.size === 0) {
-                return;
-              }
-              const selectedKey = selection.keys().next().value;
-              if (isRootSpanFilterValue(selectedKey)) {
-                setRootSpansOnly(selectedKey === "root");
-              } else {
-                throw new Error(
-                  `Unknown root span filter selection: ${selectedKey}`
-                );
-              }
-            }}
-          >
-            <ToggleButton aria-label="root spans" id="root">
-              Root Spans
-            </ToggleButton>
-            <ToggleButton aria-label="all spans" id="all">
-              All
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <SpanColumnSelector columns={computedColumns} query={data} />
-          <ProjectFilterConfigButton />
-          <ToggleButton
-            size="M"
-            aria-label={
-              showTableAside ? "Hide aside panel" : "Show aside panel"
+              <ToggleButtonGroup
+                aria-label="Toggle between root and all spans"
+                selectionMode="single"
+                selectedKeys={[rootSpansOnly ? "root" : "all"]}
+                onSelectionChange={(selection) => {
+                  if (selection.size === 0) {
+                    return;
+                  }
+                  const selectedKey = selection.keys().next().value;
+                  if (isRootSpanFilterValue(selectedKey)) {
+                    setRootSpansOnly(selectedKey === "root");
+                  } else {
+                    throw new Error(
+                      `Unknown root span filter selection: ${selectedKey}`
+                    );
+                  }
+                }}
+              >
+                <ToggleButton aria-label="root spans" id="root">
+                  Root Spans
+                </ToggleButton>
+                <ToggleButton aria-label="all spans" id="all">
+                  All
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <SpanColumnSelector columns={computedColumns} query={data} />
+              <ProjectFilterConfigButton />
+              <div css={asideToggleSpacerCSS} />
+              <ToggleButton
+                size="M"
+                aria-label={
+                  showTableAside ? "Hide aside panel" : "Show aside panel"
+                }
+                isSelected={showTableAside}
+                onPress={() => {
+                  const next = !showTableAside;
+                  setShowTableAside(next);
+                  const panel = asidePanelRef.current;
+                  if (panel) {
+                    if (next) {
+                      panel.expand();
+                    } else {
+                      panel.collapse();
+                    }
+                  }
+                }}
+              >
+                <Icon svg={<Icons.SlideOut />} />
+              </ToggleButton>
+            </Flex>
+          </View>
+          <div
+            css={css`
+              flex: 1 1 auto;
+              overflow: auto;
+            `}
+            onScroll={(e) =>
+              fetchMoreOnBottomReached(e.target as HTMLDivElement)
             }
-            isSelected={showTableAside}
-            onPress={() => setShowTableAside(!showTableAside)}
+            ref={tableContainerRef}
           >
-            <Icon svg={<Icons.SlideOut />} />
-          </ToggleButton>
-        </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
-        >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    }}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              left: header.getStart(),
-                              width: header.getSize(),
-                            },
-                          }}
-                        >
-                          <Truncate maxWidth={header.getSize()}>
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.ArrowUpFilled />
-                                ) : (
-                                  <Icons.ArrowDownFilled />
-                                )
-                              }
+            <table
+              css={selectableTableCSS}
+              style={{
+                ...columnSizeVars,
+                width: table.getTotalSize(),
+                minWidth: "100%",
+              }}
+            >
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        colSpan={header.colSpan}
+                        style={{
+                          width: `calc(var(--header-${header.id}-size) * 1px)`,
+                        }}
+                        key={header.id}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <>
+                            <div
+                              {...{
+                                className: header.column.getCanSort()
+                                  ? "sort"
+                                  : "",
+                                onClick:
+                                  header.column.getToggleSortingHandler(),
+                                style: {
+                                  left: header.getStart(),
+                                  width: header.getSize(),
+                                },
+                              }}
+                            >
+                              <Truncate maxWidth={header.getSize()}>
+                                {flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                              </Truncate>
+                              {header.column.getIsSorted() ? (
+                                <Icon
+                                  className="sort-icon"
+                                  svg={
+                                    header.column.getIsSorted() === "asc" ? (
+                                      <Icons.ArrowUpFilled />
+                                    ) : (
+                                      <Icons.ArrowDownFilled />
+                                    )
+                                  }
+                                />
+                              ) : null}
+                            </div>
+                            <div
+                              {...{
+                                onMouseDown: header.getResizeHandler(),
+                                onTouchStart: header.getResizeHandler(),
+                                className: `resizer ${
+                                  header.column.getIsResizing()
+                                    ? "isResizing"
+                                    : ""
+                                }`,
+                              }}
                             />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
+                          </>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty && !hasNext ? (
-            // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
-            // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
-            // spans. This is an undesirable edge case. The optimization is a stopgap solution that
-            // will be replaced to eliminate this condition.
-            <ProjectTableEmpty projectName={data.name} />
-          ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody
-              table={table}
-              hasNext={hasNext}
-              onLoadNext={() => loadNext(PAGE_SIZE)}
-              isLoadingNext={isLoadingNext}
+              </thead>
+              {isEmpty && !hasNext ? (
+                // The trace-based pagination optimization (https://github.com/Arize-ai/phoenix/pull/8539)
+                // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
+                // spans. This is an undesirable edge case. The optimization is a stopgap solution that
+                // will be replaced to eliminate this condition.
+                <ProjectTableEmpty projectName={data.name} />
+              ) : columnSizingInfo.isResizingColumn ? (
+                <MemoizedTableBody
+                  table={table}
+                  hasNext={hasNext}
+                  onLoadNext={() => loadNext(PAGE_SIZE)}
+                  isLoadingNext={isLoadingNext}
+                />
+              ) : (
+                <TableBody
+                  table={table}
+                  hasNext={hasNext}
+                  onLoadNext={() => loadNext(PAGE_SIZE)}
+                  isLoadingNext={isLoadingNext}
+                />
+              )}
+            </table>
+          </div>
+          {selectedRows.length ? (
+            <SpanSelectionToolbar
+              selectedSpans={selectedSpans}
+              onClearSelection={clearSelection}
             />
-          ) : (
-            <TableBody
-              table={table}
-              hasNext={hasNext}
-              onLoadNext={() => loadNext(PAGE_SIZE)}
-              isLoadingNext={isLoadingNext}
-            />
-          )}
-        </table>
-      </div>
-      {selectedRows.length ? (
-        <SpanSelectionToolbar
-          selectedSpans={selectedSpans}
-          onClearSelection={clearSelection}
-        />
-      ) : null}
-    </div>
+          ) : null}
+        </div>
+      </Panel>
+      <Separator
+        css={compactResizeHandleCSS}
+        disabled={!showTableAside}
+        style={showTableAside ? undefined : { display: "none" }}
+      />
+      <Panel
+        panelRef={asidePanelRef}
+        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+        collapsedSize={0}
+        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
+        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+        collapsible
+        onResize={(panelSize) => {
+          if (panelSize.asPercentage === 0) {
+            setShowTableAside(false);
+          }
+        }}
+      >
+        <View padding="size-200" height="100%" overflow="auto">
+          <Heading level={3} weight="heavy">
+            Stats
+          </Heading>
+        </View>
+      </Panel>
+    </Group>
   );
 }
+
+const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
+const ASIDE_PANEL_MIN_SIZE_PIXELS = 280;
+const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
+
+const asideToggleSpacerCSS = css`
+  flex: 1 1 auto;
+`;
