@@ -30,7 +30,9 @@ export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
   if (!usage) return null;
   return (
     <div css={chatSessionUsageCSS}>
-      <TokenCount size="S">{usage.tokenCount.total}</TokenCount>
+      <TokenCount size="S" color="text-300">
+        {usage.tokenCount.total}
+      </TokenCount>
     </div>
   );
 };
