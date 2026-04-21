@@ -63,12 +63,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AgentMessageMetadataUsageCost(TypedDict):
-    prompt: float
-    completion: float
-    total: float
-
-
 class AgentMessageMetadataUsageTokens(TypedDict):
     prompt: int
     completion: int
@@ -77,7 +71,6 @@ class AgentMessageMetadataUsageTokens(TypedDict):
 
 class AgentMessageMetadataUsage(TypedDict, total=False):
     tokens: AgentMessageMetadataUsageTokens
-    cost: AgentMessageMetadataUsageCost
 
 
 class AgentMessageMetadata(TypedDict, total=False):
