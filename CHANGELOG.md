@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.9.0...arize-phoenix-v14.9.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **db:** wrap Azure AsyncEngine with ObjectProxy instead of patching dispose ([#12777](https://github.com/Arize-ai/phoenix/issues/12777)) ([d37bdfa](https://github.com/Arize-ai/phoenix/commit/d37bdfaa2ad1a4a3d140a5153c3f7320c9dfebb2))
+
 ## [14.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.8.0...arize-phoenix-v14.9.0) (2026-04-20)
 
 
