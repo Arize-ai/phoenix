@@ -23,6 +23,7 @@ import {
   ListBoxItem,
   Loading,
   Text,
+  Truncate,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
@@ -256,36 +257,55 @@ function SessionTurnList({
       }}
       css={turnListCSS}
     >
-      {(row) => (
-        <ListBoxItem id={row.traceId} textValue={`Turn ${row.index + 1}`}>
-          <Flex direction="column" gap="size-100">
-            <Flex
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              gap="size-100"
-            >
-              <Text weight="heavy">Turn {row.index + 1}</Text>
-              <Text color="text-700" size="XS">
-                {fullTimeFormatter(new Date(row.rootSpan.startTime))}
-              </Text>
+      {(row) => {
+        const paddedIndex = String(row.index + 1).padStart(2, "0");
+        const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
+        return (
+          <ListBoxItem id={row.traceId} textValue={turnLabel}>
+            <Flex direction="column" gap="size-100">
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-100"
+              >
+                <Flex
+                  direction="row"
+                  gap="size-50"
+                  alignItems="center"
+                  flex={1}
+                  minWidth={0}
+                >
+                  <Text fontFamily="mono" color="text-500">
+                    {paddedIndex}
+                  </Text>
+                  <Flex flex={1} minWidth={0}>
+                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                      <Text weight="heavy">{row.rootSpan.name}</Text>
+                    </Truncate>
+                  </Flex>
+                </Flex>
+                <Text color="text-700" size="XS">
+                  {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+                </Text>
+              </Flex>
+              <Flex direction="row" gap="size-100" alignItems="center" wrap>
+                <TokenCount size="S">
+                  {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+                </TokenCount>
+                {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                  <TokenCosts size="S">
+                    {row.rootSpan.trace.costSummary.total.cost}
+                  </TokenCosts>
+                ) : null}
+                {row.rootSpan.latencyMs != null ? (
+                  <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
+                ) : null}
+              </Flex>
             </Flex>
-            <Flex direction="row" gap="size-100" alignItems="center" wrap>
-              <TokenCount size="S">
-                {row.rootSpan.cumulativeTokenCountTotal ?? 0}
-              </TokenCount>
-              {row.rootSpan.trace.costSummary?.total?.cost != null ? (
-                <TokenCosts size="S">
-                  {row.rootSpan.trace.costSummary.total.cost}
-                </TokenCosts>
-              ) : null}
-              {row.rootSpan.latencyMs != null ? (
-                <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
-              ) : null}
-            </Flex>
-          </Flex>
-        </ListBoxItem>
-      )}
+          </ListBoxItem>
+        );
+      }}
     </ListBox>
   );
 }
@@ -325,6 +345,7 @@ export function SessionDetailsTraceList({
                   }
                 }
                 id
+                name
                 attributes
                 project {
                   id

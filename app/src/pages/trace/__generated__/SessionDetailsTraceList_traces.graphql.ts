@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6a24145cb81285e517caf0b79641b2d>>
+ * @generated SignedSource<<efbfc3ec19d66519c45b3b0ee83043ab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,7 @@ export type SessionDetailsTraceList_traces$data = {
             readonly value: string;
           } | null;
           readonly latencyMs: number | null;
+          readonly name: string;
           readonly output: {
             readonly mimeType: MimeType;
             readonly value: string;
@@ -215,6 +216,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "name",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "attributes",
                       "storageKey": null
                     },
@@ -352,6 +360,6 @@ return {
 };
 })();
 
-(node as any).hash = "d93b35659e600ca4438d4c1da87a24d5";
+(node as any).hash = "69c2f49d3ae386d40225d46433a66fc5";
 
 export default node;
