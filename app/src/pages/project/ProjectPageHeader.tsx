@@ -19,47 +19,31 @@ export function ProjectPageHeader(props: {
   const { extra } = props;
   const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   return (
-    <div css={headerCSS}>
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-200"
+      paddingBottom="size-50"
+      flex="none"
+      overflow="visible"
+    >
       <Flex direction="row" justifyContent="space-between" alignItems="center">
         {isTracingUxEnabled ? (
-          <div css={sparklineContainerCSS}>
-            <Suspense fallback={<Loading size="S" />}>
-              <ProjectSpanCountSparkline />
-            </Suspense>
-          </div>
+          <Suspense fallback={<Loading size="S" />}>
+            <ProjectSpanCountSparkline />
+          </Suspense>
         ) : (
           <div css={statsScrollCSS}>
-            <ProjectStats project={props.project} direction="row" />
+            <ProjectStats project={props.project} />
           </div>
         )}
         <View flex="none" paddingStart="size-100">
           {extra}
         </View>
       </Flex>
-    </div>
+    </View>
   );
 }
-
-const headerCSS = css`
-  flex: none;
-  box-sizing: border-box;
-  padding: var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-200);
-  overflow: visible;
-`;
-
-const sparklineContainerCSS = css`
-  flex: 1 1 auto;
-  height: 72px;
-  min-width: 0;
-  overflow: visible;
-  .recharts-responsive-container,
-  .recharts-wrapper {
-    overflow: visible !important;
-  }
-`;
 
 const statsScrollCSS = css`
   overflow-x: auto;

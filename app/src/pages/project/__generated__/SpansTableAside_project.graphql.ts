@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ffdfcd350fb0d316a81e4f6e58f220d>>
+ * @generated SignedSource<<f94c6d88f71e00ab3ed951fd4975110b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectStats_project$data = {
+export type SpansTableAside_project$data = {
   readonly costSummary: {
     readonly completion: {
       readonly cost: number | null;
@@ -28,25 +28,31 @@ export type ProjectStats_project$data = {
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly timeRangeTraceCount: number;
-  readonly " $fragmentType": "ProjectStats_project";
+  readonly " $fragmentType": "SpansTableAside_project";
 };
-export type ProjectStats_project$key = {
-  readonly " $data"?: ProjectStats_project$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project">;
+export type SpansTableAside_project$key = {
+  readonly " $data"?: SpansTableAside_project$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SpansTableAside_project">;
 };
 
-import ProjectStatsQuery_graphql from './ProjectStatsQuery.graphql';
+import SpansTableAsideQuery_graphql from './SpansTableAsideQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
   "kind": "Variable",
+  "name": "filterCondition",
+  "variableName": "filterCondition"
+},
+v1 = {
+  "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v1 = [
-  (v0/*: any*/)
-],
 v2 = [
+  (v0/*: any*/),
+  (v1/*: any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -57,6 +63,11 @@ v2 = [
 ];
 return {
   "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
     {
       "kind": "RootArgument",
       "name": "timeRange"
@@ -69,25 +80,25 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": ProjectStatsQuery_graphql,
+      "operation": SpansTableAsideQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "ProjectStats_project",
+  "name": "SpansTableAside_project",
   "selections": [
     {
       "alias": "timeRangeTraceCount",
-      "args": (v1/*: any*/),
+      "args": (v2/*: any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v1/*: any*/),
+      "args": (v2/*: any*/),
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -100,7 +111,7 @@ return {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
@@ -110,7 +121,7 @@ return {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
@@ -120,7 +131,7 @@ return {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         }
       ],
@@ -129,12 +140,13 @@ return {
     {
       "alias": "latencyMsP50",
       "args": [
+        (v0/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v0/*: any*/)
+        (v1/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -143,12 +155,13 @@ return {
     {
       "alias": "latencyMsP99",
       "args": [
+        (v0/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v0/*: any*/)
+        (v1/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -181,6 +194,6 @@ return {
 };
 })();
 
-(node as any).hash = "c81b99ab1904f209b6f4194123e9fb99";
+(node as any).hash = "7baaf45483793c35aada53b3f4461274";
 
 export default node;

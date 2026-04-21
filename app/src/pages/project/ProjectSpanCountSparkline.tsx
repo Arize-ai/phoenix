@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
@@ -16,6 +17,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
@@ -31,10 +33,9 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { ProjectSpanCountSparklineQuery } from "./__generated__/ProjectSpanCountSparklineQuery.graphql";
 
-const AXIS_FONT_SIZE = 10;
 const SPARKLINE_AXIS_STYLE = {
   fill: "var(--chart-axis-text-color)",
-  fontSize: AXIS_FONT_SIZE,
+  fontSize: 10,
 };
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
@@ -126,53 +127,59 @@ export function ProjectSpanCountSparkline() {
   const semanticColors = useSemanticChartColors();
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
-        barSize={6}
-      >
-        <CartesianGrid
-          stroke="var(--chart-cartesian-grid-stroke-color)"
-          strokeDasharray="2 3"
-          vertical={false}
-        />
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          tickLine={{ stroke: "var(--chart-axis-stroke-color)" }}
-          axisLine={{ stroke: "var(--chart-axis-stroke-color)" }}
-          tickSize={3}
-          tickMargin={2}
-          height={16}
-          style={SPARKLINE_AXIS_STYLE}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          tickFormatter={(x) => intFormatter(x)}
-          tickLine={{ stroke: "var(--chart-axis-stroke-color)" }}
-          axisLine={false}
-          tickSize={3}
-          width={24}
-          tickCount={3}
-          style={SPARKLINE_AXIS_STYLE}
-        />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-          allowEscapeViewBox={{ x: true, y: true }}
-          wrapperStyle={{ zIndex: 100 }}
-        />
-        <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
-        <Bar
-          dataKey="ok"
-          stackId="a"
-          fill={colors.gray300}
-          radius={[2, 2, 0, 0]}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <div css={sparklineCSS}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+          barSize={6}
+        >
+          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <XAxis
+            {...defaultXAxisProps}
+            dataKey="timestamp"
+            interval={interval}
+            tickFormatter={(x) => timeTickFormatter(new Date(x))}
+            tickSize={3}
+            tickMargin={2}
+            height={16}
+            style={SPARKLINE_AXIS_STYLE}
+          />
+          <YAxis
+            {...defaultYAxisProps}
+            tickFormatter={(x) => intFormatter(x)}
+            axisLine={false}
+            tickSize={3}
+            width={24}
+            tickCount={3}
+            style={SPARKLINE_AXIS_STYLE}
+          />
+          <Tooltip
+            content={TooltipContent}
+            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            allowEscapeViewBox={{ x: true, y: true }}
+            wrapperStyle={{ zIndex: 100 }}
+          />
+          <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
+          <Bar
+            dataKey="ok"
+            stackId="a"
+            fill={colors.gray300}
+            radius={[2, 2, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
+
+const sparklineCSS = css`
+  flex: 1 1 auto;
+  height: 72px;
+  min-width: 0;
+  overflow: visible;
+  .recharts-responsive-container,
+  .recharts-wrapper {
+    overflow: visible !important;
+  }
+`;

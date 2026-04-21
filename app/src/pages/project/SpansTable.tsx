@@ -73,12 +73,12 @@ import type {
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
-import { ProjectStats } from "./ProjectStats";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
+import { SpansTableAside } from "./SpansTableAside";
 import { spansTableCSS } from "./styles";
 import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
 
@@ -185,9 +185,6 @@ export function SpansTable(props: SpansTableProps) {
     (state) => state.setShowTableAside
   );
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
-  // Keep the aside panel's collapsed state in sync with showTableAside.
-  // The panel stays mounted across toggles — unmounting it mid-render
-  // breaks react-resizable-panels' internal size tracking.
   useEffect(() => {
     const panel = asidePanelRef.current;
     if (!panel) return;
@@ -210,7 +207,7 @@ export function SpansTable(props: SpansTableProps) {
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
-          ...ProjectStats_project
+          ...SpansTableAside_project
           ...SpanColumnSelector_annotations
           spans(
             first: $first
@@ -757,18 +754,7 @@ export function SpansTable(props: SpansTableProps) {
                       }
                     />
                   }
-                  onPress={() => {
-                    const next = !showTableAside;
-                    setShowTableAside(next);
-                    const panel = asidePanelRef.current;
-                    if (panel) {
-                      if (next) {
-                        panel.expand();
-                      } else {
-                        panel.collapse();
-                      }
-                    }
-                  }}
+                  onPress={() => setShowTableAside(!showTableAside)}
                 />
               ) : null}
             </Flex>
@@ -900,27 +886,21 @@ export function SpansTable(props: SpansTableProps) {
             maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
             collapsible
             onResize={(panelSize) => {
-              if (panelSize.asPercentage === 0) {
+              if (panelSize.asPercentage === 0 && showTableAside) {
                 setShowTableAside(false);
               }
             }}
           >
-            <View padding="size-200" height="100%" overflow="auto">
-              <Flex direction="column" gap="size-200" minWidth="size-3400">
-                <Heading level={3} weight="heavy">
-                  Stats
-                </Heading>
-                <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-                  <Suspense fallback={<Loading size="S" />}>
-                    <ProjectStats
-                      project={data}
-                      direction="column"
-                      filterCondition={filterCondition}
-                    />
-                  </Suspense>
-                </ErrorBoundary>
-              </Flex>
-            </View>
+            {showTableAside ? (
+              <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+                <Suspense fallback={<Loading size="S" />}>
+                  <SpansTableAside
+                    project={data}
+                    filterCondition={filterCondition}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            ) : null}
           </Panel>
         </>
       ) : null}

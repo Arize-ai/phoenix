@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef } from "react";
+import { startTransition, useEffect } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 
@@ -23,19 +23,7 @@ import type { ProjectStatsQuery } from "./__generated__/ProjectStatsQuery.graphq
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 
-type StatsDirection = "row" | "column";
-
-export function ProjectStats(props: {
-  project: ProjectStats_project$key;
-  direction?: StatsDirection;
-  /**
-   * Optional span filter condition. When provided, the stats are
-   * recomputed against the subset of spans matching the condition.
-   */
-  filterCondition?: string | null;
-}) {
-  const direction: StatsDirection = props.direction ?? "row";
-  const filterCondition = props.filterCondition || null;
+export function ProjectStats(props: { project: ProjectStats_project$key }) {
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     ProjectStatsQuery,
@@ -43,15 +31,9 @@ export function ProjectStats(props: {
   >(
     graphql`
       fragment ProjectStats_project on Project
-      @refetchable(queryName: "ProjectStatsQuery")
-      @argumentDefinitions(
-        filterCondition: { type: "String", defaultValue: null }
-      ) {
-        timeRangeTraceCount: traceCount(
-          timeRange: $timeRange
-          filterCondition: $filterCondition
-        )
-        costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {
+      @refetchable(queryName: "ProjectStatsQuery") {
+        timeRangeTraceCount: traceCount(timeRange: $timeRange)
+        costSummary(timeRange: $timeRange) {
           total {
             cost
           }
@@ -62,16 +44,8 @@ export function ProjectStats(props: {
             cost
           }
         }
-        latencyMsP50: latencyMsQuantile(
-          probability: 0.50
-          timeRange: $timeRange
-          filterCondition: $filterCondition
-        )
-        latencyMsP99: latencyMsQuantile(
-          probability: 0.99
-          timeRange: $timeRange
-          filterCondition: $filterCondition
-        )
+        latencyMsP50: latencyMsQuantile(probability: 0.50, timeRange: $timeRange)
+        latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)
         spanAnnotationNames
         documentEvaluationNames
       }
@@ -79,19 +53,11 @@ export function ProjectStats(props: {
     props.project
   );
 
-  // Refetch when the fetchKey or filterCondition changes. Skip the initial
-  // mount when no filter is active — the parent query's store-and-network
-  // fetch already returned unfiltered data.
-  const hasMounted = useRef<boolean>(false);
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      if (!filterCondition) return;
-    }
     startTransition(() => {
-      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
+      refetch({}, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, filterCondition, refetch]);
+  }, [fetchKey, refetch]);
 
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
@@ -102,11 +68,7 @@ export function ProjectStats(props: {
   const colors = useCategoryChartColors();
 
   return (
-    <Flex
-      direction={direction}
-      gap={direction === "row" ? "size-400" : "size-200"}
-      alignItems={direction === "row" ? "center" : "start"}
-    >
+    <Flex direction="row" gap="size-400" alignItems="center">
       <Flex direction="column" flex="none">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
@@ -171,11 +133,7 @@ export function ProjectStats(props: {
       </Flex>
       {spanAnnotationNames.map((name) => (
         <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
-          <AnnotationSummary
-            key={name}
-            annotationName={name}
-            filterCondition={filterCondition}
-          />
+          <AnnotationSummary annotationName={name} />
         </ErrorBoundary>
       ))}
       {documentEvaluationNames.map((name) => (
