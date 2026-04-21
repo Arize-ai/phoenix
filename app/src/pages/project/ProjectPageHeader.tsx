@@ -50,6 +50,11 @@ const sparklineContainerCSS = css`
   flex: 1 1 auto;
   height: 72px;
   min-width: 0;
+  overflow: visible;
+  .recharts-responsive-container,
+  .recharts-wrapper {
+    overflow: visible !important;
+  }
 `;
 
 const statsScrollCSS = css`

@@ -154,6 +154,8 @@ export function ProjectSpanCountSparkline() {
         <Tooltip
           content={TooltipContent}
           cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+          allowEscapeViewBox={{ x: true, y: true }}
+          wrapperStyle={{ zIndex: 100 }}
         />
         <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
         <Bar
