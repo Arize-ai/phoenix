@@ -1432,14 +1432,15 @@ const getBaseChatCompletionInput = ({
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
       ? {
-          endpoint: instance.model.endpoint,
+          azureEndpoint: instance.model.endpoint ?? null,
         }
       : {};
 
   const awsModelParams =
     instance.model.provider === "AWS"
       ? {
-          region: instance.model.region,
+          regionName: instance.model.region ?? null,
+          endpointUrl: instance.model.endpoint ?? null,
         }
       : {};
 
