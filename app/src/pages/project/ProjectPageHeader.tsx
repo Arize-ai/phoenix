@@ -30,8 +30,14 @@ type StatsDirection = "row" | "column";
 export function ProjectStats(props: {
   project: ProjectPageHeader_stats$key;
   direction?: StatsDirection;
+  /**
+   * Optional span filter condition. When provided, the stats are
+   * recomputed against the subset of spans matching the condition.
+   */
+  filterCondition?: string | null;
 }) {
   const direction: StatsDirection = props.direction ?? "row";
+  const filterCondition = props.filterCondition || null;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     ProjectPageHeaderQuery,
@@ -39,9 +45,13 @@ export function ProjectStats(props: {
   >(
     graphql`
       fragment ProjectPageHeader_stats on Project
-      @refetchable(queryName: "ProjectPageHeaderQuery") {
-        timeRangeTraceCount: traceCount(timeRange: $timeRange)
-        costSummary(timeRange: $timeRange) {
+      @refetchable(queryName: "ProjectPageHeaderQuery")
+      @argumentDefinitions(filterCondition: { type: "String", defaultValue: null }) {
+        timeRangeTraceCount: traceCount(
+          timeRange: $timeRange
+          filterCondition: $filterCondition
+        )
+        costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {
           total {
             cost
           }
@@ -52,8 +62,16 @@ export function ProjectStats(props: {
             cost
           }
         }
-        latencyMsP50: latencyMsQuantile(probability: 0.50, timeRange: $timeRange)
-        latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)
+        latencyMsP50: latencyMsQuantile(
+          probability: 0.50
+          timeRange: $timeRange
+          filterCondition: $filterCondition
+        )
+        latencyMsP99: latencyMsQuantile(
+          probability: 0.99
+          timeRange: $timeRange
+          filterCondition: $filterCondition
+        )
         spanAnnotationNames
         documentEvaluationNames
       }
@@ -61,18 +79,19 @@ export function ProjectStats(props: {
     props.project
   );
 
-  // Refetch when the fetchKey changes. Skip the initial mount — the parent
-  // query's store-and-network fetch already gets fresh data.
+  // Refetch when the fetchKey or filterCondition changes. Skip the initial
+  // mount when no filter is active — the parent query's store-and-network
+  // fetch already returned unfiltered data.
   const hasMounted = useRef<boolean>(false);
   useEffect(() => {
     if (!hasMounted.current) {
       hasMounted.current = true;
-      return;
+      if (!filterCondition) return;
     }
     startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
+      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  }, [fetchKey, filterCondition, refetch]);
 
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
@@ -152,7 +171,11 @@ export function ProjectStats(props: {
       </Flex>
       {spanAnnotationNames.map((name) => (
         <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
-          <AnnotationSummary key={name} annotationName={name} />
+          <AnnotationSummary
+            key={name}
+            annotationName={name}
+            filterCondition={filterCondition}
+          />
         </ErrorBoundary>
       ))}
       {documentEvaluationNames.map((name) => (

@@ -35,8 +35,16 @@ import type { AnnotationSummaryValueFragment$key } from "./__generated__/Annotat
 
 type AnnotationSummaryProps = {
   annotationName: string;
+  /**
+   * Optional span filter condition. When set, the annotation summary is
+   * restricted to spans matching the condition.
+   */
+  filterCondition?: string | null;
 };
-export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
+export function AnnotationSummary({
+  annotationName,
+  filterCondition,
+}: AnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
@@ -45,10 +53,15 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
         $id: ID!
         $annotationName: String!
         $timeRange: TimeRange!
+        $filterCondition: String
       ) {
         project: node(id: $id) {
           ...AnnotationSummaryValueFragment
-            @arguments(annotationName: $annotationName, timeRange: $timeRange)
+            @arguments(
+              annotationName: $annotationName
+              timeRange: $timeRange
+              filterCondition: $filterCondition
+            )
         }
       }
     `,
@@ -59,12 +72,14 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
         start: timeRange?.start?.toISOString(),
         end: timeRange?.end?.toISOString(),
       },
+      filterCondition: filterCondition || null,
     }
   );
   return (
     <Summary name={annotationName}>
       <AnnotationSummaryValue
         annotationName={annotationName}
+        filterCondition={filterCondition || null}
         project={data.project}
       />
     </Summary>
@@ -73,9 +88,10 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
 
 function AnnotationSummaryValue(props: {
   annotationName: string;
+  filterCondition: string | null;
   project: AnnotationSummaryValueFragment$key;
 }) {
-  const { project, annotationName } = props;
+  const { project, annotationName, filterCondition } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     AnnotationSummaryQuery,
@@ -87,6 +103,7 @@ function AnnotationSummaryValue(props: {
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
+        filterCondition: { type: "String", defaultValue: null }
       ) {
         annotationConfigs {
           edges {
@@ -110,6 +127,7 @@ function AnnotationSummaryValue(props: {
         spanAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
+          filterCondition: $filterCondition
         ) {
           name
           labelFractions {
@@ -123,12 +141,12 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  // Refetch the annotation summary if the fetchKey changes
+  // Refetch the annotation summary if the fetchKey or filterCondition changes
   useEffect(() => {
     startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
+      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  }, [fetchKey, filterCondition, refetch]);
 
   return (
     <SummaryValue

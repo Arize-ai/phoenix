@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4bea7f8a65afbb69183c6c8c1f36bb16>>
+ * @generated SignedSource<<a9310b45477e9c54d04e81e2eb50a870>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,13 +40,19 @@ import ProjectPageHeaderQuery_graphql from './ProjectPageHeaderQuery.graphql';
 const node: ReaderFragment = (function(){
 var v0 = {
   "kind": "Variable",
+  "name": "filterCondition",
+  "variableName": "filterCondition"
+},
+v1 = {
+  "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v1 = [
-  (v0/*: any*/)
-],
 v2 = [
+  (v0/*: any*/),
+  (v1/*: any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -57,6 +63,11 @@ v2 = [
 ];
 return {
   "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
     {
       "kind": "RootArgument",
       "name": "timeRange"
@@ -80,14 +91,14 @@ return {
   "selections": [
     {
       "alias": "timeRangeTraceCount",
-      "args": (v1/*: any*/),
+      "args": (v2/*: any*/),
       "kind": "ScalarField",
       "name": "traceCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v1/*: any*/),
+      "args": (v2/*: any*/),
       "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
       "name": "costSummary",
@@ -100,7 +111,7 @@ return {
           "kind": "LinkedField",
           "name": "total",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
@@ -110,7 +121,7 @@ return {
           "kind": "LinkedField",
           "name": "prompt",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         },
         {
@@ -120,7 +131,7 @@ return {
           "kind": "LinkedField",
           "name": "completion",
           "plural": false,
-          "selections": (v2/*: any*/),
+          "selections": (v3/*: any*/),
           "storageKey": null
         }
       ],
@@ -129,12 +140,13 @@ return {
     {
       "alias": "latencyMsP50",
       "args": [
+        (v0/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v0/*: any*/)
+        (v1/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -143,12 +155,13 @@ return {
     {
       "alias": "latencyMsP99",
       "args": [
+        (v0/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v0/*: any*/)
+        (v1/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "latencyMsQuantile",
@@ -181,6 +194,6 @@ return {
 };
 })();
 
-(node as any).hash = "042b76a71b57987b50febe61073a6b21";
+(node as any).hash = "6af66e172d4a11818131c7b943e82a6d";
 
 export default node;

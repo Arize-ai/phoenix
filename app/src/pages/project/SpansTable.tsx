@@ -903,7 +903,11 @@ export function SpansTable(props: SpansTableProps) {
                 <Heading level={3} weight="heavy">
                   Stats
                 </Heading>
-                <ProjectStats project={data} direction="column" />
+                <ProjectStats
+                  project={data}
+                  direction="column"
+                  filterCondition={filterCondition}
+                />
               </Flex>
             </View>
           </Panel>
