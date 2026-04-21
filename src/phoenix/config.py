@@ -775,7 +775,7 @@ The default retention policy for traces in days.
 ENV_PHOENIX_SANDBOX_PROVIDER = "PHOENIX_SANDBOX_PROVIDER"
 """
 The default sandbox backend type to use for code evaluator execution.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO.
+Accepted values: WASM, E2B, DAYTONA_PYTHON, VERCEL_PYTHON, VERCEL_TYPESCRIPT, DENO, MODAL.
 When not set, the WASM (local WebAssembly) backend is used.
 """
 

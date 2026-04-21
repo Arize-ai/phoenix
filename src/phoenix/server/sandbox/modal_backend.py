@@ -28,7 +28,6 @@ from typing import Any, Optional
 from .types import (
     ExecutionResult,
     ModalConfig,
-    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
 )
@@ -145,18 +144,6 @@ class ModalAdapter(SandboxAdapter):
     display_name = "Modal"
     language = "PYTHON"
     config_model = ModalConfig
-    credential_specs = [
-        ProviderCredentialSpec(
-            key="MODAL_TOKEN_ID",
-            display_name="Modal Token ID",
-            description="Modal token ID for authentication.",
-        ),
-        ProviderCredentialSpec(
-            key="MODAL_TOKEN_SECRET",
-            display_name="Modal Token Secret",
-            description="Modal token secret for authentication.",
-        ),
-    ]
 
     def build_backend(
         self,

@@ -316,6 +316,59 @@ class BaseNoSessionBackend(SandboxBackend):
         pass
 
 
+# ---------------------------------------------------------------------------
+# Section-level semantic equality helpers for capability-gate bypass logic.
+# Used by _enforce_capability_gates to determine whether a submitted section
+# is an unchanged carry-forward of the stored baseline.
+# ---------------------------------------------------------------------------
+
+
+def _env_var_key(entry: Any) -> tuple[str, str, str, str]:
+    """Stable sort/hash key for a single env_var entry dict."""
+    if isinstance(entry, dict):
+        return (
+            entry.get("kind", ""),
+            entry.get("name", ""),
+            entry.get("value", ""),
+            entry.get("secret_key", ""),
+        )
+    return (
+        getattr(entry, "kind", ""),
+        getattr(entry, "name", ""),
+        getattr(entry, "value", ""),
+        getattr(entry, "secret_key", ""),
+    )
+
+
+def _env_vars_equal(a: Any, b: Any) -> bool:
+    """Return True if two env_vars lists are semantically equal (order-independent)."""
+    if not a and not b:
+        return True
+    if not a or not b:
+        return False
+    return frozenset(_env_var_key(e) for e in a) == frozenset(_env_var_key(e) for e in b)
+
+
+def _internet_access_equal(a: Any, b: Any) -> bool:
+    """Return True if two internet_access values are semantically equal."""
+    if a is None and b is None:
+        return True
+    if a is None or b is None:
+        return False
+    mode_a = a.get("mode") if isinstance(a, dict) else getattr(a, "mode", None)
+    mode_b = b.get("mode") if isinstance(b, dict) else getattr(b, "mode", None)
+    return mode_a == mode_b
+
+
+def _packages_equal(a: Any, b: Any) -> bool:
+    """Return True if two packages lists are semantically equal (set comparison)."""
+    if not a and not b:
+        return True
+    if not a or not b:
+        return False
+    return set(a) == set(b)
+
+
 class SandboxAdapter(ABC):
     """
     Abstract base class for sandbox adapters.
@@ -369,7 +422,11 @@ class SandboxAdapter(ABC):
         """
         ...
 
-    def validate_config(self, config: dict[str, Any]) -> dict[str, Any]:
+    def validate_config(
+        self,
+        config: dict[str, Any],
+        stored_config: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
         """
         Validate config via the adapter's pydantic config_model, then apply
         capability gates from AdapterMetadata.
@@ -384,6 +441,13 @@ class SandboxAdapter(ABC):
           - dependencies_language is None and config.dependencies.packages
             is non-empty
 
+        When ``stored_config`` is provided (update path), capability gates are
+        skipped for sections that are semantically unchanged vs the stored
+        baseline. This allows admins to round-trip configs whose
+        capability-gated sections predate the current advertisement without
+        relaxing runtime enforcement (build_backend still raises
+        UnsupportedOperation).
+
         The existing per-adapter build_backend capability guards remain in
         place as defense-in-depth (see _enforce_capabilities template method
         in Phase 4).
@@ -397,7 +461,7 @@ class SandboxAdapter(ABC):
         # model_dump preserves extra fields because models use extra="allow"
         validated_dict = validated.model_dump()
         self._enforce_unique_env_var_names(validated_dict)
-        self._enforce_capability_gates(validated_dict)
+        self._enforce_capability_gates(validated_dict, stored_config=stored_config)
         return validated_dict
 
     def _enforce_unique_env_var_names(self, config: dict[str, Any]) -> None:
@@ -442,12 +506,21 @@ class SandboxAdapter(ABC):
         ]
         raise ValidationError.from_exception_data(type(self).__name__, errors)
 
-    def _enforce_capability_gates(self, config: dict[str, Any]) -> None:
+    def _enforce_capability_gates(
+        self,
+        config: dict[str, Any],
+        stored_config: Optional[dict[str, Any]] = None,
+    ) -> None:
         """Raise pydantic ValidationError if config violates AdapterMetadata
         capability flags.
 
         Metadata is resolved via a lazy import to avoid a circular dependency
         between `types.py` and `sandbox.__init__`.
+
+        When ``stored_config`` is provided, a capability-gated section is
+        skipped if the submitted value is semantically equal to the stored
+        baseline, allowing preserved sections to round-trip without error.
+        Runtime enforcement (``_enforce_capabilities``) remains fail-closed.
         """
         from pydantic import ValidationError
         from pydantic_core import InitErrorDetails, PydanticCustomError
@@ -464,59 +537,66 @@ class SandboxAdapter(ABC):
 
         env_vars = config.get("env_vars")
         if not metadata.supports_env_vars and env_vars:
-            errors.append(
-                InitErrorDetails(
-                    type=PydanticCustomError(
-                        "capability_violation",
-                        (
-                            "{adapter} adapter does not support user-defined "
-                            "environment variables; remove env_vars or switch "
-                            "to an adapter that supports them."
-                        ),
-                        {"adapter": self.key},
-                    ),
-                    loc=("env_vars",),
-                    input=env_vars,
-                )
-            )
-
-        internet_access = config.get("internet_access")
-        if metadata.internet_access_capability == "none" and internet_access is not None:
-            errors.append(
-                InitErrorDetails(
-                    type=PydanticCustomError(
-                        "capability_violation",
-                        (
-                            "{adapter} adapter does not support internet_access "
-                            "configuration; remove the internet_access field or "
-                            "switch to an adapter that supports it."
-                        ),
-                        {"adapter": self.key},
-                    ),
-                    loc=("internet_access",),
-                    input=internet_access,
-                )
-            )
-
-        dependencies = config.get("dependencies")
-        if metadata.dependencies_language is None and dependencies:
-            packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
-            if packages:
+            stored_env_vars = stored_config.get("env_vars") if stored_config else None
+            if not _env_vars_equal(env_vars, stored_env_vars):
                 errors.append(
                     InitErrorDetails(
                         type=PydanticCustomError(
                             "capability_violation",
                             (
-                                "{adapter} adapter does not support dependency "
-                                "installation; remove dependencies.packages or "
+                                "{adapter} adapter does not support user-defined "
+                                "environment variables; remove env_vars or switch "
+                                "to an adapter that supports them."
+                            ),
+                            {"adapter": self.key},
+                        ),
+                        loc=("env_vars",),
+                        input=env_vars,
+                    )
+                )
+
+        internet_access = config.get("internet_access")
+        if metadata.internet_access_capability == "none" and internet_access is not None:
+            stored_ia = stored_config.get("internet_access") if stored_config else None
+            if not _internet_access_equal(internet_access, stored_ia):
+                errors.append(
+                    InitErrorDetails(
+                        type=PydanticCustomError(
+                            "capability_violation",
+                            (
+                                "{adapter} adapter does not support internet_access "
+                                "configuration; remove the internet_access field or "
                                 "switch to an adapter that supports it."
                             ),
                             {"adapter": self.key},
                         ),
-                        loc=("dependencies", "packages"),
-                        input=packages,
+                        loc=("internet_access",),
+                        input=internet_access,
                     )
                 )
+
+        dependencies = config.get("dependencies")
+        if metadata.dependencies_language is None and dependencies:
+            packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
+            if packages:
+                stored_deps = stored_config.get("dependencies") if stored_config else None
+                stored_pkgs = stored_deps.get("packages") if isinstance(stored_deps, dict) else None
+                if not _packages_equal(packages, stored_pkgs):
+                    errors.append(
+                        InitErrorDetails(
+                            type=PydanticCustomError(
+                                "capability_violation",
+                                (
+                                    "{adapter} adapter does not support dependency "
+                                    "installation; remove dependencies.packages or "
+                                    "switch to an adapter that supports it."
+                                ),
+                                {"adapter": self.key},
+                            ),
+                            loc=("dependencies", "packages"),
+                            input=packages,
+                        )
+                    )
 
         if errors:
             raise ValidationError.from_exception_data(

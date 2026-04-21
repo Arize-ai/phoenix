@@ -9,16 +9,12 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Optional
-
-from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     BaseNoSessionBackend,
     DenoConfig,
     ExecutionResult,
-    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
 )
@@ -29,14 +25,13 @@ logger = logging.getLogger(__name__)
 class DenoSandboxBackend(BaseNoSessionBackend):
     """Sandbox backend executing TypeScript code in a local Deno runtime."""
 
-    def __init__(self, api_key: str, user_env: Optional[dict[str, str]] = None) -> None:
-        self._api_key = api_key
+    def __init__(self, user_env: Optional[dict[str, str]] = None) -> None:
         self._user_env: dict[str, str] = user_env or {}
 
     def _get_client(self) -> Any:
         from deno_sandbox import DenoSandbox  # type: ignore[import-not-found]
 
-        return DenoSandbox(api_key=self._api_key)
+        return DenoSandbox()
 
     async def execute(
         self,
@@ -67,22 +62,9 @@ class DenoAdapter(SandboxAdapter):
     display_name = "Deno (local)"
     language = "TYPESCRIPT"
     config_model = DenoConfig
-    credential_specs = [
-        ProviderCredentialSpec(
-            key="PHOENIX_SANDBOX_DENO_API_KEY",
-            display_name="Deno API Key",
-            description="API key for the Deno sandbox service.",
-        ),
-    ]
 
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        api_key: str = (
-            config.get("PHOENIX_SANDBOX_DENO_API_KEY")
-            or os.environ.get("PHOENIX_SANDBOX_DENO_API_KEY")
-            or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
-            or ""
-        )
-        return DenoSandboxBackend(api_key=api_key, user_env=user_env)
+        return DenoSandboxBackend(user_env=user_env)

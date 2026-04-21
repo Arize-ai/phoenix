@@ -52,12 +52,16 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local WebAssembly runtime";
     case "E2B":
       return "Cloud Python sandbox";
-    case "DAYTONA":
-      return "Workspace-backed runtime";
-    case "VERCEL":
-      return "Cloud TypeScript sandbox";
+    case "DAYTONA_PYTHON":
+      return "Daytona workspace-backed Python runtime";
+    case "VERCEL_PYTHON":
+      return "Vercel cloud Python sandbox";
+    case "VERCEL_TYPESCRIPT":
+      return "Vercel cloud TypeScript sandbox";
     case "DENO":
-      return "Local Deno runtime";
+      return "Local Deno TypeScript runtime";
+    case "MODAL":
+      return "Modal cloud Python sandbox";
     default:
       return "Sandbox runtime";
   }

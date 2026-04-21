@@ -85,7 +85,7 @@ class TestDenoUserEnvForwarding:
     def _make_backend(self, user_env: dict[str, str] | None = None) -> Any:
         from phoenix.server.sandbox.deno_backend import DenoSandboxBackend
 
-        return DenoSandboxBackend(api_key="test-key", user_env=user_env)
+        return DenoSandboxBackend(user_env=user_env)
 
     @pytest.mark.asyncio
     async def test_user_env_merged_at_execute(self) -> None:

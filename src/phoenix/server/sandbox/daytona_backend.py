@@ -98,6 +98,7 @@ class DaytonaSandboxBackend(SandboxBackend):
             if workspace is None:
                 client = self._get_client()
                 workspace = await client.create()
+                await self._install_packages(workspace)
             result = await workspace.process.code_run(code, envs=self._user_env)
             return ExecutionResult(
                 stdout=result.stdout or "",

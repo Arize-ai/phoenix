@@ -334,3 +334,56 @@ class TestValidateConfigRejectsDuplicateEnvVarNames:
         }
         result = adapter.validate_config(config)
         assert len(result["env_vars"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# _resolve_user_env: reserved secret_key pre-check (Phase 5)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveUserEnvReservedSecretKey:
+    @pytest.mark.asyncio
+    async def test_reserved_secret_key_raises_before_db_lookup(self) -> None:
+        """A secret_ref whose secret_key matches a reserved provider-credential
+        name must raise MissingSecretError before any DB query — fail-closed
+        defense-in-depth for rows persisted before the mutation-layer guard."""
+        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "VERCEL_TOKEN"}]
+        session = _make_session({"VERCEL_TOKEN": b"should-not-reach-here"})
+        with pytest.raises(MissingSecretError, match="VERCEL_TOKEN"):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+        # DB was never queried — the reserved check fires before secret lookup
+        session.scalars.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reserved_secret_key_case_insensitive(self) -> None:
+        """Reserved-key comparison is case-insensitive — lowercase variant is
+        also rejected without hitting the DB."""
+        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "vercel_token"}]
+        session = _make_session({"vercel_token": b"should-not-reach-here"})
+        with pytest.raises(MissingSecretError):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+        session.scalars.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reserved_modal_token_id_rejected(self) -> None:
+        """Modal token keys (added in task #6) must also be rejected."""
+        raw = [{"kind": "secret_ref", "name": "MY_VAR", "secret_key": "MODAL_TOKEN_ID"}]
+        session = _make_session({})
+        with pytest.raises(MissingSecretError, match="MODAL_TOKEN_ID"):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+
+    @pytest.mark.asyncio
+    async def test_reserved_modal_token_secret_rejected(self) -> None:
+        """Modal token secret (added in task #6) must also be rejected."""
+        raw = [{"kind": "secret_ref", "name": "MY_VAR", "secret_key": "MODAL_TOKEN_SECRET"}]
+        session = _make_session({})
+        with pytest.raises(MissingSecretError, match="MODAL_TOKEN_SECRET"):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+
+    @pytest.mark.asyncio
+    async def test_non_reserved_secret_key_resolves_normally(self) -> None:
+        """A non-reserved secret_key must continue to resolve from the DB."""
+        raw = [{"kind": "secret_ref", "name": "API_KEY", "secret_key": "my-custom-key"}]
+        session = _make_session({"my-custom-key": b"plaintext"})
+        result = await _resolve_user_env(raw, session, _identity_decrypt)
+        assert result == {"API_KEY": "plaintext"}

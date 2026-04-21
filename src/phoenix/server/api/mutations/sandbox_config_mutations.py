@@ -49,8 +49,8 @@ from phoenix.server.sandbox import (
 
 
 def _check_env_var_collision(env_vars: Any, backend_type: str) -> None:
-    """Raise BadRequest if any env_var name collides with a reserved
-    provider-credential key.
+    """Raise BadRequest if any env_var name or secret_ref.secret_key collides
+    with a reserved provider-credential key.
 
     `env_vars` is the raw list from SandboxConfig.config (dicts or pydantic
     models); callers pass `config_dict.get("env_vars")`. `backend_type` is
@@ -60,13 +60,26 @@ def _check_env_var_collision(env_vars: Any, backend_type: str) -> None:
     if not env_vars:
         return
     for entry in env_vars:
-        name = entry.get("name", "") if isinstance(entry, dict) else getattr(entry, "name", "")
+        if isinstance(entry, dict):
+            name = entry.get("name", "")
+            kind = entry.get("kind", "")
+            secret_key = entry.get("secret_key", "")
+        else:
+            name = getattr(entry, "name", "")
+            kind = getattr(entry, "kind", "")
+            secret_key = getattr(entry, "secret_key", "")
         if name and is_reserved_credential_name(name):
             raise BadRequest(
                 f"Environment variable name {name!r} is reserved as a sandbox "
                 f"provider credential for {backend_type!r} and cannot be set "
                 "as a user env_var. Choose a different name or store the value "
                 "via setSandboxCredential."
+            )
+        if kind == "secret_ref" and secret_key and is_reserved_credential_name(secret_key):
+            raise BadRequest(
+                f"secret_ref.secret_key {secret_key!r} is reserved as a sandbox "
+                f"provider credential for {backend_type!r} and cannot be referenced "
+                "as a user secret. Use a non-reserved secret key."
             )
 
 
@@ -229,6 +242,7 @@ class SandboxConfigMutationMixin:
             if input.description is not strawberry.UNSET:
                 row.description = input.description
             if input.config is not strawberry.UNSET:
+                stored_config = dict(row.config) if row.config else {}
                 config_dict = dict(input.config) if input.config is not None else {}
                 provider = await session.scalar(
                     select(models.SandboxProvider).where(
@@ -241,8 +255,10 @@ class SandboxConfigMutationMixin:
                     adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
                     if adapter is not None:
                         try:
-                            config_dict = adapter.validate_config(config_dict)
-                        except ValueError as exc:
+                            config_dict = adapter.validate_config(
+                                config_dict, stored_config=stored_config
+                            )
+                        except (ValueError, ValidationError) as exc:
                             raise BadRequest(str(exc))
                 row.config = config_dict
             if input.timeout is not strawberry.UNSET:

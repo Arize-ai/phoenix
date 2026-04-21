@@ -124,13 +124,13 @@ class AdapterMetadata:
     ## Per-capability contracts
 
     **supports_env_vars** — session-level user-defined environment variables.
-    When ``True``, the adapter's ``build_backend`` MUST forward ``user_env``
-    (the pre-resolved plaintext name→value dict) to the underlying runtime at
-    session-create time or execute time as appropriate. When ``False``,
-    ``build_backend`` MUST raise ``UnsupportedOperation`` if ``user_env`` is
-    non-empty. Note: per-call ``SandboxBackend.execute(env=...)`` overrides are
-    a separate backend API; when unsupported they MUST also raise
-    ``UnsupportedOperation`` rather than warn or silently drop input.
+    When ``True``, the adapter's ``build_backend`` MUST accept ``user_env``
+    (the pre-resolved plaintext name→value dict) and forward it to the
+    underlying runtime at constructor time so that every subsequent
+    ``execute()`` call sees the variables without a per-call override.
+    When ``False``, ``build_backend`` MUST raise ``UnsupportedOperation`` if
+    ``user_env`` is non-empty. ``SandboxBackend.execute`` takes only ``code``,
+    ``session_key``, and ``timeout`` — there is no per-call env override.
 
     **internet_access_capability** — controls whether the sandbox can reach
     the internet. ``'none'``: adapter does not support this capability; if the
@@ -154,11 +154,10 @@ class AdapterMetadata:
     dependency_hints: list[str] = field(default_factory=list)
     config_field_specs: list[ConfigFieldSpec] = field(default_factory=list)
 
-    # True/False semantics: True → build_backend MUST forward user_env (the
-    # pre-resolved name→value dict) to the runtime at session-create or
-    # execute time; per-call execute(env=...) overrides are a separate surface
-    # and MUST also raise UnsupportedOperation when unsupported. False →
-    # build_backend MUST raise UnsupportedOperation when user_env is non-empty.
+    # True/False semantics: True → build_backend MUST accept user_env (the
+    # pre-resolved name→value dict) and pass it to the runtime at constructor
+    # time; execute() has no per-call env override. False → build_backend MUST
+    # raise UnsupportedOperation when user_env is non-empty.
     # UI: True → render the Env Vars editor; False → render a muted
     # "Not supported by the selected backend." placeholder.
     supports_env_vars: bool = False
@@ -225,6 +224,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         internet_access_capability="none",
         dependencies_language="PYTHON",
     ),
+    # internet_access_capability for both Vercel adapters is shipped as scaffolding
+    # only — the flag and UI wiring are in place but runtime enforcement through
+    # build_backend is not yet wired. Do not flip to 'boolean' until the Vercel
+    # backend honours the internet_access.mode from the stored config.
     "VERCEL_PYTHON": AdapterMetadata(
         display_name="Vercel Sandbox (Python)",
         language="PYTHON",
@@ -384,6 +387,15 @@ async def _resolve_user_env(
 
     ta: TypeAdapter[EnvVarEntry] = TypeAdapter(EnvVarEntry)
     entries: list[EnvVarEntry] = [ta.validate_python(e) for e in raw_env_vars]
+    # Fail-closed: reject reserved secret_key values before any DB lookup so
+    # rows persisted before the mutation-layer guard shipped cannot be silently
+    # resolved. This mirrors the mutation-layer check in _check_env_var_collision.
+    for entry in entries:
+        if isinstance(entry, EnvVarSecretRef) and is_reserved_credential_name(entry.secret_key):
+            raise MissingSecretError(
+                f"secret_ref.secret_key {entry.secret_key!r} is a reserved sandbox "
+                "provider credential and cannot be resolved as a user secret."
+            )
     # Collect secret keys that need DB resolution (deduplicated, order-preserving)
     secret_keys: list[str] = []
     seen: set[str] = set()
@@ -616,6 +628,10 @@ _PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS: frozenset[str] = frozenset(
     {
         "PHOENIX_SANDBOX_TOKEN",
         "PHOENIX_SANDBOX_API_KEY",
+        # Modal tokens — added here so dropping credential_specs from ModalAdapter
+        # (task 3) does not silently narrow the reserved set.
+        "MODAL_TOKEN_ID",
+        "MODAL_TOKEN_SECRET",
     }
 )
 
