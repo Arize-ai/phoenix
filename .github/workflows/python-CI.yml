@@ -182,7 +182,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@v7
         with:
-          version: "0.9.18"
+          version: "0.10.9"
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
