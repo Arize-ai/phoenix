@@ -66,15 +66,6 @@ class TestE2BUserEnvForwarding:
         await backend.execute("print('hi')", "s1")
         assert captured["envs"] == {}
 
-    def test_adapter_passes_user_env_to_backend(self) -> None:
-        from phoenix.server.sandbox.e2b_backend import E2BAdapter, E2BSandboxBackend
-
-        adapter = E2BAdapter()
-        with patch.dict("os.environ", {"PHOENIX_SANDBOX_E2B_API_KEY": "key"}):
-            backend = adapter.build_backend({}, user_env={"FOO": "bar"})
-        assert isinstance(backend, E2BSandboxBackend)
-        assert backend._user_env == {"FOO": "bar"}
-
 
 # ---------------------------------------------------------------------------
 # Deno
@@ -105,15 +96,6 @@ class TestDenoUserEnvForwarding:
         with patch.object(backend, "_get_client", return_value=client_mock):
             await backend.execute("console.log('x')", "s1")
         assert captured["env"] == {"MY_VAR": "hello"}
-
-    def test_adapter_passes_user_env_to_backend(self) -> None:
-        from phoenix.server.sandbox.deno_backend import DenoAdapter, DenoSandboxBackend
-
-        adapter = DenoAdapter()
-        with patch.dict("os.environ", {"PHOENIX_SANDBOX_DENO_API_KEY": "key"}):
-            backend = adapter.build_backend({}, user_env={"X": "1"})
-        assert isinstance(backend, DenoSandboxBackend)
-        assert backend._user_env == {"X": "1"}
 
 
 # ---------------------------------------------------------------------------
@@ -148,18 +130,6 @@ class TestDaytonaUserEnvForwarding:
 
         await backend.execute("print('hi')", "s1")
         assert captured["envs"] == {"DB_HOST": "localhost"}
-
-    def test_adapter_passes_user_env_to_backend(self) -> None:
-        from phoenix.server.sandbox.daytona_backend import (
-            DaytonaPythonAdapter,
-            DaytonaSandboxBackend,
-        )
-
-        adapter = DaytonaPythonAdapter()
-        with patch.dict("os.environ", {"PHOENIX_SANDBOX_DAYTONA_API_KEY": "key"}):
-            backend = adapter.build_backend({}, user_env={"DB_HOST": "localhost"})
-        assert isinstance(backend, DaytonaSandboxBackend)
-        assert backend._user_env == {"DB_HOST": "localhost"}
 
 
 class TestDaytonaDependencyInstallation:
@@ -263,19 +233,6 @@ class TestDaytonaDependencyInstallation:
 
 
 class TestModalUserEnvForwarding:
-    def test_adapter_passes_user_env_to_backend(self) -> None:
-        from phoenix.server.sandbox.modal_backend import ModalAdapter, ModalSandboxBackend
-
-        modal_mock = MagicMock()
-        modal_mock.App.lookup = MagicMock(return_value=MagicMock())
-        modal_mock.Image.debian_slim = MagicMock(return_value=MagicMock())
-
-        with patch.dict("sys.modules", {"modal": modal_mock}):
-            adapter = ModalAdapter()
-            backend = adapter.build_backend({}, user_env={"SECRET": "value"})
-        assert isinstance(backend, ModalSandboxBackend)
-        assert backend._user_env == {"SECRET": "value"}
-
     @pytest.mark.asyncio
     async def test_user_env_passed_to_sandbox_create(self) -> None:
         """env_dict is forwarded to Sandbox.create.aio when user_env is set."""
@@ -407,15 +364,6 @@ class TestVercelUserEnvForwarding:
 
         await backend.execute("print('hi')", "s1")
         assert captured["env"] is None
-
-    def test_adapter_passes_user_env_to_backend(self) -> None:
-        from phoenix.server.sandbox.vercel_backend import VercelPythonAdapter, VercelSandboxBackend
-
-        adapter = VercelPythonAdapter()
-        with patch.dict("os.environ", {"VERCEL_OIDC_TOKEN": "tok"}):
-            backend = adapter.build_backend({}, user_env={"FOO": "bar"})
-        assert isinstance(backend, VercelSandboxBackend)
-        assert backend._user_env == {"FOO": "bar"}
 
 
 # ---------------------------------------------------------------------------

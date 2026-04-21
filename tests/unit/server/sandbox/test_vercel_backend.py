@@ -1,5 +1,12 @@
 """Tests for VercelSandboxBackend and VercelPythonAdapter language routing.
 
+Per-adapter test files exist only for adapters with genuinely unique lifecycle
+not captured by cross-adapter conformance (test_unified_config_contract.py) or
+forwarding (test_user_env_forwarding.py). E2B, Deno, WASM do NOT have dedicated
+files because their execution is uniform enough to be covered by conformance +
+forwarding. Vercel warrants a dedicated file due to its dual runtime + OIDC
+token handling.
+
 Tests verify that build_backend() and execute() route correctly for PYTHON
 without importing the real vercel SDK.
 

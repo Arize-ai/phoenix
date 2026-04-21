@@ -1,4 +1,12 @@
-"""Tests for DaytonaSandboxBackend ephemeral execute and package install."""
+"""Tests for DaytonaSandboxBackend ephemeral execute and package install.
+
+Per-adapter test files exist only for adapters with genuinely unique lifecycle
+not captured by cross-adapter conformance (test_unified_config_contract.py) or
+forwarding (test_user_env_forwarding.py). E2B, Deno, WASM do NOT have dedicated
+files because their execution is uniform enough to be covered by conformance +
+forwarding. Daytona warrants a dedicated file due to its session-vs-ephemeral
+lifecycle bifurcation.
+"""
 
 from __future__ import annotations
 

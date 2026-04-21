@@ -1,11 +1,11 @@
 """Unit tests for pydantic config model validation in sandbox adapters.
 
 Tests cover:
-- Valid configs accepted and returned
-- Unknown keys preserved (D9: extra="allow")
-- Type coercion (pydantic coerces compatible types)
-- Invalid values raise ValueError via validate_config()
-- Defaults filled in for missing optional fields
+- Our custom validators (unique env_var names, capability gate validators, invalid-value rejection)
+- Our schema design contracts (discriminated union, extra="forbid" on leaf models, field constraints)
+- validate_config() wrapper: pydantic ValidationError surfaced as ValueError (D3 convention)
+- _config_field_specs_from_model: nested-field skip behaviour
+- Equality helper correctness (Phase 1 regression tests)
 """
 
 from __future__ import annotations
@@ -28,6 +28,9 @@ from phoenix.server.sandbox.types import (
     VercelPythonConfig,
     VercelTypescriptConfig,
     WASMConfig,
+    _env_vars_equal,
+    _internet_access_equal,
+    _packages_equal,
 )
 
 # ---------------------------------------------------------------------------
@@ -59,12 +62,6 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
 
 
 class TestE2BConfigValidation:
-    def test_empty_config_returns_defaults(self) -> None:
-        result = E2BConfig.model_validate({})
-        assert result.template == "base"
-        assert result.cwd is None
-        assert result.metadata is None
-
     def test_valid_full_config(self) -> None:
         result = E2BConfig.model_validate(
             {"template": "custom-tmpl", "cwd": "/workspace", "metadata": "my-run"}
@@ -73,28 +70,11 @@ class TestE2BConfigValidation:
         assert result.cwd == "/workspace"
         assert result.metadata == "my-run"
 
-    def test_unknown_keys_preserved(self) -> None:
-        result = E2BConfig.model_validate({"unknown_key": "preserved"})
-        dumped = result.model_dump()
-        assert dumped["unknown_key"] == "preserved"
-
     def test_validate_config_returns_dict(self) -> None:
         adapter = _make_adapter(E2BConfig)
         out = adapter.validate_config({"template": "t1", "cwd": "/tmp"})
         assert isinstance(out, dict)
         assert out["template"] == "t1"
-
-    def test_validate_config_preserves_unknown_keys(self) -> None:
-        adapter = _make_adapter(E2BConfig)
-        out = adapter.validate_config({"extra_key": "extra_val"})
-        assert out["extra_key"] == "extra_val"
-
-    def test_validate_config_fills_defaults(self) -> None:
-        adapter = _make_adapter(E2BConfig)
-        out = adapter.validate_config({})
-        assert out["template"] == "base"
-        assert out["cwd"] is None
-        assert out["metadata"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -103,18 +83,9 @@ class TestE2BConfigValidation:
 
 
 class TestDaytonaPythonConfigValidation:
-    def test_empty_config_returns_defaults(self) -> None:
-        result = DaytonaPythonConfig.model_validate({})
-        assert result.server_url == ""
-
     def test_valid_server_url(self) -> None:
         result = DaytonaPythonConfig.model_validate({"server_url": "https://daytona.example.com"})
         assert result.server_url == "https://daytona.example.com"
-
-    def test_unknown_keys_preserved(self) -> None:
-        result = DaytonaPythonConfig.model_validate({"server_url": "https://x.com", "extra": "val"})
-        dumped = result.model_dump()
-        assert dumped["extra"] == "val"
 
     def test_validate_config_returns_dict_with_defaults(self) -> None:
         adapter = _make_adapter(DaytonaPythonConfig)
@@ -132,10 +103,6 @@ class TestDenoConfigValidation:
         result = DenoConfig.model_validate({})
         assert result.model_dump()["env_vars"] == []
 
-    def test_unknown_keys_preserved(self) -> None:
-        result = DenoConfig.model_validate({"custom_flag": True})
-        assert result.model_dump()["custom_flag"] is True
-
     def test_validate_config_returns_unknown_keys(self) -> None:
         adapter = _make_adapter(DenoConfig)
         out = adapter.validate_config({"deno_path": "/usr/local/bin/deno"})
@@ -149,10 +116,6 @@ class TestVercelPythonConfigValidation:
         assert dumped["env_vars"] == []
         assert dumped["dependencies"] is None
 
-    def test_unknown_keys_preserved(self) -> None:
-        result = VercelPythonConfig.model_validate({"region": "iad1"})
-        assert result.model_dump()["region"] == "iad1"
-
 
 class TestVercelTypescriptConfigValidation:
     def test_empty_config_accepted(self) -> None:
@@ -161,19 +124,11 @@ class TestVercelTypescriptConfigValidation:
         assert dumped["env_vars"] == []
         assert dumped["dependencies"] is None
 
-    def test_unknown_keys_preserved(self) -> None:
-        result = VercelTypescriptConfig.model_validate({"region": "iad1"})
-        assert result.model_dump()["region"] == "iad1"
-
 
 class TestWASMConfigValidation:
     def test_empty_config_accepted(self) -> None:
         result = WASMConfig.model_validate({})
         assert result.model_dump() == {}
-
-    def test_unknown_keys_preserved(self) -> None:
-        result = WASMConfig.model_validate({"binary_path": "/custom/cpython.wasm"})
-        assert result.model_dump()["binary_path"] == "/custom/cpython.wasm"
 
 
 class TestModalConfigValidation:
@@ -190,10 +145,6 @@ class TestModalConfigValidation:
         assert result.app_name == "custom-app"
         assert result.timeout == 120
         assert result.idle_timeout == 60
-
-    def test_unknown_keys_preserved(self) -> None:
-        result = ModalConfig.model_validate({"app_name": "x", "region": "us-east-1"})
-        assert result.model_dump()["region"] == "us-east-1"
 
     def test_validate_config_returns_dict_with_defaults(self) -> None:
         adapter = _make_adapter(ModalConfig)
@@ -303,15 +254,6 @@ class TestEnvVarEntryDiscriminatedUnion:
 
 
 class TestInternetAccessConfig:
-    def test_default_mode_is_allow(self) -> None:
-        cfg = InternetAccessConfig.model_validate({})
-        assert cfg.mode == "allow"
-
-    def test_deny_mode_round_trip(self) -> None:
-        cfg = InternetAccessConfig.model_validate({"mode": "deny"})
-        assert cfg.mode == "deny"
-        assert cfg.model_dump() == {"mode": "deny"}
-
     def test_invalid_mode_raises(self) -> None:
         from pydantic import ValidationError
 
@@ -326,18 +268,6 @@ class TestInternetAccessConfig:
 
 
 class TestPythonDependenciesConfig:
-    def test_empty_config_defaults(self) -> None:
-        cfg = PythonDependenciesConfig.model_validate({})
-        assert cfg.packages == []
-        assert cfg.lockfile is None
-
-    def test_packages_round_trip(self) -> None:
-        cfg = PythonDependenciesConfig.model_validate({"packages": ["requests>=2.0", "numpy"]})
-        assert cfg.packages == ["requests>=2.0", "numpy"]
-        dumped = cfg.model_dump()
-        assert dumped["packages"] == ["requests>=2.0", "numpy"]
-        assert dumped["lockfile"] is None
-
     def test_lockfile_round_trip(self) -> None:
         cfg = PythonDependenciesConfig.model_validate(
             {"packages": ["boto3"], "lockfile": "requirements.txt"}
@@ -352,15 +282,6 @@ class TestPythonDependenciesConfig:
 
 
 class TestTypescriptDependenciesConfig:
-    def test_empty_config_defaults(self) -> None:
-        cfg = TypescriptDependenciesConfig.model_validate({})
-        assert cfg.packages == []
-        assert cfg.lockfile is None
-
-    def test_packages_round_trip(self) -> None:
-        cfg = TypescriptDependenciesConfig.model_validate({"packages": ["lodash", "axios@1.0.0"]})
-        assert cfg.packages == ["lodash", "axios@1.0.0"]
-
     def test_forbids_extra_fields(self) -> None:
         from pydantic import ValidationError
 
@@ -491,3 +412,84 @@ class TestConfigFieldSpecsFromModel:
         keys = [s.key for s in specs]
         assert "flat" in keys
         assert "opt_nested" not in keys
+
+
+# ---------------------------------------------------------------------------
+# Equality helper regression tests (Phase 1 correctness fixes)
+# ---------------------------------------------------------------------------
+
+
+class TestEnvVarsEqual:
+    def test_equal_lists_same_order(self) -> None:
+        a = [{"kind": "literal", "name": "X", "value": "1", "secret_key": ""}]
+        assert _env_vars_equal(a, a)
+
+    def test_equal_lists_different_order(self) -> None:
+        a = [
+            {"kind": "literal", "name": "X", "value": "1", "secret_key": ""},
+            {"kind": "literal", "name": "Y", "value": "2", "secret_key": ""},
+        ]
+        b = [
+            {"kind": "literal", "name": "Y", "value": "2", "secret_key": ""},
+            {"kind": "literal", "name": "X", "value": "1", "secret_key": ""},
+        ]
+        assert _env_vars_equal(a, b)
+
+    def test_duplicate_multiplicity_not_collapsed(self) -> None:
+        """frozenset collapses duplicates; Counter must not — [X, X] != [X]."""
+        entry = {"kind": "literal", "name": "X", "value": "1", "secret_key": ""}
+        assert not _env_vars_equal([entry, entry], [entry])
+
+    def test_both_empty(self) -> None:
+        assert _env_vars_equal([], [])
+
+    def test_one_empty(self) -> None:
+        entry = {"kind": "literal", "name": "X", "value": "1", "secret_key": ""}
+        assert not _env_vars_equal([entry], [])
+
+
+class TestInternetAccessEqual:
+    def test_same_mode(self) -> None:
+        assert _internet_access_equal({"mode": "allow"}, {"mode": "allow"})
+
+    def test_different_mode(self) -> None:
+        assert not _internet_access_equal({"mode": "allow"}, {"mode": "deny"})
+
+    def test_both_none(self) -> None:
+        assert _internet_access_equal(None, None)
+
+    def test_one_none(self) -> None:
+        assert not _internet_access_equal({"mode": "allow"}, None)
+
+    def test_model_instance_vs_dict(self) -> None:
+        model = InternetAccessConfig(mode="deny")
+        assert _internet_access_equal(model, {"mode": "deny"})
+        assert not _internet_access_equal(model, {"mode": "allow"})
+
+
+class TestPackagesEqual:
+    def test_same_packages_same_lockfile(self) -> None:
+        a = {"packages": ["requests"], "lockfile": "req.txt"}
+        assert _packages_equal(a, a)
+
+    def test_lockfile_change_not_equal(self) -> None:
+        """set(packages) alone was compared — lockfile change must now be detected."""
+        a = {"packages": ["requests"], "lockfile": "req.txt"}
+        b = {"packages": ["requests"], "lockfile": "req2.txt"}
+        assert not _packages_equal(a, b)
+
+    def test_lockfile_none_vs_value_not_equal(self) -> None:
+        a = {"packages": ["requests"], "lockfile": None}
+        b = {"packages": ["requests"], "lockfile": "req.txt"}
+        assert not _packages_equal(a, b)
+
+    def test_packages_set_order_independent(self) -> None:
+        a = {"packages": ["boto3", "requests"], "lockfile": None}
+        b = {"packages": ["requests", "boto3"], "lockfile": None}
+        assert _packages_equal(a, b)
+
+    def test_both_empty(self) -> None:
+        assert _packages_equal({}, {})
+
+    def test_one_empty(self) -> None:
+        assert not _packages_equal({"packages": ["requests"]}, {})

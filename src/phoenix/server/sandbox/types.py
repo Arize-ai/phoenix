@@ -323,50 +323,90 @@ class BaseNoSessionBackend(SandboxBackend):
 # ---------------------------------------------------------------------------
 
 
-def _env_var_key(entry: Any) -> tuple[str, str, str, str]:
-    """Stable sort/hash key for a single env_var entry dict."""
+def _normalize_env_var(entry: Any) -> dict[str, Any]:
+    """Return a stable dict representation of a single env_var entry."""
     if isinstance(entry, dict):
-        return (
-            entry.get("kind", ""),
-            entry.get("name", ""),
-            entry.get("value", ""),
-            entry.get("secret_key", ""),
-        )
-    return (
-        getattr(entry, "kind", ""),
-        getattr(entry, "name", ""),
-        getattr(entry, "value", ""),
-        getattr(entry, "secret_key", ""),
-    )
+        return dict(entry)
+    # pydantic model instance — use model_dump for canonical representation
+    if hasattr(entry, "model_dump"):
+        result: dict[str, Any] = entry.model_dump(mode="json")
+        return result
+    return {
+        "kind": getattr(entry, "kind", ""),
+        "name": getattr(entry, "name", ""),
+        "value": getattr(entry, "value", ""),
+        "secret_key": getattr(entry, "secret_key", ""),
+    }
 
 
 def _env_vars_equal(a: Any, b: Any) -> bool:
-    """Return True if two env_vars lists are semantically equal (order-independent)."""
+    """Return True if two env_vars lists are semantically equal (order-independent).
+
+    Uses Counter over canonical tuple representations so duplicate entries in
+    one list are not collapsed — [X, X] != [X].
+    """
+    from collections import Counter
+
     if not a and not b:
         return True
     if not a or not b:
         return False
-    return frozenset(_env_var_key(e) for e in a) == frozenset(_env_var_key(e) for e in b)
+
+    def _to_tuple(entry: Any) -> tuple[str, ...]:
+        d = _normalize_env_var(entry)
+        return (d.get("kind", ""), d.get("name", ""), d.get("value", ""), d.get("secret_key", ""))
+
+    return Counter(_to_tuple(e) for e in a) == Counter(_to_tuple(e) for e in b)
+
+
+def _normalize_section(value: Any, model_cls: Type[BaseModel]) -> dict[str, Any]:
+    """Normalize a config section through pydantic model_dump so comparisons track the schema."""
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        dumped: dict[str, Any] = model_cls.model_validate(value).model_dump(
+            mode="json", exclude_defaults=False
+        )
+        return dumped
+    if hasattr(value, "model_dump"):
+        dumped = value.model_dump(mode="json", exclude_defaults=False)
+        return dumped
+    return {}
 
 
 def _internet_access_equal(a: Any, b: Any) -> bool:
-    """Return True if two internet_access values are semantically equal."""
+    """Return True if two internet_access values are semantically equal.
+
+    Canonicalizes through InternetAccessConfig.model_dump so future fields
+    are automatically included rather than silently dropped.
+    """
     if a is None and b is None:
         return True
     if a is None or b is None:
         return False
-    mode_a = a.get("mode") if isinstance(a, dict) else getattr(a, "mode", None)
-    mode_b = b.get("mode") if isinstance(b, dict) else getattr(b, "mode", None)
-    return mode_a == mode_b
+    return _normalize_section(a, InternetAccessConfig) == _normalize_section(
+        b, InternetAccessConfig
+    )
 
 
 def _packages_equal(a: Any, b: Any) -> bool:
-    """Return True if two packages lists are semantically equal (set comparison)."""
+    """Return True if two dependencies sections are semantically equal.
+
+    Canonicalizes through PythonDependenciesConfig.model_dump so the lockfile
+    field is included — set(packages) alone is insufficient. Package list order
+    is not semantically meaningful, so packages are sorted before comparison.
+    """
     if not a and not b:
         return True
     if not a or not b:
         return False
-    return set(a) == set(b)
+
+    def _canonical(value: Any) -> dict[str, Any]:
+        d = _normalize_section(value, PythonDependenciesConfig)
+        d["packages"] = sorted(d.get("packages") or [])
+        return d
+
+    return _canonical(a) == _canonical(b)
 
 
 class SandboxAdapter(ABC):
@@ -580,8 +620,7 @@ class SandboxAdapter(ABC):
             packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
             if packages:
                 stored_deps = stored_config.get("dependencies") if stored_config else None
-                stored_pkgs = stored_deps.get("packages") if isinstance(stored_deps, dict) else None
-                if not _packages_equal(packages, stored_pkgs):
+                if not _packages_equal(dependencies, stored_deps):
                     errors.append(
                         InitErrorDetails(
                             type=PydanticCustomError(

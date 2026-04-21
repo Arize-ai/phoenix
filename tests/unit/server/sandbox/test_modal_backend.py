@@ -1,5 +1,12 @@
 """Tests for ModalSandboxBackend session lifecycle and ModalAdapter.
 
+Per-adapter test files exist only for adapters with genuinely unique lifecycle
+not captured by cross-adapter conformance (test_unified_config_contract.py) or
+forwarding (test_user_env_forwarding.py). E2B, Deno, WASM do NOT have dedicated
+files because their execution is uniform enough to be covered by conformance +
+forwarding. Modal warrants a dedicated file due to its app/function lifecycle
+distinct from other adapters.
+
 Modal SDK is mocked via sys.modules patching since the import happens at
 __init__ time (not deferred), so the mock must be in place before constructing
 the backend.

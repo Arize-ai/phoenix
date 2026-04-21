@@ -198,10 +198,6 @@ class TestSharedSpecInvalidation:
                 assert py_backend is not None
                 assert ts_backend is not None
 
-                # Confirm BOTH caches are populated pre-rotation.
-                assert any(k[0] == py_adapter.key for k in _BACKEND_CACHE)
-                assert any(k[0] == ts_adapter.key for k in _BACKEND_CACHE)
-
                 # Rotate via the PY backend_type only. The key-level fan-out
                 # (invalidate_backend_cache_for_key) must evict both because
                 # both adapters list `shared_spec_key` in credential_specs.
@@ -216,12 +212,19 @@ class TestSharedSpecInvalidation:
                 )
                 assert not result.errors, result.errors
 
-                # Both cache namespaces must be empty.
-                assert not any(k[0] == py_adapter.key for k in _BACKEND_CACHE), (
-                    "PY cache entries survived rotation"
+                # Both caches must have been evicted: next call returns a new instance.
+                async with db() as session:
+                    py_backend_v2 = await get_or_create_backend(
+                        py_adapter.key, config={}, session=session, decrypt=enc.decrypt
+                    )
+                    ts_backend_v2 = await get_or_create_backend(
+                        ts_adapter.key, config={}, session=session, decrypt=enc.decrypt
+                    )
+                assert py_backend_v2 is not py_backend, (
+                    "PY cache was not evicted: same instance returned after rotation"
                 )
-                assert not any(k[0] == ts_adapter.key for k in _BACKEND_CACHE), (
-                    "TS cache entries survived rotation — shared-spec fan-out failed"
+                assert ts_backend_v2 is not ts_backend, (
+                    "TS cache was not evicted — shared-spec fan-out failed"
                 )
         finally:
             _purge_cache_for([py_adapter.key, ts_adapter.key])

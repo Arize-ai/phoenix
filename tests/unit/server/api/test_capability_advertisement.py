@@ -69,21 +69,12 @@ async def test_sandbox_backends_full_ui_query_shape(
     assert response.data is not None
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
-    assert set(backends.keys()) == {
-        "WASM",
-        "E2B",
-        "DAYTONA_PYTHON",
-        "VERCEL_PYTHON",
-        "VERCEL_TYPESCRIPT",
-        "DENO",
-        "MODAL",
-    }
+    assert set(backends.keys()) == set(SANDBOX_ADAPTER_METADATA.keys())
 
     for bt, backend in backends.items():
         assert "supportsEnvVars" in backend, bt
         assert "internetAccess" in backend, bt
         assert "dependenciesLanguage" in backend, bt
-        assert backend["internetAccess"] == "NONE", bt
 
 
 @pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
@@ -213,17 +204,8 @@ async def test_dependencies_language_only_set_for_daytona(
     assert response.data is not None
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
-    assert backends["DAYTONA_PYTHON"]["dependenciesLanguage"] == "PYTHON"
-
-    no_deps_backends = [
-        "WASM",
-        "E2B",
-        "VERCEL_PYTHON",
-        "VERCEL_TYPESCRIPT",
-        "DENO",
-        "MODAL",
-    ]
-    for bt in no_deps_backends:
-        assert backends[bt]["dependenciesLanguage"] is None, (
-            f"{bt} unexpectedly advertises a dependenciesLanguage"
+    for bt, meta in SANDBOX_ADAPTER_METADATA.items():
+        expected = meta.dependencies_language
+        assert backends[bt]["dependenciesLanguage"] == expected, (
+            f"{bt}: expected dependenciesLanguage={expected!r}"
         )

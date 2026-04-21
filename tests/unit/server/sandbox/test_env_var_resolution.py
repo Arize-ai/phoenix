@@ -16,7 +16,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from phoenix.server.sandbox import MissingSecretError, _resolve_user_env, get_or_create_backend
+from phoenix.server.sandbox import (
+    MissingSecretError,
+    _resolve_user_env,
+    get_or_create_backend,
+    is_reserved_credential_name,
+)
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.types import SandboxAdapter, SandboxBackend
 
@@ -387,3 +392,207 @@ class TestResolveUserEnvReservedSecretKey:
         session = _make_session({"my-custom-key": b"plaintext"})
         result = await _resolve_user_env(raw, session, _identity_decrypt)
         assert result == {"API_KEY": "plaintext"}
+
+    @pytest.mark.asyncio
+    async def test_reserved_literal_name_raises_before_db_lookup(self) -> None:
+        """An EnvVarLiteral whose name matches a reserved provider-credential name
+        must raise MissingSecretError — pre-mutation-guard rows with reserved literal
+        names must not pass resolution at runtime (asymmetry bug D3 closes)."""
+        raw = [{"kind": "literal", "name": "VERCEL_TOKEN", "value": "x"}]
+        session = _make_session({})
+        with pytest.raises(MissingSecretError, match="VERCEL_TOKEN"):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+        session.scalars.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_reserved_literal_name_case_insensitive(self) -> None:
+        """Reserved literal-name check is case-insensitive, same as secret_key check."""
+        raw = [{"kind": "literal", "name": "vercel_token", "value": "x"}]
+        session = _make_session({})
+        with pytest.raises(MissingSecretError):
+            await _resolve_user_env(raw, session, _identity_decrypt)
+
+    @pytest.mark.asyncio
+    async def test_non_reserved_literal_name_resolves_normally(self) -> None:
+        """A non-reserved literal name must continue to resolve without error."""
+        raw = [{"kind": "literal", "name": "MY_CUSTOM_VAR", "value": "hello"}]
+        result = await _resolve_user_env(raw, None, None)
+        assert result == {"MY_CUSTOM_VAR": "hello"}
+
+
+# ---------------------------------------------------------------------------
+# is_reserved_credential_name helper
+# ---------------------------------------------------------------------------
+
+
+class TestReservedCredentialNameHelper:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "MODAL_TOKEN_ID",
+            "MODAL_TOKEN_SECRET",
+            "modal_token_id",
+            "modal_token_secret",
+            "Modal_Token_Id",
+            "Modal_Token_Secret",
+        ],
+    )
+    def test_modal_token_keys_are_reserved(self, name: str) -> None:
+        assert is_reserved_credential_name(name)
+
+    def test_non_modal_reserved_names_still_reserved(self) -> None:
+        assert is_reserved_credential_name("PHOENIX_SANDBOX_TOKEN")
+        assert is_reserved_credential_name("PHOENIX_SANDBOX_API_KEY")
+        assert is_reserved_credential_name("phoenix_sandbox_token")
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: env vars reach execute() call site
+# ---------------------------------------------------------------------------
+
+
+async def _build_e2b_backend(config: dict[str, Any], session: Any) -> Any:
+    """Call get_or_create_backend for E2B and return the E2BSandboxBackend instance."""
+    from phoenix.server.sandbox.e2b_backend import E2BSandboxBackend
+
+    adapter = E2BAdapter()
+    with patch.dict("phoenix.server.sandbox._SANDBOX_ADAPTERS", {"E2B": adapter}):
+        with patch.dict("os.environ", {"PHOENIX_SANDBOX_E2B_API_KEY": "test-key"}):
+            backend = await get_or_create_backend(
+                "E2B",
+                config=config,
+                session=session,
+                decrypt=_identity_decrypt,
+            )
+    assert backend is not None
+    assert isinstance(backend, E2BSandboxBackend)
+    return backend
+
+
+class TestEndToEndResolution:
+    @pytest.mark.asyncio
+    async def test_literal_env_var_forwarded_to_execute(self) -> None:
+        config = {
+            "template": "base",
+            "env_vars": [{"kind": "literal", "name": "MY_VAR", "value": "hello_world"}],
+        }
+        captured: dict[str, Any] = {}
+
+        async def fake_run_code(code: str, **kwargs: Any) -> Any:
+            captured["envs"] = kwargs.get("envs")
+            result = MagicMock()
+            result.logs = MagicMock(stdout=["hello_world"], stderr=[])
+            result.error = None
+            return result
+
+        backend = await _build_e2b_backend(config, _make_session({}))
+        sandbox_mock = MagicMock()
+        sandbox_mock.run_code = fake_run_code
+        backend._sessions["s1"] = sandbox_mock
+
+        result = await backend.execute("import os; print(os.environ['MY_VAR'])", "s1")
+        assert captured["envs"] == {"MY_VAR": "hello_world"}
+        assert result.stdout == "hello_world"
+
+    @pytest.mark.asyncio
+    async def test_multiple_literal_env_vars_all_forwarded(self) -> None:
+        config = {
+            "template": "base",
+            "env_vars": [
+                {"kind": "literal", "name": "A", "value": "1"},
+                {"kind": "literal", "name": "B", "value": "2"},
+            ],
+        }
+        captured: dict[str, Any] = {}
+
+        async def fake_run_code(code: str, **kwargs: Any) -> Any:
+            captured["envs"] = kwargs.get("envs")
+            result = MagicMock()
+            result.logs = MagicMock(stdout=[], stderr=[])
+            result.error = None
+            return result
+
+        backend = await _build_e2b_backend(config, _make_session({}))
+        sandbox_mock = MagicMock()
+        sandbox_mock.run_code = fake_run_code
+        backend._sessions["s1"] = sandbox_mock
+
+        await backend.execute("...", "s1")
+        assert captured["envs"] == {"A": "1", "B": "2"}
+
+    @pytest.mark.asyncio
+    async def test_secret_ref_resolved_and_forwarded_to_execute(self) -> None:
+        config = {
+            "template": "base",
+            "env_vars": [{"kind": "secret_ref", "name": "API_KEY", "secret_key": "my-secret-key"}],
+        }
+        session = _make_session({"my-secret-key": b"supersecret_value"})
+        captured: dict[str, Any] = {}
+
+        async def fake_run_code(code: str, **kwargs: Any) -> Any:
+            captured["envs"] = kwargs.get("envs")
+            result = MagicMock()
+            result.logs = MagicMock(stdout=["supersecret_value"], stderr=[])
+            result.error = None
+            return result
+
+        backend = await _build_e2b_backend(config, session)
+        sandbox_mock = MagicMock()
+        sandbox_mock.run_code = fake_run_code
+        backend._sessions["s1"] = sandbox_mock
+
+        result = await backend.execute("import os; print(os.environ['API_KEY'])", "s1")
+        assert captured["envs"] == {"API_KEY": "supersecret_value"}
+        assert result.stdout == "supersecret_value"
+
+    @pytest.mark.asyncio
+    async def test_mixed_literal_and_secret_ref_both_forwarded(self) -> None:
+        config = {
+            "template": "base",
+            "env_vars": [
+                {"kind": "literal", "name": "PLAIN", "value": "plain_val"},
+                {"kind": "secret_ref", "name": "SECRET", "secret_key": "stored-key"},
+            ],
+        }
+        session = _make_session({"stored-key": b"secret_val"})
+        captured: dict[str, Any] = {}
+
+        async def fake_run_code(code: str, **kwargs: Any) -> Any:
+            captured["envs"] = kwargs.get("envs")
+            result = MagicMock()
+            result.logs = MagicMock(stdout=[], stderr=[])
+            result.error = None
+            return result
+
+        backend = await _build_e2b_backend(config, session)
+        sandbox_mock = MagicMock()
+        sandbox_mock.run_code = fake_run_code
+        backend._sessions["s1"] = sandbox_mock
+
+        await backend.execute("...", "s1")
+        assert captured["envs"] == {"PLAIN": "plain_val", "SECRET": "secret_val"}
+
+    @pytest.mark.asyncio
+    async def test_raw_env_vars_list_not_leaked_into_execute_envs(self) -> None:
+        """The raw env_vars list from config never appears in execute()'s envs kwarg."""
+        config = {
+            "template": "base",
+            "env_vars": [{"kind": "literal", "name": "CLEAN", "value": "yes"}],
+        }
+        captured: dict[str, Any] = {}
+
+        async def fake_run_code(code: str, **kwargs: Any) -> Any:
+            captured["envs"] = kwargs.get("envs")
+            result = MagicMock()
+            result.logs = MagicMock(stdout=[], stderr=[])
+            result.error = None
+            return result
+
+        backend = await _build_e2b_backend(config, _make_session({}))
+        sandbox_mock = MagicMock()
+        sandbox_mock.run_code = fake_run_code
+        backend._sessions["s1"] = sandbox_mock
+
+        await backend.execute("...", "s1")
+        assert "env_vars" not in (captured.get("envs") or {})
+        assert captured["envs"] == {"CLEAN": "yes"}

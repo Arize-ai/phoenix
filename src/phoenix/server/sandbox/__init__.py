@@ -387,10 +387,15 @@ async def _resolve_user_env(
 
     ta: TypeAdapter[EnvVarEntry] = TypeAdapter(EnvVarEntry)
     entries: list[EnvVarEntry] = [ta.validate_python(e) for e in raw_env_vars]
-    # Fail-closed: reject reserved secret_key values before any DB lookup so
-    # rows persisted before the mutation-layer guard shipped cannot be silently
-    # resolved. This mirrors the mutation-layer check in _check_env_var_collision.
+    # Fail-closed: reject reserved names before any DB lookup so rows persisted
+    # before the mutation-layer guard shipped cannot be silently resolved.
+    # Mirrors _check_env_var_collision which checks both literal name and secret_key.
     for entry in entries:
+        if isinstance(entry, EnvVarLiteral) and is_reserved_credential_name(entry.name):
+            raise MissingSecretError(
+                f"env_var name {entry.name!r} is a reserved sandbox provider "
+                "credential and cannot be used as a user-defined environment variable."
+            )
         if isinstance(entry, EnvVarSecretRef) and is_reserved_credential_name(entry.secret_key):
             raise MissingSecretError(
                 f"secret_ref.secret_key {entry.secret_key!r} is a reserved sandbox "
@@ -624,8 +629,11 @@ except ImportError:
 # e2b adapter not registered) cannot narrow the reserved set.
 # ---------------------------------------------------------------------------
 
-_PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS: frozenset[str] = frozenset(
+_PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
     {
+        # Reservation-only names: NOT settable via setSandboxCredential mutation.
+        # Contrast with SandboxAdapter.credential_specs (adapter-declared, settable
+        # via mutation). RESERVED_CREDENTIAL_NAMES is the derived union of both.
         "PHOENIX_SANDBOX_TOKEN",
         "PHOENIX_SANDBOX_API_KEY",
         # Modal tokens — added here so dropping credential_specs from ModalAdapter
@@ -637,7 +645,7 @@ _PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS: frozenset[str] = frozenset(
 
 
 def _build_reserved_credential_names() -> frozenset[str]:
-    names: set[str] = {key.lower() for key in _PHOENIX_SANDBOX_FALLBACK_CREDENTIAL_KEYS}
+    names: set[str] = {key.lower() for key in _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS}
     for adapter in _SANDBOX_ADAPTERS.values():
         for spec in adapter.credential_specs:
             names.add(spec.key.lower())
