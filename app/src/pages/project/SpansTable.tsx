@@ -622,13 +622,11 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "notes",
       accessorKey: "spanNotes",
+      minSize: 50,
+      maxSize: 75,
       enableSorting: false,
-      cell: ({ getValue }) => {
-        const notes = getValue();
-        if (!Array.isArray(notes)) {
-          return <>{"--"}</>;
-        }
-        return <SpanNotesTableCell notes={notes} />;
+      cell: ({ row }) => {
+        return <SpanNotesTableCell notes={row.original.spanNotes} />;
       },
     },
     {

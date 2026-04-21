@@ -1,45 +1,38 @@
 import { css } from "@emotion/react";
+import { useCallback } from "react";
+import type { PressEvent } from "react-aria";
 import { Pressable } from "react-aria";
 
 import {
-  Dialog,
-  DialogTrigger,
-  Flex,
-  Popover,
-  PopoverArrow,
+  Icon,
+  Icons,
+  RichTooltip,
   Text,
+  TooltipArrow,
+  TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { baseAnnotationLabelCSS } from "@phoenix/components/annotation/AnnotationLabel";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
-const notePillsCSS = css`
-  white-space: normal;
-  min-width: 0;
-`;
-
-const notePillCSS = css(
-  baseAnnotationLabelCSS,
-  css`
-    box-sizing: border-box;
-    max-width: 180px;
-    min-width: 0;
-    align-items: center;
-  `
-);
-
-const noteTextWrapCSS = css`
-  min-width: 0;
-`;
-
-const notePopoverCSS = css`
-  .react-aria-Dialog {
-    padding: 0;
-    border-radius: var(--global-rounding-small);
-    overflow: hidden;
+const noteCountTriggerCSS = css`
+  display: inline-flex;
+  flex-direction: row;
+  gap: var(--global-dimension-static-size-50);
+  align-items: center;
+  color: var(--global-text-color-900);
+  transition: opacity 0.2s;
+  &:hover {
+    opacity: 0.8;
   }
+`;
+
+const noteTooltipCSS = css`
+  padding: 0;
+  border-radius: var(--global-rounding-small);
+  overflow: hidden;
+  width: fit-content;
+  max-width: min(720px, calc(100vw - 32px));
 `;
 
 const noteTableCSS = css(
@@ -47,12 +40,11 @@ const noteTableCSS = css(
   css`
     thead tr th {
       background-color: transparent;
-      padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
     }
 
     tbody tr td {
-      padding: var(--global-dimension-size-75) var(--global-dimension-size-100);
       border-bottom: none;
+      text-align: left;
     }
   `
 );
@@ -101,9 +93,9 @@ export function formatSpanNoteCreatedAt(createdAt: string) {
 }
 
 export function SpanNoteTooltipContent({
-  note,
+  notes,
 }: {
-  note: Readonly<SpanNoteEntry>;
+  notes: ReadonlyArray<SpanNoteEntry>;
 }) {
   return (
     <View overflow="auto" maxHeight="260px">
@@ -116,21 +108,23 @@ export function SpanNoteTooltipContent({
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <Text color="inherit">{getSpanNoteAuthorName(note)}</Text>
-            </td>
-            <td>
-              <Text color="inherit">
-                {formatSpanNoteCreatedAt(note.createdAt)}
-              </Text>
-            </td>
-            <td>
-              <Text color="inherit" css={noteContentCSS}>
-                {note.text}
-              </Text>
-            </td>
-          </tr>
+          {notes.map((note) => (
+            <tr key={note.id}>
+              <td>
+                <Text color="inherit">{getSpanNoteAuthorName(note)}</Text>
+              </td>
+              <td>
+                <Text color="inherit">
+                  {formatSpanNoteCreatedAt(note.createdAt)}
+                </Text>
+              </td>
+              <td>
+                <Text color="inherit" css={noteContentCSS}>
+                  {note.text}
+                </Text>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </View>
@@ -143,41 +137,32 @@ export function SpanNotesTableCell({
   notes: ReadonlyArray<SpanNote>;
 }) {
   const noteEntries = getSpanNoteEntries(notes);
+  const noteCount = noteEntries.length;
+  const noteCountLabel = `${formatNumber(noteCount)} span note${
+    noteCount === 1 ? "" : "s"
+  }`;
+  const handlePress = useCallback((e: PressEvent) => {
+    e.continuePropagation();
+  }, []);
 
-  if (noteEntries.length === 0) {
+  if (noteCount === 0) {
     return <>{"--"}</>;
   }
 
   return (
-    <Flex direction="row" gap="size-50" wrap="wrap" css={notePillsCSS}>
-      {noteEntries.map((note) => (
-        <DialogTrigger key={note.id}>
-          <Pressable>
-            <span
-              role="button"
-              css={css`
-                max-width: 100%;
-              `}
-            >
-              <div css={notePillCSS} data-clickable="true">
-                <div css={noteTextWrapCSS}>
-                  <Truncate maxWidth="150px" title={note.text}>
-                    <Text size="S">{note.text}</Text>
-                  </Truncate>
-                </div>
-              </div>
-            </span>
-          </Pressable>
-          <StopPropagation>
-            <Popover placement="bottom" css={notePopoverCSS}>
-              <PopoverArrow />
-              <Dialog>
-                <SpanNoteTooltipContent note={note} />
-              </Dialog>
-            </Popover>
-          </StopPropagation>
-        </DialogTrigger>
-      ))}
-    </Flex>
+    <TooltipTrigger delay={0}>
+      <Pressable onPress={handlePress} aria-label={noteCountLabel}>
+        <div css={noteCountTriggerCSS}>
+          <Icon svg={<Icons.MessageSquareOutline />} />
+          <Text size="S" color="inherit" fontFamily="mono">
+            {formatNumber(noteCount)}
+          </Text>
+        </div>
+      </Pressable>
+      <RichTooltip placement="bottom" css={noteTooltipCSS} width="auto">
+        <TooltipArrow />
+        <SpanNoteTooltipContent notes={noteEntries} />
+      </RichTooltip>
+    </TooltipTrigger>
   );
 }
