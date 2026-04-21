@@ -3,5 +3,6 @@ export * from "./settingsGeneralPageLoader";
 export * from "./settingsAIProvidersPageLoader";
 export * from "./SettingsDataPage";
 export * from "./SettingsAgentsPage";
+export * from "./secrets";
 export * from "./prompts";
 export * from "./datasets";
