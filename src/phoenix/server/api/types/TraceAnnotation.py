@@ -1,3 +1,4 @@
+from datetime import datetime
 from math import isfinite
 from typing import TYPE_CHECKING, Annotated, Optional
 
@@ -133,6 +134,32 @@ class TraceAnnotation(Node):
                 (self.id, models.TraceAnnotation.source),
             )
         return AnnotationSource(val)
+
+    @strawberry.field(description="The date and time when the annotation was created.")  # type: ignore
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.created_at
+        else:
+            val = await info.context.data_loaders.trace_annotation_fields.load(
+                (self.id, models.TraceAnnotation.created_at),
+            )
+        return val
+
+    @strawberry.field(description="The date and time when the annotation was last updated.")  # type: ignore
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.updated_at
+        else:
+            val = await info.context.data_loaders.trace_annotation_fields.load(
+                (self.id, models.TraceAnnotation.updated_at),
+            )
+        return val
 
     @strawberry.field(description="The trace associated with the annotation.")  # type: ignore
     async def trace(

@@ -80,6 +80,8 @@ async def test_annotating_a_trace(
                         metadata
                         identifier
                         source
+                        createdAt
+                        updatedAt
                     }
                 }
             }
@@ -102,7 +104,10 @@ async def test_annotating_a_trace(
     )
     assert not response.errors
     assert (data := response.data) is not None
-    annotation_gid = GlobalID.from_id(data["createTraceAnnotations"]["traceAnnotations"][0]["id"])
+    created_annotation = data["createTraceAnnotations"]["traceAnnotations"][0]
+    assert created_annotation["createdAt"] is not None
+    assert created_annotation["updatedAt"] is not None
+    annotation_gid = GlobalID.from_id(created_annotation["id"])
     annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
     async with db() as session:
         orm_annotation = await session.scalar(
