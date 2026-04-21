@@ -1,16 +1,17 @@
 /**
  * summary-quality evaluator
  *
- * LLM-as-judge that grades whether the generated session summary accurately
- * captures the topic of the conversation. Uses
- * `@arizeai/phoenix-evals`'s {@link createClassificationEvaluator} with a
- * custom rubric tuned to the production prompt in
- * `app/src/components/agent/useGenerateSessionSummary.ts`.
+ * LLM-as-judge that grades a session summary on two axes at once: whether
+ * it identifies the topic AND whether it reads like a sidebar title rather
+ * than a sentence. The summary ships in the session sidebar in the PXI
+ * chat UI (see `useGenerateSessionSummary.ts` and `getSessionDisplayName`),
+ * so "OAuth / SSO Support" is the shape we want — "Phoenix supports OAuth
+ * SSO with OIDC providers" is a sentence, not a title, and fails.
  *
  * Labels:
- *   - accurate    — summary identifies the main topic of the exchange
- *   - partial     — summary touches the topic but is vague or omits the key noun
- *   - inaccurate  — summary is wrong, generic ("user asked a question"), or misleading
+ *   - accurate    — concise title-style noun phrase that names the topic
+ *   - partial     — on-topic but verbose/sentence-y, or title-style but vague
+ *   - inaccurate  — wrong, generic ("user asked a question"), or misleading
  */
 import { anthropic } from "@ai-sdk/anthropic";
 import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
@@ -28,9 +29,24 @@ const SUMMARY_QUALITY_CHOICES: ClassificationChoicesMap = {
   inaccurate: 0,
 };
 
-const SUMMARY_QUALITY_PROMPT = `You are grading a short (5-10 word) session summary written by an
-assistant. The summary should describe the topic of the conversation
-between a user and an assistant.
+const SUMMARY_QUALITY_PROMPT = `You are grading a session summary that will appear as a session title
+in a chat sidebar. The best summaries read like sidebar titles — concise
+noun phrases, not sentences. The summary is always about a Phoenix
+conversation, so the word "Phoenix" is implied and should generally NOT
+appear in the summary.
+
+Good summaries (title-style, noun phrases, Phoenix implied):
+  - "OAuth / SSO Support"
+  - "Local Docker Install"
+  - "Dataset vs Experiment"
+  - "LangChain Tracing Setup"
+  - "Thumbs Up / Down Annotation Config"
+
+Bad summaries (sentence-like, verbose, restate Phoenix, or narrate):
+  - "Phoenix supports OAuth SSO enterprise authentication with OIDC providers"
+  - "Installing Phoenix locally with Docker container"
+  - "Explaining the difference between Phoenix datasets and experiments"
+  - "User asked a question about authentication"
 
 [Conversation]
 User: {{userMessage}}
@@ -41,13 +57,17 @@ Assistant: {{assistantMessage}}
 
 Grade the summary using one of the following labels:
 
-- "accurate": The summary clearly identifies the main subject of the user's
-  request. A reader who has not seen the conversation could glance at the
-  summary and know what the conversation is about.
-- "partial": The summary is on-topic but vague — it gestures at the area
-  (e.g. "asking about Phoenix") without naming the specific subject.
-- "inaccurate": The summary is wrong, contradicts the conversation, or is
-  generic filler that conveys nothing (e.g. "user asked a question").
+- "accurate": Reads like a sidebar title — a short noun phrase (ideally
+  2-6 words) that names the specific subject. Does not start with a verb
+  ("Installing", "Explaining"), does not narrate ("User asked..."), and
+  does not redundantly say "Phoenix". Someone scanning a list of these
+  would know what the conversation is about.
+- "partial": On-topic but not title-style. Either it is a grammatical
+  sentence or verb-led phrase ("Installing Phoenix locally"), it leads
+  with "Phoenix ..." when Phoenix is implied, OR it is title-style but
+  too vague to identify the subject ("Asking about Phoenix").
+- "inaccurate": Wrong, contradicts the conversation, or is generic filler
+  that conveys nothing ("user asked a question", "technical discussion").
 
 Return a structured result with the label and a brief explanation.`;
 
