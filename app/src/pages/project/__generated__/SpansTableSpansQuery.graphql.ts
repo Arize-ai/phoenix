@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f2c4beea1642372bff00a2012cc2413>>
+ * @generated SignedSource<<f5cd2bfff17f122b85a3bb2dd5bb3d6b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -143,34 +143,7 @@ v16 = {
   "name": "name",
   "storageKey": null
 },
-v17 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v18 = [
-  (v17/*: any*/)
-],
-v19 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "cost",
-    "storageKey": null
-  }
-],
-v20 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "CostBreakdown",
-  "kind": "LinkedField",
-  "name": "total",
-  "plural": false,
-  "selections": (v19/*: any*/),
-  "storageKey": null
-},
-v21 = [
+v17 = [
   (v9/*: any*/),
   (v10/*: any*/),
   (v11/*: any*/),
@@ -181,9 +154,13 @@ v21 = [
   },
   (v12/*: any*/),
   (v13/*: any*/),
-  (v17/*: any*/)
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
+  }
 ],
-v22 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanCostSummary",
@@ -191,11 +168,28 @@ v22 = {
   "name": "costSummary",
   "plural": false,
   "selections": [
-    (v20/*: any*/)
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CostBreakdown",
+      "kind": "LinkedField",
+      "name": "total",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cost",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
-v23 = [
+v19 = [
   {
     "alias": "value",
     "args": null,
@@ -204,14 +198,14 @@ v23 = [
     "storageKey": null
   }
 ],
-v24 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v25 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -290,73 +284,6 @@ return {
             "selections": [
               (v16/*: any*/),
               {
-                "alias": "timeRangeTraceCount",
-                "args": (v18/*: any*/),
-                "kind": "ScalarField",
-                "name": "traceCount",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": (v18/*: any*/),
-                "concreteType": "SpanCostSummary",
-                "kind": "LinkedField",
-                "name": "costSummary",
-                "plural": false,
-                "selections": [
-                  (v20/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "CostBreakdown",
-                    "kind": "LinkedField",
-                    "name": "prompt",
-                    "plural": false,
-                    "selections": (v19/*: any*/),
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "CostBreakdown",
-                    "kind": "LinkedField",
-                    "name": "completion",
-                    "plural": false,
-                    "selections": (v19/*: any*/),
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": "latencyMsP50",
-                "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "probability",
-                    "value": 0.5
-                  },
-                  (v17/*: any*/)
-                ],
-                "kind": "ScalarField",
-                "name": "latencyMsQuantile",
-                "storageKey": null
-              },
-              {
-                "alias": "latencyMsP99",
-                "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "probability",
-                    "value": 0.99
-                  },
-                  (v17/*: any*/)
-                ],
-                "kind": "ScalarField",
-                "name": "latencyMsQuantile",
-                "storageKey": null
-              },
-              {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
@@ -365,14 +292,7 @@ return {
               },
               {
                 "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "documentEvaluationNames",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": (v21/*: any*/),
+                "args": (v17/*: any*/),
                 "concreteType": "SpanConnection",
                 "kind": "LinkedField",
                 "name": "spans",
@@ -443,7 +363,7 @@ return {
                                 "name": "tokenCountTotal",
                                 "storageKey": null
                               },
-                              (v22/*: any*/)
+                              (v18/*: any*/)
                             ]
                           },
                           {
@@ -488,7 +408,7 @@ return {
                                 "kind": "Condition",
                                 "passingValue": true,
                                 "selections": [
-                                  (v22/*: any*/)
+                                  (v18/*: any*/)
                                 ]
                               }
                             ],
@@ -501,7 +421,7 @@ return {
                             "kind": "LinkedField",
                             "name": "input",
                             "plural": false,
-                            "selections": (v23/*: any*/),
+                            "selections": (v19/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -511,7 +431,7 @@ return {
                             "kind": "LinkedField",
                             "name": "output",
                             "plural": false,
-                            "selections": (v23/*: any*/),
+                            "selections": (v19/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -524,8 +444,8 @@ return {
                             "selections": [
                               (v15/*: any*/),
                               (v16/*: any*/),
-                              (v24/*: any*/),
-                              (v25/*: any*/),
+                              (v20/*: any*/),
+                              (v21/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -592,7 +512,7 @@ return {
                                     "name": "fraction",
                                     "storageKey": null
                                   },
-                                  (v24/*: any*/)
+                                  (v20/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -714,8 +634,8 @@ return {
                                                 "name": "values",
                                                 "plural": true,
                                                 "selections": [
-                                                  (v24/*: any*/),
-                                                  (v25/*: any*/)
+                                                  (v20/*: any*/),
+                                                  (v21/*: any*/)
                                                 ],
                                                 "storageKey": null
                                               }
@@ -799,7 +719,7 @@ return {
               },
               {
                 "alias": null,
-                "args": (v21/*: any*/),
+                "args": (v17/*: any*/),
                 "filters": [
                   "sort",
                   "rootSpansOnly",
@@ -822,16 +742,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cb2fe88e4d0d698cab60327de9d2406b",
+    "cacheID": "50df80de2e7d5548f9f9e9ecf7e1f59f",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 30\n  $orphanSpanAsRootSpan: Boolean\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTableAside_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  ...SpansTableAside_project\n  ...SpanColumnSelector_annotations\n  spans(first: $first, after: $after, sort: $sort, rootSpansOnly: $rootSpansOnly, filterCondition: $filterCondition, orphanSpanAsRootSpan: $orphanSpanAsRootSpan, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal @skip(if: $rootSpansOnly)\n        costSummary @skip(if: $rootSpansOnly) {\n          total {\n            cost\n          }\n        }\n        cumulativeTokenCountTotal @include(if: $rootSpansOnly)\n        spanId\n        trace {\n          id\n          traceId\n          costSummary @include(if: $rootSpansOnly) {\n            total {\n              cost\n            }\n          }\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 30\n  $orphanSpanAsRootSpan: Boolean\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: $first, after: $after, sort: $sort, rootSpansOnly: $rootSpansOnly, filterCondition: $filterCondition, orphanSpanAsRootSpan: $orphanSpanAsRootSpan, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal @skip(if: $rootSpansOnly)\n        costSummary @skip(if: $rootSpansOnly) {\n          total {\n            cost\n          }\n        }\n        cumulativeTokenCountTotal @include(if: $rootSpansOnly)\n        spanId\n        trace {\n          id\n          traceId\n          costSummary @include(if: $rootSpansOnly) {\n            total {\n              cost\n            }\n          }\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1a53d21509899796c3ba2693714db688";
+(node as any).hash = "6d9c8e6ab059fb3f21b93768129924fe";
 
 export default node;

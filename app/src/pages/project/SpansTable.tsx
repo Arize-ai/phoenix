@@ -185,6 +185,7 @@ export function SpansTable(props: SpansTableProps) {
     (state) => state.setShowTableAside
   );
   const asidePanelRef = useRef<PanelImperativeHandle>(null);
+  const didSyncAsideFromStoreRef = useRef(false);
   useEffect(() => {
     const panel = asidePanelRef.current;
     if (!panel) return;
@@ -193,6 +194,7 @@ export function SpansTable(props: SpansTableProps) {
     } else if (!showTableAside && !panel.isCollapsed()) {
       panel.collapse();
     }
+    didSyncAsideFromStoreRef.current = true;
   }, [showTableAside]);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
@@ -207,7 +209,6 @@ export function SpansTable(props: SpansTableProps) {
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
-          ...SpansTableAside_project
           ...SpanColumnSelector_annotations
           spans(
             first: $first
@@ -886,18 +887,17 @@ export function SpansTable(props: SpansTableProps) {
             maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
             collapsible
             onResize={(panelSize) => {
-              if (panelSize.asPercentage === 0 && showTableAside) {
-                setShowTableAside(false);
+              if (!didSyncAsideFromStoreRef.current) return;
+              const shouldBeVisible = panelSize.asPercentage > 0;
+              if (shouldBeVisible !== showTableAside) {
+                setShowTableAside(shouldBeVisible);
               }
             }}
           >
             {showTableAside ? (
               <ErrorBoundary fallback={TextErrorBoundaryFallback}>
                 <Suspense fallback={<Loading size="S" />}>
-                  <SpansTableAside
-                    project={data}
-                    filterCondition={filterCondition}
-                  />
+                  <SpansTableAside filterCondition={filterCondition} />
                 </Suspense>
               </ErrorBoundary>
             ) : null}
