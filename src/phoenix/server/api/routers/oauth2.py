@@ -9,9 +9,10 @@ from urllib.parse import unquote, urlparse
 import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
+from joserfc import jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import OctKey
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -894,8 +895,7 @@ def _generate_state_for_oauth2_authorization_code_flow(
     )
     if return_url is not None:
         payload["return_url"] = return_url
-    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(secret))
-    return jwt_bytes.decode()
+    return jwt.encode(header, dict(payload), OctKey.import_key(str(secret)))
 
 
 class _OAuth2StatePayload(TypedDict):
@@ -912,9 +912,9 @@ def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
     """
     Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
-    payload = jwt.decode(s=state, key=str(secret))
-    if _is_oauth2_state_payload(payload):
-        return payload
+    claims = jwt.decode(state, OctKey.import_key(str(secret))).claims
+    if _is_oauth2_state_payload(claims):
+        return claims
     raise ValueError("Invalid OAuth2 state payload.")
 
 
