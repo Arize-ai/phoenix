@@ -36,7 +36,7 @@ npx @arizeai/phoenix-cli experiment list --dataset phoenix-documentation-questio
 ## Available evals
 
 - `documentation.eval.ts` — checks that the agent system prompt + Mintlify docs MCP produces well-structured markdown links to the public Phoenix docs.
-- `summarization.eval.ts` — exercises the session-summary path used by `useGenerateSessionSummary.ts`. Forces the production `summary` tool against the model on a golden set of (user, assistant) exchanges and grades each result with a code format check (5-10 words, no quotes, no trailing punctuation) and an LLM judge for topical accuracy.
+- `summarization.eval.ts` — exercises the session-summary path used by `useGenerateSessionSummary.ts`. Forces the production `summary` tool against the model on a golden set of (user, assistant) exchanges and grades each result with an LLM judge for topical accuracy.
 
 ## Adding a new eval
 

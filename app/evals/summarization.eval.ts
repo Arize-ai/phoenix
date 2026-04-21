@@ -12,9 +12,8 @@
  *   1. Iterate a golden dataset of (userMessage, assistantMessage) pairs.
  *   2. Call the model with the production system prompt + `summary` tool,
  *      with `toolChoice: "required"` to force structured output.
- *   3. Grade each generated summary with two evaluators:
- *        - summary-format  (CODE) — 5-10 words, no quotes, no trailing punct
- *        - summary-quality (LLM)  — does the summary capture the topic
+ *   3. Grade each generated summary with summary-quality (LLM) — does the
+ *      summary capture the topic of the exchange.
  *
  * Keep the prompt + tool schema in sync with
  * `app/src/components/agent/useGenerateSessionSummary.ts`.
@@ -30,7 +29,6 @@ import {
   SUMMARY_SYSTEM_PROMPT,
 } from "@phoenix/components/agent/sessionSummaryPrompt";
 
-import { summaryFormatEvaluator } from "./evaluators/summaryFormatEvaluator";
 import { summaryQualityEvaluator } from "./evaluators/summaryQualityEvaluator";
 
 const DATASET_NAME = "phoenix-session-summarization";
@@ -155,7 +153,7 @@ async function main() {
       const input = summaryCall.input as { summary?: string };
       return input.summary?.trim() ?? "";
     },
-    evaluators: [summaryFormatEvaluator, summaryQualityEvaluator],
+    evaluators: [summaryQualityEvaluator],
   });
 }
 
