@@ -15,12 +15,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import {
-  Group,
-  Panel,
-  type PanelImperativeHandle,
-  Separator,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
@@ -180,16 +175,6 @@ export function SpansTable(props: SpansTableProps) {
   const setShowTableAside = useProjectContext(
     (state) => state.setShowTableAside
   );
-  const asidePanelRef = useRef<PanelImperativeHandle>(null);
-  useEffect(() => {
-    const panel = asidePanelRef.current;
-    if (!panel) return;
-    if (showTableAside && panel.isCollapsed()) {
-      panel.expand();
-    } else if (!showTableAside && !panel.isCollapsed()) {
-      panel.collapse();
-    }
-  }, [showTableAside]);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -750,18 +735,7 @@ export function SpansTable(props: SpansTableProps) {
                       }
                     />
                   }
-                  onPress={() => {
-                    const next = !showTableAside;
-                    setShowTableAside(next);
-                    const panel = asidePanelRef.current;
-                    if (panel) {
-                      if (next) {
-                        panel.expand();
-                      } else {
-                        panel.collapse();
-                      }
-                    }
-                  }}
+                  onPress={() => setShowTableAside(!showTableAside)}
                 />
               ) : null}
             </Flex>
@@ -878,15 +852,10 @@ export function SpansTable(props: SpansTableProps) {
           ) : null}
         </div>
       </Panel>
-      {isTracingUxEnabled ? (
+      {isTracingUxEnabled && showTableAside ? (
         <>
-          <Separator
-            css={compactResizeHandleCSS}
-            disabled={!showTableAside}
-            style={showTableAside ? undefined : { display: "none" }}
-          />
+          <Separator css={compactResizeHandleCSS} />
           <Panel
-            panelRef={asidePanelRef}
             defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
             collapsedSize={0}
             minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
