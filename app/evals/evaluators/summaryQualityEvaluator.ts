@@ -5,7 +5,7 @@
  * it identifies the topic AND whether it reads like a sidebar title rather
  * than a sentence. The summary ships in the session sidebar in the PXI
  * chat UI (see `useGenerateSessionSummary.ts` and `getSessionDisplayName`),
- * so "OAuth / SSO Support" is the shape we want — "Phoenix supports OAuth
+ * so "OAuth / SSO support" is the shape we want — "Phoenix supports OAuth
  * SSO with OIDC providers" is a sentence, not a title, and fails.
  *
  * Labels:
@@ -14,7 +14,6 @@
  *   - inaccurate  — wrong, generic ("user asked a question"), or misleading
  */
 import { anthropic } from "@ai-sdk/anthropic";
-import { asExperimentEvaluator } from "@arizeai/phoenix-client/experiments";
 import {
   createClassificationEvaluator,
   type ClassificationChoicesMap,
@@ -29,6 +28,10 @@ const SUMMARY_QUALITY_CHOICES: ClassificationChoicesMap = {
   inaccurate: 0,
 };
 
+// The experiment framework passes { input, output, expected, metadata, example }
+// directly to `evaluate`. phoenix-evals' Mustache renderer supports dotted
+// access, so the template reaches into `input.userMessage` etc. without any
+// wrapping or input-mapping on our end.
 const SUMMARY_QUALITY_PROMPT = `<role>
   You are grading a session summary that will appear as a sidebar label
   in the Phoenix chat UI. The best summaries read like sidebar titles:
@@ -57,8 +60,8 @@ const SUMMARY_QUALITY_PROMPT = `<role>
 </style_rules>
 
 <conversation>
-  <user>{{userMessage}}</user>
-  <assistant>{{assistantMessage}}</assistant>
+  <user>{{input.userMessage}}</user>
+  <assistant>{{input.assistantMessage}}</assistant>
 </conversation>
 
 <generated_summary>{{output}}</generated_summary>
@@ -106,45 +109,15 @@ export interface SummaryQualityEvaluatorOptions {
   name?: string;
 }
 
-/**
- * The shape of an evaluation record fed to the underlying classification
- * evaluator. The fields here must match the variables referenced in
- * {@link SUMMARY_QUALITY_PROMPT}.
- */
-type SummaryQualityRecord = {
-  userMessage: string;
-  assistantMessage: string;
-  output: string;
-};
-
 export function createSummaryQualityEvaluator(
   options: SummaryQualityEvaluatorOptions = {}
 ) {
-  const model = options.model ?? anthropic("claude-haiku-4-5-20251001");
-  const name = options.name ?? "summary-quality";
-
-  const classifier = createClassificationEvaluator<SummaryQualityRecord>({
-    name,
-    model,
+  return createClassificationEvaluator({
+    name: options.name ?? "summary-quality",
+    model: options.model ?? anthropic("claude-haiku-4-5-20251001"),
     promptTemplate: SUMMARY_QUALITY_PROMPT,
     choices: SUMMARY_QUALITY_CHOICES,
     optimizationDirection: "MAXIMIZE",
-  });
-
-  return asExperimentEvaluator({
-    name,
-    kind: "LLM",
-    evaluate: async ({ input, output }) => {
-      const { userMessage, assistantMessage } = input as {
-        userMessage: string;
-        assistantMessage: string;
-      };
-      return classifier.evaluate({
-        userMessage,
-        assistantMessage,
-        output: typeof output === "string" ? output : "",
-      });
-    },
   });
 }
 
