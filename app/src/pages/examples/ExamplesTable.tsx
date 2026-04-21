@@ -17,7 +17,7 @@ import {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { CopyToClipboardButton, Truncate } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
@@ -262,9 +262,11 @@ export function ExamplesTable({
         },
       },
       {
-        header: "example id",
+        header: "id",
         accessorKey: "id",
-        size: 180,
+        maxSize: 180,
+        size: 30,
+        minSize: 30,
         cell: ({ row }) => {
           const exampleId = row.original.id;
           const displayId = row.original.externalId ?? exampleId;
@@ -272,7 +274,14 @@ export function ExamplesTable({
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={displayId} />}
             >
-              <Link to={`${exampleId}`}>{displayId}</Link>
+              <Link
+                to={`${exampleId}`}
+                css={css`
+                  width: 100%;
+                `}
+              >
+                <Truncate maxWidth={"100%"}>{displayId}</Truncate>
+              </Link>
             </CellWithControlsWrap>
           );
         },
@@ -299,7 +308,9 @@ export function ExamplesTable({
     cols.splice(2, 0, {
       header: "splits",
       accessorKey: "splits",
-      size: 150,
+      maxSize: 150,
+      size: 30,
+      minSize: 30,
       cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
     });
     return cols;

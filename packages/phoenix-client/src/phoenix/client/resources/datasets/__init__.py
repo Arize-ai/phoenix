@@ -2,6 +2,7 @@ import csv
 import gzip
 import logging
 import re
+import warnings
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
@@ -324,11 +325,18 @@ class DatasetKeys:
         metadata_keys: frozenset[str],
         split_keys: frozenset[str] = frozenset(),
         span_id_key: Optional[str] = None,
+        split_key: Optional[str] = None,
     ):
+        if split_key and split_keys:
+            raise ValueError(
+                "Cannot specify both split_key and split_keys. "
+                "Use split_key (singular) for a single split column."
+            )
         self.input = input_keys
         self.output = output_keys
         self.metadata = metadata_keys
-        self.split = split_keys
+        self.split_key: Optional[str] = split_key
+        self.split: frozenset[str] = frozenset([split_key]) if split_key else split_keys
         self.span_id = span_id_key
 
         if self.input & self.output:
@@ -761,6 +769,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
@@ -781,7 +790,10 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
+            split_key: Optional single column name used for assigning examples to splits.
+                Mutually exclusive with ``split_keys``.
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
@@ -821,6 +833,13 @@ class Datasets:
                 span_id_key="context.span_id"
             )
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -864,6 +883,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
@@ -893,6 +913,7 @@ class Datasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
@@ -913,7 +934,10 @@ class Datasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
+            split_key: Optional single column name used for assigning examples to splits.
+                Mutually exclusive with ``split_keys``.
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
@@ -930,6 +954,13 @@ class Datasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
         if not resolved_name:
@@ -990,6 +1021,7 @@ class Datasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
@@ -1054,6 +1086,7 @@ class Datasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
+        split_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1074,7 +1107,12 @@ class Datasets:
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
         keys = DatasetKeys(
-            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+            input_keys=input_keys_set,
+            output_keys=output_keys_set,
+            metadata_keys=metadata_keys_set,
+            split_keys=split_keys_set,
+            span_id_key=span_id_key,
+            split_key=split_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1099,8 +1137,13 @@ class Datasets:
             "input_keys[]": sorted(keys.input),
             "output_keys[]": sorted(keys.output),
             "metadata_keys[]": sorted(keys.metadata),
-            "split_keys[]": sorted(keys.split),
         }
+
+        # Send split_key (singular) or split_keys[] (plural, deprecated path)
+        if keys.split_key:
+            data_dict["split_key"] = keys.split_key
+        else:
+            data_dict["split_keys[]"] = sorted(keys.split)
 
         # Add span_id_key if present
         if keys.span_id:
@@ -1570,6 +1613,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
@@ -1590,7 +1634,10 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
+            split_key: Optional single column name used for assigning examples to splits.
+                Mutually exclusive with ``split_keys``.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1605,6 +1652,13 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
         has_json = any(inputs) or any(outputs) or any(metadata)
@@ -1648,6 +1702,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=dataset_description,
                 action="create",
@@ -1677,6 +1732,7 @@ class AsyncDatasets:
         output_keys: Iterable[str] = (),
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
+        split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
@@ -1697,7 +1753,10 @@ class AsyncDatasets:
             input_keys: List of column names used as input keys.
             output_keys: List of column names used as output keys.
             metadata_keys: List of column names used as metadata keys.
-            split_keys: List of column names used for automatically assigning examples to splits.
+            split_keys: Deprecated. Use ``split_key`` instead. List of column names used for
+                automatically assigning examples to splits.
+            split_key: Optional single column name used for assigning examples to splits.
+                Mutually exclusive with ``split_keys``.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -1711,6 +1770,13 @@ class AsyncDatasets:
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
+        if split_keys:
+            warnings.warn(
+                "split_keys is deprecated, use split_key instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
         if not resolved_name:
@@ -1771,6 +1837,7 @@ class AsyncDatasets:
                 output_keys=output_keys,
                 metadata_keys=metadata_keys,
                 split_keys=split_keys,
+                split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=None,
                 action="append",
@@ -1822,6 +1889,7 @@ class AsyncDatasets:
         metadata_keys: Iterable[str] = (),
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
+        split_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["create", "append"] = "create",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1840,7 +1908,12 @@ class AsyncDatasets:
             metadata_keys_set = frozenset(metadata_keys_tuple)
 
         keys = DatasetKeys(
-            input_keys_set, output_keys_set, metadata_keys_set, split_keys_set, span_id_key
+            input_keys=input_keys_set,
+            output_keys=output_keys_set,
+            metadata_keys=metadata_keys_set,
+            split_keys=split_keys_set,
+            span_id_key=span_id_key,
+            split_key=split_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1865,8 +1938,13 @@ class AsyncDatasets:
             "input_keys[]": sorted(keys.input),
             "output_keys[]": sorted(keys.output),
             "metadata_keys[]": sorted(keys.metadata),
-            "split_keys[]": sorted(keys.split),
         }
+
+        # Send split_key (singular) or split_keys[] (plural, deprecated path)
+        if keys.split_key:
+            data_dict["split_key"] = keys.split_key
+        else:
+            data_dict["split_keys[]"] = sorted(keys.split)
 
         # Add span_id_key if present
         if keys.span_id:

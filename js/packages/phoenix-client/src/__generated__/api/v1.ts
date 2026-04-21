@@ -214,6 +214,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/{id}/jsonl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download dataset examples as JSONL file */
+        get: operations["getDatasetJSONL"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{id}/jsonl/openai_ft": {
         parameters: {
             query?: never;
@@ -3427,6 +3444,14 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
+            /** New Version Created */
+            new_version_created: boolean;
+            /** Num Created Examples */
+            num_created_examples: number;
+            /** Num Patched Examples */
+            num_patched_examples: number;
+            /** Num Deleted Examples */
+            num_deleted_examples: number;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
@@ -4123,6 +4148,8 @@ export interface operations {
             query?: {
                 /** @description If true, fulfill request synchronously and return JSON containing dataset_id. */
                 sync?: boolean;
+                /** @description If true, fail with 409 when action=create and a dataset with the given name already exists. */
+                strict?: boolean;
             };
             header?: never;
             path?: never;
@@ -4153,8 +4180,10 @@ export interface operations {
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];
-                    /** @description Column names for auto-assigning examples to splits */
+                    /** @description Deprecated: use split_key instead. Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Single column name containing split names (plain string or JSON list) per row */
+                    split_key?: string;
                     /** @description Column names whose object values should be flattened into their selected bucket */
                     "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */
@@ -4283,6 +4312,50 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetJSONL: {
+        parameters: {
+            query?: {
+                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+                version_id?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset or version ID */
             422: {
                 headers: {
                     [name: string]: unknown;

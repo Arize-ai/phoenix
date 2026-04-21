@@ -9,7 +9,7 @@ from typing import Any, Optional, cast
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
@@ -69,11 +69,19 @@ class ExistingExampleInfo:
 class DatasetExampleAdditionEvent(DataManipulationEvent):
     dataset_id: DatasetId
     dataset_version_id: DatasetVersionId
+    new_version_created: bool
+    num_created_examples: int
+    num_patched_examples: int
+    num_deleted_examples: int
 
 
 class InvalidDatasetExampleIDError(ValueError):
     """Raised when example_ids that look like DatasetExample node IDs
     do not match any existing examples."""
+
+
+class DatasetNameConflictError(ValueError):
+    """Raised when a strict-create upload targets an already-used dataset name."""
 
 
 class RevisionKind(Enum):
@@ -496,6 +504,7 @@ async def add_dataset_examples(
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
+    strict_create: bool = False,
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
@@ -515,108 +524,18 @@ async def add_dataset_examples(
         except Exception:
             logger.exception(f"Failed to insert dataset: {name=}")
             raise
+    elif strict_create and action is DatasetAction.CREATE:
+        raise DatasetNameConflictError(f'A dataset named "{name}" already exists.')
 
-    if action is DatasetAction.CREATE:
-        return await _upsert_dataset_examples(
-            session=session,
-            dataset_id=dataset_id,
-            examples=examples,
-            user_id=user_id,
-            created_at=created_at,
-            splits_provided=splits_provided,
-        )
-
-    try:
-        dataset_version_id = await insert_dataset_version(
-            session=session,
-            dataset_id=dataset_id,
-            created_at=created_at,
-            user_id=user_id,
-        )
-    except Exception:
-        logger.exception(f"Failed to insert dataset version for {dataset_id=}")
-        raise
-
-    if not examples:
-        return DatasetExampleAdditionEvent(
-            dataset_id=dataset_id, dataset_version_id=dataset_version_id
-        )
-
-    # Batch resolve span IDs to row IDs
-    span_ids_to_resolve = [example.content.span_id for example in examples]
-    span_id_to_rowid = await resolve_span_ids_to_rowids(session, span_ids_to_resolve)
-
-    # Prepare span_rowids and external_ids lists for bulk insert (preserving order)
-    span_rowids: list[Optional[SpanRowId]] = [
-        span_id_to_rowid.get(example.content.span_id) if example.content.span_id else None
-        for example in examples
-    ]
-    external_ids: list[Optional[str]] = [example.content.external_id for example in examples]
-
-    # Bulk insert all examples at once
-    try:
-        example_ids = await bulk_insert_dataset_examples(
-            session=session,
-            dataset_id=dataset_id,
-            span_rowids=span_rowids,
-            external_ids=external_ids,
-            created_at=created_at,
-        )
-    except Exception:
-        logger.exception(f"Failed to bulk insert dataset examples for {dataset_id=}")
-        raise
-
-    # Bulk insert all revisions at once
-    try:
-        await bulk_insert_dataset_example_revisions(
-            session=session,
-            dataset_version_id=dataset_version_id,
-            example_ids=example_ids,
-            examples=examples,
-            created_at=created_at,
-        )
-    except Exception:
-        logger.exception(
-            f"Failed to bulk insert dataset example revisions for {dataset_version_id=}"
-        )
-        raise
-
-    # Collect split assignments by name for bulk insert
-    split_assignments: list[tuple[DatasetExampleId, SplitName]] = []
-    for example_id, example in zip(example_ids, examples):
-        for split_name in example.content.splits:
-            split_assignments.append((example_id, split_name))
-
-    # Bulk create splits and assign examples after iteration
-    if split_assignments:
-        # Collect all unique split names
-        all_split_names = {name for _, name in split_assignments}
-        try:
-            split_name_to_id = await bulk_create_dataset_splits(
-                session=session,
-                split_names=all_split_names,
-                user_id=user_id,
-            )
-        except Exception:
-            logger.exception(f"Failed to bulk create dataset splits: {all_split_names}")
-            raise
-
-        # Convert name-based assignments to ID-based assignments
-        id_assignments = [
-            (example_id, split_name_to_id[split_name])
-            for example_id, split_name in split_assignments
-        ]
-
-        try:
-            await bulk_assign_examples_to_splits(
-                session=session,
-                assignments=id_assignments,
-            )
-        except Exception:
-            logger.exception("Failed to bulk assign examples to splits")
-            raise
-
-    return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
+    return await _upsert_dataset_examples(
+        session=session,
+        dataset_id=dataset_id,
+        examples=examples,
+        user_id=user_id,
+        created_at=created_at,
+        splits_provided=splits_provided,
+        action=action,
+    )
 
 
 @dataclass(frozen=True)
@@ -649,7 +568,15 @@ def _get_dataset_example_node_id(s: str) -> Optional[DatasetExampleId]:
 class _ExampleMatcher:
     """Indexes previous examples and matches incoming examples against them.
 
-    Priority: node_id match > external_id match > content_hash match > no match.
+    An incoming external_id is treated as an opt-in to identity matching: when it
+    is provided, the matcher only looks for a node_id or external_id match and
+    never falls back to content_hash. When the incoming example has no
+    external_id, the matcher uses content_hash to pair it with a previous
+    example (for dedup of ID-less uploads such as re-uploaded CSVs).
+
+    Priority:
+      - If external_id is provided:  node_id match > external_id match > no match
+      - If external_id is absent:    content_hash match > no match
     """
 
     def __init__(self, previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]]) -> None:
@@ -672,6 +599,7 @@ class _ExampleMatcher:
                 return self._example_info_by_db_id.get(db_id)
             if external_id in self._example_info_by_external_id:
                 return self._example_info_by_external_id[external_id]
+            return None
         for candidate_id in self._example_ids_by_content_hash.get(incoming.content_hash, []):
             if candidate_id not in self._already_matched:
                 return ExistingExampleInfo(candidate_id, incoming.content_hash)
@@ -679,21 +607,27 @@ class _ExampleMatcher:
 
 
 def _diff_examples(
+    *,
     incoming_examples: list[ExampleWithHash],
     previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]],
+    skip_deletes: bool = False,
 ) -> UpsertDiff:
     """Diff incoming examples against the previous version to classify as CREATE, PATCH, or DELETE.
 
     Matching rules (applied per incoming example, in order):
-      1. If the incoming example has an external_id that matches a previous example, pair them.
-      2. Otherwise, pair with the first unmatched previous example sharing the same content_hash.
+      1. If the incoming example has an external_id, pair only by that external_id
+         (or node_id if it decodes as a DatasetExample GlobalID). An incoming
+         external_id that does not match any previous example is treated as a new
+         example, even if another previous example happens to share its content_hash.
+      2. If the incoming example has no external_id, pair with the first unmatched
+         previous example sharing the same content_hash.
       3. If no match is found, the incoming example is a CREATE.
 
     After matching:
       - Matched + same content_hash  → unchanged (carried forward implicitly, no revision needed)
       - Matched + different hash     → PATCH
       - Unmatched incoming           → CREATE
-      - Unmatched previous           → DELETE
+      - Unmatched previous           → DELETE (skipped when skip_deletes=True)
     """
     matcher = _ExampleMatcher(previous)
     examples_to_create: list[ExampleWithHash] = []
@@ -723,10 +657,15 @@ def _diff_examples(
                 )
             )
 
-    all_previous_ids = {example_id for example_id, _, _ in previous}
-    delete_ids = [
-        example_id for example_id in all_previous_ids if example_id not in matcher._already_matched
-    ]
+    if skip_deletes:
+        delete_ids: list[DatasetExampleId] = []
+    else:
+        all_previous_ids = {example_id for example_id, _, _ in previous}
+        delete_ids = [
+            example_id
+            for example_id in all_previous_ids
+            if example_id not in matcher._already_matched
+        ]
 
     return UpsertDiff(
         create_examples=examples_to_create,
@@ -808,10 +747,48 @@ async def _rebuild_dataset_splits(
     await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
 
 
+async def _update_splits(
+    session: AsyncSession,
+    examples: list[ExampleWithExternalID],
+    splits_provided: bool = True,
+    user_id: Optional[int] = None,
+) -> None:
+    """Update split assignments only for the given examples, leaving other examples untouched.
+
+    Used by the APPEND action so that examples not in the upload keep their splits.
+    """
+    if not splits_provided or not examples:
+        return
+
+    touched_example_ids = [e.example_id for e in examples]
+
+    await session.execute(
+        delete(models.DatasetSplitDatasetExample).where(
+            models.DatasetSplitDatasetExample.dataset_example_id.in_(touched_example_ids)
+        )
+    )
+
+    example_id_split_name_pairs = [
+        (example.example_id, name) for example in examples for name in example.content.splits
+    ]
+    if not example_id_split_name_pairs:
+        return
+
+    all_split_names = {name for _, name in example_id_split_name_pairs}
+    split_name_to_id = await bulk_create_dataset_splits(
+        session=session, split_names=all_split_names, user_id=user_id
+    )
+    split_assignments = [
+        (example_id, split_name_to_id[name]) for example_id, name in example_id_split_name_pairs
+    ]
+    await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
+
+
 async def _upsert_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
     examples: Sequence[ExampleWithHash],
+    action: DatasetAction,
     user_id: Optional[int] = None,
     created_at: Optional[datetime] = None,
     splits_provided: bool = True,
@@ -826,7 +803,11 @@ async def _upsert_dataset_examples(
     )
 
     # Diff incoming vs previous → creates, patches, deletes
-    diff = _diff_examples(incoming_examples, previous)
+    diff = _diff_examples(
+        incoming_examples=incoming_examples,
+        previous=previous,
+        skip_deletes=action is DatasetAction.APPEND,
+    )
 
     # Write revisions if content changed, otherwise reuse latest version
     created_examples: list[ExampleWithExternalID] = []
@@ -876,10 +857,11 @@ async def _upsert_dataset_examples(
                 if is_node_id_without_example_record:
                     node_ids_without_example_record.append(external_id)
             if node_ids_without_example_record:
+                formatted_ids = ", ".join(repr(s) for s in node_ids_without_example_record)
                 raise InvalidDatasetExampleIDError(
-                    "Example IDs that look like DatasetExample node IDs "
-                    "must match existing examples, but the following do correspond to any existing "
-                    f"example IDs: {node_ids_without_example_record}"
+                    "Example IDs that look like node IDs "
+                    "must match existing examples, but the following do not correspond to any "
+                    f"existing examples: {formatted_ids}"
                 )
             create_external_ids = [
                 example.content.external_id
@@ -947,17 +929,34 @@ async def _upsert_dataset_examples(
                 user_id=user_id,
             )
 
-    # Delete all split assignments for the dataset and reassign
-    await _rebuild_dataset_splits(
-        session=session,
-        dataset_id=dataset_id,
-        diff=diff,
-        created_examples=created_examples,
-        splits_provided=splits_provided,
-        user_id=user_id,
-    )
+    if action is DatasetAction.APPEND:
+        touched_examples = diff.unchanged_examples + diff.patch_examples + created_examples
+        await _update_splits(
+            session=session,
+            examples=touched_examples,
+            splits_provided=splits_provided,
+            user_id=user_id,
+        )
+    elif action is DatasetAction.CREATE:
+        await _rebuild_dataset_splits(
+            session=session,
+            dataset_id=dataset_id,
+            diff=diff,
+            created_examples=created_examples,
+            splits_provided=splits_provided,
+            user_id=user_id,
+        )
+    else:
+        assert_never(action)
 
-    return DatasetExampleAdditionEvent(dataset_id=dataset_id, dataset_version_id=dataset_version_id)
+    return DatasetExampleAdditionEvent(
+        dataset_id=dataset_id,
+        dataset_version_id=dataset_version_id,
+        new_version_created=diff.has_changes,
+        num_created_examples=len(diff.create_examples),
+        num_patched_examples=len(diff.patch_examples),
+        num_deleted_examples=len(diff.delete_example_ids),
+    )
 
 
 @dataclass(frozen=True)

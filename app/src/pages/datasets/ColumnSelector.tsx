@@ -12,18 +12,20 @@ import {
   Text,
 } from "@phoenix/components";
 
-export function ColumnMultiSelector(props: {
+const NONE_KEY = "__none__";
+
+export function ColumnSelector(props: {
   description?: string;
   errorMessage?: string;
   label: string;
   columns: string[];
-  selectedColumns: string[];
-  onChange: (selectedColumns: string[]) => void;
+  selectedColumn: string | null;
+  onChange: (selectedColumn: string | null) => void;
   isDisabled?: boolean;
 }) {
   const {
     columns,
-    selectedColumns,
+    selectedColumn,
     onChange,
     label,
     description,
@@ -32,18 +34,20 @@ export function ColumnMultiSelector(props: {
   } = props;
   const noColumns = columns.length === 0;
   const items = useMemo(() => {
-    return columns.map((column) => ({ id: column, value: column }));
+    return [
+      { id: NONE_KEY, value: "None" },
+      ...columns.map((column) => ({ id: column, value: column })),
+    ];
   }, [columns]);
 
   return (
     <Select
       isDisabled={noColumns || isDisabled}
-      placeholder="Select columns"
-      selectionMode="multiple"
-      onChange={(keys) => {
-        return onChange(Array.from(keys as string[]));
+      placeholder="Select a column"
+      value={selectedColumn ?? NONE_KEY}
+      onChange={(key) => {
+        onChange(key === NONE_KEY ? null : (key as string));
       }}
-      value={selectedColumns}
     >
       {label && <Label>{label}</Label>}
       <Button>
@@ -51,7 +55,7 @@ export function ColumnMultiSelector(props: {
         <SelectChevronUpDownIcon />
       </Button>
       <Popover>
-        <ListBox renderEmptyState={() => "No columns to select"} items={items}>
+        <ListBox items={items}>
           {(item) => <ListBoxItem id={item.id}>{item.value}</ListBoxItem>}
         </ListBox>
       </Popover>

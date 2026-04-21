@@ -27,6 +27,12 @@ export function DatasetDownloadMenu({ datasetId }: { datasetId: string }) {
                   "_blank"
                 );
                 break;
+              case "jsonl":
+                window.open(
+                  prependBasename(`/v1/datasets/${datasetId}/jsonl`),
+                  "_blank"
+                );
+                break;
               case "openai-ft":
                 window.open(
                   prependBasename(`/v1/datasets/${datasetId}/jsonl/openai_ft`),
@@ -45,6 +51,7 @@ export function DatasetDownloadMenu({ datasetId }: { datasetId: string }) {
           }}
         >
           <MenuItem id="csv">Download CSV</MenuItem>
+          <MenuItem id="jsonl">Download JSONL</MenuItem>
           <MenuItem id="openai-ft">Download OpenAI Fine-Tuning JSONL</MenuItem>
           <MenuItem id="openai-evals">Download OpenAI Evals JSONL</MenuItem>
         </Menu>

@@ -343,12 +343,15 @@ async def test_get_dataset_download_latest_version(
         == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    example_4_gid = str(GlobalID("DatasetExample", "4"))
+    example_5_gid = str(GlobalID("DatasetExample", "5"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,input_in,metadata_info,output_out\n"
-            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
-            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
-            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
+            "id,node_id,input.in,metadata.info,output.out\n"
+            f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
+            f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
+            f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
@@ -371,13 +374,17 @@ async def test_get_dataset_download_specific_version(
         == "attachment; filename*=UTF-8''revised%20dataset.csv"
     )
     actual = pd.read_csv(StringIO(response.content.decode())).sort_index(axis=1)
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    example_4_gid = str(GlobalID("DatasetExample", "4"))
+    example_5_gid = str(GlobalID("DatasetExample", "5"))
+    example_7_gid = str(GlobalID("DatasetExample", "7"))
     expected = pd.read_csv(
         StringIO(
-            "example_id,input_in,metadata_info,output_out\n"
-            "RGF0YXNldEV4YW1wbGU6Mw==,foo,first revision,bar\n"
-            "RGF0YXNldEV4YW1wbGU6NA==,updated foofoo,updating revision,updated barbar\n"
-            "RGF0YXNldEV4YW1wbGU6NQ==,look at me,a new example,i have all the answers\n"
-            "RGF0YXNldEV4YW1wbGU6Nw==,look at me,a newer example,i have all the answers\n"
+            "id,node_id,input.in,metadata.info,output.out\n"
+            f"{example_3_gid},{example_3_gid},foo,first revision,bar\n"
+            f"{example_4_gid},{example_4_gid},updated foofoo,updating revision,updated barbar\n"
+            f"{example_5_gid},{example_5_gid},look at me,a new example,i have all the answers\n"
+            f"{example_7_gid},{example_7_gid},look at me,a newer example,i have all the answers\n"
         )
     ).sort_index(axis=1)
     assert_frame_equal(actual, expected)
@@ -440,6 +447,94 @@ async def test_get_dataset_jsonl_openai_evals(
     }
 
 
+async def test_get_dataset_jsonl_empty_dataset(
+    httpx_client: httpx.AsyncClient,
+    empty_dataset: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(1))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''empty%20dataset.jsonl"
+    )
+    assert response.text.strip() == ""
+
+
+async def test_get_dataset_jsonl_latest_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(2))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    assert response.headers.get("content-type") == "text/plain; charset=utf-8"
+    assert response.headers.get("content-encoding") == "gzip"
+    assert (
+        response.headers.get("content-disposition")
+        == "attachment; filename*=UTF-8''revised%20dataset.jsonl"
+    )
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 3
+    for line in json_lines:
+        assert set(line.keys()) == {"id", "node_id", "input", "output", "metadata", "splits"}
+    example_3_gid = str(GlobalID("DatasetExample", "3"))
+    assert json_lines[0]["id"] == example_3_gid
+    assert json_lines[0]["node_id"] == example_3_gid
+    assert json_lines[0]["input"] == {"in": "foo"}
+    assert json_lines[0]["output"] == {"out": "bar"}
+    assert json_lines[0]["metadata"] == {"info": "first revision"}
+    assert json_lines[0]["splits"] == []
+    assert json_lines[1]["input"] == {"in": "updated foofoo"}
+    assert json_lines[2]["input"] == {"in": "look at me"}
+
+
+async def test_get_dataset_jsonl_specific_version(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_revisions: Any,
+) -> None:
+    dataset_global_id = GlobalID("Dataset", str(2))
+    dataset_version_global_id = GlobalID("DatasetVersion", str(8))
+    response = await httpx_client.get(
+        f"/v1/datasets/{dataset_global_id}/jsonl?version_id={dataset_version_global_id}"
+    )
+    assert response.status_code == 200
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 4
+
+
+async def test_get_dataset_jsonl_with_splits(
+    httpx_client: httpx.AsyncClient,
+    dataset_with_splits: tuple[int, int],
+) -> None:
+    dataset_id, _ = dataset_with_splits
+    dataset_global_id = GlobalID("Dataset", str(dataset_id))
+    response = await httpx_client.get(f"/v1/datasets/{dataset_global_id}/jsonl")
+    assert response.status_code == 200
+    json_lines = [json.loads(line) for line in response.text.strip().splitlines()]
+    assert len(json_lines) == 3
+    for line in json_lines:
+        assert set(line.keys()) == {"id", "node_id", "input", "output", "metadata", "splits"}
+    by_id = {line["id"]: line for line in json_lines}
+    # Example 100 has external_id "ext-1" and is in train split
+    assert by_id["ext-1"]["splits"] == ["train"]
+    assert by_id["ext-1"]["input"] == {"question": "hello"}
+    assert by_id["ext-1"]["output"] == {"answer": "world"}
+    assert by_id["ext-1"]["metadata"] == {"source": "test"}
+    # node_id is the Phoenix GlobalID regardless of external_id
+    assert by_id["ext-1"]["node_id"] == str(GlobalID("DatasetExample", str(100)))
+    # Example 101 has no external_id (uses GlobalID) and is in train+test splits
+    example_101_gid = str(GlobalID("DatasetExample", str(101)))
+    assert sorted(by_id[example_101_gid]["splits"]) == ["test", "train"]
+    assert by_id[example_101_gid]["node_id"] == example_101_gid
+    # Example 102 has no splits
+    example_102_gid = str(GlobalID("DatasetExample", str(102)))
+    assert by_id[example_102_gid]["splits"] == []
+    assert by_id[example_102_gid]["metadata"] == {"note": "no splits"}
+    assert by_id[example_102_gid]["node_id"] == example_102_gid
+
+
 async def test_post_dataset_upload_json_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -462,6 +557,10 @@ async def test_post_dataset_upload_json_create_then_append(
     version_id_str = data["version_id"]
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
+    assert data["new_version_created"] is True
+    assert data["num_created_examples"] == 1
+    assert data["num_patched_examples"] == 0
+    assert data["num_deleted_examples"] == 0
     del response, data
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
@@ -480,6 +579,10 @@ async def test_post_dataset_upload_json_create_then_append(
     version_id_str = data["version_id"]
     version_global_id = GlobalID.from_id(version_id_str)
     assert version_global_id.type_name == "DatasetVersion"
+    assert data["new_version_created"] is True
+    assert data["num_created_examples"] == 1
+    assert data["num_patched_examples"] == 0
+    assert data["num_deleted_examples"] == 0
     async with db() as session:
         revisions = list(
             await session.scalars(
@@ -502,6 +605,74 @@ async def test_post_dataset_upload_json_create_then_append(
     db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
     assert db_dataset_version is not None
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+
+
+async def test_post_dataset_upload_json_reupload_reports_no_changes(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    body = {
+        "action": "create",
+        "name": name,
+        "inputs": [{"a": 1}, {"a": 2}],
+        "outputs": [{"b": 1}, {"b": 2}],
+        "metadata": [{}, {}],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert first_response.status_code == 200
+    first_data = first_response.json()["data"]
+    assert first_data["new_version_created"] is True
+    assert first_data["num_created_examples"] == 2
+
+    second_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert second_response.status_code == 200
+    second_data = second_response.json()["data"]
+    assert second_data["dataset_id"] == first_data["dataset_id"]
+    assert second_data["version_id"] == first_data["version_id"]
+    assert second_data["new_version_created"] is False
+    assert second_data["num_created_examples"] == 0
+    assert second_data["num_patched_examples"] == 0
+    assert second_data["num_deleted_examples"] == 0
+
+
+async def test_post_dataset_upload_strict_create_conflicts_with_existing_name(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    body = {
+        "action": "create",
+        "name": name,
+        "inputs": [{"a": 1}],
+        "outputs": [{"b": 1}],
+        "metadata": [{}],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert first_response.status_code == 200
+
+    conflict_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true&strict=true",
+        json=body,
+    )
+    assert conflict_response.status_code == 409
+    assert name in conflict_response.text
+
+    # Without strict=true, the same request still upserts into the existing dataset.
+    permissive_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=body,
+    )
+    assert permissive_response.status_code == 200
 
 
 async def test_post_dataset_upload_csv_create_then_append(
@@ -1507,6 +1678,253 @@ async def test_post_dataset_upload_append_with_splits(
         assert ex3_splits[0].name == "test"
 
 
+async def test_append_upserts_existing_example_by_external_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending with a matching external_id should PATCH the existing example, not create a duplicate."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with an example that has an external_id
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "original"}],
+            "outputs": [{"a": "original"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+
+    # Append with the same external_id but different content
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "updated"}],
+            "outputs": [{"a": "updated"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(response.json()["data"]["dataset_id"]).node_id)
+        # Should still have only 1 example (not 2)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample).where(
+                    models.DatasetExample.dataset_id == dataset_db_id
+                )
+            )
+        )
+        assert len(examples) == 1
+
+        # The latest revision should have the updated content
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[0].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions) == 2  # CREATE + PATCH
+        assert revisions[0].input == {"q": "original"}
+        assert revisions[1].input == {"q": "updated"}
+
+
+async def test_append_never_deletes_existing_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending a subset of examples should NOT delete examples not in the upload."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with 2 examples
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}, {"q": "Q2"}],
+            "outputs": [{"a": "A1"}, {"a": "A2"}],
+            "example_ids": ["ext-1", "ext-2"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append only 1 new example
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q3"}],
+            "outputs": [{"a": "A3"}],
+            "example_ids": ["ext-3"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        # All 3 examples should exist (no deletes)
+        assert len(examples) == 3
+
+
+async def test_append_mixed_upsert_and_create(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending a batch with some matching IDs and some new should handle both correctly."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "example_ids": ["ext-1"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append: one matching ext-1 (update) + one new ext-2 (create)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q1-updated"}, {"q": "Q2-new"}],
+            "outputs": [{"a": "A1-updated"}, {"a": "A2-new"}],
+            "example_ids": ["ext-1", "ext-2"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        # Should have 2 examples: ext-1 (updated) + ext-2 (new)
+        assert len(examples) == 2
+        assert examples[0].external_id == "ext-1"
+        assert examples[1].external_id == "ext-2"
+
+        # ext-1 should have 2 revisions (CREATE + PATCH)
+        revisions_1 = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[0].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions_1) == 2
+        assert revisions_1[0].input == {"q": "Q1"}
+        assert revisions_1[1].input == {"q": "Q1-updated"}
+
+        # ext-2 should have 1 revision (CREATE)
+        revisions_2 = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .where(models.DatasetExampleRevision.dataset_example_id == examples[1].id)
+                .order_by(models.DatasetExampleRevision.id)
+            )
+        )
+        assert len(revisions_2) == 1
+        assert revisions_2[0].input == {"q": "Q2-new"}
+
+
+async def test_append_preserves_splits_of_untouched_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Appending new examples should not disturb the splits of existing untouched examples."""
+    name = inspect.stack()[0][3]
+
+    # Create initial dataset with a "train" split
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+            "example_ids": ["ext-1"],
+            "splits": ["train"],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+
+    # Append a new example with a "test" split
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": ["ext-2"],
+            "splits": ["test"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        # ext-1 should still be in "train" (untouched)
+        ex1_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[0].id)
+            )
+        )
+        assert len(ex1_splits) == 1
+        assert ex1_splits[0].name == "train"
+
+        # ext-2 should be in "test"
+        ex2_splits = list(
+            await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == examples[1].id)
+            )
+        )
+        assert len(ex2_splits) == 1
+        assert ex2_splits[0].name == "test"
+
+
 # =============================================================================
 # Tests for flatten_keys (collapse top-level keys feature)
 # =============================================================================
@@ -1618,6 +2036,213 @@ class TestBuildFlattenPlan:
             )
 
 
+async def test_post_dataset_upload_csv_with_split_key(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with split_key (singular), supporting JSON lists and plain strings."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train"", ""v1""]"\nQ2,A2,test\nQ3,A3,\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 3
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        # JSON list: ["train", "v1"]
+        assert await get_example_splits(examples[0].id) == {"train", "v1"}
+        # Plain string: test
+        assert await get_example_splits(examples[1].id) == {"test"}
+        # Empty: no splits
+        assert await get_example_splits(examples[2].id) == set()
+
+
+async def test_post_dataset_upload_split_key_and_split_keys_conflict(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that providing both split_key and split_keys[] returns 422."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer,split\nQ1,A1,train\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_keys[]": ["split"],
+            "split_key": "split",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_get_dataset_csv_includes_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that CSV download includes a splits column when splits exist."""
+    name = inspect.stack()[0][3]
+    # Upload with splits
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train""]"\nQ2,A2,"[""test"", ""v1""]"\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.content.decode()))
+    assert "splits" in df.columns
+    # Verify splits are JSON-encoded sorted lists
+    splits_values = df["splits"].tolist()
+    assert json.loads(splits_values[0]) == ["train"]
+    assert sorted(json.loads(splits_values[1])) == ["test", "v1"]
+
+
+async def test_get_dataset_csv_omits_splits_when_none(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """Test that CSV download omits splits column when no splits exist."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"question,answer\nQ1,A1\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    df = pd.read_csv(StringIO(response.content.decode()))
+    assert "splits" not in df.columns
+
+
+async def test_csv_roundtrip_with_splits(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test that uploading a CSV with splits, downloading, and re-uploading preserves splits."""
+    name = inspect.stack()[0][3]
+    # Upload with splits
+    file = gzip.compress(
+        b'question,answer,splits\nQ1,A1,"[""train""]"\nQ2,A2,"[""test"", ""v1""]"\n'
+    )
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    # Download CSV
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/csv")
+    assert response.status_code == 200
+    downloaded_csv = response.content
+
+    # Re-upload the downloaded CSV as a new dataset
+    name2 = name + "_roundtrip"
+    reupload = gzip.compress(downloaded_csv)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", reupload, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name2,
+            "input_keys[]": ["input.question"],
+            "output_keys[]": ["output.answer"],
+            "split_key": "splits",
+        },
+    )
+    assert response.status_code == 200
+    assert (data2 := response.json().get("data"))
+    assert (dataset_id2 := data2.get("dataset_id"))
+
+    # Verify splits are preserved
+    async with db() as session:
+        dataset_db_id2 = int(GlobalID.from_id(dataset_id2).node_id)
+        examples = list(
+            await session.scalars(
+                select(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id2)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+        assert len(examples) == 2
+
+        async def get_example_splits(example_id: int) -> set[str]:
+            result = await session.scalars(
+                select(models.DatasetSplit)
+                .join(models.DatasetSplitDatasetExample)
+                .where(models.DatasetSplitDatasetExample.dataset_example_id == example_id)
+            )
+            return {s.name for s in result}
+
+        assert await get_example_splits(examples[0].id) == {"train"}
+        assert await get_example_splits(examples[1].id) == {"test", "v1"}
+
+
 async def test_post_dataset_upload_csv_with_flatten_keys(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -1685,6 +2310,56 @@ async def test_post_dataset_upload_csv_with_flatten_keys(
         "difficulty": "medium",
     }
     assert revisions[1].output == {}
+
+
+async def test_post_dataset_upload_csv_with_dotted_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test CSV upload with period-separated column names that unflatten into nested dicts."""
+    name = inspect.stack()[0][3]
+    csv_content = (
+        b"example_id,input.query,input.context.source,input.context.lang,"
+        b"output.response.text,output.response.confidence,metadata.info\n"
+        b"ex1,hello,web,en,hi,0.95,test\n"
+        b"ex2,goodbye,api,fr,au revoir,0.88,test2\n"
+    )
+    file = gzip.compress(csv_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input.query", "input.context.source", "input.context.lang"],
+            "output_keys[]": ["output.response.text", "output.response.confidence"],
+            "metadata_keys[]": ["metadata.info"],
+            "example_id_key": "example_id",
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+
+    assert revisions[0].input == {"query": "hello", "context": {"source": "web", "lang": "en"}}
+    assert revisions[0].output == {"response": {"text": "hi", "confidence": "0.95"}}
+    assert revisions[0].metadata_ == {"info": "test"}
+
+    assert revisions[1].input == {"query": "goodbye", "context": {"source": "api", "lang": "fr"}}
+    assert revisions[1].output == {"response": {"text": "au revoir", "confidence": "0.88"}}
+    assert revisions[1].metadata_ == {"info": "test2"}
 
 
 async def test_post_dataset_upload_jsonl_with_flatten_keys(
@@ -1916,6 +2591,169 @@ async def test_invalid_dataset_upload_request_returns_422(
     assert expected_error in response.text
 
 
+async def test_append_with_nonexistent_node_id_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+    assert create_response.status_code == 200
+
+    bogus_id = str(GlobalID("DatasetExample", "99999"))
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": [bogus_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "must match existing examples" in response.text
+    assert "do not correspond" in response.text
+    assert bogus_id in response.text
+
+
+async def test_append_with_node_id_from_different_dataset_returns_422(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    stack_name = inspect.stack()[0][3]
+    name_a = f"{stack_name}_a"
+    name_b = f"{stack_name}_b"
+
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_a,
+            "inputs": [{"q": "A"}],
+            "outputs": [{"a": "A"}],
+        },
+    )
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_b,
+            "inputs": [{"q": "B"}],
+            "outputs": [{"a": "B"}],
+        },
+    )
+
+    async with db() as session:
+        example_in_a = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name_a)
+            )
+        ).one()
+        cross_dataset_node_id = str(GlobalID("DatasetExample", str(example_in_a.id)))
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name_b,
+            "inputs": [{"q": "new"}],
+            "outputs": [{"a": "new"}],
+            "example_ids": [cross_dataset_node_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "do not correspond" in response.text
+    assert cross_dataset_node_id in response.text
+
+
+async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+
+    bogus_ids = [
+        str(GlobalID("DatasetExample", "99999")),
+        str(GlobalID("DatasetExample", "99998")),
+        str(GlobalID("DatasetExample", "99997")),
+    ]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": f"Q{i}"} for i in range(len(bogus_ids))],
+            "outputs": [{"a": f"A{i}"} for i in range(len(bogus_ids))],
+            "example_ids": bogus_ids,
+        },
+    )
+    assert response.status_code == 422
+    for bogus_id in bogus_ids:
+        assert bogus_id in response.text
+
+
+async def test_append_with_wrong_type_node_id_stored_as_custom_external_id(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Node IDs of other types (e.g. Span) look like valid GlobalIDs but don't
+    decode as DatasetExample, so they should pass through as custom external IDs
+    rather than trigger the node-id-must-match check."""
+    name = inspect.stack()[0][3]
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": "Q1"}],
+            "outputs": [{"a": "A1"}],
+        },
+    )
+
+    span_shaped_id = str(GlobalID("Span", "1"))
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"q": "Q2"}],
+            "outputs": [{"a": "A2"}],
+            "example_ids": [span_shaped_id],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        example = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(
+                    models.Dataset.name == name,
+                    models.DatasetExample.external_id == span_shaped_id,
+                )
+            )
+        ).one()
+        assert example.external_id == span_shaped_id
+
+
 async def test_create_empty_examples_list_creates_empty_version(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -1999,10 +2837,10 @@ async def test_create_empty_examples_list_creates_empty_version(
         pytest.param(
             [ExampleContent(input={"a": 1}, output={})],
             [ExampleContent(input={"a": 1}, output={}, external_id="new-id")],
-            1,
-            1,
-            ["CREATE"],
-            id="adding_id_without_changing_content_does_not_create_new_version",
+            2,
+            2,
+            ["CREATE", "DELETE", "CREATE"],
+            id="adding_id_without_changing_content_replaces_example",
         ),
         pytest.param(
             [ExampleContent(input={"a": 1}, output={}, external_id="e1")],
@@ -2104,6 +2942,84 @@ async def test_deleting_and_creating_examples_with_the_same_content(
     kinds = [r.revision_kind for r in revisions]
     assert kinds.count("CREATE") == 2
     assert kinds.count("DELETE") == 1
+
+
+async def test_append_with_changed_external_id_same_content_creates_new_example(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Append with a different external_id must not dedupe by content_hash."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 2
+    assert {e.external_id for e in examples} == {"e1", "e2"}
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "CREATE"]
+
+
+async def test_append_adding_external_id_to_unided_example_creates_new_example(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Providing an external_id on a new example must not pair it with an un-ID'd example via content_hash."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 2
+    assert {e.external_id for e in examples} == {None, "e1"}
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "CREATE"]
+
+
+async def test_create_with_changed_external_id_same_content_deletes_old_and_creates_new(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Under CREATE (upsert) semantics, a changed external_id removes the old example and adds the new one."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _create(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
+
+    versions = await _get_versions(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(versions) == 2
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "DELETE", "CREATE"]
+
+    examples = await _get_examples(db, name)
+    assert len(examples) == 2
+    examples_by_id = {e.id: e for e in examples}
+    deleted_revision = next(r for r in revisions if r.revision_kind == "DELETE")
+    final_create_revision = [r for r in revisions if r.revision_kind == "CREATE"][-1]
+    assert examples_by_id[deleted_revision.dataset_example_id].external_id == "e1"
+    assert examples_by_id[final_create_revision.dataset_example_id].external_id == "e2"
+
+
+async def test_append_with_same_external_id_different_content_still_patches(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Regression guard: matching external_id + different content must still PATCH, not create a new example."""
+    name = "ds"
+    await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
+    await _append(httpx_client, name, [ExampleContent(input={"a": 2}, output={}, external_id="e1")])
+
+    examples = await _get_examples(db, name)
+    revisions = await _get_revisions(db, name)
+
+    assert len(examples) == 1
+    kinds = [r.revision_kind for r in revisions]
+    assert kinds == ["CREATE", "PATCH"]
 
 
 # ---------------------------------------------------------------------------

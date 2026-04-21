@@ -44,8 +44,12 @@ export function RowPreviewTable({ columns, rows }: RowPreviewTableProps) {
   "use no memo";
   const tableColumns = useMemo(
     () =>
+      // Use a function accessor instead of a string accessor because TanStack Table
+      // interprets dots in string accessors as nested property paths (e.g. "input.question"
+      // would look up row.input.question instead of row["input.question"]).
       columns.map((col) =>
-        columnHelper.accessor(col, {
+        columnHelper.accessor((row) => row[col], {
+          id: col,
           header: col,
           cell: (info) => info.getValue(),
         })
