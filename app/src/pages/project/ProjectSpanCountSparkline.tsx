@@ -5,6 +5,7 @@ import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -131,13 +132,19 @@ export function ProjectSpanCountSparkline() {
         margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
         barSize={6}
       >
+        <CartesianGrid
+          stroke="var(--chart-cartesian-grid-stroke-color)"
+          strokeDasharray="2 3"
+          vertical={false}
+        />
         <XAxis
           {...defaultXAxisProps}
           dataKey="timestamp"
           interval={interval}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          tickLine={false}
-          axisLine={false}
+          tickLine={{ stroke: "var(--chart-axis-stroke-color)" }}
+          axisLine={{ stroke: "var(--chart-axis-stroke-color)" }}
+          tickSize={3}
           tickMargin={2}
           height={16}
           style={SPARKLINE_AXIS_STYLE}
@@ -145,8 +152,9 @@ export function ProjectSpanCountSparkline() {
         <YAxis
           {...defaultYAxisProps}
           tickFormatter={(x) => intFormatter(x)}
-          tickLine={false}
+          tickLine={{ stroke: "var(--chart-axis-stroke-color)" }}
           axisLine={false}
+          tickSize={3}
           width={24}
           tickCount={3}
           style={SPARKLINE_AXIS_STYLE}
