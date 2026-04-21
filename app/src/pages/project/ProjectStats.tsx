@@ -22,6 +22,7 @@ import type { ProjectStats_project$key } from "./__generated__/ProjectStats_proj
 import type { ProjectStatsQuery } from "./__generated__/ProjectStatsQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
+import { getFilteredSpanAnnotationNames } from "./spanAnnotationUtils";
 
 export function ProjectStats(props: { project: ProjectStats_project$key }) {
   const { fetchKey } = useStreamState();
@@ -66,8 +67,8 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
 
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
-  const spanAnnotationNames = data?.spanAnnotationNames?.filter(
-    (name) => name !== "note"
+  const spanAnnotationNames = getFilteredSpanAnnotationNames(
+    data?.spanAnnotationNames ?? []
   );
   const documentEvaluationNames = data?.documentEvaluationNames;
   const colors = useCategoryChartColors();

@@ -76,6 +76,7 @@ import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
+import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
@@ -216,6 +217,7 @@ export function SpansTable(props: SpansTableProps) {
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
+          spanAnnotationNames
           ...SpanColumnSelector_annotations
           ...SpanColumnSelector_traceAnnotations
           spans(
@@ -328,10 +330,11 @@ export function SpansTable(props: SpansTableProps) {
     (state) => state.annotationColumnVisibility
   );
   const visibleAnnotationColumnNames = useMemo(() => {
-    return Object.keys(annotationColumnVisibility).filter(
-      (name) => annotationColumnVisibility[name]
-    );
-  }, [annotationColumnVisibility]);
+    return getVisibleSpanAnnotationColumnNames({
+      spanAnnotationNames: data.spanAnnotationNames,
+      annotationColumnVisibility,
+    });
+  }, [data.spanAnnotationNames, annotationColumnVisibility]);
   const traceAnnotationColumnVisibility = useTracingContext(
     (state) => state.traceAnnotationColumnVisibility
   );
