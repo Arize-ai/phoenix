@@ -130,6 +130,11 @@ async function main() {
     experimentDescription:
       "Forces the production summary tool against the model and grades the resulting 5-10 word session summary on format and topical accuracy.",
     dataset: { datasetName: DATASET_NAME },
+    // The production model and the LLM judge both carry per-run noise
+    // on borderline cases. Averaging over 3 repetitions per example
+    // (30 task runs / 30 judge runs total on a 10-example set) keeps
+    // the score signal stable enough to use for prompt tuning.
+    repetitions: 3,
     task: async (example) => {
       const { userMessage, assistantMessage } =
         example.input as SummarizationExample;

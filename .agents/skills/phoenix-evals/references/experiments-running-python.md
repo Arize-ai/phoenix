@@ -69,6 +69,34 @@ for run in experiment.runs:
     print(run.output, run.scores)
 ```
 
+## Stability
+
+Single-run scores are noisy when either the task or the evaluator is non-deterministic (an LLM call, tool use, streaming output, an LLM-as-judge). On a small dataset, run-to-run spread of 0.15-0.25 is common and will swamp the signal from a prompt change.
+
+Average over repetitions so the score you report reflects the prompt, not the sampling noise:
+
+```python
+run_experiment(
+    # ...
+    repetitions=3,
+)
+```
+
+Rules of thumb:
+
+- **Always set `repetitions=3+`** when the task OR the evaluator is an LLM call, and the dataset has fewer than ~30 examples.
+- **Repetitions over bigger datasets** when per-example cost is low. 10 examples × 3 reps stabilizes most judges; growing the dataset is more work and adds coverage, not stability.
+- **Larger dataset over repetitions** when you need to cover more behaviors, not just reduce noise.
+- **No repetitions needed** when task and evaluator are both deterministic (e.g., string comparison against a ground truth). One run is the answer.
+
+Signals you need more stability:
+
+- Two identical runs produce scores more than 0.10 apart.
+- A prompt change flips an example between pass/fail but the outputs look equivalent.
+- The judge's rationale contradicts itself across runs on the same output.
+
+Repetitions are also what `repetitions=1` (default) silently relies on — don't trust a tuning decision based on a single 10-example run.
+
 ## Add Evaluations Later
 
 ```python

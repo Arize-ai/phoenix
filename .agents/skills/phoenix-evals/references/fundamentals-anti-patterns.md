@@ -11,6 +11,7 @@ Common mistakes and fixes.
 | Saturation blindness | 100% pass = no signal | Keep capability evals at 50-80% |
 | Similarity metrics | BERTScore/ROUGE for generation | Use for retrieval only |
 | Model switching | Hoping a model works better | Error analysis first |
+| Single-run scoring | LLM judges and non-deterministic tasks swing ±0.10–0.25 on small datasets, drowning the signal from prompt changes | Set `repetitions: 3+` on `runExperiment` (or grow dataset to ~30+) when task or judge is an LLM call |
 
 ## Quantify Changes
 
