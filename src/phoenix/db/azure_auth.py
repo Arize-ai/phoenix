@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import wrapt
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from phoenix.config import get_env_postgres_azure_scope
@@ -12,6 +13,29 @@ if TYPE_CHECKING:
     from sqlalchemy import URL
 
 logger = logging.getLogger(__name__)
+
+
+class _AzureCredentialEngineProxy(wrapt.ObjectProxy):  # type: ignore[misc]
+    """Transparent proxy around an `AsyncEngine` whose `dispose()` also
+    closes the associated Azure credential.
+
+    `dispose` is overridden at the class level; all other attributes
+    forward to the wrapped engine, and `isinstance(proxy, AsyncEngine)`
+    holds. Instance-level method assignment is not possible because
+    `AsyncEngine` defines `__slots__`.
+    """
+
+    def __init__(self, wrapped: AsyncEngine, credential: Any) -> None:
+        super().__init__(wrapped)
+        # `ObjectProxy` routes `_self_*` attributes to the proxy itself
+        # rather than forwarding them to the wrapped object.
+        self._self_credential = credential
+
+    async def dispose(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return await self.__wrapped__.dispose(*args, **kwargs)
+        finally:
+            await self._self_credential.close()
 
 
 def create_azure_engine(
@@ -88,18 +112,7 @@ def create_azure_engine(
 
     engine = create_async_engine(url=url, async_creator=async_creator, **engine_kwargs)
 
-    # Patch `dispose` on this instance so shutting down the engine also
-    # closes the credential on the loop that awaited dispose. Relies on
-    # callers invoking `engine.dispose(...)` (instance attribute lookup)
-    # rather than `type(engine).dispose(engine)` (class lookup).
-    original_dispose = engine.dispose
-
-    async def dispose_and_close_credential(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return await original_dispose(*args, **kwargs)
-        finally:
-            await credential.close()
-
-    engine.dispose = dispose_and_close_credential  # type: ignore[method-assign]
-
-    return engine
+    # Wrap the engine so `dispose()` also closes the credential on the loop
+    # that awaited it. The proxy forwards all other attribute access to the
+    # wrapped engine and satisfies `isinstance(_, AsyncEngine)`.
+    return _AzureCredentialEngineProxy(engine, credential)
