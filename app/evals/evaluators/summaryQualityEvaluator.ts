@@ -33,11 +33,11 @@ assistant. The summary should describe the topic of the conversation
 between a user and an assistant.
 
 [Conversation]
-User: {userMessage}
-Assistant: {assistantMessage}
+User: {{userMessage}}
+Assistant: {{assistantMessage}}
 
 [Generated summary]
-{output}
+{{output}}
 
 Grade the summary using one of the following labels:
 
@@ -49,7 +49,7 @@ Grade the summary using one of the following labels:
 - "inaccurate": The summary is wrong, contradicts the conversation, or is
   generic filler that conveys nothing (e.g. "user asked a question").
 
-Reply with EXACTLY one word: accurate, partial, or inaccurate.`;
+Return a structured result with the label and a brief explanation.`;
 
 export interface SummaryQualityEvaluatorOptions {
   /**

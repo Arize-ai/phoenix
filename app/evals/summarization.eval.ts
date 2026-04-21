@@ -28,7 +28,7 @@ import { generateText, jsonSchema, tool } from "ai";
 import {
   SUMMARY_OUTPUT_TOOL,
   SUMMARY_SYSTEM_PROMPT,
-} from "@phoenix/components/agent/useGenerateSessionSummary";
+} from "@phoenix/components/agent/sessionSummaryPrompt";
 
 import { summaryFormatEvaluator } from "./evaluators/summaryFormatEvaluator";
 import { summaryQualityEvaluator } from "./evaluators/summaryQualityEvaluator";
