@@ -702,12 +702,14 @@ async def stream_text(
         additional_metadata = None
         if usage:
             logger.debug(usage)
+            # Guard against None (pydantic-ai's RequestUsage fields are Optional[int])
+            # to avoid JSON nulls that would fail frontend Zod validation.
             additional_metadata = AgentMessageMetadata(
                 usage=AgentMessageMetadataUsage(
                     tokens=AgentMessageMetadataUsageTokens(
-                        prompt=usage.input_tokens,
-                        completion=usage.output_tokens,
-                        total=usage.total_tokens,
+                        prompt=usage.input_tokens or 0,
+                        completion=usage.output_tokens or 0,
+                        total=usage.total_tokens or 0,
                     )
                 )
             )
