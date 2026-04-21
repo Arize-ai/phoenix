@@ -43,10 +43,10 @@ export function ProjectPageHeader(props: {
 const headerCSS = css`
   flex: none;
   box-sizing: border-box;
-  padding: var(--ac-global-dimension-static-size-200)
-    var(--ac-global-dimension-static-size-200)
-    var(--ac-global-dimension-static-size-50)
-    var(--ac-global-dimension-static-size-200);
+  padding: var(--global-dimension-static-size-200)
+    var(--global-dimension-static-size-200)
+    var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-200);
   overflow: visible;
 `;
 
