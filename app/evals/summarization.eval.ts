@@ -23,26 +23,30 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@arizeai/phoenix-client";
 import { createOrGetDataset } from "@arizeai/phoenix-client/datasets";
 import { runExperiment } from "@arizeai/phoenix-client/experiments";
-import { generateText, tool } from "ai";
-import { z } from "zod";
+import { generateText, jsonSchema, tool } from "ai";
+
+import {
+  SUMMARY_OUTPUT_TOOL,
+  SUMMARY_SYSTEM_PROMPT,
+} from "@phoenix/components/agent/useGenerateSessionSummary";
 
 import { summaryFormatEvaluator } from "./evaluators/summaryFormatEvaluator";
 import { summaryQualityEvaluator } from "./evaluators/summaryQualityEvaluator";
 
 const DATASET_NAME = "phoenix-session-summarization";
 
-// Mirror of SUMMARY_SYSTEM_PROMPT in
-// app/src/components/agent/useGenerateSessionSummary.ts. Keep in sync.
-const SUMMARY_SYSTEM_PROMPT =
-  "You are a concise summarizer. You MUST call the `summary` tool with a 5-10 word summary of the conversation topic. No quotes, no punctuation at the end.";
-
+// Adapt the production FrontendToolDefinition (consumed by the chat
+// backend) into an AI SDK tool so we can drive the model directly with
+// the same schema and `toolChoice: "required"` contract. The Phoenix
+// JsonSchemaProperty type is structurally a JSON Schema 7 fragment but
+// uses a looser `type: string` field, hence the unknown cast.
 const summaryTool = tool({
-  description: "Provide the conversation summary",
-  inputSchema: z.object({
-    summary: z
-      .string()
-      .describe("A 5-10 word summary of the conversation topic"),
-  }),
+  description: SUMMARY_OUTPUT_TOOL.description,
+  inputSchema: jsonSchema<{ summary: string }>(
+    SUMMARY_OUTPUT_TOOL.parameters as unknown as Parameters<
+      typeof jsonSchema
+    >[0]
+  ),
 });
 
 type SummarizationExample = {

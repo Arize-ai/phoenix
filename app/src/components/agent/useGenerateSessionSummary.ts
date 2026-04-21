@@ -15,7 +15,7 @@ import {
   getFirstUserMessageText,
 } from "./sessionSummaryUtils";
 
-const SUMMARY_SYSTEM_PROMPT =
+export const SUMMARY_SYSTEM_PROMPT =
   "You are a concise summarizer. You MUST call the `summary` tool with a 5-10 word summary of the conversation topic. No quotes, no punctuation at the end.";
 
 /**
@@ -24,7 +24,7 @@ const SUMMARY_SYSTEM_PROMPT =
  * regular `tool` so the server sets `allow_text_output=false` on the
  * pydantic-ai request, preventing the model from responding with free text.
  */
-const summaryOutputTool: FrontendToolDefinition = {
+export const SUMMARY_OUTPUT_TOOL: FrontendToolDefinition = {
   name: "summary",
   description: "Provide the conversation summary",
   parameters: {
@@ -94,7 +94,7 @@ async function fetchSummary({
     chatId: crypto.randomUUID(),
     messageId: undefined,
     body: {
-      output_tools: [summaryOutputTool],
+      output_tools: [SUMMARY_OUTPUT_TOOL],
     },
     messages: [
       {
