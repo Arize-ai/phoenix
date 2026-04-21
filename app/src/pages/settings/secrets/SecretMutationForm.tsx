@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -13,9 +14,13 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { SECRET_KEY_PATTERN } from "@phoenix/constants";
 
-import { SECRET_KEY_PATTERN } from "./constants";
 import type { SecretFormParams } from "./types";
+
+function normalizeSecretKey(value: string) {
+  return value.toUpperCase().replace(/\s+/g, "_");
+}
 
 export function SecretMutationForm({
   title,
@@ -32,6 +37,7 @@ export function SecretMutationForm({
   isSubmitting: boolean;
   onSubmit: (params: SecretFormParams) => void;
 }) {
+  const keyInputRef = useRef<HTMLInputElement>(null);
   const {
     control,
     handleSubmit,
@@ -74,24 +80,53 @@ export function SecretMutationForm({
               render={({
                 field: { onChange, onBlur, value },
                 fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  isInvalid={invalid}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  value={value}
-                >
-                  <Label>Key</Label>
-                  <Input placeholder="e.g. OPENAI_API_KEY" />
-                  {error?.message ? (
-                    <FieldError>{error.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      Use the same format as an environment variable name.
-                    </Text>
-                  )}
-                </TextField>
-              )}
+              }) => {
+                const handleChange = (value: string) => {
+                  const input = keyInputRef.current;
+                  const selectionStart = input?.selectionStart ?? value.length;
+
+                  // Normalize live input to env-var style as the user types.
+                  const transformed = normalizeSecretKey(value);
+
+                  // Preserve the cursor after the transformed value is committed.
+                  const beforeCursor = value.slice(0, selectionStart);
+                  const newCursorPosition =
+                    normalizeSecretKey(beforeCursor).length;
+
+                  onChange(transformed);
+
+                  // Wait for React to commit the transformed input value before
+                  // restoring the cursor, or the selection update is lost.
+                  requestAnimationFrame(() => {
+                    input?.setSelectionRange(
+                      newCursorPosition,
+                      newCursorPosition
+                    );
+                  });
+                };
+
+                return (
+                  <TextField
+                    isInvalid={invalid}
+                    onChange={handleChange}
+                    onBlur={onBlur}
+                    value={value}
+                  >
+                    <Label>Key</Label>
+                    <Input
+                      ref={keyInputRef}
+                      placeholder="e.g. OPENAI_API_KEY"
+                    />
+                    {error?.message ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        Use the same format as an environment variable name.
+                      </Text>
+                    )}
+                  </TextField>
+                );
+              }}
             />
           )}
           <Controller

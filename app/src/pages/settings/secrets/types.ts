@@ -1,4 +1,4 @@
-import type { SecretOwnerFilterOptions } from "@phoenix/pages/settings/secrets/constants";
+import type { SecretOwnerFilterOptions } from "@phoenix/constants";
 
 export type SecretFormParams = {
   key: string;

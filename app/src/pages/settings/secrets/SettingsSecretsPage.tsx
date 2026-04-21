@@ -25,13 +25,13 @@ import {
   SelectItem,
   SelectValue,
 } from "@phoenix/components";
+import { SecretOwnerFilterOptions } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 
 import type { SettingsSecretsPageFragment$key } from "./__generated__/SettingsSecretsPageFragment.graphql";
 import type { settingsSecretsPageLoaderQuery } from "./__generated__/settingsSecretsPageLoaderQuery.graphql";
 import type { SettingsSecretsPageRefetchQuery } from "./__generated__/SettingsSecretsPageRefetchQuery.graphql";
-import { SecretOwnerFilterOptions } from "./constants";
 import { SecretsTable } from "./SecretsTable";
 import type { SettingsSecretsPageLoaderType } from "./settingsSecretsPageLoader";
 import { settingsSecretsPageLoaderGql } from "./settingsSecretsPageLoader";
