@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9310b45477e9c54d04e81e2eb50a870>>
+ * @generated SignedSource<<eb530701761820460a577b19522c9368>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectPageHeader_stats$data = {
+export type ProjectStats_project$data = {
   readonly costSummary: {
     readonly completion: {
       readonly cost: number | null;
@@ -28,14 +28,14 @@ export type ProjectPageHeader_stats$data = {
   readonly latencyMsP99: number | null;
   readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly timeRangeTraceCount: number;
-  readonly " $fragmentType": "ProjectPageHeader_stats";
+  readonly " $fragmentType": "ProjectStats_project";
 };
-export type ProjectPageHeader_stats$key = {
-  readonly " $data"?: ProjectPageHeader_stats$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
+export type ProjectStats_project$key = {
+  readonly " $data"?: ProjectStats_project$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project">;
 };
 
-import ProjectPageHeaderQuery_graphql from './ProjectPageHeaderQuery.graphql';
+import ProjectStatsQuery_graphql from './ProjectStatsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -80,14 +80,14 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": ProjectPageHeaderQuery_graphql,
+      "operation": ProjectStatsQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "ProjectPageHeader_stats",
+  "name": "ProjectStats_project",
   "selections": [
     {
       "alias": "timeRangeTraceCount",
@@ -194,6 +194,6 @@ return {
 };
 })();
 
-(node as any).hash = "6af66e172d4a11818131c7b943e82a6d";
+(node as any).hash = "2d6bbd12d4bdfea871a63852a5ff76a9";
 
 export default node;
