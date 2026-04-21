@@ -19,13 +19,7 @@ export function ProjectPageHeader(props: {
   const { extra } = props;
   const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-200"
-      paddingBottom="size-50"
-      flex="none"
-    >
+    <div css={headerCSS}>
       <Flex direction="row" justifyContent="space-between" alignItems="center">
         {isTracingUxEnabled ? (
           <div css={sparklineContainerCSS}>
@@ -42,9 +36,19 @@ export function ProjectPageHeader(props: {
           {extra}
         </View>
       </Flex>
-    </View>
+    </div>
   );
 }
+
+const headerCSS = css`
+  flex: none;
+  box-sizing: border-box;
+  padding: var(--ac-global-dimension-static-size-200)
+    var(--ac-global-dimension-static-size-200)
+    var(--ac-global-dimension-static-size-50)
+    var(--ac-global-dimension-static-size-200);
+  overflow: visible;
+`;
 
 const sparklineContainerCSS = css`
   flex: 1 1 auto;
