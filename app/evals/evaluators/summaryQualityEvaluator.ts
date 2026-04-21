@@ -29,47 +29,68 @@ const SUMMARY_QUALITY_CHOICES: ClassificationChoicesMap = {
   inaccurate: 0,
 };
 
-const SUMMARY_QUALITY_PROMPT = `You are grading a session summary that will appear as a session title
-in a chat sidebar. The best summaries read like sidebar titles — concise
-noun phrases, not sentences. The summary is always about a Phoenix
-conversation, so the word "Phoenix" is implied and should generally NOT
-appear in the summary.
+const SUMMARY_QUALITY_PROMPT = `<role>
+  You are grading a session summary that will appear as a sidebar label
+  in the Phoenix chat UI. The best summaries read like sidebar titles:
+  concise noun phrases, not sentences. Phoenix is always the implied
+  subject, so the word "Phoenix" should generally not appear in the
+  summary.
+</role>
 
-Good summaries (title-style, noun phrases, Phoenix implied):
-  - "OAuth / SSO Support"
-  - "Local Docker Install"
-  - "Dataset vs Experiment"
-  - "LangChain Tracing Setup"
-  - "Thumbs Up / Down Annotation Config"
+<style_rules>
+  - Title-style noun phrases, not sentences.
+  - Do not start with a verb or gerund ("Installing", "Creating",
+    "Explaining").
+  - Do not include the word "Phoenix" (it is implied).
+  - Aim for 2-6 words.
+</style_rules>
 
-Bad summaries (sentence-like, verbose, restate Phoenix, or narrate):
-  - "Phoenix supports OAuth SSO enterprise authentication with OIDC providers"
-  - "Installing Phoenix locally with Docker container"
-  - "Explaining the difference between Phoenix datasets and experiments"
-  - "User asked a question about authentication"
+<good_examples>
+  - OAuth / SSO Support
+  - Local Docker Install
+  - Dataset vs Experiment
+  - LangChain Tracing Setup
+  - Thumbs Up / Down Annotation Config
+</good_examples>
 
-[Conversation]
-User: {{userMessage}}
-Assistant: {{assistantMessage}}
+<bad_examples>
+  - Phoenix supports OAuth SSO enterprise authentication with OIDC providers
+  - Installing Phoenix locally with Docker container
+  - Explaining the difference between Phoenix datasets and experiments
+  - User asked a question about authentication
+</bad_examples>
 
-[Generated summary]
-{{output}}
+<conversation>
+  <user>{{userMessage}}</user>
+  <assistant>{{assistantMessage}}</assistant>
+</conversation>
 
-Grade the summary using one of the following labels:
+<generated_summary>{{output}}</generated_summary>
 
-- "accurate": Reads like a sidebar title — a short noun phrase (ideally
-  2-6 words) that names the specific subject. Does not start with a verb
-  ("Installing", "Explaining"), does not narrate ("User asked..."), and
-  does not redundantly say "Phoenix". Someone scanning a list of these
-  would know what the conversation is about.
-- "partial": On-topic but not title-style. Either it is a grammatical
-  sentence or verb-led phrase ("Installing Phoenix locally"), it leads
-  with "Phoenix ..." when Phoenix is implied, OR it is title-style but
-  too vague to identify the subject ("Asking about Phoenix").
-- "inaccurate": Wrong, contradicts the conversation, or is generic filler
-  that conveys nothing ("user asked a question", "technical discussion").
+<labels>
+  <label name="accurate">
+    Reads like a sidebar title — a short noun phrase (ideally 2-6 words)
+    that names the specific subject. Does not start with a verb, does not
+    narrate ("User asked..."), and does not redundantly say "Phoenix".
+    Someone scanning a list of these would know what the conversation is
+    about.
+  </label>
+  <label name="partial">
+    On-topic but not title-style. Either a grammatical sentence or
+    verb-led phrase ("Installing Phoenix locally"), leads with
+    "Phoenix ..." when Phoenix is implied, OR is title-style but too
+    vague to identify the subject ("Asking about Phoenix").
+  </label>
+  <label name="inaccurate">
+    Wrong, contradicts the conversation, or is generic filler that
+    conveys nothing ("user asked a question", "technical discussion").
+  </label>
+</labels>
 
-Return a structured result with the label and a brief explanation.`;
+<output_format>
+  Return a structured result with the chosen label and a brief
+  explanation.
+</output_format>`;
 
 export interface SummaryQualityEvaluatorOptions {
   /**
