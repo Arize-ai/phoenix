@@ -1,5 +1,18 @@
 # Changelog
 
+## [14.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.9.1...arize-phoenix-v14.10.0) (2026-04-21)
+
+
+### Features
+
+* **agent:** Display token count for chat sessions ([#12765](https://github.com/Arize-ai/phoenix/issues/12765)) ([c305919](https://github.com/Arize-ai/phoenix/commit/c305919514602acec4319650b9a4e5ea07b0ab07))
+
+
+### Bug Fixes
+
+* **deps:** pin authlib&lt;1.7.0 ([#12783](https://github.com/Arize-ai/phoenix/issues/12783)) ([cc606d8](https://github.com/Arize-ai/phoenix/commit/cc606d8431395ff8776fc3118b653278284aee93))
+* **playground:** align connectionConfig keys with GraphQL schema ([#12786](https://github.com/Arize-ai/phoenix/issues/12786)) ([b2a42f3](https://github.com/Arize-ai/phoenix/commit/b2a42f39016ed8d427700df550d53710783af5b0))
+
 ## [14.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.9.0...arize-phoenix-v14.9.1) (2026-04-21)
 
 
