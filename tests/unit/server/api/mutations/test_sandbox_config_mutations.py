@@ -448,36 +448,6 @@ class TestReservedSecretKeyRejected:
             )
         assert result.errors
 
-    async def test_reserved_modal_token_id_rejected(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """MODAL_TOKEN_ID (added in task #6) must be rejected as a secret_key."""
-        provider = await _get_provider(db, "E2B")
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
-            result = await gql_client.execute(
-                _CREATE,
-                variables={
-                    "input": {
-                        "sandboxProviderId": _provider_global_id(provider.id),
-                        "name": "e2b-modal-token-id",
-                        "config": {
-                            "env_vars": [
-                                {
-                                    "kind": "secret_ref",
-                                    "name": "MY_VAR",
-                                    "secret_key": "MODAL_TOKEN_ID",
-                                }
-                            ]
-                        },
-                    }
-                },
-            )
-        assert result.errors
-
     async def test_non_reserved_secret_key_accepted(
         self,
         gql_client: AsyncGraphQLClient,

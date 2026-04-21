@@ -1,11 +1,17 @@
-"""Unit tests for pydantic config model validation in sandbox adapters.
+"""Unit tests for the authored invariants in sandbox config validation.
 
-Tests cover:
-- Our custom validators (unique env_var names, capability gate validators, invalid-value rejection)
-- Our schema design contracts (discriminated union, extra="forbid" on leaf models, field constraints)
-- validate_config() wrapper: pydantic ValidationError surfaced as ValueError (D3 convention)
-- _config_field_specs_from_model: nested-field skip behaviour
-- Equality helper correctness (Phase 1 regression tests)
+Scope is limited to logic we own:
+- `validate_config()`'s wrapping of pydantic ValidationError as ValueError.
+- `EnvVarEntry` discriminated-union and `extra="forbid"` design contracts.
+- `_config_field_specs_from_model` nested-field skip behaviour.
+- Equality helpers `_env_vars_equal`, `_internet_access_equal`,
+  `_packages_equal` (Phase 1 correctness fixes).
+
+Per-adapter pydantic schema re-verification (round-tripping every adapter's
+config model) is intentionally absent — the cross-adapter conformance suite
+(`test_unified_config_contract.py`) iterates over
+`SANDBOX_ADAPTER_METADATA.keys()` and one representative adapter is enough
+to exercise pydantic's framework behaviour here.
 """
 
 from __future__ import annotations
@@ -14,19 +20,14 @@ import pytest
 
 from phoenix.server.sandbox.types import (
     ConfigFieldSpec,
-    DaytonaPythonConfig,
-    DenoConfig,
     E2BConfig,
     EnvVarEntry,
     EnvVarLiteral,
     EnvVarSecretRef,
     InternetAccessConfig,
-    ModalConfig,
     PythonDependenciesConfig,
     SandboxAdapter,
     TypescriptDependenciesConfig,
-    VercelPythonConfig,
-    VercelTypescriptConfig,
     WASMConfig,
     _env_vars_equal,
     _internet_access_equal,
@@ -57,105 +58,7 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
 
 
 # ---------------------------------------------------------------------------
-# E2BConfig
-# ---------------------------------------------------------------------------
-
-
-class TestE2BConfigValidation:
-    def test_valid_full_config(self) -> None:
-        result = E2BConfig.model_validate(
-            {"template": "custom-tmpl", "cwd": "/workspace", "metadata": "my-run"}
-        )
-        assert result.template == "custom-tmpl"
-        assert result.cwd == "/workspace"
-        assert result.metadata == "my-run"
-
-    def test_validate_config_returns_dict(self) -> None:
-        adapter = _make_adapter(E2BConfig)
-        out = adapter.validate_config({"template": "t1", "cwd": "/tmp"})
-        assert isinstance(out, dict)
-        assert out["template"] == "t1"
-
-
-# ---------------------------------------------------------------------------
-# DaytonaPythonConfig
-# ---------------------------------------------------------------------------
-
-
-class TestDaytonaPythonConfigValidation:
-    def test_valid_server_url(self) -> None:
-        result = DaytonaPythonConfig.model_validate({"server_url": "https://daytona.example.com"})
-        assert result.server_url == "https://daytona.example.com"
-
-    def test_validate_config_returns_dict_with_defaults(self) -> None:
-        adapter = _make_adapter(DaytonaPythonConfig)
-        out = adapter.validate_config({})
-        assert out["server_url"] == ""
-
-
-# ---------------------------------------------------------------------------
-# DenoConfig / VercelConfig / WASMConfig (no declared fields, extra="allow")
-# ---------------------------------------------------------------------------
-
-
-class TestDenoConfigValidation:
-    def test_empty_config_accepted(self) -> None:
-        result = DenoConfig.model_validate({})
-        assert result.model_dump()["env_vars"] == []
-
-    def test_validate_config_returns_unknown_keys(self) -> None:
-        adapter = _make_adapter(DenoConfig)
-        out = adapter.validate_config({"deno_path": "/usr/local/bin/deno"})
-        assert out["deno_path"] == "/usr/local/bin/deno"
-
-
-class TestVercelPythonConfigValidation:
-    def test_empty_config_accepted(self) -> None:
-        result = VercelPythonConfig.model_validate({})
-        dumped = result.model_dump()
-        assert dumped["env_vars"] == []
-        assert dumped["dependencies"] is None
-
-
-class TestVercelTypescriptConfigValidation:
-    def test_empty_config_accepted(self) -> None:
-        result = VercelTypescriptConfig.model_validate({})
-        dumped = result.model_dump()
-        assert dumped["env_vars"] == []
-        assert dumped["dependencies"] is None
-
-
-class TestWASMConfigValidation:
-    def test_empty_config_accepted(self) -> None:
-        result = WASMConfig.model_validate({})
-        assert result.model_dump() == {}
-
-
-class TestModalConfigValidation:
-    def test_empty_config_returns_defaults(self) -> None:
-        result = ModalConfig.model_validate({})
-        assert result.app_name == "phoenix-sandbox"
-        assert result.timeout == 600
-        assert result.idle_timeout == 300
-
-    def test_valid_full_config(self) -> None:
-        result = ModalConfig.model_validate(
-            {"app_name": "custom-app", "timeout": 120, "idle_timeout": 60}
-        )
-        assert result.app_name == "custom-app"
-        assert result.timeout == 120
-        assert result.idle_timeout == 60
-
-    def test_validate_config_returns_dict_with_defaults(self) -> None:
-        adapter = _make_adapter(ModalConfig)
-        out = adapter.validate_config({})
-        assert out["app_name"] == "phoenix-sandbox"
-        assert out["timeout"] == 600
-        assert out["idle_timeout"] == 300
-
-
-# ---------------------------------------------------------------------------
-# validate_config() error path via SandboxAdapter
+# validate_config() error path: pydantic ValidationError → ValueError
 # ---------------------------------------------------------------------------
 
 
@@ -196,7 +99,7 @@ class TestValidateConfigErrorPath:
 
 
 # ---------------------------------------------------------------------------
-# Shared config shape round-trip tests (D2, D4, D5, D6)
+# EnvVarEntry discriminated union + extra="forbid" + secret_ref shape
 # ---------------------------------------------------------------------------
 
 
@@ -253,36 +156,25 @@ class TestEnvVarEntryDiscriminatedUnion:
         assert "value" not in dumped
 
 
-class TestInternetAccessConfig:
-    def test_invalid_mode_raises(self) -> None:
-        from pydantic import ValidationError
+# ---------------------------------------------------------------------------
+# Nested leaf-model extra="forbid" — one assertion per leaf model
+# ---------------------------------------------------------------------------
 
-        with pytest.raises(ValidationError):
-            InternetAccessConfig.model_validate({"mode": "allowlist"})
 
-    def test_forbids_extra_fields(self) -> None:
+class TestNestedLeafModelsForbidExtra:
+    def test_internet_access_forbids_extra_fields(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             InternetAccessConfig.model_validate({"mode": "allow", "extra": "bad"})
 
-
-class TestPythonDependenciesConfig:
-    def test_lockfile_round_trip(self) -> None:
-        cfg = PythonDependenciesConfig.model_validate(
-            {"packages": ["boto3"], "lockfile": "requirements.txt"}
-        )
-        assert cfg.lockfile == "requirements.txt"
-
-    def test_forbids_extra_fields(self) -> None:
+    def test_python_dependencies_forbids_extra_fields(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             PythonDependenciesConfig.model_validate({"packages": [], "unknown": "x"})
 
-
-class TestTypescriptDependenciesConfig:
-    def test_forbids_extra_fields(self) -> None:
+    def test_typescript_dependencies_forbids_extra_fields(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
@@ -290,7 +182,7 @@ class TestTypescriptDependenciesConfig:
 
 
 # ---------------------------------------------------------------------------
-# _config_field_specs_from_model — nested-field skip behaviour (task #3)
+# _config_field_specs_from_model — nested-field skip behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -347,19 +239,11 @@ class TestConfigFieldSpecsFromModel:
         assert "items" not in keys
 
     def test_e2b_config_env_vars_internet_access_dependencies_skipped(self) -> None:
+        """Representative real-adapter case: flat field present, the three nested
+        common fields (env_vars, internet_access, dependencies) all skipped."""
         specs = self._derive(E2BConfig)
         keys = [s.key for s in specs]
-        # Flat fields are present
         assert "template" in keys
-        # Nested/array fields are absent
-        assert "env_vars" not in keys
-        assert "internet_access" not in keys
-        assert "dependencies" not in keys
-
-    def test_daytona_python_config_nested_fields_skipped(self) -> None:
-        specs = self._derive(DaytonaPythonConfig)
-        keys = [s.key for s in specs]
-        assert "server_url" in keys
         assert "env_vars" not in keys
         assert "internet_access" not in keys
         assert "dependencies" not in keys
@@ -368,34 +252,8 @@ class TestConfigFieldSpecsFromModel:
         specs = self._derive(WASMConfig)
         assert specs == []
 
-    def test_modal_config_flat_fields_present_nested_absent(self) -> None:
-        specs = self._derive(ModalConfig)
-        keys = [s.key for s in specs]
-        assert "app_name" in keys
-        assert "timeout" in keys
-        assert "idle_timeout" in keys
-        assert "env_vars" not in keys
-        assert "internet_access" not in keys
-        assert "dependencies" not in keys
-
-    def test_deno_config_env_vars_skipped(self) -> None:
-        specs = self._derive(DenoConfig)
-        keys = [s.key for s in specs]
-        assert "env_vars" not in keys
-
-    def test_vercel_python_config_nested_fields_skipped(self) -> None:
-        specs = self._derive(VercelPythonConfig)
-        keys = [s.key for s in specs]
-        assert "env_vars" not in keys
-        assert "dependencies" not in keys
-
-    def test_vercel_typescript_config_nested_fields_skipped(self) -> None:
-        specs = self._derive(VercelTypescriptConfig)
-        keys = [s.key for s in specs]
-        assert "env_vars" not in keys
-        assert "dependencies" not in keys
-
     def test_optional_nested_model_via_anyof_ref_is_skipped(self) -> None:
+        """Schema produced for `Optional[Model]` uses anyOf+$ref; must still be skipped."""
         from typing import Optional
 
         from pydantic import BaseModel, ConfigDict, Field

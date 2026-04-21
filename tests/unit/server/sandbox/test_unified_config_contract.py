@@ -10,14 +10,17 @@ metadata:
 - dependencies_language=None → build_backend(config={"dependencies": {"packages": ["x"]}})
                                raises UnsupportedOperation
 
-Adapters that declare a capability as supported are NOT tested for rejection here
-(the accept path is covered by test_user_env_forwarding.py and the per-adapter tests).
+This is the structural conformance surface: every adapter in
+SANDBOX_ADAPTER_METADATA is exercised against the rejection contract for any
+capability it declares unsupported. Positive-path SDK forwarding is
+intentionally not covered here — it would re-verify library mock shapes
+rather than authored invariants. Real adapter drift surfaces in integration
+or deploy; targeted coverage is added then.
 
 SDK mocking strategy:
 - Modal: sys.modules["modal"] must be patched before ModalSandboxBackend.__init__
-- Vercel: VERCEL_OIDC_TOKEN env var patches to allow backend construction to proceed
-  past the credential check when testing non-internet_access/non-dependencies paths.
-  For the rejection tests the guard fires before credential access so no mock needed.
+- Vercel: the unsupported-capability guard fires before credential access so no
+  env patching is needed for the rejection tests.
 - Deno/Daytona/E2B/WASM: construct without external SDKs.
 """
 
