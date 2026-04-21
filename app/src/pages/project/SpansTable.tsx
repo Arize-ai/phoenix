@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-table";
 import React, {
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -21,12 +22,15 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   Button,
   CopyToClipboardButton,
+  ErrorBoundary,
   Flex,
   Heading,
   Icon,
   Icons,
   Link,
+  Loading,
   Text,
+  TextErrorBoundaryFallback,
   ToggleButton,
   ToggleButtonGroup,
   View,
@@ -868,15 +872,19 @@ export function SpansTable(props: SpansTableProps) {
             }}
           >
             <View padding="size-200" height="100%" overflow="auto">
-              <Flex direction="column" gap="size-200">
+              <Flex direction="column" gap="size-200" minWidth="size-3400">
                 <Heading level={3} weight="heavy">
                   Stats
                 </Heading>
-                <ProjectStats
-                  project={data}
-                  direction="column"
-                  filterCondition={filterCondition}
-                />
+                <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+                  <Suspense fallback={<Loading size="S" />}>
+                    <ProjectStats
+                      project={data}
+                      direction="column"
+                      filterCondition={filterCondition}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
               </Flex>
             </View>
           </Panel>
@@ -887,5 +895,5 @@ export function SpansTable(props: SpansTableProps) {
 }
 
 const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
-const ASIDE_PANEL_MIN_SIZE_PIXELS = 280;
+const ASIDE_PANEL_MIN_SIZE_PIXELS = 320;
 const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
