@@ -146,6 +146,12 @@ async function main() {
         prompt: summarizePrompt,
         tools: { summary: summaryTool },
         toolChoice: "required",
+        // runExperiment registers a global tracer provider that ships
+        // spans to Phoenix; the AI SDK only emits spans when telemetry
+        // is explicitly enabled. Without this flag the task generates
+        // no spans and only the judge call appears in the experiment
+        // trace view.
+        experimental_telemetry: { isEnabled: true },
       });
 
       const summaryCall = toolCalls.find((c) => c.toolName === "summary");

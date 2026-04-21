@@ -38,9 +38,14 @@ const SUMMARY_QUALITY_PROMPT = `<role>
 </role>
 
 <style_rules>
-  - Title-style. Either a noun phrase ("OAuth / SSO Support") OR a short
-    imperative naming the user's task ("Find Slow Spans", "Fix 401
-    Error", "Identify Top Errors") is acceptable.
+  - Either a short noun phrase ("OAuth / SSO support") OR a short
+    imperative naming the user's task ("Find slow spans", "Fix 401
+    error", "Identify top errors") is acceptable.
+  - Use SENTENCE CASE: only the first letter of the summary is
+    capitalized. Proper nouns and acronyms (OpenAI, LangChain, Docker,
+    OAuth, SSO, API, OIDC, REST) keep their natural casing. Do NOT use
+    Title Case where every major word is capitalized — "Fix OpenAI
+    Tracer 401 Error" is wrong; "Fix OpenAI tracer 401 error" is right.
   - Do NOT start with a gerund (-ing form): "Installing", "Creating",
     "Debugging", "Setting up", "Exporting", "Versioning", "Explaining".
     The bare imperative ("Install", "Create", "Debug") is fine.
@@ -57,18 +62,20 @@ const SUMMARY_QUALITY_PROMPT = `<role>
 
 <labels>
   <label name="accurate">
-    Reads like a sidebar title — a short noun phrase OR short imperative
-    (ideally 2-6 words) that names the specific subject or task. Does
-    not start with a gerund, does not narrate ("User asked..."), and
-    does not redundantly say "Phoenix". Someone scanning a list of these
-    would know what the conversation is about.
+    A short noun phrase OR short imperative (ideally 2-6 words) in
+    SENTENCE CASE that names the specific subject or task. Only the
+    first letter capitalized; proper nouns/acronyms keep their natural
+    casing. Does not start with a gerund, does not narrate ("User
+    asked..."), and does not redundantly say "Phoenix". Someone scanning
+    a list of these would know what the conversation is about.
   </label>
   <label name="partial">
-    On-topic but not title-style. Either it leads with a gerund
-    ("Installing Phoenix locally"), leads with "Phoenix ..." when
-    Phoenix is implied, is a full grammatical sentence ("Phoenix
-    supports OAuth..."), OR is title-style but too vague to identify the
-    subject ("Asking about Phoenix").
+    On-topic but breaks one of the format rules. Examples: uses Title
+    Case where every major word is capitalized ("Fix OpenAI Tracer 401
+    Error"), leads with a gerund ("Installing Phoenix locally"), leads
+    with "Phoenix ..." when Phoenix is implied, is a full grammatical
+    sentence ("Phoenix supports OAuth..."), OR is correctly formatted
+    but too vague to identify the subject ("Asking about Phoenix").
   </label>
   <label name="inaccurate">
     Wrong, contradicts the conversation, or is generic filler that
