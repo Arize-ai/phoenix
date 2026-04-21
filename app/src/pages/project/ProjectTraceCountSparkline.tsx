@@ -32,7 +32,7 @@ import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { ProjectSpanCountSparklineQuery } from "./__generated__/ProjectSpanCountSparklineQuery.graphql";
+import type { ProjectTraceCountSparklineQuery } from "./__generated__/ProjectTraceCountSparklineQuery.graphql";
 
 const SPARKLINE_AXIS_STYLE = {
   fill: "var(--chart-axis-text-color)",
@@ -69,16 +69,16 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
   );
 }
 
-export function ProjectSpanCountSparkline() {
+export function ProjectTraceCountSparkline() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<ProjectSpanCountSparklineQuery>(
+  const data = useLazyLoadQuery<ProjectTraceCountSparklineQuery>(
     graphql`
-      query ProjectSpanCountSparklineQuery(
+      query ProjectTraceCountSparklineQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!

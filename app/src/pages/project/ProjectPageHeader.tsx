@@ -6,8 +6,8 @@ import { Flex, Loading, View } from "@phoenix/components";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import type { ProjectStats_project$key } from "./__generated__/ProjectStats_project.graphql";
-import { ProjectSpanCountSparkline } from "./ProjectSpanCountSparkline";
 import { ProjectStats } from "./ProjectStats";
+import { ProjectTraceCountSparkline } from "./ProjectTraceCountSparkline";
 
 export function ProjectPageHeader(props: {
   project: ProjectStats_project$key;
@@ -30,7 +30,7 @@ export function ProjectPageHeader(props: {
       <Flex direction="row" justifyContent="space-between" alignItems="center">
         {isTracingUxEnabled ? (
           <Suspense fallback={<Loading size="S" />}>
-            <ProjectSpanCountSparkline />
+            <ProjectTraceCountSparkline />
           </Suspense>
         ) : (
           <div css={statsScrollCSS}>

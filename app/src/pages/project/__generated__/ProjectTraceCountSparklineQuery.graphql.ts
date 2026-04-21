@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b03b5277f4b3168175f5caee5eacef77>>
+ * @generated SignedSource<<4a70941359c8adc595283f337bd66e35>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,12 +18,12 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type ProjectSpanCountSparklineQuery$variables = {
+export type ProjectTraceCountSparklineQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type ProjectSpanCountSparklineQuery$data = {
+export type ProjectTraceCountSparklineQuery$data = {
   readonly project: {
     readonly traceCountByStatusTimeSeries?: {
       readonly data: ReadonlyArray<{
@@ -34,9 +34,9 @@ export type ProjectSpanCountSparklineQuery$data = {
     };
   };
 };
-export type ProjectSpanCountSparklineQuery = {
-  response: ProjectSpanCountSparklineQuery$data;
-  variables: ProjectSpanCountSparklineQuery$variables;
+export type ProjectTraceCountSparklineQuery = {
+  response: ProjectTraceCountSparklineQuery$data;
+  variables: ProjectTraceCountSparklineQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -132,7 +132,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectSpanCountSparklineQuery",
+    "name": "ProjectTraceCountSparklineQuery",
     "selections": [
       {
         "alias": "project",
@@ -158,7 +158,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectSpanCountSparklineQuery",
+    "name": "ProjectTraceCountSparklineQuery",
     "selections": [
       {
         "alias": "project",
@@ -189,16 +189,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9dde045d8dd73614de2142c684c09e6a",
+    "cacheID": "5e9e765733f839546b930446ef291a97",
     "id": null,
     "metadata": {},
-    "name": "ProjectSpanCountSparklineQuery",
+    "name": "ProjectTraceCountSparklineQuery",
     "operationKind": "query",
-    "text": "query ProjectSpanCountSparklineQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectTraceCountSparklineQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f38b026db747d1f28bc3b00461cc07f";
+(node as any).hash = "2f5d0a87bc32362a503e858a566942b6";
 
 export default node;
