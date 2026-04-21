@@ -1,4 +1,9 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import React, {
+  startTransition,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+} from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -141,12 +146,16 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  // Refetch the annotation summary if the fetchKey or filterCondition changes
-  useEffect(() => {
+  const refetchAnnotationSummary = useEffectEvent(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, filterCondition, refetch]);
+  });
+
+  // Refetch the annotation summary when streaming data advances.
+  useEffect(() => {
+    refetchAnnotationSummary();
+  }, [fetchKey]);
 
   return (
     <SummaryValue

@@ -1,4 +1,4 @@
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useRefetchableFragment } from "react-relay";
 
@@ -25,6 +25,7 @@ import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 
 export function ProjectStats(props: { project: ProjectStats_project$key }) {
   const { fetchKey } = useStreamState();
+  const isFirstRender = useRef(true);
   const [data, refetch] = useRefetchableFragment<
     ProjectStatsQuery,
     ProjectStats_project$key
@@ -54,6 +55,10 @@ export function ProjectStats(props: { project: ProjectStats_project$key }) {
   );
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });

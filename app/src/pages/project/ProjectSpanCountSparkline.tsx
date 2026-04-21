@@ -26,6 +26,7 @@ import {
 } from "@phoenix/components/chart";
 import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -71,6 +72,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function ProjectSpanCountSparkline() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
+  const { fetchKey } = useStreamState();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
@@ -108,7 +110,7 @@ export function ProjectSpanCountSparkline() {
         utcOffsetMinutes,
       },
     },
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
 
   const chartData = useMemo(
