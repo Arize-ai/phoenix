@@ -49,7 +49,10 @@ const SUMMARY_QUALITY_PROMPT = `<role>
   - Do NOT start with a gerund (-ing form): "Installing", "Creating",
     "Debugging", "Setting up", "Exporting", "Versioning", "Explaining".
     The bare imperative ("Install", "Create", "Debug") is fine.
-  - Do NOT include the word "Phoenix" (it is implied).
+  - Phoenix is the implied subject of every conversation, so the word
+    "Phoenix" should be omitted when the title still reads cleanly
+    without it. It is acceptable when the title would be ambiguous or
+    grammatically broken otherwise.
   - Aim for 2-6 words.
 </style_rules>
 
@@ -72,10 +75,12 @@ const SUMMARY_QUALITY_PROMPT = `<role>
   <label name="partial">
     On-topic but breaks one of the format rules. Examples: uses Title
     Case where every major word is capitalized ("Fix OpenAI Tracer 401
-    Error"), leads with a gerund ("Installing Phoenix locally"), leads
-    with "Phoenix ..." when Phoenix is implied, is a full grammatical
-    sentence ("Phoenix supports OAuth..."), OR is correctly formatted
-    but too vague to identify the subject ("Asking about Phoenix").
+    Error"), leads with a gerund ("Installing Phoenix locally"),
+    includes the word "Phoenix" gratuitously when the title would read
+    fine without it ("Run Phoenix in production cheaply" → "Run in
+    production cheaply"), is a full grammatical sentence ("Phoenix
+    supports OAuth..."), OR is correctly formatted but too vague to
+    identify the subject ("Asking about Phoenix").
   </label>
   <label name="inaccurate">
     Wrong, contradicts the conversation, or is generic filler that
