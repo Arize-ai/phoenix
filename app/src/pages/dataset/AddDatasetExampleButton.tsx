@@ -94,7 +94,9 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         }
       }
       notifySuccess({
-        title: summary.newVersionCreated ? "Dataset Updated" : "No Changes",
+        title: summary.newVersionCreated
+          ? "Dataset Updated"
+          : "Dataset Unchanged",
         message,
       });
       onAddExampleCompleted();
@@ -168,7 +170,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
       </DialogTrigger>
       <DialogTrigger isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
         <ModalOverlay isOpen={isManualOpen} onOpenChange={setIsManualOpen}>
-          <Modal variant="slideover" size="fullscreen">
+          <Modal variant="slideover" size="L">
             <Dialog css={dialogCSS}>
               {({ close }) => (
                 <>
