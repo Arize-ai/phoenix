@@ -747,9 +747,9 @@ async def _rebuild_dataset_splits(
     await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
 
 
-async def _update_splits_for_touched_examples(
+async def _update_splits(
     session: AsyncSession,
-    touched_examples: list[ExampleWithExternalID],
+    examples: list[ExampleWithExternalID],
     splits_provided: bool = True,
     user_id: Optional[int] = None,
 ) -> None:
@@ -757,12 +757,11 @@ async def _update_splits_for_touched_examples(
 
     Used by the APPEND action so that examples not in the upload keep their splits.
     """
-    if not splits_provided or not touched_examples:
+    if not splits_provided or not examples:
         return
 
-    touched_example_ids = [e.example_id for e in touched_examples]
+    touched_example_ids = [e.example_id for e in examples]
 
-    # Delete existing split assignments only for touched examples
     await session.execute(
         delete(models.DatasetSplitDatasetExample).where(
             models.DatasetSplitDatasetExample.dataset_example_id.in_(touched_example_ids)
@@ -770,9 +769,7 @@ async def _update_splits_for_touched_examples(
     )
 
     example_id_split_name_pairs = [
-        (example.example_id, name)
-        for example in touched_examples
-        for name in example.content.splits
+        (example.example_id, name) for example in examples for name in example.content.splits
     ]
     if not example_id_split_name_pairs:
         return
@@ -934,9 +931,9 @@ async def _upsert_dataset_examples(
 
     if action is DatasetAction.APPEND:
         touched_examples = diff.unchanged_examples + diff.patch_examples + created_examples
-        await _update_splits_for_touched_examples(
+        await _update_splits(
             session=session,
-            touched_examples=touched_examples,
+            examples=touched_examples,
             splits_provided=splits_provided,
             user_id=user_id,
         )
