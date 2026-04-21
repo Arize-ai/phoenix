@@ -48,7 +48,7 @@ export function ProjectPageHeader(props: {
 
 const sparklineContainerCSS = css`
   flex: 1 1 auto;
-  height: 56px;
+  height: 72px;
   min-width: 0;
 `;
 
