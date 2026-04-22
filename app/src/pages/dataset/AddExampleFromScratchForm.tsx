@@ -258,11 +258,12 @@ export function AddExampleFromScratchForm(
                 name={"externalId"}
                 render={({ field: { onChange, onBlur, value } }) => (
                   <TextField value={value} onChange={onChange} onBlur={onBlur}>
-                    <Label>Custom ID</Label>
+                    <Label>ID</Label>
                     <Input placeholder="e.g. example-001" />
                     <Text slot="description">
-                      An optional identifier for this example. Must be unique
-                      within the dataset.
+                      An optional ID for the example. If provided, it must be
+                      unique within the dataset. If not provided, an ID will be
+                      generated.
                     </Text>
                   </TextField>
                 )}
