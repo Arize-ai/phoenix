@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
@@ -21,11 +22,15 @@ import {
   Icons,
   Input,
   Label,
+  ListBox,
+  ListBoxItem,
   Modal,
   ModalOverlay,
   NumberField,
-  Radio,
-  RadioGroup,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
   Switch,
   Text,
   TextArea,
@@ -455,19 +460,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             />
             {activeBackend?.supportsEnvVars ? (
               <Flex direction="column" gap="size-100">
-                <Flex justifyContent="space-between" alignItems="center">
-                  <Label>Environment Variables</Label>
-                  <Button
-                    size="S"
-                    variant="default"
-                    leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-                    onPress={() =>
-                      appendEnvVar({ kind: "literal", name: "", value: "" })
-                    }
-                  >
-                    Add Variable
-                  </Button>
-                </Flex>
+                <Text>Environment Variables</Text>
                 {envVarFields.length === 0 ? (
                   <Text color="text-700" size="S">
                     No environment variables configured.
@@ -482,10 +475,23 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     />
                   ))
                 )}
+                <Button
+                  size="S"
+                  variant="default"
+                  css={css`
+                    width: fit-content;
+                  `}
+                  leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                  onPress={() =>
+                    appendEnvVar({ kind: "literal", name: "", value: "" })
+                  }
+                >
+                  Add Variable
+                </Button>
               </Flex>
             ) : activeBackend != null ? (
               <Flex direction="column" gap="size-100">
-                <Label>Environment Variables</Label>
+                <Text>Environment Variables</Text>
                 <Text color="text-700" size="S">
                   {NOT_SUPPORTED_COPY}
                 </Text>
@@ -504,7 +510,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
               />
             ) : activeBackend != null ? (
               <Flex direction="column" gap="size-100">
-                <Label>Internet Access</Label>
+                <Text>Internet Access</Text>
                 <Text color="text-700" size="S">
                   {NOT_SUPPORTED_COPY}
                 </Text>
@@ -536,7 +542,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
               />
             ) : activeBackend != null ? (
               <Flex direction="column" gap="size-100">
-                <Label>Dependencies</Label>
+                <Text>Dependencies</Text>
                 <Text color="text-700" size="S">
                   {NOT_SUPPORTED_COPY}
                 </Text>
@@ -597,26 +603,50 @@ function EnvVarRow({
   });
 
   return (
-    <Flex gap="size-100" alignItems="start">
+    <Flex gap="size-100" alignItems="end">
       <Controller
         name={`envVars.${index}.kind`}
         control={form.control}
         render={({ field }) => (
-          <RadioGroup
-            value={field.value}
-            onChange={(val) => {
-              field.onChange(val);
-              if (val === "secret_ref") {
-                form.setValue(`envVars.${index}.value`, "");
-              } else {
+          // <RadioGroup
+          //   value={field.value}
+          //   onChange={(val) => {
+          //     field.onChange(val);
+          //     if (val === "secret_ref") {
+          //       form.setValue(`envVars.${index}.value`, "");
+          //     } else {
+          //       form.setValue(`envVars.${index}.secret_key`, "");
+          //     }
+          //   }}
+          //   orientation="horizontal"
+          // >
+          //   <Radio value="literal">Value</Radio>
+          //   <Radio value="secret_ref">Secret</Radio>
+          // </RadioGroup>
+          <Select
+            {...field}
+            onChange={(v) => {
+              field.onChange(v);
+              if (v === "literal") {
                 form.setValue(`envVars.${index}.secret_key`, "");
               }
+              if (v === "secret_ref") {
+                form.setValue(`envVars.${index}.value`, "");
+              }
             }}
-            orientation="horizontal"
           >
-            <Radio value="literal">Value</Radio>
-            <Radio value="secret_ref">Secret</Radio>
-          </RadioGroup>
+            <Label>Kind</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                <ListBoxItem id="literal">Value</ListBoxItem>
+                <ListBoxItem id="secret_ref">Secret</ListBoxItem>
+              </ListBox>
+            </Popover>
+          </Select>
         )}
       />
       <Controller
@@ -652,8 +682,8 @@ function EnvVarRow({
         />
       )}
       <Button
-        size="S"
-        variant="danger"
+        size="M"
+        variant="quiet"
         aria-label="Remove variable"
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
         onPress={onRemove}
@@ -719,7 +749,7 @@ function SecretKeyComboBox({
         <ComboBox
           label="Secret Key"
           placeholder="Select a secret"
-          size="M"
+          size="L"
           selectedKey={field.value || null}
           onSelectionChange={(key) => {
             if (typeof key === "string") field.onChange(key);
@@ -728,8 +758,14 @@ function SecretKeyComboBox({
           isInvalid={fieldState.invalid}
           errorMessage={fieldState.error?.message}
           menuTrigger="focus"
-          defaultItems={secretKeys}
-          renderEmptyState={() => <div>No secrets found</div>}
+          items={secretKeys}
+          renderEmptyState={() => (
+            <View padding="size-150">
+              <Flex justifyContent="center" alignItems="center">
+                <Text color="gray-300">No secrets found</Text>
+              </Flex>
+            </View>
+          )}
         >
           {(item) => (
             <ComboBoxItem id={item.id} key={item.id} textValue={item.key}>

@@ -4,7 +4,7 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
-import { IsAdmin } from "@phoenix/components/auth";
+import { CanManageSandboxes } from "@phoenix/components/auth";
 import type { settingsSandboxesPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsSandboxesPageLoaderQuery.graphql";
 import type { SettingsSandboxesPageLoaderType } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { settingsSandboxesPageLoaderGql } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
@@ -27,9 +27,9 @@ export function SettingsSandboxesPage() {
     loaderData
   );
   return (
-    <IsAdmin>
+    <CanManageSandboxes>
       <SettingsSandboxesPageContent query={query} />
-    </IsAdmin>
+    </CanManageSandboxes>
   );
 }
 
