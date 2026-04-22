@@ -11,3 +11,4 @@ export * from "./useTimeFormatters";
 export * from "./useCurrentTime";
 export * from "./useUnnestedValue";
 export * from "./usePersistedState";
+export * from "./useOwnedPreloadedQuery";

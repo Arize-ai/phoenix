@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import type { PreloadedQuery } from "react-relay";
-import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -9,6 +7,7 @@ import { AgentChatWidget } from "@phoenix/components/agent";
 import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { authenticatedRootLoaderQuery } from "@phoenix/pages/__generated__/authenticatedRootLoaderQuery.graphql";
 import {
   authenticatedRootLoaderQueryNode,
@@ -23,16 +22,10 @@ import { AppAlerts } from "./AppAlerts";
 export function AuthenticatedRoot() {
   const loaderData = useLoaderData<AuthenticatedRootLoaderData>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<authenticatedRootLoaderQuery>(
-    authenticatedRootLoaderQueryNode,
-    loaderData.queryRef as PreloadedQuery<authenticatedRootLoaderQuery>
-  );
-
-  useEffect(() => {
-    return () => {
-      loaderData.queryRef.dispose?.();
-    };
-  }, [loaderData.queryRef]);
+  const data = useOwnedPreloadedQuery<authenticatedRootLoaderQuery>({
+    query: authenticatedRootLoaderQueryNode,
+    queryRef: loaderData.queryRef,
+  });
 
   // Set analytics if enabled
   useEffect(() => {
