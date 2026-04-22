@@ -17,6 +17,8 @@ import {
   SideNavbar,
   SideNavToggleButton,
   ThemeSelector,
+  TopNavActionsProvider,
+  TopNavActionsSlot,
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -88,31 +90,34 @@ export function Layout() {
   });
 
   return (
-    <div css={layoutCSS} data-testid="layout">
-      <NavTitle />
-      <SideNav />
-      <div css={mainViewCSS}>
-        <TopNavbar>
-          <SideNavToggleButton />
-          <NavBreadcrumb />
-        </TopNavbar>
-        <Group
-          id="layout-panels"
-          orientation="horizontal"
-          defaultLayout={defaultLayout}
-          onLayoutChanged={onLayoutChanged}
-        >
-          <Panel id="layout-content">
-            <div data-testid="content" css={contentCSS}>
-              <Suspense fallback={<Loading />}>
-                <Outlet />
-              </Suspense>
-            </div>
-          </Panel>
-          {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
-        </Group>
+    <TopNavActionsProvider>
+      <div css={layoutCSS} data-testid="layout">
+        <NavTitle />
+        <SideNav />
+        <div css={mainViewCSS}>
+          <TopNavbar>
+            <SideNavToggleButton />
+            <NavBreadcrumb />
+            <TopNavActionsSlot />
+          </TopNavbar>
+          <Group
+            id="layout-panels"
+            orientation="horizontal"
+            defaultLayout={defaultLayout}
+            onLayoutChanged={onLayoutChanged}
+          >
+            <Panel id="layout-content">
+              <div data-testid="content" css={contentCSS}>
+                <Suspense fallback={<Loading />}>
+                  <Outlet />
+                </Suspense>
+              </div>
+            </Panel>
+            {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
+          </Group>
+        </div>
       </div>
-    </div>
+    </TopNavActionsProvider>
   );
 }
 

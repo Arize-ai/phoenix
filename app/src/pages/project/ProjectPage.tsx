@@ -9,18 +9,12 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
 
-import {
-  Flex,
-  LazyTabPanel,
-  Loading,
-  Tab,
-  TabList,
-  Tabs,
-} from "@phoenix/components";
+import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -236,15 +230,11 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
-      <ProjectPageHeader
-        project={data.project}
-        extra={
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <StreamToggle project={data.project} />
-            <ConnectedTimeRangeSelector />
-          </Flex>
-        }
-      />
+      <TopNavActions>
+        <StreamToggle project={data.project} />
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <ProjectPageHeader project={data.project} />
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,
