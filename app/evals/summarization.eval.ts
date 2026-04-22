@@ -3,7 +3,7 @@
  *
  * Exercises the session-summary path used by
  * `app/src/components/agent/useGenerateSessionSummary.ts`. The hook forces a
- * structured tool call (`summary`) to produce a 5-10 word topic label for the
+ * structured tool call (`summary`) to produce a topic label for the
  * first user/assistant exchange in a session.
  *
  * This script reproduces that contract directly against the model (no chat
