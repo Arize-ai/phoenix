@@ -24,13 +24,15 @@
   },
   "files": [
     "build",
+    "schemas",
     "package.json"
   ],
   "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
-    "build": "tsc && tsc-alias && chmod 755 build/index.js",
+    "build": "pnpm run build:schema && tsc && tsc-alias && chmod 755 build/index.js",
+    "build:schema": "tsx scripts/build-schema.ts",
     "clean": "rimraf build",
     "dev": "tsx src/index.ts",
     "prebuild": "pnpm run clean",
@@ -43,7 +45,8 @@
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.0.1",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",
