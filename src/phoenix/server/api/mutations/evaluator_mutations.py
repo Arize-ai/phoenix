@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -21,7 +20,6 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     OutputConfigType,
 )
-from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -345,6 +343,8 @@ class EvaluatorMutationMixin:
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
         dataset_id = from_global_id_with_expected_type(
             global_id=input.dataset_id, expected_type_name=Dataset.__name__
         )
@@ -383,9 +383,7 @@ class EvaluatorMutationMixin:
                     name=validated_name,
                     description=input.description if input.description is not UNSET else None,
                     output_configs=output_configs,
-                    input_mapping=input.input_mapping.to_orm()
-                    if input.input_mapping is not None
-                    else InputMapping(literal_mapping={}, path_mapping={}),
+                    input_mapping=input.input_mapping.to_orm(),
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
@@ -612,11 +610,9 @@ class EvaluatorMutationMixin:
                 input.description if isinstance(input.description, str) else None
             )
             dataset_evaluator.output_configs = list(output_configs)
-            dataset_evaluator.input_mapping = (
-                input.input_mapping.to_orm()
-                if input.input_mapping is not None
-                else InputMapping(literal_mapping={}, path_mapping={})
-            )
+            if input.input_mapping is None:
+                raise BadRequest("input_mapping is required")
+            dataset_evaluator.input_mapping = input.input_mapping.to_orm()
             dataset_evaluator.user_id = user_id
 
             llm_evaluator.description = (
@@ -819,11 +815,9 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping
-            if input.input_mapping is not None
-            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
 
         try:
             name = IdentifierModel.model_validate(input.name)
@@ -907,11 +901,9 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
 
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping
-            if input.input_mapping is not None
-            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
 
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -1004,15 +996,15 @@ class EvaluatorMutationMixin:
         if evaluator_kind != "CODE":
             raise BadRequest("Evaluator must be a code evaluator")
 
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
+
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
-
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
-        )
 
         try:
             name = IdentifierModel.model_validate(input.name)
@@ -1086,9 +1078,9 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
 
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
 
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -1177,11 +1169,9 @@ class EvaluatorMutationMixin:
             if input.output_configs
             else []
         )
-        input_mapping_orm = (
-            input.input_mapping.to_orm()
-            if input.input_mapping is not None
-            else InputMapping(literal_mapping={}, path_mapping={})
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping_orm = input.input_mapping.to_orm()
 
         try:
             async with info.context.db() as session:

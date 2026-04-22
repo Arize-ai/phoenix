@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
@@ -122,7 +122,7 @@ class SandboxProvider(Node):
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
         record = await self._get_record(info)
-        return record.config
+        return cast(JSON, record.config)
 
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
@@ -190,7 +190,7 @@ class SandboxConfig(Node):
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
         record = await self._get_record(info)
-        return record.config
+        return cast(JSON, record.config)
 
     @strawberry.field
     async def timeout(self, info: Info[Context, None]) -> int:

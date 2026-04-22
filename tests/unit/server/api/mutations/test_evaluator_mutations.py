@@ -144,6 +144,7 @@ class TestDatasetLLMEvaluatorMutations:
 
     async def _create(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
         """Private helper to execute create mutation with given input fields."""
+        input_fields.setdefault("inputMapping", {"literalMapping": {}, "pathMapping": {}})
         return await gql_client.execute(self._MUTATION, {"input": input_fields})
 
     async def _verify_prompt_version_messages(
@@ -1148,6 +1149,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "updated-evaluator-name",
@@ -1231,6 +1233,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "multi-output-evaluator",
@@ -1378,6 +1381,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "updated-evaluator",
@@ -1559,6 +1563,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "updated-evaluator",
@@ -1672,6 +1677,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "updated-evaluator",
@@ -1812,6 +1818,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": new_evaluator_name,
@@ -1952,6 +1959,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             self._UPDATE_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
                     "name": "updated-evaluator",
@@ -2058,6 +2066,7 @@ class TestCreateDatasetBuiltinEvaluatorMutation:
 
     async def _create(self, gql_client: AsyncGraphQLClient, **input_fields: Any) -> Any:
         """Private helper to execute create mutation with given input fields."""
+        input_fields.setdefault("inputMapping", {"literalMapping": {}, "pathMapping": {}})
         return await gql_client.execute(self._MUTATION, {"input": input_fields})
 
     async def test_create_dataset_builtin_evaluator(
@@ -2411,6 +2420,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "updated-name",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2429,7 +2439,6 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
             )
             assert db_dataset_evaluator is not None
             assert db_dataset_evaluator.name.root == "updated-name"
-            # Input mapping should revert to default value when not provided
             assert db_dataset_evaluator.input_mapping == InputMapping(
                 literal_mapping={}, path_mapping={}
             )
@@ -2500,6 +2509,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": nonexistent_id,
                     "name": "test",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2579,6 +2589,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": llm_dataset_evaluator_id,
                     "name": "updated-llm-name",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2613,6 +2624,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     "datasetId": dataset_id,
                     "evaluatorId": builtin_evaluator_gid,  # Same builtin evaluator
                     "name": "other-evaluator",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2626,6 +2638,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "other-evaluator",  # Same as second assignment
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2664,6 +2677,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                     "datasetId": dataset_id,
                     "evaluatorId": levenshtein_gid,
                     "name": "test-levenshtein-update",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -2679,6 +2693,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "outputConfigs": [
                         {
                             "continuous": {
@@ -2701,6 +2716,7 @@ class TestUpdateDatasetBuiltinEvaluatorMutation:
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "name": "test-levenshtein-update",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "outputConfigs": [
                         {
                             "continuous": {
@@ -3533,6 +3549,7 @@ class TestMultiOutputEvaluators:
             self._CREATE_LLM_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetId": dataset_id,
                     "name": "multi-output-evaluator",
                     "description": "multi-output evaluator description",
@@ -3667,6 +3684,7 @@ class TestMultiOutputEvaluators:
             self._CREATE_LLM_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetId": dataset_id,
                     "name": "duplicate-config-evaluator",
                     "description": "duplicate config evaluator description",
@@ -3785,6 +3803,7 @@ class TestMultiOutputEvaluators:
             self._CREATE_BUILTIN_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetId": dataset_id,
                     "evaluatorId": evaluator_gid,
                     "name": "exact-match-with-custom-config",
@@ -3867,6 +3886,7 @@ class TestMultiOutputEvaluators:
             self._CREATE_BUILTIN_MUTATION,
             {
                 "input": {
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "datasetId": dataset_id,
                     "evaluatorId": evaluator_gid,
                     "name": "levenshtein-continuous-test",

@@ -13,7 +13,7 @@ models; it never needs to know about adapter-specific field names at the GQL
 layer. Do not add sibling typed-input fields for the new sections.
 """
 
-from typing import Any
+from typing import Any, cast
 
 import strawberry
 from pydantic import ValidationError
@@ -243,7 +243,9 @@ class SandboxConfigMutationMixin:
                 row.description = input.description
             if input.config is not strawberry.UNSET:
                 stored_config = dict(row.config) if row.config else {}
-                config_dict = dict(input.config) if input.config is not None else {}
+                config_dict: dict[str, Any] = (
+                    dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
+                )
                 provider = await session.scalar(
                     select(models.SandboxProvider).where(
                         models.SandboxProvider.id == row.sandbox_provider_id
@@ -314,9 +316,11 @@ class SandboxConfigMutationMixin:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
             if input.config is not strawberry.UNSET:
-                config_dict = dict(input.config) if input.config is not None else {}
-                _check_reserved_top_level_keys(config_dict, row.backend_type)
-                row.config = config_dict
+                provider_config: dict[str, Any] = (
+                    dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
+                )
+                _check_reserved_top_level_keys(provider_config, row.backend_type)
+                row.config = provider_config
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 

@@ -533,6 +533,7 @@ class TestCodeEvaluatorSandboxMutationIds:
                     "language": "PYTHON",
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "outputConfigs": [
                         {
                             "continuous": {
