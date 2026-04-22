@@ -3338,7 +3338,7 @@ type SpanEdge {
 
 type SpanErrorTypeCount {
   """
-  The `exception.type` attribute of the span event. `None` when an errored span has no accompanying `exception` event.
+  The `exception.type` attribute of the span event. `None` when no type could be determined — either the errored span has no accompanying `exception` event, or an `exception` event is present but its `exception.type` attribute is missing or malformed.
   """
   exceptionType: String
   count: Int!

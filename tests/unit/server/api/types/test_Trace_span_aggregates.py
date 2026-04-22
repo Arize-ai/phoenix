@@ -5,7 +5,7 @@ Covers ``spanCountsByKind``, ``errorCount``, ``errorsByType`` and the new
 """
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from sqlalchemy import insert
@@ -246,3 +246,221 @@ async def test_spans_invalid_filter_condition_raises(
         },
     )
     assert response.errors
+
+
+@pytest.fixture
+async def trace_with_non_canonical_kinds(db: DbSessionFactory) -> int:
+    """A trace with two spans whose ``span_kind`` values both collapse to
+    ``SpanKind.unknown`` via the enum's ``_missing_`` hook.
+
+    Exercises the resolver-side dedup that protects the GraphQL response
+    from emitting multiple entries keyed by the same enum member when the
+    DB contains non-canonical values.
+    """
+    orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project)
+            .values(name="trace_non_canonical_kinds")
+            .returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace_non_canonical",
+                project_rowid=project_id,
+                start_time=orig_time,
+                end_time=orig_time + timedelta(seconds=1),
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace_rowid is not None
+
+        # Both kinds resolve to SpanKind.unknown: the first directly, the
+        # second via the enum's `_missing_` fallback for unrecognized strings.
+        for span_id, kind in [("s_canonical_unknown", "UNKNOWN"), ("s_legacy_kind", "CUSTOM")]:
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=None,
+                    name=span_id,
+                    span_kind=kind,
+                    start_time=orig_time,
+                    end_time=orig_time + timedelta(seconds=1),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                    llm_token_count_prompt=None,
+                    llm_token_count_completion=None,
+                )
+            )
+        await session.commit()
+    return trace_rowid
+
+
+async def test_span_counts_by_kind_dedupes_non_canonical(
+    trace_with_non_canonical_kinds: int,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Two DB rows that both collapse to ``SpanKind.unknown`` must produce a
+    single ``unknown`` bucket summing both counts, not two separate entries.
+    """
+    trace_gid = str(GlobalID(Trace.__name__, str(trace_with_non_canonical_kinds)))
+    query = """
+        query ($traceId: ID!) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spanCountsByKind { spanKind count }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(query=query, variables={"traceId": trace_gid})
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["node"]["spanCountsByKind"] == [{"spanKind": "unknown", "count": 2}]
+
+
+@pytest.fixture
+async def trace_with_hierarchy(db: DbSessionFactory) -> int:
+    """A trace with parent/child structure so root-span filtering is meaningful.
+
+    - ``s_root_llm_ok``: LLM, no parent (root), OK
+    - ``s_child_llm_err``: LLM, child of ``s_root_llm_ok``, ERROR
+    - ``s_root_tool_err``: TOOL, no parent (root), ERROR
+    - ``s_root_tool_err_2``: TOOL, no parent (root), ERROR (second root for pagination)
+    """
+    orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).values(name="trace_hierarchy").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace_hierarchy",
+                project_rowid=project_id,
+                start_time=orig_time,
+                end_time=orig_time + timedelta(seconds=1),
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace_rowid is not None
+
+        spans = [
+            # (span_id, parent_id, kind, status)
+            ("s_root_llm_ok", None, "LLM", "OK"),
+            ("s_child_llm_err", "s_root_llm_ok", "LLM", "ERROR"),
+            ("s_root_tool_err", None, "TOOL", "ERROR"),
+            ("s_root_tool_err_2", None, "TOOL", "ERROR"),
+        ]
+        for span_id, parent_id, kind, status in spans:
+            await session.execute(
+                insert(models.Span).values(
+                    trace_rowid=trace_rowid,
+                    span_id=span_id,
+                    parent_id=parent_id,
+                    name=span_id,
+                    span_kind=kind,
+                    start_time=orig_time,
+                    end_time=orig_time + timedelta(seconds=1),
+                    attributes={},
+                    events=[],
+                    status_code=status,
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                    llm_token_count_prompt=None,
+                    llm_token_count_completion=None,
+                )
+            )
+        await session.commit()
+    return trace_rowid
+
+
+async def test_spans_filter_with_root_spans_only(
+    trace_with_hierarchy: int,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Filter must apply to the candidate set before root-span narrowing.
+
+    With ``span_kind == 'LLM'`` + ``rootSpansOnly: true`` we expect only
+    the LLM root span — the LLM child should be excluded by the root
+    narrowing, and the TOOL roots should be excluded by the kind filter.
+    """
+    trace_gid = str(GlobalID(Trace.__name__, str(trace_with_hierarchy)))
+    query = """
+        query ($traceId: ID!, $first: Int!, $filter: String) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans(first: $first, rootSpansOnly: true, filterCondition: $filter) {
+                        edges { node { name } }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"traceId": trace_gid, "first": 10, "filter": "span_kind == 'LLM'"},
+    )
+    assert not response.errors
+    assert (data := response.data) is not None
+    names = {edge["node"]["name"] for edge in data["node"]["spans"]["edges"]}
+    assert names == {"s_root_llm_ok"}
+
+
+async def test_spans_filter_paginates(
+    trace_with_hierarchy: int,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """Filter must compose with forward-cursor pagination.
+
+    Three errored spans exist in the trace. Asking for one at a time with an
+    ``after`` cursor must return all three across two pages without skipping
+    or duplicating.
+    """
+    trace_gid = str(GlobalID(Trace.__name__, str(trace_with_hierarchy)))
+    query = """
+        query ($traceId: ID!, $first: Int!, $after: String, $filter: String) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans(first: $first, after: $after, filterCondition: $filter) {
+                        edges { cursor node { name } }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            }
+        }
+    """
+    seen: set[str] = set()
+    after: Optional[str] = None
+    # Two pages of 2 spans each is enough to exhaust three matches and observe
+    # `hasNextPage` flipping to false. Guard against infinite loops.
+    for _ in range(4):
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "traceId": trace_gid,
+                "first": 2,
+                "after": after,
+                "filter": "status_code == 'ERROR'",
+            },
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        conn = data["node"]["spans"]
+        for edge in conn["edges"]:
+            name = edge["node"]["name"]
+            assert name not in seen, f"duplicate span across pages: {name}"
+            seen.add(name)
+        if not conn["pageInfo"]["hasNextPage"]:
+            break
+        after = conn["pageInfo"]["endCursor"]
+    assert seen == {"s_child_llm_err", "s_root_tool_err", "s_root_tool_err_2"}

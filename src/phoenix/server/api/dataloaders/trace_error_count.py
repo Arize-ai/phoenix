@@ -19,6 +19,14 @@ class TraceErrorCountDataLoader(DataLoader[Key, Result]):
     """Counts spans under each trace with `status_code == 'ERROR'`.
 
     Cheap, backed by a single `COUNT(*)`. Missing keys return 0.
+
+    We intentionally do not reuse the pre-aggregated `Span.cumulative_error_count`
+    column. That column stores the error count of the subtree rooted at each
+    span, so recovering the per-trace total would require either ``max()`` over
+    a well-defined root or a sum across orphan-root candidates — both of which
+    re-introduce the orphan-root handling complexity that `Trace.spans` already
+    encodes for pagination. A direct `COUNT(*)` over `status_code == 'ERROR'`
+    sidesteps that branch and is correct regardless of parent/child topology.
     """
 
     def __init__(self, db: DbSessionFactory) -> None:

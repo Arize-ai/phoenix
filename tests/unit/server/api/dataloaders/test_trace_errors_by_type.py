@@ -27,8 +27,9 @@ async def traces_with_exception_events(db: DbSessionFactory) -> tuple[int, int, 
     - trace A: no errored spans
     - trace B: one errored span with one ``ValueError`` exception event
     - trace C: one errored span with two exception events (``ValueError``,
-      ``KeyError``) + a second errored span with no exception events (bucketed
-      under ``None``).
+      ``KeyError``) + a second errored span with no exception events + a third
+      errored span whose ``exception`` event is missing the ``exception.type``
+      attribute; the latter two both bucket under ``None``.
     - trace D: mixed — two errored spans with ``ValueError`` and one with
       ``RuntimeError``; also one OK span with an exception event that should
       NOT be counted (status != ERROR).
@@ -97,6 +98,9 @@ async def traces_with_exception_events(db: DbSessionFactory) -> tuple[int, int, 
             [_exception_event("ValueError"), _exception_event("KeyError")],
         )
         await _insert_span(trace_c, "c1", "ERROR", [])
+        # Errored span with an exception event whose `exception.type` attribute
+        # is absent — the extraction helper returns None for this case.
+        await _insert_span(trace_c, "c2", "ERROR", [_exception_event(None)])
 
         # trace D
         await _insert_span(trace_d, "d0", "ERROR", [_exception_event("ValueError")])
@@ -124,10 +128,12 @@ async def test_aggregates_and_sort_order(
     # One errored span with one exception event.
     assert actual[1] == [("ValueError", 1)]
 
-    # trace C: ValueError x1 and KeyError x1 from the same span (multi-event),
-    # plus a `None` bucket from the errored span with no exception events.
-    # All tie at count=1 so sort falls back to exception type asc with None first.
-    assert actual[2] == [(None, 1), ("KeyError", 1), ("ValueError", 1)]
+    # trace C: ValueError x1 and KeyError x1 from the same multi-event span,
+    # plus two contributions to the `None` bucket — one from the errored span
+    # with no exception events, and one from the errored span whose exception
+    # event lacks an `exception.type` attribute. None leads on count desc;
+    # the remaining ties fall back to exception type asc.
+    assert actual[2] == [(None, 2), ("KeyError", 1), ("ValueError", 1)]
 
     # trace D: ValueError x2 (highest), RuntimeError x1; the OK span is
     # ignored despite having an exception event.

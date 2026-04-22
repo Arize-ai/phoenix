@@ -55,8 +55,10 @@ class SpanKindCount:
 class SpanErrorTypeCount:
     exception_type: Optional[str] = strawberry.field(
         description=(
-            "The `exception.type` attribute of the span event. `None` when an errored "
-            "span has no accompanying `exception` event."
+            "The `exception.type` attribute of the span event. `None` when no type "
+            "could be determined — either the errored span has no accompanying "
+            "`exception` event, or an `exception` event is present but its "
+            "`exception.type` attribute is missing or malformed."
         ),
     )
     count: int
@@ -221,7 +223,22 @@ class Trace(Node):
         info: Info[Context, None],
     ) -> list[SpanKindCount]:
         rows = await info.context.data_loaders.trace_span_counts_by_kind.load(self.id)
-        return [SpanKindCount(span_kind=SpanKind(kind), count=count) for kind, count in rows]
+        # The dataloader groups by the raw DB `span_kind` string. `SpanKind(kind)`
+        # collapses any non-canonical value (lowercase, legacy name, etc.) to
+        # `SpanKind.unknown` via the enum's `_missing_` hook, which can produce
+        # multiple rows that resolve to the same enum member. Coalesce here so
+        # the response contains exactly one entry per kind.
+        counts: dict[SpanKind, int] = {}
+        for kind, count in rows:
+            enum_kind = SpanKind(kind)
+            counts[enum_kind] = counts.get(enum_kind, 0) + count
+        # Re-sort after dedup: count desc, then kind name asc. Names are the
+        # lowercase form of values, so this preserves the dataloader's order
+        # when no collision occurred.
+        return [
+            SpanKindCount(span_kind=k, count=c)
+            for k, c in sorted(counts.items(), key=lambda row: (-row[1], row[0].name))
+        ]
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="Count of spans under this trace with `status_code == ERROR`.",
