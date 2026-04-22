@@ -2,14 +2,14 @@ directive @oneOf on INPUT_OBJECT
 
 type AWSBedrockAccessKeys {
   awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
 }
 
 input AWSBedrockAccessKeysInput {
   awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
 }
 
 type AWSBedrockAuthenticationMethod {
@@ -199,11 +199,11 @@ enum AnnotatorKind {
 }
 
 type AnthropicAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input AnthropicAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type AnthropicClientKwargs {
@@ -253,19 +253,19 @@ enum AuthMethod {
 type AzureADTokenProvider {
   azureTenantId: String!
   azureClientId: String!
-  azureClientSecret: String!
+  azureClientSecret: RedactedString!
   scope: String!
 }
 
 input AzureOpenAIADTokenProviderInput {
   azureTenantId: String!
   azureClientId: String!
-  azureClientSecret: String!
+  azureClientSecret: RedactedString!
   scope: String
 }
 
 type AzureOpenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
   azureAdTokenProvider: AzureADTokenProvider
 
   """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
@@ -273,7 +273,7 @@ type AzureOpenAIAuthenticationMethod {
 }
 
 input AzureOpenAIAuthenticationMethodInput @oneOf {
-  apiKey: String
+  apiKey: RedactedString
   azureAdTokenProvider: AzureOpenAIADTokenProviderInput
 
   """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
@@ -1955,11 +1955,11 @@ enum GenerativeProviderKey {
 }
 
 type GoogleGenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input GoogleGenAIAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type GoogleGenAIClientKwargs {
@@ -2200,11 +2200,11 @@ enum OpenAIApiType {
 }
 
 type OpenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input OpenAIAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type OpenAIClientKwargs {
@@ -2982,6 +2982,11 @@ type Query {
   promptCount: Int!
   evaluatorCount: Int!
 }
+
+"""
+A string that is automatically redacted on output and un-redacted on input. Values are symmetrically encrypted with a key derived from PHOENIX_SECRET; tokens remain valid across replicas and restarts as long as the secret is unchanged.
+"""
+scalar RedactedString
 
 type ReinstateExperimentPayload {
   experiment: Experiment!

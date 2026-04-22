@@ -1,11 +1,35 @@
 from secrets import token_hex
 from typing import Any
 
+from sqlalchemy import select
+from starlette.datastructures import Secret
 from strawberry.relay.types import GlobalID
 
+from phoenix.db import models
+from phoenix.db.types import model_provider as mp
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.schema import _EXPORTED_GRAPHQL_SCHEMA
+from phoenix.server.encryption import EncryptionService
+from phoenix.server.redaction import Redactor
+from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+# Matches the redactor the test `app` fixture constructs: create_app is called
+# without a secret, so the server-side Redactor is keyed off Secret("").
+_REDACTOR = Redactor(secret=Secret(""))
+_REDACTED_PREFIX = "\ue000[REDACTED]"
+
+
+def _assert_redacted_equals(value: Any, expected: str) -> None:
+    """Assert a RedactedString field was actually redacted on the wire AND un-redacts
+    to the expected plaintext. Catches both missing-redaction regressions and
+    key-mismatch regressions in a single line.
+    """
+    assert isinstance(value, str), f"expected str, got {type(value).__name__}: {value!r}"
+    assert value.startswith(_REDACTED_PREFIX), f"field was not redacted on output: {value!r}"
+    assert _REDACTOR.unredact(value) == expected, (
+        f"redacted value did not round-trip to {expected!r}"
+    )
 
 
 async def _fetch_provider_via_node_query(
@@ -223,7 +247,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert isinstance(openai_provider["createdAt"], str)
         assert isinstance(openai_provider["updatedAt"], str)
         config = openai_provider["config"]
-        assert config["openaiAuthenticationMethod"]["apiKey"] == "sk-test-key"
+        _assert_redacted_equals(config["openaiAuthenticationMethod"]["apiKey"], "sk-test-key")
         assert config["openaiClientKwargs"]["baseUrl"] == "https://api.openai.com/v1"
         assert config["openaiClientKwargs"]["organization"] == "org-123"
         assert config["openaiClientKwargs"]["project"] == "proj-456"
@@ -260,7 +284,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert azure_provider["description"] == "Test Azure OpenAI provider"
         assert azure_provider["provider"] == "azure"
         azure_config = azure_provider["config"]
-        assert azure_config["azureOpenaiAuthenticationMethod"]["apiKey"] == "azure-key-123"
+        _assert_redacted_equals(
+            azure_config["azureOpenaiAuthenticationMethod"]["apiKey"], "azure-key-123"
+        )
         assert azure_config["azureOpenaiAuthenticationMethod"]["azureAdTokenProvider"] is None
         assert (
             azure_config["azureOpenaiClientKwargs"]["azureEndpoint"]
@@ -309,7 +335,7 @@ class TestGenerativeModelCustomProviderMutations:
         ]
         assert token_provider["azureTenantId"] == "tenant-123"
         assert token_provider["azureClientId"] == "client-456"
-        assert token_provider["azureClientSecret"] == "secret-789"
+        _assert_redacted_equals(token_provider["azureClientSecret"], "secret-789")
         assert token_provider["scope"] == "https://cognitiveservices.azure.com/.default"
 
         # Create Anthropic provider
@@ -346,7 +372,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert anthropic_provider["description"] == "Test Anthropic provider"
         assert anthropic_provider["provider"] == "anthropic"
         anthropic_config = anthropic_provider["config"]
-        assert anthropic_config["anthropicAuthenticationMethod"]["apiKey"] == "sk-ant-test-key"
+        _assert_redacted_equals(
+            anthropic_config["anthropicAuthenticationMethod"]["apiKey"], "sk-ant-test-key"
+        )
         assert anthropic_config["anthropicClientKwargs"]["baseUrl"] == "https://api.anthropic.com"
 
         # Create Google GenAI provider
@@ -384,7 +412,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert google_provider["description"] == "Test Google GenAI provider"
         assert google_provider["provider"] == "google"
         google_config = google_provider["config"]
-        assert google_config["googleGenaiAuthenticationMethod"]["apiKey"] == "google-api-key-123"
+        _assert_redacted_equals(
+            google_config["googleGenaiAuthenticationMethod"]["apiKey"], "google-api-key-123"
+        )
         assert "httpOptions" in google_config["googleGenaiClientKwargs"]
         http_options = google_config["googleGenaiClientKwargs"]["httpOptions"]
         assert http_options["baseUrl"] == "https://generativelanguage.googleapis.com"
@@ -427,7 +457,9 @@ class TestGenerativeModelCustomProviderMutations:
         aws_config = aws_provider["config"]
         access_keys = aws_config["awsBedrockAuthenticationMethod"]["accessKeys"]
         assert access_keys["awsAccessKeyId"] == "AKIAIOSFODNN7EXAMPLE"
-        assert access_keys["awsSecretAccessKey"] == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        _assert_redacted_equals(
+            access_keys["awsSecretAccessKey"], "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        )
         assert access_keys["awsSessionToken"] is None
         assert aws_config["awsBedrockClientKwargs"]["regionName"] == "us-east-1"
 
@@ -469,7 +501,7 @@ class TestGenerativeModelCustomProviderMutations:
         assert aws_session_provider is not None
         assert aws_session_provider["name"] == aws_session_name
         access_keys = aws_session_provider["config"]["awsBedrockAuthenticationMethod"]["accessKeys"]
-        assert access_keys["awsSessionToken"] == "FwoGZXIvYXdzEBYaDExample"
+        _assert_redacted_equals(access_keys["awsSessionToken"], "FwoGZXIvYXdzEBYaDExample")
         assert aws_session_provider["config"]["awsBedrockClientKwargs"]["regionName"] == "us-west-2"
 
         # ===== DEFAULT CREDENTIALS TESTS =====
@@ -679,7 +711,9 @@ class TestGenerativeModelCustomProviderMutations:
         )
         assert updated_provider_config is not None
         updated_config = updated_provider_config["config"]
-        assert updated_config["openaiAuthenticationMethod"]["apiKey"] == "sk-updated-key"
+        _assert_redacted_equals(
+            updated_config["openaiAuthenticationMethod"]["apiKey"], "sk-updated-key"
+        )
         assert updated_config["openaiClientKwargs"]["baseUrl"] == "https://updated.openai.com"
         assert updated_config["openaiClientKwargs"]["organization"] == "updated-org"
 
@@ -766,7 +800,9 @@ class TestGenerativeModelCustomProviderMutations:
         assert switched_provider["name"] == switched_sdk_name
         # Verify Azure OpenAI config is present
         switched_config = switched_provider["config"]
-        assert switched_config["azureOpenaiAuthenticationMethod"]["apiKey"] == "azure-key-compat"
+        _assert_redacted_equals(
+            switched_config["azureOpenaiAuthenticationMethod"]["apiKey"], "azure-key-compat"
+        )
         assert (
             switched_config["azureOpenaiClientKwargs"]["azureEndpoint"]
             == "https://compat.openai.azure.com"
@@ -802,3 +838,112 @@ class TestGenerativeModelCustomProviderMutations:
         assert not nonexistent_delete_result.errors
         assert nonexistent_delete_result.data is not None
         assert nonexistent_delete_result.data["deleteGenerativeModelCustomProvider"]["id"]
+
+    async def test_redacted_token_echo_preserves_secret(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """A redacted apiKey — sent on create, or echoed back on patch — must
+        un-redact to the original plaintext in the DB, not persist as [REDACTED]...
+
+        The `app` fixture builds create_app without a secret, so the server's
+        EncryptionService and Redactor are both keyed off Secret("").
+        """
+        encryption = EncryptionService(secret=Secret(""))
+
+        async def stored_api_key(provider_id: str) -> str:
+            rowid = int(GlobalID.from_id(provider_id).node_id)
+            async with db() as session:
+                blob = await session.scalar(
+                    select(models.GenerativeModelCustomProvider.config).where(
+                        models.GenerativeModelCustomProvider.id == rowid
+                    )
+                )
+            assert blob is not None
+            config = mp.OpenAICustomProviderConfig.model_validate_json(encryption.decrypt(blob))
+            assert isinstance(config.openai_authentication_method, mp.AuthenticationMethodApiKey)
+            return config.openai_authentication_method.api_key
+
+        secret = token_hex(16)
+
+        # Create with a client-redacted apiKey — server's parse_value must un-redact.
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "name": f"test-redact-roundtrip-{token_hex(2)}",
+                    "provider": "openai",
+                    "clientConfig": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": _REDACTOR.redact(secret)},
+                        }
+                    },
+                }
+            },
+            operation_name="CreateGenerativeModelCustomProviderMutation",
+        )
+        assert not created.errors
+        assert created.data is not None
+        provider_id = created.data["createGenerativeModelCustomProvider"]["provider"]["id"]
+        assert await stored_api_key(provider_id) == secret
+
+        # Echo the server-emitted redacted token back on patch — DB must still hold plaintext.
+        read_back = await _fetch_provider_via_node_query(gql_client, provider_id, self.QUERY)
+        echoed = read_back["config"]["openaiAuthenticationMethod"]["apiKey"]
+        patched = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": provider_id,
+                    "clientConfig": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": echoed},
+                        }
+                    },
+                }
+            },
+            operation_name="PatchGenerativeModelCustomProvider",
+        )
+        assert not patched.errors
+        assert await stored_api_key(provider_id) == secret
+
+    async def test_stale_redacted_token_surfaces_user_facing_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A redacted token from a different redactor must produce a user-facing
+        error, not the generic 'an unexpected error occurred' mask.
+        """
+        # Token minted by a DIFFERENT redactor, so the server's Fernet can't decrypt it.
+        other_redactor = Redactor(secret=Secret("different-secret-than-server"))
+        stale_token = other_redactor.redact("sk-original")
+
+        result = await gql_client.execute(
+            query="""
+            mutation Create($input: CreateGenerativeModelCustomProviderMutationInput!) {
+                createGenerativeModelCustomProvider(input: $input) { provider { id } }
+            }
+            """,
+            variables={
+                "input": {
+                    "name": f"test-stale-{token_hex(4)}",
+                    "provider": "openai",
+                    "clientConfig": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": stale_token},
+                        }
+                    },
+                }
+            },
+            operation_name="Create",
+        )
+        assert result.errors, "expected a GraphQL error for a stale redacted token"
+        assert len(result.errors) == 1
+        message = result.errors[0].message
+        # Must be the clean inner message — not the generic mask, and not the
+        # graphql-core "Variable '$input' got invalid value ..." prefix that
+        # leaks the raw submitted token and variable path.
+        assert message == (
+            "Invalid redacted string. Please fetch the correct redacted value from the server."
+        ), message
