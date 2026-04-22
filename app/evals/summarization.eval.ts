@@ -128,7 +128,7 @@ async function main() {
     client,
     experimentName: "session-summary-quality",
     experimentDescription:
-      "Forces the production summary tool against the model and grades the resulting 5-10 word session summary on format and topical accuracy.",
+      "Forces the production summary tool against the model and grades the resulting short session summary on format and topical accuracy.",
     dataset: { datasetName: DATASET_NAME },
     // The production model and the LLM judge both carry per-run noise
     // on borderline cases. Averaging over 3 repetitions per example
