@@ -723,6 +723,20 @@ def _maybe_parse_json_value(value: Any) -> Any:
     return value
 
 
+def _is_empty_csv_cell(value: Any) -> bool:
+    """Return True if a CSV cell has no meaningful entry (None or blank string)."""
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    return False
+
+
+def _drop_empty_csv_entries(bucket: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop keys from a CSV-derived bucket whose source cells had no entry."""
+    return {k: v for k, v in bucket.items() if not _is_empty_csv_cell(v)}
+
+
 def _build_bucket_from_dotted_keys(
     row: Mapping[str, Any],
     keys: frozenset[str],
@@ -732,13 +746,16 @@ def _build_bucket_from_dotted_keys(
 
     Keys starting with ``{bucket_prefix}.`` have the prefix stripped and the
     remaining dot-separated path is unflattened into nested dicts.  Plain keys
-    are included directly.
+    are included directly.  Columns with no entry for the given row are omitted.
     """
     prefix_dot = f"{bucket_prefix}."
     plain: dict[str, Any] = {}
     dotted: list[tuple[str, Any]] = []
     for key in keys:
-        value = _maybe_parse_json_value(row.get(key))
+        raw = row.get(key)
+        if _is_empty_csv_cell(raw):
+            continue
+        value = _maybe_parse_json_value(raw)
         if key.startswith(prefix_dot):
             remainder = key[len(prefix_dot) :]
             dotted.append((remainder, value))
@@ -1025,9 +1042,9 @@ async def _process_csv(
         for row in parsed_rows:
             examples.append(
                 ExampleContent(
-                    input=input_plan.project(row),
-                    output=output_plan.project(row),
-                    metadata=metadata_plan.project(row),
+                    input=_drop_empty_csv_entries(input_plan.project(row)),
+                    output=_drop_empty_csv_entries(output_plan.project(row)),
+                    metadata=_drop_empty_csv_entries(metadata_plan.project(row)),
                     splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
                     span_id=_get_span_id(row, span_id_key),
                     external_id=_get_example_id(row, example_id_key),
