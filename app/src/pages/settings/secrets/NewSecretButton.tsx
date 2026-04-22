@@ -21,7 +21,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import { SecretMutationForm } from "./SecretMutationForm";
 import { useSecretMutation } from "./SecretsMutation";
 
-export function NewSecretButton({ onComplete }: { onComplete: () => void }) {
+export function NewSecretButton({ connectionId }: { connectionId: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
@@ -67,10 +67,10 @@ export function NewSecretButton({ onComplete }: { onComplete: () => void }) {
                       input: {
                         secrets: [{ key: key.trim(), value: value.trim() }],
                       },
+                      connections: [connectionId],
                     },
                     onCompleted: () => {
                       setIsOpen(false);
-                      onComplete();
                       notifySuccess({
                         title: "Secret created",
                         message: `${key.trim()} is now stored on the server.`,

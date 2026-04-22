@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b1b902827b2fc8bc459878aaa0cf15a8>>
+ * @generated SignedSource<<bdfc2cfb2c7fdd5e34bc5dd5748461db>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,7 +35,10 @@ export type SettingsSecretsPageFragment$key = {
 import SettingsSecretsPageRefetchQuery_graphql from './SettingsSecretsPageRefetchQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  "secrets"
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -43,11 +46,37 @@ var v0 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": 100,
+      "kind": "LocalArgument",
+      "name": "count"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "cursor"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
+    "connection": [
+      {
+        "count": "count",
+        "cursor": "cursor",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
     "refetch": {
-      "connection": null,
+      "connection": {
+        "forward": {
+          "count": "count",
+          "cursor": "cursor"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
       "fragmentPathInResult": [],
       "operation": SettingsSecretsPageRefetchQuery_graphql
     }
@@ -55,17 +84,11 @@ return {
   "name": "SettingsSecretsPageFragment",
   "selections": [
     {
-      "alias": null,
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "first",
-          "value": 100
-        }
-      ],
+      "alias": "secrets",
+      "args": null,
       "concreteType": "SecretConnection",
       "kind": "LinkedField",
-      "name": "secrets",
+      "name": "__SettingsSecretsPage_secrets_connection",
       "plural": false,
       "selections": [
         {
@@ -84,7 +107,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v0/*: any*/),
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -107,7 +130,7 @@ return {
                   "name": "user",
                   "plural": false,
                   "selections": [
-                    (v0/*: any*/),
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -124,15 +147,54 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
                 }
               ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endCursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
           "storageKey": null
         }
       ],
-      "storageKey": "secrets(first:100)"
+      "storageKey": null
     }
   ],
   "type": "Query",
@@ -140,6 +202,6 @@ return {
 };
 })();
 
-(node as any).hash = "f693b67c9e54bcd6885167d74099636c";
+(node as any).hash = "9458ee6e39a893b28d61dc76c23e2639";
 
 export default node;

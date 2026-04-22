@@ -26,12 +26,12 @@ export function SecretsTable({
   data,
   authenticationEnabled,
   search,
-  onComplete,
+  connectionId,
 }: {
   data: SecretRow[];
   authenticationEnabled: boolean;
   search: string;
-  onComplete: () => void;
+  connectionId: string;
 }) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "updatedAt", desc: true },
@@ -81,11 +81,11 @@ export function SecretsTable({
           <Flex direction="row" gap="size-50" width="100%" justifyContent="end">
             <ReplaceSecretButton
               secretKey={row.original.key}
-              onComplete={onComplete}
+              connectionId={connectionId}
             />
             <DeleteSecretButton
               secretKey={row.original.key}
-              onComplete={onComplete}
+              connectionId={connectionId}
             />
           </Flex>
         );
@@ -96,7 +96,7 @@ export function SecretsTable({
     });
 
     return cols;
-  }, [authenticationEnabled, onComplete]);
+  }, [authenticationEnabled, connectionId]);
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<SecretRow>({
@@ -125,7 +125,10 @@ export function SecretsTable({
   const isEmpty = rows.length === 0;
 
   return (
-    <Card title="Secrets" extra={<NewSecretButton onComplete={onComplete} />}>
+    <Card
+      title="Secrets"
+      extra={<NewSecretButton connectionId={connectionId} />}
+    >
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (

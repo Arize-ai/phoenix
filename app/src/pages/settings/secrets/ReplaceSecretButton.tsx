@@ -23,10 +23,10 @@ import { useSecretMutation } from "./SecretsMutation";
 
 export function ReplaceSecretButton({
   secretKey,
-  onComplete,
+  connectionId,
 }: {
   secretKey: string;
-  onComplete: () => void;
+  connectionId: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,10 +75,10 @@ export function ReplaceSecretButton({
                       input: {
                         secrets: [{ key: secretKey, value: value.trim() }],
                       },
+                      connections: [connectionId],
                     },
                     onCompleted: () => {
                       setIsOpen(false);
-                      onComplete();
                       notifySuccess({
                         title: "Secret updated",
                         message: `${secretKey} has been replaced.`,

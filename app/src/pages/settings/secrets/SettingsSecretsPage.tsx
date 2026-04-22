@@ -1,12 +1,12 @@
 import {
   startTransition,
-  useCallback,
   useEffect,
   useEffectEvent,
   useMemo,
   useState,
 } from "react";
 import {
+  ConnectionHandler,
   graphql,
   usePreloadedQuery,
   useRefetchableFragment,
@@ -36,6 +36,8 @@ import { SecretsTable } from "./SecretsTable";
 import type { SettingsSecretsPageLoaderType } from "./settingsSecretsPageLoader";
 import { settingsSecretsPageLoaderGql } from "./settingsSecretsPageLoader";
 import type { SecretOwnerFilter } from "./types";
+
+export const SECRETS_CONNECTION_KEY = "SettingsSecretsPage_secrets";
 
 export function SettingsSecretsPage() {
   const { viewer } = useViewer();
@@ -67,8 +69,13 @@ function SettingsSecretsPageContent({
   >(
     graphql`
       fragment SettingsSecretsPageFragment on Query
-      @refetchable(queryName: "SettingsSecretsPageRefetchQuery") {
-        secrets(first: 100) {
+      @refetchable(queryName: "SettingsSecretsPageRefetchQuery")
+      @argumentDefinitions(
+        count: { type: "Int", defaultValue: 100 }
+        cursor: { type: "String" }
+      ) {
+        secrets(first: $count, after: $cursor)
+          @connection(key: "SettingsSecretsPage_secrets") {
           edges {
             node {
               id
@@ -90,15 +97,19 @@ function SettingsSecretsPageContent({
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<SecretOwnerFilter>("ALL");
 
-  const refresh = useCallback(() => {
-    refetch({}, { fetchPolicy: "store-and-network" });
-  }, [refetch]);
+  const connectionId = useMemo(
+    () =>
+      ConnectionHandler.getConnectionID("client:root", SECRETS_CONNECTION_KEY),
+    []
+  );
 
-  const refreshOnMount = useEffectEvent(refresh);
+  const refreshOnMount = useEffectEvent(() => {
+    refetch({}, { fetchPolicy: "store-and-network" });
+  });
 
   useEffect(() => {
-    // Mutations that modify secrets around the app do not support query-level
-    // fragment returns, so refetch secrets in the background on page mount.
+    // Secrets can be mutated outside this page (other surfaces don't yet
+    // update the connection), so refetch once on mount to get fresh data.
     refreshOnMount();
   }, []);
 
@@ -154,7 +165,7 @@ function SettingsSecretsPageContent({
         data={filteredTableData}
         authenticationEnabled={authenticationEnabled}
         search={search}
-        onComplete={refresh}
+        connectionId={connectionId}
       />
     </Flex>
   );

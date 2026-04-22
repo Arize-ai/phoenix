@@ -4,9 +4,24 @@ import type { SecretsMutationMutation } from "./__generated__/SecretsMutationMut
 
 export function useSecretMutation() {
   return useMutation<SecretsMutationMutation>(graphql`
-    mutation SecretsMutationMutation($input: UpsertOrDeleteSecretsMutationInput!) {
+    mutation SecretsMutationMutation(
+      $input: UpsertOrDeleteSecretsMutationInput!
+      $connections: [ID!]!
+    ) {
       upsertOrDeleteSecrets(input: $input) {
-        __typename
+        upsertedSecrets
+          @deleteEdge(connections: $connections)
+          @appendNode(connections: $connections, edgeTypeName: "SecretEdge") {
+          id
+          key
+          updatedAt
+          user {
+            id
+            username
+            profilePictureUrl
+          }
+        }
+        deletedIds @deleteEdge(connections: $connections)
       }
     }
   `);

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<267d9e71b89b93f8543c58e1470aeedd>>
+ * @generated SignedSource<<ef3769a4cbd462cccbfa71c5a348fba0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,10 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type SettingsSecretsPageRefetchQuery$variables = Record<PropertyKey, never>;
+export type SettingsSecretsPageRefetchQuery$variables = {
+  count?: number | null;
+  cursor?: string | null;
+};
 export type SettingsSecretsPageRefetchQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"SettingsSecretsPageFragment">;
 };
@@ -20,7 +23,31 @@ export type SettingsSecretsPageRefetchQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
+var v0 = [
+  {
+    "defaultValue": 100,
+    "kind": "LocalArgument",
+    "name": "count"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "cursor"
+  }
+],
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "after",
+    "variableName": "cursor"
+  },
+  {
+    "kind": "Variable",
+    "name": "first",
+    "variableName": "count"
+  }
+],
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -29,13 +56,24 @@ var v0 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "SettingsSecretsPageRefetchQuery",
     "selections": [
       {
-        "args": null,
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "count",
+            "variableName": "count"
+          },
+          {
+            "kind": "Variable",
+            "name": "cursor",
+            "variableName": "cursor"
+          }
+        ],
         "kind": "FragmentSpread",
         "name": "SettingsSecretsPageFragment"
       }
@@ -45,19 +83,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "SettingsSecretsPageRefetchQuery",
     "selections": [
       {
         "alias": null,
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "first",
-            "value": 100
-          }
-        ],
+        "args": (v1/*: any*/),
         "concreteType": "SecretConnection",
         "kind": "LinkedField",
         "name": "secrets",
@@ -79,7 +111,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v0/*: any*/),
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -102,7 +134,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v0/*: any*/),
+                      (v2/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -119,29 +151,77 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
                   }
                 ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
                 "storageKey": null
               }
             ],
             "storageKey": null
           }
         ],
-        "storageKey": "secrets(first:100)"
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "SettingsSecretsPage_secrets",
+        "kind": "LinkedHandle",
+        "name": "secrets"
       }
     ]
   },
   "params": {
-    "cacheID": "ba78c830e8d2ac5e295edc43e7dae12e",
+    "cacheID": "9d72ead7340f856693f6637dab2351f5",
     "id": null,
     "metadata": {},
     "name": "SettingsSecretsPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSecretsPageRefetchQuery {\n  ...SettingsSecretsPageFragment\n}\n\nfragment SettingsSecretsPageFragment on Query {\n  secrets(first: 100) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SettingsSecretsPageRefetchQuery(\n  $count: Int = 100\n  $cursor: String\n) {\n  ...SettingsSecretsPageFragment_1G22uz\n}\n\nfragment SettingsSecretsPageFragment_1G22uz on Query {\n  secrets(first: $count, after: $cursor) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f693b67c9e54bcd6885167d74099636c";
+(node as any).hash = "9458ee6e39a893b28d61dc76c23e2639";
 
 export default node;

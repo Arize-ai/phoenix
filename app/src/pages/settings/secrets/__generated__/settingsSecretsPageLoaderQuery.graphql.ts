@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<991d9e9a5f8f70f157d73b2c99e10733>>
+ * @generated SignedSource<<f7344fa6e24c88d4c0c8b66066ff5403>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,14 @@ export type settingsSecretsPageLoaderQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
+var v0 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 100
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -51,13 +58,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "first",
-            "value": 100
-          }
-        ],
+        "args": (v0/*: any*/),
         "concreteType": "SecretConnection",
         "kind": "LinkedField",
         "name": "secrets",
@@ -79,7 +80,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v0/*: any*/),
+                  (v1/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -102,7 +103,7 @@ return {
                     "name": "user",
                     "plural": false,
                     "selections": [
-                      (v0/*: any*/),
+                      (v1/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -119,8 +120,47 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "__typename",
+                    "storageKey": null
                   }
                 ],
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "cursor",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PageInfo",
+            "kind": "LinkedField",
+            "name": "pageInfo",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "endCursor",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasNextPage",
                 "storageKey": null
               }
             ],
@@ -128,16 +168,25 @@ return {
           }
         ],
         "storageKey": "secrets(first:100)"
+      },
+      {
+        "alias": null,
+        "args": (v0/*: any*/),
+        "filters": null,
+        "handle": "connection",
+        "key": "SettingsSecretsPage_secrets",
+        "kind": "LinkedHandle",
+        "name": "secrets"
       }
     ]
   },
   "params": {
-    "cacheID": "6a0bb21095b0b47b03502ed476909d25",
+    "cacheID": "df03cb0f0d66ff1df685f5d212efc3be",
     "id": null,
     "metadata": {},
     "name": "settingsSecretsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsSecretsPageLoaderQuery {\n  ...SettingsSecretsPageFragment\n}\n\nfragment SettingsSecretsPageFragment on Query {\n  secrets(first: 100) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query settingsSecretsPageLoaderQuery {\n  ...SettingsSecretsPageFragment\n}\n\nfragment SettingsSecretsPageFragment on Query {\n  secrets(first: 100) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

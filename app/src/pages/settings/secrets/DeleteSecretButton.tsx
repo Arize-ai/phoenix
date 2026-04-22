@@ -10,13 +10,13 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  Flex,
   Icon,
   Icons,
   Modal,
   ModalOverlay,
   Text,
   View,
-  Flex,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -25,10 +25,10 @@ import { useSecretMutation } from "./SecretsMutation";
 
 export function DeleteSecretButton({
   secretKey,
-  onComplete,
+  connectionId,
 }: {
   secretKey: string;
-  onComplete: () => void;
+  connectionId: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,10 +96,10 @@ export function DeleteSecretButton({
                           input: {
                             secrets: [{ key: secretKey, value: null }],
                           },
+                          connections: [connectionId],
                         },
                         onCompleted: () => {
                           setIsOpen(false);
-                          onComplete();
                           notifySuccess({
                             title: "Secret deleted",
                             message: `${secretKey} has been removed.`,
