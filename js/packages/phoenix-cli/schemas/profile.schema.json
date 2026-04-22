@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema URL for editor autocomplete. Pin to a GitHub raw URL at a released tag; see README.",
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Schema version. Bumped on breaking changes to the file format."
+    },
+    "activeProfile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Name of the profile to use when no --profile flag is passed. Must match a key in `profiles`."
+    },
+    "defaultPermissions": {
+      "description": "Fallback permission set applied to profiles that do not declare their own `permissions`. Profile-level permissions fully replace this list rather than extending it.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "A permission scope string. Grammar:\n- Exact: \"<resource>.<verb>\" (e.g. \"projects.delete\")\n- Resource wildcard: \"<resource>.*\" (all verbs on a resource)\n- Verb wildcard: \"*.<verb>\" (a verb across all resources)\n- Universal: \"*\" (all operations)\n\nCanonical form is two segments separated by \".\": <resource>.<verb>.\n\nv1 posture: only delete verbs are enforced today. Read and write operations are always allowed regardless of this list. See OPERATION_MAP in permissions.ts for the list of currently-enforced resource.verb pairs.\n\nUnknown scope strings are silently ignored at runtime rather than rejected, so forward-compatibility with future scopes does not require a schema version bump. Typos therefore do not surface as errors — double-check entries against the operation map.\n\nEnforcement spec: work item \"cli-per-resource-permissions-wire-enforcement\".",
+        "examples": [
+          "*",
+          "*.delete",
+          "projects.*",
+          "spans.*",
+          "traces.*",
+          "sessions.*",
+          "datasets.*",
+          "experiments.*",
+          "prompts.*",
+          "annotation_configs.*",
+          "projects.delete",
+          "spans.delete",
+          "traces.delete",
+          "sessions.delete",
+          "datasets.delete",
+          "experiments.delete",
+          "prompts.delete",
+          "annotation_configs.delete"
+        ]
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "description": "Phoenix server URL this profile targets (e.g. https://app.phoenix.arize.com or http://localhost:6006).",
+            "type": "string"
+          },
+          "project": {
+            "description": "Default Phoenix project name used when commands don't pass --project.",
+            "type": "string"
+          },
+          "headers": {
+            "description": "Extra HTTP headers sent with every request from this profile. Useful for custom auth or routing. Values override defaults.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "description": "Permissions granted to this profile. When omitted, the file-level defaultPermissions apply. When present, this list fully replaces the default set for this profile.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A permission scope string. Grammar:\n- Exact: \"<resource>.<verb>\" (e.g. \"projects.delete\")\n- Resource wildcard: \"<resource>.*\" (all verbs on a resource)\n- Verb wildcard: \"*.<verb>\" (a verb across all resources)\n- Universal: \"*\" (all operations)\n\nCanonical form is two segments separated by \".\": <resource>.<verb>.\n\nv1 posture: only delete verbs are enforced today. Read and write operations are always allowed regardless of this list. See OPERATION_MAP in permissions.ts for the list of currently-enforced resource.verb pairs.\n\nUnknown scope strings are silently ignored at runtime rather than rejected, so forward-compatibility with future scopes does not require a schema version bump. Typos therefore do not surface as errors — double-check entries against the operation map.\n\nEnforcement spec: work item \"cli-per-resource-permissions-wire-enforcement\".",
+              "examples": [
+                "*",
+                "*.delete",
+                "projects.*",
+                "spans.*",
+                "traces.*",
+                "sessions.*",
+                "datasets.*",
+                "experiments.*",
+                "prompts.*",
+                "annotation_configs.*",
+                "projects.delete",
+                "spans.delete",
+                "traces.delete",
+                "sessions.delete",
+                "datasets.delete",
+                "experiments.delete",
+                "prompts.delete",
+                "annotation_configs.delete"
+              ]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
+    }
+  },
+  "required": [
+    "version",
+    "activeProfile",
+    "profiles"
+  ],
+  "additionalProperties": false
+}
