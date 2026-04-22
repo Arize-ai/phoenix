@@ -31,10 +31,11 @@ from phoenix.server.api.types.pagination import (
     connection_from_cursors_and_nodes,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Span import Span, SpanKind
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
+from phoenix.trace.dsl import SpanFilter
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -42,6 +43,23 @@ if TYPE_CHECKING:
 
 ProjectRowId: TypeAlias = int
 TraceRowId: TypeAlias = int
+
+
+@strawberry.type
+class SpanKindCount:
+    span_kind: SpanKind
+    count: int
+
+
+@strawberry.type
+class SpanErrorTypeCount:
+    exception_type: Optional[str] = strawberry.field(
+        description=(
+            "The `exception.type` attribute of the span event. `None` when an errored "
+            "span has no accompanying `exception` event."
+        ),
+    )
+    count: int
 
 
 @strawberry.type
@@ -192,6 +210,45 @@ class Trace(Node):
     ) -> int:
         return await info.context.data_loaders.num_spans_per_trace.load(self.id)
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Count of each span kind present under this trace. Only kinds with "
+            "count > 0 are returned."
+        ),
+    )
+    async def span_counts_by_kind(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanKindCount]:
+        rows = await info.context.data_loaders.trace_span_counts_by_kind.load(self.id)
+        return [SpanKindCount(span_kind=SpanKind(kind), count=count) for kind, count in rows]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Count of spans under this trace with `status_code == ERROR`.",
+    )
+    async def error_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.trace_error_count.load(self.id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Breakdown of errored-span exception types under this trace. Each "
+            "`exception` event on an errored span contributes a count; errored spans "
+            "that carry no `exception` event contribute to the `null` bucket. Sorted "
+            "by count descending, then exception type ascending."
+        ),
+    )
+    async def errors_by_type(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanErrorTypeCount]:
+        rows = await info.context.data_loaders.trace_errors_by_type.load(self.id)
+        return [
+            SpanErrorTypeCount(exception_type=exc_type, count=count) for exc_type, count in rows
+        ]
+
     @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
     async def spans(
         self,
@@ -202,6 +259,7 @@ class Trace(Node):
         before: Optional[CursorString] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         assert isinstance(first, int)
 
@@ -225,6 +283,11 @@ class Trace(Node):
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             base_query = base_query.where(models.Span.id < cursor.rowid)
+        # Narrow by SpanFilter DSL (e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`)
+        # before any root-span CTE wrapping, so the filter applies to the candidate set.
+        if filter_condition:
+            span_filter = SpanFilter(condition=filter_condition)
+            base_query = span_filter(base_query)
         # Build final query based on filtering requirements
         if root_spans_only:
             if orphan_span_as_root_span:
