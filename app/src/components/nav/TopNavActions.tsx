@@ -20,11 +20,15 @@ export function TopNavActionsProvider({ children }: { children: ReactNode }) {
   );
 }
 
-const slotCSS = css`
+const flexRowCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: var(--global-dimension-static-size-100);
+`;
+
+const slotCSS = css`
+  ${flexRowCSS};
   margin-inline-start: auto;
 `;
 
@@ -44,22 +48,14 @@ export function TopNavActionsSlot() {
   );
 }
 
-const itemCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--global-dimension-static-size-100);
-`;
-
 /**
  * Declares content to be rendered in the top nav's right-side action area.
  * Children render in the declarer's React tree (inheriting its contexts) but
  * are portaled into the TopNavbar's slot via createPortal.
  *
- * `order` maps to the CSS `order` property on the portaled wrapper so a
- * caller can control visual position independent of React commit order —
- * useful when one contributor lives inside a Suspense boundary and another
- * does not.
+ * `order` maps to the CSS `order` property on a wrapper so a caller can
+ * control visual position independent of React commit order — useful when
+ * one contributor lives inside a Suspense boundary and another does not.
  */
 export function TopNavActions({
   children,
@@ -75,8 +71,11 @@ export function TopNavActions({
     );
   }
   if (!ctx.target) return null;
+  if (order === undefined) {
+    return createPortal(children, ctx.target);
+  }
   return createPortal(
-    <div css={itemCSS} style={order !== undefined ? { order } : undefined}>
+    <div css={flexRowCSS} style={{ order }}>
       {children}
     </div>,
     ctx.target

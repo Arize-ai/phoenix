@@ -12,6 +12,15 @@ type ProjectPageHeaderProps = {
   project: ProjectStats_project$key;
 };
 
+const headerViewProps = {
+  paddingStart: "size-200",
+  paddingEnd: "size-200",
+  paddingTop: "size-200",
+  paddingBottom: "size-50",
+  flex: "none",
+  overflow: "visible",
+} as const;
+
 export function ProjectPageHeader(props: ProjectPageHeaderProps) {
   const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   if (isTracingUxEnabled) {
@@ -22,14 +31,7 @@ export function ProjectPageHeader(props: ProjectPageHeaderProps) {
 
 function TracingUxProjectPageHeader() {
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-200"
-      paddingBottom="size-50"
-      flex="none"
-      overflow="visible"
-    >
+    <View {...headerViewProps}>
       <Suspense fallback={<Loading size="S" />}>
         <ProjectTraceCountSparkline />
       </Suspense>
@@ -39,14 +41,7 @@ function TracingUxProjectPageHeader() {
 
 function LegacyProjectPageHeader({ project }: ProjectPageHeaderProps) {
   return (
-    <View
-      paddingStart="size-200"
-      paddingEnd="size-200"
-      paddingTop="size-200"
-      paddingBottom="size-50"
-      flex="none"
-      overflow="visible"
-    >
+    <View {...headerViewProps}>
       <div css={statsScrollCSS}>
         <ProjectStats project={project} />
       </div>
