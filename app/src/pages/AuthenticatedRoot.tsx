@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import type { PreloadedQuery } from "react-relay";
+import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -7,7 +9,11 @@ import { AgentChatWidget } from "@phoenix/components/agent";
 import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { ViewerProvider } from "@phoenix/contexts/ViewerContext";
-import type { authenticatedRootLoader } from "@phoenix/pages/authenticatedRootLoader";
+import type { authenticatedRootLoaderQuery } from "@phoenix/pages/__generated__/authenticatedRootLoaderQuery.graphql";
+import {
+  authenticatedRootLoaderQueryNode,
+  type AuthenticatedRootLoaderData,
+} from "@phoenix/pages/authenticatedRootLoader";
 
 import { AppAlerts } from "./AppAlerts";
 
@@ -15,24 +21,34 @@ import { AppAlerts } from "./AppAlerts";
  * The root of the authenticated application. Note that authentication might be entirely disabled
  */
 export function AuthenticatedRoot() {
-  const loaderData = useLoaderData<typeof authenticatedRootLoader>();
+  const loaderData = useLoaderData<AuthenticatedRootLoaderData>();
   invariant(loaderData, "loaderData is required");
+  const data = usePreloadedQuery<authenticatedRootLoaderQuery>(
+    authenticatedRootLoaderQueryNode,
+    loaderData.queryRef as PreloadedQuery<authenticatedRootLoaderQuery>
+  );
+
+  useEffect(() => {
+    return () => {
+      loaderData.queryRef.dispose?.();
+    };
+  }, [loaderData.queryRef]);
 
   // Set analytics if enabled
   useEffect(() => {
     // Double check that there is a viewer and that FullStory is enabled
-    if (isFullStoryEnabled() && loaderData.viewer) {
+    if (isFullStoryEnabled() && data.viewer) {
       setIdentity({
-        uid: loaderData.viewer.id,
-        displayName: loaderData.viewer.username,
-        email: loaderData.viewer.email,
+        uid: data.viewer.id,
+        displayName: data.viewer.username,
+        email: data.viewer.email,
       });
     }
-  }, [loaderData]);
+  }, [data.viewer]);
 
   return (
-    <ViewerProvider query={loaderData}>
-      <AgentProvider agentsConfig={loaderData.agentsConfig}>
+    <ViewerProvider query={data}>
+      <AgentProvider agentsConfig={data.agentsConfig}>
         <AgentChatRuntimeProvider>
           <AgentChatWidget />
           <AppAlerts />
