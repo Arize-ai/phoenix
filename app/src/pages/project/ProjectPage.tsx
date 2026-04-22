@@ -66,12 +66,17 @@ export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
   return (
-    <Suspense fallback={<Loading />}>
-      <ProjectPageContent
-        projectId={projectId as string}
-        timeRange={timeRange}
-      />
-    </Suspense>
+    <>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<Loading />}>
+        <ProjectPageContent
+          projectId={projectId as string}
+          timeRange={timeRange}
+        />
+      </Suspense>
+    </>
   );
 }
 
@@ -230,9 +235,8 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
-      <TopNavActions>
+      <TopNavActions order={-1}>
         <StreamToggle project={data.project} />
-        <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
       <ProjectPageHeader project={data.project} />
       <ProjectPageQueryReferenceContext.Provider

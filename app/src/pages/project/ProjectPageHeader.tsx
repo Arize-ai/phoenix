@@ -8,10 +8,19 @@ import type { ProjectStats_project$key } from "./__generated__/ProjectStats_proj
 import { ProjectStats } from "./ProjectStats";
 import { ProjectTraceCountSparkline } from "./ProjectTraceCountSparkline";
 
-export function ProjectPageHeader(props: {
+type ProjectPageHeaderProps = {
   project: ProjectStats_project$key;
-}) {
+};
+
+export function ProjectPageHeader(props: ProjectPageHeaderProps) {
   const isTracingUxEnabled = useFeatureFlag("tracing_ux");
+  if (isTracingUxEnabled) {
+    return <TracingUxProjectPageHeader />;
+  }
+  return <LegacyProjectPageHeader {...props} />;
+}
+
+function TracingUxProjectPageHeader() {
   return (
     <View
       paddingStart="size-200"
@@ -21,15 +30,26 @@ export function ProjectPageHeader(props: {
       flex="none"
       overflow="visible"
     >
-      {isTracingUxEnabled ? (
-        <Suspense fallback={<Loading size="S" />}>
-          <ProjectTraceCountSparkline />
-        </Suspense>
-      ) : (
-        <div css={statsScrollCSS}>
-          <ProjectStats project={props.project} />
-        </div>
-      )}
+      <Suspense fallback={<Loading size="S" />}>
+        <ProjectTraceCountSparkline />
+      </Suspense>
+    </View>
+  );
+}
+
+function LegacyProjectPageHeader({ project }: ProjectPageHeaderProps) {
+  return (
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-200"
+      paddingBottom="size-50"
+      flex="none"
+      overflow="visible"
+    >
+      <div css={statsScrollCSS}>
+        <ProjectStats project={project} />
+      </div>
     </View>
   );
 }

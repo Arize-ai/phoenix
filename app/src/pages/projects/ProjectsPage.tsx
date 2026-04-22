@@ -128,9 +128,14 @@ export function ProjectsPage() {
   );
 
   return (
-    <Suspense fallback={<Loading />}>
-      <ProjectsPageContent timeRange={timeRange} query={data} />
-    </Suspense>
+    <>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<Loading />}>
+        <ProjectsPageContent timeRange={timeRange} query={data} />
+      </Suspense>
+    </>
   );
 }
 
@@ -313,108 +318,103 @@ export function ProjectsPageContent({
   }, [loadNext, queryArgs]);
 
   return (
-    <>
-      <TopNavActions>
-        <ConnectedTimeRangeSelector size="S" />
-      </TopNavActions>
-      <div
-        css={css`
-          display: flex;
-          flex-direction: column;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={projectsContainerRef}
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={projectsContainerRef}
+    >
+      <View
+        padding="size-200"
+        width="100%"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
       >
-        <View
-          padding="size-200"
-          width="100%"
-          borderBottomColor="default"
-          borderBottomWidth="thin"
-          flex="none"
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          gap="size-100"
         >
+          <DebouncedSearch
+            aria-label="Search projects by name"
+            placeholder="Search projects by name"
+            onChange={(newSearch) => {
+              setFilter(newSearch);
+              refetch({
+                vars: {
+                  filter: { value: newSearch, col: "name" },
+                },
+              });
+            }}
+          />
           <Flex
             direction="row"
-            justifyContent="space-between"
+            justifyContent="end"
             alignItems="center"
             gap="size-100"
+            css={css`
+              button {
+                text-wrap: nowrap;
+              }
+            `}
           >
-            <DebouncedSearch
-              aria-label="Search projects by name"
-              placeholder="Search projects by name"
-              onChange={(newSearch) => {
-                setFilter(newSearch);
-                refetch({
-                  vars: {
-                    filter: { value: newSearch, col: "name" },
-                  },
-                });
-              }}
-            />
-            <Flex
-              direction="row"
-              justifyContent="end"
-              alignItems="center"
-              gap="size-100"
-              css={css`
-                button {
-                  text-wrap: nowrap;
-                }
-              `}
-            >
-              <ProjectViewModeToggle />
-              <CanModify>
-                <NewProjectButton
-                  variant="primary"
-                  onProjectCreated={() => refetch({})}
-                />
-              </CanModify>
-            </Flex>
+            <ProjectViewModeToggle />
+            <CanModify>
+              <NewProjectButton
+                variant="primary"
+                onProjectCreated={() => refetch({})}
+              />
+            </CanModify>
           </Flex>
-        </View>
-        {projectViewMode === "grid" ? (
-          <div
-            css={css`
-              display: flex;
-              flex-direction: column;
-              flex: 1 1 auto;
-            `}
-          >
-            <ProjectsGrid
-              projects={projects}
-              onDelete={onDelete}
-              onClear={onClear}
-              onRemove={onRemove}
-              timeRangeVariable={timeRangeVariable}
-              hasNext={hasNext}
-              loadNext={loadNextWithArgs}
-              isLoadingNext={isLoadingNext}
-              onSort={onSort}
-            />
-          </div>
-        ) : (
-          <div
-            css={css`
-              display: flex;
-              flex-direction: column;
-              flex: 1 1 auto;
-            `}
-          >
-            <ProjectsTable
-              projects={projects}
-              onDelete={onDelete}
-              onClear={onClear}
-              onRemove={onRemove}
-              timeRangeVariable={timeRangeVariable}
-              hasNext={hasNext}
-              loadNext={loadNextWithArgs}
-              isLoadingNext={isLoadingNext}
-              onSort={onSort}
-            />
-          </div>
-        )}
-      </div>
-    </>
+        </Flex>
+      </View>
+      {projectViewMode === "grid" ? (
+        <div
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+          `}
+        >
+          <ProjectsGrid
+            projects={projects}
+            onDelete={onDelete}
+            onClear={onClear}
+            onRemove={onRemove}
+            timeRangeVariable={timeRangeVariable}
+            hasNext={hasNext}
+            loadNext={loadNextWithArgs}
+            isLoadingNext={isLoadingNext}
+            onSort={onSort}
+          />
+        </div>
+      ) : (
+        <div
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+          `}
+        >
+          <ProjectsTable
+            projects={projects}
+            onDelete={onDelete}
+            onClear={onClear}
+            onRemove={onRemove}
+            timeRangeVariable={timeRangeVariable}
+            hasNext={hasNext}
+            loadNext={loadNextWithArgs}
+            isLoadingNext={isLoadingNext}
+            onSort={onSort}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
