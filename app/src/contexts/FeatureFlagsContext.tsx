@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agents" | "tracing_ux";
+type FeatureFlag = "agents" | "tracing_ux" | "sessions_ux";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -23,6 +23,7 @@ const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   // TODO: when this flag is removed, update agentStore.ts by resetting / removing the persistence migration
   agents: false,
   tracing_ux: false,
+  sessions_ux: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {

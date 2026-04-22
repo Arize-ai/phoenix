@@ -32,6 +32,8 @@ export type TraceTreeProps = {
   selectedSpanNodeId: string;
 };
 
+export { TraceTreeProvider } from "./TraceTreeContext";
+
 /**
  * The amount of padding to add to the left of the span item for each level of nesting.
  */
@@ -60,20 +62,18 @@ export function TraceTree(props: TraceTreeProps) {
     end: rootSpan.endTime ? new Date(rootSpan.endTime) : new Date(),
   };
   return (
-    <TraceTreeProvider>
-      <div
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100%;
+        align-items: stretch;
+        container-type: inline-size;
+      `}
+    >
+      <ul
         css={css`
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          height: 100%;
-          align-items: stretch;
-          container-type: inline-size;
-        `}
-      >
-        <TraceTreeToolbar />
-        <ul
-          css={css`
             flex: 1 1 auto;
             display: flex;
             flex-direction: column;
@@ -110,24 +110,23 @@ export function TraceTree(props: TraceTreeProps) {
               }
             }
           `}
-          data-testid="trace-tree"
-        >
-          {spanTree.map((spanNode) => (
-            <SpanTreeItem
-              key={spanNode.span.id}
-              node={spanNode}
-              overallTimeRange={overallTimeRange}
-              onSpanClick={onSpanClick}
-              selectedSpanNodeId={selectedSpanNodeId}
-            />
-          ))}
-        </ul>
-      </div>
-    </TraceTreeProvider>
+        data-testid="trace-tree"
+      >
+        {spanTree.map((spanNode) => (
+          <SpanTreeItem
+            key={spanNode.span.id}
+            node={spanNode}
+            overallTimeRange={overallTimeRange}
+            onSpanClick={onSpanClick}
+            selectedSpanNodeId={selectedSpanNodeId}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function TraceTreeToolbar() {
+export function TraceTreeToolbar() {
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
