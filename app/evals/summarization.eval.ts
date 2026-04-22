@@ -140,7 +140,7 @@ async function main() {
         example.input as SummarizationExample;
 
       const summarizePrompt = [
-        "Summarize this conversation in 5-10 words:",
+        "Summarize this conversation:",
         `User: ${userMessage}`,
         `Assistant: ${assistantMessage}`,
       ].join("\n");
