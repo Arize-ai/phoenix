@@ -2813,6 +2813,84 @@ async def test_post_dataset_upload_flatten_keys_partial(
     assert revisions[0].metadata_ == {"metadata": {"source": "test"}}
 
 
+async def test_post_dataset_upload_jsonl_flatten_metadata_missing_in_some_rows(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Flattening a metadata parent unwraps it even when some rows omit the key.
+
+    When "metadata" is in both metadata_keys and flatten_keys, the resulting
+    bucket should contain the object's children directly, not be wrapped as
+    {"metadata": {...}}. Rows missing the key produce an empty bucket.
+    """
+    name = inspect.stack()[0][3]
+    jsonl_content = (
+        b'{"input": {"question": "What is 2+2?"}, "output": {"answer": "4"}, '
+        b'"metadata": {"category": "math", "difficulty": "easy"}}\n'
+        b'{"input": {"question": "Capital of France?"}, "output": {"answer": "Paris"}, '
+        b'"metadata": {"category": "geography"}}\n'
+        b'{"input": {"question": "Describe photosynthesis"}, '
+        b'"output": {"answer": "Plants convert light to energy"}, '
+        b'"metadata": {"difficulty": null}}\n'
+        b'{"input": {"prompt": "Write a haiku"}, '
+        b'"output": {"response": "Cherry blossoms fall"}, '
+        b'"metadata": {"category": "creative"}}\n'
+        b'{"input": {"question": "Largest ocean?"}, "output": {"answer": "Pacific"}}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input"],
+            "output_keys[]": ["output"],
+            "metadata_keys[]": ["metadata"],
+            "flatten_keys[]": ["input", "output", "metadata"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 5
+
+    assert revisions[0].input == {"question": "What is 2+2?"}
+    assert revisions[0].output == {"answer": "4"}
+    assert revisions[0].metadata_ == {"category": "math", "difficulty": "easy"}
+
+    assert revisions[1].input == {"question": "Capital of France?"}
+    assert revisions[1].output == {"answer": "Paris"}
+    assert revisions[1].metadata_ == {"category": "geography"}
+
+    assert revisions[2].input == {"question": "Describe photosynthesis"}
+    assert revisions[2].output == {"answer": "Plants convert light to energy"}
+    # Explicit nulls inside metadata are preserved.
+    assert revisions[2].metadata_ == {"difficulty": None}
+
+    # Row 4 uses a different input/output shape; only the keys present in this
+    # row are emitted into the respective buckets.
+    assert revisions[3].input == {"prompt": "Write a haiku"}
+    assert revisions[3].output == {"response": "Cherry blossoms fall"}
+    assert revisions[3].metadata_ == {"category": "creative"}
+
+    # Row 5 has no metadata key; the bucket is empty rather than double-wrapped.
+    assert revisions[4].input == {"question": "Largest ocean?"}
+    assert revisions[4].output == {"answer": "Pacific"}
+    assert revisions[4].metadata_ == {}
+
+
 @pytest.mark.parametrize("sync", [True, False])
 @pytest.mark.parametrize("action", ["create", "append"])
 @pytest.mark.parametrize(
