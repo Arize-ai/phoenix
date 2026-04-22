@@ -1,7 +1,7 @@
-import { useEffect } from "react";
 import type { PreloadedQuery } from "react-relay";
-import { usePreloadedQuery } from "react-relay";
+import { usePreloadedQuery, useQueryLoader } from "react-relay";
 import type { GraphQLTaggedNode, OperationType } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 export type OwnedPreloadedQueryRef<TQuery extends OperationType> =
   PreloadedQuery<TQuery> & {
@@ -22,13 +22,10 @@ export function useOwnedPreloadedQuery<TQuery extends OperationType>({
   query: GraphQLTaggedNode;
   queryRef: OwnedPreloadedQueryRef<TQuery>;
 }) {
-  const data = usePreloadedQuery<TQuery>(query, queryRef);
-
-  useEffect(() => {
-    return () => {
-      queryRef.dispose?.();
-    };
-  }, [queryRef]);
-
-  return data;
+  const [ownedQueryRef] = useQueryLoader<TQuery>(query, queryRef);
+  invariant(
+    ownedQueryRef,
+    "ownedQueryRef is required when initialized from queryRef"
+  );
+  return usePreloadedQuery<TQuery>(query, ownedQueryRef);
 }
