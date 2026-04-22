@@ -31,6 +31,12 @@ export const ProfileEntrySchema = z.object({
     .describe(
       "Phoenix server URL this profile targets (e.g. https://app.phoenix.arize.com or http://localhost:6006)."
     ),
+  apiKey: z
+    .string()
+    .optional()
+    .describe(
+      "API key sent as `Authorization: Bearer <apiKey>` with every request. Accepts both user and system API keys for self-hosted Phoenix and Phoenix Cloud. Treat as a secret — the profiles file should be user-readable only (mode 0600)."
+    ),
   project: z
     .string()
     .optional()
