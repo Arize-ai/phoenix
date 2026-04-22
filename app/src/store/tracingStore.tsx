@@ -77,6 +77,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       metadata: false,
       spanId: false,
       traceId: false,
+      "trace annotations": false,
     },
     columnSizing: {
       metadata: 200,

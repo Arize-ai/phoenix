@@ -490,10 +490,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            <TraceAnnotationSummaryGroupTokens
-              trace={row.original.trace}
-              showFilterActions
-            />
+            <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
           </Flex>
         );
       },

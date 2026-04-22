@@ -587,7 +587,6 @@ export function TracesTable(props: TracesTableProps) {
                     typeof TraceAnnotationSummaryGroupTokens
                   >[0]["trace"]
                 }
-                showFilterActions
               />
             </Flex>
           );
