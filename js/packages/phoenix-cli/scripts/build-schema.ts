@@ -111,4 +111,4 @@ execFileSync(
   { stdio: "inherit" }
 );
 
-console.log(`Written: ${outFile}`);
+process.stdout.write(`Written: ${outFile}\n`);
