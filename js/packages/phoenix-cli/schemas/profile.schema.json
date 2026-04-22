@@ -114,10 +114,6 @@
       "description": "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
     }
   },
-  "required": [
-    "version",
-    "activeProfile",
-    "profiles"
-  ],
+  "required": ["version", "activeProfile", "profiles"],
   "additionalProperties": false
 }
