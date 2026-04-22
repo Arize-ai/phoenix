@@ -798,13 +798,20 @@ class BucketPlan:
 
         return cls(direct_keys=direct_keys, flatten_map=flatten_map)
 
-    def project(self, row: Mapping[str, Any]) -> dict[str, Any]:
-        result = {k: row.get(k) for k in self.direct_keys}
+    def project(self, row: Mapping[str, Any], *, skip_missing: bool = False) -> dict[str, Any]:
+        if skip_missing:
+            result = {k: row[k] for k in self.direct_keys if k in row}
+        else:
+            result = {k: row.get(k) for k in self.direct_keys}
         for parent, children in self.flatten_map.items():
+            if skip_missing and parent not in row:
+                continue
             value = row.get(parent)
             if not isinstance(value, Mapping):
                 raise ValueError(f"Cannot flatten '{parent}': expected object")
             for child in children:
+                if skip_missing and child not in value:
+                    continue
                 result[child] = value.get(child)
         return result
 
@@ -1130,9 +1137,9 @@ async def _process_jsonl(
         examples: list[ExampleContent] = []
         for obj in rows:
             example = ExampleContent(
-                input=input_plan.project(obj),
-                output=output_plan.project(obj),
-                metadata=metadata_plan.project(obj),
+                input=input_plan.project(obj, skip_missing=True),
+                output=output_plan.project(obj, skip_missing=True),
+                metadata=metadata_plan.project(obj, skip_missing=True),
                 splits=_get_splits(row=obj, split_key=split_key, split_keys=split_keys),
                 span_id=_get_span_id(obj, span_id_key),
                 external_id=_get_example_id(obj, example_id_key),

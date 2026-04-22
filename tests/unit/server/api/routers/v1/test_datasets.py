@@ -814,6 +814,81 @@ async def test_post_dataset_upload_jsonl_create_then_append(
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
+async def test_post_dataset_upload_jsonl_preserves_per_row_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Each JSONL example should retain only the keys present in its source row.
+
+    Regression: when rows have disjoint top-level keys, the backend was filling
+    missing keys with None, producing the union of keys across every example.
+    """
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"a": "foo", "x": "m"}\n{"b": "bar", "y": "n"}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["x", "y"],
+        },
+    )
+    assert response.status_code == 200
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": "foo"}
+    assert revisions[0].output == {"x": "m"}
+    assert revisions[1].input == {"b": "bar"}
+    assert revisions[1].output == {"y": "n"}
+
+
+async def test_post_dataset_upload_jsonl_preserves_explicit_null(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """An explicit null in a JSONL row must be preserved, distinct from a missing key."""
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"a": null, "b": "x"}\n{"b": "y"}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+        },
+    )
+    assert response.status_code == 200
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+    # Row 1: explicit null must be preserved as None.
+    assert revisions[0].input == {"a": None, "b": "x"}
+    # Row 2: `a` was absent from the source row — it must stay absent, not be filled with None.
+    assert revisions[1].input == {"b": "y"}
+
+
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -2610,11 +2685,11 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
     }
     assert revisions[0].output == {"answer": "4"}
 
-    # Second row: difficulty is missing from input, so it will be None
+    # Second row's source `input` has no "difficulty" key, so it is omitted
+    # from the flattened bucket rather than filled with None.
     assert revisions[1].input == {
         "question": "Capital of France?",
         "context": "geography",
-        "difficulty": None,
     }
     assert revisions[1].output == {"answer": "Paris"}
 
