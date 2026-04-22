@@ -33,6 +33,11 @@ The script prints the experiment URL on completion. Inspect results in the Phoen
 npx @arizeai/phoenix-cli experiment list --dataset phoenix-documentation-questions
 ```
 
+## Available evals
+
+- `documentation.eval.ts` — checks that the agent system prompt + Mintlify docs MCP produces well-structured markdown links to the public Phoenix docs.
+- `summarization.eval.ts` — exercises the session-summary path used by `useGenerateSessionSummary.ts`. Forces the production `summary` tool against the model on a golden set of (user, assistant) exchanges and grades each result with an LLM judge for topical accuracy.
+
 ## Adding a new eval
 
 1. Create `evals/<name>.eval.ts` following the structure of `documentation.eval.ts`.

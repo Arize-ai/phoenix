@@ -135,7 +135,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
-            ...ProjectPageHeader_stats
+            ...ProjectStats_project
             ...StreamToggle_data
           }
         }

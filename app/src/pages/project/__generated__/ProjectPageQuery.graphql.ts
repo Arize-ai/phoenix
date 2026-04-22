@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<426421d9efdba4adea8e636be9b18342>>
+ * @generated SignedSource<<4014015c4649f623e7f7ef8ac96a24b9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,7 @@ export type ProjectPageQuery$variables = {
 };
 export type ProjectPageQuery$data = {
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats" | "StreamToggle_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project" | "StreamToggle_data">;
   };
 };
 export type ProjectPageQuery = {
@@ -86,7 +86,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "ProjectPageHeader_stats"
+                "name": "ProjectStats_project"
               },
               {
                 "args": null,
@@ -242,16 +242,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a4d5dd7c54e37a658e854f3bce8af11e",
+    "cacheID": "d2ceed800a251dd00827f1f0c94223d0",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectPageHeader_stats\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectStats_project\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0b38e66a1a8b905e07cfde61b049a4f6";
+(node as any).hash = "30878d78c8f1aa980cb72fce40ab5b03";
 
 export default node;

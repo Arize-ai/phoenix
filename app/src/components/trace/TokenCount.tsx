@@ -3,6 +3,7 @@ import type { HTMLAttributes, Ref } from "react";
 
 import type { TextProps } from "@phoenix/components";
 import { Icon, Icons, Text } from "@phoenix/components";
+import { getTextColor } from "@phoenix/components/core/content/textUtils";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 const tokenCountItemCSS = css`
@@ -22,14 +23,17 @@ const tokenCountItemCSS = css`
 interface TokenCountProps extends HTMLAttributes<HTMLDivElement> {
   children: number | null | undefined;
   size?: TextProps["size"];
+  color?: TextProps["color"];
 }
 
 function TokenCount({
   ref,
   ...props
 }: TokenCountProps & { ref?: Ref<HTMLDivElement> }) {
-  const { children, size = "M", ...otherProps } = props;
+  const { children, color = "text-900", size = "M", ...otherProps } = props;
 
+  // color match text with icon
+  const appliedColor = getTextColor(color);
   const text = typeof children === "number" ? formatNumber(children) : "--";
   return (
     <div
@@ -42,10 +46,10 @@ function TokenCount({
       <Icon
         svg={<Icons.TokensOutline />}
         css={css`
-          color: var(--global-text-color-900);
+          color: ${appliedColor};
         `}
       />
-      <Text size={props.size} fontFamily="mono">
+      <Text size={props.size} color={color} fontFamily="mono">
         {text}
       </Text>
     </div>

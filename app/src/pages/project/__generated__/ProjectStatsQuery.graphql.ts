@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cc10d9c125b33bb0ac6c299655146869>>
+ * @generated SignedSource<<c45c25a6c9eade2eaae88c05cc6704e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,18 +14,18 @@ export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
-export type ProjectPageHeaderQuery$variables = {
+export type ProjectStatsQuery$variables = {
   id: string;
   timeRange?: TimeRange | null;
 };
-export type ProjectPageHeaderQuery$data = {
+export type ProjectStatsQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectPageHeader_stats">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project">;
   };
 };
-export type ProjectPageHeaderQuery = {
-  response: ProjectPageHeaderQuery$data;
-  variables: ProjectPageHeaderQuery$variables;
+export type ProjectStatsQuery = {
+  response: ProjectStatsQuery$data;
+  variables: ProjectStatsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -71,7 +71,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectPageHeaderQuery",
+    "name": "ProjectStatsQuery",
     "selections": [
       {
         "alias": null,
@@ -84,7 +84,7 @@ return {
           {
             "args": null,
             "kind": "FragmentSpread",
-            "name": "ProjectPageHeader_stats"
+            "name": "ProjectStats_project"
           }
         ],
         "storageKey": null
@@ -100,7 +100,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectPageHeaderQuery",
+    "name": "ProjectStatsQuery",
     "selections": [
       {
         "alias": null,
@@ -227,16 +227,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7e327e9f3040f641fb0b90a33759c5dc",
+    "cacheID": "70737059c381d2bf427cefe5b68bc169",
     "id": null,
     "metadata": {},
-    "name": "ProjectPageHeaderQuery",
+    "name": "ProjectStatsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageHeaderQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectPageHeader_stats\n    id\n  }\n}\n\nfragment ProjectPageHeader_stats on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
+    "text": "query ProjectStatsQuery(\n  $timeRange: TimeRange\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectStats_project\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "042b76a71b57987b50febe61073a6b21";
+(node as any).hash = "c81b99ab1904f209b6f4194123e9fb99";
 
 export default node;

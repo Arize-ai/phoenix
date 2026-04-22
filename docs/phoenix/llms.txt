@@ -66,6 +66,7 @@
 - [Exporting Annotated Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans): Export spans with annotations
 - [Extract Data from Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans): Query span attributes via Phoenix client
 - [Importing Traces](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces): Import traces from external sources
+- [Import ATIF Trajectories](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories): Upload agent trajectories in ATIF format and visualize them as Phoenix traces
 - [Retrieve Traces via CLI](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli): Query traces from the command line
 
 ### Advanced Tracing
@@ -231,6 +232,7 @@
 - [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
 - [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
+- [Strands Agents Tracing](https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): Auto-instrument Strands Agents with openinference-instrumentation-strands-agents
 
 ### TypeScript Frameworks
 
@@ -314,7 +316,24 @@
 - [TypeScript SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview): Install and configure the Phoenix TypeScript SDK
 - [TypeScript API Reference](https://arize-ai.github.io/phoenix/modules.html): Full auto-generated TypeScript API docs
 - [Phoenix Client (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client): Manage traces, datasets, and prompts via @arizeai/phoenix-client
+- [Phoenix Client Overview (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview): Typed TypeScript client for Phoenix platform APIs — install, configure, and use module entrypoints
+- [Phoenix Client Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations): Attach span, session, and document annotations via @arizeai/phoenix-client
+- [Phoenix Client Datasets (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets): Create and inspect datasets via @arizeai/phoenix-client
+- [Phoenix Client Document Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations): Log document-level annotations for RAG evaluation via @arizeai/phoenix-client
+- [Phoenix Client Experiments (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments): Run experiments via @arizeai/phoenix-client
+- [Phoenix Client Prompts (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts): Manage prompts via @arizeai/phoenix-client
+- [Phoenix Client Session Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations): Log session-level annotations for conversation evaluation via @arizeai/phoenix-client
+- [Phoenix Client Sessions (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions): Work with sessions via @arizeai/phoenix-client
+- [Phoenix Client Span Annotations (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations): Log and retrieve span-level annotations via @arizeai/phoenix-client
+- [Phoenix Client Spans (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans): Search and manage spans via @arizeai/phoenix-client
+- [Phoenix Client Traces (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces): Retrieve traces via @arizeai/phoenix-client
 - [Phoenix Evals (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals): Run LLM and code evaluators via @arizeai/phoenix-evals
+- [Phoenix Evals Overview (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview): Install and configure @arizeai/phoenix-evals for TypeScript evaluation workflows
+- [Phoenix Evals Classification (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification): Run classification evaluations with @arizeai/phoenix-evals
+- [Phoenix Evals Create Evaluator (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator): Build custom evaluators with @arizeai/phoenix-evals
+- [Phoenix Evals LLM Evaluators (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators): Use LLM-backed evaluators in @arizeai/phoenix-evals
+- [Phoenix Evals Phoenix Integration (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration): Connect @arizeai/phoenix-evals to Phoenix experiments for end-to-end evaluation
+- [Phoenix Evals Templates (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates): Template helpers for structuring evaluator prompts in @arizeai/phoenix-evals
 - [Phoenix OTEL (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel): Register Phoenix tracing and use OpenInference helpers via @arizeai/phoenix-otel
 - [Phoenix OTEL Overview (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview): Configure `register()`, OTLP export, instrumentations, and provider lifecycle in @arizeai/phoenix-otel
 - [Phoenix OTEL Tracing Helpers (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers): Wrap functions and methods with `withSpan`, `traceChain`, `traceAgent`, and `traceTool`

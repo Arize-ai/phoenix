@@ -56,6 +56,20 @@ export type AgentObservabilitySettings = {
 };
 
 /**
+ * Usage metrics like token usage.
+ *
+ * May be extended to costs, tool call count, etc
+ */
+export type AgentSessionUsage = {
+  tokenCount: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+  // this can be extended with cost in the future
+};
+
+/**
  * An agent conversation session containing messages, context references,
  * and its own model configuration (initially cloned from the default).
  */
@@ -71,6 +85,8 @@ export type AgentSession = {
   modelConfig: ModelConfig;
   /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
   createdAt: number;
+  /** Usage metrics returned as metadata from llm invocations */
+  usage?: AgentSessionUsage;
 };
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -172,6 +188,10 @@ export interface AgentState extends AgentProps {
   ) => void;
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+  setSessionUsage: (
+    sessionId: string,
+    newUsage: { prompt: number; completion: number }
+  ) => void;
 }
 
 /**
@@ -441,6 +461,40 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setSessionChatStatus" }
+      );
+    },
+
+    setSessionUsage: (sessionId, newUsage) => {
+      set(
+        (state) => {
+          const session = state.sessionMap[sessionId];
+          if (!session) return state;
+          const usage: AgentSessionUsage = session.usage ?? {
+            tokenCount: {
+              total: 0,
+              completion: 0,
+              prompt: 0,
+            },
+          };
+          return {
+            sessionMap: {
+              ...state.sessionMap,
+              [sessionId]: {
+                ...session,
+                usage: {
+                  ...usage,
+                  tokenCount: {
+                    prompt: newUsage.prompt,
+                    completion: newUsage.completion,
+                    total: newUsage.prompt + newUsage.completion,
+                  } satisfies AgentSessionUsage["tokenCount"],
+                },
+              },
+            },
+          };
+        },
+        false,
+        { type: "setSessionUsage" }
       );
     },
 

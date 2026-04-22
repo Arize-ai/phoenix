@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.1...arize-phoenix-client-v2.4.0) (2026-04-22)
+
+
+### Features
+
+* **client:** pass through trace_id to experiment evaluators ([#12692](https://github.com/Arize-ai/phoenix/issues/12692)) ([648b6e1](https://github.com/Arize-ai/phoenix/commit/648b6e19e18fbb2a74e89424d3331ea79ce42e4d))
+* **rest-api:** add type-aware attribute filter to GET /v1/spans ([#12524](https://github.com/Arize-ai/phoenix/issues/12524)) ([c0badfa](https://github.com/Arize-ai/phoenix/commit/c0badfaa0a5f71a7415f339459d5977df77fb619))
+
+
+### Documentation
+
+* add ATIF trajectory import docs ([#12631](https://github.com/Arize-ai/phoenix/issues/12631)) ([ef9e6cc](https://github.com/Arize-ai/phoenix/commit/ef9e6cc12dfe54136f2f90b83718f7b98bb2597c))
+* fix phoenix.client.experiments docs/tutorials ([#12645](https://github.com/Arize-ai/phoenix/issues/12645)) ([9ce9e18](https://github.com/Arize-ai/phoenix/commit/9ce9e1859d5712f992bdae830385f11ccca022be))
+
 ## [2.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.0...arize-phoenix-client-v2.3.1) (2026-04-07)
 
 

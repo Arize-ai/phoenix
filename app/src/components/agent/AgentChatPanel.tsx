@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
@@ -132,7 +133,11 @@ function AgentChatController({
           handleElicitationCancel={handleElicitationCancel}
           modelMenuValue={menuValue}
           onModelChange={handleModelChange}
-        />
+        >
+          {activeSessionId ? (
+            <ChatSessionUsage sessionId={activeSessionId} />
+          ) : null}
+        </ChatView>
       </Suspense>
     </DockedAgentChatFrame>
   );

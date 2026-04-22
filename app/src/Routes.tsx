@@ -20,6 +20,8 @@ import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
+import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -401,6 +403,14 @@ const router = createBrowserRouter(
               element={<SettingsGeneralPage />}
               handle={{
                 crumb: () => "General",
+              }}
+            />
+            <Route
+              path="secrets"
+              loader={settingsSecretsPageLoader}
+              element={<SettingsSecretsPage />}
+              handle={{
+                crumb: () => "Secrets",
               }}
             />
             <Route

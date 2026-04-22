@@ -1,5 +1,41 @@
 # Changelog
 
+## [14.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.10.0...arize-phoenix-v14.11.0) (2026-04-22)
+
+
+### Features
+
+* **agent:** session summary eval + sidebar-title prompt rewrite ([#12780](https://github.com/Arize-ai/phoenix/issues/12780)) ([fab5d89](https://github.com/Arize-ai/phoenix/commit/fab5d89b130cd14f301ee3b6ed02bbd295f21e0e))
+* **app:** show root span name in session turn list ([#12795](https://github.com/Arize-ai/phoenix/issues/12795)) ([c31fd97](https://github.com/Arize-ai/phoenix/commit/c31fd9783fbfe2340ae05ac383891b3079929278)), closes [#12792](https://github.com/Arize-ai/phoenix/issues/12792)
+* **secrets:** Add secrets settings page ([#12797](https://github.com/Arize-ai/phoenix/issues/12797)) ([f911992](https://github.com/Arize-ai/phoenix/commit/f9119922160aef450a0e4237cfcd31bdeb50acd9))
+* **ui:** add Show Table Aside toggle to project filter config (featureflagged) ([#12773](https://github.com/Arize-ai/phoenix/issues/12773)) ([81db7aa](https://github.com/Arize-ai/phoenix/commit/81db7aa7ee198adc1b7a285cc69d03880675b076))
+
+
+### Bug Fixes
+
+* **app:** use Empty component for project annotations empty state ([#12798](https://github.com/Arize-ai/phoenix/issues/12798)) ([d55dadf](https://github.com/Arize-ai/phoenix/commit/d55dadf20f4a817e8029f60cbdf68610c5426fd6))
+* **deps:** migrate authlib.jose to joserfc, require authlib&gt;=1.7.0 ([#12791](https://github.com/Arize-ai/phoenix/issues/12791)) ([f5f9bea](https://github.com/Arize-ai/phoenix/commit/f5f9bea1ebde2d6d11d2666f5892b81640f51d70))
+
+## [14.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.9.1...arize-phoenix-v14.10.0) (2026-04-21)
+
+
+### Features
+
+* **agent:** Display token count for chat sessions ([#12765](https://github.com/Arize-ai/phoenix/issues/12765)) ([c305919](https://github.com/Arize-ai/phoenix/commit/c305919514602acec4319650b9a4e5ea07b0ab07))
+
+
+### Bug Fixes
+
+* **deps:** pin authlib&lt;1.7.0 ([#12783](https://github.com/Arize-ai/phoenix/issues/12783)) ([cc606d8](https://github.com/Arize-ai/phoenix/commit/cc606d8431395ff8776fc3118b653278284aee93))
+* **playground:** align connectionConfig keys with GraphQL schema ([#12786](https://github.com/Arize-ai/phoenix/issues/12786)) ([b2a42f3](https://github.com/Arize-ai/phoenix/commit/b2a42f39016ed8d427700df550d53710783af5b0))
+
+## [14.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.9.0...arize-phoenix-v14.9.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **db:** wrap Azure AsyncEngine with ObjectProxy instead of patching dispose ([#12777](https://github.com/Arize-ai/phoenix/issues/12777)) ([d37bdfa](https://github.com/Arize-ai/phoenix/commit/d37bdfaa2ad1a4a3d140a5153c3f7320c9dfebb2))
+
 ## [14.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.8.0...arize-phoenix-v14.9.0) (2026-04-20)
 
 

@@ -63,10 +63,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class AgentMessageMetadata(TypedDict):
+class AgentMessageMetadataUsageTokens(TypedDict):
+    prompt: int
+    completion: int
+    total: int
+
+
+class AgentMessageMetadataUsage(TypedDict, total=False):
+    tokens: AgentMessageMetadataUsageTokens
+
+
+class AgentMessageMetadata(TypedDict, total=False):
     traceId: str
     rootSpanId: str
     sessionId: str
+    usage: AgentMessageMetadataUsage
 
 
 @dataclass

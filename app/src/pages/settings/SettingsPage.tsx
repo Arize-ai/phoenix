@@ -5,6 +5,7 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
+import { useViewer } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
@@ -26,6 +27,7 @@ const TABS: { id: string; label: string }[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "AI Providers" },
   { id: "models", label: "Models" },
+  { id: "secrets", label: "Secrets" },
   { id: "datasets", label: "Datasets" },
   { id: "annotations", label: "Annotations" },
   { id: "prompts", label: "Prompts" },
@@ -36,6 +38,7 @@ const TABS: { id: string; label: string }[] = [
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { viewer } = useViewer();
   const tab = pathname.split("/settings")[1].replace("/", "");
   const onChangeTab = useCallback(
     (tab: Key) => {
@@ -46,10 +49,20 @@ export function SettingsPage() {
     [navigate]
   );
   const isAgentsEnabled = useFeatureFlag("agents");
-  const tabs = isAgentsEnabled
-    ? TABS
-    : TABS.filter((tab) => tab.id !== "agents");
+  const canManageSecrets = !viewer || viewer.role.name === "ADMIN";
+  const tabs = TABS.filter((tab) => {
+    if (tab.id === "agents" && !isAgentsEnabled) {
+      return false;
+    }
+    if (tab.id === "secrets" && !canManageSecrets) {
+      return false;
+    }
+    return true;
+  });
   if (!tab) {
+    return <Navigate to="/settings/general" replace />;
+  }
+  if (!tabs.some((item) => item.id === tab)) {
     return <Navigate to="/settings/general" replace />;
   }
   return (

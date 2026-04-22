@@ -48,9 +48,9 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlalchemy[asyncio]>=2.0.4, <3",
+  "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
-  "aiosqlite",
+  "aiosqlite>=0.22.1",
   "aioitertools",
   "sqlean.py>=3.45.1; platform_system != 'Windows' and python_version < '3.14'",
   "sqlean.py>=3.50; platform_system != 'Windows' and python_version >= '3.14'",  # 3.49.1 has no cp314 wheels
@@ -62,7 +62,8 @@ dependencies = [
   "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai>=1.62.0",
-  "authlib",
+  "authlib>=1.7.0",
+  "joserfc",
   "arize-phoenix-client>=2.1.0",
   "email-validator",
   "python-dateutil",
@@ -83,7 +84,7 @@ dev = [
   "twine",
   "aiobotocore>=3.1.1",
   "aioboto3",
-  "aiosqlite<0.22.0",  # new version is causing tests to hang
+  "aiosqlite>=0.22.1",
   "anthropic>=0.79.0",
   "arize>=8.1.0",
   "asgi-lifespan",

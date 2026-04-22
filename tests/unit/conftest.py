@@ -209,7 +209,10 @@ async def sqlite_engine(
                 lambda: sqlean.connect(uri, uri=True),
                 iter_chunk_size=64,
             )
-            conn.daemon = True
+            # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
+            # aiosqlite dialect daemonizes it only when it creates the connection
+            # itself, not when an async_creator is used.
+            conn._thread.daemon = True
             return conn
 
         engine = create_async_engine(
