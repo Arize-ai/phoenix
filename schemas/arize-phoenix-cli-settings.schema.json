@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema URL for editor autocomplete. Pin to a GitHub raw URL at a released tag; see README.",
+      "type": "string"
+    },
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Schema version. Bumped on breaking changes to the file format."
+    },
+    "activeProfile": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Name of the profile to use when no --profile flag is passed. Must match a key in `profiles`."
+    },
+    "profiles": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "description": "Phoenix server URL this profile targets (e.g. https://app.phoenix.arize.com or http://localhost:6006).",
+            "type": "string"
+          },
+          "apiKey": {
+            "description": "API key sent as `Authorization: Bearer <apiKey>` with every request. Accepts both user and system API keys for self-hosted Phoenix and Phoenix Cloud. Treat as a secret — the profiles file should be user-readable only (mode 0600).",
+            "type": "string"
+          },
+          "project": {
+            "description": "Default Phoenix project name used when commands don't pass --project.",
+            "type": "string"
+          },
+          "headers": {
+            "description": "Extra HTTP headers sent with every request from this profile. Useful for custom auth or routing. Values override defaults.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
+    }
+  },
+  "required": ["version", "activeProfile", "profiles"],
+  "additionalProperties": false
+}
