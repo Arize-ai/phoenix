@@ -20,6 +20,10 @@ export interface TracingProps {
    */
   annotationColumnVisibility: VisibilityState;
   /**
+   * Map of the trace annotation column names that are toggled on
+   */
+  traceAnnotationColumnVisibility: VisibilityState;
+  /**
    * Map of the column id to the width
    */
   columnSizing: ColumnSizingState;
@@ -37,6 +41,12 @@ export interface TracingState extends TracingProps {
    */
   setAnnotationColumnVisibility: (
     annotationColumnVisibility: VisibilityState
+  ) => void;
+  /**
+   * Sets the visibility of the trace annotation columns
+   */
+  setTraceAnnotationColumnVisibility: (
+    traceAnnotationColumnVisibility: VisibilityState
   ) => void;
   /**
    * Sets the width of a column
@@ -72,12 +82,18 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       metadata: 200,
     },
     annotationColumnVisibility: {},
+    traceAnnotationColumnVisibility: {},
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility }, false, { type: "setColumnVisibility" });
     },
     setAnnotationColumnVisibility: (annotationColumnVisibility) => {
       set({ annotationColumnVisibility }, false, {
         type: "setAnnotationColumnVisibility",
+      });
+    },
+    setTraceAnnotationColumnVisibility: (traceAnnotationColumnVisibility) => {
+      set({ traceAnnotationColumnVisibility }, false, {
+        type: "setTraceAnnotationColumnVisibility",
       });
     },
     setColumnSizing: (columnSizing) => {

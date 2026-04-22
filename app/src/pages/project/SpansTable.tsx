@@ -31,6 +31,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CellWithControlsWrap, LoadMoreRow } from "@phoenix/components/table";
@@ -178,6 +179,7 @@ export function SpansTable(props: SpansTableProps) {
         ) {
           name
           ...SpanColumnSelector_annotations
+          ...SpanColumnSelector_traceAnnotations
           spans(
             first: $first
             after: $after
@@ -207,6 +209,15 @@ export function SpansTable(props: SpansTableProps) {
                       cost
                     }
                   }
+                  traceAnnotationSummaries {
+                    labelFractions {
+                      fraction
+                      label
+                    }
+                    meanScore
+                    name
+                  }
+                  ...TraceAnnotationSummaryGroup
                 }
                 input {
                   value: truncatedValue
@@ -275,6 +286,14 @@ export function SpansTable(props: SpansTableProps) {
       (name) => annotationColumnVisibility[name]
     );
   }, [annotationColumnVisibility]);
+  const traceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.traceAnnotationColumnVisibility
+  );
+  const visibleTraceAnnotationColumnNames = useMemo(() => {
+    return Object.keys(traceAnnotationColumnVisibility).filter(
+      (name) => traceAnnotationColumnVisibility[name]
+    );
+  }, [traceAnnotationColumnVisibility]);
 
   const tableData = useMemo(() => {
     const tableData = data.spans.edges.map(({ span }) => span);
@@ -313,6 +332,50 @@ export function SpansTable(props: SpansTableProps) {
               const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
+              if (!annotation) {
+                return null;
+              }
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
+  const dynamicTraceAnnotationColumns: ColumnDef<TableRow>[] =
+    visibleTraceAnnotationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `labels`,
+            accessorKey: makeAnnotationColumnId(name, "label", "trace"),
+            enableSorting: false,
+            cell: ({ row }) => {
+              const annotation =
+                row.original.trace.traceAnnotationSummaries.find(
+                  (annotation) => annotation.name === name
+                );
+              if (!annotation) {
+                return null;
+              }
+              return (
+                <SummaryValueLabels
+                  name={name}
+                  labelFractions={annotation.labelFractions}
+                />
+              );
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `mean score`,
+            accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+            enableSorting: false,
+            cell: ({ row }) => {
+              const annotation =
+                row.original.trace.traceAnnotationSummaries.find(
+                  (annotation) => annotation.name === name
+                );
               if (!annotation) {
                 return null;
               }
@@ -378,7 +441,33 @@ export function SpansTable(props: SpansTableProps) {
         );
       },
     },
+    {
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>trace annotations</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Trace annotations
+            </Heading>
+            <Text>Annotations attached to the parent trace of this span.</Text>
+          </ContextualHelp>
+        </Flex>
+      ),
+      id: "trace annotations",
+      enableSorting: false,
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" gap="size-50" wrap="wrap">
+            <TraceAnnotationSummaryGroupTokens
+              trace={row.original.trace}
+              showFilterActions
+            />
+          </Flex>
+        );
+      },
+    },
     ...dynamicAnnotationColumns,
+    ...dynamicTraceAnnotationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
     {
