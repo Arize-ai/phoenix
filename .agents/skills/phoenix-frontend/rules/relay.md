@@ -14,7 +14,7 @@ Phoenix provides `app/src/hooks/useOwnedPreloadedQuery.ts` for the common route-
 
 - Loader uses `loadQuery(...)` and returns a query ref.
 - Component reads the ref with `useOwnedPreloadedQuery(...)`.
-- The hook disposes the ref on replacement or unmount.
+- The hook hands the ref to `useQueryLoader`, so Relay disposes it on replacement or unmount.
 
 Use this hook only when the current component owns the lifecycle of an externally created query ref, such as `useLoaderData()` returning a `loadQuery` result.
 
