@@ -25,6 +25,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -890,6 +891,11 @@ async def experiment_run_metric_comparison_experiments(
                 input={f"example-{i}-input-key": f"example-{i}-input-value"},
                 output={f"example-{i}-output-key": f"example-{i}-output-value"},
                 metadata_={f"example-{i}-metadata-key": f"example-{i}-metadata-value"},
+                content_hash=compute_example_content_hash(
+                    input={f"example-{i}-input-key": f"example-{i}-input-value"},
+                    output={f"example-{i}-output-key": f"example-{i}-output-value"},
+                    metadata={f"example-{i}-metadata-key": f"example-{i}-metadata-value"},
+                ),
                 revision_kind="CREATE",
             )
             session.add(revision)
@@ -1354,6 +1360,17 @@ async def comparison_experiments(db: DbSessionFactory) -> None:
                         "metadata_": {
                             f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"
                         },
+                        "content_hash": compute_example_content_hash(
+                            input={
+                                f"revision-{revision_index + 1}-input-key": f"revision-{revision_index + 1}-input-value"
+                            },
+                            output={
+                                f"revision-{revision_index + 1}-output-key": f"revision-{revision_index + 1}-output-value"
+                            },
+                            metadata={
+                                f"revision-{revision_index + 1}-metadata-key": f"revision-{revision_index + 1}-metadata-value"
+                            },
+                        ),
                     }
                     for revision_index, revision in enumerate(
                         [

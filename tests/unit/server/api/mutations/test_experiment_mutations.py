@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -136,6 +137,11 @@ async def simple_experiments(db: DbSessionFactory) -> None:
                 input={"input": "first-input"},
                 output={"output": "first-output"},
                 metadata_={"metadata": "first-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "first-input"},
+                    output={"output": "first-output"},
+                    metadata={"metadata": "first-metadata"},
+                ),
                 revision_kind="CREATE",
             )
         )

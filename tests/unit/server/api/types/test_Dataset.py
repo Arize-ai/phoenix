@@ -25,6 +25,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -1181,6 +1182,11 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     "input": {"input": "first-input"},
                     "output": {"output": "first-output"},
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={"input": "first-input"},
+                        output={"output": "first-output"},
+                        metadata={},
+                    ),
                     "revision_kind": "CREATE",
                 },
                 {
@@ -1189,6 +1195,11 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     "input": {"input": "first-input"},
                     "output": {"output": "first-output"},
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={"input": "first-input"},
+                        output={"output": "first-output"},
+                        metadata={},
+                    ),
                     "revision_kind": "CREATE",
                 },
                 {
@@ -1197,6 +1208,11 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     "input": {"input": "second-input"},
                     "output": {"output": "second-output"},
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={"input": "second-input"},
+                        output={"output": "second-output"},
+                        metadata={},
+                    ),
                     "revision_kind": "PATCH",
                 },
                 {
@@ -1205,6 +1221,11 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     "input": {"input": "second-input"},
                     "output": {"output": "second-output"},
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={"input": "second-input"},
+                        output={"output": "second-output"},
+                        metadata={},
+                    ),
                     "revision_kind": "PATCH",
                 },
             ],
@@ -1253,6 +1274,11 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             input={"input": "first-input"},
             output={"output": "first-output"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"input": "first-input"},
+                output={"output": "first-output"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(dataset_example_revision_1)
@@ -1289,6 +1315,11 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             input={"input": "third-input"},
             output={"output": "third-output"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"input": "third-input"},
+                output={"output": "third-output"},
+                metadata={},
+            ),
             revision_kind="PATCH",
         )
         session.add(dataset_example_revision_3)
@@ -1337,6 +1368,11 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
             input={"input": "first-input"},
             output={"output": "first-output"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"input": "first-input"},
+                output={"output": "first-output"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(dataset_example_revision_1)
@@ -1358,6 +1394,11 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
             input={},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={},
+                output={},
+                metadata={},
+            ),
             revision_kind="DELETE",
         )
         session.add(dataset_example_revision_2)

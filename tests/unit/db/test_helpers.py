@@ -20,6 +20,7 @@ from phoenix.db.helpers import (
     get_dataset_example_revisions,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 fake = Faker()
 
@@ -509,6 +510,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic1_v1"},
                 output={"result": "basic1_v1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic1_v1"},
+                    output={"result": "basic1_v1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             basic1_v2_revision = models.DatasetExampleRevision(
@@ -517,6 +523,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic1_v2"},
                 output={"result": "basic1_v2"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic1_v2"},
+                    output={"result": "basic1_v2"},
+                    metadata={},
+                ),
                 revision_kind="PATCH",
             )
             basic1_v3_revision = models.DatasetExampleRevision(
@@ -525,6 +536,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic1_v3"},
                 output={"result": "basic1_v3"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic1_v3"},
+                    output={"result": "basic1_v3"},
+                    metadata={},
+                ),
                 revision_kind="PATCH",
             )
 
@@ -535,6 +551,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic2_create"},
                 output={"result": "basic2_create"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic2_create"},
+                    output={"result": "basic2_create"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             basic2_delete_revision = models.DatasetExampleRevision(
@@ -543,6 +564,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic2_deleted"},
                 output={"result": "basic2_deleted"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic2_deleted"},
+                    output={"result": "basic2_deleted"},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
 
@@ -553,6 +579,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "basic3_late"},
                 output={"result": "basic3_late"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "basic3_late"},
+                    output={"result": "basic3_late"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
 
@@ -563,6 +594,11 @@ class TestGetDatasetExampleRevisions:
                 input={"split": "example1_train"},
                 output={"result": "split1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"split": "example1_train"},
+                    output={"result": "split1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             split2_revision = models.DatasetExampleRevision(
@@ -571,6 +607,11 @@ class TestGetDatasetExampleRevisions:
                 input={"split": "example2_train_val"},
                 output={"result": "split2"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"split": "example2_train_val"},
+                    output={"result": "split2"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             # Delete split_example2 in version 2 to test DELETE handling with splits
@@ -580,6 +621,11 @@ class TestGetDatasetExampleRevisions:
                 input={},
                 output={},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={},
+                    output={},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
             split3_revision = models.DatasetExampleRevision(
@@ -588,6 +634,11 @@ class TestGetDatasetExampleRevisions:
                 input={"split": "example3_val_test_extra"},
                 output={"result": "split3"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"split": "example3_val_test_extra"},
+                    output={"result": "split3"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             split4_revision = models.DatasetExampleRevision(
@@ -596,6 +647,11 @@ class TestGetDatasetExampleRevisions:
                 input={"split": "example4_all_splits"},
                 output={"result": "split4_max_overlap"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"split": "example4_all_splits"},
+                    output={"result": "split4_max_overlap"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             split5_revision = models.DatasetExampleRevision(
@@ -604,6 +660,11 @@ class TestGetDatasetExampleRevisions:
                 input={"split": "example5_no_splits"},
                 output={"result": "split5_control"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"split": "example5_no_splits"},
+                    output={"result": "split5_control"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
 
@@ -614,6 +675,11 @@ class TestGetDatasetExampleRevisions:
                 input={"test": "isolated"},
                 output={"result": "isolated"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "isolated"},
+                    output={"result": "isolated"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
 
@@ -1137,6 +1203,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "example1_v1"},
                 output={"result": "example1_v1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "example1_v1"},
+                    output={"result": "example1_v1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             # Example 1: PATCH in version 2
@@ -1146,6 +1217,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "example1_v2"},
                 output={"result": "example1_v2"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "example1_v2"},
+                    output={"result": "example1_v2"},
+                    metadata={},
+                ),
                 revision_kind="PATCH",
             )
             # Example 2: CREATE in version 1
@@ -1155,6 +1231,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "example2_v1"},
                 output={"result": "example2_v1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "example2_v1"},
+                    output={"result": "example2_v1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             # Example 2: DELETE in version 2
@@ -1164,6 +1245,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "deleted"},
                 output={"result": "deleted"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "deleted"},
+                    output={"result": "deleted"},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
             # Example 3: CREATE in version 2
@@ -1173,6 +1259,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "example3_v2"},
                 output={"result": "example3_v2"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "example3_v2"},
+                    output={"result": "example3_v2"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
 
@@ -1183,6 +1274,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "delete_example1"},
                 output={"result": "delete_example1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "delete_example1"},
+                    output={"result": "delete_example1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             delete2_create_revision = models.DatasetExampleRevision(
@@ -1191,6 +1287,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "delete_example2"},
                 output={"result": "delete_example2"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "delete_example2"},
+                    output={"result": "delete_example2"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             delete3_create_revision = models.DatasetExampleRevision(
@@ -1199,6 +1300,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={"test": "delete_example3"},
                 output={"result": "delete_example3"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"test": "delete_example3"},
+                    output={"result": "delete_example3"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
 
@@ -1209,6 +1315,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={},
                 output={},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={},
+                    output={},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
             delete2_delete_revision = models.DatasetExampleRevision(
@@ -1217,6 +1328,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={},
                 output={},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={},
+                    output={},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
             delete3_delete_revision = models.DatasetExampleRevision(
@@ -1225,6 +1341,11 @@ class TestCreateExperimentExamplesSnapshotInsert:
                 input={},
                 output={},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={},
+                    output={},
+                    metadata={},
+                ),
                 revision_kind="DELETE",
             )
 

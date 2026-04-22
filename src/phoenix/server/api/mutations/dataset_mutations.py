@@ -43,6 +43,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 
@@ -201,29 +202,30 @@ class DatasetMutationMixin:
                 k: v for k, v in all_span_attributes.items() if not k.startswith("_")
             }
 
-            await session.execute(
-                insert(DatasetExampleRevision),
-                [
+            span_revisions: list[dict[str, Any]] = []
+            for dataset_example_rowid, span in zip(dataset_example_rowids, spans):
+                span_input = get_dataset_example_input(span)
+                span_output = get_dataset_example_output(span)
+                span_metadata = {
+                    **(span.attributes.get(SpanAttributes.METADATA) or dict()),
+                    **{k: v for k, v in span.attributes.items() if k in nonprivate_span_attributes},
+                    "span_kind": span.span_kind,
+                    "annotations": _gather_span_annotations_by_name(span.span_annotations),
+                }
+                span_revisions.append(
                     {
                         DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
                         DatasetExampleRevision.dataset_version_id.key: dataset_version.id,
-                        DatasetExampleRevision.input.key: get_dataset_example_input(span),
-                        DatasetExampleRevision.output.key: get_dataset_example_output(span),
-                        DatasetExampleRevision.metadata_.key: {
-                            **(span.attributes.get(SpanAttributes.METADATA) or dict()),
-                            **{
-                                k: v
-                                for k, v in span.attributes.items()
-                                if k in nonprivate_span_attributes
-                            },
-                            "span_kind": span.span_kind,
-                            "annotations": _gather_span_annotations_by_name(span.span_annotations),
-                        },
+                        DatasetExampleRevision.input.key: span_input,
+                        DatasetExampleRevision.output.key: span_output,
+                        DatasetExampleRevision.metadata_.key: span_metadata,
+                        DatasetExampleRevision.content_hash.key: compute_example_content_hash(
+                            input=span_input, output=span_output, metadata=span_metadata
+                        ),
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
-                    for dataset_example_rowid, span in zip(dataset_example_rowids, spans)
-                ],
-            )
+                )
+            await session.execute(insert(DatasetExampleRevision), span_revisions)
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
@@ -371,16 +373,24 @@ class DatasetMutationMixin:
                         expected_type_name=Span.__name__,
                     )
                     span_annotation = span_annotations_by_span.get(span_id, {})
+                example_input = cast(dict[str, Any], example.input)
+                example_output = cast(dict[str, Any], example.output)
+                example_metadata = {
+                    **cast(dict[str, Any], example.metadata or {}),
+                    "annotations": span_annotation,
+                }
                 dataset_example_revisions.append(
                     {
                         DatasetExampleRevision.dataset_example_id.key: dataset_example_rowid,
                         DatasetExampleRevision.dataset_version_id.key: dataset_version_rowid,
-                        DatasetExampleRevision.input.key: example.input,
-                        DatasetExampleRevision.output.key: example.output,
-                        DatasetExampleRevision.metadata_.key: {
-                            **cast(dict[str, Any], example.metadata or {}),
-                            "annotations": span_annotation,
-                        },
+                        DatasetExampleRevision.input.key: example_input,
+                        DatasetExampleRevision.output.key: example_output,
+                        DatasetExampleRevision.metadata_.key: example_metadata,
+                        DatasetExampleRevision.content_hash.key: compute_example_content_hash(
+                            input=example_input,
+                            output=example_output,
+                            metadata=example_metadata,
+                        ),
                         DatasetExampleRevision.revision_kind.key: "CREATE",
                     }
                 )
@@ -581,6 +591,7 @@ class DatasetMutationMixin:
                 )
 
             DatasetExampleRevision = models.DatasetExampleRevision
+            empty_content_hash = compute_example_content_hash(input={}, output={}, metadata={})
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -590,6 +601,7 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: {},
                         DatasetExampleRevision.output.key: {},
                         DatasetExampleRevision.metadata_.key: {},
+                        DatasetExampleRevision.content_hash.key: empty_content_hash,
                         DatasetExampleRevision.revision_kind.key: "DELETE",
                         DatasetExampleRevision.created_at.key: timestamp,
                     }
@@ -638,6 +650,10 @@ def _to_orm_revision(
             (db_rev.input, input),
             (db_rev.output, output),
             (db_rev.metadata_, metadata),
+            (
+                db_rev.content_hash,
+                compute_example_content_hash(input=input, output=output, metadata=metadata),
+            ),
             (db_rev.revision_kind, "PATCH"),
         )
     }

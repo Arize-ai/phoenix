@@ -574,7 +574,7 @@ CREATE TABLE public.dataset_example_revisions (
     metadata JSONB NOT NULL,
     revision_kind VARCHAR NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    content_hash BYTEA,
+    content_hash BYTEA NOT NULL,
     CONSTRAINT pk_dataset_example_revisions PRIMARY KEY (id),
     CONSTRAINT uq_dataset_example_revisions_dataset_example_id_dataset_bbf2
         UNIQUE (dataset_example_id, dataset_version_id),

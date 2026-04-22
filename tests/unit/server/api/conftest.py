@@ -27,6 +27,7 @@ from phoenix.db.types.prompts import (
     PromptTools,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 
 @pytest.fixture
@@ -115,6 +116,11 @@ async def simple_dataset(db: DbSessionFactory) -> None:
             input={"in": "foo"},
             output={"out": "bar"},
             metadata_={"info": "the first reivision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foo"},
+                output={"out": "bar"},
+                metadata={"info": "the first reivision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_0_revision_0)
@@ -166,6 +172,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={"in": "foo"},
             output={"out": "bar"},
             metadata_={"info": "first revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foo"},
+                output={"out": "bar"},
+                metadata={"info": "first revision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_1_revision_1)
@@ -178,6 +189,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={"in": "foofoo"},
             output={"out": "barbar"},
             metadata_={"info": "first revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foofoo"},
+                output={"out": "barbar"},
+                metadata={"info": "first revision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_2_revision_1)
@@ -199,6 +215,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={"in": "FOO"},
             output={"out": "BAR"},
             metadata_={"info": "all caps revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "FOO"},
+                output={"out": "BAR"},
+                metadata={"info": "all caps revision"},
+            ),
             revision_kind="PATCH",
         )
         session.add(example_1_revision_2)
@@ -211,6 +232,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={"in": "FOOFOO"},
             output={"out": "BARBAR"},
             metadata_={"info": "all caps revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "FOOFOO"},
+                output={"out": "BARBAR"},
+                metadata={"info": "all caps revision"},
+            ),
             revision_kind="PATCH",
         )
         session.add(example_2_revision_2)
@@ -232,6 +258,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={},
             output={},
             metadata_={"info": "all caps revision"},
+            content_hash=compute_example_content_hash(
+                input={},
+                output={},
+                metadata={"info": "all caps revision"},
+            ),
             revision_kind="DELETE",
         )
         session.add(example_1_revision_3)
@@ -244,6 +275,11 @@ async def empty_dataset(db: DbSessionFactory) -> None:
             input={},
             output={},
             metadata_={"info": "all caps revision"},
+            content_hash=compute_example_content_hash(
+                input={},
+                output={},
+                metadata={"info": "all caps revision"},
+            ),
             revision_kind="DELETE",
         )
         session.add(example_2_revision_3)
@@ -299,6 +335,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "foo"},
             output={"out": "bar"},
             metadata_={"info": "first revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foo"},
+                output={"out": "bar"},
+                metadata={"info": "first revision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_3_revision_4)
@@ -311,6 +352,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "foofoo"},
             output={"out": "barbar"},
             metadata_={"info": "first revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foofoo"},
+                output={"out": "barbar"},
+                metadata={"info": "first revision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_4_revision_4)
@@ -394,6 +440,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "updated foofoo"},
             output={"out": "updated barbar"},
             metadata_={"info": "updating revision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "updated foofoo"},
+                output={"out": "updated barbar"},
+                metadata={"info": "updating revision"},
+            ),
             revision_kind="PATCH",
         )
         session.add(example_4_revision_5)
@@ -406,6 +457,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "look at me"},
             output={"out": "i have all the answers"},
             metadata_={"info": "a new example"},
+            content_hash=compute_example_content_hash(
+                input={"in": "look at me"},
+                output={"out": "i have all the answers"},
+                metadata={"info": "a new example"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_5_revision_5)
@@ -418,6 +474,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "look at us"},
             output={"out": "we have all the answers"},
             metadata_={"info": "a new example"},
+            content_hash=compute_example_content_hash(
+                input={"in": "look at us"},
+                output={"out": "we have all the answers"},
+                metadata={"info": "a new example"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_6_revision_6)
@@ -430,6 +491,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "look at us"},
             output={"out": "we have all the answers"},
             metadata_={"info": "a new example"},
+            content_hash=compute_example_content_hash(
+                input={"in": "look at us"},
+                output={"out": "we have all the answers"},
+                metadata={"info": "a new example"},
+            ),
             revision_kind="DELETE",
         )
         session.add(example_6_revision_7)
@@ -442,6 +508,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "look at me"},
             output={"out": "i have all the answers"},
             metadata_={"info": "a newer example"},
+            content_hash=compute_example_content_hash(
+                input={"in": "look at me"},
+                output={"out": "i have all the answers"},
+                metadata={"info": "a newer example"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_7_revision_8)
@@ -454,6 +525,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
             input={"in": "look at me"},
             output={"out": "i have all the answers"},
             metadata_={"info": "a newer example"},
+            content_hash=compute_example_content_hash(
+                input={"in": "look at me"},
+                output={"out": "i have all the answers"},
+                metadata={"info": "a newer example"},
+            ),
             revision_kind="DELETE",
         )
         session.add(example_7_revision_9)
@@ -659,6 +735,20 @@ async def dataset_with_messages(
                         ]
                     },
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={
+                            "messages": [
+                                {"role": "system", "content": "x"},
+                                {"role": "user", "content": "y"},
+                            ]
+                        },
+                        output={
+                            "messages": [
+                                {"role": "assistant", "content": "z"},
+                            ]
+                        },
+                        metadata={},
+                    ),
                 },
                 {
                     "revision_kind": "CREATE",
@@ -676,6 +766,20 @@ async def dataset_with_messages(
                         ]
                     },
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={
+                            "messages": [
+                                {"role": "system", "content": "xx"},
+                                {"role": "user", "content": "yy"},
+                            ]
+                        },
+                        output={
+                            "messages": [
+                                {"role": "assistant", "content": "zz"},
+                            ]
+                        },
+                        metadata={},
+                    ),
                 },
             ],
         )
@@ -721,6 +825,11 @@ async def dataset_with_splits(
                     "input": {"question": "hello"},
                     "output": {"answer": "world"},
                     "metadata_": {"source": "test"},
+                    "content_hash": compute_example_content_hash(
+                        input={"question": "hello"},
+                        output={"answer": "world"},
+                        metadata={"source": "test"},
+                    ),
                 },
                 {
                     "revision_kind": "CREATE",
@@ -729,6 +838,11 @@ async def dataset_with_splits(
                     "input": {"question": "foo"},
                     "output": {"answer": "bar"},
                     "metadata_": {},
+                    "content_hash": compute_example_content_hash(
+                        input={"question": "foo"},
+                        output={"answer": "bar"},
+                        metadata={},
+                    ),
                 },
                 {
                     "revision_kind": "CREATE",
@@ -737,6 +851,11 @@ async def dataset_with_splits(
                     "input": {"question": "baz"},
                     "output": {"answer": "qux"},
                     "metadata_": {"note": "no splits"},
+                    "content_hash": compute_example_content_hash(
+                        input={"question": "baz"},
+                        output={"answer": "qux"},
+                        metadata={"note": "no splits"},
+                    ),
                 },
             ],
         )
@@ -809,6 +928,11 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
             input={"city": "Paris"},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": "Paris"},
+                output={},
+                metadata={},
+            ),
             revision_kind="CREATE",
         ),
         models.DatasetExampleRevision(
@@ -817,6 +941,11 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
             input={"city": "Tokyo"},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": "Tokyo"},
+                output={},
+                metadata={},
+            ),
             revision_kind="CREATE",
         ),
         models.DatasetExampleRevision(
@@ -825,6 +954,11 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
             input={"city": "Cairo"},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": "Cairo"},
+                output={},
+                metadata={},
+            ),
             revision_kind="CREATE",
         ),
         models.DatasetExampleRevision(
@@ -833,6 +967,11 @@ async def playground_dataset_with_patch_revision(db: DbSessionFactory) -> None:
             input={"cities": "Madrid"},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"cities": "Madrid"},
+                output={},
+                metadata={},
+            ),
             revision_kind="PATCH",
         ),
     ]
@@ -890,6 +1029,11 @@ async def playground_city_and_country_dataset(
             input={"city": city},
             output={"country": country},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": city},
+                output={"country": country},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         for example, (city, country) in zip(examples, cities_and_countries)
@@ -1109,6 +1253,11 @@ async def single_example_dataset(db: DbSessionFactory) -> models.Dataset:
             input={"city": "Paris"},
             output={"country": "France"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": "Paris"},
+                output={"country": "France"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(revision)
@@ -1157,6 +1306,11 @@ async def playground_dataset_with_splits(db: DbSessionFactory) -> None:
             input={"city": city},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"city": city},
+                output={},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         for example, city in zip(examples, cities)
@@ -1294,6 +1448,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
                 input={"query": f"ex{i}-v1"},
                 output={"response": f"expected-{i}-v1"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"query": f"ex{i}-v1"},
+                    output={"response": f"expected-{i}-v1"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             session.add(revision)
@@ -1330,6 +1489,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={"query": "ex0-v1"},  # same as v1
             output={"response": "expected-0-v1"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"query": "ex0-v1"},
+                output={"response": "expected-0-v1"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(rev)
@@ -1344,6 +1508,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={"query": "ex1-v1"},
             output={"response": "expected-1-v1"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"query": "ex1-v1"},
+                output={"response": "expected-1-v1"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(rev)
@@ -1358,6 +1527,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={},
             output={},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={},
+                output={},
+                metadata={},
+            ),
             revision_kind="DELETE",
         )
         session.add(rev_deleted)
@@ -1371,6 +1545,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={"query": "ex3-v2-patched"},  # changed
             output={"response": "expected-3-v2-patched"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"query": "ex3-v2-patched"},
+                output={"response": "expected-3-v2-patched"},
+                metadata={},
+            ),
             revision_kind="PATCH",
         )
         session.add(rev)
@@ -1385,6 +1564,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={"query": "ex4-v1"},
             output={"response": "expected-4-v1"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"query": "ex4-v1"},
+                output={"response": "expected-4-v1"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(rev)
@@ -1399,6 +1583,11 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
             input={"query": "ex5-v2-new"},
             output={"response": "expected-5-v2-new"},
             metadata_={},
+            content_hash=compute_example_content_hash(
+                input={"query": "ex5-v2-new"},
+                output={"response": "expected-5-v2-new"},
+                metadata={},
+            ),
             revision_kind="CREATE",
         )
         session.add(rev_new)

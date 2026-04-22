@@ -10,6 +10,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -797,6 +798,11 @@ async def dataset_with_a_single_version(
                 input={"input": "first-input"},
                 output={"output": "first-output"},
                 metadata_={"metadata": "first-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "first-input"},
+                    output={"output": "first-output"},
+                    metadata={"metadata": "first-metadata"},
+                ),
                 revision_kind="CREATE",
             )
         )
@@ -858,6 +864,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
                 input={"input": "original-example-1-version-1-input"},
                 output={"output": "original-example-1-version-1-output"},
                 metadata_={"metadata": "original-example-1-version-1-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "original-example-1-version-1-input"},
+                    output={"output": "original-example-1-version-1-output"},
+                    metadata={"metadata": "original-example-1-version-1-metadata"},
+                ),
                 revision_kind="CREATE",
             )
         )
@@ -868,6 +879,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
                 input={"input": "original-example-2-version-1-input"},
                 output={"output": "original-example-2-version-1-output"},
                 metadata_={"metadata": "original-example-2-version-1-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "original-example-2-version-1-input"},
+                    output={"output": "original-example-2-version-1-output"},
+                    metadata={"metadata": "original-example-2-version-1-metadata"},
+                ),
                 revision_kind="CREATE",
             )
         )
@@ -878,6 +894,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
                 input={"input": "original-example-3-version-1-input"},
                 output={"output": "original-example-3-version-1-output"},
                 metadata_={"metadata": "original-example-3-version-1-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "original-example-3-version-1-input"},
+                    output={"output": "original-example-3-version-1-output"},
+                    metadata={"metadata": "original-example-3-version-1-metadata"},
+                ),
                 revision_kind="CREATE",
             )
         )
@@ -902,6 +923,11 @@ async def dataset_with_revisions(db: DbSessionFactory) -> None:
                 input={"input": "original-example-3-version-1-input"},
                 output={"output": "original-example-3-version-1-output"},
                 metadata_={"metadata": "original-example-3-version-1-metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "original-example-3-version-1-input"},
+                    output={"output": "original-example-3-version-1-output"},
+                    metadata={"metadata": "original-example-3-version-1-metadata"},
+                ),
                 revision_kind="DELETE",
             )
         )

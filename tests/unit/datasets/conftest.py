@@ -6,6 +6,7 @@ import pytest
 from phoenix.db import models
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 
 @pytest.fixture
@@ -48,6 +49,11 @@ async def simple_dataset(
             input={"in": "foo"},
             output={"out": "bar"},
             metadata_={"info": "the first reivision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foo"},
+                output={"out": "bar"},
+                metadata={"info": "the first reivision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_0_revision_0)

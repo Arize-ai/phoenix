@@ -9,6 +9,7 @@ from phoenix.db import models
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -485,6 +486,11 @@ async def experiment_with_expected_run_count(db: DbSessionFactory) -> int:
                 input={"input": "input"},
                 output={"output": "output"},
                 metadata_={},
+                content_hash=compute_example_content_hash(
+                    input={"input": "input"},
+                    output={"output": "output"},
+                    metadata={},
+                ),
                 revision_kind="CREATE",
             )
             for example in examples
@@ -848,6 +854,11 @@ async def dataset_with_experiment_runs(db: DbSessionFactory) -> None:
             input={"input": "first-input"},
             output={"output": "first-output"},
             metadata_={"metadata": "first-metadata"},
+            content_hash=compute_example_content_hash(
+                input={"input": "first-input"},
+                output={"output": "first-output"},
+                metadata={"metadata": "first-metadata"},
+            ),
             revision_kind="CREATE",
         )
         session.add(revision)
@@ -1022,6 +1033,11 @@ async def experiments_with_runs_and_annotations(
                 input={"input": "input"},
                 output={"output": "output"},
                 metadata_={"metadata": "metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "input"},
+                    output={"output": "output"},
+                    metadata={"metadata": "metadata"},
+                ),
                 revision_kind="CREATE",
             )
             for example in examples
@@ -1249,6 +1265,11 @@ async def experiments_with_runs(db: DbSessionFactory) -> None:
                 input={"input": "input"},
                 output={"output": "output"},
                 metadata_={"metadata": "metadata"},
+                content_hash=compute_example_content_hash(
+                    input={"input": "input"},
+                    output={"output": "output"},
+                    metadata={"metadata": "metadata"},
+                ),
                 revision_kind="CREATE",
             )
             for example in examples

@@ -19,6 +19,7 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
+from phoenix.utilities.content_hashing import compute_example_content_hash
 from tests.unit.graphql import AsyncGraphQLClient
 
 _TraceRowId: TypeAlias = int
@@ -546,6 +547,11 @@ async def simple_dataset(
             input={"in": "foo"},
             output={"out": "bar"},
             metadata_={"info": "the first reivision"},
+            content_hash=compute_example_content_hash(
+                input={"in": "foo"},
+                output={"out": "bar"},
+                metadata={"info": "the first reivision"},
+            ),
             revision_kind="CREATE",
         )
         session.add(example_0_revision_0)

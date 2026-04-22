@@ -15,6 +15,11 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_dataset_example_revisions
 from phoenix.db.insertion.helpers import DataManipulationEvent, OnConflict, insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.utilities.content_hashing import compute_example_content_hash
+
+# Sentinel hash used for DELETE revisions, whose input/output/metadata are all empty dicts.
+# Content is unused for DELETEs (the matcher excludes them), but the column is NOT NULL.
+_EMPTY_CONTENT_HASH: bytes = compute_example_content_hash(input={}, output={}, metadata={})
 
 # Batch size for bulk inserts - tuned for good performance across SQLite and PostgreSQL
 DEFAULT_BATCH_SIZE = 1000
@@ -167,8 +172,8 @@ async def insert_dataset_example_revision(
     input: dict[str, Any],
     output: dict[str, Any],
     metadata: dict[str, Any],
+    content_hash: bytes,
     revision_kind: RevisionKind = RevisionKind.CREATE,
-    content_hash: Optional[bytes] = None,
     created_at: Optional[datetime] = None,
 ) -> DatasetExampleRevisionId:
     id_ = await session.scalar(
@@ -485,11 +490,9 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
             revisions_subq.c.dataset_example_id,
             models.DatasetExample.external_id,
             revisions_subq.c.content_hash,
-        )
-        .join(
+        ).join(
             models.DatasetExample, models.DatasetExample.id == revisions_subq.c.dataset_example_id
         )
-        .where(revisions_subq.c.content_hash.isnot(None))
     )
 
     return [(row.dataset_example_id, row.external_id, row.content_hash) for row in result]
@@ -841,7 +844,7 @@ async def _upsert_dataset_examples(
                 output={},
                 metadata={},
                 revision_kind=RevisionKind.DELETE,
-                content_hash=None,
+                content_hash=_EMPTY_CONTENT_HASH,
                 created_at=created_at,
             )
 
