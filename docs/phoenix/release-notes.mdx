@@ -7,6 +7,57 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.22.2026">
+## [04.22.2026: Secrets Settings Page](/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id)
+**Available in arize-phoenix 14.11.0+**
+
+A new **Settings → Secrets** page lets admins add, replace, and delete encrypted LLM provider credentials (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) directly in the Phoenix UI — no REST API calls required.
+
+- **Add / Replace / Delete** secrets from the browser
+- **Search and filter** the secrets list by key name or owner
+- **Admin-only** — all mutations require admin access
+</Update>
+
+<Update label="04.22.2026">
+## [04.22.2026: `trace_id` in Experiment Evaluators](/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id)
+**Available in arize-phoenix-client 2.4.0+**
+
+Evaluator functions now receive the originating trace ID for each experiment run. Add a `trace_id` keyword argument to any evaluator function or `Evaluator` class method to access it.
+
+- **Optional** — evaluators without `trace_id` are unaffected
+- **Works sync and async** — supported on both function-based and protocol-based evaluators
+</Update>
+
+<Update label="04.20.2026">
+## [04.20.2026: Span Attribute Filtering](/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7)
+**Available in arize-phoenix 14.9.0+ (server), arize-phoenix-client 2.4.0+ (Python), @arizeai/phoenix-client 6.7.0+ (TypeScript)**
+
+Filter spans by stored attribute values using the Python client, TypeScript client, REST API, or CLI. Multiple filters are AND-ed together; the value's JS/Python type selects which storage type is matched.
+
+- **Python** — `client.spans.get_spans(..., attributes={"llm.model_name": "gpt-4o"})`
+- **TypeScript** — `getSpans({ ..., attributes: { "llm.model_name": "gpt-4o" } })`
+- **CLI** — `px span list --attribute "llm.model_name:gpt-4o"`
+- **Type-aware** — `int`, `float`, `bool`, and `str` values each match their corresponding stored type
+</Update>
+
+<Update label="04.20.2026">
+## [04.20.2026: CLI Span Notes](/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7)
+**Available in @arizeai/phoenix-cli 1.1.0+**
+
+`px span add-note <span-id> --text "..."` attaches a free-text note to any span. Pass `--include-notes` to `px span list` or `px trace get` to read notes back alongside span data.
+</Update>
+
+<Update label="04.16.2026">
+## [04.16.2026: Azure Managed Identity for PostgreSQL](/docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres)
+**Available in arize-phoenix 14.8.0+**
+
+Connect Phoenix to Azure Database for PostgreSQL using Microsoft Entra managed identity — no static database password required. Install the `azure` extra and set `PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true`.
+
+- **Zero-credential setup** — tokens are fetched and refreshed automatically on each connection
+- **New `[azure]` extra** — `pip install 'arize-phoenix[azure]'` pulls in `azure-identity` and `aiohttp`
+- **`PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS` deprecated** — silently ignored with a startup warning
+</Update>
+
 <Update label="04.14.2026">
 ## [04.14.2026: CLI Annotation Commands](/docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands)
 **Available in @arizeai/phoenix-cli 1.0.4+**

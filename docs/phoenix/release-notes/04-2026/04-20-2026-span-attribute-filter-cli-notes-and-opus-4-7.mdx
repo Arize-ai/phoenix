@@ -1,0 +1,91 @@
+---
+title: "Release Notes"
+---
+
+# Span Attribute Filtering
+
+April 20, 2026
+
+**Available in arize-phoenix 14.9.0+ (server), arize-phoenix-client 2.4.0+ (Python), @arizeai/phoenix-client 6.7.0+ (TypeScript)**
+
+Filter spans by stored attribute values when calling `GET /v1/spans`. Multiple `attribute=key:value` pairs are AND-ed together. The value's type determines how the stored attribute is matched — passing an integer matches a stored integer; passing a string matches a stored string — so `user.id: 12345` (int) and `user.id: "12345"` (string) are distinct filters.
+
+**Python**
+
+```python
+from phoenix.client import Client
+
+client = Client()
+spans = client.spans.get_spans(
+    project_identifier="my-project",
+    attributes={
+        "llm.model_name": "gpt-4o",
+        "metadata.tier": "premium",
+    },
+)
+```
+
+**TypeScript**
+
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+const result = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  attributes: {
+    "llm.model_name": "gpt-4o",
+    "metadata.tier": "premium",
+  },
+});
+```
+
+**REST**
+
+```http
+GET /v1/projects/my-project/spans?attribute=llm.model_name:gpt-4o&attribute=metadata.tier:premium
+```
+
+**CLI**
+
+```bash
+px span list --project my-project \
+  --attribute "llm.model_name:gpt-4o" \
+  --attribute "metadata.tier:premium"
+```
+
+- **Type-aware matching** — `str`, `int`, `float`, and `bool` values each select a distinct storage type; a whole-number float (`1.0`) also matches the integer `1`
+- **Forced-string matching** — wrap a numeric-looking string in quotes: `user.id:"12345"` (URL-encoded `%2212345%22`); the Python and TypeScript clients handle this automatically
+- **Colon-in-value** is supported — split is on the first `:` only, so `session.id:sess:abc:123` works without escaping
+- **AND semantics** — repeat the parameter or add multiple entries to the map to require all conditions
+
+# CLI Span Notes
+
+April 20, 2026
+
+**Available in @arizeai/phoenix-cli 1.1.0+**
+
+Add free-text notes to spans from the terminal with `px span add-note`. Pass `--include-notes` to `px span list` or `px trace get` to read notes back alongside span data.
+
+```bash
+# Attach a note to a span
+px span add-note <span-id> --text "Reviewed manually — output looks correct."
+
+# List spans with their notes
+px span list --include-notes
+
+# Fetch a trace with span notes
+px trace get <trace-id> --include-notes
+```
+
+Notes are stored separately from annotations. When you pass `--include-annotations`, note entries are excluded from that output — use `--include-notes` to fetch them explicitly.
+
+# Claude Opus 4.7 in the Playground
+
+April 20, 2026
+
+**Available in arize-phoenix 14.9.0+**
+
+Claude Opus 4.7 is now available as a model option in the Phoenix Playground. Select it from the model picker to compare outputs against other Anthropic and cross-provider models.
