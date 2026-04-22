@@ -332,7 +332,7 @@ export function SpansTable(props: SpansTableProps) {
   const visibleAnnotationColumnNames = useMemo(() => {
     return getVisibleSpanAnnotationColumnNames({
       spanAnnotationNames: data.spanAnnotationNames,
-      annotationColumnVisibility,
+      annotationVisibility: annotationColumnVisibility,
     });
   }, [data.spanAnnotationNames, annotationColumnVisibility]);
   const traceAnnotationColumnVisibility = useTracingContext(

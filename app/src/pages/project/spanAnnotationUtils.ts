@@ -1,6 +1,6 @@
-type AnnotationColumnVisibility = Partial<Record<string, boolean>>;
+type AnnotationVisibilityMap = Partial<Record<string, boolean>>;
 
-export function getFilteredSpanAnnotationNames(
+export function getNonNoteAnnotationNames(
   spanAnnotationNames: ReadonlyArray<string>
 ) {
   return spanAnnotationNames.filter((name) => name !== "note");
@@ -12,12 +12,12 @@ export function getFilteredSpanAnnotationNames(
  */
 export function getVisibleSpanAnnotationColumnNames({
   spanAnnotationNames,
-  annotationColumnVisibility,
+  annotationVisibility,
 }: {
   spanAnnotationNames: ReadonlyArray<string>;
-  annotationColumnVisibility: AnnotationColumnVisibility;
+  annotationVisibility: AnnotationVisibilityMap;
 }) {
-  return getFilteredSpanAnnotationNames(spanAnnotationNames).filter(
-    (name) => annotationColumnVisibility[name]
+  return getNonNoteAnnotationNames(spanAnnotationNames).filter(
+    (name) => annotationVisibility[name]
   );
 }

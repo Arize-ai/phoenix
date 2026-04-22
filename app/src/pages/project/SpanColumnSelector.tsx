@@ -18,7 +18,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
 import type { SpanColumnSelector_traceAnnotations$key } from "./__generated__/SpanColumnSelector_traceAnnotations.graphql";
-import { getFilteredSpanAnnotationNames } from "./spanAnnotationUtils";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   TRACE_ANNOTATIONS_COLUMN_ID,
   TRACE_ANNOTATIONS_COLUMN_LABEL,
@@ -187,9 +187,9 @@ function EvaluationColumnSelector({
   const setAnnotationColumnVisibility = useTracingContext(
     (state) => state.setAnnotationColumnVisibility
   );
-  const filteredSpanAnnotationNames = useMemo(() => {
-    return getFilteredSpanAnnotationNames(data.spanAnnotationNames);
-  }, [data.spanAnnotationNames]);
+  const filteredSpanAnnotationNames = getNonNoteAnnotationNames(
+    data.spanAnnotationNames
+  );
 
   const allVisible = useMemo(() => {
     return filteredSpanAnnotationNames.every((name) => {

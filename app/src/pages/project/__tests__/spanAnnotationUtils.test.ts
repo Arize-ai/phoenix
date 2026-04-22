@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  getFilteredSpanAnnotationNames,
+  getNonNoteAnnotationNames,
   getVisibleSpanAnnotationColumnNames,
 } from "../spanAnnotationUtils";
 
 describe("spanAnnotationUtils", () => {
-  describe("getFilteredSpanAnnotationNames", () => {
+  describe("getNonNoteAnnotationNames", () => {
     it('removes the reserved "note" annotation name', () => {
       expect(
-        getFilteredSpanAnnotationNames(["note", "toxicity", "sentiment"])
+        getNonNoteAnnotationNames(["note", "toxicity", "sentiment"])
       ).toEqual(["toxicity", "sentiment"]);
     });
 
     it("preserves non-note annotation names in order", () => {
-      expect(getFilteredSpanAnnotationNames(["toxicity", "sentiment"])).toEqual(
-        ["toxicity", "sentiment"]
-      );
+      expect(getNonNoteAnnotationNames(["toxicity", "sentiment"])).toEqual([
+        "toxicity",
+        "sentiment",
+      ]);
     });
   });
 
@@ -25,7 +26,7 @@ describe("spanAnnotationUtils", () => {
       expect(
         getVisibleSpanAnnotationColumnNames({
           spanAnnotationNames: ["note", "toxicity", "sentiment"],
-          annotationColumnVisibility: {
+          annotationVisibility: {
             sentiment: true,
             toxicity: true,
           },
@@ -37,7 +38,7 @@ describe("spanAnnotationUtils", () => {
       expect(
         getVisibleSpanAnnotationColumnNames({
           spanAnnotationNames: ["toxicity", "sentiment"],
-          annotationColumnVisibility: {
+          annotationVisibility: {
             toxicity: false,
             sentiment: true,
           },
