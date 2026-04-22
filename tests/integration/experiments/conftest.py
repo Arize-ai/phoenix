@@ -534,6 +534,7 @@ async def _dataset_evaluators(
                     "outputConfigs": [
                         {"categorical": _evaluator_output_config(openai_output_name)}
                     ],
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -558,6 +559,7 @@ async def _dataset_evaluators(
                     "outputConfigs": [
                         {"categorical": _evaluator_output_config(openai_responses_output_name)}
                     ],
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -584,6 +586,7 @@ async def _dataset_evaluators(
                     "outputConfigs": [
                         {"categorical": _evaluator_output_config(anthropic_output_name)}
                     ],
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -608,6 +611,7 @@ async def _dataset_evaluators(
                     "outputConfigs": [
                         {"categorical": _evaluator_output_config(google_output_name)}
                     ],
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
@@ -632,6 +636,7 @@ async def _dataset_evaluators(
                     "outputConfigs": [
                         {"categorical": _evaluator_output_config(bedrock_output_name)}
                     ],
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                 }
             },
         )
