@@ -8,6 +8,9 @@ import type { BashCustomCommandPolicy } from "./customCommandPolicy";
 
 const DEFAULT_SPILL_THRESHOLD_BYTES = 128 * 1024;
 
+const PHOENIX_REQUEST_SOURCE_HEADER = "X-Phoenix-Request-Source";
+const PXI_REQUEST_SOURCE = "pxi";
+
 function getHelpText(mutationsEnabled: boolean) {
   const permissionsLine = mutationsEnabled
     ? "Permissions: queries and mutations are ENABLED."
@@ -266,6 +269,7 @@ export const createPhoenixGqlCommand = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          [PHOENIX_REQUEST_SOURCE_HEADER]: PXI_REQUEST_SOURCE,
         },
         body: JSON.stringify({ query, variables }),
       });

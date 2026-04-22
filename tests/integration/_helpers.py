@@ -843,9 +843,14 @@ def _gql(
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
     operation_name: Optional[str] = None,
+    headers: Optional[Mapping[str, str]] = None,
 ) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
-    resp = _httpx_client(app, auth).post("graphql", json=json_)
+    resp = _httpx_client(
+        app,
+        auth,
+        headers=dict(headers) if headers else None,
+    ).post("graphql", json=json_)
     return _json(resp), resp.headers
 
 

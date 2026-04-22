@@ -293,6 +293,17 @@ EOF`
     expect(inlineResult.stdout).toContain("Project Alpha");
     expect(fileResult.stdout).toContain("Dataset A");
     expect(spillResult.stdout).toContain("/home/user/workspace/result.json");
+
+    const phoenixGqlFetchCalls = mockedAuthFetch.mock.calls.filter(
+      ([input, init]) => {
+        if (!String(input).includes("/graphql")) {
+          return false;
+        }
+        const headers = (init?.headers ?? {}) as Record<string, string>;
+        return headers["X-Phoenix-Request-Source"] === "pxi";
+      }
+    );
+    expect(phoenixGqlFetchCalls.length).toBeGreaterThan(0);
     expect(blockedMutation.exitCode).toBe(1);
     expect(blockedMutation.stderr.length).toBeGreaterThan(0);
     expect(mockedAuthFetch.mock.calls.length).toBe(

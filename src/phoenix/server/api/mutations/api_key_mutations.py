@@ -102,7 +102,7 @@ class ApiKeyMutationMixin:
     ) -> CreateUserApiKeyMutationPayload:
         assert (token_store := info.context.token_store) is not None
         try:
-            user = info.context.request.user  # type: ignore
+            user = info.context.user
             assert isinstance(user, PhoenixUser)
         except AttributeError:
             raise ValueError("User not found")

@@ -12,6 +12,7 @@ from strawberry.fastapi import BaseContext
 
 from phoenix.auth import compute_password_hash
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.pxi_auth import downgrade_if_pxi
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
@@ -299,7 +300,8 @@ class Context(BaseContext):
 
     @cached_property
     def user(self) -> PhoenixUser:
-        return cast(PhoenixUser, self.get_request().user)
+        request = self.get_request()
+        return downgrade_if_pxi(cast(PhoenixUser, request.user), request=request)
 
     @cached_property
     def user_id(self) -> Optional[int]:
