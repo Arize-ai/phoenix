@@ -16,6 +16,7 @@ from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
 from .types import (
     DaytonaPythonConfig,
     ExecutionResult,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
 )
@@ -26,9 +27,17 @@ logger = logging.getLogger(__name__)
 class DaytonaSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in Daytona workspaces."""
 
-    def __init__(self, api_key: str, server_url: str = "") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        server_url: str = "",
+        user_env: Optional[dict[str, str]] = None,
+        packages: Optional[list[str]] = None,
+    ) -> None:
         self._api_key = api_key
         self._server_url = server_url
+        self._user_env: dict[str, str] = user_env or {}
+        self._packages: list[str] = packages or []
         self._sessions: dict[str, Any] = {}
 
     def _get_client(self) -> Any:
@@ -36,12 +45,33 @@ class DaytonaSandboxBackend(SandboxBackend):
 
         return Daytona(api_key=self._api_key, server_url=self._server_url or None)
 
+    async def _install_packages(self, workspace: Any) -> None:
+        """Run pip install for configured packages before first user execute."""
+        if not self._packages:
+            return
+        pkg_args = " ".join(self._packages)
+        install_code = (
+            f"import subprocess, sys\n"
+            f"r = subprocess.run(\n"
+            f"    [sys.executable, '-m', 'pip', 'install', *{self._packages!r}],\n"
+            f"    capture_output=True, text=True\n"
+            f")\n"
+            f"if r.returncode != 0:\n"
+            f"    raise RuntimeError(r.stderr)\n"
+        )
+        result = await workspace.process.code_run(install_code)
+        if result.exit_code != 0:
+            raise RuntimeError(
+                f"pip install {pkg_args!r} failed (exit {result.exit_code}): {result.stderr}"
+            )
+
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:
             logger.debug(f"Daytona session '{session_key}' already exists; reusing")
             return
         client = self._get_client()
         workspace = await client.create()
+        await self._install_packages(workspace)
         self._sessions[session_key] = workspace
         logger.debug(f"Started Daytona session '{session_key}'")
 
@@ -56,7 +86,6 @@ class DaytonaSandboxBackend(SandboxBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         if timeout is not None:
@@ -69,7 +98,8 @@ class DaytonaSandboxBackend(SandboxBackend):
             if workspace is None:
                 client = self._get_client()
                 workspace = await client.create()
-            result = await workspace.process.code_run(code, envs=env or {})
+                await self._install_packages(workspace)
+            result = await workspace.process.code_run(code, envs=self._user_env)
             return ExecutionResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
@@ -88,8 +118,18 @@ class DaytonaPythonAdapter(SandboxAdapter):
     display_name = "Daytona (Python)"
     language = "PYTHON"
     config_model = DaytonaPythonConfig
+    credential_specs = [
+        ProviderCredentialSpec(
+            key="PHOENIX_SANDBOX_DAYTONA_API_KEY",
+            display_name="Daytona API Key",
+            description="API key for the Daytona sandbox service.",
+        ),
+    ]
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
+    ) -> SandboxBackend:
+        self._enforce_capabilities(config, user_env)
         api_key: str = (
             config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
             or os.environ.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
@@ -97,4 +137,8 @@ class DaytonaPythonAdapter(SandboxAdapter):
             or ""
         )
         server_url: str = config.get("server_url", "")
-        return DaytonaSandboxBackend(api_key=api_key, server_url=server_url)
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        return DaytonaSandboxBackend(
+            api_key=api_key, server_url=server_url, user_env=user_env, packages=packages
+        )

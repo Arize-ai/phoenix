@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<707db85b402d1315ed47e2666c9db4a7>>
+ * @generated SignedSource<<f1555fa6001c1b7a590a984a686b9227>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -176,6 +176,27 @@ return {
                     "kind": "ScalarField",
                     "name": "status",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "supportsEnvVars",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "internetAccess",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "dependenciesLanguage",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -248,12 +269,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "366585d6bb55c8cf16df84c839221661",
+    "cacheID": "b101f285caef8a7c7081bdee796299ce",
     "id": null,
     "metadata": {},
     "name": "SandboxProvidersCardProviderEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxProvidersCardProviderEnabledSwitchMutation(\n  $input: UpdateSandboxProviderInput!\n) {\n  updateSandboxProvider(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxProvidersCardProviderEnabledSwitchMutation(\n  $input: UpdateSandboxProviderInput!\n) {\n  updateSandboxProvider(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

@@ -15,6 +15,7 @@ Key features:
 
 import sqlalchemy as sa
 import strawberry
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry import Info, field
 from strawberry.relay import GlobalID
@@ -29,6 +30,44 @@ from phoenix.server.api.helpers.secrets import normalize_secret_key
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.sandbox import (
+    invalidate_backend_cache,
+    invalidate_backend_cache_for_key,
+)
+
+
+async def _find_affected_sandbox_backend_types(
+    session: AsyncSession,
+    rotated_keys: set[str],
+) -> set[str]:
+    """Return the backend_types of SandboxConfig rows whose env_vars reference
+    any of `rotated_keys` as a secret_ref target.
+
+    Scans all SandboxConfig rows and filters in Python — admin-rotation
+    frequency is low, so a full scan is acceptable. If this becomes a hotspot
+    a reverse-index table `secret_key → SandboxConfig[]` can be added later.
+    """
+    affected: set[str] = set()
+    if not rotated_keys:
+        return affected
+
+    stmt = sa.select(models.SandboxConfig, models.SandboxProvider).join(
+        models.SandboxProvider,
+        models.SandboxProvider.id == models.SandboxConfig.sandbox_provider_id,
+    )
+    for config_row, provider_row in (await session.execute(stmt)).all():
+        env_vars = config_row.config.get("env_vars") if config_row.config else None
+        if not isinstance(env_vars, list):
+            continue
+        for entry in env_vars:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("kind") != "secret_ref":
+                continue
+            if entry.get("secret_key") in rotated_keys:
+                affected.add(provider_row.backend_type)
+                break
+    return affected
 
 
 @strawberry.input
@@ -182,7 +221,10 @@ class SecretMutationMixin:
                     )
                 )
 
-        # Execute database operations in a single transaction
+        # Execute database operations in a single transaction. Collect affected
+        # sandbox backend_types inside the session so we can invalidate caches
+        # after the transaction commits (see cache-invalidation block below).
+        affected_backend_types: set[str] = set()
         async with info.context.db() as session:
             if keys_to_delete:
                 await session.execute(
@@ -199,6 +241,28 @@ class SecretMutationMixin:
                         on_conflict=OnConflict.DO_UPDATE,
                     )
                 )
+
+            rotated_keys: set[str] = set(keys_to_delete) | {
+                str(r["key"]) for r in records_to_upsert
+            }
+            if rotated_keys:
+                affected_backend_types = await _find_affected_sandbox_backend_types(
+                    session, rotated_keys
+                )
+
+        # After the DB transaction commits, evict cached sandbox backends whose
+        # resolved plaintext has changed. Two fan-outs:
+        #   (a) per-key adapter walk — handles the "rotated key shadows an
+        #       adapter credential" case; mutation-time checks prevent authoring
+        #       reserved keys as user secrets, but this is defense-in-depth.
+        #   (b) per-SandboxConfig scan — handles the user-secret-rotation case
+        #       where a SandboxConfig's env_vars contains `secret_ref` pointing
+        #       at a rotated key. The cache_key = sha256(config) is unchanged
+        #       by secret rotation, so we must evict explicitly.
+        for rotated_key in rotated_keys:
+            await invalidate_backend_cache_for_key(rotated_key)
+        for backend_type in affected_backend_types:
+            await invalidate_backend_cache(backend_type)
 
         deleted_ids = [GlobalID(type_name=Secret.__name__, node_id=key) for key in keys_to_delete]
         upserted_secrets = [Secret(id=str(record["key"])) for record in records_to_upsert]

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d45ac7a2181113973e1b7b971bb7415>>
+ * @generated SignedSource<<39bccf4c2aaf56ccad12535f3d0ab030>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -179,6 +179,27 @@ return {
                     "kind": "ScalarField",
                     "name": "status",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "supportsEnvVars",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "internetAccess",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "dependenciesLanguage",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -251,12 +272,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c7f946a5dc91e5051c3483fdef0ceeb3",
+    "cacheID": "c408b5c7969a3524b94197fc3988bd01",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

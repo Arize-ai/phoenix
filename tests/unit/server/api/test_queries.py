@@ -24,6 +24,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -2900,3 +2901,32 @@ class TestModelInvocationParameters:
         assert not response.errors
         assert response.data is not None
         assert response.data["modelInvocationParameters"] == []
+
+
+@pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
+async def test_sandbox_backends_capability_flags(
+    backend_type: str,
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    query = """
+      query {
+        sandboxBackends {
+          backendType
+          supportsEnvVars
+          internetAccess
+          dependenciesLanguage
+        }
+      }
+    """
+    meta = SANDBOX_ADAPTER_METADATA[backend_type]
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+    assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
+    backend = backends[backend_type]
+
+    assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
+    assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
+    assert backend["dependenciesLanguage"] == meta.dependencies_language, backend_type

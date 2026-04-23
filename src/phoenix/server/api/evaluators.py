@@ -15,6 +15,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
@@ -55,6 +56,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.sandbox import MissingSecretError  # noqa: E402
 from phoenix.server.sandbox.types import SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
@@ -837,13 +839,26 @@ async def get_evaluators(
                                 f"Language mismatch: evaluator language '{evaluator_language}' "
                                 f"does not match the sandbox provider's configured language."
                             )
+                        # Admin-authored provider config wins over user-authored
+                        # SandboxConfig.config on key collision — consistent with
+                        # the factory's credentials-win merge order.
                         merged_config = {
-                            **sandbox_provider.config,
                             **sandbox_config.config,
+                            **sandbox_provider.config,
                         }
-                        backend = get_or_create_backend(
-                            sandbox_provider.backend_type, config=merged_config
-                        )
+                        try:
+                            backend = await get_or_create_backend(
+                                sandbox_provider.backend_type,
+                                config=merged_config,
+                                session=session,
+                                decrypt=decrypt,
+                            )
+                        except (
+                            MissingSecretError,
+                            UnsupportedOperation,
+                            PydanticValidationError,
+                        ) as exc:
+                            raise BadRequest(str(exc))
 
             # Resolve evaluator base row for name/description/metadata
             evaluator_base = await session.get(models.Evaluator, code_row.id)
