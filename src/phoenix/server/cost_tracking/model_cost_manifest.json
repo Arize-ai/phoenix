@@ -4351,6 +4351,28 @@
       ]
     },
     {
+      "name": "moonshot/kimi-k2.6",
+      "name_pattern": "kimi-k2\\.6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
       "name": "moonshot/kimi-latest",
       "name_pattern": "kimi-latest",
       "source": "litellm",
