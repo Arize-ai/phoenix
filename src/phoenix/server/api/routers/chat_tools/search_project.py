@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, or_, select
 from starlette.exceptions import HTTPException
 
@@ -13,6 +14,10 @@ if TYPE_CHECKING:
 
     from phoenix.server.api.routers.chat_context import ResolvedContexts, ToolExecutionEnv
     from phoenix.server.api.routers.chat_tools.registry import ContextualTool
+
+
+INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 
 
 def _coerce_limit(value: Any) -> int:
@@ -119,8 +124,12 @@ def _build_search_project_callable(
             match_condition = or_(
                 models.CaseInsensitiveContains(models.Trace.trace_id, query),
                 models.CaseInsensitiveContains(models.Span.name, query),
-                models.CaseInsensitiveContains(models.Span.input_value, query),
-                models.CaseInsensitiveContains(models.Span.output_value, query),
+                models.CaseInsensitiveContains(
+                    models.Span.attributes[INPUT_VALUE].as_string(), query
+                ),
+                models.CaseInsensitiveContains(
+                    models.Span.attributes[OUTPUT_VALUE].as_string(), query
+                ),
             )
 
             matching_traces = (

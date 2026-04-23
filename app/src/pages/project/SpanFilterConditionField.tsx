@@ -295,6 +295,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
   const advertisedContext = useMemo<AgentContext | null>(() => {
+    // Only advertise a mounted filter context after validation succeeds so the
+    // agent never receives a stale or invalid condition.
     const trimmed = deferredFilterCondition.trim();
     if (!isConditionValidState || !trimmed || !projectId) {
       return null;
@@ -302,6 +304,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     return { type: "span_filter", projectId, condition: trimmed };
   }, [deferredFilterCondition, isConditionValidState, projectId]);
 
+  // Keep the agent's mounted UI context aligned with the current validated
+  // filter expression while this field is rendered.
   useAdvertiseAgentContext(advertisedContext);
 
   useEffect(() => {

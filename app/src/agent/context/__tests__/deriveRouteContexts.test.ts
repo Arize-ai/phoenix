@@ -46,7 +46,7 @@ describe("deriveRouteContexts", () => {
 
     expect(contexts).toEqual([
       { type: "project", projectId: "P1" },
-      { type: "span", spanId: "S1" },
+      { type: "span", projectId: "P1", spanId: "S1" },
     ]);
   });
 

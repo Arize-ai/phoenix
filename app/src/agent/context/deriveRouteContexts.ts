@@ -44,7 +44,11 @@ export function deriveRouteContexts(
         : { type: "span", spanId: selectedSpanNodeId }
     );
   } else if (routeSpanId) {
-    contexts.push({ type: "span", spanId: routeSpanId });
+    contexts.push(
+      projectId
+        ? { type: "span", projectId, spanId: routeSpanId }
+        : { type: "span", spanId: routeSpanId }
+    );
   }
 
   return contexts;
