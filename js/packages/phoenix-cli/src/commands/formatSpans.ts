@@ -1,4 +1,4 @@
-import type { SpanAnnotation, SpanWithAnnotations } from "../trace";
+import type { SpanAnnotation, SpanNote, SpanWithAnnotations } from "../trace";
 import { formatTable } from "./formatTable";
 
 export type OutputFormat = "pretty" | "json" | "raw";
@@ -89,7 +89,7 @@ function formatAnnotations(annotations: SpanAnnotation[] | undefined): string {
     .join(", ");
 }
 
-function formatNotes(notes: SpanAnnotation[] | undefined): string {
+function formatNotes(notes: SpanNote[] | undefined): string {
   if (!notes || notes.length === 0) return "";
   return notes
     .map((note) => note.result?.explanation?.replace(/\s+/g, " ").trim() || "")

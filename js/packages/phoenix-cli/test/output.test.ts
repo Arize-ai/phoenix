@@ -145,7 +145,7 @@ const mockTraceWithNotes: Trace = {
       metadata: null,
       trace_id: "noted123",
       result: {
-        explanation: "Trace note content",
+        explanation: "Trace note line 1\nTrace note line 2",
       },
     },
   ],
@@ -169,7 +169,7 @@ const mockTraceWithNotes: Trace = {
           metadata: null,
           span_id: "span1",
           result: {
-            explanation: "Span note content",
+            explanation: "Span note line 1\nSpan note line 2",
           },
         },
       ],
@@ -271,9 +271,11 @@ describe("Output Formatting", () => {
       });
 
       expect(output).toContain("Trace Notes:");
-      expect(output).toContain("- Trace note content");
+      expect(output).toContain("│  - Trace note line 1");
+      expect(output).toContain("│    Trace note line 2");
       expect(output).toContain("notes:");
-      expect(output).toContain("- Span note content");
+      expect(output).toContain("- Span note line 1");
+      expect(output).toContain("  Span note line 2");
     });
 
     it("should format array of traces", () => {
@@ -339,7 +341,7 @@ describe("Output Formatting", () => {
       });
 
       expect(output).toContain("notes");
-      expect(output).toContain("Span note content");
+      expect(output).toContain("Span note line 1 Span note line 2");
     });
   });
 });

@@ -200,7 +200,6 @@ describe("span add-note", () => {
         targetType: "span",
         targetId: "span-123",
         text: "needs review",
-        annotatorKind: "HUMAN",
       })
     );
   });
@@ -300,7 +299,6 @@ describe("trace add-note", () => {
           targetType: "trace",
           targetId: "trace-123",
           text: "needs review",
-          annotatorKind: "HUMAN",
         },
         null,
         2

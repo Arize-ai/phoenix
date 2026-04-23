@@ -12,7 +12,11 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
-import type { SpanWithAnnotations } from "../trace";
+import {
+  buildSpanNote,
+  type SpanNote,
+  type SpanWithAnnotations,
+} from "../trace";
 import {
   buildAnnotationMutationResult,
   getAnnotationMutationHelpText,
@@ -289,13 +293,13 @@ async function spanListHandler(
         includeAnnotationNames: [NOTE_ANNOTATION_NAME],
       });
 
-      const notesBySpanId = new Map<string, SpanAnnotation[]>();
+      const notesBySpanId = new Map<string, SpanNote[]>();
       for (const note of notes) {
         const spanId = note.span_id;
         if (!notesBySpanId.has(spanId)) {
           notesBySpanId.set(spanId, []);
         }
-        notesBySpanId.get(spanId)!.push(note);
+        notesBySpanId.get(spanId)!.push(buildSpanNote(note));
       }
 
       for (const span of spans) {

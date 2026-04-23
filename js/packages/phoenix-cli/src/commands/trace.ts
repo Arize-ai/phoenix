@@ -14,10 +14,14 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
+  buildSpanNote,
   buildTrace,
+  buildTraceNote,
   groupSpansByTrace,
+  type SpanNote,
   type SpanWithAnnotations,
   type Trace,
+  type TraceNote,
 } from "../trace";
 import {
   buildAnnotationMutationResult,
@@ -99,13 +103,13 @@ function attachSpanNotesToSpans(
   spans: SpanWithAnnotations[],
   notes: SpanAnnotation[]
 ): void {
-  const notesBySpanId = new Map<string, SpanAnnotation[]>();
+  const notesBySpanId = new Map<string, SpanNote[]>();
   for (const note of notes) {
     const spanId = note.span_id;
     if (!notesBySpanId.has(spanId)) {
       notesBySpanId.set(spanId, []);
     }
-    notesBySpanId.get(spanId)!.push(note);
+    notesBySpanId.get(spanId)!.push(buildSpanNote(note));
   }
 
   for (const span of spans) {
@@ -122,13 +126,13 @@ function attachTraceNotesToTraces(
   traces: Trace[],
   notes: TraceAnnotation[]
 ): void {
-  const notesByTraceId = new Map<string, TraceAnnotation[]>();
+  const notesByTraceId = new Map<string, TraceNote[]>();
   for (const note of notes) {
     const traceId = note.trace_id;
     if (!notesByTraceId.has(traceId)) {
       notesByTraceId.set(traceId, []);
     }
-    notesByTraceId.get(traceId)!.push(note);
+    notesByTraceId.get(traceId)!.push(buildTraceNote(note));
   }
 
   for (const trace of traces) {
@@ -521,7 +525,7 @@ async function traceGetHandler(
       trace.annotations = traceAnnotations;
     }
     if (traceNotes?.length) {
-      trace.notes = traceNotes;
+      trace.notes = traceNotes.map(buildTraceNote);
     }
 
     // Output trace
