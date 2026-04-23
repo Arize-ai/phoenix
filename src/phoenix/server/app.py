@@ -153,8 +153,11 @@ from phoenix.server.api.dataloaders import (
     TokenPricesByModelDataLoader,
     TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceErrorCountDataLoader,
+    TraceErrorsByTypeDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
+    TraceSpanCountsByKindDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -917,7 +920,10 @@ def create_graphql_router(
                 trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
                 trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+                trace_error_count=TraceErrorCountDataLoader(db),
+                trace_errors_by_type=TraceErrorsByTypeDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_span_counts_by_kind=TraceSpanCountsByKindDataLoader(db),
                 trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
                     db
                 ),

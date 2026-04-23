@@ -90,8 +90,11 @@ from .token_counts import TokenCountCache, TokenCountDataLoader
 from .token_prices_by_model import TokenPricesByModelDataLoader
 from .trace_annotations_by_trace import TraceAnnotationsByTraceDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
+from .trace_error_count import TraceErrorCountDataLoader
+from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
+from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
@@ -169,8 +172,11 @@ __all__ = [
     "TokenPricesByModelDataLoader",
     "TraceAnnotationsByTraceDataLoader",
     "TraceByTraceIdsDataLoader",
+    "TraceErrorCountDataLoader",
+    "TraceErrorsByTypeDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
     "TraceRootSpansDataLoader",
+    "TraceSpanCountsByKindDataLoader",
     "UserRolesDataLoader",
     "UsersDataLoader",
 ]

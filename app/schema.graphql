@@ -3336,6 +3336,14 @@ type SpanEdge {
   node: Span!
 }
 
+type SpanErrorTypeCount {
+  """
+  The `exception.type` attribute of the span event. `None` when no type could be determined — either the errored span has no accompanying `exception` event, or an `exception` event is present but its `exception.type` attribute is missing or malformed.
+  """
+  exceptionType: String
+  count: Int!
+}
+
 type SpanEvent {
   name: String!
   message: String!
@@ -3363,6 +3371,11 @@ enum SpanKind {
   evaluator
   guardrail
   unknown
+}
+
+type SpanKindCount {
+  spanKind: SpanKind!
+  count: Int!
 }
 
 """
@@ -3574,7 +3587,20 @@ type Trace implements Node {
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
-  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Count of each span kind present under this trace. Only kinds with count > 0 are returned.
+  """
+  spanCountsByKind: [SpanKindCount!]!
+
+  """Count of spans under this trace with `status_code == ERROR`."""
+  errorCount: Int!
+
+  """
+  Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
+  """
+  errorsByType: [SpanErrorTypeCount!]!
+  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
 
   """Annotations associated with the trace."""
   traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!

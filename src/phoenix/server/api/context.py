@@ -88,8 +88,11 @@ if TYPE_CHECKING:
         TokenPricesByModelDataLoader,
         TraceAnnotationsByTraceDataLoader,
         TraceByTraceIdsDataLoader,
+        TraceErrorCountDataLoader,
+        TraceErrorsByTypeDataLoader,
         TraceRetentionPolicyIdByProjectIdDataLoader,
         TraceRootSpansDataLoader,
+        TraceSpanCountsByKindDataLoader,
         UserRolesDataLoader,
         UsersDataLoader,
     )
@@ -219,9 +222,12 @@ class DataLoaders:
     trace_annotation_fields: TableFieldsDataLoader
     trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_error_count: TraceErrorCountDataLoader
+    trace_errors_by_type: TraceErrorsByTypeDataLoader
     trace_fields: TableFieldsDataLoader
     trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
     trace_root_spans: TraceRootSpansDataLoader
+    trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
     user_roles: UserRolesDataLoader
     user_api_key_fields: TableFieldsDataLoader
     user_fields: TableFieldsDataLoader
