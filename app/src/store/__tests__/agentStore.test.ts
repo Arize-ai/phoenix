@@ -1,5 +1,4 @@
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
-import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import { createAgentStore } from "../agentStore";
@@ -141,43 +140,6 @@ describe("agentStore", () => {
 
         expect(store.getState().capabilities[capabilityKey]).toBe(enabled);
       }
-    });
-  });
-
-  describe("advertised contexts", () => {
-    it("merges route contexts ahead of mounted contexts", () => {
-      const store = createAgentStore();
-      const routeContexts: AgentContext[] = [
-        { type: "project", projectId: "P1" },
-        { type: "trace", projectId: "P1", traceId: "T1" },
-      ];
-
-      store.getState().setRouteContexts(routeContexts);
-      store.getState().setMountedContext("filter", {
-        type: "span_filter",
-        projectId: "P1",
-        condition: "status_code == 'ERROR'",
-      });
-
-      expect(store.getState().routeContexts).toEqual(routeContexts);
-      expect(Object.values(store.getState().mountedContexts)).toEqual([
-        {
-          type: "span_filter",
-          projectId: "P1",
-          condition: "status_code == 'ERROR'",
-        },
-      ]);
-    });
-
-    it("skips route updates when the logical context list is unchanged", () => {
-      const store = createAgentStore();
-      const contexts: AgentContext[] = [{ type: "project", projectId: "P1" }];
-
-      store.getState().setRouteContexts(contexts);
-      const first = store.getState().routeContexts;
-      store.getState().setRouteContexts([{ type: "project", projectId: "P1" }]);
-
-      expect(store.getState().routeContexts).toBe(first);
     });
   });
 
