@@ -52,16 +52,20 @@ class ModalSandboxBackend(SandboxBackend):
         idle_timeout: int = _DEFAULT_IDLE_TIMEOUT,
         app_name: str = "phoenix-sandbox",
         user_env: Optional[dict[str, str]] = None,
+        packages: Optional[list[str]] = None,
+        block_network: bool = False,
     ) -> None:
         import modal  # type: ignore[import-not-found]
 
         self._timeout = timeout
         self._idle_timeout = idle_timeout
         self._user_env: dict[str, str] = user_env or {}
+        self._block_network = block_network
         self._sessions: dict[str, Any] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._app = modal.App.lookup(app_name, create_if_missing=True)
-        self._image = modal.Image.debian_slim()
+        base_image = modal.Image.debian_slim()
+        self._image = base_image.pip_install(packages) if packages else base_image
 
     async def _create_sandbox(self) -> Any:
         import modal
@@ -73,7 +77,9 @@ class ModalSandboxBackend(SandboxBackend):
             "idle_timeout": self._idle_timeout,
         }
         if self._user_env:
-            kwargs["env_dict"] = self._user_env
+            kwargs["env"] = self._user_env
+        if self._block_network:
+            kwargs["block_network"] = True
         sandbox = await modal.Sandbox.create.aio(**kwargs)
         return sandbox
 
@@ -154,6 +160,16 @@ class ModalAdapter(SandboxAdapter):
         timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
         idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
         app_name: str = config.get("app_name", "phoenix-sandbox")
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        ia = config.get("internet_access") or {}
+        mode = ia.get("mode") if isinstance(ia, dict) else getattr(ia, "mode", None)
+        block_network: bool = mode == "deny"
         return ModalSandboxBackend(
-            timeout=timeout, idle_timeout=idle_timeout, app_name=app_name, user_env=user_env
+            timeout=timeout,
+            idle_timeout=idle_timeout,
+            app_name=app_name,
+            user_env=user_env,
+            packages=packages or None,
+            block_network=block_network,
         )

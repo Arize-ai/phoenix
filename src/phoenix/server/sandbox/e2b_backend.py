@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 from typing import Any, Optional
 
 from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
@@ -39,12 +40,16 @@ class E2BSandboxBackend(SandboxBackend):
         cwd: Optional[str] = None,
         metadata: Optional[str] = None,
         user_env: Optional[dict[str, str]] = None,
+        allow_internet_access: bool = True,
+        packages: Optional[list[str]] = None,
     ) -> None:
         self._api_key = api_key
         self._template = template
         self._cwd = cwd
         self._metadata = metadata
         self._user_env: dict[str, str] = user_env or {}
+        self._allow_internet_access = allow_internet_access
+        self._packages: list[str] = packages or []
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
@@ -59,10 +64,32 @@ class E2BSandboxBackend(SandboxBackend):
         the config is passed under the key ``"info"``, so the sandbox is
         tagged with ``{"info": "<value>"}``.
         """
-        kwargs: dict[str, Any] = {"api_key": self._api_key, "template": self._template}
+        kwargs: dict[str, Any] = {
+            "api_key": self._api_key,
+            "template": self._template,
+            "allow_internet_access": self._allow_internet_access,
+        }
         if self._metadata is not None:
             kwargs["metadata"] = {"info": self._metadata}
         return kwargs
+
+    async def _install_packages(self, sandbox: Any) -> None:
+        """pip-install configured packages via run_code using argv-safe quoting."""
+        if not self._packages:
+            return
+        quoted = [shlex.quote(p) for p in self._packages]
+        install_code = (
+            "import subprocess, sys\n"
+            "r = subprocess.run(\n"
+            f"    [sys.executable, '-m', 'pip', 'install', *{quoted!r}],\n"
+            "    capture_output=True, text=True\n"
+            ")\n"
+            "if r.returncode != 0:\n"
+            "    raise RuntimeError(r.stderr)\n"
+        )
+        execution = await sandbox.run_code(install_code)
+        if execution.error:
+            raise RuntimeError(f"pip install failed for {self._packages!r}: {execution.error}")
 
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:
@@ -70,6 +97,7 @@ class E2BSandboxBackend(SandboxBackend):
             return
         AsyncSandbox = self._get_sandbox_cls()
         sandbox = await AsyncSandbox.create(**self._create_kwargs())
+        await self._install_packages(sandbox)
         self._sessions[session_key] = sandbox
         logger.debug(f"Started E2B session '{session_key}'")
 
@@ -149,6 +177,24 @@ class E2BAdapter(SandboxAdapter):
         template: str = config.get("template", "base")
         cwd: Optional[str] = config.get("cwd") or None
         metadata: Optional[str] = config.get("metadata") or None
+        internet_access = config.get("internet_access")
+        if internet_access is not None:
+            mode = (
+                internet_access.get("mode")
+                if isinstance(internet_access, dict)
+                else getattr(internet_access, "mode", None)
+            )
+            allow_internet_access = mode != "deny"
+        else:
+            allow_internet_access = True
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         return E2BSandboxBackend(
-            api_key=api_key, template=template, cwd=cwd, metadata=metadata, user_env=user_env
+            api_key=api_key,
+            template=template,
+            cwd=cwd,
+            metadata=metadata,
+            user_env=user_env,
+            allow_internet_access=allow_internet_access,
+            packages=packages or None,
         )

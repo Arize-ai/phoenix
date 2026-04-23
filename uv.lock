@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-19T14:08:37.675933Z"
+exclude-newer = "2026-04-20T17:56:05.226705Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -521,7 +521,7 @@ container = [
     { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
 daytona = [
-    { name = "daytona" },
+    { name = "daytona-sdk" },
 ]
 e2b = [
     { name = "e2b-code-interpreter" },
@@ -653,7 +653,7 @@ requires-dist = [
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.18.0" },
     { name = "azure-identity", marker = "extra == 'container'", specifier = ">=1.18.0" },
     { name = "cachetools" },
-    { name = "daytona", marker = "extra == 'daytona'", specifier = ">=0.140.0" },
+    { name = "daytona-sdk", marker = "extra == 'daytona'", specifier = ">=0.140.0" },
     { name = "e2b-code-interpreter", marker = "extra == 'e2b'", specifier = ">=0.0.12" },
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.135.2" },
@@ -668,7 +668,7 @@ requires-dist = [
     { name = "jsonpath-ng" },
     { name = "jsonschema" },
     { name = "ldap3" },
-    { name = "modal", marker = "extra == 'modal'", specifier = ">=0.70.0" },
+    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.2.0" },
     { name = "numpy" },
     { name = "openai", marker = "extra == 'container'", specifier = ">=2.14.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.44" },
@@ -1750,35 +1750,6 @@ wheels = [
 ]
 
 [[package]]
-name = "daytona"
-version = "0.167.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiofiles" },
-    { name = "daytona-api-client" },
-    { name = "daytona-api-client-async" },
-    { name = "daytona-toolbox-api-client" },
-    { name = "daytona-toolbox-api-client-async" },
-    { name = "deprecated" },
-    { name = "httpx" },
-    { name = "obstore" },
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-instrumentation-aiohttp-client" },
-    { name = "opentelemetry-sdk" },
-    { name = "pydantic" },
-    { name = "python-dotenv" },
-    { name = "python-multipart" },
-    { name = "toml" },
-    { name = "urllib3" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/98/11/ab9b78327316fd81aab5ca8d53242409019dd645e2b20e6d39f04ff2a2ad/daytona-0.167.0.tar.gz", hash = "sha256:b74673d5ed4d5ad160878827d49fd15a1f4e7aedc3297671c2a05dafb6be531d", size = 120927, upload-time = "2026-04-16T14:09:55.796Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/4b/8eeae072602529d8de4cb6b6ec3d677a063db4a2dab6179048da394d9893/daytona-0.167.0-py3-none-any.whl", hash = "sha256:84e1aeaa770179525d134b9091be79167770b189c1163369b64051b41de1c2e7", size = 149853, upload-time = "2026-04-16T14:09:54.092Z" },
-]
-
-[[package]]
 name = "daytona-api-client"
 version = "0.167.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1808,6 +1779,35 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/be/d2/6d9fa46ed2829a6e23c08a08f1f35c0a3cb106e1374c29b20488b3544704/daytona_api_client_async-0.167.0.tar.gz", hash = "sha256:e63eb3edd6111b2741d6eb350ed7c92100fd6147c46de5a4796e7dfc3009853c", size = 147781, upload-time = "2026-04-16T14:09:18.912Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/3f/06715c84e3bea9dd6ffa5886acb5c19e525e0107ab8ebde22107d61b57df/daytona_api_client_async-0.167.0-py3-none-any.whl", hash = "sha256:9cfc675c796cb8f008aa02b82d83e3496aef34287ec5187e624dd96ac471593c", size = 410077, upload-time = "2026-04-16T14:09:16.782Z" },
+]
+
+[[package]]
+name = "daytona-sdk"
+version = "0.167.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "daytona-api-client" },
+    { name = "daytona-api-client-async" },
+    { name = "daytona-toolbox-api-client" },
+    { name = "daytona-toolbox-api-client-async" },
+    { name = "deprecated" },
+    { name = "httpx" },
+    { name = "obstore" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-aiohttp-client" },
+    { name = "opentelemetry-sdk" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "python-multipart" },
+    { name = "toml" },
+    { name = "urllib3" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ee/f5/15865540138a4c8f1fe808f9bdf14487c76ee29e52d6431b1bfe9799d9a7/daytona_sdk-0.167.0.tar.gz", hash = "sha256:a633466a6ef649e7020e67ca9b23f5190c1932f3284dd13f1c55c6b32cbe3e3f", size = 120948, upload-time = "2026-04-16T14:09:59.454Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/28/52c1c8b6831215ed187254c67f9d79b0b19f9930b31ddc3580fa6e716b9a/daytona_sdk-0.167.0-py3-none-any.whl", hash = "sha256:c4cb199c274a1bcb95d42cc4da9189498d2cd9975a7737385409679066105695", size = 150365, upload-time = "2026-04-16T14:09:57.74Z" },
 ]
 
 [[package]]

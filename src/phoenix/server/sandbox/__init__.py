@@ -210,8 +210,8 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
         ],
         supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
+        internet_access_capability="boolean",
+        dependencies_language="PYTHON",
     ),
     "DAYTONA_PYTHON": AdapterMetadata(
         display_name="Daytona (Python)",
@@ -221,13 +221,15 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
         ],
         supports_env_vars=True,
-        internet_access_capability="none",
+        internet_access_capability="boolean",
         dependencies_language="PYTHON",
     ),
-    # internet_access_capability for both Vercel adapters is shipped as scaffolding
-    # only — the flag and UI wiring are in place but runtime enforcement through
-    # build_backend is not yet wired. Do not flip to 'boolean' until the Vercel
-    # backend honours the internet_access.mode from the stored config.
+    # Vercel Python SDK checked: pyproject minimum vercel>=0.5.1; uv.lock resolves
+    # vercel==0.5.7. AsyncSandbox.create() in 0.5.7 does not accept `env` or
+    # `network_policy` kwargs — the TypeScript Vercel SDK exposes both, but the
+    # Python SDK has not yet ported them. Re-evaluate when Python SDK >=0.5.8
+    # ships; flip internet_access_capability to "boolean" and wire network_policy
+    # then. Until that lands, both Vercel adapters remain internet_access="none".
     "VERCEL_PYTHON": AdapterMetadata(
         display_name="Vercel Sandbox (Python)",
         language="PYTHON",
@@ -270,8 +272,8 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
         ],
         supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
+        internet_access_capability="boolean",
+        dependencies_language="PYTHON",
     ),
 }
 
