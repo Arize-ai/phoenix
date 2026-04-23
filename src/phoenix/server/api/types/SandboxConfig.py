@@ -8,9 +8,10 @@ SandboxBackendInfo summarises all known backends including install status.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
@@ -19,7 +20,14 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, get_or_create_backend
+from phoenix.server.sandbox import (
+    SANDBOX_ADAPTER_METADATA,
+    MissingSecretError,
+    get_or_create_backend,
+)
+from phoenix.server.sandbox.types import UnsupportedOperation
+
+logger = logging.getLogger(__name__)
 
 
 @strawberry.type
@@ -54,6 +62,13 @@ class SandboxBackendStatus(Enum):
     """Optional dependency for this backend is not installed."""
 
 
+@strawberry.enum
+class InternetAccessMode(Enum):
+    NONE = "none"
+    BOOLEAN = "boolean"
+    ALLOWLIST = "allowlist"
+
+
 @strawberry.type
 class SandboxBackendInfo:
     """
@@ -69,6 +84,9 @@ class SandboxBackendInfo:
     status: SandboxBackendStatus
     dependency_hints: list[str]
     config_field_specs: list[ConfigFieldSpecType]
+    supports_env_vars: bool
+    internet_access: InternetAccessMode
+    dependencies_language: Optional[Language]
 
 
 @strawberry.type
@@ -104,7 +122,7 @@ class SandboxProvider(Node):
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
         record = await self._get_record(info)
-        return record.config
+        return cast(JSON, record.config)
 
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
@@ -172,7 +190,7 @@ class SandboxConfig(Node):
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
         record = await self._get_record(info)
-        return record.config
+        return cast(JSON, record.config)
 
     @strawberry.field
     async def timeout(self, info: Info[Context, None]) -> int:
@@ -260,11 +278,33 @@ def to_gql_sandbox_provider(row: models.SandboxProvider) -> SandboxProvider:
     return SandboxProvider(id=row.id, db_record=row)
 
 
-def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
+async def get_sandbox_backend_info(
+    info: Optional[Any] = None,
+) -> list[SandboxBackendInfo]:
     """
     Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
     with runtime status derived from get_or_create_backend().
+
+    Pass the Strawberry `info` object so DB-stored credentials are resolved
+    when checking backend availability. Falls back to env-only resolution if
+    info is None.
     """
+    session = None
+    decrypt = None
+    if info is not None:
+        context = info.context
+        decrypt = context.decrypt
+        # Open a read session for credential lookup during availability check
+        async with context.db.read() as _session:
+            session = _session
+            return await _get_sandbox_backend_info_with_session(session=session, decrypt=decrypt)
+    return await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+
+
+async def _get_sandbox_backend_info_with_session(
+    session: Optional[Any],
+    decrypt: Optional[Any],
+) -> list[SandboxBackendInfo]:
     from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
     infos: list[SandboxBackendInfo] = []
@@ -276,12 +316,26 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
             # Adapter registration and backend construction can still over-report
             # availability when runtime prerequisites are only checked later
             # (for example, missing binaries, API keys, or first-use downloads).
-            backend = get_or_create_backend(backend_type)
-            status = (
-                SandboxBackendStatus.AVAILABLE
-                if backend is not None
-                else SandboxBackendStatus.UNAVAILABLE
-            )
+            try:
+                backend = await get_or_create_backend(
+                    backend_type, session=session, decrypt=decrypt
+                )
+                status = (
+                    SandboxBackendStatus.AVAILABLE
+                    if backend is not None
+                    else SandboxBackendStatus.UNAVAILABLE
+                )
+            except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
+                # Adapter is registered but construction failed because a
+                # runtime precondition is not met (auth not configured,
+                # missing user secret, capability mismatch). Surface as
+                # UNAVAILABLE instead of 500ing the whole query — capability
+                # advertisement must continue to work for adapters the admin
+                # hasn't configured yet.
+                logger.debug(
+                    f"sandboxBackends: {backend_type!r} unavailable: {exc}",
+                )
+                status = SandboxBackendStatus.UNAVAILABLE
         raw_specs = getattr(meta, "config_field_specs", [])
         infos.append(
             SandboxBackendInfo(
@@ -301,6 +355,11 @@ def get_sandbox_backend_info() -> list[SandboxBackendInfo]:
                     )
                     for s in raw_specs
                 ],
+                supports_env_vars=meta.supports_env_vars,
+                internet_access=InternetAccessMode(meta.internet_access_capability),
+                dependencies_language=(
+                    Language(meta.dependencies_language) if meta.dependencies_language else None
+                ),
             )
         )
     return infos

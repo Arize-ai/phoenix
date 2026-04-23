@@ -533,6 +533,7 @@ class TestCodeEvaluatorSandboxMutationIds:
                     "language": "PYTHON",
                     "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
                     "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                     "outputConfigs": [
                         {
                             "continuous": {
@@ -865,3 +866,254 @@ class TestConfigValidationPath:
         assert row is not None
         # template was provided — must be persisted
         assert row.config.get("template") == "saved-tmpl"
+
+    async def test_create_env_var_round_trip(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """env_vars inside config persist through create mutation."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-env-vars",
+                        "config": {
+                            "template": "base",
+                            "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
+                        },
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        cfg_id = result.data["createSandboxConfig"]["sandboxConfig"]["id"]
+
+        async with db() as session:
+            from strawberry.relay import GlobalID as GID
+
+            row_id = int(GID.from_id(cfg_id).node_id)
+            row = await session.get(models.SandboxConfig, row_id)
+        assert row is not None
+        env_vars = row.config.get("env_vars")
+        assert env_vars == [{"kind": "literal", "name": "FOO", "value": "bar"}]
+
+    async def test_create_reserved_env_var_name_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """PHOENIX_SANDBOX_* env var names must be rejected with a BadRequest."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-reserved",
+                        "config": {
+                            "env_vars": [
+                                {
+                                    "kind": "literal",
+                                    "name": "PHOENIX_SANDBOX_E2B_API_KEY",
+                                    "value": "bad",
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
+        assert result.errors
+
+    async def test_create_vercel_token_reserved_name_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Non-PHOENIX_SANDBOX reserved names (adapter-owned credentials like
+        VERCEL_TOKEN) must also be rejected at createSandboxConfig time —
+        reserved-name coverage is derived from every adapter's credential_specs,
+        not just the PHOENIX_SANDBOX_ prefix."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            # env_vars surface
+            env_var_result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-vercel-token-env",
+                        "config": {
+                            "env_vars": [
+                                {
+                                    "kind": "secret_ref",
+                                    "name": "VERCEL_TOKEN",
+                                    "secret_key": "anything",
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
+            # top-level config surface
+            top_level_result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-vercel-token-top",
+                        "config": {"VERCEL_TOKEN": "attacker-value"},
+                    }
+                },
+            )
+        assert env_var_result.errors, (
+            "Expected BadRequest for VERCEL_TOKEN in env_vars; "
+            "reserved-name enforcement may not cover adapter-owned credentials"
+        )
+        assert top_level_result.errors, (
+            "Expected BadRequest for VERCEL_TOKEN as top-level config key; "
+            "reserved-name enforcement may not cover top-level SandboxConfig.config"
+        )
+
+    async def test_update_reserved_env_var_name_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """PHOENIX_SANDBOX_* names are also rejected on update."""
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
+            )
+        assert provider is not None
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-reserved-update",
+                config={},
+                timeout=30,
+            )
+            session.add(config)
+            await session.flush()
+            config_id = config.id
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config_id),
+                        "config": {
+                            "env_vars": [
+                                {
+                                    "kind": "secret_ref",
+                                    "name": "PHOENIX_SANDBOX_TOKEN",
+                                    "secret_key": "my-secret",
+                                }
+                            ]
+                        },
+                    }
+                },
+            )
+        assert result.errors
+
+
+# ---------------------------------------------------------------------------
+# Admin gate (D10): IsAdminIfAuthEnabled on createSandboxConfig / updateSandboxConfig
+# ---------------------------------------------------------------------------
+
+
+class TestAdminGate:
+    """
+    Unit-level tests for the IsAdminIfAuthEnabled permission class behaviour.
+
+    The integration fixture (gql_client) runs with authentication_enabled=False,
+    so IsAdminIfAuthEnabled always returns True there — existing tests remain
+    unaffected. These tests verify the permission logic directly.
+    """
+
+    def _make_info(self, *, auth_enabled: bool, is_admin: bool) -> object:
+        from typing import Literal
+        from unittest.mock import MagicMock
+
+        from phoenix.server.bearer_auth import PhoenixUser
+        from phoenix.server.types import AccessTokenId, UserClaimSet, UserId, UserTokenAttributes
+
+        user_id = UserId(1)
+        role: Literal["ADMIN", "MEMBER"] = "ADMIN" if is_admin else "MEMBER"
+        claims = UserClaimSet(
+            subject=user_id,
+            token_id=AccessTokenId(1),
+            attributes=UserTokenAttributes(user_role=role),
+        )
+        mock_info = MagicMock()
+        mock_info.context.auth_enabled = auth_enabled
+        mock_info.context.user = PhoenixUser(user_id, claims)
+        return mock_info
+
+    def test_admin_allowed_when_auth_enabled(self) -> None:
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+
+        perm = IsAdminIfAuthEnabled()
+        info = self._make_info(auth_enabled=True, is_admin=True)
+        assert perm.has_permission(source=None, info=info) is True  # type: ignore[arg-type]
+
+    def test_non_admin_denied_when_auth_enabled(self) -> None:
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+
+        perm = IsAdminIfAuthEnabled()
+        info = self._make_info(auth_enabled=True, is_admin=False)
+        assert perm.has_permission(source=None, info=info) is False  # type: ignore[arg-type]
+
+    def test_allowed_when_auth_disabled_regardless_of_role(self) -> None:
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+
+        perm = IsAdminIfAuthEnabled()
+        info = self._make_info(auth_enabled=False, is_admin=False)
+        assert perm.has_permission(source=None, info=info) is True  # type: ignore[arg-type]
+
+    def test_create_sandbox_config_has_admin_gate(self) -> None:
+        """createSandboxConfig must include IsAdminIfAuthEnabled in its permission_classes."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.sandbox_config_mutations import SandboxConfigMutationMixin
+
+        defn = SandboxConfigMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "create_sandbox_config")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"createSandboxConfig is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    def test_update_sandbox_config_has_admin_gate(self) -> None:
+        """updateSandboxConfig must include IsAdminIfAuthEnabled in its permission_classes."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.sandbox_config_mutations import SandboxConfigMutationMixin
+
+        defn = SandboxConfigMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "update_sandbox_config")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"updateSandboxConfig is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
