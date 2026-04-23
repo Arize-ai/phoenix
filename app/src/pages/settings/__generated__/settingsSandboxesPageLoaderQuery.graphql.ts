@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e5ba983e7fd72f41afef1d455a518ff8>>
+ * @generated SignedSource<<8e8502363924049f07a49b787a343bbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -113,6 +113,27 @@ return {
             "kind": "ScalarField",
             "name": "status",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "supportsEnvVars",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "internetAccess",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "dependenciesLanguage",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -179,12 +200,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "476d6bf6b0e92183e7321e2daf867b81",
+    "cacheID": "0d4bc9439f9c5fb3e72eb7e18d944250",
     "id": null,
     "metadata": {},
     "name": "settingsSandboxesPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsSandboxesPageLoaderQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query settingsSandboxesPageLoaderQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
