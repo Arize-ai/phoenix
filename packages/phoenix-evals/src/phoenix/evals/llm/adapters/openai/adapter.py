@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import re
 from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
 
@@ -390,18 +391,25 @@ class OpenAIAdapter(BaseLLMAdapter):
         return tool_definition
 
     def _system_role(self) -> str:
-        # OpenAI uses different semantics for "system" roles for different models
-        if "gpt" in self.model_name:
+        """Pick the OpenAI system-role keyword for this adapter's model.
+
+        Policy:
+        - ``gpt-*`` (Chat Completions family) → ``"system"``
+        - OpenAI reasoning models (``o1``, ``o3``, ``o4``, ...) → ``"developer"``
+        - Anything else (empty, unknown) → ``"developer"`` (safe default for
+          modern OpenAI-compatible endpoints that follow the reasoning-model
+          convention).
+        """
+        model = self.model_name or ""
+        # Strip a leading provider segment, e.g. "azure/o3-mini" -> "o3-mini".
+        if "/" in model:
+            model = model.split("/", 1)[1]
+
+        if re.match(r"^o\d", model, flags=re.IGNORECASE):
+            return "developer"
+        if re.match(r"^gpt[-\d]", model, flags=re.IGNORECASE):
             return "system"
-        if "o1-mini" in self.model_name:
-            return "user"  # o1-mini does not support either "system" or "developer" roles
-        if "o1-preview" in self.model_name:
-            return "user"  # o1-preview does not support "system" or "developer" roles
-        if "o1" in self.model_name:
-            return "developer"
-        if "o3" in self.model_name:
-            return "developer"
-        return "system"
+        return "developer"
 
     def _transform_messages_to_openai(self, messages: List[Message]) -> list[dict[str, Any]]:
         """Transform List[Message] TypedDict to OpenAI message format.
