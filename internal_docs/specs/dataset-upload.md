@@ -55,6 +55,16 @@ and `append` on their low-level `action` parameter. `create` is a REST-only
 verb used by the Phoenix UI's "Create Dataset" button to get the 409 safety
 behavior.
 
+### Client fallback for older servers
+
+When a client sends `action=update` to a Phoenix server that predates this
+change, the server returns **422** with body `"Invalid dateset action: update"`
+(the typo is part of the server's enum error). Clients detect this specific
+response, emit a warning, and automatically retry the same request with
+`action=create`. On those older servers, `action=create` with the default
+`strict=false` had the permissive upsert behavior, so the fallback preserves
+the declarative semantics — minus the 409-on-name-conflict safety.
+
 ## Why We Built It
 
 ### The problem

@@ -1157,6 +1157,18 @@ class Datasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        if action == "update" and _is_unsupported_update_action_response(response):
+            _warn_update_fallback()
+            data_dict["action"] = "create"
+            file[1].seek(0)
+            response = self._client.post(
+                url="v1/datasets/upload",
+                files={"file": file},
+                data=data_dict,
+                params={"sync": True},
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
 
         return self._process_dataset_upload_response(response, timeout=timeout)
 
@@ -1239,6 +1251,16 @@ class Datasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        if action == "update" and _is_unsupported_update_action_response(response):
+            _warn_update_fallback()
+            payload["action"] = "create"
+            response = self._client.post(
+                url="v1/datasets/upload",
+                json=payload,
+                params={"sync": True},
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
 
         return self._process_dataset_upload_response(response, timeout=timeout)
 
@@ -1958,6 +1980,18 @@ class AsyncDatasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        if action == "update" and _is_unsupported_update_action_response(response):
+            _warn_update_fallback()
+            data_dict["action"] = "create"
+            file[1].seek(0)
+            response = await self._client.post(
+                url="v1/datasets/upload",
+                files={"file": file},
+                data=data_dict,
+                params={"sync": True},
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
 
         return await self._process_dataset_upload_response(response, timeout=timeout)
 
@@ -2038,6 +2072,16 @@ class AsyncDatasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        if action == "update" and _is_unsupported_update_action_response(response):
+            _warn_update_fallback()
+            payload["action"] = "create"
+            response = await self._client.post(
+                url="v1/datasets/upload",
+                json=payload,
+                params={"sync": True},
+                headers={"accept": "application/json"},
+                timeout=timeout,
+            )
 
         return await self._process_dataset_upload_response(response, timeout=timeout)
 
@@ -2192,6 +2236,29 @@ def _infer_keys(
 def _is_all_dict(seq: Iterable[Any]) -> bool:
     """Check if all items in sequence are dictionaries."""
     return all(isinstance(item, dict) for item in seq)
+
+
+def _is_unsupported_update_action_response(response: httpx.Response) -> bool:
+    """True when the server rejected action='update' as an unknown value.
+
+    Older Phoenix servers only accept action=create|append and return 422 with
+    a body like 'Invalid dateset action: update' (the typo is part of the
+    server's enum error) when they see an unrecognized action.
+    """
+    if response.status_code != 422:
+        return False
+    body = response.text or ""
+    return "Invalid dateset action" in body or "Invalid dataset action" in body
+
+
+def _warn_update_fallback() -> None:
+    warnings.warn(
+        "Phoenix server does not support action='update'; falling back to "
+        "action='create'. Upgrade the Phoenix server to get declarative "
+        "update semantics.",
+        UserWarning,
+        stacklevel=3,
+    )
 
 
 class DatasetUploadError(Exception):

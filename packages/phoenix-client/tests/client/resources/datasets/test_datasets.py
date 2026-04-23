@@ -1,10 +1,12 @@
 import gzip
+import warnings
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
+import httpx
 import pandas as pd
 import pytest
 
@@ -12,11 +14,13 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import (
     Dataset,
     DatasetKeys,
+    Datasets,
     DatasetUploadError,
     _get_csv_column_headers,  # pyright: ignore[reportPrivateUsage]
     _infer_keys,  # pyright: ignore[reportPrivateUsage]
     _is_all_dict,  # pyright: ignore[reportPrivateUsage]
     _is_input_dataset_example,  # pyright: ignore[reportPrivateUsage]
+    _is_unsupported_update_action_response,  # pyright: ignore[reportPrivateUsage]
     _parse_datetime,  # pyright: ignore[reportPrivateUsage]
     _prepare_csv,  # pyright: ignore[reportPrivateUsage]
     _prepare_dataframe_as_csv,  # pyright: ignore[reportPrivateUsage]
@@ -523,3 +527,98 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
+
+
+def _make_response(status_code: int, text: str = "", json_body: Any = None) -> httpx.Response:
+    request = httpx.Request("POST", "https://phoenix/v1/datasets/upload")
+    if json_body is not None:
+        return httpx.Response(status_code, json=json_body, request=request)
+    return httpx.Response(status_code, text=text, request=request)
+
+
+class TestUpdateActionFallback:
+    """Clients sending action='update' fall back to action='create' on old servers."""
+
+    @pytest.mark.parametrize(
+        "status,body,expected",
+        [
+            (422, "Invalid dateset action: update", True),  # typo'd server message
+            (422, "Invalid dataset action: update", True),  # spelling-fixed server message
+            (422, "some other validation error", False),
+            (200, "", False),
+            (409, "Dataset already exists", False),
+        ],
+    )
+    def test_is_unsupported_update_action_response(
+        self, status: int, body: str, expected: bool
+    ) -> None:
+        response = _make_response(status, text=body)
+        assert _is_unsupported_update_action_response(response) is expected
+
+    def test_json_upload_falls_back_to_create_and_warns(self) -> None:
+        """On 422 invalid-action, the client retries with action='create' and warns."""
+        success_body = {"data": {"dataset_id": "ds-1", "version_id": "v-1"}}
+        responses = [
+            _make_response(422, text="Invalid dateset action: update"),
+            _make_response(200, json_body=success_body),
+        ]
+        actions_sent: list[str] = []
+
+        def fake_post(*args: Any, **kwargs: Any) -> httpx.Response:
+            actions_sent.append(kwargs["json"]["action"])
+            return responses[len(actions_sent) - 1]
+
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(side_effect=fake_post)
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with patch.object(
+            datasets,
+            "get_dataset",
+            return_value=Mock(spec=Dataset),
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                    dataset_name="demo",
+                    inputs=[{"a": 1}],
+                    action="update",
+                )
+
+        assert actions_sent == ["update", "create"]
+        assert any("does not support action='update'" in str(w.message) for w in caught), [
+            str(w.message) for w in caught
+        ]
+
+    def test_json_upload_does_not_retry_on_unrelated_422(self) -> None:
+        """Generic 422 errors are surfaced, not silently retried."""
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(return_value=_make_response(422, text="inputs must be non-empty"))
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(DatasetUploadError):
+            datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                dataset_name="demo",
+                inputs=[{"a": 1}],
+                action="update",
+            )
+        assert mock_client.post.call_count == 1
+
+    def test_json_upload_with_append_never_falls_back(self) -> None:
+        """action='append' errors propagate without retry."""
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(
+            return_value=_make_response(422, text="Invalid dateset action: something")
+        )
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(DatasetUploadError):
+            datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                dataset_name="demo",
+                inputs=[{"a": 1}],
+                action="append",
+            )
+        assert mock_client.post.call_count == 1

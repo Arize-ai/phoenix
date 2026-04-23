@@ -363,4 +363,54 @@ describe("createDataset", () => {
       },
     });
   });
+
+  describe("fallback to action=create on unsupported server", () => {
+    it("retries with action=create and warns when server returns 422 invalid-action", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      mockPost.mockResolvedValueOnce({
+        data: null,
+        error: "Invalid dateset action: update",
+        response: new Response(null, { status: 422 }),
+      });
+      mockPost.mockResolvedValueOnce({
+        data: { data: { dataset_id: "ds-1", version_id: "v-1" } },
+        error: null,
+        response: new Response(null, { status: 200 }),
+      });
+
+      const result = await createDataset({
+        name: "test-dataset",
+        description: "x",
+        examples: [{ input: { q: 1 } }],
+      });
+
+      expect(mockPost).toHaveBeenCalledTimes(2);
+      expect(mockPost.mock.calls[0]?.[1]?.body?.action).toBe("update");
+      expect(mockPost.mock.calls[1]?.[1]?.body?.action).toBe("create");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("does not support action='update'")
+      );
+      expect(result).toEqual({ datasetId: "ds-1" });
+
+      warnSpy.mockRestore();
+    });
+
+    it("does not retry on unrelated 422 errors", async () => {
+      mockPost.mockResolvedValueOnce({
+        data: null,
+        error: "inputs must be non-empty",
+        response: new Response(null, { status: 422 }),
+      });
+
+      await expect(
+        createDataset({
+          name: "test-dataset",
+          description: "x",
+          examples: [{ input: { q: 1 } }],
+        })
+      ).rejects.toThrow();
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
+  });
 });
