@@ -1,11 +1,13 @@
 import { css } from "@emotion/react";
-import { useCallback } from "react";
+import { Suspense, useCallback } from "react";
 import type { PressEvent } from "react-aria";
 import { Pressable } from "react-aria";
+import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Icon,
   Icons,
+  Loading,
   RichTooltip,
   Text,
   TooltipArrow,
@@ -14,6 +16,8 @@ import {
 } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
+
+import type { SpanNotesTableCellQuery } from "./__generated__/SpanNotesTableCellQuery.graphql";
 
 const NOTE_TOOLTIP_MAX_WIDTH = "720px";
 const NOTE_TOOLTIP_VIEWPORT_GUTTER = "32px";
@@ -61,12 +65,24 @@ const noteContentCSS = css`
   min-width: 220px;
 `;
 
+const noteTooltipLoadingCSS = css`
+  /*
+   * Approximate the eventual table footprint to minimize horizontal tooltip
+   * repositioning when lazy-loaded note details replace the loading state.
+   */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 520px;
+  padding: var(--global-dimension-static-size-200);
+`;
+
 export type SpanNote = {
-  id: string;
-  explanation: string | null;
-  createdAt: string;
-  user?: {
-    username: string;
+  readonly id: string;
+  readonly explanation: string | null;
+  readonly createdAt: string;
+  readonly user?: {
+    readonly username: string;
   } | null;
 };
 
@@ -137,13 +153,46 @@ export function SpanNoteTooltipContent({
   );
 }
 
+function SpanNoteTooltipDetails({ spanId }: { spanId: string }) {
+  const data = useLazyLoadQuery<SpanNotesTableCellQuery>(
+    graphql`
+      query SpanNotesTableCellQuery($spanId: ID!) {
+        span: node(id: $spanId) {
+          __typename
+          ... on Span {
+            spanNotes {
+              id
+              explanation
+              createdAt
+              user {
+                username
+              }
+            }
+          }
+        }
+      }
+    `,
+    { spanId }
+  );
+  const noteEntries =
+    data.span?.__typename === "Span"
+      ? getSpanNoteEntries(data.span.spanNotes)
+      : [];
+
+  if (noteEntries.length === 0) {
+    return <Text color="inherit">No notes</Text>;
+  }
+
+  return <SpanNoteTooltipContent notes={noteEntries} />;
+}
+
 export function SpanNotesTableCell({
-  notes,
+  noteCount,
+  spanId,
 }: {
-  notes: ReadonlyArray<SpanNote>;
+  noteCount: number;
+  spanId: string;
 }) {
-  const noteEntries = getSpanNoteEntries(notes);
-  const noteCount = noteEntries.length;
   const noteCountLabel = `${formatNumber(noteCount)} span note${
     noteCount === 1 ? "" : "s"
   }`;
@@ -167,7 +216,15 @@ export function SpanNotesTableCell({
       </Pressable>
       <RichTooltip placement="bottom" css={noteTooltipCSS} width="auto">
         <TooltipArrow />
-        <SpanNoteTooltipContent notes={noteEntries} />
+        <Suspense
+          fallback={
+            <div css={noteTooltipLoadingCSS}>
+              <Loading />
+            </div>
+          }
+        >
+          <SpanNoteTooltipDetails spanId={spanId} />
+        </Suspense>
       </RichTooltip>
     </TooltipTrigger>
   );

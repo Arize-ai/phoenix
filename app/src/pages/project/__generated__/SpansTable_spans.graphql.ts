@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e55c0e280a3b804b6d1b622cc071c1ed>>
+ * @generated SignedSource<<85bbe526add9ca90fbadefdcd9dc02a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,14 +60,7 @@ export type SpansTable_spans$data = {
         }>;
         readonly spanId: string;
         readonly spanKind: SpanKind;
-        readonly spanNotes: ReadonlyArray<{
-          readonly createdAt: string;
-          readonly explanation: string | null;
-          readonly id: string;
-          readonly user: {
-            readonly username: string;
-          } | null;
-        }>;
+        readonly spanNoteCount: number;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal?: number | null;
@@ -194,14 +187,7 @@ v6 = [
     "name": "truncatedValue",
     "storageKey": null
   }
-],
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "createdAt",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -478,39 +464,8 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanAnnotation",
-                  "kind": "LinkedField",
-                  "name": "spanNotes",
-                  "plural": true,
-                  "selections": [
-                    (v2/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "explanation",
-                      "storageKey": null
-                    },
-                    (v7/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "User",
-                      "kind": "LinkedField",
-                      "name": "user",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "username",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
+                  "kind": "ScalarField",
+                  "name": "spanNoteCount",
                   "storageKey": null
                 },
                 {
@@ -538,7 +493,13 @@ return {
                       "name": "annotatorKind",
                       "storageKey": null
                     },
-                    (v7/*: any*/)
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "createdAt",
+                      "storageKey": null
+                    }
                   ],
                   "storageKey": null
                 },
@@ -662,6 +623,6 @@ return {
 };
 })();
 
-(node as any).hash = "e75e0bb25350f8f9d31941252f0a4aee";
+(node as any).hash = "408f51b10d29a254a720e1fc892f11ea";
 
 export default node;
