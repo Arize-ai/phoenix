@@ -143,6 +143,89 @@ describe("agentStore", () => {
     });
   });
 
+  describe("ephemeral contexts", () => {
+    it("aggregates active contexts across sources and clears them independently", () => {
+      const store = createAgentStore();
+
+      store.getState().setContextSource("route", [
+        {
+          source: "route",
+          type: "project",
+          projectId: "project-1",
+        },
+        {
+          source: "route",
+          type: "trace",
+          projectId: "project-1",
+          traceId: "trace-1",
+        },
+      ]);
+      store.getState().setContextSource("mounted", [
+        {
+          source: "mounted",
+          type: "span_filter_condition",
+          projectId: "project-1",
+          filterCondition: "span_kind == 'LLM'",
+        },
+      ]);
+
+      expect(store.getState().activeContexts).toEqual([
+        {
+          source: "route",
+          type: "project",
+          projectId: "project-1",
+        },
+        {
+          source: "route",
+          type: "trace",
+          projectId: "project-1",
+          traceId: "trace-1",
+        },
+        {
+          source: "mounted",
+          type: "span_filter_condition",
+          projectId: "project-1",
+          filterCondition: "span_kind == 'LLM'",
+        },
+      ]);
+
+      store.getState().clearContextSource("mounted");
+
+      expect(store.getState().activeContexts).toEqual([
+        {
+          source: "route",
+          type: "project",
+          projectId: "project-1",
+        },
+        {
+          source: "route",
+          type: "trace",
+          projectId: "project-1",
+          traceId: "trace-1",
+        },
+      ]);
+    });
+
+    it("does not persist the ephemeral context registry", () => {
+      const store = createAgentStore();
+
+      store.getState().setContextSource("route", [
+        {
+          source: "route",
+          type: "project",
+          projectId: "project-1",
+        },
+      ]);
+
+      const persistedState = JSON.parse(
+        localStorage.getItem("arize-phoenix-agent") ?? "{}"
+      );
+
+      expect(persistedState.state.contextSources).toBeUndefined();
+      expect(persistedState.state.activeContexts).toBeUndefined();
+    });
+  });
+
   describe("persist migration", () => {
     it("migrates legacy debug flags into capabilities", async () => {
       localStorage.setItem(

@@ -94,6 +94,7 @@ export function useAgentChat({
                     hasRemoteCollector: Boolean(
                       store.getState().agentsConfig.collectorEndpoint
                     ),
+                    contexts: store.getState().activeContexts,
                   }),
                 }),
               }),

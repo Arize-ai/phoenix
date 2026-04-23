@@ -1,11 +1,28 @@
 import json
+from datetime import datetime, timezone
 
+import pytest
+from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.server.api.routers.agent_backend_tools import (
+    resolve_backend_tool_registry,
+)
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
+    FrontendProjectContext,
+    FrontendTraceContext,
+    NormalizedProjectContext,
+    NormalizedSpanFilterConditionContext,
+    NormalizedTraceContext,
     _backend_tool_loop_limit_error,
+    build_current_phoenix_context_system_prompt,
+    normalize_agent_contexts,
     parse_chat_body,
 )
+from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.types import DbSessionFactory
 
 
 class TestParseChatBody:
@@ -107,6 +124,42 @@ class TestParseChatBody:
         assert isinstance(first_msg, ModelRequest)
         assert any(isinstance(p, SystemPromptPart) for p in first_msg.parts)
 
+    def test_parses_structured_contexts(self) -> None:
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "contexts": [
+                    {
+                        "source": "route",
+                        "type": "project",
+                        "projectId": "project-1",
+                    },
+                    {
+                        "source": "route",
+                        "type": "trace",
+                        "projectId": "project-1",
+                        "traceId": "trace-1",
+                    },
+                ],
+            }
+        ).encode()
+
+        body = parse_chat_body(raw)
+
+        assert body.contexts is not None
+        assert isinstance(body.contexts[0], FrontendProjectContext)
+        assert body.contexts[0].project_id == "project-1"
+        assert isinstance(body.contexts[1], FrontendTraceContext)
+        assert body.contexts[1].trace_id == "trace-1"
+
 
 class TestStreamAccumulator:
     def test_accumulates_text(self) -> None:
@@ -162,6 +215,178 @@ class TestBackendToolLoopLimitError:
         )
 
         assert error is None
+
+
+class TestAgentContexts:
+    @pytest.mark.asyncio
+    async def test_normalize_contexts_resolves_project_ids_and_drops_invalid_ones(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name="context-project")
+            session.add(project)
+            await session.flush()
+            project_id = str(GlobalID(ProjectNodeType.__name__, str(project.id)))
+            await session.commit()
+
+        raw_body = parse_chat_body(
+            json.dumps(
+                {
+                    "trigger": "submit-message",
+                    "id": "test-1",
+                    "messages": [
+                        {
+                            "id": "msg-1",
+                            "role": "user",
+                            "parts": [{"type": "text", "text": "Hello"}],
+                        }
+                    ],
+                    "contexts": [
+                        {
+                            "source": "route",
+                            "type": "project",
+                            "projectId": project_id,
+                        },
+                        {
+                            "source": "route",
+                            "type": "trace",
+                            "projectId": project_id,
+                            "traceId": "trace-1",
+                        },
+                        {
+                            "source": "route",
+                            "type": "project",
+                            "projectId": "invalid-project-id",
+                        },
+                    ],
+                }
+            ).encode()
+        )
+
+        normalized_contexts = await normalize_agent_contexts(
+            db=db,
+            contexts=raw_body.contexts,
+        )
+
+        assert normalized_contexts == [
+            NormalizedProjectContext(
+                source="route",
+                type="project",
+                project_id=project_id,
+                project_rowid=project.id,
+            ),
+            NormalizedTraceContext(
+                source="route",
+                type="trace",
+                project_id=project_id,
+                project_rowid=project.id,
+                trace_id="trace-1",
+            ),
+        ]
+
+    def test_builds_server_authored_context_prompt(self) -> None:
+        prompt = build_current_phoenix_context_system_prompt(
+            [
+                NormalizedProjectContext(
+                    source="route",
+                    type="project",
+                    project_id="project-1",
+                    project_rowid=1,
+                ),
+                NormalizedSpanFilterConditionContext(
+                    source="mounted",
+                    type="span_filter_condition",
+                    project_id="project-1",
+                    project_rowid=1,
+                    filter_condition="span_kind == 'LLM'",
+                ),
+            ]
+        )
+
+        assert prompt is not None
+        assert "Current Phoenix context" in prompt
+        assert "Project ID (GraphQL GlobalID): project-1" in prompt
+        assert "Active span filter condition: span_kind == 'LLM'" in prompt
+
+    @pytest.mark.asyncio
+    async def test_project_tool_registry_requires_project_context(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        registry_without_project = await resolve_backend_tool_registry(
+            db=db,
+            contexts=[],
+            mcp_client=None,
+        )
+
+        assert "search_project" not in registry_without_project.tool_names
+
+    @pytest.mark.asyncio
+    async def test_search_project_tool_uses_active_project_context(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name="search-project")
+            session.add(project)
+            await session.flush()
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id="trace-1",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+            session.add(trace)
+            await session.flush()
+
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id="span-1",
+                name="CheckoutAgent",
+                span_kind="CHAIN",
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+                attributes={
+                    "input": {"value": "checkout question"},
+                    "output": {"value": "checkout answer"},
+                },
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.commit()
+
+        project_id = str(GlobalID(ProjectNodeType.__name__, str(project.id)))
+        registry = await resolve_backend_tool_registry(
+            db=db,
+            contexts=[
+                NormalizedProjectContext(
+                    source="route",
+                    type="project",
+                    project_id=project_id,
+                    project_rowid=project.id,
+                )
+            ],
+            mcp_client=None,
+        )
+
+        assert "search_project" in registry.tool_names
+
+        result = await registry.execute(
+            "search_project",
+            {"query": "checkout", "limit": 3},
+        )
+
+        assert 'Project "search-project"' in result
+        assert 'Search query: "checkout"' in result
+        assert "trace-1" in result
+        assert "CheckoutAgent" in result
 
     def test_skips_error_when_frontend_tools_are_pending(self) -> None:
         error = _backend_tool_loop_limit_error(

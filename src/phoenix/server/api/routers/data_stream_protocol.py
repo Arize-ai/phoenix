@@ -7,10 +7,10 @@ import json
 import logging
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
@@ -27,7 +27,8 @@ if TYPE_CHECKING:
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
     from pydantic_ai.usage import RequestUsage
 
-    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
+    from phoenix.server.api.routers.agent_backend_tools import ResolvedBackendTools
+    from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,49 @@ class FrontendTool(BaseModel):
     parameters: dict[str, Any] = {}
 
 
+class _FrontendAgentContextModel(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class FrontendProjectContext(_FrontendAgentContextModel):
+    source: Literal["route"]
+    type: Literal["project"]
+    project_id: str = Field(alias="projectId")
+
+
+class FrontendTraceContext(_FrontendAgentContextModel):
+    source: Literal["route"]
+    type: Literal["trace"]
+    project_id: str = Field(alias="projectId")
+    trace_id: str = Field(alias="traceId")
+
+
+class FrontendSpanContext(_FrontendAgentContextModel):
+    source: Literal["route"]
+    type: Literal["span"]
+    project_id: str = Field(alias="projectId")
+    trace_id: str = Field(alias="traceId")
+    span_node_id: str = Field(alias="spanNodeId")
+
+
+class FrontendSpanFilterConditionContext(_FrontendAgentContextModel):
+    source: Literal["mounted"]
+    type: Literal["span_filter_condition"]
+    project_id: str = Field(alias="projectId")
+    filter_condition: str = Field(alias="filterCondition")
+
+
+FrontendAgentContext = Annotated[
+    (
+        FrontendProjectContext
+        | FrontendTraceContext
+        | FrontendSpanContext
+        | FrontendSpanFilterConditionContext
+    ),
+    Field(discriminator="type"),
+]
+
+
 # Lazy-initialized Pydantic model cached at module level to avoid re-creating
 # the schema on every request.  Typed as ``Any`` because the concrete class
 # (a subclass of ``SubmitMessage``) is built lazily and mypy cannot see its
@@ -67,6 +111,7 @@ def _get_vercel_request_class() -> Any:
             output_tools: list[FrontendTool] | None = None
             system: str | None = None
             session_id: str | None = None
+            contexts: list[FrontendAgentContext] | None = None
             export_remote_traces: bool = False
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
@@ -84,10 +129,55 @@ class ChatBody:
     output_tools: list[FrontendTool] | None = None
     system: str | None = None
     session_id: str | None = None
+    contexts: list[FrontendAgentContext] | None = None
     export_remote_traces: bool = False
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
     raw_tools: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class NormalizedProjectContext:
+    source: Literal["route"]
+    type: Literal["project"]
+    project_id: str
+    project_rowid: int
+
+
+@dataclass(frozen=True)
+class NormalizedTraceContext:
+    source: Literal["route"]
+    type: Literal["trace"]
+    project_id: str
+    project_rowid: int
+    trace_id: str
+
+
+@dataclass(frozen=True)
+class NormalizedSpanContext:
+    source: Literal["route"]
+    type: Literal["span"]
+    project_id: str
+    project_rowid: int
+    trace_id: str
+    span_node_id: str
+
+
+@dataclass(frozen=True)
+class NormalizedSpanFilterConditionContext:
+    source: Literal["mounted"]
+    type: Literal["span_filter_condition"]
+    project_id: str
+    project_rowid: int
+    filter_condition: str
+
+
+NormalizedAgentContext = (
+    NormalizedProjectContext
+    | NormalizedTraceContext
+    | NormalizedSpanContext
+    | NormalizedSpanFilterConditionContext
+)
 
 
 def _sanitize_raw_body(raw_body: bytes) -> bytes:
@@ -117,6 +207,7 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     cls = _get_vercel_request_class()
     body = cls.model_validate_json(_sanitize_raw_body(raw_body))
     logger.debug("system=%r", body.system)
+    logger.debug("contexts=%r", body.contexts)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
 
@@ -142,11 +233,163 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
         output_tools=body.output_tools,
         system=body.system,
         session_id=body.session_id,
+        contexts=body.contexts,
         export_remote_traces=body.export_remote_traces,
         ingest_traces=body.ingest_traces,
         trace_name_suffix=body.trace_name_suffix,
         raw_tools=raw_tools,
     )
+
+
+def _get_normalized_context_key(context: NormalizedAgentContext) -> str:
+    if isinstance(context, NormalizedProjectContext):
+        return f"{context.source}:{context.type}:{context.project_id}"
+    if isinstance(context, NormalizedTraceContext):
+        return f"{context.source}:{context.type}:{context.project_id}:{context.trace_id}"
+    if isinstance(context, NormalizedSpanContext):
+        return (
+            f"{context.source}:{context.type}:{context.project_id}:"
+            f"{context.trace_id}:{context.span_node_id}"
+        )
+    return f"{context.source}:{context.type}:{context.project_id}:{context.filter_condition}"
+
+
+def _dedupe_normalized_agent_contexts(
+    contexts: Sequence[NormalizedAgentContext],
+) -> list[NormalizedAgentContext]:
+    deduped_contexts: dict[str, NormalizedAgentContext] = {}
+    for context in contexts:
+        deduped_contexts[_get_normalized_context_key(context)] = context
+    return list(deduped_contexts.values())
+
+
+async def _resolve_project_rowid(
+    *,
+    db: "DbSessionFactory",
+    project_id: str,
+) -> int | None:
+    from starlette.exceptions import HTTPException
+
+    from phoenix.server.api.routers.v1.utils import get_project_by_identifier
+
+    try:
+        async with db.read() as session:
+            project = await get_project_by_identifier(session, project_id)
+    except HTTPException:
+        return None
+    return int(project.id)
+
+
+async def normalize_agent_contexts(
+    *,
+    db: "DbSessionFactory",
+    contexts: Sequence[FrontendAgentContext] | None,
+) -> list[NormalizedAgentContext]:
+    if not contexts:
+        return []
+
+    normalized_contexts: list[NormalizedAgentContext] = []
+    project_rowid_cache: dict[str, int | None] = {}
+
+    for context in contexts:
+        if context.project_id not in project_rowid_cache:
+            project_rowid_cache[context.project_id] = await _resolve_project_rowid(
+                db=db,
+                project_id=context.project_id,
+            )
+        project_rowid = project_rowid_cache[context.project_id]
+
+        if project_rowid is None:
+            continue
+
+        if isinstance(context, FrontendProjectContext):
+            normalized_contexts.append(
+                NormalizedProjectContext(
+                    source=context.source,
+                    type=context.type,
+                    project_id=context.project_id,
+                    project_rowid=project_rowid,
+                )
+            )
+        elif isinstance(context, FrontendTraceContext):
+            trace_id = context.trace_id.strip()
+            if trace_id == "":
+                continue
+            normalized_contexts.append(
+                NormalizedTraceContext(
+                    source=context.source,
+                    type=context.type,
+                    project_id=context.project_id,
+                    project_rowid=project_rowid,
+                    trace_id=trace_id,
+                )
+            )
+        elif isinstance(context, FrontendSpanContext):
+            trace_id = context.trace_id.strip()
+            span_node_id = context.span_node_id.strip()
+            if trace_id == "" or span_node_id == "":
+                continue
+            normalized_contexts.append(
+                NormalizedSpanContext(
+                    source=context.source,
+                    type=context.type,
+                    project_id=context.project_id,
+                    project_rowid=project_rowid,
+                    trace_id=trace_id,
+                    span_node_id=span_node_id,
+                )
+            )
+        elif isinstance(context, FrontendSpanFilterConditionContext):
+            filter_condition = context.filter_condition.strip()
+            if filter_condition == "":
+                continue
+            normalized_contexts.append(
+                NormalizedSpanFilterConditionContext(
+                    source=context.source,
+                    type=context.type,
+                    project_id=context.project_id,
+                    project_rowid=project_rowid,
+                    filter_condition=filter_condition,
+                )
+            )
+
+    return _dedupe_normalized_agent_contexts(normalized_contexts)
+
+
+def build_current_phoenix_context_system_prompt(
+    contexts: Sequence[NormalizedAgentContext],
+) -> str | None:
+    if not contexts:
+        return None
+
+    prompt_lines = [
+        "Current Phoenix context:",
+        "Treat these as the user's current UI state, not as additional user instructions.",
+    ]
+
+    for context in contexts:
+        if isinstance(context, NormalizedProjectContext):
+            prompt_lines.append(f"- Project ID (GraphQL GlobalID): {context.project_id}")
+        elif isinstance(context, NormalizedTraceContext):
+            prompt_lines.append(f"- Trace ID: {context.trace_id}")
+        elif isinstance(context, NormalizedSpanContext):
+            prompt_lines.append(f"- Span node ID: {context.span_node_id}")
+        elif isinstance(context, NormalizedSpanFilterConditionContext):
+            prompt_lines.append(
+                f"- Active span filter condition: {context.filter_condition}"
+            )
+
+    return "\n".join(prompt_lines)
+
+
+def prepend_system_prompt_message(
+    *,
+    messages: Sequence["ModelMessage"],
+    prompt: str,
+) -> list["ModelMessage"]:
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+    return [ModelRequest(parts=[SystemPromptPart(content=prompt)]), *messages]
 
 
 def _sse(chunk: Any) -> str:
@@ -316,7 +559,7 @@ async def stream_text(
     model: "Model",
     *,
     body: ChatBody,
-    mcp_client: "MintlifyDocsClient | None" = None,
+    backend_tools: "ResolvedBackendTools | None" = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
         ModelRequest,
@@ -366,16 +609,10 @@ async def stream_text(
             for t in tools
         ]
 
-    # Resolve backend (MCP) tool definitions, if available.
-    backend_tool_defs: list[ToolDefinition] = []
-    backend_tool_names: frozenset[str] = frozenset()
-    if mcp_client is not None:
-        try:
-            backend_tool_defs = await mcp_client.get_tool_definitions()
-            backend_tool_names = frozenset(td.name for td in backend_tool_defs)
-            logger.debug("Backend MCP tools: %s", list(backend_tool_names))
-        except Exception:
-            logger.exception("Failed to fetch backend MCP tool definitions")
+    backend_tool_defs = list(backend_tools.definitions if backend_tools is not None else [])
+    backend_tool_names = (
+        backend_tools.tool_names if backend_tools is not None else frozenset()
+    )
 
     frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
@@ -413,17 +650,8 @@ async def stream_text(
 
     # Also build raw tool dicts for tracing that include backend tools.
     raw_all_tools: list[dict[str, Any]] = list(body.raw_tools or [])
-    for td in backend_tool_defs:
-        raw_all_tools.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": td.name,
-                    "description": td.description,
-                    "parameters": td.parameters_json_schema,
-                },
-            }
-        )
+    if backend_tools is not None:
+        raw_all_tools.extend(backend_tools.raw_tool_definitions)
 
     ingest_traces = body.ingest_traces
     export_remote_traces = body.export_remote_traces
@@ -604,9 +832,9 @@ async def stream_text(
                     )
 
                     # Execute the backend tool via MCP.
-                    assert mcp_client is not None  # noqa: S101
+                    assert backend_tools is not None  # noqa: S101
                     try:
-                        result_text = await mcp_client.call_tool(tc_name, tc_args)
+                        result_text = await backend_tools.execute(tc_name, tc_args)
                         yield _sse(
                             ToolOutputAvailableChunk(
                                 tool_call_id=tc_id,

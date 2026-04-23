@@ -15,11 +15,13 @@ import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
+import { useAdvertiseAgentContextSource } from "@phoenix/agent/context/useAdvertiseAgentContextSource";
 import {
   Button,
   DialogTrigger,
@@ -265,6 +267,8 @@ const basicSetupOptions: BasicSetupOptions = {
   searchKeymap: false,
 };
 
+const SPAN_FILTER_AGENT_CONTEXT_SOURCE_KEY = "span-filter-condition";
+
 type SpanFilterConditionFieldProps = {
   /**
    * Callback when the condition is valid
@@ -278,6 +282,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [isConditionValidState, setIsConditionValidState] =
+    useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const { filterCondition, setFilterCondition, appendFilterCondition } =
     useSpanFilterCondition();
@@ -290,17 +296,53 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    isConditionValid(deferredFilterCondition, projectId).then((result) => {
+    let isCancelled = false;
+
+    if (deferredFilterCondition.trim() !== "") {
+      setIsConditionValidState(false);
+    }
+
+    void isConditionValid(deferredFilterCondition, projectId).then((result) => {
+      if (isCancelled) {
+        return;
+      }
+
       if (!result?.isValid) {
         setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
+        setIsConditionValidState(false);
       } else {
         setErrorMessage("");
+        setIsConditionValidState(true);
         startTransition(() => {
           onValidCondition(deferredFilterCondition);
         });
       }
     });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [onValidCondition, deferredFilterCondition, projectId]);
+
+  const advertisedContexts = useMemo(() => {
+    if (!isConditionValidState || deferredFilterCondition.trim() === "") {
+      return [];
+    }
+
+    return [
+      {
+        source: "mounted" as const,
+        type: "span_filter_condition" as const,
+        projectId,
+        filterCondition: deferredFilterCondition,
+      },
+    ];
+  }, [deferredFilterCondition, isConditionValidState, projectId]);
+
+  useAdvertiseAgentContextSource({
+    sourceKey: SPAN_FILTER_AGENT_CONTEXT_SOURCE_KEY,
+    contexts: advertisedContexts,
+  });
 
   const hasError = errorMessage !== "";
   const hasCondition = filterCondition !== "";

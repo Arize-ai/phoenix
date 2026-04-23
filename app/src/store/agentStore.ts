@@ -10,6 +10,11 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
+import {
+  areAgentContextListsEqual,
+  mergeAgentContextSources,
+  type AgentContext,
+} from "@phoenix/agent/context/agentContexts";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
@@ -173,6 +178,10 @@ export interface AgentState extends AgentProps {
     key: AgentCapabilityKey;
     enabled: boolean;
   }) => void;
+  contextSources: Partial<Record<string, AgentContext[]>>;
+  activeContexts: AgentContext[];
+  setContextSource: (sourceKey: string, contexts: AgentContext[]) => void;
+  clearContextSource: (sourceKey: string) => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -219,6 +228,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
+    contextSources: {},
+    activeContexts: [],
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -429,6 +440,55 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setCapability" }
+      );
+    },
+    setContextSource: (sourceKey, contexts) => {
+      set(
+        (state) => {
+          const previousContexts = state.contextSources[sourceKey] ?? [];
+
+          if (areAgentContextListsEqual(previousContexts, contexts)) {
+            return state;
+          }
+
+          const nextContextSources: Partial<Record<string, AgentContext[]>> = {
+            ...state.contextSources,
+          };
+
+          if (contexts.length > 0) {
+            nextContextSources[sourceKey] = contexts;
+          } else {
+            delete nextContextSources[sourceKey];
+          }
+
+          return {
+            contextSources: nextContextSources,
+            activeContexts: mergeAgentContextSources(nextContextSources),
+          };
+        },
+        false,
+        { type: "setContextSource" }
+      );
+    },
+    clearContextSource: (sourceKey) => {
+      set(
+        (state) => {
+          if (!(sourceKey in state.contextSources)) {
+            return state;
+          }
+
+          const nextContextSources: Partial<Record<string, AgentContext[]>> = {
+            ...state.contextSources,
+          };
+          delete nextContextSources[sourceKey];
+
+          return {
+            contextSources: nextContextSources,
+            activeContexts: mergeAgentContextSources(nextContextSources),
+          };
+        },
+        false,
+        { type: "clearContextSource" }
       );
     },
 

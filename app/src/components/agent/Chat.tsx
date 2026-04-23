@@ -9,6 +9,9 @@ import {
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  areAgentContextListsEqual,
+} from "@phoenix/agent/context/agentContexts";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -33,6 +36,7 @@ import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
+import { PromptContextPills } from "./PromptContextPills";
 import { PxiGlyph } from "./PxiGlyph";
 import { useAgentChat } from "./useAgentChat";
 
@@ -206,6 +210,7 @@ const chatCSS = css`
     color: var(--global-color-danger);
     font-size: var(--global-font-size-s);
   }
+
 `;
 
 /** Connects the presentational chat view to the agent chat controller hook. */
@@ -293,6 +298,10 @@ export function ChatView({
   const hasAcknowledgedConsent = useAgentContext(
     (state) => state.observability.hasAcknowledgedConsent
   );
+  const activeContexts = useAgentContext(
+    (state) => state.activeContexts,
+    areAgentContextListsEqual
+  );
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -363,6 +372,7 @@ export function ChatView({
                   placeholder="Send a message..."
                 />
               </PromptInputBody>
+              <PromptContextPills contexts={activeContexts} />
               <PromptInputFooter>
                 <PromptInputTools>
                   <AgentModelMenu

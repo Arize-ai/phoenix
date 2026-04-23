@@ -6,6 +6,7 @@ import {
   buildAgentCapabilitySystemPrompt,
   type AgentCapabilities,
 } from "@phoenix/agent/extensions/capabilities";
+import type { AgentContext } from "@phoenix/agent/context/agentContexts";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
 
 import { agentToolDefinitions } from "./chatTools";
@@ -32,6 +33,8 @@ type BuildAgentChatRequestBodyOptions = {
   observability: AgentObservabilitySettings;
   /** Whether a remote collector is configured for this Phoenix instance. */
   hasRemoteCollector: boolean;
+  /** Ephemeral UI contexts that describe what the user is currently viewing. */
+  contexts: AgentContext[];
 };
 
 /** Request payload sent to the PXI agent chat endpoint. */
@@ -56,6 +59,8 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   ingestTraces: boolean;
   /** Whether to also export PXI traces to the configured remote collector. */
   exportRemoteTraces: boolean;
+  /** Structured UI contexts for the current turn. */
+  contexts: AgentContext[];
 };
 
 function buildSystemPrompt({
@@ -91,6 +96,7 @@ export function buildAgentChatRequestBody({
   capabilities,
   observability,
   hasRemoteCollector,
+  contexts,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   return {
     ...body,
@@ -103,6 +109,7 @@ export function buildAgentChatRequestBody({
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
+    contexts,
     ...(sessionId ? { sessionId } : {}),
   };
 }
