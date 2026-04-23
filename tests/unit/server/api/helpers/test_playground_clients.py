@@ -1,5 +1,5 @@
 import json
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -20,6 +20,10 @@ from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.db.types.model_provider import LLMClientFactory
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
     PromptToolChoiceSpecificFunctionTool,
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
@@ -87,7 +91,10 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters: Mapping[str, Any] = {"temperature": 0.1}
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(temperature=0.1),
+        )
 
         with custom_vcr.use_cassette():
             text_chunks = []
@@ -221,7 +228,10 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters: Mapping[str, Any] = {}
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(),
+        )
 
         with custom_vcr.use_cassette():
             tool_call_chunks = []
@@ -365,7 +375,10 @@ class TestOpenAIBaseStreamingClient:
             )
         ]
 
-        invocation_parameters: Mapping[str, Any] = {"temperature": 0.1}
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent(temperature=0.1),
+        )
 
         with custom_vcr.use_cassette():
             with pytest.raises(AuthenticationError) as exc_info:
@@ -489,7 +502,12 @@ class TestAnthropicStreamingClient:
             ],
             tools=tools,
             response_format=None,
-            invocation_parameters={"max_tokens": 1024},
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
+            ),
         )
 
         assert params["tool_choice"] == {"type": "tool", "name": "correctness"}
@@ -685,47 +703,3 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
-
-    # Invocation parameters tests
-
-    def test_chat_completions_has_temperature_parameter(self) -> None:
-        """CHAT_COMPLETIONS client should have temperature parameter."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.OPENAI,
-            "my-custom-model",
-            OpenAIApiType.CHAT_COMPLETIONS,
-        )
-        assert client_class is not None
-        params = client_class.supported_invocation_parameters()
-        param_names = [p.invocation_name for p in params]
-        assert "temperature" in param_names
-        assert "top_p" in param_names
-        assert "frequency_penalty" in param_names
-        assert "reasoning_effort" not in param_names
-
-    def test_responses_has_reasoning_effort_parameter(self) -> None:
-        """RESPONSES client should have reasoning_effort parameter."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.OPENAI,
-            "my-custom-model",
-            OpenAIApiType.RESPONSES,
-        )
-        assert client_class is not None
-        params = client_class.supported_invocation_parameters()
-        param_names = [p.invocation_name for p in params]
-        assert "reasoning_effort" in param_names
-        assert "temperature" not in param_names
-        assert "top_p" not in param_names
-
-    def test_reasoning_model_has_reasoning_effort_parameter(self) -> None:
-        """Reasoning models should have reasoning_effort parameter."""
-        client_class = get_openai_client_class(
-            GenerativeProviderKey.OPENAI,
-            "o1",
-            OpenAIApiType.CHAT_COMPLETIONS,
-        )
-        assert client_class is not None
-        params = client_class.supported_invocation_parameters()
-        param_names = [p.invocation_name for p in params]
-        assert "reasoning_effort" in param_names
-        assert "temperature" not in param_names

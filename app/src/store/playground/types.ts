@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type { InvocationParameterInput } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
@@ -128,8 +127,7 @@ export type ModelConfig = {
    * Null means no response format is set.
    */
   responseFormat?: CanonicalResponseFormat | null;
-  invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
-  supportedInvocationParameters: InvocationParameter[];
+  invocationParameters: InvocationParameterInput[];
 };
 
 export type ModelInvocationParameterInput =
@@ -549,9 +547,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Update the supported invocation parameters for a model
    */
-  updateModelSupportedInvocationParameters: (params: {
+  /**
+   * Reconcile invocation parameters against the static frontend spec table when the model
+   * or OpenAI API type changes (replaces the former GraphQL `modelInvocationParameters` fetch).
+   */
+  syncInvocationParametersWithSpecs: (params: {
     instanceId: number;
-    supportedInvocationParameters: InvocationParameter[];
     modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**

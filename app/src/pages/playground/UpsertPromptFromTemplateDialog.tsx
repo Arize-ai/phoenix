@@ -108,7 +108,7 @@ export const UpsertPromptFromTemplateDialog = ({
   );
   const onCreate = useCallback(
     (params: SavePromptFormParams, close: () => void) => {
-      const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
+      const { promptInput } = getInstancePromptParamsFromStore(
         instanceId,
         store
       );
@@ -132,7 +132,6 @@ export const UpsertPromptFromTemplateDialog = ({
             metadata,
             promptVersion: {
               ...promptInput,
-              templateFormat,
             },
             tags: tags.length > 0 ? toTagInputs(tags) : null,
           },
@@ -169,7 +168,7 @@ export const UpsertPromptFromTemplateDialog = ({
       if (!params.promptId) {
         throw new Error("Prompt ID is required");
       }
-      const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
+      const { promptInput } = getInstancePromptParamsFromStore(
         instanceId,
         store
       );
@@ -180,7 +179,6 @@ export const UpsertPromptFromTemplateDialog = ({
             promptId: params.promptId,
             promptVersion: {
               ...promptInput,
-              templateFormat,
               description: params.description,
             },
             tags: tags.length > 0 ? toTagInputs(tags) : null,

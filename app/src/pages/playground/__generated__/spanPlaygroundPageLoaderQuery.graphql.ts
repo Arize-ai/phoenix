@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c8de6ab1199b328fa3f0bba660db38c>>
+ * @generated SignedSource<<8291791ec9d0a22942ccfea4ff2f0878>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOP_P";
-export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type spanPlaygroundPageLoaderQuery$variables = {
   spanId: string;
 };
@@ -19,12 +17,6 @@ export type spanPlaygroundPageLoaderQuery$data = {
     readonly __typename: "Span";
     readonly attributes: string;
     readonly id: string;
-    readonly invocationParameters: ReadonlyArray<{
-      readonly __typename: string;
-      readonly canonicalName?: CanonicalParameterName | null;
-      readonly invocationInputField?: InvocationInputField;
-      readonly invocationName?: string;
-    }>;
     readonly project: {
       readonly id: string;
       readonly name: string;
@@ -125,90 +117,6 @@ v7 = {
   "kind": "ScalarField",
   "name": "attributes",
   "storageKey": null
-},
-v8 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "invocationInputField",
-    "storageKey": null
-  }
-],
-v9 = {
-  "alias": null,
-  "args": null,
-  "concreteType": null,
-  "kind": "LinkedField",
-  "name": "invocationParameters",
-  "plural": true,
-  "selections": [
-    (v2/*: any*/),
-    {
-      "kind": "InlineFragment",
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "invocationName",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "canonicalName",
-          "storageKey": null
-        }
-      ],
-      "type": "InvocationParameterBase",
-      "abstractKey": "__isInvocationParameterBase"
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "BooleanInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "StringInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "BoundedFloatInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "FloatInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "IntInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "JSONInvocationParameter",
-      "abstractKey": null
-    },
-    {
-      "kind": "InlineFragment",
-      "selections": (v8/*: any*/),
-      "type": "StringListInvocationParameter",
-      "abstractKey": null
-    }
-  ],
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -233,8 +141,7 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/),
-              (v9/*: any*/)
+              (v7/*: any*/)
             ],
             "type": "Span",
             "abstractKey": null
@@ -268,8 +175,7 @@ return {
               (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
-              (v7/*: any*/),
-              (v9/*: any*/)
+              (v7/*: any*/)
             ],
             "type": "Span",
             "abstractKey": null
@@ -280,16 +186,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "15db907b4e1020d0625053f7530561ad",
+    "cacheID": "db71692cacaf984e59f6ba696c00a412",
     "id": null,
     "metadata": {},
     "name": "spanPlaygroundPageLoaderQuery",
     "operationKind": "query",
-    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      attributes\n      invocationParameters {\n        __typename\n        ... on InvocationParameterBase {\n          __isInvocationParameterBase: __typename\n          invocationName\n          canonicalName\n        }\n        ... on BooleanInvocationParameter {\n          invocationInputField\n        }\n        ... on StringInvocationParameter {\n          invocationInputField\n        }\n        ... on BoundedFloatInvocationParameter {\n          invocationInputField\n        }\n        ... on FloatInvocationParameter {\n          invocationInputField\n        }\n        ... on IntInvocationParameter {\n          invocationInputField\n        }\n        ... on JSONInvocationParameter {\n          invocationInputField\n        }\n        ... on StringListInvocationParameter {\n          invocationInputField\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      attributes\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ab0e72402c34ac0eaf7cf39a14427121";
+(node as any).hash = "9d3f9971e6c4dc88217f8c3cb56833f2";
 
 export default node;

@@ -7,39 +7,23 @@
 
 import { fetchQuery, graphql } from "relay-runtime";
 
-import type { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
-import type {
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
-} from "@phoenix/schemas/promptSchemas";
-import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import {
   DEFAULT_INSTANCE_PARAMS,
   DEFAULT_MAX_CONCURRENCY,
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   generateInstanceId,
-  generateMessageId,
 } from "@phoenix/store/playground/playgroundStore";
 import type {
   ModelConfig,
   PlaygroundInstance,
   PlaygroundProps,
 } from "@phoenix/store/playground/types";
-import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
-import {
-  asTextPart,
-  asToolCallPart,
-  asToolResultPart,
-} from "@phoenix/utils/promptUtils";
 
 import type { experimentRehydrationQuery } from "./__generated__/experimentRehydrationQuery.graphql";
-import {
-  fetchSupportedInvocationParameters,
-  objectToInvocationParameters,
-} from "./fetchPlaygroundPrompt";
-import { deriveToolsAndOpenAIApiType, getChatRole } from "./playgroundUtils";
+import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
+
+import "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {
@@ -121,7 +105,9 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
                   strict
                 }
               }
-              invocationParameters
+              invocationParameters {
+                ...PromptInvocationParametersReadableFragment
+              }
               modelProvider
               modelName
             }
@@ -188,99 +174,10 @@ function taskConfigToPlaygroundProps(
   taskConfig: TaskConfig,
   maxConcurrency: number,
   datasetId: string | null,
-  selectedDatasetEvaluatorIds: string[],
-  supportedInvocationParameters: PlaygroundInstance["model"]["supportedInvocationParameters"]
+  selectedDatasetEvaluatorIds: string[]
 ): ExperimentRehydrationResult {
   const prompt = taskConfig.prompt;
-  const provider = prompt.modelProvider as GenerativeProviderKey;
-
-  // --- Messages ---
-  const messages =
-    "messages" in prompt.template
-      ? prompt.template.messages.map((m) => {
-          const textContent = (
-            m.content.map(asTextPart).filter(Boolean) as TextPart[]
-          )
-            .map((part) => part.text.text)
-            .join("");
-          const toolCallParts = m.content
-            .map(asToolCallPart)
-            .filter(Boolean) as ToolCallPart[];
-          const toolResultParts = m.content
-            .map(asToolResultPart)
-            .filter(Boolean) as ToolResultPart[];
-          const firstToolResultPart = toolResultParts.at(0);
-          const role = getChatRole(m.role);
-
-          if (role === "tool" && firstToolResultPart) {
-            return {
-              id: generateMessageId(),
-              role,
-              content:
-                typeof firstToolResultPart.toolResult.result === "string"
-                  ? firstToolResultPart.toolResult.result
-                  : safelyStringifyJSON(
-                      firstToolResultPart.toolResult.result,
-                      null,
-                      2
-                    ).json || "",
-              toolCallId: firstToolResultPart.toolResult.toolCallId,
-            };
-          }
-
-          if (role === "ai" && toolCallParts.length > 0) {
-            return {
-              id: generateMessageId(),
-              role,
-              toolCalls: toolCallParts.map((toolCall) =>
-                fromPromptToolCallPart(toolCall, provider)
-              ),
-            };
-          }
-
-          return {
-            id: generateMessageId(),
-            role,
-            content: textContent,
-          };
-        })
-      : [];
-
-  // --- Tools ---
-  const { tools } = deriveToolsAndOpenAIApiType(prompt.tools?.tools, provider);
-
-  // --- Tool Choice ---
-  const rawToolChoice = prompt.tools?.toolChoice;
-  const toolChoice = rawToolChoice
-    ? ({
-        type: rawToolChoice.type as
-          | "NONE"
-          | "ZERO_OR_MORE"
-          | "ONE_OR_MORE"
-          | "SPECIFIC_FUNCTION",
-        ...(rawToolChoice.functionName != null && {
-          functionName: rawToolChoice.functionName,
-        }),
-      } as const)
-    : undefined;
-
-  // --- Invocation Parameters ---
-  const rawInvocationParams = (prompt.invocationParameters ?? {}) as Record<
-    string,
-    unknown
-  >;
-  const invocationParameters = objectToInvocationParameters(
-    rawInvocationParams,
-    supportedInvocationParameters
-  );
-
-  // --- Response Format ---
-  const responseFormat = prompt.responseFormat
-    ? {
-        type: "json_schema" as const,
-        jsonSchema: prompt.responseFormat.jsonSchema,
-      }
-    : null;
+  const provider = prompt.modelProvider as ModelProvider;
 
   // --- Custom Provider ---
   const customProvider = taskConfig.customProvider
@@ -316,27 +213,26 @@ function taskConfigToPlaygroundProps(
     }
   }
 
+  const instanceFields = buildPlaygroundInstanceFieldsFromPromptConfig({
+    provider,
+    modelName: prompt.modelName,
+    template: prompt.template,
+    tools: prompt.tools,
+    invocationParametersRef: prompt.invocationParameters,
+    responseFormat: prompt.responseFormat,
+    customProvider,
+    connectionFields,
+  });
+
   const defaults = DEFAULT_INSTANCE_PARAMS();
   const instance: PlaygroundInstance = {
     ...defaults,
     id: generateInstanceId(),
     selectedRepetitionNumber: 1,
-    model: {
-      ...defaults.model,
-      modelName: prompt.modelName,
-      provider,
-      customProvider,
-      supportedInvocationParameters,
-      invocationParameters,
-      responseFormat,
-      ...connectionFields,
-    },
-    template: {
-      __type: "chat",
-      messages,
-    },
-    tools,
-    toolChoice,
+    model: { ...defaults.model, ...instanceFields.model },
+    template: instanceFields.template,
+    tools: instanceFields.tools,
+    toolChoice: instanceFields.toolChoice,
   };
 
   const templateVariablesPath =
@@ -383,19 +279,6 @@ export async function fetchExperimentPlaygroundProps(
   const job = node.job;
   if (!job?.taskConfig) return null;
 
-  const prompt = job.taskConfig.prompt;
-  const { openaiApiType } = deriveToolsAndOpenAIApiType(
-    prompt.tools?.tools,
-    prompt.modelProvider
-  );
-
-  const supportedInvocationParameters =
-    (await fetchSupportedInvocationParameters({
-      modelName: prompt.modelName,
-      providerKey: prompt.modelProvider,
-      openaiApiType,
-    })) ?? [];
-
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id
   );
@@ -404,7 +287,6 @@ export async function fetchExperimentPlaygroundProps(
     job.taskConfig,
     job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
     node.dataset?.id ?? null,
-    selectedDatasetEvaluatorIds,
-    supportedInvocationParameters
+    selectedDatasetEvaluatorIds
   );
 }

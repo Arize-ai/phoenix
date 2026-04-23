@@ -13,11 +13,14 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
-    get_raw_invocation_parameters,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.GenerativeModelCustomProvider import (
     GenerativeModelCustomProvider,
+)
+from phoenix.server.api.types.PromptInvocationParameters import (
+    PromptInvocationParameters,
+    gql_prompt_invocation_parameters_from_orm,
 )
 from phoenix.server.api.types.PromptResponseFormat import PromptResponseFormatJSONSchema
 from phoenix.server.api.types.PromptTools import PromptTools
@@ -41,7 +44,7 @@ class PromptVersion(Node):
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     template: PromptTemplate
-    invocation_parameters: Optional[JSON] = None
+    invocation_parameters: PromptInvocationParameters
     tools: PromptTools | None = None
     response_format: PromptResponseFormatJSONSchema | None = None
     model_name: str
@@ -135,7 +138,9 @@ def to_gql_prompt_version(
         if prompt_version.response_format is not None
         else None
     )
-    invocation_parameters = get_raw_invocation_parameters(prompt_version.invocation_parameters)
+    invocation_parameters = gql_prompt_invocation_parameters_from_orm(
+        prompt_version.invocation_parameters
+    )
     return PromptVersion(
         id_attr=prompt_version.id,
         prompt_id=prompt_version.prompt_id,
@@ -145,7 +150,7 @@ def to_gql_prompt_version(
         template_type=prompt_template_type,
         template_format=prompt_template_format,
         template=prompt_template,
-        invocation_parameters=JSON(invocation_parameters),
+        invocation_parameters=invocation_parameters,
         tools=tools,
         response_format=response_format,
         model_name=prompt_version.model_name,

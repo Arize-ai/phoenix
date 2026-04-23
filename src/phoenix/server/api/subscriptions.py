@@ -90,7 +90,7 @@ async def _stream_single_chat_completion(
             template_format=template_options.format,
             template_variables=cast(Mapping[str, Any], template_options.variables),
         )
-    invocation_parameters = cast(dict[str, Any], input.prompt_version.invocation_parameters)
+    invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
 
     tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
     response_format = (

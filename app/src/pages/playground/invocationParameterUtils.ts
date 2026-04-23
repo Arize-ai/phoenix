@@ -1,4 +1,18 @@
-import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
+import type { ModelConfig } from "@phoenix/store/playground";
+
+import { canonicalizeInvocationParameters } from "./invocationParameterCanonicalization";
+import type { ParamSpec } from "./invocationParameterSpecs";
+import {
+  getActiveSpecsForPlayground,
+  getInvocationFamilyForProvider,
+  invocationValueKeyForSpec,
+  INVOCATION_PARAMETERS,
+} from "./invocationParameterSpecs";
+import {
+  emptyPromptInvocationParametersRecord,
+  type PromptInvocationParametersRecord,
+  type RawPromptInvocationParametersRecord,
+} from "./promptInvocationParameterCodecs";
 
 // These types are no longer generated from GraphQL (since neither ChatCompletionInput
 // nor ChatCompletionOverDatasetInput exposes invocationParameters as a list anymore).
@@ -28,15 +42,26 @@ export type InvocationParameterInput = {
 
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 
+function paramName(
+  p: InvocationParameterInput | ParamSpec
+): string | undefined {
+  if ("invocationName" in p && p.invocationName) {
+    return p.invocationName;
+  }
+  return "name" in p && p.name ? p.name : undefined;
+}
+
 /**
  * Check if two invocation parameters are equal by comparing their invocation name and canonical name
  */
 export function areInvocationParamsEqual(
-  paramA: InvocationParameter | InvocationParameterInput,
-  paramB: InvocationParameter | InvocationParameterInput
+  paramA: InvocationParameterInput | ParamSpec,
+  paramB: InvocationParameterInput | ParamSpec
 ) {
+  const nameA = paramName(paramA);
+  const nameB = paramName(paramB);
   return (
-    paramA.invocationName === paramB.invocationName ||
+    (nameA != null && nameA === nameB) ||
     // loose null comparison to catch undefined and null
     (paramA.canonicalName != null &&
       paramB.canonicalName != null &&
@@ -45,98 +70,131 @@ export function areInvocationParamsEqual(
 }
 
 /**
- * Filter out parameters that are not supported by a model's invocation parameter schema definitions.
+ * Keep only invocation parameter inputs that match a static {@link ParamSpec} name
+ * (frontend-owned spec table).
  */
-export const constrainInvocationParameterInputsToDefinition = (
+export const constrainInvocationParameterInputsToSpecs = (
   invocationParameterInputs: InvocationParameterInput[],
-  definitions: InvocationParameter[]
-) => {
-  return invocationParameterInputs
-    .filter((ip) =>
-      // An input should be kept if it matches an invocation name in the definitions
-      // or if it has a canonical name that matches a canonical name in the definitions.
-      definitions.some((mp) => areInvocationParamsEqual(mp, ip))
-    )
-    .map((ip) => ({
-      // Transform the invocationName to match the new name from the incoming
-      // modelSupportedInvocationParameters.
-      ...ip,
-      invocationName:
-        definitions.find((mp) => areInvocationParamsEqual(mp, ip))
-          ?.invocationName ?? ip.invocationName,
-    }));
+  specs: readonly ParamSpec[]
+): InvocationParameterInput[] => {
+  const names = new Set(specs.map((s) => s.name));
+  return invocationParameterInputs.filter(
+    (ip) => ip.invocationName != null && names.has(ip.invocationName)
+  );
 };
 
 /**
- * Converts a string from snake_case to camelCase.
+ * Converts a raw invocation-parameters record (e.g. from the schema or
+ * GraphQL reader) into form-store {@link InvocationParameterInput} rows.
+ * Canonicalizes internally so the rows only carry canonical keys, and
+ * iterates `record.parameters` (not the outer wrapper) so the `family`
+ * discriminator can never leak into a row.
  */
-export const toCamelCase = (str: string) =>
-  str.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+export function objectToInvocationParameters(
+  invocationParameters: RawPromptInvocationParametersRecord,
+  options?: {
+    openaiApiType?: OpenAIApiType | null;
+  }
+): InvocationParameterInput[] {
+  const canonical = canonicalizeInvocationParameters(invocationParameters, {
+    openaiApiType: options?.openaiApiType ?? null,
+  });
+  const specs = INVOCATION_PARAMETERS[canonical.family];
+  const specByName = Object.fromEntries(specs.map((s) => [s.name, s]));
+  return Object.entries(canonical.parameters).flatMap(([key, value]) => {
+    const spec = specByName[key];
+    if (!spec) {
+      return [{ invocationName: key, valueJson: value }];
+    }
+    const vk = invocationValueKeyForSpec(spec);
+    return [
+      {
+        invocationName: spec.name,
+        canonicalName: spec.canonicalName,
+        [vk]: value,
+      } as InvocationParameterInput,
+    ];
+  });
+}
 
 /**
- * Extracts the default value for the invocation parameter definition
- * And the key name that should be used in the invocation parameter input if we need to make a new one
- *
- * This logic is necessary because the default value is mapped to different key name based on its type
- * within the InvocationParameterInput queries in the playground e.g. floatDefaultValue or stringListDefaultValue
+ * Merge defaults from {@link ParamSpec} entries (replaces GraphQL-sourced defaults).
  */
-const getInvocationParamDefaultValue = (
-  param: InvocationParameter
-): unknown => {
-  for (const [key, value] of Object.entries(param)) {
-    if (key.endsWith("DefaultValue") && value != null) {
-      return param[key as keyof InvocationParameter];
+export function mergeInvocationParametersWithSpecDefaults(
+  invocationParameters: InvocationParameterInput[],
+  specs: readonly ParamSpec[]
+): InvocationParameterInput[] {
+  const current = new Map(
+    invocationParameters.map((p) => [p.invocationName, p])
+  );
+  for (const spec of specs) {
+    if (!("defaultValue" in spec) || spec.defaultValue === undefined) {
+      continue;
+    }
+    const existing = current.get(spec.name);
+    const field = invocationValueKeyForSpec(spec);
+    if (
+      existing?.[field] != null ||
+      existing?.valueJson != null ||
+      existing?.valueStringList != null
+    ) {
+      continue;
+    }
+    current.set(spec.name, {
+      invocationName: spec.name,
+      canonicalName: spec.canonicalName,
+      [field]: spec.defaultValue,
+    } as InvocationParameterInput);
+  }
+  return Array.from(current.values());
+}
+
+function extractInvocationParameterInputValue(
+  p: InvocationParameterInput
+): unknown {
+  return (
+    p.valueFloat ??
+    p.valueInt ??
+    p.valueBool ??
+    p.valueBoolean ??
+    p.valueString ??
+    p.valueJson ??
+    p.valueStringList ??
+    null
+  );
+}
+
+/**
+ * Collapse form-store `InvocationParameterInput[]` rows into a dict keyed by
+ * spec `name` — the inverse of `objectToInvocationParameters`. Output shape
+ * matches `PromptInvocationParametersRecord` from `promptInvocationParameterCodecs`.
+ */
+export function invocationParametersToObject(
+  invocationParameters: InvocationParameterInput[],
+  model: Pick<ModelConfig, "provider" | "openaiApiType">
+): PromptInvocationParametersRecord {
+  const family = getInvocationFamilyForProvider(model.provider);
+  const specs = getActiveSpecsForPlayground(model);
+  const specByName = new Map(specs.map((s) => [s.name, s]));
+  const record = emptyPromptInvocationParametersRecord(family);
+  const parameters = record.parameters as Record<string, unknown>;
+  for (const curr of invocationParameters) {
+    if (!curr.invocationName) {
+      continue;
+    }
+    const spec = specByName.get(curr.invocationName);
+    if (spec) {
+      const field = invocationValueKeyForSpec(spec);
+      const v = curr[field];
+      if (v !== null && v !== undefined) {
+        parameters[curr.invocationName] = v;
+      }
+    } else {
+      const v = extractInvocationParameterInputValue(curr);
+      if (v !== null && v !== undefined) {
+        parameters[curr.invocationName] = v;
+      }
     }
   }
-  return undefined;
-};
-
-/**
- * Merges the current invocation parameters with the default values for the supported invocation parameters,
- * only adding values for invocation parameters that don't already have a value
- */
-export function mergeInvocationParametersWithDefaults(
-  invocationParameters: InvocationParameterInput[],
-  supportedInvocationParameters: InvocationParameter[]
-) {
-  // Convert the current invocation parameters to a map for quick lookup
-  const currentInvocationParametersMap = new Map(
-    invocationParameters.map((param) => [param.invocationName, param])
-  );
-  supportedInvocationParameters.forEach((param) => {
-    const paramKeyName = param.invocationName;
-    // Extract the default value for the invocation parameter definition
-    // And the key name that should be used in the invocation parameter input if we need to make a new one
-    const defaultValue = getInvocationParamDefaultValue(param);
-    // Convert the invocation input field to a key name that can be used in the invocation parameter input
-    const invocationInputFieldKeyName = toCamelCase(
-      param.invocationInputField || ""
-    ) as keyof InvocationParameterInput;
-    // Skip if we don't have required fields
-    // or, if the current invocation parameter map already has a value for the key
-    // so that we don't overwrite a user provided value, or a value saved to preferences
-    if (
-      !param.invocationName ||
-      !param.invocationInputField ||
-      !paramKeyName ||
-      defaultValue == null ||
-      currentInvocationParametersMap.get(paramKeyName)?.[
-        invocationInputFieldKeyName
-      ] != null
-    ) {
-      return;
-    }
-    // Create the new invocation parameter input, using the default value for the parameter
-    const newInvocationParameter: InvocationParameterInput = {
-      canonicalName: param.canonicalName,
-      invocationName: param.invocationName,
-      [invocationInputFieldKeyName]: defaultValue,
-    };
-
-    // Add the new invocation parameter input to the map
-    currentInvocationParametersMap.set(paramKeyName, newInvocationParameter);
-  });
-
-  // Return the new invocation parameter inputs as an array
-  return Array.from(currentInvocationParametersMap.values());
+  return record;
 }
