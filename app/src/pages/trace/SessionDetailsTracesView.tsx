@@ -10,13 +10,15 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
+  Counter,
+  Empty,
   Flex,
+  Heading,
   Icon,
   Icons,
   Loading,
   Text,
   Truncate,
-  View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -30,6 +32,7 @@ import type {
 import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesViewTreeQuery.graphql";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
+import { sessionPanelHeaderCSS } from "./SessionDetailsTraceList";
 import { SpanDetails } from "./SpanDetails";
 
 type SessionTraceRow = NonNullable<
@@ -76,19 +79,14 @@ const chevronCSS = css`
 `;
 
 const traceTreeContainerCSS = css`
-  /* Bounded height so large traces scroll within the row. */
-  height: 400px;
+  /* Let the tree size to its content but cap overflow so large traces
+     scroll within the row rather than pushing the list offscreen. */
+  max-height: 500px;
+  overflow: auto;
   border-top: 1px solid var(--global-border-color-default);
   background: var(--ac-global-color-grey-75);
 `;
 
-/**
- * A rough outline of a sessions traces view.
- *
- * Single-column list of traces. Each row can be expanded to reveal the trace's
- * span tree inline. Selecting a span in the expanded tree updates the
- * `selectedSpanNodeId` URL search param so it can drive a detail view.
- */
 export function SessionDetailsTracesView({
   tracesRef,
 }: {
@@ -102,6 +100,7 @@ export function SessionDetailsTracesView({
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
       ) {
+        numTraces
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTracesView_traces") {
           edges {
@@ -176,69 +175,81 @@ export function SessionDetailsTracesView({
       <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
         <div
           css={css`
+            display: flex;
+            flex-direction: column;
             height: 100%;
-            overflow: auto;
+            overflow: hidden;
           `}
         >
-          {traces.map((trace, index) => {
-            const isExpanded = expandedIds.has(trace.id);
-            const paddedIndex = String(index + 1).padStart(2, "0");
-            return (
-              <div key={trace.id} css={traceRowCSS}>
-                <button
-                  type="button"
-                  css={traceRowHeaderCSS}
-                  aria-expanded={isExpanded}
-                  onClick={() => toggleExpanded(trace.id)}
-                >
-                  <span css={chevronCSS} data-expanded={isExpanded}>
-                    <Icon svg={<Icons.ChevronRight />} />
-                  </span>
-                  <Text fontFamily="mono" color="text-500">
-                    {paddedIndex}
-                  </Text>
-                  <Flex flex={1} minWidth={0}>
-                    <Truncate maxWidth="100%" title={trace.rootSpan.name}>
-                      <Text weight="heavy">{trace.rootSpan.name}</Text>
-                    </Truncate>
-                  </Flex>
-                  <Flex
-                    direction="row"
-                    gap="size-100"
-                    alignItems="center"
-                    flex="none"
+          <div css={sessionPanelHeaderCSS}>
+            <Heading level={3}>Traces</Heading>
+            <Counter variant="quiet">{data.numTraces ?? traces.length}</Counter>
+          </div>
+          <div
+            css={css`
+              flex: 1 1 auto;
+              min-height: 0;
+              overflow: auto;
+            `}
+          >
+            {traces.map((trace, index) => {
+              const isExpanded = expandedIds.has(trace.id);
+              const paddedIndex = String(index + 1).padStart(2, "0");
+              return (
+                <div key={trace.id} css={traceRowCSS}>
+                  <button
+                    type="button"
+                    css={traceRowHeaderCSS}
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleExpanded(trace.id)}
                   >
-                    <TokenCount size="S">
-                      {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
-                    </TokenCount>
-                    {trace.rootSpan.latencyMs != null ? (
-                      <LatencyText
-                        latencyMs={trace.rootSpan.latencyMs}
-                        size="S"
-                      />
-                    ) : null}
-                  </Flex>
-                </button>
-                {isExpanded ? (
-                  <div css={traceTreeContainerCSS}>
-                    <Suspense fallback={<Loading />}>
-                      <LazyTraceTree
-                        traceId={trace.traceId}
-                        projectId={trace.rootSpan.project.id}
-                        selectedSpanNodeId={selectedSpanNodeId}
-                        onSpanClick={handleSpanClick}
-                      />
-                    </Suspense>
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-          {traces.length === 0 ? (
-            <View padding="size-400">
-              <Text color="text-700">No traces in this session.</Text>
-            </View>
-          ) : null}
+                    <span css={chevronCSS} data-expanded={isExpanded}>
+                      <Icon svg={<Icons.ChevronRight />} />
+                    </span>
+                    <Text fontFamily="mono" color="text-500">
+                      {paddedIndex}
+                    </Text>
+                    <Flex flex={1} minWidth={0}>
+                      <Truncate maxWidth="100%" title={trace.rootSpan.name}>
+                        <Text weight="heavy">{trace.rootSpan.name}</Text>
+                      </Truncate>
+                    </Flex>
+                    <Flex
+                      direction="row"
+                      gap="size-100"
+                      alignItems="center"
+                      flex="none"
+                    >
+                      <TokenCount size="S">
+                        {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
+                      </TokenCount>
+                      {trace.rootSpan.latencyMs != null ? (
+                        <LatencyText
+                          latencyMs={trace.rootSpan.latencyMs}
+                          size="S"
+                        />
+                      ) : null}
+                    </Flex>
+                  </button>
+                  {isExpanded ? (
+                    <div css={traceTreeContainerCSS}>
+                      <Suspense fallback={<Loading />}>
+                        <LazyTraceTree
+                          traceId={trace.traceId}
+                          projectId={trace.rootSpan.project.id}
+                          selectedSpanNodeId={selectedSpanNodeId}
+                          onSpanClick={handleSpanClick}
+                        />
+                      </Suspense>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {traces.length === 0 ? (
+              <Empty message="No traces in this session" />
+            ) : null}
+          </div>
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
@@ -258,11 +269,7 @@ export function SessionDetailsTracesView({
             </Suspense>
           </div>
         ) : (
-          <View padding="size-400">
-            <Text color="text-700">
-              Expand a trace and select a span to view its details.
-            </Text>
-          </View>
+          <Empty message="Expand a trace and select a span to view its details" />
         )}
       </Panel>
     </Group>
@@ -294,12 +301,12 @@ function LazyTraceTree({
     `,
     { traceId, projectId }
   );
-  if (data.project == null || !("trace" in data.project) || !data.project.trace)
-    return null;
+  const trace = data.project?.trace;
+  if (!trace) return null;
   return (
     <TraceTreeProvider>
       <ConnectedTraceTree
-        trace={data.project.trace}
+        trace={trace}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
         onSpanClick={onSpanClick}
       />

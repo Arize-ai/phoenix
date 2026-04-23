@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<efbfc3ec19d66519c45b3b0ee83043ab>>
+ * @generated SignedSource<<14ef3a15ef3943ee204ad28dc999ced8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type MimeType = "json" | "text";
 import { FragmentRefs } from "relay-runtime";
 export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
+  readonly numTraces: number;
   readonly traces: {
     readonly edges: ReadonlyArray<{
       readonly trace: {
@@ -130,6 +131,13 @@ return {
   },
   "name": "SessionDetailsTraceList_traces",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "numTraces",
+      "storageKey": null
+    },
     {
       "alias": "traces",
       "args": null,
@@ -360,6 +368,6 @@ return {
 };
 })();
 
-(node as any).hash = "69c2f49d3ae386d40225d46433a66fc5";
+(node as any).hash = "a8c766a3e99780c2b1c0d17747eb5bfb";
 
 export default node;

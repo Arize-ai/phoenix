@@ -15,7 +15,9 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
+  Counter,
   Flex,
+  Heading,
   Icon,
   Icons,
   Link,
@@ -316,6 +318,26 @@ const turnDetailRowCSS = css`
   }
 `;
 
+export const sessionPanelHeaderCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
+  border-bottom: 1px solid var(--global-border-color-default);
+  height: var(--global-dimension-size-600);
+  flex: none;
+`;
+
+const panelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
 export function SessionDetailsTraceList({
   tracesRef,
 }: {
@@ -329,6 +351,7 @@ export function SessionDetailsTraceList({
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
       ) {
+        numTraces
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
           edges {
@@ -470,11 +493,27 @@ export function SessionDetailsTraceList({
       `}
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
-        <SessionTurnList
-          rows={sessionRootSpans}
-          selectedTraceId={selectedTraceId}
-          onTurnClick={handleTurnClick}
-        />
+        <div css={panelContentCSS}>
+          <div css={sessionPanelHeaderCSS}>
+            <Heading level={3}>Turns</Heading>
+            <Counter variant="quiet">
+              {data.numTraces ?? sessionRootSpans.length}
+            </Counter>
+          </div>
+          <div
+            css={css`
+              flex: 1 1 auto;
+              min-height: 0;
+              overflow: hidden;
+            `}
+          >
+            <SessionTurnList
+              rows={sessionRootSpans}
+              selectedTraceId={selectedTraceId}
+              onTurnClick={handleTurnClick}
+            />
+          </div>
+        </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-turn-details">

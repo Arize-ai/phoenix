@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f00bf15cd9fc9e8f334ec242e21668fe>>
+ * @generated SignedSource<<b9dc1935aa47b2a04f25c34d2e6ff969>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -122,6 +122,13 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "numTraces",
+                "storageKey": null
+              },
               {
                 "alias": null,
                 "args": (v2/*: any*/),
@@ -272,16 +279,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d2162f8e40e482a955c727d87b3519bc",
+    "cacheID": "061b2d25fd2f34525e89e9c2533d910a",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewRefetchQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6f852cdc45dba8da8b74cb636346d47a";
+(node as any).hash = "681b8e613dcafdc9fd62e92089da6cb4";
 
 export default node;
