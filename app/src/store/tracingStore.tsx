@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { ProjectTab } from "@phoenix/pages/project/constants";
+import { TRACE_ANNOTATIONS_COLUMN_ID } from "@phoenix/pages/project/tableUtils";
 
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {
@@ -77,7 +78,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       metadata: false,
       spanId: false,
       traceId: false,
-      "trace annotations": false,
+      [TRACE_ANNOTATIONS_COLUMN_ID]: false,
     },
     columnSizing: {
       metadata: 200,

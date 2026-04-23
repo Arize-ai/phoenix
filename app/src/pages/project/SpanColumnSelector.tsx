@@ -18,7 +18,22 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
 import type { SpanColumnSelector_traceAnnotations$key } from "./__generated__/SpanColumnSelector_traceAnnotations.graphql";
+import {
+  TRACE_ANNOTATIONS_COLUMN_ID,
+  TRACE_ANNOTATIONS_COLUMN_LABEL,
+} from "./tableUtils";
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
+
+function getColumnDisplayName(column: Column<unknown>): string {
+  if (column.id === TRACE_ANNOTATIONS_COLUMN_ID) {
+    return TRACE_ANNOTATIONS_COLUMN_LABEL;
+  }
+  const header = column.columnDef.header;
+  if (typeof header === "string") {
+    return header;
+  }
+  return column.id;
+}
 
 type SpanColumnSelectorProps = {
   /**
@@ -132,10 +147,6 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
           {columns.map((column) => {
             const stateValue = columnVisibility[column.id];
             const isVisible = stateValue == null ? true : stateValue;
-            const name =
-              typeof column.columnDef.header == "string"
-                ? column.columnDef.header
-                : column.id;
             return (
               <li key={column.id} css={columCheckboxItemCSS}>
                 <Checkbox
@@ -145,7 +156,7 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
                     onCheckboxChange(column.id, isSelected)
                   }
                 >
-                  {name}
+                  {getColumnDisplayName(column)}
                 </Checkbox>
               </li>
             );

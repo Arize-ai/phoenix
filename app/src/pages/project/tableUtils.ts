@@ -12,6 +12,8 @@ import type {
 export const ANNOTATIONS_COLUMN_PREFIX = "annotations";
 export const TRACE_ANNOTATIONS_COLUMN_PREFIX = "trace-annotations";
 export const ANNOTATIONS_KEY_SEPARATOR = "-";
+export const TRACE_ANNOTATIONS_COLUMN_ID = "traceAnnotations";
+export const TRACE_ANNOTATIONS_COLUMN_LABEL = "trace annotations";
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",

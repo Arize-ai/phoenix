@@ -81,7 +81,12 @@ import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
 import { spansTableCSS } from "./styles";
-import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
+import {
+  DEFAULT_SORT,
+  getGqlSort,
+  makeAnnotationColumnId,
+  TRACE_ANNOTATIONS_COLUMN_ID,
+} from "./tableUtils";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -485,7 +490,7 @@ export function SpansTable(props: SpansTableProps) {
           </ContextualHelp>
         </Flex>
       ),
-      id: "trace annotations",
+      id: TRACE_ANNOTATIONS_COLUMN_ID,
       enableSorting: false,
       cell: ({ row }) => {
         return (
