@@ -26,10 +26,8 @@ import { TraceAgentChatPanel } from "@phoenix/components/agent/TraceAgentChatPan
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import {
-  TraceTreeProvider,
-  TraceTreeToolbar,
-} from "@phoenix/components/trace/TraceTree";
+import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
