@@ -2254,7 +2254,7 @@ def _is_unsupported_update_action_response(response: httpx.Response) -> bool:
 def _warn_update_fallback() -> None:
     warnings.warn(
         "Phoenix server does not support action='update'; falling back to "
-        "action='create'. Upgrade the Phoenix server to get declarative "
+        "action='create'. Upgrade to Phoenix v15 or later to get declarative "
         "update semantics.",
         UserWarning,
         stacklevel=3,

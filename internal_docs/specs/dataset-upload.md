@@ -58,12 +58,14 @@ behavior.
 ### Client fallback for older servers
 
 When a client sends `action=update` to a Phoenix server that predates this
-change, the server returns **422** with body `"Invalid dateset action: update"`
-(the typo is part of the server's enum error). Clients detect this specific
-response, emit a warning, and automatically retry the same request with
-`action=create`. On those older servers, `action=create` with the default
-`strict=false` had the permissive upsert behavior, so the fallback preserves
-the declarative semantics — minus the 409-on-name-conflict safety.
+change (pre-v15), the server returns **422** with body
+`"Invalid dateset action: update"` (the typo is part of the server's enum
+error). Clients detect this specific response, emit a warning that directs
+the user to upgrade to Phoenix v15 or later, and automatically retry the
+same request with `action=create`. On those older servers, `action=create`
+with the default `strict=false` had the permissive upsert behavior, so the
+fallback preserves the declarative semantics — minus the 409-on-name-conflict
+safety.
 
 ## Why We Built It
 

@@ -24,7 +24,7 @@ export type CreateDatasetResponse = {
 };
 
 /**
- * Create or declaratively update a dataset with the given examples.
+ * Create a dataset with the given examples.
  *
  * Calling this against a name that already exists will diff the incoming
  * examples against the latest version and emit only the CREATE/PATCH/DELETE
@@ -137,6 +137,6 @@ function warnUpdateFallback(): void {
   // eslint-disable-next-line no-console
   console.warn(
     "Phoenix server does not support action='update'; falling back to " +
-      "action='create'. Upgrade the Phoenix server to get declarative update semantics."
+      "action='create'. Upgrade to Phoenix v15 or later to get declarative update semantics."
   );
 }
