@@ -79,6 +79,7 @@ export function ComboBox<T extends object>({
       style={{
         width,
       }}
+      allowsEmptyCollection={!!renderEmptyState}
     >
       {label && <Label>{label}</Label>}
       <div
