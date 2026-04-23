@@ -82,6 +82,7 @@ if TYPE_CHECKING:
         SpanCostSummaryByTraceDataLoader,
         SpanDatasetExamplesDataLoader,
         SpanDescendantsDataLoader,
+        SpanNoteCountsDataLoader,
         SpanProjectsDataLoader,
         TableFieldsDataLoader,
         TokenCountDataLoader,
@@ -212,6 +213,7 @@ class DataLoaders:
     span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
+    span_note_counts: SpanNoteCountsDataLoader
     span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
