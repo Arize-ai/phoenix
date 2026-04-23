@@ -11,9 +11,8 @@ import {
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
+import { COMPACT_BREAKPOINT } from "./traceTreeStyles";
 import { useTraceTree } from "./TraceTreeContext";
-
-const COMPACT_BREAKPOINT = "300px";
 
 export function TraceTreeToolbar() {
   const showMetricsInTraceTree = usePreferencesContext(

@@ -22,8 +22,10 @@ import {
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type {
   SessionDetailsTracesView_traces$data,
@@ -114,6 +116,14 @@ export function SessionDetailsTracesView({
                 latencyMs
                 project {
                   id
+                }
+                trace {
+                  id
+                  costSummary {
+                    total {
+                      cost
+                    }
+                  }
                 }
               }
             }
@@ -229,11 +239,17 @@ export function SessionDetailsTracesView({
                           size="S"
                         />
                       ) : null}
+                      {trace.rootSpan.trace.costSummary?.total?.cost !=
+                      null ? (
+                        <TokenCosts size="S">
+                          {trace.rootSpan.trace.costSummary.total.cost}
+                        </TokenCosts>
+                      ) : null}
                     </Flex>
                   </button>
                   {isExpanded ? (
                     <div css={traceTreeContainerCSS}>
-                      <Suspense fallback={<Loading />}>
+                      <Suspense fallback={<TraceTreeSkeleton />}>
                         <LazyTraceTree
                           traceId={trace.traceId}
                           projectId={trace.rootSpan.project.id}
@@ -269,7 +285,16 @@ export function SessionDetailsTracesView({
             </Suspense>
           </div>
         ) : (
-          <Empty message="Expand a trace and select a span to view its details" />
+          <div
+            css={css`
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            `}
+          >
+            <Empty message="Expand a trace and select a span to view its details" />
+          </div>
         )}
       </Panel>
     </Group>

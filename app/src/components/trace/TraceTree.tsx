@@ -13,6 +13,7 @@ import { classNames } from "@phoenix/utils/classNames";
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
 import { useTraceTree } from "./TraceTreeContext";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
 import type { SpanTreeNode } from "./utils";
@@ -25,25 +26,6 @@ export type TraceTreeProps = {
 };
 
 export { TraceTreeProvider } from "./TraceTreeContext";
-
-/**
- * The amount of padding to add to the left of the span item for each level of nesting.
- */
-const NESTING_INDENT = 25;
-
-/**
- * The breakpoint at which the trace tree switches to compact mode.
- */
-const COMPACT_BREAKPOINT = "300px";
-
-/**
- * The breakpoint at which to show the timing bars
- */
-const LARGE_BREAKPOINT = "500px";
-/**
- * The breakpoint at which the tree gets considered large
- */
-const EXTRA_LARGE_BREAKPOINT = "800px";
 
 export function TraceTree(props: TraceTreeProps) {
   const { spans, onSpanClick, selectedSpanNodeId } = props;
@@ -65,43 +47,12 @@ export function TraceTree(props: TraceTreeProps) {
       `}
     >
       <ul
-        css={css`
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
+        css={[
+          traceTreeListCSS,
+          css`
             overflow: auto;
-            --trace-tree-nesting-indent: ${NESTING_INDENT}px;
-            @container (width < ${COMPACT_BREAKPOINT}) {
-              --trace-tree-nesting-indent: 0;
-              // Hide the collapse button
-              .span-controls,
-              .latency-text,
-              .token-count-item,
-              .span-tree-edge-connector,
-              .span-tree-edge,
-              .span-tree-timing {
-                display: none;
-                visibility: hidden;
-                width: 0;
-              }
-              .span-node-wrap {
-                padding-left: var(--global-dimension-static-size-200);
-              }
-            }
-            @container (width < ${LARGE_BREAKPOINT}) {
-              .span-tree-timing {
-                display: none;
-                visibility: hidden;
-                width: 0;
-              }
-            }
-            @container (width > ${EXTRA_LARGE_BREAKPOINT}) {
-              .span-tree-timing {
-                width: 33%;
-              }
-            }
-          `}
+          `,
+        ]}
         data-testid="trace-tree"
       >
         {spanTree.map((spanNode) => (
