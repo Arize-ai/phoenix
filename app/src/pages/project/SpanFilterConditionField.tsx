@@ -15,11 +15,14 @@ import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Button,
   DialogTrigger,
@@ -288,6 +291,13 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const projectId = useTracingContext((state) => state.projectId);
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
+
+  const advertisedContext = useMemo<AgentContext | null>(() => {
+    const trimmed = deferredFilterCondition.trim();
+    if (!trimmed || !projectId) return null;
+    return { type: "span_filter", projectId, condition: trimmed };
+  }, [deferredFilterCondition, projectId]);
+  useAdvertiseAgentContext(advertisedContext);
 
   useEffect(() => {
     isConditionValid(deferredFilterCondition, projectId).then((result) => {

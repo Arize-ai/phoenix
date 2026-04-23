@@ -14,6 +14,15 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from phoenix.server.api.routers.chat_context import (
+    ChatContext,
+    ResolvedContexts,
+    resolve_contexts,
+)
+from phoenix.server.api.routers.chat_tools import (
+    ToolExecutionEnv,
+    resolve_contextual_tools,
+)
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
@@ -70,6 +79,9 @@ def _get_vercel_request_class() -> Any:
             export_remote_traces: bool = False
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
+            # Typed page/mount contexts advertised by the frontend. Content
+            # may include user-authored filter strings — do not log at DEBUG.
+            contexts: list[ChatContext] | None = None
 
         _VercelRequestCls = _VercelRequest
     return _VercelRequestCls
@@ -88,6 +100,8 @@ class ChatBody:
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
     raw_tools: list[dict[str, Any]] = field(default_factory=list)
+    contexts: list[ChatContext] = field(default_factory=list)
+    resolved: ResolvedContexts = field(default_factory=ResolvedContexts)
 
 
 def _sanitize_raw_body(raw_body: bytes) -> bytes:
@@ -119,6 +133,9 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     logger.debug("system=%r", body.system)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
+    # Log only the context type summary — the payloads may include
+    # user-authored filter strings.
+    logger.debug("contexts=%r", [c.type for c in (body.contexts or [])])
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
 
@@ -136,6 +153,9 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
             function["description"] = t.description
         raw_tools.append({"type": "function", "function": function})
 
+    contexts = list(body.contexts or [])
+    resolved = resolve_contexts(contexts)
+
     return ChatBody(
         messages=messages,
         tools=body.tools,
@@ -146,6 +166,8 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
         ingest_traces=body.ingest_traces,
         trace_name_suffix=body.trace_name_suffix,
         raw_tools=raw_tools,
+        contexts=contexts,
+        resolved=resolved,
     )
 
 
@@ -400,15 +422,29 @@ async def stream_text(
         ]
 
     # Resolve backend (MCP) tool definitions, if available.
-    backend_tool_defs: list[ToolDefinition] = []
-    backend_tool_names: frozenset[str] = frozenset()
+    mcp_tool_defs: list[ToolDefinition] = []
+    mcp_tool_names: frozenset[str] = frozenset()
     if mcp_client is not None:
         try:
-            backend_tool_defs = await mcp_client.get_tool_definitions()
-            backend_tool_names = frozenset(td.name for td in backend_tool_defs)
-            logger.debug("Backend MCP tools: %s", list(backend_tool_names))
+            mcp_tool_defs = await mcp_client.get_tool_definitions()
+            mcp_tool_names = frozenset(td.name for td in mcp_tool_defs)
+            logger.debug("Backend MCP tools: %s", list(mcp_tool_names))
         except Exception:
             logger.exception("Failed to fetch backend MCP tool definitions")
+
+    # Resolve contextual backend tools gated on the advertised contexts.
+    # ``request.user`` asserts when AuthenticationMiddleware is not installed
+    # (e.g. auth-disabled deployments and some unit tests), so probe the raw
+    # scope dict instead.
+    env = ToolExecutionEnv(
+        user=request.scope.get("user") if hasattr(request, "scope") else None,
+        db=request.app.state.db,
+    )
+    contextual_tool_defs, contextual_dispatch = resolve_contextual_tools(body.resolved, env)
+    contextual_tool_names = frozenset(td.name for td in contextual_tool_defs)
+
+    backend_tool_defs = mcp_tool_defs + contextual_tool_defs
+    backend_tool_names = mcp_tool_names | contextual_tool_names
 
     frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
@@ -636,10 +672,15 @@ async def stream_text(
                         )
                     )
 
-                    # Execute the backend tool via MCP.
-                    assert mcp_client is not None  # noqa: S101
+                    # Execute the backend tool. Contextual tools use a
+                    # closure-bound dispatch; everything else falls back to
+                    # the MCP client.
                     try:
-                        result_text = await mcp_client.call_tool(tc_name, tc_args)
+                        if tc_name in contextual_dispatch:
+                            result_text = await contextual_dispatch[tc_name](tc_args)
+                        else:
+                            assert mcp_client is not None  # noqa: S101
+                            result_text = await mcp_client.call_tool(tc_name, tc_args)
                         yield _sse(
                             ToolOutputAvailableChunk(
                                 tool_call_id=tc_id,
