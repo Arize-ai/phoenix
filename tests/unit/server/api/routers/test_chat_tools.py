@@ -21,14 +21,15 @@ class TestResolveContextualTools:
         assert defs == []
         assert dispatch == {}
 
-    async def test_search_project_tool_registered_with_project_context(
+    async def test_search_project_schema_hides_project_id(
         self,
         db: DbSessionFactory,
     ) -> None:
         resolved = ResolvedContexts(project=ProjectContext(type="project", project_id="P1"))
         defs, dispatch = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
-        assert "search_project" in [tool.name for tool in defs]
         assert "search_project" in dispatch
+        search = next(tool for tool in defs if tool.name == "search_project")
+        assert "projectId" not in search.parameters_json_schema.get("properties", {})
 
     async def test_search_project_callable_closes_over_project_id(
         self,
@@ -74,9 +75,6 @@ class TestResolveContextualTools:
             ResolvedContexts(project=ProjectContext(type="project", project_id=project_id)),
             ToolExecutionEnv(user=None, db=db),
         )
-
-        search = next(tool for tool in defs if tool.name == "search_project")
-        assert "projectId" not in search.parameters_json_schema.get("properties", {})
 
         result = await dispatch["search_project"]({"query": "checkout", "limit": 3})
         assert 'Project "search-project"' in result

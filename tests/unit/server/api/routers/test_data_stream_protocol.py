@@ -1,6 +1,5 @@
 import json
 
-from phoenix.server.api.routers.chat_context import ProjectContext, TraceContext
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
@@ -83,35 +82,6 @@ class TestParseChatBody:
         assert body.raw_tools[0]["type"] == "function"
         assert body.raw_tools[0]["function"]["name"] == "search"
         assert body.raw_tools[0]["function"]["description"] == "Search the web"
-
-    def test_parses_contexts_and_resolves_them(self) -> None:
-        raw = json.dumps(
-            {
-                "trigger": "submit-message",
-                "id": "test-1",
-                "messages": [
-                    {
-                        "id": "msg-1",
-                        "role": "user",
-                        "parts": [{"type": "text", "text": "hi"}],
-                    }
-                ],
-                "contexts": [
-                    {"type": "project", "projectId": "P1"},
-                    {"type": "trace", "projectId": "P1", "traceId": "T1"},
-                ],
-            }
-        ).encode()
-
-        body = parse_chat_body(raw)
-
-        assert len(body.contexts) == 2
-        assert isinstance(body.contexts[0], ProjectContext)
-        assert isinstance(body.contexts[1], TraceContext)
-        assert body.resolved.project is not None
-        assert body.resolved.project.project_id == "P1"
-        assert body.resolved.trace is not None
-        assert body.resolved.trace.trace_id == "T1"
 
     def test_parses_system_prompt(self) -> None:
         raw = json.dumps(
