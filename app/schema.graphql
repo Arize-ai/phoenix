@@ -3617,6 +3617,12 @@ type TraceAnnotation implements Node {
   """The source of the annotation."""
   source: AnnotationSource!
 
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
+
   """The trace associated with the annotation."""
   trace: Trace!
 

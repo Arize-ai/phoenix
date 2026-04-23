@@ -17,7 +17,23 @@ import {
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
+import type { SpanColumnSelector_traceAnnotations$key } from "./__generated__/SpanColumnSelector_traceAnnotations.graphql";
+import {
+  TRACE_ANNOTATIONS_COLUMN_ID,
+  TRACE_ANNOTATIONS_COLUMN_LABEL,
+} from "./tableUtils";
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
+
+function getColumnDisplayName(column: Column<unknown>): string {
+  if (column.id === TRACE_ANNOTATIONS_COLUMN_ID) {
+    return TRACE_ANNOTATIONS_COLUMN_LABEL;
+  }
+  const header = column.columnDef.header;
+  if (typeof header === "string") {
+    return header;
+  }
+  return column.id;
+}
 
 type SpanColumnSelectorProps = {
   /**
@@ -27,7 +43,8 @@ type SpanColumnSelectorProps = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
-  query: SpanColumnSelector_annotations$key;
+  query: SpanColumnSelector_annotations$key &
+    SpanColumnSelector_traceAnnotations$key;
 };
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
@@ -130,10 +147,6 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
           {columns.map((column) => {
             const stateValue = columnVisibility[column.id];
             const isVisible = stateValue == null ? true : stateValue;
-            const name =
-              typeof column.columnDef.header == "string"
-                ? column.columnDef.header
-                : column.id;
             return (
               <li key={column.id} css={columCheckboxItemCSS}>
                 <Checkbox
@@ -143,13 +156,14 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
                     onCheckboxChange(column.id, isSelected)
                   }
                 >
-                  {name}
+                  {getColumnDisplayName(column)}
                 </Checkbox>
               </li>
             );
           })}
         </ul>
         <EvaluationColumnSelector {...props} />
+        <TraceEvaluationColumnSelector {...props} />
       </View>
     </div>
   );
@@ -222,6 +236,99 @@ function EvaluationColumnSelector({
                 onChange={(isSelected) =>
                   setAnnotationColumnVisibility({
                     ...annotationColumnVisibility,
+                    [name]: isSelected,
+                  })
+                }
+              >
+                {name}
+              </Checkbox>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function TraceEvaluationColumnSelector({
+  query,
+}: Pick<SpanColumnSelectorProps, "query">) {
+  const data = useFragment<SpanColumnSelector_traceAnnotations$key>(
+    graphql`
+      fragment SpanColumnSelector_traceAnnotations on Project {
+        traceAnnotationsNames
+      }
+    `,
+    query
+  );
+  const traceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.traceAnnotationColumnVisibility
+  );
+  const setTraceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.setTraceAnnotationColumnVisibility
+  );
+  const allVisible = useMemo(() => {
+    return data.traceAnnotationsNames.every((name) => {
+      const stateValue = traceAnnotationColumnVisibility[name];
+      return stateValue || false;
+    });
+  }, [data.traceAnnotationsNames, traceAnnotationColumnVisibility]);
+
+  const someVisible = useMemo(() => {
+    return data.traceAnnotationsNames.some((name) => {
+      const stateValue = traceAnnotationColumnVisibility[name];
+      return stateValue || false;
+    });
+  }, [data.traceAnnotationsNames, traceAnnotationColumnVisibility]);
+
+  const onToggleTraceAnnotations = useCallback(() => {
+    const newVisibilityState = data.traceAnnotationsNames.reduce(
+      (acc, name) => {
+        return { ...acc, [name]: !allVisible };
+      },
+      {}
+    );
+    setTraceAnnotationColumnVisibility(newVisibilityState);
+  }, [
+    data.traceAnnotationsNames,
+    setTraceAnnotationColumnVisibility,
+    allVisible,
+  ]);
+
+  if (data.traceAnnotationsNames.length === 0) {
+    return null;
+  }
+
+  return (
+    <section>
+      <View
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        borderColor="default"
+        borderTopWidth="thin"
+      >
+        <div css={columCheckboxItemCSS}>
+          <Checkbox
+            name="toggle-trace-annotations-all"
+            isSelected={allVisible}
+            isIndeterminate={someVisible && !allVisible}
+            onChange={onToggleTraceAnnotations}
+          >
+            trace annotations
+          </Checkbox>
+        </div>
+      </View>
+      <ul>
+        {data.traceAnnotationsNames.map((name) => {
+          const isVisible = traceAnnotationColumnVisibility[name] ?? false;
+          return (
+            <li key={name} css={columCheckboxItemCSS}>
+              <Checkbox
+                name={name}
+                isSelected={isVisible}
+                onChange={(isSelected) =>
+                  setTraceAnnotationColumnVisibility({
+                    ...traceAnnotationColumnVisibility,
                     [name]: isSelected,
                   })
                 }

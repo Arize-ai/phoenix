@@ -122,11 +122,16 @@ test.describe("Settings Secrets", () => {
     await page.getByRole("option", { name: "Created by me" }).click();
     await expect(row).toBeVisible();
 
+    await search.fill(suffix);
+    await expect(row).toBeVisible();
+
     const keyHeader = page.getByRole("columnheader", { name: "Key" }).first();
     await keyHeader.locator(".sort").click();
     await expect(page.locator("tbody tr td:first-child").first()).toHaveText(
       secondSecretKey
     );
+
+    await search.fill("");
 
     await row.getByRole("button", { name: `Delete ${firstSecretKey}` }).click();
     await expect(secretsDialog(page)).toBeVisible();

@@ -10,7 +10,10 @@ import type {
 } from "./__generated__/TracesTableQuery.graphql";
 
 export const ANNOTATIONS_COLUMN_PREFIX = "annotations";
+export const TRACE_ANNOTATIONS_COLUMN_PREFIX = "trace-annotations";
 export const ANNOTATIONS_KEY_SEPARATOR = "-";
+export const TRACE_ANNOTATIONS_COLUMN_ID = "traceAnnotations";
+export const TRACE_ANNOTATIONS_COLUMN_LABEL = "trace annotations";
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
@@ -26,6 +29,15 @@ export function getGqlSort(
 ): TracesTableQuery$variables["sort"] {
   let col = null,
     evalResultKey = null;
+  // Trace-annotation columns are not sortable on the spans connection.
+  // Short-circuit defensively to avoid emitting an invalid evalResultKey.
+  if (sort.id && sort.id.startsWith(TRACE_ANNOTATIONS_COLUMN_PREFIX)) {
+    return {
+      col: null,
+      evalResultKey: null,
+      dir: sort.desc ? "desc" : "asc",
+    };
+  }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
     evalResultKey = {
@@ -48,6 +60,14 @@ export function getGqlSessionSort(
 ): SessionsTableQuery$variables["sort"] {
   let col = null,
     annoResultKey = null;
+  // Trace-annotation columns are not sortable on the sessions connection.
+  if (sort.id && sort.id.startsWith(TRACE_ANNOTATIONS_COLUMN_PREFIX)) {
+    return {
+      col: null,
+      annoResultKey: null,
+      dir: sort.desc ? "desc" : "asc",
+    };
+  }
   if (sort.id && sort.id.startsWith(ANNOTATIONS_COLUMN_PREFIX)) {
     const [, attr, name] = sort.id.split(ANNOTATIONS_KEY_SEPARATOR);
     annoResultKey = {
@@ -65,9 +85,17 @@ export function getGqlSessionSort(
   };
 }
 
-export function makeAnnotationColumnId(name: string, type: string) {
+export function makeAnnotationColumnId(
+  name: string,
+  type: string,
+  kind: "span" | "trace" = "span"
+) {
+  const prefix =
+    kind === "trace"
+      ? TRACE_ANNOTATIONS_COLUMN_PREFIX
+      : ANNOTATIONS_COLUMN_PREFIX;
   return (
-    `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}${type}${ANNOTATIONS_KEY_SEPARATOR}${name}`
+    `${prefix}${ANNOTATIONS_KEY_SEPARATOR}${type}${ANNOTATIONS_KEY_SEPARATOR}${name}`
       // replace anything that's not alphanumeric with a dash
       .replace(/[^a-zA-Z0-9]/g, "-")
   );

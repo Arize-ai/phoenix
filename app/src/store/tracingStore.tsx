@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import type { ProjectTab } from "@phoenix/pages/project/constants";
+import { TRACE_ANNOTATIONS_COLUMN_ID } from "@phoenix/pages/project/tableUtils";
 
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {
@@ -19,6 +20,10 @@ export interface TracingProps {
    * Map of the annotation column names that are toggled on
    */
   annotationColumnVisibility: VisibilityState;
+  /**
+   * Map of the trace annotation column names that are toggled on
+   */
+  traceAnnotationColumnVisibility: VisibilityState;
   /**
    * Map of the column id to the width
    */
@@ -37,6 +42,12 @@ export interface TracingState extends TracingProps {
    */
   setAnnotationColumnVisibility: (
     annotationColumnVisibility: VisibilityState
+  ) => void;
+  /**
+   * Sets the visibility of the trace annotation columns
+   */
+  setTraceAnnotationColumnVisibility: (
+    traceAnnotationColumnVisibility: VisibilityState
   ) => void;
   /**
    * Sets the width of a column
@@ -67,17 +78,24 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
       metadata: false,
       spanId: false,
       traceId: false,
+      [TRACE_ANNOTATIONS_COLUMN_ID]: false,
     },
     columnSizing: {
       metadata: 200,
     },
     annotationColumnVisibility: {},
+    traceAnnotationColumnVisibility: {},
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility }, false, { type: "setColumnVisibility" });
     },
     setAnnotationColumnVisibility: (annotationColumnVisibility) => {
       set({ annotationColumnVisibility }, false, {
         type: "setAnnotationColumnVisibility",
+      });
+    },
+    setTraceAnnotationColumnVisibility: (traceAnnotationColumnVisibility) => {
+      set({ traceAnnotationColumnVisibility }, false, {
+        type: "setTraceAnnotationColumnVisibility",
       });
     },
     setColumnSizing: (columnSizing) => {
