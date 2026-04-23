@@ -14,6 +14,7 @@ export type SpanWithAnnotations = Span & {
 export interface Trace {
   traceId: string;
   annotations?: TraceAnnotation[];
+  notes?: TraceAnnotation[];
   spans: SpanWithAnnotations[];
   rootSpan?: SpanWithAnnotations;
   startTime?: string;

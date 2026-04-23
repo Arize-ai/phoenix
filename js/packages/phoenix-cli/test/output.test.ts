@@ -130,8 +130,25 @@ const mockTraceWithAnnotations: Trace = {
   ],
 };
 
-const mockTraceWithSpanNotes: Trace = {
+const mockTraceWithNotes: Trace = {
   traceId: "noted123",
+  notes: [
+    {
+      id: "trace-note-1",
+      created_at: "2026-01-13T10:00:00.500Z",
+      updated_at: "2026-01-13T10:00:00.500Z",
+      source: "API",
+      user_id: null,
+      name: "note",
+      annotator_kind: "HUMAN",
+      identifier: "px-trace-note:1",
+      metadata: null,
+      trace_id: "noted123",
+      result: {
+        explanation: "Trace note content",
+      },
+    },
+  ],
   spans: [
     {
       ...mockSpan1,
@@ -247,12 +264,14 @@ describe("Output Formatting", () => {
       );
     });
 
-    it("should render span notes when present", () => {
+    it("should render trace and span notes when present", () => {
       const output = formatTraceOutput({
-        trace: mockTraceWithSpanNotes,
+        trace: mockTraceWithNotes,
         format: "pretty",
       });
 
+      expect(output).toContain("Trace Notes:");
+      expect(output).toContain("- Trace note content");
       expect(output).toContain("notes:");
       expect(output).toContain("- Span note content");
     });
@@ -315,7 +334,7 @@ describe("Output Formatting", () => {
   describe("span output - pretty", () => {
     it("should include a notes column when notes are present", () => {
       const output = formatSpansOutput({
-        spans: mockTraceWithSpanNotes.spans,
+        spans: mockTraceWithNotes.spans,
         format: "pretty",
       });
 

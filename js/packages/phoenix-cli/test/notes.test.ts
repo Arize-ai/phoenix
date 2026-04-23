@@ -6,7 +6,8 @@ import { ExitCode } from "../src/exitCodes";
 
 function makeFetchMock(
   responses: Array<
-    { ok: boolean; status?: number; body?: unknown } | { error: Error }
+    | { ok: boolean; status?: number; body?: unknown; text?: string }
+    | { error: Error }
   >
 ) {
   let callIndex = 0;
@@ -25,7 +26,7 @@ function makeFetchMock(
       url,
       headers: new Headers(),
       json: () => Promise.resolve(response.body ?? {}),
-      text: () => Promise.resolve(""),
+      text: () => Promise.resolve(response.text ?? ""),
     });
   });
 }
@@ -108,6 +109,32 @@ function makeSpanNoteResponse() {
           metadata: null,
           identifier: "px-span-note:1",
           span_id: "span-123",
+        },
+      ],
+      next_cursor: null,
+    },
+  } as const;
+}
+
+function makeTraceNoteResponse() {
+  return {
+    ok: true,
+    body: {
+      data: [
+        {
+          id: "trace-note-1",
+          created_at: "2026-01-13T10:00:00.500Z",
+          updated_at: "2026-01-13T10:00:00.500Z",
+          source: "API",
+          user_id: null,
+          name: "note",
+          annotator_kind: "HUMAN",
+          result: {
+            explanation: "trace note text",
+          },
+          metadata: null,
+          identifier: "px-trace-note:1",
+          trace_id: "trace-123",
         },
       ],
       next_cursor: null,
@@ -211,6 +238,109 @@ describe("span add-note", () => {
     await expect(
       createSpanCommand().parseAsync(
         ["add-note", "span-123", "--text", "   ", ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Invalid value for --text: <empty>. Expected non-empty text."
+      )
+    );
+  });
+});
+
+describe("trace add-note", () => {
+  it("posts a trace note and returns json output", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        text: "14.12.0",
+      },
+      {
+        ok: true,
+        body: { data: { id: "trace-note-1" } },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "add-note",
+        "trace-123",
+        "--text",
+        "  needs review  ",
+        "--format",
+        "json",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toContain(
+      "/v1/trace_notes"
+    );
+    await expect(
+      getFetchBody(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
+    ).resolves.toEqual({
+      data: {
+        trace_id: "trace-123",
+        note: "needs review",
+      },
+    });
+    expect(stdoutSpy).toHaveBeenCalledWith(
+      JSON.stringify(
+        {
+          id: "trace-note-1",
+          targetType: "trace",
+          targetId: "trace-123",
+          text: "needs review",
+          annotatorKind: "HUMAN",
+        },
+        null,
+        2
+      )
+    );
+  });
+
+  it("fails with INVALID_ARGUMENT when --text is missing", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createTraceCommand().parseAsync(["add-note", "trace-123", ...BASE_ARGS], {
+        from: "user",
+      })
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails with INVALID_ARGUMENT when --text is blank", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createTraceCommand().parseAsync(
+        ["add-note", "trace-123", "--text", "   ", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -331,11 +461,12 @@ describe("span note readback", () => {
   });
 });
 
-describe("trace span-note readback", () => {
-  it("includes span notes in trace get raw output when requested", async () => {
+describe("trace note readback", () => {
+  it("includes trace and span notes in trace get raw output when requested", async () => {
     const fetchMock = makeFetchMock([
       makeProjectResponse(),
       makeSpanPageResponse(),
+      makeTraceNoteResponse(),
       makeSpanNoteResponse(),
     ]);
     vi.stubGlobal("fetch", fetchMock);
@@ -356,17 +487,25 @@ describe("trace span-note readback", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
-      "/v1/projects/project-default/span_annotations"
+      "/v1/projects/project-default/trace_annotations"
     );
     expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
+      "include_annotation_names=note"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
+      "/v1/projects/project-default/span_annotations"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
       "include_annotation_names=note"
     );
 
     const output = stdoutSpy.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
-    expect(parsedOutput.notes).toBeUndefined();
+    expect(parsedOutput.notes).toEqual([
+      expect.objectContaining({ id: "trace-note-1", name: "note" }),
+    ]);
     expect(parsedOutput.spans[0].notes).toEqual([
       expect.objectContaining({ id: "span-note-1", name: "note" }),
     ]);
@@ -416,10 +555,11 @@ describe("trace span-note readback", () => {
     expect(parsedOutput.spans[0].notes).toBeUndefined();
   });
 
-  it("includes span notes in trace list raw output when requested", async () => {
+  it("includes trace and span notes in trace list raw output when requested", async () => {
     const fetchMock = makeFetchMock([
       makeProjectResponse(),
       makeSpanPageResponse(),
+      makeTraceNoteResponse(),
       makeSpanNoteResponse(),
     ]);
     vi.stubGlobal("fetch", fetchMock);
@@ -439,14 +579,25 @@ describe("trace span-note readback", () => {
       { from: "user" }
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
+      "/v1/projects/project-default/trace_annotations"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[2][0])).toContain(
+      "include_annotation_names=note"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
+      "/v1/projects/project-default/span_annotations"
+    );
+    expect(getFetchUrl(fetchMock.mock.calls[3][0])).toContain(
       "include_annotation_names=note"
     );
 
     const output = stdoutSpy.mock.calls[0]?.[0];
     const parsedOutput = JSON.parse(String(output));
-    expect(parsedOutput[0].notes).toBeUndefined();
+    expect(parsedOutput[0].notes).toEqual([
+      expect.objectContaining({ id: "trace-note-1", name: "note" }),
+    ]);
     expect(parsedOutput[0].spans[0].notes).toEqual([
       expect.objectContaining({ id: "span-note-1", name: "note" }),
     ]);

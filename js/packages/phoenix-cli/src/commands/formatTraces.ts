@@ -90,6 +90,7 @@ function formatTracePretty(trace: Trace): string {
   }
 
   renderTraceAnnotations(lines, trace);
+  renderTraceNotes(lines, trace);
   lines.push(`│  Spans:`);
 
   for (let i = 0; i < forest.length; i++) {
@@ -117,6 +118,19 @@ function renderTraceAnnotations(lines: string[], trace: Trace): void {
       ...formatAnnotationResultParts(annotation.result),
     ];
     lines.push(`│  - ${parts.join(" ")}`);
+  }
+  lines.push("│");
+}
+
+function renderTraceNotes(lines: string[], trace: Trace): void {
+  const notes = trace.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Notes:");
+  for (const note of notes) {
+    lines.push(`│  - ${formatNoteText(note.result?.explanation)}`);
   }
   lines.push("│");
 }

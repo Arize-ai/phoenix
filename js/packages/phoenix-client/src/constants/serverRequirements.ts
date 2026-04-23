@@ -53,6 +53,15 @@ export const ANNOTATE_SESSIONS: RouteRequirement = {
   minServerVersion: [12, 0, 0],
 };
 
+export const ADD_TRACE_NOTE: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/trace_notes",
+  // This route is being introduced on the current development branch.
+  // Update this minimum version if the server release target changes before publish.
+  minServerVersion: [14, 12, 0],
+};
+
 export const GET_SPANS_TRACE_IDS: ParameterRequirement = {
   kind: "parameter",
   parameterName: "trace_id",
@@ -96,6 +105,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   DELETE_SESSIONS,
   LIST_PROJECT_SESSIONS,
   ANNOTATE_SESSIONS,
+  ADD_TRACE_NOTE,
   GET_SPANS_TRACE_IDS,
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
