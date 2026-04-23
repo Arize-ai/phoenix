@@ -9,7 +9,6 @@
 * **app:** show root span name in session turn list ([#12795](https://github.com/Arize-ai/phoenix/issues/12795)) ([c31fd97](https://github.com/Arize-ai/phoenix/commit/c31fd9783fbfe2340ae05ac383891b3079929278)), closes [#12792](https://github.com/Arize-ai/phoenix/issues/12792)
 * **secrets:** Add secrets settings page ([#12797](https://github.com/Arize-ai/phoenix/issues/12797)) ([f911992](https://github.com/Arize-ai/phoenix/commit/f9119922160aef450a0e4237cfcd31bdeb50acd9))
 * **ui:** add Show Table Aside toggle to project filter config (featureflagged) ([#12773](https://github.com/Arize-ai/phoenix/issues/12773)) ([81db7aa](https://github.com/Arize-ai/phoenix/commit/81db7aa7ee198adc1b7a285cc69d03880675b076))
-* **graphql:** aggregate per-trace span counts by kind and error counts on `Trace`; add `filterCondition` to `Trace.spans` ([#12815](https://github.com/Arize-ai/phoenix/issues/12815), [#12760](https://github.com/Arize-ai/phoenix/issues/12760), [#12761](https://github.com/Arize-ai/phoenix/issues/12761))
 
 
 ### Bug Fixes

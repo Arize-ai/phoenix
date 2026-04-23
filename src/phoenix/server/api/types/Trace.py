@@ -253,8 +253,7 @@ class Trace(Node):
         description=(
             "Breakdown of errored-span exception types under this trace. Each "
             "`exception` event on an errored span contributes a count; errored spans "
-            "that carry no `exception` event contribute to the `null` bucket. Sorted "
-            "by count descending, then exception type ascending."
+            "that carry no `exception` event contribute to the `null` bucket."
         ),
     )
     async def errors_by_type(

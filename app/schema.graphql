@@ -3597,7 +3597,7 @@ type Trace implements Node {
   errorCount: Int!
 
   """
-  Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket. Sorted by count descending, then exception type ascending.
+  Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
   """
   errorsByType: [SpanErrorTypeCount!]!
   spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
