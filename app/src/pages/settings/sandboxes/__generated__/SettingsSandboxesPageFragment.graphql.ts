@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9da35fe482125caaf930b7a1a8b718e1>>
+ * @generated SignedSource<<398bee3fa30ed41d73ec0a21889eb907>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,16 +9,20 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "NOT_INSTALLED" | "UNAVAILABLE";
 import { FragmentRefs } from "relay-runtime";
 export type SettingsSandboxesPageFragment$data = {
   readonly sandboxBackends: ReadonlyArray<{
     readonly backendType: string;
+    readonly dependenciesLanguage: Language | null;
     readonly dependencyHints: ReadonlyArray<string>;
     readonly displayName: string;
+    readonly internetAccess: InternetAccessMode;
     readonly status: SandboxBackendStatus;
     readonly supportedLanguages: ReadonlyArray<Language>;
+    readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
     readonly backendType: string;
@@ -122,6 +126,27 @@ return {
           "kind": "ScalarField",
           "name": "status",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "supportsEnvVars",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "internetAccess",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "dependenciesLanguage",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -191,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "3bd0e936398feb3f3f5b4d6279b3e2d1";
+(node as any).hash = "d448f7540d4e14bd05d86a348411cf36";
 
 export default node;

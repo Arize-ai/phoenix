@@ -129,8 +129,10 @@ def register_e2b_adapter() -> Any:
         language = "PYTHON"
         config_model = E2BConfig
 
-        def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
-            raise NotImplementedError
+        def build_backend(
+            self, config: dict[str, Any], user_env: dict[str, str] | None = None
+        ) -> SandboxBackend:
+            raise ValueError("fake adapter — not constructible")
 
     original_specs = list(SANDBOX_ADAPTER_METADATA["E2B"].config_field_specs)
     register_sandbox_adapter(_FakeE2BAdapter())

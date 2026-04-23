@@ -189,7 +189,10 @@ class TestInlineCodeEvaluatorPreviewMutation:
                                 }
                             },
                             "context": {"output": {"answer": "4"}},
-                            "inputMapping": {},
+                            "inputMapping": {
+                                "literalMapping": {},
+                                "pathMapping": {},
+                            },
                         }
                     ]
                 }
