@@ -24,7 +24,11 @@ export type CreateDatasetResponse = {
 };
 
 /**
- * Create a new dataset with examples.
+ * Create or declaratively update a dataset with the given examples.
+ *
+ * Calling this against a name that already exists will diff the incoming
+ * examples against the latest version and emit only the CREATE/PATCH/DELETE
+ * revisions needed to converge — the call is idempotent when content matches.
  *
  * @experimental this interface may change in the future
  *
@@ -92,7 +96,7 @@ export async function createDataset({
     body: {
       name,
       description,
-      action: "create",
+      action: "update",
       inputs,
       outputs,
       metadata,

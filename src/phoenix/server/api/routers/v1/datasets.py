@@ -355,6 +355,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     summary="Upload dataset from JSON, JSONL, CSV, or PyArrow",
     responses=add_errors_to_responses(
         [
+            {
+                "status_code": 409,
+                "description": ("Dataset with the given name already exists (action=create)."),
+            },
             {"status_code": 422, "description": "Invalid request body"},
         ]
     ),
@@ -371,7 +375,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "inputs"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {
+                                "type": "string",
+                                "enum": ["create", "append", "update"],
+                            },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "inputs": {"type": "array", "items": {"type": "object"}},
@@ -419,7 +426,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "input_keys[]", "output_keys[]", "file"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {
+                                "type": "string",
+                                "enum": ["create", "append", "update"],
+                            },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "input_keys[]": {
@@ -479,13 +489,6 @@ async def upload_dataset(
     sync: bool = Query(
         default=False,
         description="If true, fulfill request synchronously and return JSON containing dataset_id.",
-    ),
-    strict: bool = Query(
-        default=False,
-        description=(
-            "If true, fail with 409 when action=create and a dataset with the "
-            "given name already exists."
-        ),
     ),
 ) -> Optional[UploadDatasetResponseBody]:
     request_content_type = request.headers.get("content-type")
@@ -616,7 +619,6 @@ async def upload_dataset(
             description=description,
             user_id=user_id,
             splits_provided=splits_provided,
-            strict_create=strict,
         ),
     )
     if sync:

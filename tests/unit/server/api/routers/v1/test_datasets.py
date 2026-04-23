@@ -613,7 +613,7 @@ async def test_post_dataset_upload_json_reupload_reports_no_changes(
 ) -> None:
     name = inspect.stack()[0][3]
     body = {
-        "action": "create",
+        "action": "update",
         "name": name,
         "inputs": [{"a": 1}, {"a": 2}],
         "outputs": [{"b": 1}, {"b": 2}],
@@ -642,7 +642,7 @@ async def test_post_dataset_upload_json_reupload_reports_no_changes(
     assert second_data["num_deleted_examples"] == 0
 
 
-async def test_post_dataset_upload_strict_create_conflicts_with_existing_name(
+async def test_post_dataset_upload_create_conflicts_with_existing_name(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -661,18 +661,98 @@ async def test_post_dataset_upload_strict_create_conflicts_with_existing_name(
     assert first_response.status_code == 200
 
     conflict_response = await httpx_client.post(
-        url="v1/datasets/upload?sync=true&strict=true",
+        url="v1/datasets/upload?sync=true",
         json=body,
     )
     assert conflict_response.status_code == 409
     assert name in conflict_response.text
 
-    # Without strict=true, the same request still upserts into the existing dataset.
-    permissive_response = await httpx_client.post(
+    # action=update converges instead of conflicting on the existing name.
+    update_body = {**body, "action": "update"}
+    update_response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
-        json=body,
+        json=update_body,
     )
-    assert permissive_response.status_code == 200
+    assert update_response.status_code == 200
+
+
+async def test_post_dataset_upload_update_diffs_against_latest_version(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    first_body = {
+        "action": "update",
+        "name": name,
+        "inputs": [{"a": 1}, {"a": 2}, {"a": 3}],
+        "outputs": [{"b": 1}, {"b": 2}, {"b": 3}],
+        "metadata": [{}, {}, {}],
+        "example_ids": ["x", "y", "z"],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=first_body,
+    )
+    assert first_response.status_code == 200
+    first_data = first_response.json()["data"]
+    assert first_data["new_version_created"] is True
+    assert first_data["num_created_examples"] == 3
+    assert first_data["num_patched_examples"] == 0
+    assert first_data["num_deleted_examples"] == 0
+
+    # Re-post the same payload — no-op.
+    noop_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=first_body,
+    )
+    assert noop_response.status_code == 200
+    noop_data = noop_response.json()["data"]
+    assert noop_data["new_version_created"] is False
+    assert noop_data["num_created_examples"] == 0
+    assert noop_data["num_patched_examples"] == 0
+    assert noop_data["num_deleted_examples"] == 0
+    assert noop_data["version_id"] == first_data["version_id"]
+
+    # One patch (y's output changes), one delete (z is missing), one create (w is new).
+    mixed_body = {
+        "action": "update",
+        "name": name,
+        "inputs": [{"a": 1}, {"a": 2}, {"a": 4}],
+        "outputs": [{"b": 1}, {"b": 222}, {"b": 4}],
+        "metadata": [{}, {}, {}],
+        "example_ids": ["x", "y", "w"],
+    }
+    mixed_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json=mixed_body,
+    )
+    assert mixed_response.status_code == 200
+    mixed_data = mixed_response.json()["data"]
+    assert mixed_data["new_version_created"] is True
+    assert mixed_data["num_created_examples"] == 1
+    assert mixed_data["num_patched_examples"] == 1
+    assert mixed_data["num_deleted_examples"] == 1
+
+
+async def test_post_dataset_upload_update_auto_creates_missing_dataset(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "update",
+            "name": name,
+            "inputs": [{"a": 1}, {"a": 2}],
+            "outputs": [{"b": 1}, {"b": 2}],
+            "metadata": [{}, {}],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["new_version_created"] is True
+    assert data["num_created_examples"] == 2
 
 
 async def test_post_dataset_upload_csv_create_then_append(
@@ -3131,13 +3211,13 @@ async def test_append_with_wrong_type_node_id_stored_as_custom_external_id(
         assert example.external_id == span_shaped_id
 
 
-async def test_create_empty_examples_list_creates_empty_version(
+async def test_update_empty_examples_list_creates_empty_version(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "create", "name": "empty-upsert-ds", "inputs": []},
+        json={"action": "update", "name": "empty-update-ds", "inputs": []},
     )
     assert response.status_code == 200
 
@@ -3146,7 +3226,7 @@ async def test_create_empty_examples_list_creates_empty_version(
             await session.scalars(
                 select(models.DatasetVersion)
                 .join(models.Dataset)
-                .where(models.Dataset.name == "empty-upsert-ds")
+                .where(models.Dataset.name == "empty-update-ds")
             )
         )
         assert len(versions) == 1
@@ -3154,14 +3234,14 @@ async def test_create_empty_examples_list_creates_empty_version(
             await session.scalars(
                 select(models.DatasetExample)
                 .join(models.Dataset)
-                .where(models.Dataset.name == "empty-upsert-ds")
+                .where(models.Dataset.name == "empty-update-ds")
             )
         )
         assert len(examples) == 0
 
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "create", "name": "empty-upsert-ds", "inputs": []},
+        json={"action": "update", "name": "empty-update-ds", "inputs": []},
     )
     assert response.status_code == 200
 
@@ -3170,7 +3250,7 @@ async def test_create_empty_examples_list_creates_empty_version(
             await session.scalars(
                 select(models.DatasetVersion)
                 .join(models.Dataset)
-                .where(models.Dataset.name == "empty-upsert-ds")
+                .where(models.Dataset.name == "empty-update-ds")
             )
         )
         assert len(versions) == 1  # no new version
@@ -3245,7 +3325,7 @@ async def test_create_empty_examples_list_creates_empty_version(
         ),
     ],
 )
-async def test_create_on_datasets_with_single_example(
+async def test_update_on_datasets_with_single_example(
     initial: list[ExampleContent],
     updated: list[ExampleContent],
     expected_num_versions: int,
@@ -3256,7 +3336,7 @@ async def test_create_on_datasets_with_single_example(
 ) -> None:
     name = "ds"
     await _append(httpx_client, name, initial)
-    await _create(httpx_client, name, updated)
+    await _update(httpx_client, name, updated)
     versions = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
     assert len(versions) == expected_num_versions
@@ -3302,8 +3382,8 @@ async def test_deleting_and_creating_examples_with_the_same_content(
 ) -> None:
     name = "ds"
     await _append(httpx_client, name, [initial_example])
-    await _create(httpx_client, name, [])  # delete
-    await _create(httpx_client, name, [updated_example])
+    await _update(httpx_client, name, [])  # delete
+    await _update(httpx_client, name, [updated_example])
 
     async with db() as session:
         all_examples = list(
@@ -3357,14 +3437,14 @@ async def test_append_adding_external_id_to_unided_example_creates_new_example(
     assert kinds == ["CREATE", "CREATE"]
 
 
-async def test_create_with_changed_external_id_same_content_deletes_old_and_creates_new(
+async def test_update_with_changed_external_id_same_content_deletes_old_and_creates_new(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Under CREATE (upsert) semantics, a changed external_id removes the old example and adds the new one."""
     name = "ds"
     await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e1")])
-    await _create(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
+    await _update(httpx_client, name, [ExampleContent(input={"a": 1}, output={}, external_id="e2")])
 
     versions = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -3411,7 +3491,7 @@ async def test_creating_two_examples_that_match_content_hash_of_previous_example
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
     await _append(httpx_client, name, [ex])
-    await _create(httpx_client, name, [ex, ex])
+    await _update(httpx_client, name, [ex, ex])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -3424,14 +3504,14 @@ async def test_creating_two_examples_that_match_content_hash_of_previous_example
     assert kinds.count("CREATE") == 2
 
 
-async def test_create_with_removed_example_results_in_delete_revision(
+async def test_update_with_removed_example_results_in_delete_revision(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
     ex = ExampleContent(input={"a": 1}, output={})
     await _append(httpx_client, name, [ex, ex])
-    await _create(httpx_client, name, [ex])
+    await _update(httpx_client, name, [ex])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -3448,7 +3528,7 @@ async def test_create_with_removed_example_results_in_delete_revision(
 # ---------------------------------------------------------------------------
 
 
-async def test_create_batch_with_mix_of_new_unchanged_and_changed_examples(
+async def test_update_batch_with_mix_of_new_unchanged_and_changed_examples(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3460,7 +3540,7 @@ async def test_create_batch_with_mix_of_new_unchanged_and_changed_examples(
     e_new = ExampleContent(input={"c": 1}, output={}, external_id="new")
 
     await _append(httpx_client, name, [e_unchanged, e_changed_old])
-    await _create(httpx_client, name, [e_unchanged, e_changed_new, e_new])
+    await _update(httpx_client, name, [e_unchanged, e_changed_new, e_new])
 
     revisions = await _get_revisions(db, name)
     versions = await _get_versions(db, name)
@@ -3472,7 +3552,7 @@ async def test_create_batch_with_mix_of_new_unchanged_and_changed_examples(
     assert kinds.count("DELETE") == 0
 
 
-async def test_create_batch_with_mix_of_examples_with_and_without_external_ids(
+async def test_update_batch_with_mix_of_examples_with_and_without_external_ids(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3483,7 +3563,7 @@ async def test_create_batch_with_mix_of_examples_with_and_without_external_ids(
 
     await _append(httpx_client, name, [e_with_id, e_no_id])
     # Create with same examples
-    await _create(httpx_client, name, [e_with_id, e_no_id])
+    await _update(httpx_client, name, [e_with_id, e_no_id])
 
     versions = await _get_versions(db, name)
     revisions = await _get_revisions(db, name)
@@ -3498,13 +3578,13 @@ async def test_create_batch_with_mix_of_examples_with_and_without_external_ids(
 # ---------------------------------------------------------------------------
 
 
-async def test_create_creates_new_dataset_when_name_does_not_exist(
+async def test_update_creates_new_dataset_when_name_does_not_exist(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create on non-existent dataset creates Dataset + DatasetVersion + CREATE revisions."""
     name = "brand-new"
-    await _create(httpx_client, name, [ExampleContent(input={"x": 1}, output={})])
+    await _update(httpx_client, name, [ExampleContent(input={"x": 1}, output={})])
 
     async with db() as session:
         dataset = await session.scalar(select(models.Dataset).where(models.Dataset.name == name))
@@ -3518,20 +3598,20 @@ async def test_create_creates_new_dataset_when_name_does_not_exist(
     assert revisions[0].revision_kind == "CREATE"
 
 
-async def test_create_creates_new_version_on_existing_dataset(
+async def test_update_creates_new_version_on_existing_dataset(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with changes creates a second DatasetVersion."""
     name = "ds"
     await _append(httpx_client, name, [ExampleContent(input={"a": 1}, output={})])
-    await _create(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
+    await _update(httpx_client, name, [ExampleContent(input={"a": 2}, output={})])
 
     versions = await _get_versions(db, name)
     assert len(versions) == 2
 
 
-async def test_create_does_not_create_new_version_for_unchanged_examples(
+async def test_update_does_not_create_new_version_for_unchanged_examples(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3543,19 +3623,19 @@ async def test_create_does_not_create_new_version_for_unchanged_examples(
     versions_before = await _get_versions(db, name)
     append_version_id = versions_before[0].id
 
-    create_response = await httpx_client.post(
+    update_response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json={"action": "create", "name": name, "inputs": [ex.input]},
+        json={"action": "update", "name": name, "inputs": [ex.input]},
     )
-    create_response.raise_for_status()
+    update_response.raise_for_status()
 
     versions_after = await _get_versions(db, name)
     assert len(versions_after) == len(versions_before)
     expected_version_id = str(GlobalID(DatasetVersionType.__name__, str(append_version_id)))
-    assert create_response.json()["data"]["version_id"] == expected_version_id
+    assert update_response.json()["data"]["version_id"] == expected_version_id
 
 
-async def test_create_with_no_prior_version_creates_all_examples(
+async def test_update_with_no_prior_version_creates_all_examples(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3565,7 +3645,7 @@ async def test_create_with_no_prior_version_creates_all_examples(
     async with db() as session:
         await session.execute(insert(models.Dataset).values(name=name, metadata_={}))
 
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3582,7 +3662,7 @@ async def test_create_with_no_prior_version_creates_all_examples(
     assert all(r.revision_kind == "CREATE" for r in revisions)
 
 
-async def test_create_with_splits_assigns_splits_to_new_examples(
+async def test_update_with_splits_assigns_splits_to_new_examples(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3595,7 +3675,7 @@ async def test_create_with_splits_assigns_splits_to_new_examples(
         ),
         ExampleContent(input={"q": "Q3"}, output={}, external_id="e3"),  # no splits
     ]
-    await _create(httpx_client, name, examples)
+    await _update(httpx_client, name, examples)
 
     async with db() as session:
         ds_examples = list(
@@ -3621,7 +3701,7 @@ async def test_create_with_splits_assigns_splits_to_new_examples(
         assert await get_example_splits(ds_examples[2].id) == set()
 
 
-async def test_create_with_splits_on_created_examples_after_delete(
+async def test_update_with_splits_on_created_examples_after_delete(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3637,7 +3717,7 @@ async def test_create_with_splits_on_created_examples_after_delete(
     new_examples = [
         ExampleContent(input={"new": 1}, output={}, splits=frozenset({"train"}), external_id="e2"),
     ]
-    await _create(httpx_client, name, new_examples)
+    await _update(httpx_client, name, new_examples)
 
     revisions = await _get_revisions(db, name)
     kinds = [r.revision_kind for r in revisions]
@@ -3665,14 +3745,14 @@ async def test_create_with_splits_on_created_examples_after_delete(
         assert {s.name for s in splits} == {"train"}
 
 
-async def test_create_replaces_split_assignments(
+async def test_update_replaces_split_assignments(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create replaces split assignments for patched, unchanged, and new examples."""
     name = "ds"
     # Initial create: e1 -> train, e2 -> train, e3 -> train (new in next create)
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3689,7 +3769,7 @@ async def test_create_replaces_split_assignments(
     #   e1: content changed (PATCH) — split train -> test
     #   e2: content unchanged — split train -> val
     #   e3: new example (CREATE) — split test
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3733,13 +3813,13 @@ async def test_create_replaces_split_assignments(
         }  # created
 
 
-async def test_create_removes_split_assignments_when_splits_empty(
+async def test_update_removes_split_assignments_when_splits_empty(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with empty splits removes previous split assignments."""
     name = "ds"
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3749,11 +3829,11 @@ async def test_create_removes_split_assignments_when_splits_empty(
         ],
     )
 
-    # Re-create with explicit splits=[None] — old "train" assignment should be removed.
+    # Re-upload with explicit splits=[None] — old "train" assignment should be removed.
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
         json={
-            "action": "create",
+            "action": "update",
             "name": name,
             "inputs": [{"q": "Q1"}],
             "outputs": [{"a": "A1"}],
@@ -3778,14 +3858,14 @@ async def test_create_removes_split_assignments_when_splits_empty(
         assert example.dataset_splits_dataset_examples == []
 
 
-async def test_create_preserves_split_assignments_when_splits_not_provided(
+async def test_update_preserves_split_assignments_when_splits_not_provided(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create without splits parameter preserves existing splits; deleted examples cascade."""
     name = "ds"
     # Initial create: e1 -> train, e2 -> test, e3 -> val
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3806,7 +3886,7 @@ async def test_create_preserves_split_assignments_when_splits_not_provided(
     #   e2: content unchanged — splits should remain {test}
     #   e3: omitted (DELETE) — cascade deletes its split assignments
     #   e4: new example (CREATE) — no splits
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -3859,14 +3939,14 @@ def _examples_to_body(*, action: str, name: str, examples: list[ExampleContent])
     return body
 
 
-async def _create(
+async def _update(
     httpx_client: httpx.AsyncClient,
     name: str,
     examples: list[ExampleContent],
 ) -> None:
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
-        json=_examples_to_body(action="create", name=name, examples=examples),
+        json=_examples_to_body(action="update", name=name, examples=examples),
     )
     response.raise_for_status()
 
@@ -3974,7 +4054,7 @@ async def _create_span_in_db(
 # ---------------------------------------------------------------------------
 
 
-async def test_create_resolves_span_ids(
+async def test_update_resolves_span_ids(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -3982,7 +4062,7 @@ async def test_create_resolves_span_ids(
     span_rowid_1 = await _create_span_in_db(db, "span-1")
     span_rowid_2 = await _create_span_in_db(db, "span-2")
 
-    await _create(
+    await _update(
         httpx_client,
         "span-create-ds",
         [
@@ -3999,12 +4079,12 @@ async def test_create_resolves_span_ids(
     assert examples[2].span_rowid is None
 
 
-async def test_create_with_nonexistent_span_id(
+async def test_update_with_nonexistent_span_id(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with a span_id that doesn't exist in the DB still creates the example."""
-    await _create(
+    await _update(
         httpx_client,
         "span-missing-ds",
         [
@@ -4017,7 +4097,7 @@ async def test_create_with_nonexistent_span_id(
     assert examples[0].span_rowid is None
 
 
-async def test_create_patch_preserves_span_rowid(
+async def test_update_patch_preserves_span_rowid(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -4026,14 +4106,14 @@ async def test_create_patch_preserves_span_rowid(
     await _create_span_in_db(db, "span-new")
 
     # First create: with span-orig
-    await _create(
+    await _update(
         httpx_client,
         "span-patch-ds",
         [ExampleContent(input={"x": 1}, output={}, external_id="e1", span_id="span-orig")],
     )
 
     # Second create: same external_id, different content and different span_id → PATCH
-    await _create(
+    await _update(
         httpx_client,
         "span-patch-ds",
         [ExampleContent(input={"x": 100}, output={}, external_id="e1", span_id="span-new")],
@@ -4049,7 +4129,7 @@ async def test_create_patch_preserves_span_rowid(
     assert kinds == ["CREATE", "PATCH"]
 
 
-async def test_create_revived_example_preserves_old_span_rowid(
+async def test_update_revived_example_preserves_old_span_rowid(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -4058,21 +4138,21 @@ async def test_create_revived_example_preserves_old_span_rowid(
     await _create_span_in_db(db, "span-revived")
 
     # Create with span-old
-    await _create(
+    await _update(
         httpx_client,
         "span-revive-ds",
         [ExampleContent(input={"v": 1}, output={}, external_id="e1", span_id="span-old")],
     )
 
     # Delete e1 by omitting it
-    await _create(
+    await _update(
         httpx_client,
         "span-revive-ds",
         [ExampleContent(input={"v": 99}, output={}, external_id="other")],
     )
 
     # Re-create with same external_id but different span_id → revive
-    await _create(
+    await _update(
         httpx_client,
         "span-revive-ds",
         [
@@ -4106,7 +4186,7 @@ async def test_node_id_roundtrip_unchanged(
     node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
 
     # Re-create with the node ID as external_id, same content
-    await _create(
+    await _update(
         httpx_client, name, [ExampleContent(input={"a": 1}, output={"b": 2}, external_id=node_id)]
     )
 
@@ -4132,7 +4212,7 @@ async def test_node_id_roundtrip_patch(
     node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
 
     # Re-create with same node ID but different content
-    await _create(
+    await _update(
         httpx_client,
         name,
         [ExampleContent(input={"a": 1}, output={"b": 999}, external_id=node_id)],
@@ -4161,7 +4241,7 @@ async def test_node_id_roundtrip_delete(
     keep_node_id = str(GlobalID("DatasetExample", str(examples[0].id)))
 
     # Re-create keeping only the first example (by node ID), dropping the second
-    await _create(
+    await _update(
         httpx_client,
         name,
         [ExampleContent(input={"a": 1}, output={}, external_id=keep_node_id)],
@@ -4191,7 +4271,7 @@ async def test_node_id_without_example_record_rejected(
     response = await httpx_client.post(
         "v1/datasets/upload?sync=true",
         json={
-            "action": "create",
+            "action": "update",
             "name": name,
             "inputs": [{"completely": "different"}],
             "example_ids": [fake_node_id],
@@ -4217,7 +4297,7 @@ async def test_node_id_not_persisted_as_external_id(
 
     # Re-create with node IDs, patching one
     node_ids = [str(GlobalID("DatasetExample", str(e.id))) for e in examples_before]
-    await _create(
+    await _update(
         httpx_client,
         name,
         [
@@ -4236,7 +4316,7 @@ async def test_node_id_not_persisted_as_external_id(
 # ---------------------------------------------------------------------------
 
 
-async def test_upsert_roundtrip_all_eight_cases(
+async def test_update_roundtrip_all_eight_cases(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
@@ -4383,7 +4463,7 @@ async def test_upsert_roundtrip_all_eight_cases(
         ),
         # Case 8: OMITTED → DELETE
     ]
-    await _create(httpx_client, name, v2_examples)
+    await _update(httpx_client, name, v2_examples)
 
     # --- verify v2 -----------------------------------------------------------
     v2_versions = await _get_versions(db, name)

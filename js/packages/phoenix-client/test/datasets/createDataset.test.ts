@@ -51,7 +51,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A test dataset",
-        action: "create",
+        action: "update",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -104,7 +104,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with span links",
-        action: "create",
+        action: "update",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -163,7 +163,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with partial span links",
-        action: "create",
+        action: "update",
         inputs: [
           { question: "What is AI?" },
           { question: "What is ML?" },
@@ -251,7 +251,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with splits and span links",
-        action: "create",
+        action: "update",
         inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
         outputs: [
           { answer: "Artificial Intelligence" },
@@ -297,7 +297,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with metadata",
-        action: "create",
+        action: "update",
         inputs: [{ question: "What is AI?" }],
         outputs: [{ answer: "Artificial Intelligence" }],
         metadata: [{ source: "wikipedia", difficulty: "easy" }],
@@ -354,7 +354,7 @@ describe("createDataset", () => {
       body: {
         name: "test-dataset",
         description: "A dataset with null outputs",
-        action: "create",
+        action: "update",
         inputs: [{ question: "What is AI?" }],
         outputs: [{}], // null is converted to empty object
         metadata: [{}],

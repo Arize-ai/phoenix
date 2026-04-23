@@ -456,6 +456,7 @@ async def bulk_assign_examples_to_splits(
 class DatasetAction(Enum):
     CREATE = "create"
     APPEND = "append"
+    UPDATE = "update"
 
     @classmethod
     def _missing_(cls, v: Any) -> "DatasetAction":
@@ -504,7 +505,6 @@ async def add_dataset_examples(
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
-    strict_create: bool = False,
 ) -> DatasetExampleAdditionEvent:
     created_at = datetime.now(timezone.utc)
 
@@ -524,10 +524,10 @@ async def add_dataset_examples(
         except Exception:
             logger.exception(f"Failed to insert dataset: {name=}")
             raise
-    elif strict_create and action is DatasetAction.CREATE:
+    elif action is DatasetAction.CREATE:
         raise DatasetNameConflictError(f'A dataset named "{name}" already exists.')
 
-    return await _upsert_dataset_examples(
+    return await _update_dataset_examples(
         session=session,
         dataset_id=dataset_id,
         examples=examples,
@@ -539,7 +539,7 @@ async def add_dataset_examples(
 
 
 @dataclass(frozen=True)
-class UpsertDiff:
+class UpdateDiff:
     """Result of diffing incoming examples against the previous dataset version."""
 
     create_examples: list[ExampleWithHash]
@@ -611,7 +611,7 @@ def _diff_examples(
     incoming_examples: list[ExampleWithHash],
     previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]],
     skip_deletes: bool = False,
-) -> UpsertDiff:
+) -> UpdateDiff:
     """Diff incoming examples against the previous version to classify as CREATE, PATCH, or DELETE.
 
     Matching rules (applied per incoming example, in order):
@@ -667,7 +667,7 @@ def _diff_examples(
             if example_id not in matcher._already_matched
         ]
 
-    return UpsertDiff(
+    return UpdateDiff(
         create_examples=examples_to_create,
         patch_examples=examples_to_patch,
         delete_example_ids=delete_ids,
@@ -697,7 +697,7 @@ async def _get_existing_example_ids(
 async def _rebuild_dataset_splits(
     session: AsyncSession,
     dataset_id: DatasetId,
-    diff: UpsertDiff,
+    diff: UpdateDiff,
     created_examples: list[ExampleWithExternalID],
     splits_provided: bool = True,
     user_id: Optional[int] = None,
@@ -784,7 +784,7 @@ async def _update_splits(
     await bulk_assign_examples_to_splits(session=session, assignments=split_assignments)
 
 
-async def _upsert_dataset_examples(
+async def _update_dataset_examples(
     session: AsyncSession,
     dataset_id: DatasetId,
     examples: Sequence[ExampleWithHash],
@@ -937,7 +937,7 @@ async def _upsert_dataset_examples(
             splits_provided=splits_provided,
             user_id=user_id,
         )
-    elif action is DatasetAction.CREATE:
+    elif action is DatasetAction.CREATE or action is DatasetAction.UPDATE:
         await _rebuild_dataset_splits(
             session=session,
             dataset_id=dataset_id,

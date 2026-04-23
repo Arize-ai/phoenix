@@ -1074,18 +1074,6 @@
               "title": "Sync"
             },
             "description": "If true, fulfill request synchronously and return JSON containing dataset_id."
-          },
-          {
-            "name": "strict",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "If true, fail with 409 when action=create and a dataset with the given name already exists.",
-              "default": false,
-              "title": "Strict"
-            },
-            "description": "If true, fail with 409 when action=create and a dataset with the given name already exists."
           }
         ],
         "responses": {
@@ -1117,6 +1105,16 @@
             },
             "description": "Forbidden"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset with the given name already exists (action=create)."
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -1142,7 +1140,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1234,7 +1233,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {

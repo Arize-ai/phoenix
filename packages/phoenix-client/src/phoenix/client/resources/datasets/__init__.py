@@ -886,7 +886,7 @@ class Datasets:
                 split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=dataset_description,
-                action="create",
+                action="update",
                 timeout=timeout,
             )
         else:
@@ -898,7 +898,7 @@ class Datasets:
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
-                action="create",
+                action="update",
                 timeout=timeout,
             )
 
@@ -1088,7 +1088,7 @@ class Datasets:
         span_id_key: Optional[str] = None,
         split_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1170,7 +1170,7 @@ class Datasets:
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1705,7 +1705,7 @@ class AsyncDatasets:
                 split_key=split_key,
                 span_id_key=span_id_key,
                 dataset_description=dataset_description,
-                action="create",
+                action="update",
                 timeout=timeout,
             )
         else:
@@ -1717,7 +1717,7 @@ class AsyncDatasets:
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
-                action="create",
+                action="update",
                 timeout=timeout,
             )
 
@@ -1891,7 +1891,7 @@ class AsyncDatasets:
         span_id_key: Optional[str] = None,
         split_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """Async version of _upload_tabular_dataset."""
@@ -1971,7 +1971,7 @@ class AsyncDatasets:
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
-        action: Literal["create", "append"] = "create",
+        action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """Async version of _upload_json_dataset."""
