@@ -42,6 +42,89 @@ class MessageRole(str, Enum):
     SYSTEM = "system"
 
 
+# Canonical aliases accepted on every adapter's dict path.  Keeping a single
+# source of truth here means the OpenAI, Anthropic, Google, LiteLLM, and
+# LangChain adapters all share the same mapping.
+_ROLE_ALIASES: Dict[str, "MessageRole"] = {
+    "user": MessageRole.USER,
+    "human": MessageRole.USER,
+    "assistant": MessageRole.AI,
+    "ai": MessageRole.AI,
+    "model": MessageRole.AI,
+    "system": MessageRole.SYSTEM,
+    # ``developer`` is the OpenAI reasoning-model spelling of ``system``;
+    # downstream adapters already route it through their system-extraction
+    # paths, so we canonicalize to SYSTEM here and let the adapter decide
+    # how to serialize it on the wire (see ``OpenAIAdapter._system_role``).
+    "developer": MessageRole.SYSTEM,
+}
+
+
+def normalize_role(role: Any) -> "MessageRole":
+    """Normalize a role value to a :class:`MessageRole`.
+
+    Accepts:
+    - A :class:`MessageRole` (returned unchanged).
+    - A string matching one of the canonical aliases in :data:`_ROLE_ALIASES`
+      (case-insensitive, whitespace-trimmed).
+
+    Raises:
+        ValueError: If ``role`` is not a string or ``MessageRole``, or is a
+            string that does not match any known alias.  The error message
+            lists the valid aliases so adapter callers can show users a
+            useful hint.
+    """
+    if isinstance(role, MessageRole):
+        return role
+    if not isinstance(role, str):
+        raise ValueError(
+            f"Role must be a string or MessageRole, got {type(role).__name__}. "
+            f"Valid role aliases: {sorted(_ROLE_ALIASES)}."
+        )
+    normalized = _ROLE_ALIASES.get(role.strip().lower())
+    if normalized is None:
+        raise ValueError(
+            f"Unknown message role: {role!r}. Valid role aliases: {sorted(_ROLE_ALIASES)}."
+        )
+    return normalized
+
+
+def validate_message_dict(msg: Any, *, index: int) -> None:
+    """Validate an OpenAI-style message dict before adapter consumption.
+
+    Checks:
+    - ``msg`` is a mapping.
+    - ``role`` is present.
+    - ``content`` is present, is not ``None``, and is not an empty string or
+      empty list.
+
+    These checks are deliberately shared across adapters so that callers get
+    the same error shape regardless of which provider they are targeting.
+
+    Args:
+        msg: The message to validate.
+        index: Position of the message in the caller's list — included in the
+            error message so users can locate the offending entry.
+
+    Raises:
+        ValueError: If any of the checks fail.
+    """
+    if not isinstance(msg, Mapping):
+        raise ValueError(f"Message at index {index} must be a mapping, got {type(msg).__name__}.")
+    if "role" not in msg:
+        raise ValueError(f"Message at index {index} is missing required 'role' field.")
+    if "content" not in msg:
+        raise ValueError(f"Message at index {index} is missing required 'content' field.")
+
+    content = msg["content"]
+    if content is None:
+        raise ValueError(f"Message at index {index} has None content.")
+    if isinstance(content, str) and content == "":
+        raise ValueError(f"Message at index {index} has empty string content.")
+    if isinstance(content, list) and len(content) == 0:
+        raise ValueError(f"Message at index {index} has empty list content.")
+
+
 class TextContentPart(TypedDict):
     """Text content part for messages (OpenAI format)."""
 
@@ -874,14 +957,10 @@ class PromptVersionDumpable(Protocol):
 
 PromptVersionInput = Union[Mapping[str, Any], PromptVersionDumpable]
 
-_PROMPT_VERSION_ROLE_MAP = {
-    "user": "user",
-    "assistant": "assistant",
-    "ai": "assistant",
-    "model": "assistant",
-    "system": "system",
-    "developer": "system",
-}
+# Kept for backward compatibility with callers that import this symbol.
+# The canonical alias table now lives in ``_ROLE_ALIASES`` above and is used
+# by both adapter dict paths and the prompt-version converter below.
+_PROMPT_VERSION_ROLE_MAP = {alias: role.value for alias, role in _ROLE_ALIASES.items()}
 
 
 def phoenix_prompt_to_prompt_template(prompt_version: PromptVersionInput) -> PromptTemplate:
@@ -976,14 +1055,20 @@ def _convert_prompt_version_message(message: Any, index: int) -> dict[str, Any]:
 
 
 def _normalize_prompt_version_role(role: Any, *, index: int) -> str:
+    # Delegate to the shared ``normalize_role`` helper so Phoenix prompt
+    # versions and adapter dict paths stay in sync, but preserve the existing
+    # ``PhoenixTemplateMappingError`` wrapping that downstream callers rely on.
     if not isinstance(role, str):
         raise PhoenixTemplateMappingError(
             f"Message role at index {index} must be a string, got {type(role).__name__}."
         )
-    normalized = _PROMPT_VERSION_ROLE_MAP.get(role.lower())
-    if normalized is None:
-        raise PhoenixTemplateMappingError(f"Unsupported message role at index {index}: {role!r}.")
-    return normalized
+    try:
+        normalized = normalize_role(role)
+    except ValueError as exc:
+        raise PhoenixTemplateMappingError(
+            f"Unsupported message role at index {index}: {role!r}."
+        ) from exc
+    return normalized.value
 
 
 def _convert_prompt_version_content(content: Any, *, index: int) -> Any:
