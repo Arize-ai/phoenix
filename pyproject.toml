@@ -182,14 +182,14 @@ e2b = [
   "e2b-code-interpreter>=0.0.12",
 ]
 daytona = [
-  "daytona>=0.140.0",
+  "daytona-sdk>=0.140.0",
 ]
 vercel = [
   "vercel>=0.5.1",
   "websockets>=14.0",
 ]
 modal = [
-  "modal>=0.70.0",
+  "modal>=1.2.0",
 ]
 pg = [
   "asyncpg",

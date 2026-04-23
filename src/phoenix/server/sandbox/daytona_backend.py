@@ -33,11 +33,13 @@ class DaytonaSandboxBackend(SandboxBackend):
         server_url: str = "",
         user_env: Optional[dict[str, str]] = None,
         packages: Optional[list[str]] = None,
+        network_block_all: bool = False,
     ) -> None:
         self._api_key = api_key
         self._server_url = server_url
         self._user_env: dict[str, str] = user_env or {}
         self._packages: list[str] = packages or []
+        self._network_block_all = network_block_all
         self._sessions: dict[str, Any] = {}
 
     def _get_client(self) -> Any:
@@ -65,12 +67,18 @@ class DaytonaSandboxBackend(SandboxBackend):
                 f"pip install {pkg_args!r} failed (exit {result.exit_code}): {result.stderr}"
             )
 
+    def _create_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {}
+        if self._network_block_all:
+            kwargs["network_block_all"] = True
+        return kwargs
+
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:
             logger.debug(f"Daytona session '{session_key}' already exists; reusing")
             return
         client = self._get_client()
-        workspace = await client.create()
+        workspace = await client.create(**self._create_kwargs())
         await self._install_packages(workspace)
         self._sessions[session_key] = workspace
         logger.debug(f"Started Daytona session '{session_key}'")
@@ -97,9 +105,13 @@ class DaytonaSandboxBackend(SandboxBackend):
             workspace = self._sessions.get(session_key)
             if workspace is None:
                 client = self._get_client()
-                workspace = await client.create()
+                workspace = await client.create(**self._create_kwargs())
                 await self._install_packages(workspace)
-            result = await workspace.process.code_run(code, envs=self._user_env)
+            from daytona_sdk.common.process import CodeRunParams  # type: ignore[import-not-found]
+
+            result = await workspace.process.code_run(
+                code, params=CodeRunParams(env=self._user_env or None)
+            )
             return ExecutionResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
@@ -139,6 +151,13 @@ class DaytonaPythonAdapter(SandboxAdapter):
         server_url: str = config.get("server_url", "")
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        internet_access = config.get("internet_access") or {}
+        mode: str = internet_access.get("mode", "") if isinstance(internet_access, dict) else ""
+        network_block_all = mode == "deny"
         return DaytonaSandboxBackend(
-            api_key=api_key, server_url=server_url, user_env=user_env, packages=packages
+            api_key=api_key,
+            server_url=server_url,
+            user_env=user_env,
+            packages=packages,
+            network_block_all=network_block_all,
         )
