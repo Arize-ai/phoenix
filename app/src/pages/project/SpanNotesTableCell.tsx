@@ -15,6 +15,9 @@ import {
 import { tableCSS } from "@phoenix/components/table/styles";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
+const NOTE_TOOLTIP_MAX_WIDTH = "720px";
+const NOTE_TOOLTIP_VIEWPORT_GUTTER = "32px";
+
 const noteCountTriggerCSS = css`
   display: inline-flex;
   flex-direction: row;
@@ -32,7 +35,10 @@ const noteTooltipCSS = css`
   border-radius: var(--global-rounding-small);
   overflow: hidden;
   width: fit-content;
-  max-width: min(720px, calc(100vw - 32px));
+  max-width: min(
+    ${NOTE_TOOLTIP_MAX_WIDTH},
+    calc(100vw - ${NOTE_TOOLTIP_VIEWPORT_GUTTER})
+  );
 `;
 
 const noteTableCSS = css(
