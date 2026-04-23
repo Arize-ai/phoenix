@@ -477,8 +477,6 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             from system messages
         """
         if isinstance(prompt, str):
-            if not prompt:
-                raise ValueError("Prompt string cannot be empty.")
             return prompt, ""
 
         if isinstance(prompt, list):

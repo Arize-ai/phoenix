@@ -334,8 +334,6 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def _build_prompt(self, prompt: PromptLike) -> Union[str, List[Any]]:
         if isinstance(prompt, str):
-            if not prompt:
-                raise ValueError("Prompt string cannot be empty.")
             return prompt
         elif isinstance(prompt, list):
             if not prompt:

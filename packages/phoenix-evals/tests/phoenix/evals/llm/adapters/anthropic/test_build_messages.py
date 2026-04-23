@@ -28,6 +28,12 @@ def test_string_prompt_becomes_single_user_message() -> None:
     assert system == ""
 
 
+def test_empty_string_prompt_is_preserved() -> None:
+    messages, system = _make_adapter()._build_messages("")
+    assert messages == [{"role": "user", "content": ""}]
+    assert system == ""
+
+
 def test_openai_format_dict_list_extracts_system() -> None:
     adapter = _make_adapter()
     prompt = [

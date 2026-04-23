@@ -33,6 +33,10 @@ def test_string_prompt_passed_through() -> None:
     assert _make_adapter()._build_prompt("hi") == "hi"
 
 
+def test_empty_string_prompt_is_preserved() -> None:
+    assert _make_adapter()._build_prompt("") == ""
+
+
 def test_typed_message_list_converts_to_langchain_messages() -> None:
     adapter = _make_adapter()
     prompt = [

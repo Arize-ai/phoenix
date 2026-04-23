@@ -314,8 +314,6 @@ class AnthropicAdapter(BaseLLMAdapter):
             Tuple of (messages, system_content) where system_content is extracted system messages
         """
         if isinstance(prompt, str):
-            if not prompt:
-                raise ValueError("Prompt string cannot be empty.")
             return [{"role": "user", "content": prompt}], ""
 
         if isinstance(prompt, list):

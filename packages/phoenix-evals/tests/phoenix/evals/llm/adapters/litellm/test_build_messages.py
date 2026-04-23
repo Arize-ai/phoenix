@@ -23,6 +23,11 @@ def test_string_prompt_becomes_single_user_message() -> None:
     assert adapter._build_messages("Hello") == [{"role": "user", "content": "Hello"}]
 
 
+def test_empty_string_prompt_is_preserved() -> None:
+    adapter = _make_adapter()
+    assert adapter._build_messages("") == [{"role": "user", "content": ""}]
+
+
 def test_openai_format_dict_list_roundtrips() -> None:
     adapter = _make_adapter()
     prompt = [

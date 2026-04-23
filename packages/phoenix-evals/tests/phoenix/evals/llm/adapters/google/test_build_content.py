@@ -34,6 +34,12 @@ def test_string_prompt_passed_through() -> None:
     assert system == ""
 
 
+def test_empty_string_prompt_is_preserved() -> None:
+    content, system = _make_adapter()._build_content("")
+    assert content == ""
+    assert system == ""
+
+
 def test_openai_format_dict_list_converts_to_google() -> None:
     adapter = _make_adapter()
     prompt = [

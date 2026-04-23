@@ -463,8 +463,6 @@ class OpenAIAdapter(BaseLLMAdapter):
     def _build_messages(self, prompt: PromptLike) -> list[dict[str, Any]]:
         """Build messages for OpenAI API from prompt."""
         if isinstance(prompt, str):
-            if not prompt:
-                raise ValueError("Prompt string cannot be empty.")
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
