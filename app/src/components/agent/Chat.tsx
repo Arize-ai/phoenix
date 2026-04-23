@@ -358,13 +358,13 @@ export function ChatView({
               value={inputValue}
               onValueChange={setInputValue}
             >
+              <AgentContextPills />
               <PromptInputBody>
                 <PromptInputTextarea
                   ref={textareaRef}
                   placeholder="Send a message..."
                 />
               </PromptInputBody>
-              <AgentContextPills />
               <PromptInputFooter>
                 <PromptInputTools>
                   <AgentModelMenu

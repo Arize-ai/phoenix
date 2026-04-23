@@ -38,7 +38,7 @@ export function AgentContextPills() {
   const pills = useMemo(
     () =>
       contexts.map((context) => (
-        <Badge key={agentContextKey(context)} variant="info" size="S">
+        <Badge key={agentContextKey(context)} variant="info" size="M">
           {contextLabel(context)}
         </Badge>
       )),
