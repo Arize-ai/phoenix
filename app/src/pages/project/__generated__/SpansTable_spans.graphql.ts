@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85bbe526add9ca90fbadefdcd9dc02a6>>
+ * @generated SignedSource<<3eff82e9705e8a348d8848b97e377d5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,7 +60,6 @@ export type SpansTable_spans$data = {
         }>;
         readonly spanId: string;
         readonly spanKind: SpanKind;
-        readonly spanNoteCount: number;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal?: number | null;
@@ -464,13 +463,6 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "spanNoteCount",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
                   "concreteType": "SpanAnnotation",
                   "kind": "LinkedField",
                   "name": "spanAnnotations",
@@ -623,6 +615,6 @@ return {
 };
 })();
 
-(node as any).hash = "408f51b10d29a254a720e1fc892f11ea";
+(node as any).hash = "49cebbb5798626286b2b665aba075c58";
 
 export default node;

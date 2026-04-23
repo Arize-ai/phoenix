@@ -265,7 +265,6 @@ export function SpansTable(props: SpansTableProps) {
                 output {
                   value: truncatedValue
                 }
-                spanNoteCount
                 spanAnnotations {
                   id
                   name
@@ -617,17 +616,17 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "notes",
-      accessorKey: "spanNoteCount",
+      accessorKey: "spanAnnotations",
       id: "spanNotes",
       minSize: 50,
       maxSize: 75,
       enableSorting: false,
       cell: ({ row }) => {
+        const noteCount = row.original.spanAnnotations.filter(
+          (annotation) => annotation.name === "note"
+        ).length;
         return (
-          <SpanNotesTableCell
-            noteCount={row.original.spanNoteCount}
-            spanId={row.original.id}
-          />
+          <SpanNotesTableCell noteCount={noteCount} spanId={row.original.id} />
         );
       },
     },

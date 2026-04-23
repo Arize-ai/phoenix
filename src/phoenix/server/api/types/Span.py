@@ -581,13 +581,6 @@ class Span(Node):
             SpanAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]
 
-    @strawberry.field(description=("The number of notes associated with the span."))  # type: ignore
-    async def span_note_count(
-        self,
-        info: Info[Context, None],
-    ) -> int:
-        return await info.context.data_loaders.span_note_counts.load(self.id)
-
     @strawberry.field(description="Summarizes each annotation (by name) associated with the span")  # type: ignore
     async def span_annotation_summaries(
         self,

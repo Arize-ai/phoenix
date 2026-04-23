@@ -112,66 +112,6 @@ async def test_querying_spans_not_contained_in_datasets(
     assert actual_contained_in_dataset is False
 
 
-async def test_span_note_count(
-    db: DbSessionFactory,
-    gql_client: AsyncGraphQLClient,
-    project_with_a_single_trace_and_span: None,
-) -> None:
-    async with db() as session:
-        session.add_all(
-            [
-                models.SpanAnnotation(
-                    span_rowid=1,
-                    name="note",
-                    explanation="first note",
-                    metadata_={},
-                    annotator_kind="HUMAN",
-                    source="APP",
-                    identifier=token_hex(8),
-                ),
-                models.SpanAnnotation(
-                    span_rowid=1,
-                    name="note",
-                    explanation="second note",
-                    metadata_={},
-                    annotator_kind="HUMAN",
-                    source="APP",
-                    identifier=token_hex(8),
-                ),
-                models.SpanAnnotation(
-                    span_rowid=1,
-                    name="correctness",
-                    label="correct",
-                    metadata_={},
-                    annotator_kind="HUMAN",
-                    source="APP",
-                    identifier=token_hex(8),
-                ),
-            ]
-        )
-
-    query = """
-      query ($spanId: ID!) {
-        span: node(id: $spanId) {
-          ... on Span {
-            spanNoteCount
-          }
-        }
-      }
-    """
-    span_id = str(GlobalID(Span.__name__, str(1)))
-    response = await gql_client.execute(
-        query=query,
-        variables={"spanId": span_id},
-    )
-    assert not response.errors
-    assert response.data == {
-        "span": {
-            "spanNoteCount": 2,
-        }
-    }
-
-
 async def test_span_fields(
     gql_client: AsyncGraphQLClient,
     _span_data: tuple[models.Project, Mapping[int, models.Trace], Mapping[int, models.Span]],

@@ -84,7 +84,6 @@ from .span_cost_summary_by_trace import SpanCostSummaryByTraceDataLoader
 from .span_costs import SpanCostsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
-from .span_note_counts import SpanNoteCountsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .table_fields import TableFieldsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
@@ -164,7 +163,6 @@ __all__ = [
     "SpanCostsDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
-    "SpanNoteCountsDataLoader",
     "SpanProjectsDataLoader",
     "TableFieldsDataLoader",
     "TokenCountDataLoader",

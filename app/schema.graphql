@@ -3151,9 +3151,6 @@ type Span implements Node {
   """Notes associated with the span."""
   spanNotes: [SpanAnnotation!]!
 
-  """The number of notes associated with the span."""
-  spanNoteCount: Int!
-
   """Summarizes each annotation (by name) associated with the span"""
   spanAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
 
