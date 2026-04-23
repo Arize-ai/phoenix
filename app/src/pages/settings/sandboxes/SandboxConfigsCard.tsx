@@ -117,6 +117,7 @@ export function SandboxConfigsCard({
                         <SandboxConfigDialogTrigger
                           mode="edit"
                           provider={provider}
+                          backend={backend}
                           config={config}
                         />
                         <DeleteSandboxConfigButton config={config} />

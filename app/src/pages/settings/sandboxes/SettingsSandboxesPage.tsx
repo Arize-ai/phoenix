@@ -4,6 +4,7 @@ import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex } from "@phoenix/components";
+import { CanManageSandboxes } from "@phoenix/components/auth";
 import type { settingsSandboxesPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsSandboxesPageLoaderQuery.graphql";
 import type { SettingsSandboxesPageLoaderType } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { settingsSandboxesPageLoaderGql } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
@@ -25,7 +26,11 @@ export function SettingsSandboxesPage() {
     settingsSandboxesPageLoaderGql,
     loaderData
   );
-  return <SettingsSandboxesPageContent query={query} />;
+  return (
+    <CanManageSandboxes>
+      <SettingsSandboxesPageContent query={query} />
+    </CanManageSandboxes>
+  );
 }
 
 function SettingsSandboxesPageContent({
@@ -42,6 +47,9 @@ function SettingsSandboxesPageContent({
           dependencyHints
           supportedLanguages
           status
+          supportsEnvVars
+          internetAccess
+          dependenciesLanguage
         }
         sandboxProviders {
           id
