@@ -318,6 +318,39 @@ async def stream_text(
     body: ChatBody,
     mcp_client: "MintlifyDocsClient | None" = None,
 ) -> StreamingResponse:
+    """
+    stream_text invokes pydantic ai model wrappers, streaming chunks back, encoding them into vercel
+    data stream protocol at yield time. It handles tracing accumulated chunks, as well as looping on
+    backend tool call responses from the LLM automatically before exiting.
+
+    A rough depiction of the procedure is as follows:
+
+    - parse messages from request body
+    - resolve tools from mcp client (backend tools) into pydantic tool definitions
+    - parse tool definitions from request body (frontend tools) into pydantic tool definitions
+    - build pydantic model request payload from: messages, frontend + backend tools
+    - parse tracing settings from request body
+    - build response chunk generator, generate()
+      - create agent span (turn)
+      - create tool spans for trailing tool call / result pairs from frontend tool execution in the
+        request body
+      - invoke model stream via pydantic model wrapper, using model request payload
+        - yield all chunks to frontend
+        - create llm span from accumulated result
+        - if frontend tool calls are in response, break, let frontend send new request with all
+            unresolved tool calls executed on the frontend
+        - if backend tool calls are in response, execute them, add results to message list, loop
+            to the model invocation step of generate() (up to _MAX_BACKEND_TOOL_LOOPS)
+      - model loop is done, finalize agent span (the turn)
+    - call generate(), wrapped in StreamingResponse SSE back to client
+
+    The stream ends when:
+    - no tool calls exist in model response, turn is ended
+    - any number of frontend tools exist in model response, turn will be continued by frontend
+    - only backend tool calls exist in model response, and we have already looped
+      _MAX_BACKEND_TOOL_LOOPS times
+    - an exception occurs during streaming
+    """
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
