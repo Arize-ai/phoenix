@@ -4,7 +4,13 @@ import logging
 from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
 
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
@@ -466,15 +472,25 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _build_messages(self, prompt: PromptLike) -> list[dict[str, Any]]:
         if isinstance(prompt, str):
+            if not prompt:
+                raise ValueError("Prompt string cannot be empty.")
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
             # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
-            # Already in OpenAI message format (backward compatibility)
-            return cast(list[dict[str, Any]], prompt)
+            # OpenAI-style dict messages — validate and canonicalize before
+            # routing through the typed transform.
+            typed_messages: List[Message] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                role = normalize_role(msg["role"])
+                typed_messages.append(Message(role=role, content=msg["content"]))
+            return self._transform_messages_to_openai(typed_messages)
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")

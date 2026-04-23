@@ -2,7 +2,13 @@ import json
 import logging
 from typing import Any, Dict, List, Type, Union, cast
 
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import GoogleGenAIClientWrapper, create_google_genai_client
@@ -471,58 +477,34 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             from system messages
         """
         if isinstance(prompt, str):
+            if not prompt:
+                raise ValueError("Prompt string cannot be empty.")
             return prompt, ""
 
         if isinstance(prompt, list):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
             # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
-                # Extract system messages first
+            if isinstance(prompt[0].get("role"), MessageRole):
                 messages_typed = cast(List[Message], prompt)
-                system_messages = [
-                    msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM
-                ]
-                system_instruction = "\n".join(
-                    self._extract_text_from_content(msg["content"]) for msg in system_messages
-                )
-                # Transform List[Message] to Google format (will skip system messages)
-                google_messages = self._transform_messages_to_google(messages_typed)
-                return google_messages, system_instruction
+            else:
+                # OpenAI-style dict messages — validate and canonicalize before
+                # routing through the typed transform.  Normalizing ``developer``
+                # to SYSTEM ensures those messages land in ``system_instruction``
+                # rather than being rejected by the Google API.
+                messages_typed = []
+                for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                    validate_message_dict(msg, index=i)
+                    role = normalize_role(msg["role"])
+                    messages_typed.append(Message(role=role, content=msg["content"]))
 
-            # Convert plain dict messages to Google format
-            # Extract system messages for system_instruction parameter
-            system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") == "system"
-            ]
-            non_system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") != "system"
-            ]
+            # Extract system messages first
+            system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
             system_instruction = "\n".join(
-                self._extract_text_from_content(msg.get("content", ""))
-                for msg in system_messages_dicts
+                self._extract_text_from_content(msg["content"]) for msg in system_messages
             )
-
-            google_messages = []
-            for msg in non_system_messages_dicts:
-                role = msg["role"]
-                content = msg["content"]
-
-                # Convert assistant role to model
-                if role == "assistant":
-                    role = "model"
-
-                # Handle content - can be string or List[ContentPart]
-                if isinstance(content, str):
-                    google_messages.append({"role": role, "parts": [{"text": content}]})
-                else:
-                    # Extract text from structured content parts
-                    msg_text_parts = []
-                    for part in content:
-                        if part.get("type") == "text":
-                            msg_text_parts.append(str(part.get("text", "")))
-
-                    # Join all text parts
-                    combined_text = "\n".join(msg_text_parts)
-                    google_messages.append({"role": role, "parts": [{"text": combined_text}]})
+            # Transform List[Message] to Google format (will skip system messages)
+            google_messages = self._transform_messages_to_google(messages_typed)
             return google_messages, system_instruction
 
         # If we get here, prompt is an unexpected type

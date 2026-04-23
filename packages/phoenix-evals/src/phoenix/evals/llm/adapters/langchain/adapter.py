@@ -1,7 +1,14 @@
 import logging
 from typing import Any, Dict, List, Type, Union, cast
 
-from ...prompts import ContentPart, Message, MessageRole, PromptLike
+from ...prompts import (
+    ContentPart,
+    Message,
+    MessageRole,
+    PromptLike,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import (
@@ -327,22 +334,44 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def _build_prompt(self, prompt: PromptLike) -> Union[str, List[Any]]:
         if isinstance(prompt, str):
+            if not prompt:
+                raise ValueError("Prompt string cannot be empty.")
             return prompt
         elif isinstance(prompt, list):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
             # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to LangChain format
                 # Type narrowing: prompt is List[Message] here
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
-            # Convert OpenAI-style messages to LangChain messages (backward compatibility)
+
+            # OpenAI-style dict messages — validate, canonicalize roles, and
+            # then emit LangChain ``BaseMessage`` subclasses.  We canonicalize
+            # *before* calling ``convert_openai_messages`` so aliases like
+            # ``ai`` / ``developer`` / ``human`` route to the right subclass.
+            canonical_dicts: List[Dict[str, Any]] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                role = normalize_role(msg["role"])
+                # Map MessageRole enum back to the string form that
+                # ``convert_openai_messages`` understands.
+                if role == MessageRole.USER:
+                    role_str = "user"
+                elif role == MessageRole.AI:
+                    role_str = "assistant"
+                else:
+                    role_str = "system"
+                canonical_dicts.append({"role": role_str, "content": msg["content"]})
+
             try:
                 from langchain_community.adapters.openai import (
                     convert_openai_messages,
                 )
 
-                return convert_openai_messages(prompt)  # type: ignore[no-any-return]
+                return convert_openai_messages(canonical_dicts)  # type: ignore[no-any-return]
             except ImportError:
-                # Fallback: manual conversion if langchain_community not available
+                # Fallback: manual conversion if langchain_community not available.
                 from langchain_core.messages import (
                     AIMessage,
                     HumanMessage,
@@ -350,30 +379,26 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 )
 
                 lc_messages: List[Any] = []
-                for msg in prompt:
-                    role = msg["role"]
+                for msg in canonical_dicts:
+                    role_str = cast(str, msg["role"])
                     content = msg["content"]
 
-                    # Extract text content (matching logic from _transform_messages_to_langchain)
+                    # Extract text content (mirrors _transform_messages_to_langchain)
                     if isinstance(content, str):
                         text_content = content
                     else:
-                        # Extract text from TextContentPart items only
                         text_parts = []
                         for part in content:
                             if self._is_text_content_part(part):
                                 text_parts.append(part["text"])
                         text_content = "\n".join(text_parts)
 
-                    if role == "user":
+                    if role_str == "user":
                         lc_messages.append(HumanMessage(content=text_content))
-                    elif role == "assistant":
+                    elif role_str == "assistant":
                         lc_messages.append(AIMessage(content=text_content))
-                    elif role == "system":
-                        lc_messages.append(SystemMessage(content=text_content))
                     else:
-                        # Default to HumanMessage for unknown roles
-                        lc_messages.append(HumanMessage(content=text_content))
+                        lc_messages.append(SystemMessage(content=text_content))
                 return lc_messages
         else:
             # If we get here, prompt is an unexpected type
