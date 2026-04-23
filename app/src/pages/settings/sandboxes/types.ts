@@ -26,10 +26,17 @@ export type ProviderSettingsFormValues = {
   configText: string;
 };
 
+export type EnvVarFormEntry =
+  | { kind: "literal"; name: string; value: string }
+  | { kind: "secret_ref"; name: string; secret_key: string };
+
 export type SandboxConfigFormValues = {
   sandboxProviderId: string;
   name: string;
   description: string;
   timeout: number;
   configText: string;
+  envVars: EnvVarFormEntry[];
+  internetAccessEnabled: boolean;
+  dependenciesText: string;
 };

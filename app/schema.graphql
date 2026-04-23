@@ -1228,6 +1228,12 @@ type DeleteSandboxConfigPayload {
   query: Query!
 }
 
+type DeleteSandboxCredentialPayload {
+  backendType: String!
+  key: String!
+  query: Query!
+}
+
 input DeleteUsersInput {
   userIds: [ID!]!
 }
@@ -2056,6 +2062,40 @@ input InlineLLMEvaluatorInput {
   description: String = null
 }
 
+type IntInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Int
+}
+
+enum InternetAccessMode {
+  NONE
+  BOOLEAN
+  ALLOWLIST
+}
+
+enum InvocationInputField {
+  value_int
+  value_float
+  value_bool
+  value_string
+  value_json
+  value_string_list
+  value_boolean
+}
+
+union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
+
+interface InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
@@ -2197,6 +2237,8 @@ type Mutation {
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(id: ID!): DeleteSandboxConfigPayload!
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
+  setSandboxCredential(backendType: String!, key: String!, value: String!): SetSandboxCredentialPayload!
+  deleteSandboxCredential(backendType: String!, key: String!): DeleteSandboxCredentialPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -3226,6 +3268,9 @@ type SandboxBackendInfo {
   status: SandboxBackendStatus!
   dependencyHints: [String!]!
   configFieldSpecs: [ConfigFieldSpecType!]!
+  supportsEnvVars: Boolean!
+  internetAccess: InternetAccessMode!
+  dependenciesLanguage: Language
 }
 
 enum SandboxBackendStatus {
@@ -3329,6 +3374,12 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
+}
+
+type SetSandboxCredentialPayload {
+  backendType: String!
+  key: String!
+  query: Query!
 }
 
 enum SortDir {
