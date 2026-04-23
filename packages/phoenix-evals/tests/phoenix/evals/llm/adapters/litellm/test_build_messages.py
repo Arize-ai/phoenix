@@ -60,7 +60,11 @@ def test_typed_message_list_roundtrips() -> None:
         ("ai", "assistant"),
         ("human", "user"),
         ("model", "assistant"),
-        ("developer", "system"),
+        # "developer" is preserved verbatim — LiteLLM routes it to the correct
+        # provider-side role for the target model (e.g. "developer" for o-series
+        # models via the OpenAI router); silently rewriting to "system" would
+        # break callers targeting reasoning models through LiteLLM.
+        ("developer", "developer"),
     ],
 )
 def test_role_aliases_normalize_on_dict_path(alias: str, expected_role: str) -> None:

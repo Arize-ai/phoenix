@@ -481,14 +481,33 @@ class LiteLLMAdapter(BaseLLMAdapter):
             if isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
-            # OpenAI-style dict messages — validate and canonicalize before
-            # routing through the typed transform.
-            typed_messages: List[Message] = []
+            # OpenAI-style dict messages — validate and canonicalize aliases.
+            # LiteLLM is a provider-routing layer that handles "developer" for
+            # reasoning models internally, so we preserve OpenAI-compatible
+            # SYSTEM role strings ("system" / "developer") verbatim rather than
+            # normalizing both to "system" via the MessageRole round-trip.
+            output: list[dict[str, Any]] = []
             for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
                 validate_message_dict(msg, index=i)
-                role = normalize_role(msg["role"])
-                typed_messages.append(Message(role=role, content=msg["content"]))
-            return self._transform_messages_to_openai(typed_messages)
+                canonical = normalize_role(msg["role"])
+                if canonical == MessageRole.SYSTEM:
+                    # Keep "developer" vs "system" so LiteLLM can route to the
+                    # correct provider-side representation for the target model.
+                    raw = msg["role"].strip().lower() if isinstance(msg["role"], str) else "system"
+                    role_str: str = raw if raw in ("system", "developer") else "system"
+                else:
+                    role_str = canonical.value  # "user" or "assistant"
+                content = msg["content"]
+                if isinstance(content, str):
+                    output.append({"role": role_str, "content": content})
+                else:
+                    # Content-part list: join text parts (non-text parts dropped,
+                    # matching _transform_messages_to_openai behaviour).
+                    text_parts = [
+                        p["text"] for p in content if p.get("type") == "text" and "text" in p
+                    ]
+                    output.append({"role": role_str, "content": "\n".join(text_parts)})
+            return output
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
