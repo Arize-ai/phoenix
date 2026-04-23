@@ -310,10 +310,22 @@ describe("parseJSONLFile collapsibleKeys", () => {
     }
   });
 
-  it("does not mark key as collapsible if missing in any row", async () => {
-    // "input" missing in second row
+  it("marks key as collapsible even if missing in some rows", async () => {
     const file = createFile(
       '{"input": {"question": "Hi"}, "id": 1}\n' + '{"id": 2}'
+    );
+    const result = await parseJSONLFile(file);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.collapsibleKeys).toContain("input");
+    }
+  });
+
+  it("does not mark key as collapsible if present only as missing", async () => {
+    // Defensive: a key that exists in the key set but is never actually
+    // present as an object in any row should not be collapsible.
+    const file = createFile(
+      '{"input": "string", "id": 1}\n' + '{"id": 2, "input": 5}'
     );
     const result = await parseJSONLFile(file);
     expect(result.success).toBe(true);

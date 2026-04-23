@@ -814,6 +814,81 @@ async def test_post_dataset_upload_jsonl_create_then_append(
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
+async def test_post_dataset_upload_jsonl_preserves_per_row_keys(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Each JSONL example should retain only the keys present in its source row.
+
+    Regression: when rows have disjoint top-level keys, the backend was filling
+    missing keys with None, producing the union of keys across every example.
+    """
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"a": "foo", "x": "m"}\n{"b": "bar", "y": "n"}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+            "output_keys[]": ["x", "y"],
+        },
+    )
+    assert response.status_code == 200
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+    assert revisions[0].input == {"a": "foo"}
+    assert revisions[0].output == {"x": "m"}
+    assert revisions[1].input == {"b": "bar"}
+    assert revisions[1].output == {"y": "n"}
+
+
+async def test_post_dataset_upload_jsonl_preserves_explicit_null(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """An explicit null in a JSONL row must be preserved, distinct from a missing key."""
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"a": null, "b": "x"}\n{"b": "y"}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+        },
+    )
+    assert response.status_code == 200
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 2
+    # Row 1: explicit null must be preserved as None.
+    assert revisions[0].input == {"a": None, "b": "x"}
+    # Row 2: `a` was absent from the source row — it must stay absent, not be filled with None.
+    assert revisions[1].input == {"b": "y"}
+
+
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -2362,6 +2437,198 @@ async def test_post_dataset_upload_csv_with_dotted_keys(
     assert revisions[1].metadata_ == {"info": "test2"}
 
 
+async def test_post_dataset_upload_csv_omits_empty_cells(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Empty CSV cells should be dropped rather than stored as empty strings."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"a,b,c\n1,,3\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b", "c"],
+            "output_keys[]": ["a", "b", "c"],
+            "metadata_keys[]": ["a", "b", "c"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": "1", "c": "3"}
+    assert revisions[0].output == {"a": "1", "c": "3"}
+    assert revisions[0].metadata_ == {"a": "1", "c": "3"}
+
+
+async def test_post_dataset_upload_csv_omits_missing_trailing_cells(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Rows shorter than the header (DictReader restval=None) drop the missing keys."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"a,b,c\n1,2\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b", "c"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": "1", "b": "2"}
+
+
+async def test_post_dataset_upload_csv_omits_whitespace_only_cells(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Whitespace-only CSV cells should be treated as missing and dropped."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"a,b\n1,   \n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": "1"}
+
+
+async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_leaf(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Dotted-key columns whose row cell is empty are omitted from the bucket."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"input.x,input.y\n1,\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input.x", "input.y"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"x": "1"}
+
+
+async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_nested_leaf(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Empty nested dotted-key cells do not leave a stub entry under the parent."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"input.a.b,input.a.c\n1,\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input.a.b", "input.a.c"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": {"b": "1"}}
+
+
+async def test_post_dataset_upload_csv_allows_fully_empty_bucket(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """A bucket whose columns are all empty for a row is stored as an empty dict."""
+    name = inspect.stack()[0][3]
+    file = gzip.compress(b"a,b,c\n1,,\n")
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "text/csv", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a"],
+            "output_keys[]": ["b", "c"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": "1"}
+    assert revisions[0].output == {}
+
+
 async def test_post_dataset_upload_jsonl_with_flatten_keys(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
@@ -2418,13 +2685,45 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
     }
     assert revisions[0].output == {"answer": "4"}
 
-    # Second row: difficulty is missing from input, so it will be None
+    # Second row's source `input` has no "difficulty" key, so it is omitted
+    # from the flattened bucket rather than filled with None.
     assert revisions[1].input == {
         "question": "Capital of France?",
         "context": "geography",
-        "difficulty": None,
     }
     assert revisions[1].output == {"answer": "Paris"}
+
+
+async def test_post_dataset_upload_jsonl_preserves_null_values(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Explicit JSON nulls in JSONL are preserved as None (unlike CSV empty cells, which are dropped)."""
+    name = inspect.stack()[0][3]
+    jsonl_content = b'{"a": null, "b": 2}\n'
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a", "b"],
+        },
+    )
+    assert response.status_code == 200
+
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert len(revisions) == 1
+    assert revisions[0].input == {"a": None, "b": 2}
 
 
 async def test_post_dataset_upload_flatten_keys_no_effect_when_empty(
@@ -2512,6 +2811,84 @@ async def test_post_dataset_upload_flatten_keys_partial(
     assert revisions[0].input == {"question": "Hi"}
     assert revisions[0].output == {"output": {"answer": "Hello"}}
     assert revisions[0].metadata_ == {"metadata": {"source": "test"}}
+
+
+async def test_post_dataset_upload_jsonl_flatten_metadata_missing_in_some_rows(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Flattening a metadata parent unwraps it even when some rows omit the key.
+
+    When "metadata" is in both metadata_keys and flatten_keys, the resulting
+    bucket should contain the object's children directly, not be wrapped as
+    {"metadata": {...}}. Rows missing the key produce an empty bucket.
+    """
+    name = inspect.stack()[0][3]
+    jsonl_content = (
+        b'{"input": {"question": "What is 2+2?"}, "output": {"answer": "4"}, '
+        b'"metadata": {"category": "math", "difficulty": "easy"}}\n'
+        b'{"input": {"question": "Capital of France?"}, "output": {"answer": "Paris"}, '
+        b'"metadata": {"category": "geography"}}\n'
+        b'{"input": {"question": "Describe photosynthesis"}, '
+        b'"output": {"answer": "Plants convert light to energy"}, '
+        b'"metadata": {"difficulty": null}}\n'
+        b'{"input": {"prompt": "Write a haiku"}, '
+        b'"output": {"response": "Cherry blossoms fall"}, '
+        b'"metadata": {"category": "creative"}}\n'
+        b'{"input": {"question": "Largest ocean?"}, "output": {"answer": "Pacific"}}\n'
+    )
+    file = gzip.compress(jsonl_content)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", file, "application/jsonl", {"Content-Encoding": "gzip"})},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["input"],
+            "output_keys[]": ["output"],
+            "metadata_keys[]": ["metadata"],
+            "flatten_keys[]": ["input", "output", "metadata"],
+        },
+    )
+    assert response.status_code == 200
+    assert (data := response.json().get("data"))
+    assert (dataset_id := data.get("dataset_id"))
+
+    async with db() as session:
+        dataset_db_id = int(GlobalID.from_id(dataset_id).node_id)
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .where(models.DatasetExample.dataset_id == dataset_db_id)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert len(revisions) == 5
+
+    assert revisions[0].input == {"question": "What is 2+2?"}
+    assert revisions[0].output == {"answer": "4"}
+    assert revisions[0].metadata_ == {"category": "math", "difficulty": "easy"}
+
+    assert revisions[1].input == {"question": "Capital of France?"}
+    assert revisions[1].output == {"answer": "Paris"}
+    assert revisions[1].metadata_ == {"category": "geography"}
+
+    assert revisions[2].input == {"question": "Describe photosynthesis"}
+    assert revisions[2].output == {"answer": "Plants convert light to energy"}
+    # Explicit nulls inside metadata are preserved.
+    assert revisions[2].metadata_ == {"difficulty": None}
+
+    # Row 4 uses a different input/output shape; only the keys present in this
+    # row are emitted into the respective buckets.
+    assert revisions[3].input == {"prompt": "Write a haiku"}
+    assert revisions[3].output == {"response": "Cherry blossoms fall"}
+    assert revisions[3].metadata_ == {"category": "creative"}
+
+    # Row 5 has no metadata key; the bucket is empty rather than double-wrapped.
+    assert revisions[4].input == {"question": "Largest ocean?"}
+    assert revisions[4].output == {"answer": "Pacific"}
+    assert revisions[4].metadata_ == {}
 
 
 @pytest.mark.parametrize("sync", [True, False])

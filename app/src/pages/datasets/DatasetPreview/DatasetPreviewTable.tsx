@@ -193,6 +193,18 @@ export function DatasetPreviewTable({
       }
     };
 
+    // Empty CSV cells (missing or whitespace-only) are omitted from buckets
+    // so the preview only reflects columns with real values for the row.
+    const isEmptyCsvCell = (raw: unknown): boolean => {
+      if (raw == null) {
+        return true;
+      }
+      if (typeof raw === "string" && !raw.trim()) {
+        return true;
+      }
+      return false;
+    };
+
     return rows.map((row): DatasetPreviewRow => {
       const input: Record<string, unknown> = {};
       const output: Record<string, unknown> = {};
@@ -203,7 +215,17 @@ export function DatasetPreviewTable({
       if (Array.isArray(row)) {
         // CSV row - array of strings
         columns.forEach((col, idx) => {
-          let value: unknown = row[idx] ?? "";
+          const raw = row[idx];
+          if (splitColumn && col === splitColumn) {
+            splits = parseSplitValue(raw);
+          }
+          if (exampleIdColumn && col === exampleIdColumn) {
+            exampleId = raw ? String(raw) : null;
+          }
+          if (isEmptyCsvCell(raw)) {
+            return;
+          }
+          let value: unknown = raw;
           // For CSV, try to parse JSON strings so they render as objects
           // instead of escaped JSON with backslashes
           if (typeof value === "string") {
@@ -211,13 +233,6 @@ export function DatasetPreviewTable({
             if (parsed !== undefined) {
               value = parsed;
             }
-          }
-          if (splitColumn && col === splitColumn) {
-            splits = parseSplitValue(row[idx]);
-          }
-          if (exampleIdColumn && col === exampleIdColumn) {
-            const raw = row[idx];
-            exampleId = raw ? String(raw) : null;
           }
           if (inputColumns.includes(col)) {
             addToBucket(input, getBucketKey(col, "input"), value);

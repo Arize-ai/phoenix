@@ -210,11 +210,19 @@ export async function parseJSONLFile(
       };
     }
 
-    // Compute collapsible keys: keys that have plain object values in ALL preview rows
+    // A key is collapsible if it is a plain object in every preview row where
+    // it is present. Missing rows are tolerated (the backend drops missing
+    // parents when flattening). Null, arrays, and primitives still disqualify.
     const keys = Array.from(allKeys);
-    const collapsibleKeys = keys.filter((key) =>
-      previewRows.every((row) => key in row && isPlainObject(row[key]))
-    );
+    const collapsibleKeys = keys.filter((key) => {
+      let seenObject = false;
+      for (const row of previewRows) {
+        if (!(key in row)) continue;
+        if (!isPlainObject(row[key])) return false;
+        seenObject = true;
+      }
+      return seenObject;
+    });
 
     return {
       success: true,
