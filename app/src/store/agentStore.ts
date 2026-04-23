@@ -6,6 +6,10 @@ import { devtools, persist } from "zustand/middleware";
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
+  agentContextKey,
+  type AgentContext,
+} from "@phoenix/agent/context/agentContextTypes";
+import {
   createDefaultAgentCapabilities,
   type AgentCapabilities,
   type AgentCapabilityKey,
@@ -192,6 +196,14 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     newUsage: { prompt: number; completion: number }
   ) => void;
+
+  // -- Page and mounted contexts advertised with /chat (ephemeral) --
+
+  routeContexts: AgentContext[];
+  mountedContexts: Record<string, AgentContext>;
+  setRouteContexts: (next: AgentContext[]) => void;
+  setMountedContext: (key: string, context: AgentContext) => void;
+  removeMountedContext: (key: string) => void;
 }
 
 /**
@@ -219,6 +231,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
+    routeContexts: [],
+    mountedContexts: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -495,6 +509,55 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionUsage" }
+      );
+    },
+
+    // -- Page and mounted contexts (ephemeral) --
+    setRouteContexts: (next) => {
+      set(
+        (state) => {
+          if (state.routeContexts.length === next.length) {
+            let same = true;
+            for (let index = 0; index < next.length; index++) {
+              if (
+                agentContextKey(state.routeContexts[index]!) !==
+                agentContextKey(next[index]!)
+              ) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              return state;
+            }
+          }
+          return { routeContexts: next };
+        },
+        false,
+        { type: "setRouteContexts" }
+      );
+    },
+    setMountedContext: (key, context) => {
+      set(
+        (state) => ({
+          mountedContexts: { ...state.mountedContexts, [key]: context },
+        }),
+        false,
+        { type: "setMountedContext" }
+      );
+    },
+    removeMountedContext: (key) => {
+      set(
+        (state) => {
+          if (!(key in state.mountedContexts)) {
+            return state;
+          }
+          const next = { ...state.mountedContexts };
+          delete next[key];
+          return { mountedContexts: next };
+        },
+        false,
+        { type: "removeMountedContext" }
       );
     },
 

@@ -118,6 +118,12 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         params: Annotated[ChatSearchParamsModel, Query()],
     ) -> Response:
+        from phoenix.server.api.routers.chat_context import (
+            ToolExecutionEnv,
+            build_current_phoenix_context_system_prompt,
+            prepend_system_prompt_message,
+        )
+        from phoenix.server.api.routers.chat_tools import resolve_contextual_tools
         from phoenix.server.api.routers.data_stream_protocol import (
             parse_chat_body,
             stream_text,
@@ -148,11 +154,22 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         mcp_client = _get_mcp_client(request)
 
         body = parse_chat_body(await request.body())
+        context_prompt = build_current_phoenix_context_system_prompt(body.resolved)
+        if context_prompt is not None:
+            body.messages = prepend_system_prompt_message(body.messages, context_prompt)
+
         return await stream_text(
             request,
             model,
             body=body,
             mcp_client=mcp_client,
+            contextual_tools=resolve_contextual_tools(
+                body.resolved,
+                ToolExecutionEnv(
+                    user=request.scope.get("user") if hasattr(request, "scope") else None,
+                    db=request.app.state.db,
+                ),
+            ),
         )
 
     return router

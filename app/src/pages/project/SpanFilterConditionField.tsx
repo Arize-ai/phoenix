@@ -15,11 +15,14 @@ import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Button,
   DialogTrigger,
@@ -278,6 +281,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [isConditionValidState, setIsConditionValidState] =
+    useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const { filterCondition, setFilterCondition, appendFilterCondition } =
     useSpanFilterCondition();
@@ -289,17 +294,43 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
+  const advertisedContext = useMemo<AgentContext | null>(() => {
+    const trimmed = deferredFilterCondition.trim();
+    if (!isConditionValidState || !trimmed || !projectId) {
+      return null;
+    }
+    return { type: "span_filter", projectId, condition: trimmed };
+  }, [deferredFilterCondition, isConditionValidState, projectId]);
+
+  useAdvertiseAgentContext(advertisedContext);
+
   useEffect(() => {
-    isConditionValid(deferredFilterCondition, projectId).then((result) => {
+    let isCancelled = false;
+
+    if (deferredFilterCondition.trim() !== "") {
+      setIsConditionValidState(false);
+    }
+
+    void isConditionValid(deferredFilterCondition, projectId).then((result) => {
+      if (isCancelled) {
+        return;
+      }
+
       if (!result?.isValid) {
         setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
+        setIsConditionValidState(false);
       } else {
         setErrorMessage("");
+        setIsConditionValidState(true);
         startTransition(() => {
           onValidCondition(deferredFilterCondition);
         });
       }
     });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [onValidCondition, deferredFilterCondition, projectId]);
 
   const hasError = errorMessage !== "";

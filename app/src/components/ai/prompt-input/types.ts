@@ -117,6 +117,15 @@ export interface PromptInputBodyProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
+ * Context row rendered between the prompt body and footer.
+ * Used for compact context pills that describe what PXI is aware of.
+ */
+export interface PromptInputContextRowProps extends HTMLAttributes<HTMLDivElement> {
+  ref?: Ref<HTMLDivElement>;
+  children: ReactNode;
+}
+
+/**
  * Footer toolbar displayed below the textarea.
  * Lays out its children in a row with `PromptInputTools` on the left
  * and `PromptInputActions` on the right.

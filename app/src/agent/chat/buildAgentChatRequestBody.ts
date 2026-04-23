@@ -2,6 +2,7 @@
  * For the workflow to add, edit, or remove a frontend tool, see
  * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
  */
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import {
   buildAgentCapabilitySystemPrompt,
   type AgentCapabilities,
@@ -32,6 +33,8 @@ type BuildAgentChatRequestBodyOptions = {
   observability: AgentObservabilitySettings;
   /** Whether a remote collector is configured for this Phoenix instance. */
   hasRemoteCollector: boolean;
+  /** Typed page and mounted UI contexts for the current turn. */
+  contexts: AgentContext[];
 };
 
 /** Request payload sent to the PXI agent chat endpoint. */
@@ -56,6 +59,8 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   ingestTraces: boolean;
   /** Whether to also export PXI traces to the configured remote collector. */
   exportRemoteTraces: boolean;
+  /** Typed contexts advertised to the backend for this turn. */
+  contexts: AgentContext[];
 };
 
 function buildSystemPrompt({
@@ -91,6 +96,7 @@ export function buildAgentChatRequestBody({
   capabilities,
   observability,
   hasRemoteCollector,
+  contexts,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   return {
     ...body,
@@ -103,6 +109,7 @@ export function buildAgentChatRequestBody({
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
+    contexts,
     ...(sessionId ? { sessionId } : {}),
   };
 }

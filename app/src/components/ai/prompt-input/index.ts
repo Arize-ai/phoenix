@@ -1,5 +1,6 @@
 export { PromptInput } from "./PromptInput";
 export { PromptInputBody } from "./PromptInputBody";
+export { PromptInputContextRow } from "./PromptInputContextRow";
 export { PromptInputFooter } from "./PromptInputFooter";
 export { PromptInputTools } from "./PromptInputTools";
 export { PromptInputActions } from "./PromptInputActions";
@@ -10,6 +11,7 @@ export { usePromptInputContext } from "./PromptInputContext";
 export type {
   PromptInputProps,
   PromptInputBodyProps,
+  PromptInputContextRowProps,
   PromptInputFooterProps,
   PromptInputToolsProps,
   PromptInputActionsProps,

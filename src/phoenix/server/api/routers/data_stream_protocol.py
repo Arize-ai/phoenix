@@ -14,6 +14,11 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from phoenix.server.api.routers.chat_context import (
+    ChatContext,
+    ResolvedContexts,
+    resolve_contexts,
+)
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
@@ -24,9 +29,11 @@ from phoenix.server.api.routers.chat_tracing import (
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models import Model
+    from pydantic_ai.tools import ToolDefinition
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
     from pydantic_ai.usage import RequestUsage
 
+    from phoenix.server.api.routers.chat_context import ToolCallable
     from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
@@ -67,6 +74,7 @@ def _get_vercel_request_class() -> Any:
             output_tools: list[FrontendTool] | None = None
             system: str | None = None
             session_id: str | None = None
+            contexts: list[ChatContext] | None = None
             export_remote_traces: bool = False
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
@@ -88,6 +96,8 @@ class ChatBody:
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
     raw_tools: list[dict[str, Any]] = field(default_factory=list)
+    contexts: list[ChatContext] = field(default_factory=list)
+    resolved: ResolvedContexts = field(default_factory=ResolvedContexts)
 
 
 def _sanitize_raw_body(raw_body: bytes) -> bytes:
@@ -119,6 +129,7 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     logger.debug("system=%r", body.system)
     logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
+    logger.debug("contexts=%r", [context.type for context in (body.contexts or [])])
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
 
@@ -136,6 +147,8 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
             function["description"] = t.description
         raw_tools.append({"type": "function", "function": function})
 
+    contexts = list(body.contexts or [])
+
     return ChatBody(
         messages=messages,
         tools=body.tools,
@@ -146,6 +159,8 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
         ingest_traces=body.ingest_traces,
         trace_name_suffix=body.trace_name_suffix,
         raw_tools=raw_tools,
+        contexts=contexts,
+        resolved=resolve_contexts(contexts),
     )
 
 
@@ -317,6 +332,7 @@ async def stream_text(
     *,
     body: ChatBody,
     mcp_client: "MintlifyDocsClient | None" = None,
+    contextual_tools: tuple[list["ToolDefinition"], dict[str, "ToolCallable"]] | None = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
         ModelRequest,
@@ -366,16 +382,19 @@ async def stream_text(
             for t in tools
         ]
 
-    # Resolve backend (MCP) tool definitions, if available.
-    backend_tool_defs: list[ToolDefinition] = []
-    backend_tool_names: frozenset[str] = frozenset()
+    contextual_tool_defs, contextual_dispatch = contextual_tools or ([], {})
+    mcp_tool_defs: list[ToolDefinition] = []
+    mcp_tool_names: frozenset[str] = frozenset()
     if mcp_client is not None:
         try:
-            backend_tool_defs = await mcp_client.get_tool_definitions()
-            backend_tool_names = frozenset(td.name for td in backend_tool_defs)
-            logger.debug("Backend MCP tools: %s", list(backend_tool_names))
+            mcp_tool_defs = await mcp_client.get_tool_definitions()
+            mcp_tool_names = frozenset(td.name for td in mcp_tool_defs)
+            logger.debug("Backend MCP tools: %s", list(mcp_tool_names))
         except Exception:
             logger.exception("Failed to fetch backend MCP tool definitions")
+
+    backend_tool_defs = mcp_tool_defs + contextual_tool_defs
+    backend_tool_names = mcp_tool_names | frozenset(tool.name for tool in contextual_tool_defs)
 
     frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
@@ -603,10 +622,14 @@ async def stream_text(
                         )
                     )
 
-                    # Execute the backend tool via MCP.
-                    assert mcp_client is not None  # noqa: S101
+                    # Execute the backend tool. Contextual tools use a
+                    # closure-bound dispatch; all others fall back to MCP.
                     try:
-                        result_text = await mcp_client.call_tool(tc_name, tc_args)
+                        if tc_name in contextual_dispatch:
+                            result_text = await contextual_dispatch[tc_name](tc_args)
+                        else:
+                            assert mcp_client is not None  # noqa: S101
+                            result_text = await mcp_client.call_tool(tc_name, tc_args)
                         yield _sse(
                             ToolOutputAvailableChunk(
                                 tool_call_id=tc_id,
