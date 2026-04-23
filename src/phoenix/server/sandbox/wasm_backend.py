@@ -18,16 +18,16 @@ import logging
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-import wasmtime  # type: ignore[import-not-found]
+if TYPE_CHECKING:
+    import wasmtime  # type: ignore[import-not-found]
 
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
-    UnsupportedOperation,
     WASMConfig,
 )
 
@@ -45,18 +45,22 @@ _MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
 
 def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime.Module]:
     """Return a cached (engine, module) pair, compiling on first use."""
+    import wasmtime as _wasm
+
     cache_key = str(binary_path)
     if cache_key not in _MODULE_CACHE:
-        engine_cfg = wasmtime.Config()
+        engine_cfg = _wasm.Config()
         engine_cfg.epoch_interruption = True
-        engine = wasmtime.Engine(engine_cfg)
-        module = wasmtime.Module.from_file(engine, str(binary_path))
+        engine = _wasm.Engine(engine_cfg)
+        module = _wasm.Module.from_file(engine, str(binary_path))
         _MODULE_CACHE[cache_key] = (engine, module)
     return _MODULE_CACHE[cache_key]
 
 
 def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     """Execute *code* in a wasmtime WASI context. Runs in a thread."""
+    import wasmtime as _wasm
+
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     stdin_path: str | None = None
@@ -64,10 +68,10 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     try:
         engine, module = _get_engine_and_module(binary_path)
 
-        linker = wasmtime.Linker(engine)
+        linker = _wasm.Linker(engine)
         linker.define_wasi()
 
-        wasi = wasmtime.WasiConfig()
+        wasi = _wasm.WasiConfig()
         wasi.stdout_custom(stdout_buf)
         wasi.stderr_custom(stderr_buf)
 
@@ -77,14 +81,14 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             stdin_path = f.name
         wasi.stdin_file(stdin_path)
 
-        store = wasmtime.Store(engine)
+        store = _wasm.Store(engine)
         store.set_wasi(wasi)
         store.set_epoch_deadline(timeout)
 
         instance = linker.instantiate(store, module)
         exports = instance.exports(store)
         start = exports.get("_start")
-        if isinstance(start, wasmtime.Func):
+        if isinstance(start, _wasm.Func):
             start(store)
 
         return ExecutionResult(stdout=stdout_buf.getvalue(), stderr=stderr_buf.getvalue())
@@ -124,11 +128,8 @@ class WASMBackend(BaseNoSessionBackend):
         self,
         code: str,
         session_key: str,
-        env: Optional[dict[str, str]] = None,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if env:
-            raise UnsupportedOperation("WASM backend does not support environment variables")
         binary_path = self._resolve_binary()
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -149,5 +150,10 @@ class WASMAdapter(SandboxAdapter):
     language = "PYTHON"
     config_model = WASMConfig
 
-    def build_backend(self, config: dict[str, Any]) -> SandboxBackend:
+    def build_backend(
+        self,
+        config: dict[str, Any],
+        user_env: Optional[dict[str, str]] = None,
+    ) -> SandboxBackend:
+        self._enforce_capabilities(config, user_env)
         return WASMBackend()
