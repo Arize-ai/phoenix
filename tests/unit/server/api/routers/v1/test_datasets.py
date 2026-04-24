@@ -642,7 +642,7 @@ async def test_post_dataset_upload_json_reupload_reports_no_changes(
     assert second_data["num_deleted_examples"] == 0
 
 
-async def test_post_dataset_upload_create_conflicts_with_existing_name(
+async def test_post_dataset_upload_create_conflicts_on_existing_name_while_update_converges(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
