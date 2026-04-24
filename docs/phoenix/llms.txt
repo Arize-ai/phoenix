@@ -232,6 +232,7 @@
 - [Portkey Tracing](https://arize.com/docs/phoenix/integrations/python/portkey/portkey-tracing): Auto-instrument Portkey gateway calls
 - [Pydantic AI Tracing](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-tracing): Auto-instrument Pydantic AI agents
 - [Pydantic Evals](https://arize.com/docs/phoenix/integrations/python/pydantic/pydantic-evals): Use Pydantic AI evaluation framework
+- [Restate Tracing](https://arize.com/docs/phoenix/integrations/python/restate/restate-tracing): Trace durable AI agent executions powered by Restate, unifying workflow and LLM spans in Phoenix
 - [Strands Agents Tracing](https://arize.com/docs/phoenix/integrations/python/strands-agents/strands-agents-tracing): Auto-instrument Strands Agents with openinference-instrumentation-strands-agents
 
 ### TypeScript Frameworks
@@ -255,6 +256,10 @@
 - [Flowise Tracing](https://arize.com/docs/phoenix/integrations/platforms/flowise/flowise-tracing): Send traces from Flowise flows
 - [LangFlow Tracing](https://arize.com/docs/phoenix/integrations/platforms/langflow/langflow-tracing): Send traces from LangFlow workflows
 - [Prompt Flow Tracing](https://arize.com/docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing): Send traces from Azure Prompt Flow
+
+### Evaluation Integrations
+
+- [Evaluation Integrations](https://arize.com/docs/phoenix/integrations/evaluation-integrations): Third-party evaluation libraries — Ragas, Cleanlab, MLflow, and UQLM — integrated with Phoenix
 
 ## Settings
 
