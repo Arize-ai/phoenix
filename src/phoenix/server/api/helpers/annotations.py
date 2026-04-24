@@ -23,6 +23,9 @@ def get_note_identifier(prefix: str) -> str:
 def _uuid7() -> UUID:
     """
     Create an RFC 9562 UUIDv7 using the current Unix timestamp in milliseconds.
+
+    Phoenix still supports Python 3.10, so we cannot rely on the standard library's
+    uuid.uuid7() helper until the minimum supported Python version is 3.14+.
     """
     unix_ts_ms = time_ns() // 1_000_000
     rand_a = randbits(12)
