@@ -2726,6 +2726,68 @@
         }
       }
     },
+    "/v1/trace_notes": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Create a trace note",
+        "description": "Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
+        "operationId": "createTraceNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTraceNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Trace note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTraceNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
@@ -3443,7 +3505,7 @@
           "spans"
         ],
         "summary": "Create a span note",
-        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.",
+        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
         "operationId": "createSpanNote",
         "requestBody": {
           "content": {
@@ -6116,6 +6178,30 @@
           "total_queued"
         ],
         "title": "CreateSpansResponseBody"
+      },
+      "CreateTraceNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraceNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteRequestBody"
+      },
+      "CreateTraceNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedTraceAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteResponseBody"
       },
       "CreateUserRequestBody": {
         "properties": {
@@ -11131,6 +11217,28 @@
           "end_time"
         ],
         "title": "TraceData"
+      },
+      "TraceNoteData": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Trace Id",
+            "description": "OpenTelemetry Trace ID (hex format w/o 0x prefix)"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the trace"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "note"
+        ],
+        "title": "TraceNoteData"
       },
       "TraceSpanData": {
         "properties": {

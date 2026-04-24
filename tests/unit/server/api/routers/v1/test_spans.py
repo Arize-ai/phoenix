@@ -1,6 +1,7 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
+from uuid import UUID
 
 import httpx
 import pytest
@@ -61,6 +62,31 @@ async def test_rest_span_annotation(
     assert orm_annotation.metadata_ == dict()
 
 
+async def test_rest_span_annotation_rejects_note_name(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": [
+            {
+                "span_id": "7e2f08cb43bbf521",
+                "name": "note",
+                "annotator_kind": "HUMAN",
+                "result": {
+                    "explanation": "This should fail",
+                },
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/span_annotations?sync=true", json=request_body)
+    assert response.status_code == 400
+    assert (
+        "The name 'note' is reserved for trace and span notes. Use POST /v1/span_notes instead."
+    ) in response.text
+
+
 async def test_rest_create_span_note(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
@@ -99,6 +125,7 @@ async def test_rest_create_span_note(
     assert orm_annotation.explanation == note_text
     assert orm_annotation.source == "API"
     assert orm_annotation.identifier.startswith("px-span-note:")
+    assert UUID(orm_annotation.identifier.removeprefix("px-span-note:")).version == 4
     assert orm_annotation.label is None
     assert orm_annotation.score is None
     assert orm_annotation.metadata_ == dict()
@@ -156,6 +183,9 @@ async def test_rest_create_multiple_span_notes(
     # Verify each annotation has a unique identifier
     identifiers = [a.identifier for a in annotations]
     assert len(identifiers) == len(set(identifiers))  # All unique
+    assert all(
+        UUID(identifier.removeprefix("px-span-note:")).version == 4 for identifier in identifiers
+    )
 
 
 @pytest.fixture

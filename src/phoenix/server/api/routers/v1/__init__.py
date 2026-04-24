@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends
 from fastapi.security import APIKeyHeader
 
-from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.authorization import (
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
+from phoenix.server.bearer_auth import is_authenticated
 
 from .annotation_configs import router as annotation_configs_router
 from .annotations import router as annotations_router
@@ -20,31 +24,6 @@ from .users import router as users_router
 from .utils import add_errors_to_responses
 
 REST_API_VERSION = "1.0"
-
-
-async def prevent_access_in_read_only_mode(request: Request) -> None:
-    """
-    Prevents access to the REST API in read-only mode.
-    """
-    if request.app.state.read_only:
-        raise HTTPException(
-            detail="The Phoenix REST API is disabled in read-only mode.",
-            status_code=403,
-        )
-
-
-async def restrict_access_by_viewers(request: Request) -> None:
-    """
-    Prevents access to the REST API for viewers, except for GET requests
-    and specific allowed POST routes.
-    """
-    if request.method == "GET":
-        return
-    if isinstance(request.user, PhoenixUser) and request.user.is_viewer:
-        raise HTTPException(
-            status_code=403,
-            detail="Viewers cannot perform this action.",
-        )
 
 
 def create_v1_router(authentication_enabled: bool) -> APIRouter:

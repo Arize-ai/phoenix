@@ -28,6 +28,31 @@ from phoenix.config import get_env_support_email
 from phoenix.server.bearer_auth import PhoenixUser
 
 
+def prevent_access_in_read_only_mode(request: Request) -> None:
+    """
+    Prevent access to mutating REST routes when the app is running in read-only mode.
+    """
+    if request.app.state.read_only:
+        raise HTTPException(
+            detail="The Phoenix REST API is disabled in read-only mode.",
+            status_code=403,
+        )
+
+
+def restrict_access_by_viewers(request: Request) -> None:
+    """
+    Prevent viewer users from accessing mutating REST routes when auth is enabled.
+    """
+    if not request.app.state.authentication_enabled or request.method == "GET":
+        return
+    user = getattr(request, "user", None)
+    if isinstance(user, PhoenixUser) and user.is_viewer:
+        raise HTTPException(
+            status_code=403,
+            detail="Viewers cannot perform this action.",
+        )
+
+
 def require_admin(request: Request) -> None:
     """
     FastAPI dependency to restrict access to admin or system users only.

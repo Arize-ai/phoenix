@@ -1,7 +1,9 @@
 import datetime
 from typing import Any
+from uuid import UUID
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -211,3 +213,67 @@ class TestSpanAnnotationMutations:
         assert ann2["label"] == "UPDATED_LABEL"
         assert ann2["score"] == 2.0
         assert ann2["explanation"] == "Updated explanation"
+
+    async def test_create_span_annotations_rejects_reserved_note_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            self.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": str(GlobalID("Span", "1")),
+                        "name": "note",
+                        "explanation": "This should fail",
+                        "annotatorKind": AnnotatorKind.HUMAN.name,
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert (
+            "The name 'note' is reserved for trace and span notes. "
+            "Use the createSpanNote mutation or POST /v1/span_notes instead."
+        ) in response.errors[0].message
+
+    async def test_create_span_note_uses_uuidv4_identifier(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        mutation = """
+        mutation CreateSpanNote($annotationInput: CreateSpanNoteInput!) {
+          createSpanNote(annotationInput: $annotationInput) {
+            spanAnnotations {
+              id
+            }
+          }
+        }
+        """
+        response = await gql_client.execute(
+            mutation,
+            {
+                "annotationInput": {
+                    "spanId": str(GlobalID("Span", "1")),
+                    "note": "Needs review",
+                }
+            },
+        )
+
+        assert response.data is not None
+        assert not response.errors
+
+        async with db() as session:
+            annotation = await session.scalar(
+                select(models.SpanAnnotation).where(models.SpanAnnotation.name == "note")
+            )
+
+        assert annotation is not None
+        assert annotation.identifier.startswith("px-span-note:")
+        assert UUID(annotation.identifier.removeprefix("px-span-note:")).version == 4
