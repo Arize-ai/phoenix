@@ -26,9 +26,8 @@ export type CreateDatasetResponse = {
 /**
  * Create a dataset with the given examples.
  *
- * Calling this against a name that already exists will diff the incoming
- * examples against the latest version and emit only the CREATE/PATCH/DELETE
- * revisions needed to converge — the call is idempotent when content matches.
+ * If a dataset with the same name already exists, it is updated to match the
+ * provided examples. Re-running with the same inputs is a no-op.
  *
  * @experimental this interface may change in the future
  *
