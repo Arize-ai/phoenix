@@ -1155,6 +1155,9 @@
               {
                 "group": "04.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id",
+                  "docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7",
+                  "docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres",
                   "docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands",
                   "docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0",
                   "docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects",
