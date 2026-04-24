@@ -17,8 +17,16 @@ import phoenix.otel as phoenix_otel
         ("using_tags", "openinference.instrumentation", "using_tags"),
         ("using_user", "openinference.instrumentation", "using_user"),
         ("SpanAttributes", "openinference.semconv.trace", "SpanAttributes"),
-        ("OpenInferenceSpanKindValues", "openinference.semconv.trace", "OpenInferenceSpanKindValues"),
-        ("OpenInferenceMimeTypeValues", "openinference.semconv.trace", "OpenInferenceMimeTypeValues"),
+        (
+            "OpenInferenceSpanKindValues",
+            "openinference.semconv.trace",
+            "OpenInferenceSpanKindValues",
+        ),
+        (
+            "OpenInferenceMimeTypeValues",
+            "openinference.semconv.trace",
+            "OpenInferenceMimeTypeValues",
+        ),
     ],
 )
 def test_re_export_identity(name: str, source_module: str, source_attr: str) -> None:
