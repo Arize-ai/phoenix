@@ -136,7 +136,7 @@ function isUnsupportedUpdateActionResponse(result: {
 function warnUpdateFallback(): void {
   // eslint-disable-next-line no-console
   console.warn(
-    "Phoenix server does not support action='update'; falling back to " +
-      "action='create'. Upgrade to Phoenix v15 or later to get declarative update semantics."
+    "Phoenix server does not support declarative update semantics. " +
+      "Upgrade to Phoenix v15 or later."
   );
 }

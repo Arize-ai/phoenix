@@ -389,7 +389,7 @@ describe("createDataset", () => {
       expect(mockPost.mock.calls[0]?.[1]?.body?.action).toBe("update");
       expect(mockPost.mock.calls[1]?.[1]?.body?.action).toBe("create");
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("does not support action='update'")
+        expect.stringContaining("does not support declarative update semantics")
       );
       expect(result).toEqual({ datasetId: "ds-1" });
 

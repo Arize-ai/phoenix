@@ -587,9 +587,9 @@ class TestUpdateActionFallback:
                 )
 
         assert actions_sent == ["update", "create"]
-        assert any("does not support action='update'" in str(w.message) for w in caught), [
-            str(w.message) for w in caught
-        ]
+        assert any(
+            "does not support declarative update semantics" in str(w.message) for w in caught
+        ), [str(w.message) for w in caught]
 
     def test_json_upload_does_not_retry_on_unrelated_422(self) -> None:
         """Generic 422 errors are surfaced, not silently retried."""
