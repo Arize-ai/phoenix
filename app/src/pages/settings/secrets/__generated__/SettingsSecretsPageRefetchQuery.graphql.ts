@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ef3769a4cbd462cccbfa71c5a348fba0>>
+ * @generated SignedSource<<32ebc1f58186c9bda3fff605a8b26e82>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,6 +52,13 @@ v2 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
   "storageKey": null
 };
 return {
@@ -155,10 +162,44 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
+                    "concreteType": null,
+                    "kind": "LinkedField",
+                    "name": "value",
+                    "plural": false,
+                    "selections": [
+                      (v3/*: any*/),
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "value",
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "DecryptedSecret",
+                        "abstractKey": null
+                      },
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "parseError",
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "UnparsableSecret",
+                        "abstractKey": null
+                      }
+                    ],
                     "storageKey": null
-                  }
+                  },
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -212,16 +253,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9d72ead7340f856693f6637dab2351f5",
+    "cacheID": "908146bdbd26be66e342855a7e74d321",
     "id": null,
     "metadata": {},
     "name": "SettingsSecretsPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSecretsPageRefetchQuery(\n  $count: Int = 100\n  $cursor: String\n) {\n  ...SettingsSecretsPageFragment_1G22uz\n}\n\nfragment SettingsSecretsPageFragment_1G22uz on Query {\n  secrets(first: $count, after: $cursor) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SettingsSecretsPageRefetchQuery(\n  $count: Int = 100\n  $cursor: String\n) {\n  ...SettingsSecretsPageFragment_1G22uz\n}\n\nfragment SettingsSecretsPageFragment_1G22uz on Query {\n  secrets(first: $count, after: $cursor) {\n    edges {\n      node {\n        id\n        key\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9458ee6e39a893b28d61dc76c23e2639";
+(node as any).hash = "ba94b1a73c531646ae5ab82eb48878c7";
 
 export default node;

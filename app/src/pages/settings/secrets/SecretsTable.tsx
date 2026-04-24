@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { Tooltip, TooltipTrigger } from "react-aria-components";
 
 import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
@@ -42,6 +43,24 @@ export function SecretsTable({
       {
         header: "Key",
         accessorKey: "key",
+        cell: ({ row }) => {
+          const { key, value } = row.original;
+          const parseError =
+            value.__typename === "UnparsableSecret" ? value.parseError : null;
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <span>{key}</span>
+              {parseError && (
+                <TooltipTrigger delay={200}>
+                  <span aria-label="Secret could not be decrypted">
+                    <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+                  </span>
+                  <Tooltip>{parseError}</Tooltip>
+                </TooltipTrigger>
+              )}
+            </Flex>
+          );
+        },
       },
       {
         header: "Updated At",
@@ -77,11 +96,17 @@ export function SecretsTable({
     cols.push({
       id: "actions",
       cell: ({ row }) => {
+        const { value } = row.original;
+        const redactedValue =
+          value.__typename === "DecryptedSecret" ? value.value : "";
+        const parseError =
+          value.__typename === "UnparsableSecret" ? value.parseError : null;
         return (
           <Flex direction="row" gap="size-50" width="100%" justifyContent="end">
             <ReplaceSecretButton
-              secretId={row.original.id}
               secretKey={row.original.key}
+              redactedValue={redactedValue}
+              parseError={parseError}
               connectionId={connectionId}
             />
             <DeleteSecretButton
