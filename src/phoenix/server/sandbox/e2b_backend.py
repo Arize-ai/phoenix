@@ -174,9 +174,6 @@ class E2BAdapter(SandboxAdapter):
             or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
             or ""
         )
-        template: str = config.get("template", "base")
-        cwd: Optional[str] = config.get("cwd") or None
-        metadata: Optional[str] = config.get("metadata") or None
         internet_access = config.get("internet_access")
         if internet_access is not None:
             mode = (
@@ -191,9 +188,9 @@ class E2BAdapter(SandboxAdapter):
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         return E2BSandboxBackend(
             api_key=api_key,
-            template=template,
-            cwd=cwd,
-            metadata=metadata,
+            template="base",
+            cwd=None,
+            metadata=None,
             user_env=user_env,
             allow_internet_access=allow_internet_access,
             packages=packages or None,

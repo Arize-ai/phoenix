@@ -531,7 +531,10 @@ async def get_or_create_backend(
     # overridden here. Reserved-name rejection at the mutation boundary is the
     # primary defense; this factory-level override is defense-in-depth.
     provider_creds = await _resolve_sandbox_credentials(session, decrypt, adapter.credential_specs)
-    effective_config: dict[str, Any] = {**(config or {}), **provider_creds}
+    cred_keys = {spec.key for spec in adapter.credential_specs}
+    user_config = {k: v for k, v in (config or {}).items() if k not in cred_keys}
+    validated_config = adapter.validate_config(user_config)
+    effective_config: dict[str, Any] = {**validated_config, **provider_creds}
 
     cache_key = (backend_type, _config_hash(effective_config))
     if cache_key in _BACKEND_CACHE:

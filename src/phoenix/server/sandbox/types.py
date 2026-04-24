@@ -97,30 +97,15 @@ class ProviderCredentialSpec:
 
 # ---------------------------------------------------------------------------
 # Per-adapter pydantic config models.
-# extra="allow" preserves unknown keys (D9 contract).
+# extra="forbid" rejects unknown keys at validate_config (D7 contract).
 # All config fields are optional — adapters use defaults for missing keys.
 # Field(title=...) drives ConfigFieldSpec.display_name derivation.
 # ---------------------------------------------------------------------------
 
 
 class E2BConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    template: str = Field(
-        default="base",
-        title="Template",
-        description="E2B sandbox template ID. Defaults to 'base'.",
-    )
-    cwd: Optional[str] = Field(
-        default=None,
-        title="Working Directory",
-        description="Working directory for code execution inside the sandbox.",
-    )
-    metadata: Optional[str] = Field(
-        default=None,
-        title="Metadata",
-        description="Metadata string attached to the sandbox at creation time.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
@@ -139,13 +124,8 @@ class E2BConfig(BaseModel):
 
 
 class DaytonaPythonConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    server_url: str = Field(
-        default="",
-        title="Server URL",
-        description="Daytona server URL. Leave empty to use the default.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
@@ -164,7 +144,7 @@ class DaytonaPythonConfig(BaseModel):
 
 
 class DenoConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
@@ -179,7 +159,7 @@ class DenoConfig(BaseModel):
 
 
 class _VercelConfigBase(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
@@ -210,27 +190,12 @@ class VercelTypescriptConfig(_VercelConfigBase):
 
 
 class WASMConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class ModalConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    app_name: str = Field(
-        default="phoenix-sandbox",
-        title="App Name",
-        description="Modal app name. Created on first use if it does not exist.",
-    )
-    timeout: int = Field(
-        default=600,
-        title="Timeout (seconds)",
-        description="Hard sandbox timeout in seconds.",
-    )
-    idle_timeout: int = Field(
-        default=300,
-        title="Idle Timeout (seconds)",
-        description="Duration of idleness before a sandbox is terminated.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
