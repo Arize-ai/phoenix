@@ -3444,8 +3444,6 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
-            /** New Version Created */
-            new_version_created: boolean;
             /** Num Created Examples */
             num_created_examples: number;
             /** Num Patched Examples */

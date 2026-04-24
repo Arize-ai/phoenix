@@ -48,8 +48,12 @@ export function CreateDatasetButton({
 
   const handleDatasetCreatedFromFile = useCallback(
     (newDataset: { id: string; name: string } & DatasetUploadSummary) => {
+      const totalChanged =
+        newDataset.numCreatedExamples +
+        newDataset.numPatchedExamples +
+        newDataset.numDeletedExamples;
       let message: string;
-      if (!newDataset.newVersionCreated) {
+      if (totalChanged === 0) {
         message = "No examples changed.";
       } else {
         const formatPart = (count: number, verb: string) =>
@@ -64,12 +68,8 @@ export function CreateDatasetButton({
         if (newDataset.numDeletedExamples > 0) {
           parts.push(formatPart(newDataset.numDeletedExamples, "deleted"));
         }
-        if (parts.length === 0) {
-          message = "A new dataset version was created.";
-        } else {
-          const joined = parts.join(", ") + ".";
-          message = joined.charAt(0).toUpperCase() + joined.slice(1);
-        }
+        const joined = parts.join(", ") + ".";
+        message = joined.charAt(0).toUpperCase() + joined.slice(1);
       }
       notifySuccess({
         title: "Dataset created",

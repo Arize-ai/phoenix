@@ -625,7 +625,6 @@ class UpdateProjectResponseBody(TypedDict):
 class UploadDatasetData(TypedDict):
     dataset_id: str
     version_id: str
-    new_version_created: bool
     num_created_examples: int
     num_patched_examples: int
     num_deleted_examples: int

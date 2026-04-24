@@ -11351,10 +11351,6 @@
             "type": "string",
             "title": "Version Id"
           },
-          "new_version_created": {
-            "type": "boolean",
-            "title": "New Version Created"
-          },
           "num_created_examples": {
             "type": "integer",
             "title": "Num Created Examples"
@@ -11372,7 +11368,6 @@
         "required": [
           "dataset_id",
           "version_id",
-          "new_version_created",
           "num_created_examples",
           "num_patched_examples",
           "num_deleted_examples"

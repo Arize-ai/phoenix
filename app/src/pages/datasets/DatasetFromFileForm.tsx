@@ -53,7 +53,6 @@ import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
 export type DatasetUploadSummary = {
-  newVersionCreated: boolean;
   numCreatedExamples: number;
   numPatchedExamples: number;
   numDeletedExamples: number;
@@ -636,7 +635,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         .then((res) => {
           const payload = res["data"];
           const summary: DatasetUploadSummary = {
-            newVersionCreated: Boolean(payload["new_version_created"]),
             numCreatedExamples: Number(payload["num_created_examples"] ?? 0),
             numPatchedExamples: Number(payload["num_patched_examples"] ?? 0),
             numDeletedExamples: Number(payload["num_deleted_examples"] ?? 0),
