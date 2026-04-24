@@ -1677,6 +1677,18 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id</loc>
+    <lastmod>2026-04-24T16:15:27+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7</loc>
+    <lastmod>2026-04-24T16:15:27+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres</loc>
+    <lastmod>2026-04-24T16:15:27+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands</loc>
     <lastmod>2026-04-17T18:51:49+00:00</lastmod>
   </url>
