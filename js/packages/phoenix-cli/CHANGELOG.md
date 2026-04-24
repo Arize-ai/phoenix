@@ -1,5 +1,16 @@
 # @arizeai/phoenix-cli
 
+## 1.3.0
+
+### Minor Changes
+
+- a4dad8b: Add trace note support to `px`. New `px trace add-note <trace-id> --text <text>` command creates a trace note, and `--include-notes` is now supported on `px trace get` and `px trace list` to fetch and render trace notes and span notes separately from annotations. Requires Phoenix server >= 14.13.0.
+
+### Patch Changes
+
+- Updated dependencies [a4dad8b]
+  - @arizeai/phoenix-client@6.8.0
+
 ## 1.2.0
 
 ### Minor Changes
