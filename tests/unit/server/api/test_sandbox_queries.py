@@ -1,12 +1,7 @@
-from typing import Any
-
-import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, register_sandbox_adapter
-from phoenix.server.sandbox.types import E2BConfig, SandboxAdapter, SandboxBackend
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -119,33 +114,12 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     assert len(response.data["sandboxProviders"]) == provider_count
 
 
-@pytest.fixture
-def register_e2b_adapter() -> Any:
-    """Register a minimal E2BAdapter so config_field_specs are derived from E2BConfig."""
-
-    class _FakeE2BAdapter(SandboxAdapter):
-        key = "E2B"
-        display_name = "E2B"
-        language = "PYTHON"
-        config_model = E2BConfig
-
-        def build_backend(
-            self, config: dict[str, Any], user_env: dict[str, str] | None = None
-        ) -> SandboxBackend:
-            raise ValueError("fake adapter — not constructible")
-
-    original_specs = list(SANDBOX_ADAPTER_METADATA["E2B"].config_field_specs)
-    register_sandbox_adapter(_FakeE2BAdapter())
-    yield
-    SANDBOX_ADAPTER_METADATA["E2B"].config_field_specs = original_specs
-
-
 async def test_sandbox_backends_config_field_specs(
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
-    register_e2b_adapter: Any,
 ) -> None:
-    """configFieldSpecs for E2B derives 3 fields from E2BConfig; others have none."""
+    """configFieldSpecs for all adapters: after removing non-capability scalar fields,
+    E2B/Daytona/Modal emit zero specs alongside other capability-only adapters."""
     query = """
       query {
         sandboxBackends {
@@ -167,35 +141,16 @@ async def test_sandbox_backends_config_field_specs(
     assert response.data is not None
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
-    # E2B derives 3 specs from E2BConfig (template, cwd, metadata)
-    e2b_specs = backends["E2B"]["configFieldSpecs"]
-    assert len(e2b_specs) == 3
-    spec_by_key = {s["key"]: s for s in e2b_specs}
-    assert spec_by_key["template"] == {
-        "key": "template",
-        "displayName": "Template",
-        "fieldType": "string",
-        "required": False,
-        "description": "E2B sandbox template ID. Defaults to 'base'.",
-        "choices": None,
-    }
-    assert spec_by_key["cwd"] == {
-        "key": "cwd",
-        "displayName": "Working Directory",
-        "fieldType": "string",
-        "required": False,
-        "description": "Working directory for code execution inside the sandbox.",
-        "choices": None,
-    }
-    assert spec_by_key["metadata"] == {
-        "key": "metadata",
-        "displayName": "Metadata",
-        "fieldType": "string",
-        "required": False,
-        "description": "Metadata string attached to the sandbox at creation time.",
-        "choices": None,
-    }
-
-    # Adapters with empty config models have no specs
-    for backend_type in ("WASM", "VERCEL_PYTHON", "VERCEL_TYPESCRIPT", "DENO"):
-        assert backends[backend_type]["configFieldSpecs"] == [], backend_type
+    # All adapters now expose only capability fields (internet_access, dependencies,
+    # env_vars) which are not surfaced as configFieldSpecs — so all emit zero scalar specs.
+    for backend_type in (
+        "E2B",
+        "DAYTONA_PYTHON",
+        "MODAL",
+        "WASM",
+        "VERCEL_PYTHON",
+        "VERCEL_TYPESCRIPT",
+        "DENO",
+    ):
+        if backend_type in backends:
+            assert backends[backend_type]["configFieldSpecs"] == [], backend_type

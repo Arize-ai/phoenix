@@ -858,6 +858,7 @@ async def get_evaluators(
                             MissingSecretError,
                             UnsupportedOperation,
                             PydanticValidationError,
+                            ValueError,
                         ) as exc:
                             raise BadRequest(str(exc))
 
@@ -2649,9 +2650,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
             )
         except asyncio.TimeoutError:
             asyncio.create_task(
-                _stop_session_quietly(
-                    self._sandbox_backend, session_key or self._name, logger
-                )
+                _stop_session_quietly(self._sandbox_backend, session_key or self._name, logger)
             )
             execution = ExecutionResult(stdout="", stderr="", error="timeout")
         except UnsupportedOperation as exc:

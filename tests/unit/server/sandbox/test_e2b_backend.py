@@ -1,4 +1,8 @@
-"""Unit tests for E2BSandboxBackend and E2BAdapter."""
+"""Unit tests for E2BSandboxBackend and E2BAdapter.
+
+Scope: E2B-specific SDK kwarg shapes and pip-install-via-run_code wiring.
+Metadata and cross-adapter rejection coverage lives in test_capability_matrix.py.
+"""
 
 from __future__ import annotations
 
@@ -7,18 +11,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.sandbox.e2b_backend import E2BAdapter, E2BSandboxBackend
 
 
 def _make_mock_sandbox_cls(create_result: Any = None) -> MagicMock:
-    """Return a mock AsyncSandbox class with a tracked create() coroutine."""
     sandbox_instance = MagicMock()
     sandbox_instance.run_code = AsyncMock(
-        return_value=MagicMock(
-            logs=MagicMock(stdout=[], stderr=[]),
-            error=None,
-        )
+        return_value=MagicMock(logs=MagicMock(stdout=[], stderr=[]), error=None)
     )
     sandbox_instance.close = AsyncMock()
     sandbox_cls = MagicMock()
@@ -26,110 +25,50 @@ def _make_mock_sandbox_cls(create_result: Any = None) -> MagicMock:
     return sandbox_cls
 
 
-# ---------------------------------------------------------------------------
-# Metadata contract
-# ---------------------------------------------------------------------------
-
-
-def test_e2b_internet_access_capability_is_boolean() -> None:
-    assert SANDBOX_ADAPTER_METADATA["E2B"].internet_access_capability == "boolean"
-
-
-# ---------------------------------------------------------------------------
-# _create_kwargs / allow_internet_access
-# ---------------------------------------------------------------------------
-
-
-def test_create_kwargs_allow_internet_access_default_true() -> None:
+def test_create_kwargs_defaults_to_allow_true() -> None:
+    """Default allow_internet_access must be True when not specified."""
     backend = E2BSandboxBackend(api_key="k", template="base")
-    kwargs = backend._create_kwargs()
-    assert kwargs["allow_internet_access"] is True
+    assert backend._create_kwargs()["allow_internet_access"] is True
 
 
-def test_create_kwargs_allow_internet_access_false_when_set() -> None:
-    backend = E2BSandboxBackend(api_key="k", template="base", allow_internet_access=False)
-    kwargs = backend._create_kwargs()
-    assert kwargs["allow_internet_access"] is False
+@pytest.mark.parametrize("allow", [True, False])
+def test_create_kwargs_forwards_allow_internet_access(allow: bool) -> None:
+    backend = E2BSandboxBackend(api_key="k", template="base", allow_internet_access=allow)
+    assert backend._create_kwargs()["allow_internet_access"] is allow
 
 
-# ---------------------------------------------------------------------------
-# build_backend → AsyncSandbox.create receives correct allow_internet_access
-# ---------------------------------------------------------------------------
-
-
-def _build_and_get_create_kwargs(config: dict[str, Any]) -> dict[str, Any]:
-    """Build a backend from config and return the kwargs passed to AsyncSandbox.create()."""
+@pytest.mark.parametrize(
+    "config,expected",
+    [
+        ({"internet_access": {"mode": "deny"}}, False),
+        ({"internet_access": {"mode": "allow"}}, True),
+        ({}, True),  # no internet_access → default permissive
+    ],
+)
+def test_build_backend_translates_internet_access_to_allow_flag(
+    config: dict[str, Any], expected: bool
+) -> None:
+    """E2BAdapter.build_backend translates internet_access.mode → allow_internet_access kwarg."""
     adapter = E2BAdapter()
-    backend: E2BSandboxBackend = adapter.build_backend(config)  # type: ignore[assignment]
-    return backend._create_kwargs()
-
-
-def test_build_backend_deny_mode_passes_allow_internet_access_false() -> None:
-    config = {
-        "PHOENIX_SANDBOX_E2B_API_KEY": "test-key",
-        "internet_access": {"mode": "deny"},
-    }
-    kwargs = _build_and_get_create_kwargs(config)
-    assert kwargs["allow_internet_access"] is False
-
-
-def test_build_backend_allow_mode_passes_allow_internet_access_true() -> None:
-    config = {
-        "PHOENIX_SANDBOX_E2B_API_KEY": "test-key",
-        "internet_access": {"mode": "allow"},
-    }
-    kwargs = _build_and_get_create_kwargs(config)
-    assert kwargs["allow_internet_access"] is True
-
-
-def test_build_backend_no_internet_access_block_defaults_to_true() -> None:
-    config = {"PHOENIX_SANDBOX_E2B_API_KEY": "test-key"}
-    kwargs = _build_and_get_create_kwargs(config)
-    assert kwargs["allow_internet_access"] is True
-
-
-# ---------------------------------------------------------------------------
-# start_session forwards allow_internet_access to AsyncSandbox.create
-# ---------------------------------------------------------------------------
+    backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
+        {"PHOENIX_SANDBOX_E2B_API_KEY": "k", **config}
+    )
+    assert backend._create_kwargs()["allow_internet_access"] is expected
 
 
 @pytest.mark.asyncio
-async def test_start_session_deny_passes_allow_internet_access_false() -> None:
+@pytest.mark.parametrize("allow", [True, False])
+async def test_start_session_forwards_allow_internet_access(allow: bool) -> None:
     mock_cls = _make_mock_sandbox_cls()
-    backend = E2BSandboxBackend(api_key="k", template="base", allow_internet_access=False)
+    backend = E2BSandboxBackend(api_key="k", template="base", allow_internet_access=allow)
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
-    call_kwargs = mock_cls.create.call_args.kwargs
-    assert call_kwargs["allow_internet_access"] is False
+    assert mock_cls.create.call_args.kwargs["allow_internet_access"] is allow
 
 
 @pytest.mark.asyncio
-async def test_start_session_allow_passes_allow_internet_access_true() -> None:
-    mock_cls = _make_mock_sandbox_cls()
-    backend = E2BSandboxBackend(api_key="k", template="base", allow_internet_access=True)
-    with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
-        await backend.start_session("s1")
-    call_kwargs = mock_cls.create.call_args.kwargs
-    assert call_kwargs["allow_internet_access"] is True
-
-
-# ---------------------------------------------------------------------------
-# dependencies_language metadata
-# ---------------------------------------------------------------------------
-
-
-def test_e2b_dependencies_language_is_python() -> None:
-    assert SANDBOX_ADAPTER_METADATA["E2B"].dependencies_language == "PYTHON"
-
-
-# ---------------------------------------------------------------------------
-# _install_packages / packages wiring
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_start_session_with_packages_calls_run_code() -> None:
-    """packages=["cowsay"] must trigger a run_code pip install call."""
+async def test_start_session_installs_packages_via_run_code() -> None:
+    """Non-empty packages trigger a pip install run_code; absent otherwise."""
     mock_cls = _make_mock_sandbox_cls()
     backend = E2BSandboxBackend(api_key="k", template="base", packages=["cowsay"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
@@ -137,31 +76,27 @@ async def test_start_session_with_packages_calls_run_code() -> None:
     sandbox_instance = mock_cls.create.return_value
     sandbox_instance.run_code.assert_called_once()
     code_arg = sandbox_instance.run_code.call_args.args[0]
-    assert "pip" in code_arg
-    assert "cowsay" in code_arg
+    assert "pip" in code_arg and "cowsay" in code_arg
 
 
 @pytest.mark.asyncio
-async def test_start_session_no_packages_skips_run_code() -> None:
-    """No packages → run_code must NOT be called during start_session."""
+async def test_start_session_without_packages_skips_run_code() -> None:
     mock_cls = _make_mock_sandbox_cls()
     backend = E2BSandboxBackend(api_key="k", template="base", packages=None)
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
-    sandbox_instance = mock_cls.create.return_value
-    sandbox_instance.run_code.assert_not_called()
+    mock_cls.create.return_value.run_code.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_start_session_install_failure_propagates_and_session_absent() -> None:
-    """If run_code returns an error, start_session must raise and not cache the session."""
-    error_result = MagicMock(
-        logs=MagicMock(stdout=[], stderr=[]),
-        error="ModuleNotFoundError: No module named pip",
-    )
+async def test_pip_install_failure_raises_and_leaves_no_cached_session() -> None:
     mock_cls = _make_mock_sandbox_cls()
-    mock_cls.create.return_value.run_code = AsyncMock(return_value=error_result)
-
+    mock_cls.create.return_value.run_code = AsyncMock(
+        return_value=MagicMock(
+            logs=MagicMock(stdout=[], stderr=[]),
+            error="ModuleNotFoundError: No module named pip",
+        )
+    )
     backend = E2BSandboxBackend(api_key="k", template="base", packages=["bad-pkg"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         with pytest.raises(RuntimeError):
@@ -170,32 +105,27 @@ async def test_start_session_install_failure_propagates_and_session_absent() -> 
 
 
 @pytest.mark.asyncio
-async def test_package_with_shell_metachar_is_quoted() -> None:
-    """A package name containing shell metacharacters must be shlex-quoted, not raw-interpolated."""
-    # This would be dangerous if passed as raw shell: "evil; rm -rf /"
-    # shlex.quote produces "'evil; rm -rf /'" — harmless as a Python string literal
+async def test_package_names_with_shell_metachars_are_quoted() -> None:
+    """Shell injection guard: a package name with metachars must not be interpolated raw."""
     mock_cls = _make_mock_sandbox_cls()
     backend = E2BSandboxBackend(api_key="k", template="base", packages=["evil; rm -rf /"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
-    sandbox_instance = mock_cls.create.return_value
-    code_arg = sandbox_instance.run_code.call_args.args[0]
-    # The metachar must appear only inside a quoted form, not raw
+    code_arg = mock_cls.create.return_value.run_code.call_args.args[0]
+    # metacharacters may only appear inside a shell-quoted form
     assert "rm -rf /" not in code_arg or "'evil; rm -rf /'" in code_arg
 
 
-def test_build_backend_with_packages_wires_to_backend() -> None:
-    """build_backend with dependencies.packages passes them to E2BSandboxBackend._packages."""
+@pytest.mark.parametrize(
+    "config,expected_packages",
+    [
+        ({"dependencies": {"packages": ["cowsay"]}}, ["cowsay"]),
+        ({}, []),
+    ],
+)
+def test_build_backend_wires_packages(config: dict[str, Any], expected_packages: list[str]) -> None:
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"PHOENIX_SANDBOX_E2B_API_KEY": "k", "dependencies": {"packages": ["cowsay"]}}
+        {"PHOENIX_SANDBOX_E2B_API_KEY": "k", **config}
     )
-    assert backend._packages == ["cowsay"]
-
-
-def test_build_backend_without_packages_empty_packages() -> None:
-    adapter = E2BAdapter()
-    backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"PHOENIX_SANDBOX_E2B_API_KEY": "k"}
-    )
-    assert backend._packages == []
+    assert backend._packages == expected_packages

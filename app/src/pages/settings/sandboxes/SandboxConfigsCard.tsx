@@ -94,7 +94,7 @@ export function SandboxConfigsCard({
                       >
                         {hasConfig(config.config)
                           ? summarizeConfig(config.config)
-                          : "No advanced settings"}
+                          : "No custom settings"}
                       </Text>
                     </Flex>
                   </td>

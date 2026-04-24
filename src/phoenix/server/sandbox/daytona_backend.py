@@ -160,7 +160,6 @@ class DaytonaPythonAdapter(SandboxAdapter):
             or os.environ.get(ENV_PHOENIX_SANDBOX_TOKEN)
             or ""
         )
-        server_url: str = config.get("server_url", "")
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         internet_access = config.get("internet_access") or {}
@@ -168,7 +167,7 @@ class DaytonaPythonAdapter(SandboxAdapter):
         network_block_all = mode == "deny"
         return DaytonaSandboxBackend(
             api_key=api_key,
-            server_url=server_url,
+            server_url="",
             user_env=user_env,
             packages=packages,
             network_block_all=network_block_all,

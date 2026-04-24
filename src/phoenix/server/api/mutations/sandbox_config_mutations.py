@@ -320,6 +320,12 @@ class SandboxConfigMutationMixin:
                     dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
                 )
                 _check_reserved_top_level_keys(provider_config, row.backend_type)
+                adapter = _SANDBOX_ADAPTERS.get(row.backend_type)
+                if adapter is not None:
+                    try:
+                        provider_config = adapter.validate_config(provider_config)
+                    except (ValueError, ValidationError) as exc:
+                        raise BadRequest(str(exc))
                 row.config = provider_config
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled

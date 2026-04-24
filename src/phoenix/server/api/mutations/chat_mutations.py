@@ -163,6 +163,7 @@ async def _resolve_inline_code_evaluator_backend(
             MissingSecretError,
             UnsupportedOperation,
             ValidationError,
+            ValueError,
         ) as exc:
             raise BadRequest(str(exc))
 
@@ -351,6 +352,7 @@ class ChatCompletionMutationMixin:
                             MissingSecretError,
                             UnsupportedOperation,
                             ValidationError,
+                            ValueError,
                         ) as exc:
                             raise BadRequest(str(exc))
                 if sandbox_backend is None:

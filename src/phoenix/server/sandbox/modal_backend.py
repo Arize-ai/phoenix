@@ -153,18 +153,15 @@ class ModalAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        timeout: int = int(config.get("timeout", _DEFAULT_TIMEOUT))
-        idle_timeout: int = int(config.get("idle_timeout", _DEFAULT_IDLE_TIMEOUT))
-        app_name: str = config.get("app_name", "phoenix-sandbox")
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         ia = config.get("internet_access") or {}
         mode = ia.get("mode") if isinstance(ia, dict) else getattr(ia, "mode", None)
         block_network: bool = mode == "deny"
         return ModalSandboxBackend(
-            timeout=timeout,
-            idle_timeout=idle_timeout,
-            app_name=app_name,
+            timeout=_DEFAULT_TIMEOUT,
+            idle_timeout=_DEFAULT_IDLE_TIMEOUT,
+            app_name="phoenix-sandbox",
             user_env=user_env,
             packages=packages or None,
             block_network=block_network,
