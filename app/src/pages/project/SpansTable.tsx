@@ -245,9 +245,6 @@ export function SpansTable(props: SpansTableProps) {
                 trace {
                   id
                   traceId
-                  traceAnnotations {
-                    name
-                  }
                   costSummary @include(if: $rootSpansOnly) {
                     total {
                       cost
@@ -258,6 +255,7 @@ export function SpansTable(props: SpansTableProps) {
                       fraction
                       label
                     }
+                    count
                     meanScore
                     name
                   }
@@ -641,9 +639,10 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 90,
       enableSorting: false,
       cell: ({ row }) => {
-        const noteCount = row.original.trace.traceAnnotations.filter(
-          (annotation) => annotation.name === "note"
-        ).length;
+        const noteCount =
+          row.original.trace.traceAnnotationSummaries.find(
+            (annotation) => annotation.name === "note"
+          )?.count ?? 0;
         return (
           <TraceNotesTableCell
             noteCount={noteCount}
