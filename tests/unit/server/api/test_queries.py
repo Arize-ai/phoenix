@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 import pytest
 from sqlalchemy import insert
+from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -24,8 +25,13 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+# The in-process test app is constructed with no PHOENIX_SECRET, so the
+# server-side Redactor is keyed off Secret("").
+_REDACTOR = Redactor(secret=Secret(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -1184,7 +1190,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in first_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
     assert first_page["pageInfo"]["hasNextPage"] is True
@@ -1200,7 +1207,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in second_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
     assert second_page["pageInfo"]["hasNextPage"] is True
@@ -1216,7 +1224,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in third_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
     assert third_page["pageInfo"]["hasNextPage"] is False
@@ -1232,7 +1241,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1258,7 +1267,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]
