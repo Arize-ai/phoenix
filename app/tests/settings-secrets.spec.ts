@@ -60,6 +60,11 @@ test.describe("Settings Secrets", () => {
 
     await row.getByRole("button", { name: `Replace ${secretKey}` }).click();
     await expect(secretsDialog(page)).toBeVisible();
+    // Replace dialog opens in sealed mode with a preview mask; click the edit
+    // button to clear the field before typing the new value.
+    await secretsDialog(page)
+      .getByRole("button", { name: "Edit credential" })
+      .click();
     await expect(page.getByLabel("Value")).toHaveValue("");
     await page.getByLabel("Value").fill("updated-secret-value");
     await Promise.all([
@@ -205,6 +210,11 @@ test.describe("Settings Secrets", () => {
 
     await row.getByRole("button", { name: `Replace ${secretKey}` }).click();
     await expect(secretsDialog(page)).toBeVisible();
+    // Dialog opens in sealed mode showing the preview mask, not the plaintext.
+    // Click the edit button to move to an empty editable input.
+    await secretsDialog(page)
+      .getByRole("button", { name: "Edit credential" })
+      .click();
     await expect(page.getByLabel("Value")).toHaveValue("");
 
     const inputValuesInReplaceDialog = await page

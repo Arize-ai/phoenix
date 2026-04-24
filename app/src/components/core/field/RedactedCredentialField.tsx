@@ -98,11 +98,11 @@ export function RedactedCredentialField({
       >
         <Label>{label}</Label>
         <div className="redacted-row">
-          <AriaInput aria-label={label} />
+          <AriaInput />
           <IconButton
             size="S"
             onPress={enterEdit}
-            aria-label={`Edit ${label}`}
+            aria-label="Edit credential"
             isDisabled={isDisabled}
           >
             <Icon svg={<Icons.EditOutline />} />
