@@ -1,5 +1,12 @@
 # Changelog
 
+## [14.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.13.0...arize-phoenix-v14.14.0) (2026-04-24)
+
+
+### Features
+
+* **cli:** add trace note support to px ([#12711](https://github.com/Arize-ai/phoenix/issues/12711)) ([a4dad8b](https://github.com/Arize-ai/phoenix/commit/a4dad8b9b3f57d4f74292f69264742b7762e2160))
+
 ## [14.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.12.0...arize-phoenix-v14.13.0) (2026-04-24)
 
 
