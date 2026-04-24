@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.15.0...arize-phoenix-otel-v0.16.0) (2026-04-24)
+
+
+### Features
+
+* **phoenix-otel:** re-export openinference helpers, decorators, and semconv ([#12844](https://github.com/Arize-ai/phoenix/issues/12844)) ([23576da](https://github.com/Arize-ai/phoenix/commit/23576da85d9de51527b525b3d20625785e175b23))
+
 ## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.14.0...arize-phoenix-otel-v0.15.0) (2026-03-02)
 
 
