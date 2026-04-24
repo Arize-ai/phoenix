@@ -264,7 +264,7 @@ class SandboxConfigMutationMixin:
                             raise BadRequest(str(exc))
                 row.config = config_dict
             if input.timeout is not strawberry.UNSET:
-                row.timeout = input.timeout if input.timeout is not None else 30
+                row.timeout = input.timeout if input.timeout is not None else 300
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 

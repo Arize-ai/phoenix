@@ -96,27 +96,39 @@ class DaytonaSandboxBackend(SandboxBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if timeout is not None:
-            logger.warning(
-                "DaytonaSandboxBackend does not support per-call timeout; ignoring timeout=%d",
-                timeout,
-            )
         try:
-            workspace = self._sessions.get(session_key)
-            if workspace is None:
-                client = self._get_client()
-                workspace = await client.create(**self._create_kwargs())
-                await self._install_packages(workspace)
             from daytona_sdk.common.process import CodeRunParams  # type: ignore[import-not-found]
 
-            result = await workspace.process.code_run(
-                code, params=CodeRunParams(env=self._user_env or None)
-            )
-            return ExecutionResult(
-                stdout=result.stdout or "",
-                stderr=result.stderr or "",
-                error=result.exit_code != 0 and result.stderr or None,
-            )
+            workspace = self._sessions.get(session_key)
+            if workspace is not None:
+                result = await workspace.process.code_run(
+                    code, params=CodeRunParams(env=self._user_env or None)
+                )
+                return ExecutionResult(
+                    stdout=result.stdout or "",
+                    stderr=result.stderr or "",
+                    error=result.exit_code != 0 and result.stderr or None,
+                )
+            else:
+                client = self._get_client()
+                workspace = await client.create(**self._create_kwargs())
+                try:
+                    await self._install_packages(workspace)
+                    result = await workspace.process.code_run(
+                        code, params=CodeRunParams(env=self._user_env or None)
+                    )
+                    return ExecutionResult(
+                        stdout=result.stdout or "",
+                        stderr=result.stderr or "",
+                        error=result.exit_code != 0 and result.stderr or None,
+                    )
+                finally:
+                    try:
+                        await client.remove(workspace)
+                    except Exception:
+                        logger.warning(
+                            "Failed to remove ephemeral Daytona workspace", exc_info=True
+                        )
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 

@@ -162,11 +162,6 @@ class VercelSandboxBackend(SandboxBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if timeout is not None:
-            logger.debug(
-                "VercelSandboxBackend: per-call timeout not supported for session reuse; "
-                "set timeout at sandbox creation time via start_session"
-            )
         try:
             session_env: Optional[dict[str, str]] = self._user_env or None
             sandbox = self._sessions.get(session_key)
