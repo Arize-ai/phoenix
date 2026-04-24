@@ -36,18 +36,21 @@ Below is an example of logging conversations:
 
     First make sure you have the required dependencies installed
 
-    ```
-    pip install openinference-instrumentation
+    ```bash
+    pip install "arize-phoenix-otel>=0.16.0"
     ```
 
-    Below is an example of how to use `openinference.instrumentation` to the traces created.
+    <Note>
+    Requires `arize-phoenix-otel` **0.16.0 or later** for `using_session` and `SpanAttributes` to be importable directly from `phoenix.otel`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace`.
+    </Note>
+
+    Below is an example of how to propagate session IDs to auto-instrumented spans.
 
     ```python
     import uuid
 
     import openai
-    from openinference.instrumentation import using_session
-    from openinference.semconv.trace import SpanAttributes
+    from phoenix.otel import SpanAttributes, using_session
     from opentelemetry import trace
 
     client = openai.Client()

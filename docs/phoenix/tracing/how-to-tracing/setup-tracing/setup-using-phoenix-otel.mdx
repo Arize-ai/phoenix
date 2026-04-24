@@ -47,8 +47,12 @@ The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with se
 <Tabs>
   <Tab title="Python" icon="python">
     ```bash
-    pip install arize-phoenix-otel
+    pip install "arize-phoenix-otel>=0.16.0"
     ```
+
+    <Note>
+    Version **0.16.0** or later is required to import OpenInference helpers, context managers, and semantic conventions directly from `phoenix.otel`. On earlier versions you must import them from `openinference-instrumentation` and `openinference-semantic-conventions`.
+    </Note>
   </Tab>
   <Tab title="TypeScript" icon="js">
     ```bash
@@ -82,7 +86,10 @@ You can find your collector endpoint and API key in the **Settings** page of you
 
 Call `register()` to initialize tracing. The SDK automatically reads your environment variables.
 
-For manual tracing, the same package also exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters like `setSession` and `setMetadata`.
+For manual instrumentation, `arize-phoenix-otel` (>=0.16.0) and `@arizeai/phoenix-otel` re-export all commonly used OpenInference helpers so a single dependency is sufficient:
+
+- **Python**: context managers (`using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing`) and semantic conventions (`SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`).
+- **TypeScript**: `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and context setters like `setSession` and `setMetadata`.
 
 <Tabs>
   <Tab title="Python" icon="python">

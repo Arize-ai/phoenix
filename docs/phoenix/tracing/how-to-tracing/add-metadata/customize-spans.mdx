@@ -4,7 +4,7 @@ title: "Add Attributes, Metadata, Users"
 
 ### Using context to customize spans
 
-In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. Phoenix re-exports those TypeScript helpers from `@arizeai/phoenix-otel`, so you can register tracing and manage context attributes from the same package. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
+In order to customize spans that are created via auto-instrumentation, The Otel Context can be used to set span attributes created during a block of code (think child spans or spans under that block of code). Our [`openinference`](https://github.com/Arize-ai/openinference/tree/main) packages offer convenient tools to write and read from the OTel Context. Phoenix re-exports those helpers directly from `arize-phoenix-otel` (Python, >=0.16.0) and `@arizeai/phoenix-otel` (TypeScript), so you can register tracing and manage context attributes from the same package. The benefit of this approach is that OpenInference auto [instrumentors](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will pass (e.g. inherit) these attributes to all spans underneath a parent trace.
 
 Supported Context Attributes include:
 
@@ -24,17 +24,19 @@ Supported Context Attributes include:
 
   * **Variables** key-value pairs applied to the prompt template.
 
-### Install Core Instrumentation Package
+### Install Phoenix OTEL
 
 <Tabs>
 
   <Tab title="Python" icon="python">
 
-    Install the core instrumentation package:
+    ```bash
+    pip install "arize-phoenix-otel>=0.16.0"
+    ```
 
-    ```
-    pip install openinference-instrumentation
-    ```
+    <Note>
+    Requires `arize-phoenix-otel` **0.16.0 or later** to import the context managers directly from `phoenix.otel`. Older versions must import from `openinference.instrumentation`.
+    </Note>
 
   </Tab>
 
@@ -57,7 +59,7 @@ Supported Context Attributes include:
     We provide a `using_session` context manager to add session a ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the session ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the session ID, must be a non-empty string.
 
     ```python
-    from openinference.instrumentation import using_session
+    from phoenix.otel import using_session
 
     with using_session(session_id="my-session-id"):
         # Calls within this block will generate spans with the attributes:
@@ -106,7 +108,7 @@ Supported Context Attributes include:
     We provide a `using_user` context manager to add user ID to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the user ID as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the user ID, must be a non-empty string.
 
     ```python
-    from openinference.instrumentation import using_user
+    from phoenix.otel import using_user
     with using_user("my-user-id"):
         # Calls within this block will generate spans with the attributes:
         # "user.id" = "my-user-id"
@@ -154,7 +156,7 @@ Supported Context Attributes include:
     We provide a `using_metadata` context manager to add metadata to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the metadata as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). Its input, the metadata, must be a dictionary with string keys. This dictionary will be serialized to JSON when saved to the OTEL Context and remain a JSON string when sent as a span attribute.
 
     ```python
-    from openinference.instrumentation import using_metadata
+    from phoenix.otel import using_metadata
     metadata = {
         "key-1": value_1,
         "key-2": value_2,
@@ -207,7 +209,7 @@ Supported Context Attributes include:
     We provide a `using_tags` context manager to add tags to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the tags as a span attribute, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). The input, the tag list, must be a list of strings.
 
     ```python
-    from openinference.instrumentation import using_tags
+    from phoenix.otel import using_tags
     tags = ["tag_1", "tag_2", ...]
     with using_tags(tags):
         # Calls within this block will generate spans with the attributes:
@@ -256,7 +258,7 @@ Supported Context Attributes include:
     We provide a `using_attributes` context manager to add attributes to the current OpenTelemetry Context. OpenInference auto [instrumentators](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) will read this Context and pass the attributes fields as span attributes, following the OpenInference [semantic conventions](https://github.com/Arize-ai/openinference/tree/main/python/openinference-semantic-conventions). This is a convenient context manager to use if you find yourself using many of the previous ones in conjunction.
 
     ```python expandable
-    from openinference.instrumentation import using_attributes
+    from phoenix.otel import using_attributes
     tags = ["tag_1", "tag_2", ...]
     metadata = {
         "key-1": value_1,

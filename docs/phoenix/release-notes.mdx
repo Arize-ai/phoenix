@@ -7,6 +7,17 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.24.2026">
+## [04.24.2026: arize-phoenix-otel 0.16](/docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16)
+**Available in arize-phoenix-otel 0.16.0+**
+
+`arize-phoenix-otel` now re-exports the most common OpenInference context managers and semantic conventions, so manual instrumentation no longer requires installing `openinference-instrumentation` or `openinference-semantic-conventions` as separate dependencies.
+
+- **Context managers** — `using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing` (usable as `with` blocks or decorators)
+- **Semantic conventions** — `SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`
+- **Single install** — `pip install "arize-phoenix-otel>=0.16.0"` is enough for `register()` + context propagation
+</Update>
+
 <Update label="04.22.2026">
 ## [04.22.2026: Secrets Settings Page](/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id)
 **Available in arize-phoenix 14.11.0+**

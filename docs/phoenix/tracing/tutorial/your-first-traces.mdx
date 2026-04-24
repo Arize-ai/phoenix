@@ -57,8 +57,12 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
 
   <Tab title="Python" icon="python">
     ```bash
-    pip install arize-phoenix-otel arize-phoenix-client openai openinference-instrumentation-openai numpy
+    pip install "arize-phoenix-otel>=0.16.0" arize-phoenix-client openai openinference-instrumentation-openai numpy
     ```
+
+    <Note>
+    `arize-phoenix-otel` **0.16.0+** is required to import `SpanAttributes` and the OpenInference context managers directly from `phoenix.otel`.
+    </Note>
   </Tab>
 </Tabs>
 
@@ -395,7 +399,7 @@ To see all operations for a single request as one trace, wrap them in a parent s
   <Tab title="Python" icon="python">
     ```python
     from opentelemetry import trace
-    from openinference.semconv.trace import SpanAttributes
+    from phoenix.otel import SpanAttributes
 
     def handle_support_query(user_query: str) -> AgentResponse:
         tracer = trace.get_tracer("support-agent")
