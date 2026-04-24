@@ -260,6 +260,7 @@
 
 - [Access Control RBAC](https://arize.com/docs/phoenix/settings/access-control-rbac): Role-based permissions and project access
 - [API Keys](https://arize.com/docs/phoenix/settings/api-keys): Generate and manage API keys
+- [Secrets](https://arize.com/docs/phoenix/settings/secrets): Store and manage encrypted API keys and credentials
 - [Data Retention](https://arize.com/docs/phoenix/settings/data-retention): Configure data retention policies
 - [Custom AI Providers](https://arize.com/docs/phoenix/settings/custom-ai-providers): Server-managed AI provider credentials for Playground and evals
 

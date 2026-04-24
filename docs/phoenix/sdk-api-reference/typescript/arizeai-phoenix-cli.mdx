@@ -146,6 +146,8 @@ px span list --status-code ERROR --limit 20                # Only errored spans
 px span list --span-kind LLM TOOL --status-code OK         # Combine filters
 px span list --name chat_completion --limit 10             # Filter by span name
 px span list --trace-id abc123 --format raw | jq           # All spans for a trace
+px span list --attribute llm.model_name:gpt-4              # Filter by attribute
+px span list --attribute llm.model_name:gpt-4 --attribute status:ok  # AND filters
 px span list --include-annotations --limit 10              # Include annotation scores
 px span list output.json --limit 100                       # Save to JSON file
 px span list --format raw --no-progress | jq               # Pipe to jq
@@ -162,9 +164,28 @@ px span list --format raw --no-progress | jq               # Pipe to jq
 | `--name <names...>` | Filter by span name(s) | — |
 | `--trace-id <ids...>` | Filter by trace ID(s) | — |
 | `--parent-id <id>` | Filter by parent span ID (use `"null"` for root spans) | — |
+| `--attribute <filters...>` | Filter by attribute key-value pairs. Format: `key:value`. Repeat to AND multiple filters. Values containing colons are supported (split on first `:` only). To match a string attribute that looks like a number or boolean, JSON-quote the value (e.g., `'user.id:"12345"'`). Requires Phoenix server ≥ 14.9.0. | — |
 | `--include-annotations` | Include span annotations in output | Off |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px span add-note <span-id>`
+
+Unlike annotations, notes are open-ended and multiple notes can be attached to the same span.
+
+```bash
+px span add-note abc123def456 --text "Escalated: retrieval returned empty results"
+px span add-note abc123def456 --text "Reviewed by on-call" --format json
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<span-id>` | OpenTelemetry span ID | — |
+| `--text <text>` | Note text to attach to the span | **Required** |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
