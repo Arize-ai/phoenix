@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-19T00:54:03.270120537Z"
+exclude-newer = "2026-04-21T16:57:34.149961Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -871,7 +871,7 @@ provides-extras = ["dev", "test"]
 
 [[package]]
 name = "arize-phoenix-otel"
-version = "0.15.0"
+version = "0.16.0"
 source = { editable = "packages/phoenix-otel" }
 dependencies = [
     { name = "openinference-instrumentation" },
