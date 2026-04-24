@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08dd90c51f75d132c393ecff668a4c0f>>
+ * @generated SignedSource<<866d6ee780ca1dce9fcf6bbb6628779f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -181,6 +181,13 @@ return {
                                 "alias": null,
                                 "args": null,
                                 "kind": "ScalarField",
+                                "name": "startTime",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
                                 "name": "cumulativeTokenCountTotal",
                                 "storageKey": null
                               },
@@ -320,16 +327,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7ed84a5c7177817bc8fbc6386a17e46b",
+    "cacheID": "ddd8d5f04d48f5fd2f390caaf697e1b9",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewRefetchQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ad0fdcf3c8751b570c155ea2bf326686";
+(node as any).hash = "3dcba931effcd48427f002639dbda225";
 
 export default node;

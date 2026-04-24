@@ -51,6 +51,8 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { SessionViewTabs } from "./SessionViewTabs";
+import type { SessionView } from "./SessionViewTabs";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
@@ -318,7 +320,7 @@ const turnDetailRowCSS = css`
   }
 `;
 
-export const sessionPanelHeaderCSS = css`
+const sessionPanelHeaderCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -340,8 +342,16 @@ const panelContentCSS = css`
 
 export function SessionDetailsTraceList({
   tracesRef,
+  sessionView,
+  onSessionViewChange,
+  showSessionViewTabs,
+  traceCount,
 }: {
   tracesRef: SessionDetailsTraceList_traces$key;
+  sessionView: SessionView;
+  onSessionViewChange: (view: SessionView) => void;
+  showSessionViewTabs: boolean;
+  traceCount: number;
 }) {
   const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
     graphql`
@@ -482,6 +492,22 @@ export function SessionDetailsTraceList({
     };
   }, []);
 
+  const turnListPanel = (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      `}
+    >
+      <SessionTurnList
+        rows={sessionRootSpans}
+        selectedTraceId={selectedTraceId}
+        onTurnClick={handleTurnClick}
+      />
+    </div>
+  );
+
   return (
     <Group
       orientation="horizontal"
@@ -494,25 +520,23 @@ export function SessionDetailsTraceList({
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
         <div css={panelContentCSS}>
-          <div css={sessionPanelHeaderCSS}>
-            <Heading level={3}>Turns</Heading>
-            <Counter variant="quiet">
-              {data.numTraces ?? sessionRootSpans.length}
-            </Counter>
-          </div>
-          <div
-            css={css`
-              flex: 1 1 auto;
-              min-height: 0;
-              overflow: hidden;
-            `}
-          >
-            <SessionTurnList
-              rows={sessionRootSpans}
-              selectedTraceId={selectedTraceId}
-              onTurnClick={handleTurnClick}
-            />
-          </div>
+          {showSessionViewTabs ? (
+            <SessionViewTabs
+              sessionView={sessionView}
+              onSessionViewChange={onSessionViewChange}
+              traceCount={traceCount}
+            >
+              {turnListPanel}
+            </SessionViewTabs>
+          ) : (
+            <>
+              <div css={sessionPanelHeaderCSS}>
+                <Heading level={3}>Turns</Heading>
+                <Counter variant="quiet">{traceCount}</Counter>
+              </div>
+              {turnListPanel}
+            </>
+          )}
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />

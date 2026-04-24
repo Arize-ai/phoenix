@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<26fec96628d077b8d211864f600f24e0>>
+ * @generated SignedSource<<7948f0795fe74788d4eda328bdaea173>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type SessionDetailsTracesView_traces$data = {
           readonly project: {
             readonly id: string;
           };
+          readonly startTime: string;
           readonly trace: {
             readonly costSummary: {
               readonly total: {
@@ -155,6 +156,13 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "name",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "startTime",
                       "storageKey": null
                     },
                     {
@@ -293,6 +301,6 @@ return {
 };
 })();
 
-(node as any).hash = "ad0fdcf3c8751b570c155ea2bf326686";
+(node as any).hash = "3dcba931effcd48427f002639dbda225";
 
 export default node;

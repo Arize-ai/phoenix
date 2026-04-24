@@ -10,10 +10,8 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
-  Counter,
   Empty,
   Flex,
-  Heading,
   Icon,
   Icons,
   Loading,
@@ -27,6 +25,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useTimeFormatters } from "@phoenix/hooks";
 import type {
   SessionDetailsTracesView_traces$data,
   SessionDetailsTracesView_traces$key,
@@ -34,7 +33,8 @@ import type {
 import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesViewTreeQuery.graphql";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { sessionPanelHeaderCSS } from "./SessionDetailsTraceList";
+import { SessionViewTabs } from "./SessionViewTabs";
+import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
 
 type SessionTraceRow = NonNullable<
@@ -55,7 +55,7 @@ const traceRowHeaderCSS = css`
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--global-dimension-static-size-200);
+  gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-static-size-200);
   background: transparent;
   border: none;
@@ -91,8 +91,14 @@ const traceTreeContainerCSS = css`
 
 export function SessionDetailsTracesView({
   tracesRef,
+  sessionView,
+  onSessionViewChange,
+  traceCount,
 }: {
   tracesRef: SessionDetailsTracesView_traces$key;
+  sessionView: SessionView;
+  onSessionViewChange: (view: SessionView) => void;
+  traceCount: number;
 }) {
   const { data } = usePaginationFragment(
     graphql`
@@ -112,6 +118,7 @@ export function SessionDetailsTracesView({
               rootSpan {
                 id
                 name
+                startTime
                 cumulativeTokenCountTotal
                 latencyMs
                 project {
@@ -172,6 +179,112 @@ export function SessionDetailsTracesView({
     storage: localStorage,
   });
 
+  const { fullTimeFormatter } = useTimeFormatters();
+
+  const traceRowsContent = (
+    <>
+      {traces.map((trace, index) => {
+        const isExpanded = expandedIds.has(trace.id);
+        const paddedIndex = String(index + 1).padStart(2, "0");
+        return (
+          <div key={trace.id} css={traceRowCSS}>
+            <button
+              type="button"
+              css={traceRowHeaderCSS}
+              aria-expanded={isExpanded}
+              onClick={() => toggleExpanded(trace.id)}
+            >
+              <span css={chevronCSS} data-expanded={isExpanded}>
+                <Icon svg={<Icons.ChevronRight />} />
+              </span>
+              <Flex
+                direction="column"
+                gap="size-100"
+                flex={1}
+                minWidth={0}
+              >
+                <Flex
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  gap="size-100"
+                >
+                  <Flex
+                    direction="row"
+                    gap="size-50"
+                    alignItems="center"
+                    flex={1}
+                    minWidth={0}
+                  >
+                    <Text fontFamily="mono" color="text-500">
+                      {paddedIndex}
+                    </Text>
+                    <Flex flex={1} minWidth={0}>
+                      <Truncate maxWidth="100%" title={trace.rootSpan.name}>
+                        <Text weight="heavy">{trace.rootSpan.name}</Text>
+                      </Truncate>
+                    </Flex>
+                  </Flex>
+                  <Text color="text-700" size="XS">
+                    {fullTimeFormatter(new Date(trace.rootSpan.startTime))}
+                  </Text>
+                </Flex>
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                  wrap
+                >
+                  <TokenCount size="S">
+                    {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
+                  </TokenCount>
+                  {trace.rootSpan.trace.costSummary?.total?.cost != null ? (
+                    <TokenCosts size="S">
+                      {trace.rootSpan.trace.costSummary.total.cost}
+                    </TokenCosts>
+                  ) : null}
+                  {trace.rootSpan.latencyMs != null ? (
+                    <LatencyText
+                      latencyMs={trace.rootSpan.latencyMs}
+                      size="S"
+                    />
+                  ) : null}
+                </Flex>
+              </Flex>
+            </button>
+            {isExpanded ? (
+              <div css={traceTreeContainerCSS}>
+                <Suspense fallback={<TraceTreeSkeleton />}>
+                  <LazyTraceTree
+                    traceId={trace.traceId}
+                    projectId={trace.rootSpan.project.id}
+                    selectedSpanNodeId={selectedSpanNodeId}
+                    onSpanClick={handleSpanClick}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+      {traces.length === 0 ? (
+        <Empty message="No traces in this session" />
+      ) : null}
+    </>
+  );
+
+  const traceRowsPanel = (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+      `}
+    >
+      {traceRowsContent}
+    </div>
+  );
+
   return (
     <Group
       orientation="horizontal"
@@ -191,81 +304,13 @@ export function SessionDetailsTracesView({
             overflow: hidden;
           `}
         >
-          <div css={sessionPanelHeaderCSS}>
-            <Heading level={3}>Traces</Heading>
-            <Counter variant="quiet">{data.numTraces ?? traces.length}</Counter>
-          </div>
-          <div
-            css={css`
-              flex: 1 1 auto;
-              min-height: 0;
-              overflow: auto;
-            `}
+          <SessionViewTabs
+            sessionView={sessionView}
+            onSessionViewChange={onSessionViewChange}
+            traceCount={traceCount}
           >
-            {traces.map((trace, index) => {
-              const isExpanded = expandedIds.has(trace.id);
-              const paddedIndex = String(index + 1).padStart(2, "0");
-              return (
-                <div key={trace.id} css={traceRowCSS}>
-                  <button
-                    type="button"
-                    css={traceRowHeaderCSS}
-                    aria-expanded={isExpanded}
-                    onClick={() => toggleExpanded(trace.id)}
-                  >
-                    <span css={chevronCSS} data-expanded={isExpanded}>
-                      <Icon svg={<Icons.ChevronRight />} />
-                    </span>
-                    <Text fontFamily="mono" color="text-500">
-                      {paddedIndex}
-                    </Text>
-                    <Flex flex={1} minWidth={0}>
-                      <Truncate maxWidth="100%" title={trace.rootSpan.name}>
-                        <Text weight="heavy">{trace.rootSpan.name}</Text>
-                      </Truncate>
-                    </Flex>
-                    <Flex
-                      direction="row"
-                      gap="size-100"
-                      alignItems="center"
-                      flex="none"
-                    >
-                      <TokenCount size="S">
-                        {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
-                      </TokenCount>
-                      {trace.rootSpan.latencyMs != null ? (
-                        <LatencyText
-                          latencyMs={trace.rootSpan.latencyMs}
-                          size="S"
-                        />
-                      ) : null}
-                      {trace.rootSpan.trace.costSummary?.total?.cost !=
-                      null ? (
-                        <TokenCosts size="S">
-                          {trace.rootSpan.trace.costSummary.total.cost}
-                        </TokenCosts>
-                      ) : null}
-                    </Flex>
-                  </button>
-                  {isExpanded ? (
-                    <div css={traceTreeContainerCSS}>
-                      <Suspense fallback={<TraceTreeSkeleton />}>
-                        <LazyTraceTree
-                          traceId={trace.traceId}
-                          projectId={trace.rootSpan.project.id}
-                          selectedSpanNodeId={selectedSpanNodeId}
-                          onSpanClick={handleSpanClick}
-                        />
-                      </Suspense>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-            {traces.length === 0 ? (
-              <Empty message="No traces in this session" />
-            ) : null}
-          </div>
+            {traceRowsPanel}
+          </SessionViewTabs>
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
