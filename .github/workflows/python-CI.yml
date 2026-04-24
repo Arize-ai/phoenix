@@ -516,7 +516,7 @@ jobs:
       fail-fast: false
       matrix:
         py: ["3.10"]
-        pkg: [openai, google_generativeai] # NOTE: bypass Anthropic check while types are changing
+        pkg: [openai, anthropic]
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
