@@ -197,12 +197,7 @@ export function SessionDetailsTracesView({
               <span css={chevronCSS} data-expanded={isExpanded}>
                 <Icon svg={<Icons.ChevronRight />} />
               </span>
-              <Flex
-                direction="column"
-                gap="size-100"
-                flex={1}
-                minWidth={0}
-              >
+              <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
                 <Flex
                   direction="row"
                   justifyContent="space-between"
@@ -229,12 +224,7 @@ export function SessionDetailsTracesView({
                     {fullTimeFormatter(new Date(trace.rootSpan.startTime))}
                   </Text>
                 </Flex>
-                <Flex
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
-                  wrap
-                >
+                <Flex direction="row" gap="size-100" alignItems="center" wrap>
                   <TokenCount size="S">
                     {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
                   </TokenCount>

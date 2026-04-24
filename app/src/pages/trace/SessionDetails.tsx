@@ -90,9 +90,7 @@ function SessionDetailsHeader({
                     </Flex>
                     <Flex justifyContent="space-between">
                       <Text>Total Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.total?.cost ?? 0)}
-                      </Text>
+                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
                     </Flex>
                   </Flex>
                 </View>

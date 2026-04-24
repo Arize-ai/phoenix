@@ -148,18 +148,14 @@ function SpanNodeRowSkeleton({
       {showMetricsInTraceTree ? (
         <div css={spanTimingCSS} className="span-tree-timing">
           <Skeleton width={36} height={10} borderRadius="S" animation="wave" />
-          <div
-            css={css`
-              flex: 1 1 auto;
-            `}
-          >
+          <Flex flex="1 1 auto">
             <Skeleton
               width="100%"
               height={6}
               borderRadius={3}
               animation="wave"
             />
-          </div>
+          </Flex>
         </div>
       ) : null}
       <div css={spanControlsCSS} className="span-controls">
