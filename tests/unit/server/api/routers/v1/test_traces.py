@@ -1,6 +1,7 @@
 from asyncio import sleep
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 import httpx
 import pytest
@@ -129,7 +130,9 @@ async def test_rest_trace_annotation_rejects_note_name(
 
     response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
     assert response.status_code == 400
-    assert "The name 'note' is reserved for trace and span notes" in response.text
+    assert (
+        "The name 'note' is reserved for trace and span notes. Use POST /v1/trace_notes instead."
+    ) in response.text
 
 
 async def test_rest_create_trace_note(
@@ -167,6 +170,7 @@ async def test_rest_create_trace_note(
     assert orm_annotation.explanation == note_text
     assert orm_annotation.source == "API"
     assert orm_annotation.identifier.startswith("px-trace-note:")
+    assert UUID(orm_annotation.identifier.removeprefix("px-trace-note:")).version == 7
     assert orm_annotation.label is None
     assert orm_annotation.score is None
     assert orm_annotation.metadata_ == dict()
@@ -218,6 +222,9 @@ async def test_rest_create_multiple_trace_notes(
 
     identifiers = [annotation.identifier for annotation in annotations]
     assert len(identifiers) == len(set(identifiers))
+    assert all(
+        UUID(identifier.removeprefix("px-trace-note:")).version == 7 for identifier in identifiers
+    )
 
 
 async def test_rest_create_trace_note_blank_text_rejected(

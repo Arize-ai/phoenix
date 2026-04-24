@@ -1,0 +1,13 @@
+---
+title: "04.24.2026 Trace Notes API"
+description: "Add trace notes through a dedicated REST endpoint and reserve the note annotation name for note-specific APIs."
+---
+
+## Trace Notes API
+
+Phoenix now supports creating trace notes through `POST /v1/trace_notes`, which powers the Phoenix CLI command for adding a note to a trace.
+
+To keep note behavior consistent across APIs, the reserved annotation name `note` is no longer accepted on the generic annotation endpoints. Use the dedicated note endpoints instead:
+
+- `POST /v1/trace_notes` for trace notes
+- `POST /v1/span_notes` for span notes

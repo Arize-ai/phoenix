@@ -180,7 +180,10 @@ async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
 ) -> None:
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
     assert response.status_code == 409
-    assert "The name 'note' is reserved" in response.text
+    assert (
+        "The name 'note' is reserved for trace and span notes and cannot be used "
+        "for annotation configs."
+    ) in response.text
 
 
 @pytest.mark.parametrize(
@@ -234,7 +237,10 @@ async def test_cannot_update_annotation_config_name_to_reserved_name_for_notes(
     update_config["name"] = "note"
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
     assert response.status_code == 409
-    assert "The name 'note' is reserved" in response.text
+    assert (
+        "The name 'note' is reserved for trace and span notes and cannot be used "
+        "for annotation configs."
+    ) in response.text
 
 
 @pytest.mark.parametrize(

@@ -393,7 +393,10 @@ def _reserve_note_annotation_name(data: AnnotationConfigData) -> str:
     if name == "note":
         raise HTTPException(
             status_code=409,
-            detail="The name 'note' is reserved for trace and span notes",
+            detail=(
+                "The name 'note' is reserved for trace and span notes and cannot be used "
+                "for annotation configs."
+            ),
         )
     return name
 

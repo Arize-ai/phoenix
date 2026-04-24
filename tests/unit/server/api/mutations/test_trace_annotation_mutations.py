@@ -252,4 +252,7 @@ class TestTraceAnnotationMutations:
 
         assert response.data is None
         assert response.errors
-        assert "The name 'note' is reserved for trace and span notes" in response.errors[0].message
+        assert (
+            "The name 'note' is reserved for trace and span notes. "
+            "Use POST /v1/trace_notes instead."
+        ) in response.errors[0].message

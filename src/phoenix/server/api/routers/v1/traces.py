@@ -22,6 +22,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -358,7 +359,10 @@ async def annotate_traces(
     if any(data.name == "note" for data in request_body.data):
         raise HTTPException(
             status_code=400,
-            detail="The name 'note' is reserved for trace and span notes",
+            detail=(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/trace_notes instead."
+            ),
         )
 
     user_id: Optional[int] = None
@@ -440,7 +444,7 @@ class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
     description=(
         "Add a note annotation to a trace. Notes are special annotations that allow "
         "multiple entries per trace (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique timestamp-based identifier."
+        "and identifier). Each note gets a unique UUIDv7 identifier."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
     response_description="Trace note created successfully",
@@ -467,8 +471,7 @@ async def create_trace_note(
                 detail=f"Trace with ID {note_data.trace_id} not found",
             )
 
-        timestamp = datetime.now(timezone.utc).isoformat()
-        note_identifier = f"px-trace-note:{timestamp}"
+        note_identifier = get_note_identifier("px-trace-note")
 
         result = await session.execute(
             insert(models.TraceAnnotation)

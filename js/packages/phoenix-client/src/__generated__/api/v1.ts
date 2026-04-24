@@ -469,7 +469,7 @@ export interface paths {
         put?: never;
         /**
          * Create a trace note
-         * @description Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.
+         * @description Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv7 identifier.
          */
         post: operations["createTraceNote"];
         delete?: never;
@@ -574,7 +574,7 @@ export interface paths {
         put?: never;
         /**
          * Create a span note
-         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.
+         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv7 identifier.
          */
         post: operations["createSpanNote"];
         delete?: never;
