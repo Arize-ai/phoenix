@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89c9739e796e912a4b5ad684ad0076cc>>
+ * @generated SignedSource<<3eff82e9705e8a348d8848b97e377d5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
+  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -257,6 +258,13 @@ return {
   "name": "SpansTable_spans",
   "selections": [
     (v1/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "spanAnnotationNames",
+      "storageKey": null
+    },
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -607,6 +615,6 @@ return {
 };
 })();
 
-(node as any).hash = "01c3943d46350c5362b1c7d07cfb63bc";
+(node as any).hash = "49cebbb5798626286b2b665aba075c58";
 
 export default node;
