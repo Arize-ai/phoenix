@@ -5,7 +5,12 @@ import {
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
 import {
   Group,
   Panel,
@@ -42,6 +47,8 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
+import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
@@ -53,6 +60,16 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
+
+export const sessionDetailsTraceListQuery = graphql`
+  query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
+    session: node(id: $id) {
+      ... on ProjectSession {
+        ...SessionDetailsTraceList_traces @arguments(first: $first)
+      }
+    }
+  }
+`;
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
@@ -341,19 +358,29 @@ const panelContentCSS = css`
 `;
 
 export function SessionDetailsTraceList({
-  tracesRef,
+  queryRef,
   sessionView,
   onSessionViewChange,
   showSessionViewTabs,
   traceCount,
 }: {
-  tracesRef: SessionDetailsTraceList_traces$key;
+  queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
   showSessionViewTabs: boolean;
   traceCount: number;
 }) {
-  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
+  const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
+    sessionDetailsTraceListQuery,
+    queryRef
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment<
+    SessionDetailsTraceListRefetchQuery,
+    SessionDetailsTraceList_traces$key
+  >(
     graphql`
       fragment SessionDetailsTraceList_traces on ProjectSession
       @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
@@ -402,7 +429,7 @@ export function SessionDetailsTraceList({
         }
       }
     `,
-    tracesRef
+    queryData.session
   );
 
   const sessionRootSpans = useMemo(() => {

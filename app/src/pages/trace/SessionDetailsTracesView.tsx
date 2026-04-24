@@ -1,6 +1,13 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import { throttle } from "lodash";
+import { Suspense, useCallback, useMemo, useState } from "react";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
 import {
   Group,
   Panel,
@@ -17,6 +24,7 @@ import {
   Loading,
   Text,
   Truncate,
+  View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -26,16 +34,29 @@ import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
+import type { SessionDetailsTracesViewQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesViewQuery.graphql";
+import type { SessionDetailsTracesViewRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesViewRefetchQuery.graphql";
 import type {
   SessionDetailsTracesView_traces$data,
   SessionDetailsTracesView_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesView_traces.graphql";
 import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTracesViewTreeQuery.graphql";
+import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
+
+export const sessionDetailsTracesViewQuery = graphql`
+  query SessionDetailsTracesViewQuery($id: ID!, $first: Int!) {
+    session: node(id: $id) {
+      ... on ProjectSession {
+        ...SessionDetailsTracesView_traces @arguments(first: $first)
+      }
+    }
+  }
+`;
 
 type SessionTraceRow = NonNullable<
   SessionDetailsTracesView_traces$data["traces"]["edges"][number]["trace"]
@@ -48,17 +69,27 @@ type SessionTraceRow = NonNullable<
 type SpanClickHandler = (span: { id: string }) => void;
 
 export function SessionDetailsTracesView({
-  tracesRef,
+  queryRef,
   sessionView,
   onSessionViewChange,
   traceCount,
 }: {
-  tracesRef: SessionDetailsTracesView_traces$key;
+  queryRef: PreloadedQuery<SessionDetailsTracesViewQuery>;
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
   traceCount: number;
 }) {
-  const { data } = usePaginationFragment(
+  const queryData = usePreloadedQuery<SessionDetailsTracesViewQuery>(
+    sessionDetailsTracesViewQuery,
+    queryRef
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment<
+    SessionDetailsTracesViewRefetchQuery,
+    SessionDetailsTracesView_traces$key
+  >(
     graphql`
       fragment SessionDetailsTracesView_traces on ProjectSession
       @refetchable(queryName: "SessionDetailsTracesViewRefetchQuery")
@@ -96,7 +127,7 @@ export function SessionDetailsTracesView({
         }
       }
     `,
-    tracesRef
+    queryData.session
   );
 
   const traces: SessionTraceRow[] = (data.traces?.edges ?? [])
@@ -137,6 +168,24 @@ export function SessionDetailsTracesView({
     storage: localStorage,
   });
 
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        const withinRange = scrollHeight - scrollTop - clientHeight < 1024;
+        if (withinRange && !isLoadingNext && hasNext) {
+          loadNext(SESSION_DETAILS_PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  const throttledFetchMoreOnBottomReached = useMemo(
+    () => throttle(fetchMoreOnBottomReached, 100),
+    [fetchMoreOnBottomReached]
+  );
+
   return (
     <Group
       orientation="horizontal"
@@ -158,6 +207,10 @@ export function SessionDetailsTracesView({
               selectedSpanNodeId={selectedSpanNodeId}
               onToggleExpanded={toggleExpanded}
               onSpanClick={handleSpanClick}
+              isLoadingNext={isLoadingNext}
+              onScroll={(e) =>
+                throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
+              }
             />
           </SessionViewTabs>
         </div>
@@ -176,29 +229,48 @@ function TraceRowList({
   selectedSpanNodeId,
   onToggleExpanded,
   onSpanClick,
+  isLoadingNext,
+  onScroll,
 }: {
   traces: SessionTraceRow[];
   expandedIds: Set<string>;
   selectedSpanNodeId: string | null;
   onToggleExpanded: (id: string) => void;
   onSpanClick: SpanClickHandler;
+  isLoadingNext: boolean;
+  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
 }) {
   return (
-    <div css={traceRowListCSS} data-testid="session-trace-row-list">
+    <div
+      css={traceRowListCSS}
+      data-testid="session-trace-row-list"
+      onScroll={onScroll}
+    >
       {traces.length === 0 ? (
         <Empty message="No traces in this session" />
       ) : (
-        traces.map((trace, index) => (
-          <TraceRow
-            key={trace.id}
-            trace={trace}
-            index={index}
-            isExpanded={expandedIds.has(trace.id)}
-            selectedSpanNodeId={selectedSpanNodeId}
-            onToggleExpanded={() => onToggleExpanded(trace.id)}
-            onSpanClick={onSpanClick}
-          />
-        ))
+        <>
+          {traces.map((trace, index) => (
+            <TraceRow
+              key={trace.id}
+              trace={trace}
+              index={index}
+              isExpanded={expandedIds.has(trace.id)}
+              selectedSpanNodeId={selectedSpanNodeId}
+              onToggleExpanded={() => onToggleExpanded(trace.id)}
+              onSpanClick={onSpanClick}
+            />
+          ))}
+          {isLoadingNext && (
+            <View
+              borderBottomColor="default"
+              borderBottomWidth={"thin"}
+              padding="size-200"
+            >
+              <Loading />
+            </View>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,9 +1,10 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { Suspense, useEffect, useState, useTransition } from "react";
+import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 
 import {
   Flex,
+  Loading,
   RichTooltip,
   Text,
   TooltipTrigger,
@@ -20,8 +21,16 @@ import type {
   SessionDetailsQuery,
   SessionDetailsQuery$data,
 } from "./__generated__/SessionDetailsQuery.graphql";
-import { SessionDetailsTraceList } from "./SessionDetailsTraceList";
-import { SessionDetailsTracesView } from "./SessionDetailsTracesView";
+import type { SessionDetailsTraceListQuery } from "./__generated__/SessionDetailsTraceListQuery.graphql";
+import type { SessionDetailsTracesViewQuery } from "./__generated__/SessionDetailsTracesViewQuery.graphql";
+import {
+  SessionDetailsTraceList,
+  sessionDetailsTraceListQuery,
+} from "./SessionDetailsTraceList";
+import {
+  SessionDetailsTracesView,
+  sessionDetailsTracesViewQuery,
+} from "./SessionDetailsTracesView";
 import type { SessionView } from "./SessionViewTabs";
 
 function SessionDetailsHeader({
@@ -124,7 +133,7 @@ export function SessionDetails(props: SessionDetailsProps) {
   const [sessionView, setSessionView] = useState<SessionView>("turns");
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
-      query SessionDetailsQuery($id: ID!, $first: Int!) {
+      query SessionDetailsQuery($id: ID!) {
         session: node(id: $id) {
           ... on ProjectSession {
             numTraces
@@ -147,15 +156,12 @@ export function SessionDetails(props: SessionDetailsProps) {
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
-            ...SessionDetailsTraceList_traces @arguments(first: $first)
-            ...SessionDetailsTracesView_traces @arguments(first: $first)
           }
         }
       }
     `,
     {
       id: sessionId,
-      first: SESSION_DETAILS_PAGE_SIZE,
     },
     {
       fetchPolicy: "store-and-network",
@@ -167,6 +173,48 @@ export function SessionDetails(props: SessionDetailsProps) {
   }
   const traceCount = data.session.numTraces ?? 0;
   const showTracesView = sessionsUXEnabled && sessionView === "traces";
+
+  const [traceListQueryRef, loadTraceListQuery] =
+    useQueryLoader<SessionDetailsTraceListQuery>(sessionDetailsTraceListQuery);
+  const [tracesViewQueryRef, loadTracesViewQuery] =
+    useQueryLoader<SessionDetailsTracesViewQuery>(sessionDetailsTracesViewQuery);
+  const [, startViewTransition] = useTransition();
+
+  // Load the initial view's query on mount. View switches load their query
+  // inside startTransition (see handleSessionViewChange) so the previous
+  // view stays mounted while the next one fetches, avoiding a fallback flash.
+  useEffect(() => {
+    if (showTracesView) {
+      loadTracesViewQuery({
+        id: sessionId,
+        first: SESSION_DETAILS_PAGE_SIZE,
+      });
+    } else {
+      loadTraceListQuery({
+        id: sessionId,
+        first: SESSION_DETAILS_PAGE_SIZE,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  const handleSessionViewChange = (view: SessionView) => {
+    startViewTransition(() => {
+      if (view === "traces") {
+        loadTracesViewQuery({
+          id: sessionId,
+          first: SESSION_DETAILS_PAGE_SIZE,
+        });
+      } else {
+        loadTraceListQuery({
+          id: sessionId,
+          first: SESSION_DETAILS_PAGE_SIZE,
+        });
+      }
+      setSessionView(view);
+    });
+  };
+
   return (
     <main
       css={css`
@@ -184,22 +232,26 @@ export function SessionDetails(props: SessionDetailsProps) {
         latencyP50={data.session.latencyP50}
         sessionId={sessionId}
       />
-      {showTracesView ? (
-        <SessionDetailsTracesView
-          tracesRef={data.session}
-          sessionView={sessionView}
-          onSessionViewChange={setSessionView}
-          traceCount={traceCount}
-        />
-      ) : (
-        <SessionDetailsTraceList
-          tracesRef={data.session}
-          sessionView={sessionView}
-          onSessionViewChange={setSessionView}
-          showSessionViewTabs={sessionsUXEnabled}
-          traceCount={traceCount}
-        />
-      )}
+      <Suspense fallback={<Loading />}>
+        {showTracesView
+          ? tracesViewQueryRef != null && (
+              <SessionDetailsTracesView
+                queryRef={tracesViewQueryRef}
+                sessionView={sessionView}
+                onSessionViewChange={handleSessionViewChange}
+                traceCount={traceCount}
+              />
+            )
+          : traceListQueryRef != null && (
+              <SessionDetailsTraceList
+                queryRef={traceListQueryRef}
+                sessionView={sessionView}
+                onSessionViewChange={handleSessionViewChange}
+                showSessionViewTabs={sessionsUXEnabled}
+                traceCount={traceCount}
+              />
+            )}
+      </Suspense>
     </main>
   );
 }
