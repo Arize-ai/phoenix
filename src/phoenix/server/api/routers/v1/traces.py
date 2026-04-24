@@ -29,7 +29,11 @@ from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
@@ -438,7 +442,11 @@ class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
 
 @router.post(
     "/trace_notes",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
     operation_id="createTraceNote",
     summary="Create a trace note",
     description=(

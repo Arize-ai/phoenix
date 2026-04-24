@@ -26,7 +26,11 @@ from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
@@ -1193,7 +1197,11 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
 
 @router.post(
     "/span_notes",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
     operation_id="createSpanNote",
     summary="Create a span note",
     description=(
