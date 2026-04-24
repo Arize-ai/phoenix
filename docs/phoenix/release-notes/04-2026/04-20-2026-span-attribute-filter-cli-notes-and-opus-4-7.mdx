@@ -8,7 +8,7 @@ April 20, 2026
 
 **Available in arize-phoenix 14.9.0+ (server), arize-phoenix-client 2.4.0+ (Python), @arizeai/phoenix-client 6.7.0+ (TypeScript)**
 
-Filter spans by stored attribute values when calling `GET /v1/spans`. Multiple `attribute=key:value` pairs are AND-ed together. The value's type determines how the stored attribute is matched — passing an integer matches a stored integer; passing a string matches a stored string — so `user.id: 12345` (int) and `user.id: "12345"` (string) are distinct filters.
+Filter spans by stored attribute values when calling `GET /v1/projects/{project_identifier}/spans`. Multiple `attribute=key:value` pairs are AND-ed together. The value's type determines how the stored attribute is matched — passing an integer matches a stored integer; passing a string matches a stored string — so `user.id: 12345` (int) and `user.id: "12345"` (string) are distinct filters.
 
 **Python**
 
