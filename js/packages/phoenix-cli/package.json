@@ -24,7 +24,6 @@
   },
   "files": [
     "build",
-    "schemas",
     "package.json"
   ],
   "type": "module",

@@ -55,24 +55,6 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
-## JSON Schema
-
-The phoenix-cli ships a JSON Schema describing the shape of the profiles config file (the structure any CLI profile entry must follow). Editors that honor the `$schema` key (VS Code, JetBrains, etc.) will surface autocomplete, inline docs, and validation when you wire it up.
-
-Add `$schema` at the top of your profiles JSON:
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/js/packages/phoenix-cli/schemas/profile.schema.json",
-  "version": 1,
-  "profiles": {}
-}
-```
-
-The URL above pins to `main` because this is the first release shipping the schema and no tag exists yet — update it to a released tag URL (for example, `https://raw.githubusercontent.com/Arize-ai/phoenix/<tag>/js/packages/phoenix-cli/schemas/profile.schema.json`) once phoenix-cli cuts its next release so your config doesn't drift with `main`.
-
-Auto-injection of `$schema` on profile write is a deliberate follow-up, not part of this release: it needs a URL-pinning strategy (which tag to reference, how to keep it fresh) before it can land. For now, add the `$schema` key by hand if you want editor support.
-
 ## Commands
 
 ### `px self update`

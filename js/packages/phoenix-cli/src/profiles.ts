@@ -2,27 +2,13 @@
  * Profile storage schema definitions for the Phoenix CLI.
  *
  * This module exports the Zod schemas and inferred TypeScript types that
- * describe the on-disk `profiles.json` format. Runtime I/O, parsing, and
+ * describe the on-disk `settings.json` format. Runtime I/O, parsing, and
  * profile resolution logic live alongside the CLI commands that consume
  * them; this file is the canonical source for
- * `schemas/profile.schema.json` (emitted by `scripts/build-schema.ts`).
+ * `schemas/phoenix-cli-1.json` (emitted by `scripts/build-schema.ts`).
  */
 
 import { z } from "zod";
-
-const PERMISSION_SCOPE_DESCRIPTION = `A permission scope string. Grammar:
-- Exact: "<resource>.<verb>" (e.g. "projects.delete")
-- Resource wildcard: "<resource>.*" (all verbs on a resource)
-- Verb wildcard: "*.<verb>" (a verb across all resources)
-- Universal: "*" (all operations)
-
-Canonical form is two segments separated by ".": <resource>.<verb>.
-
-v1 posture: only delete verbs are enforced today. Read and write operations are always allowed regardless of this list. See OPERATION_MAP in permissions.ts for the list of currently-enforced resource.verb pairs.
-
-Unknown scope strings are silently ignored at runtime rather than rejected, so forward-compatibility with future scopes does not require a schema version bump. Typos therefore do not surface as errors — double-check entries against the operation map.
-
-Enforcement spec: work item "cli-per-resource-permissions-wire-enforcement".`;
 
 export const ProfileEntrySchema = z.object({
   endpoint: z
@@ -49,12 +35,6 @@ export const ProfileEntrySchema = z.object({
     .describe(
       "Extra HTTP headers sent with every request from this profile. Useful for custom auth or routing. Values override defaults."
     ),
-  permissions: z
-    .array(z.string().describe(PERMISSION_SCOPE_DESCRIPTION))
-    .optional()
-    .describe(
-      "Permissions granted to this profile. When omitted, the file-level defaultPermissions apply. When present, this list fully replaces the default set for this profile."
-    ),
 });
 
 export const ProfilesFileSchema = z.object({
@@ -71,12 +51,6 @@ export const ProfilesFileSchema = z.object({
     .union([z.string(), z.null()])
     .describe(
       "Name of the profile to use when no --profile flag is passed. Must match a key in `profiles`."
-    ),
-  defaultPermissions: z
-    .array(z.string().describe(PERMISSION_SCOPE_DESCRIPTION))
-    .optional()
-    .describe(
-      "Fallback permission set applied to profiles that do not declare their own `permissions`. Profile-level permissions fully replace this list rather than extending it."
     ),
   profiles: z
     .record(z.string(), ProfileEntrySchema)
