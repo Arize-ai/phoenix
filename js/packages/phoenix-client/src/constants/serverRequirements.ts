@@ -57,9 +57,7 @@ export const ADD_TRACE_NOTE: RouteRequirement = {
   kind: "route",
   method: "POST",
   path: "/v1/trace_notes",
-  // This route is being introduced on the current development branch.
-  // Update this minimum version if the server release target changes before publish.
-  minServerVersion: [14, 12, 0],
+  minServerVersion: [14, 13, 0],
 };
 
 export const GET_SPANS_TRACE_IDS: ParameterRequirement = {

@@ -19,7 +19,7 @@ describe("addTraceNote", () => {
 
   function makeClient() {
     return {
-      getServerVersion: async () => [14, 12, 0] as [number, number, number],
+      getServerVersion: async () => [14, 13, 0] as [number, number, number],
       POST: mockPOST,
     };
   }
@@ -92,7 +92,7 @@ describe("addTraceNote", () => {
   it("fails fast on older Phoenix servers", async () => {
     const guardedPOST = vi.fn();
     const mockClient = {
-      getServerVersion: async () => [14, 11, 0] as [number, number, number],
+      getServerVersion: async () => [14, 12, 0] as [number, number, number],
       POST: guardedPOST,
     };
 
@@ -104,7 +104,7 @@ describe("addTraceNote", () => {
           note: "This is a trace note",
         },
       })
-    ).rejects.toThrow(/requires Phoenix server >= 14\.12\.0/);
+    ).rejects.toThrow(/requires Phoenix server >= 14\.13\.0/);
 
     expect(guardedPOST).not.toHaveBeenCalled();
   });
