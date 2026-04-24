@@ -1,6 +1,5 @@
 import { InvalidArgumentError } from "../exitCodes";
 import { trimToUndefined } from "../normalize";
-import type { AnnotatorKind } from "./annotationMutationUtils";
 
 export type NoteTargetType = "span" | "trace";
 export const NOTE_ANNOTATION_NAME = "note";
@@ -10,7 +9,6 @@ export interface NoteMutationResult {
   targetType: NoteTargetType;
   targetId: string;
   text: string;
-  annotatorKind: AnnotatorKind;
 }
 
 function getTargetIdPlaceholder({
@@ -58,19 +56,16 @@ export function buildNoteMutationResult({
   targetType,
   targetId,
   text,
-  annotatorKind,
 }: {
   id: string;
   targetType: NoteTargetType;
   targetId: string;
   text: string;
-  annotatorKind?: AnnotatorKind;
 }): NoteMutationResult {
   return {
     id,
     targetType,
     targetId,
     text,
-    annotatorKind: annotatorKind ?? "HUMAN",
   };
 }

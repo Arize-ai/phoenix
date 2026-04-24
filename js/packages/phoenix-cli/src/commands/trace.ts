@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -13,10 +14,14 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
+  buildSpanNote,
   buildTrace,
+  buildTraceNote,
   groupSpansByTrace,
+  type SpanNote,
   type SpanWithAnnotations,
   type Trace,
+  type TraceNote,
 } from "../trace";
 import {
   buildAnnotationMutationResult,
@@ -29,11 +34,19 @@ import {
   type OutputFormat as AnnotationMutationOutputFormat,
 } from "./formatAnnotationMutation";
 import {
+  formatNoteMutationOutput,
+  type OutputFormat as NoteMutationOutputFormat,
+} from "./formatNoteMutation";
+import {
   formatTraceOutput,
   formatTracesOutput,
   type OutputFormat as TraceOutputFormat,
 } from "./formatTraces";
-import { NOTE_ANNOTATION_NAME } from "./noteMutationUtils";
+import {
+  buildNoteMutationResult,
+  NOTE_ANNOTATION_NAME,
+  normalizeNoteText,
+} from "./noteMutationUtils";
 import { fetchSpanAnnotations, type SpanAnnotation } from "./spanAnnotations";
 import {
   fetchTraceAnnotations,
@@ -90,13 +103,13 @@ function attachSpanNotesToSpans(
   spans: SpanWithAnnotations[],
   notes: SpanAnnotation[]
 ): void {
-  const notesBySpanId = new Map<string, SpanAnnotation[]>();
+  const notesBySpanId = new Map<string, SpanNote[]>();
   for (const note of notes) {
     const spanId = note.span_id;
     if (!notesBySpanId.has(spanId)) {
       notesBySpanId.set(spanId, []);
     }
-    notesBySpanId.get(spanId)!.push(note);
+    notesBySpanId.get(spanId)!.push(buildSpanNote(note));
   }
 
   for (const span of spans) {
@@ -105,6 +118,27 @@ function attachSpanNotesToSpans(
     const spanNotes = notesBySpanId.get(spanId);
     if (spanNotes) {
       span.notes = spanNotes;
+    }
+  }
+}
+
+function attachTraceNotesToTraces(
+  traces: Trace[],
+  notes: TraceAnnotation[]
+): void {
+  const notesByTraceId = new Map<string, TraceNote[]>();
+  for (const note of notes) {
+    const traceId = note.trace_id;
+    if (!notesByTraceId.has(traceId)) {
+      notesByTraceId.set(traceId, []);
+    }
+    notesByTraceId.get(traceId)!.push(buildTraceNote(note));
+  }
+
+  for (const trace of traces) {
+    const traceNotes = notesByTraceId.get(trace.traceId);
+    if (traceNotes) {
+      trace.notes = traceNotes;
     }
   }
 }
@@ -148,6 +182,14 @@ interface TraceAnnotateOptions {
   score?: string;
   explanation?: string;
   annotatorKind?: string;
+}
+
+interface TraceAddNoteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: NoteMutationOutputFormat;
+  progress?: boolean;
+  text?: string;
 }
 
 /**
@@ -427,6 +469,7 @@ async function traceGetHandler(
     const traceSpans: SpanWithAnnotations[] = spans;
     const resolvedTraceId = getResolvedTraceId(spans);
     let traceAnnotations: TraceAnnotation[] | undefined;
+    let traceNotes: TraceAnnotation[] | undefined;
     if (options.includeAnnotations) {
       writeProgress({
         message: "Fetching trace and span annotations...",
@@ -453,8 +496,15 @@ async function traceGetHandler(
     }
     if (options.includeNotes) {
       writeProgress({
-        message: "Fetching span notes...",
+        message: "Fetching trace and span notes...",
         noProgress: !options.progress,
+      });
+
+      traceNotes = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: resolvedTraceId ? [resolvedTraceId] : [traceId],
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
       });
 
       const spanIds = traceSpans
@@ -473,6 +523,9 @@ async function traceGetHandler(
     const trace = buildTrace({ spans: traceSpans });
     if (traceAnnotations?.length) {
       trace.annotations = traceAnnotations;
+    }
+    if (traceNotes?.length) {
+      trace.notes = traceNotes.map(buildTraceNote);
     }
 
     // Output trace
@@ -609,9 +662,18 @@ async function traceListHandler(
     }
     if (options.includeNotes) {
       writeProgress({
-        message: "Fetching span notes...",
+        message: "Fetching trace and span notes...",
         noProgress: !options.progress,
       });
+
+      const traceNotes = await fetchTraceAnnotations({
+        client,
+        projectIdentifier: projectId,
+        traceIds: traces.map((trace) => trace.traceId),
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+        maxConcurrent: options.maxConcurrent,
+      });
+      attachTraceNotesToTraces(traces, traceNotes);
 
       const spanIds = traces
         .flatMap((trace) => trace.spans)
@@ -681,7 +743,10 @@ export function createTraceGetCommand(): Command {
       "--include-annotations",
       "Include trace and span annotations in the trace export"
     )
-    .option("--include-notes", "Include span notes in the trace export")
+    .option(
+      "--include-notes",
+      "Include trace and span notes in the trace export"
+    )
     .action(traceGetHandler);
 }
 
@@ -720,7 +785,10 @@ export function createTraceListCommand(): Command {
       "--include-annotations",
       "Include trace and span annotations in the trace export"
     )
-    .option("--include-notes", "Include span notes in the trace export")
+    .option(
+      "--include-notes",
+      "Include trace and span notes in the trace export"
+    )
     .action(traceListHandler);
 }
 
@@ -837,6 +905,82 @@ export function createTraceAnnotateCommand(): Command {
     .action(traceAnnotateHandler);
 }
 
+async function traceAddNoteHandler(
+  traceId: string,
+  options: TraceAddNoteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const noteText = normalizeNoteText({
+      targetType: "trace",
+      text: options.text,
+    });
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Adding note to trace ${traceId}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await addTraceNote({
+      client,
+      traceNote: {
+        traceId,
+        note: noteText,
+      },
+    });
+
+    const note = buildNoteMutationResult({
+      id: result.id,
+      targetType: "trace",
+      targetId: traceId,
+      text: noteText,
+    });
+
+    writeOutput({
+      message: formatNoteMutationOutput({
+        note,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error adding trace note: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceAddNoteCommand(): Command {
+  return new Command("add-note")
+    .description("Add a note to a trace by OpenTelemetry trace ID")
+    .argument("<trace-id>", "OpenTelemetry trace ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--text <text>", "Note text")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .action(traceAddNoteHandler);
+}
+
 interface TraceDeleteOptions {
   endpoint?: string;
   apiKey?: string;
@@ -928,6 +1072,7 @@ export function createTraceCommand(): Command {
   command.addCommand(createTraceListCommand());
   command.addCommand(createTraceGetCommand());
   command.addCommand(createTraceAnnotateCommand());
+  command.addCommand(createTraceAddNoteCommand());
   command.addCommand(createTraceDeleteCommand());
   return command;
 }

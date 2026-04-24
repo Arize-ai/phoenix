@@ -90,6 +90,7 @@ function formatTracePretty(trace: Trace): string {
   }
 
   renderTraceAnnotations(lines, trace);
+  renderTraceNotes(lines, trace);
   lines.push(`│  Spans:`);
 
   for (let i = 0; i < forest.length; i++) {
@@ -117,6 +118,24 @@ function renderTraceAnnotations(lines: string[], trace: Trace): void {
       ...formatAnnotationResultParts(annotation.result),
     ];
     lines.push(`│  - ${parts.join(" ")}`);
+  }
+  lines.push("│");
+}
+
+function renderTraceNotes(lines: string[], trace: Trace): void {
+  const notes = trace.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Notes:");
+  for (const note of notes) {
+    renderNoteLines({
+      lines,
+      text: note.result?.explanation,
+      firstLinePrefix: "│  - ",
+      continuationPrefix: "│    ",
+    });
   }
   lines.push("│");
 }
@@ -273,7 +292,12 @@ function renderSpanNotes(
 
   lines.push(`${detailPrefix}notes:`);
   for (const note of notes) {
-    lines.push(`${detailPrefix}- ${formatNoteText(note.result?.explanation)}`);
+    renderNoteLines({
+      lines,
+      text: note.result?.explanation,
+      firstLinePrefix: `${detailPrefix}- `,
+      continuationPrefix: `${detailPrefix}  `,
+    });
   }
 }
 
@@ -340,15 +364,37 @@ function truncateValue(value: string): string {
   return value.slice(0, VALUE_PREVIEW_MAX_CHARS) + "…";
 }
 
-function formatNoteText(text: string | null | undefined): string {
+function formatNoteTextLines({
+  text,
+}: {
+  text: string | null | undefined;
+}): string[] {
   if (!text) {
-    return "(empty)";
+    return ["(empty)"];
   }
 
-  const normalizedText = text.replace(/\s+/g, " ").trim();
-  if (!normalizedText) {
-    return "(empty)";
+  const normalizedText = text.replace(/\r\n?/g, "\n");
+  if (!normalizedText.trim()) {
+    return ["(empty)"];
   }
 
-  return truncateValue(normalizedText);
+  return truncateValue(normalizedText).split("\n");
+}
+
+function renderNoteLines({
+  lines,
+  text,
+  firstLinePrefix,
+  continuationPrefix,
+}: {
+  lines: string[];
+  text: string | null | undefined;
+  firstLinePrefix: string;
+  continuationPrefix: string;
+}): void {
+  const noteLines = formatNoteTextLines({ text });
+  for (const [index, noteLine] of noteLines.entries()) {
+    const prefix = index === 0 ? firstLinePrefix : continuationPrefix;
+    lines.push(`${prefix}${noteLine}`);
+  }
 }

@@ -90,8 +90,8 @@ px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 | `--since <timestamp>`       | Traces since ISO timestamp             | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
 | `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include span annotations               | —        |
-| `--include-notes`           | Include span notes                     | —        |
+| `--include-annotations`     | Include trace and span annotations     | —        |
+| `--include-notes`           | Include trace and span notes           | —        |
 
 ```bash
 # Find ERROR traces
@@ -115,7 +115,7 @@ Fetch a single trace by ID.
 px trace get abc123def456
 px trace get abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
 px trace get abc123def456 --file trace.json
-px trace get abc123def456 --include-notes --format raw | jq '.spans[].notes'
+px trace get abc123def456 --include-notes --format raw | jq '{traceNotes: .notes, spanNotes: [.spans[].notes]}'
 ```
 
 ---
@@ -129,6 +129,17 @@ px trace annotate abc123def456 --name reviewer --label pass
 px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
 px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
 px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px trace add-note <trace-id>`
+
+Add a note to a trace by OpenTelemetry trace ID.
+
+```bash
+px trace add-note abc123def456 --text "needs follow-up"
+px trace add-note abc123def456 --text "agent triage complete" --format raw --no-progress
 ```
 
 ---

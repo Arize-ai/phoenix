@@ -54,7 +54,7 @@ describe("Phoenix CLI", () => {
 
     expect(traceCommand).toBeDefined();
     expect(traceCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get", "annotate"])
+      expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
     expect(
       program.commands.find((command) => command.name() === "traces")

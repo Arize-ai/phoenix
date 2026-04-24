@@ -23,6 +23,7 @@ The CLI uses singular resource commands with subcommands like `list` and `get`:
 px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
+px trace add-note <trace-id>
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
@@ -64,12 +65,13 @@ px trace list --limit 20 --format raw --no-progress | jq .
 px trace list --last-n-minutes 60 --limit 20 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 px trace list --since 2025-01-15T00:00:00Z --limit 50 --format raw --no-progress | jq .
 px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
-px trace list --include-notes --format raw --no-progress | jq '.[].spans[].notes'
+px trace list --include-notes --format raw --no-progress | jq '.[].notes'
 px trace get <trace-id> --format raw | jq .
 px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
-px trace get <trace-id> --include-notes --format raw | jq '.spans[].notes'
+px trace get <trace-id> --include-notes --format raw | jq '.notes'
 px trace annotate <trace-id> --name reviewer --label pass
 px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
+px trace add-note <trace-id> --text "needs follow-up"
 ```
 
 ### Trace JSON shape
@@ -79,6 +81,8 @@ Trace
   traceId, status ("OK"|"ERROR"), duration (ms), startTime, endTime
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
+  notes[] (with --include-notes)
+    name="note", result { explanation }
   rootSpan  — top-level span (parent_id: null)
   spans[]
     name, span_kind ("LLM"|"CHAIN"|"TOOL"|"RETRIEVER"|"EMBEDDING"|"AGENT"|"RERANKER"|"GUARDRAIL"|"EVALUATOR"|"UNKNOWN")
