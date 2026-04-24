@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3eff82e9705e8a348d8848b97e377d5d>>
+ * @generated SignedSource<<fea82ee140a57ac031505912aa3c4108>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -76,6 +76,9 @@ export type SpansTable_spans$data = {
               readonly label: string;
             }>;
             readonly meanScore: number | null;
+            readonly name: string;
+          }>;
+          readonly traceAnnotations: ReadonlyArray<{
             readonly name: string;
           }>;
           readonly traceId: string;
@@ -415,6 +418,18 @@ return {
                       "storageKey": null
                     },
                     {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "TraceAnnotation",
+                      "kind": "LinkedField",
+                      "name": "traceAnnotations",
+                      "plural": true,
+                      "selections": [
+                        (v1/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
                       "condition": "rootSpansOnly",
                       "kind": "Condition",
                       "passingValue": true,
@@ -615,6 +630,6 @@ return {
 };
 })();
 
-(node as any).hash = "49cebbb5798626286b2b665aba075c58";
+(node as any).hash = "4ef20dab8dc5c9b40ee13bd1aad4fee3";
 
 export default node;

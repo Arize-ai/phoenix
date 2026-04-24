@@ -280,35 +280,31 @@ function TraceEvaluationColumnSelector({
   const setTraceAnnotationColumnVisibility = useTracingContext(
     (state) => state.setTraceAnnotationColumnVisibility
   );
+  const nonNoteAnnotationNames = getNonNoteAnnotationNames(
+    data.traceAnnotationsNames
+  );
   const allVisible = useMemo(() => {
-    return data.traceAnnotationsNames.every((name) => {
+    return nonNoteAnnotationNames.every((name) => {
       const stateValue = traceAnnotationColumnVisibility[name];
       return stateValue || false;
     });
-  }, [data.traceAnnotationsNames, traceAnnotationColumnVisibility]);
+  }, [nonNoteAnnotationNames, traceAnnotationColumnVisibility]);
 
   const someVisible = useMemo(() => {
-    return data.traceAnnotationsNames.some((name) => {
+    return nonNoteAnnotationNames.some((name) => {
       const stateValue = traceAnnotationColumnVisibility[name];
       return stateValue || false;
     });
-  }, [data.traceAnnotationsNames, traceAnnotationColumnVisibility]);
+  }, [nonNoteAnnotationNames, traceAnnotationColumnVisibility]);
 
   const onToggleTraceAnnotations = useCallback(() => {
-    const newVisibilityState = data.traceAnnotationsNames.reduce(
-      (acc, name) => {
-        return { ...acc, [name]: !allVisible };
-      },
-      {}
-    );
+    const newVisibilityState = nonNoteAnnotationNames.reduce((acc, name) => {
+      return { ...acc, [name]: !allVisible };
+    }, {});
     setTraceAnnotationColumnVisibility(newVisibilityState);
-  }, [
-    data.traceAnnotationsNames,
-    setTraceAnnotationColumnVisibility,
-    allVisible,
-  ]);
+  }, [nonNoteAnnotationNames, setTraceAnnotationColumnVisibility, allVisible]);
 
-  if (data.traceAnnotationsNames.length === 0) {
+  if (nonNoteAnnotationNames.length === 0) {
     return null;
   }
 
@@ -332,7 +328,7 @@ function TraceEvaluationColumnSelector({
         </div>
       </View>
       <ul>
-        {data.traceAnnotationsNames.map((name) => {
+        {nonNoteAnnotationNames.map((name) => {
           const isVisible = traceAnnotationColumnVisibility[name] ?? false;
           return (
             <li key={name} css={columCheckboxItemCSS}>

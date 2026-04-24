@@ -89,6 +89,7 @@ import {
   makeAnnotationColumnId,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
+import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -244,6 +245,9 @@ export function SpansTable(props: SpansTableProps) {
                 trace {
                   id
                   traceId
+                  traceAnnotations {
+                    name
+                  }
                   costSummary @include(if: $rootSpansOnly) {
                     total {
                       cost
@@ -627,6 +631,24 @@ export function SpansTable(props: SpansTableProps) {
         ).length;
         return (
           <SpanNotesTableCell noteCount={noteCount} spanId={row.original.id} />
+        );
+      },
+    },
+    {
+      header: "trace notes",
+      id: "traceNotes",
+      minSize: 50,
+      maxSize: 90,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const noteCount = row.original.trace.traceAnnotations.filter(
+          (annotation) => annotation.name === "note"
+        ).length;
+        return (
+          <TraceNotesTableCell
+            noteCount={noteCount}
+            traceId={row.original.trace.id}
+          />
         );
       },
     },
