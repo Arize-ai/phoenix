@@ -55,7 +55,12 @@ export function SessionViewTabs({
           </span>
         </Tab>
       </TabList>
-      <TabPanel id={sessionView}>{children}</TabPanel>
+      <TabPanel id="turns">
+        {sessionView === "turns" ? children : null}
+      </TabPanel>
+      <TabPanel id="traces">
+        {sessionView === "traces" ? children : null}
+      </TabPanel>
     </Tabs>
   );
 }

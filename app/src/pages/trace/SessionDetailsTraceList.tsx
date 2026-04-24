@@ -6,11 +6,7 @@ import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
-import {
-  graphql,
-  usePaginationFragment,
-  usePreloadedQuery,
-} from "react-relay";
+import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import {
   Group,
   Panel,
@@ -45,12 +41,12 @@ import {
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
-import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
+import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
+import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -483,24 +479,6 @@ export function SessionDetailsTraceList({
       lastScrolledTraceIdRef.current = selectedTraceId;
     }
   }, [selectedTraceId, sessionRootSpans]);
-
-  // Clear the selected trace id from the URL when leaving the session
-  // details view so it does not leak into other pages. `setSearchParams`
-  // from react-router is not referentially stable — stash the latest
-  // setter in a ref so this cleanup only runs on true unmount.
-  const setSearchParamsRef = useRef(setSearchParams);
-  setSearchParamsRef.current = setSearchParams;
-  useEffect(() => {
-    return () => {
-      setSearchParamsRef.current(
-        (params) => {
-          params.delete(SELECTED_TRACE_ID_PARAM);
-          return params;
-        },
-        { replace: true }
-      );
-    };
-  }, []);
 
   const turnListPanel = (
     <div

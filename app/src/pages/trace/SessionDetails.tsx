@@ -1,6 +1,13 @@
 import { css } from "@emotion/react";
-import { Suspense, useEffect, useState, useTransition } from "react";
+import {
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useTransition,
+} from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
+import { useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -13,6 +20,7 @@ import {
 } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
@@ -123,12 +131,29 @@ export type SessionDetailsProps = {
   sessionId: string;
 };
 
+const DEFAULT_SESSION_VIEW: SessionView = "turns";
+
+const setSessionViewSearchParam = ({
+  params,
+  view,
+}: {
+  params: URLSearchParams;
+  view: SessionView;
+}) => {
+  const nextParams = new URLSearchParams(params);
+  nextParams.set(SESSION_VIEW_PARAM, view);
+  return nextParams;
+};
+
 /**
  * A component that shows the details of a session
  */
 export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
-  const [sessionView, setSessionView] = useState<SessionView>("turns");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionViewParam = searchParams.get(SESSION_VIEW_PARAM);
+  const sessionView: SessionView =
+    sessionViewParam === "traces" ? "traces" : DEFAULT_SESSION_VIEW;
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
       query SessionDetailsQuery($id: ID!) {
@@ -175,42 +200,72 @@ export function SessionDetails(props: SessionDetailsProps) {
   const [traceListQueryRef, loadTraceListQuery] =
     useQueryLoader<SessionDetailsTraceListQuery>(sessionDetailsTraceListQuery);
   const [tracesViewQueryRef, loadTracesViewQuery] =
-    useQueryLoader<SessionDetailsTracesViewQuery>(sessionDetailsTracesViewQuery);
+    useQueryLoader<SessionDetailsTracesViewQuery>(
+      sessionDetailsTracesViewQuery
+    );
   const [, startViewTransition] = useTransition();
+  const loadedSessionIdsByViewRef = useRef<
+    Partial<Record<SessionView, string>>
+  >({});
 
-  // Load the initial view's query on mount. View switches load their query
-  // inside startTransition (see handleSessionViewChange) so the previous
-  // view stays mounted while the next one fetches, avoiding a fallback flash.
-  useEffect(() => {
-    if (showTracesView) {
+  const loadQueryForSessionView = useEffectEvent((view: SessionView) => {
+    if (loadedSessionIdsByViewRef.current[view] === sessionId) {
+      return;
+    }
+    loadedSessionIdsByViewRef.current[view] = sessionId;
+    if (view === "traces") {
       loadTracesViewQuery({
         id: sessionId,
         first: SESSION_DETAILS_PAGE_SIZE,
       });
-    } else {
-      loadTraceListQuery({
-        id: sessionId,
-        first: SESSION_DETAILS_PAGE_SIZE,
-      });
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+    loadTraceListQuery({
+      id: sessionId,
+      first: SESSION_DETAILS_PAGE_SIZE,
+    });
+  });
+
+  useEffect(() => {
+    if (
+      sessionViewParam === DEFAULT_SESSION_VIEW ||
+      sessionViewParam === "traces"
+    ) {
+      return;
+    }
+    setSearchParams(
+      (params) => {
+        return setSessionViewSearchParam({
+          params,
+          view: DEFAULT_SESSION_VIEW,
+        });
+      },
+      { replace: true }
+    );
+  }, [sessionViewParam, setSearchParams]);
+
+  // Keep the currently visible session view routable. We preload the target
+  // query before swapping tabs so the current view stays mounted while the
+  // next one fetches, avoiding a blank state during the transition.
+  useEffect(() => {
+    loadQueryForSessionView(sessionView);
+  }, [sessionId, sessionView]);
 
   const handleSessionViewChange = (view: SessionView) => {
+    if (view === sessionView) {
+      return;
+    }
     startViewTransition(() => {
-      if (view === "traces") {
-        loadTracesViewQuery({
-          id: sessionId,
-          first: SESSION_DETAILS_PAGE_SIZE,
-        });
-      } else {
-        loadTraceListQuery({
-          id: sessionId,
-          first: SESSION_DETAILS_PAGE_SIZE,
-        });
-      }
-      setSessionView(view);
+      loadQueryForSessionView(view);
     });
+    setSearchParams(
+      (params) =>
+        setSessionViewSearchParam({
+          params,
+          view,
+        }),
+      { replace: true }
+    );
   };
 
   return (
