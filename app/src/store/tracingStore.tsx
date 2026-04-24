@@ -77,6 +77,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     columnVisibility: {
       metadata: false,
       spanNotes: false,
+      traceNotes: false,
       spanId: false,
       traceId: false,
       [TRACE_ANNOTATIONS_COLUMN_ID]: false,

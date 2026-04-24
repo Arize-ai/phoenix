@@ -89,6 +89,7 @@ import {
   makeAnnotationColumnId,
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
+import { TraceNotesTableCell } from "./TraceNotesTableCell";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -254,6 +255,7 @@ export function SpansTable(props: SpansTableProps) {
                       fraction
                       label
                     }
+                    count
                     meanScore
                     name
                   }
@@ -627,6 +629,25 @@ export function SpansTable(props: SpansTableProps) {
         ).length;
         return (
           <SpanNotesTableCell noteCount={noteCount} spanId={row.original.id} />
+        );
+      },
+    },
+    {
+      header: "trace notes",
+      id: "traceNotes",
+      minSize: 50,
+      maxSize: 90,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const noteCount =
+          row.original.trace.traceAnnotationSummaries.find(
+            (annotation) => annotation.name === "note"
+          )?.count ?? 0;
+        return (
+          <TraceNotesTableCell
+            noteCount={noteCount}
+            traceId={row.original.trace.id}
+          />
         );
       },
     },

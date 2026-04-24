@@ -4,7 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Loading, Text } from "@phoenix/components";
 import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
-import type { SpanNotesTableCellQuery } from "./__generated__/SpanNotesTableCellQuery.graphql";
+import type { TraceNotesTableCellQuery } from "./__generated__/TraceNotesTableCellQuery.graphql";
 import {
   getNoteEntries,
   NoteTooltipContent,
@@ -12,14 +12,14 @@ import {
   NotesTableCell,
 } from "./NotesTableCell";
 
-function SpanNoteTooltipDetails({ spanId }: { spanId: string }) {
-  const data = useLazyLoadQuery<SpanNotesTableCellQuery>(
+function TraceNoteTooltipDetails({ traceId }: { traceId: string }) {
+  const data = useLazyLoadQuery<TraceNotesTableCellQuery>(
     graphql`
-      query SpanNotesTableCellQuery($spanId: ID!) {
-        span: node(id: $spanId) {
+      query TraceNotesTableCellQuery($traceId: ID!) {
+        trace: node(id: $traceId) {
           __typename
-          ... on Span {
-            spanNotes {
+          ... on Trace {
+            traceAnnotations(filter: { include: { names: ["note"] } }) {
               id
               explanation
               createdAt
@@ -31,10 +31,12 @@ function SpanNoteTooltipDetails({ spanId }: { spanId: string }) {
         }
       }
     `,
-    { spanId }
+    { traceId }
   );
   const noteEntries =
-    data.span?.__typename === "Span" ? getNoteEntries(data.span.spanNotes) : [];
+    data.trace?.__typename === "Trace"
+      ? getNoteEntries(data.trace.traceAnnotations)
+      : [];
 
   if (noteEntries.length === 0) {
     return <Text color="inherit">No notes</Text>;
@@ -43,17 +45,17 @@ function SpanNoteTooltipDetails({ spanId }: { spanId: string }) {
   return <NoteTooltipContent notes={noteEntries} />;
 }
 
-export function SpanNotesTableCell({
+export function TraceNotesTableCell({
   noteCount,
-  spanId,
+  traceId,
 }: {
   noteCount: number;
-  spanId: string;
+  traceId: string;
 }) {
   return (
     <NotesTableCell
       noteCount={noteCount}
-      noteLabel={`${formatNumber(noteCount)} span note${
+      noteLabel={`${formatNumber(noteCount)} trace note${
         noteCount === 1 ? "" : "s"
       }`}
       tooltipContent={
@@ -64,7 +66,7 @@ export function SpanNotesTableCell({
             </div>
           }
         >
-          <SpanNoteTooltipDetails spanId={spanId} />
+          <TraceNoteTooltipDetails traceId={traceId} />
         </Suspense>
       }
     />
