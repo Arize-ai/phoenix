@@ -147,7 +147,7 @@ px span list --span-kind LLM TOOL --status-code OK         # Combine filters
 px span list --name chat_completion --limit 10             # Filter by span name
 px span list --trace-id abc123 --format raw | jq           # All spans for a trace
 px span list --attribute llm.model_name:gpt-4              # Filter by attribute
-px span list --attribute llm.model_name:gpt-4 --attribute status:ok  # AND filters
+px span list --attribute llm.model_name:gpt-4 --attribute user.role:admin  # AND filters
 px span list --include-annotations --limit 10              # Include annotation scores
 px span list output.json --limit 100                       # Save to JSON file
 px span list --format raw --no-progress | jq               # Pipe to jq
@@ -174,7 +174,7 @@ px span list --format raw --no-progress | jq               # Pipe to jq
 
 ### `px span add-note <span-id>`
 
-Unlike annotations, notes are open-ended and multiple notes can be attached to the same span.
+Notes are a reserved annotation type. Unlike other annotations, notes are open-ended and multiple notes can be attached to the same span.
 
 ```bash
 px span add-note abc123def456 --text "Escalated: retrieval returned empty results"
