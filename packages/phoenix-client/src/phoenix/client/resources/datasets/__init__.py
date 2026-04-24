@@ -1157,6 +1157,7 @@ class Datasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        # Retry as "create" for older Phoenix servers that don't support action="update".
         if action == "update" and _is_unsupported_update_action_response(response):
             _warn_update_fallback()
             data_dict["action"] = "create"
@@ -1251,6 +1252,7 @@ class Datasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        # Retry as "create" for older Phoenix servers that don't support action="update".
         if action == "update" and _is_unsupported_update_action_response(response):
             _warn_update_fallback()
             payload["action"] = "create"
@@ -1980,6 +1982,7 @@ class AsyncDatasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        # Retry as "create" for older Phoenix servers that don't support action="update".
         if action == "update" and _is_unsupported_update_action_response(response):
             _warn_update_fallback()
             data_dict["action"] = "create"
@@ -2072,6 +2075,7 @@ class AsyncDatasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
+        # Retry as "create" for older Phoenix servers that don't support action="update".
         if action == "update" and _is_unsupported_update_action_response(response):
             _warn_update_fallback()
             payload["action"] = "create"
