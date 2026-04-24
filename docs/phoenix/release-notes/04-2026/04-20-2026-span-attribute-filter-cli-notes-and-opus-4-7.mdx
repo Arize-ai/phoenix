@@ -57,7 +57,7 @@ px span list --project my-project \
   --attribute "metadata.tier:premium"
 ```
 
-- **Type-aware matching** — `str`, `int`, `float`, and `bool` values each select a distinct storage type; a whole-number float (`1.0`) also matches the integer `1`
+- **Type-aware matching** — `str`, `int`, `float`, and `bool` values each select a distinct storage type; an integer query (`1`) also matches whole-number floats in storage (`1.0`)
 - **Forced-string matching** — wrap a numeric-looking string in quotes: `user.id:"12345"` (URL-encoded `%2212345%22`); the Python and TypeScript clients handle this automatically
 - **Colon-in-value** is supported — split is on the first `:` only, so `session.id:sess:abc:123` works without escaping
 - **AND semantics** — repeat the parameter or add multiple entries to the map to require all conditions
