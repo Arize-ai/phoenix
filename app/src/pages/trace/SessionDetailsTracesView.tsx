@@ -45,49 +45,7 @@ type SessionTraceRow = NonNullable<
   >;
 };
 
-const traceRowCSS = css`
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid var(--global-border-color-default);
-`;
-
-const traceRowHeaderCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-static-size-200);
-  background: transparent;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-
-  &:hover {
-    background: var(--global-list-item-hover-background-color);
-  }
-`;
-
-const chevronCSS = css`
-  flex: none;
-  transition: transform 120ms ease;
-  display: inline-flex;
-
-  &[data-expanded="true"] {
-    transform: rotate(90deg);
-  }
-`;
-
-const traceTreeContainerCSS = css`
-  /* Let the tree size to its content but cap overflow so large traces
-     scroll within the row rather than pushing the list offscreen. */
-  max-height: 500px;
-  overflow: auto;
-  border-top: 1px solid var(--global-border-color-default);
-  background: var(--ac-global-color-grey-75);
-`;
+type SpanClickHandler = (span: { id: string }) => void;
 
 export function SessionDetailsTracesView({
   tracesRef,
@@ -164,7 +122,7 @@ export function SessionDetailsTracesView({
     });
   };
 
-  const handleSpanClick = (span: { id: string }) => {
+  const handleSpanClick: SpanClickHandler = (span) => {
     setSearchParams(
       (params) => {
         params.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
@@ -179,160 +137,268 @@ export function SessionDetailsTracesView({
     storage: localStorage,
   });
 
-  const { fullTimeFormatter } = useTimeFormatters();
-
-  const traceRowsContent = (
-    <>
-      {traces.map((trace, index) => {
-        const isExpanded = expandedIds.has(trace.id);
-        const paddedIndex = String(index + 1).padStart(2, "0");
-        return (
-          <div key={trace.id} css={traceRowCSS}>
-            <button
-              type="button"
-              css={traceRowHeaderCSS}
-              aria-expanded={isExpanded}
-              onClick={() => toggleExpanded(trace.id)}
-            >
-              <span css={chevronCSS} data-expanded={isExpanded}>
-                <Icon svg={<Icons.ChevronRight />} />
-              </span>
-              <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
-                <Flex
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  gap="size-100"
-                >
-                  <Flex
-                    direction="row"
-                    gap="size-100"
-                    alignItems="center"
-                    flex={1}
-                    minWidth={0}
-                  >
-                    <Text fontFamily="mono" color="text-500">
-                      {paddedIndex}
-                    </Text>
-                    <Flex flex={1} minWidth={0}>
-                      <Truncate maxWidth="100%" title={trace.rootSpan.name}>
-                        <Text weight="heavy">{trace.rootSpan.name}</Text>
-                      </Truncate>
-                    </Flex>
-                  </Flex>
-                  <Text color="text-700" size="XS">
-                    {fullTimeFormatter(new Date(trace.rootSpan.startTime))}
-                  </Text>
-                </Flex>
-                <Flex direction="row" gap="size-100" alignItems="center" wrap>
-                  <TokenCount size="S">
-                    {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
-                  </TokenCount>
-                  {trace.rootSpan.trace.costSummary?.total?.cost != null ? (
-                    <TokenCosts size="S">
-                      {trace.rootSpan.trace.costSummary.total.cost}
-                    </TokenCosts>
-                  ) : null}
-                  {trace.rootSpan.latencyMs != null ? (
-                    <LatencyText
-                      latencyMs={trace.rootSpan.latencyMs}
-                      size="S"
-                    />
-                  ) : null}
-                </Flex>
-              </Flex>
-            </button>
-            {isExpanded ? (
-              <div css={traceTreeContainerCSS}>
-                <Suspense fallback={<TraceTreeSkeleton />}>
-                  <LazyTraceTree
-                    traceId={trace.traceId}
-                    projectId={trace.rootSpan.project.id}
-                    selectedSpanNodeId={selectedSpanNodeId}
-                    onSpanClick={handleSpanClick}
-                  />
-                </Suspense>
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-      {traces.length === 0 ? (
-        <Empty message="No traces in this session" />
-      ) : null}
-    </>
-  );
-
-  const traceRowsPanel = (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: auto;
-      `}
-    >
-      {traceRowsContent}
-    </div>
-  );
-
   return (
     <Group
       orientation="horizontal"
       defaultLayout={defaultLayout}
       onLayoutChanged={onLayoutChanged}
-      css={css`
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
+      css={viewGroupCSS}
+      data-testid="session-traces-view"
     >
       <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
-        <div
-          css={css`
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            overflow: hidden;
-          `}
-        >
+        <div css={tracesListPanelCSS}>
           <SessionViewTabs
             sessionView={sessionView}
             onSessionViewChange={onSessionViewChange}
             traceCount={traceCount}
           >
-            {traceRowsPanel}
+            <TraceRowList
+              traces={traces}
+              expandedIds={expandedIds}
+              selectedSpanNodeId={selectedSpanNodeId}
+              onToggleExpanded={toggleExpanded}
+              onSpanClick={handleSpanClick}
+            />
           </SessionViewTabs>
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-traces-span-details">
-        {selectedSpanNodeId ? (
-          <div
-            css={css`
-              height: 100%;
-              overflow: auto;
-            `}
-          >
-            <Suspense fallback={<Loading />}>
-              <SpanDetails
-                key={selectedSpanNodeId}
-                spanNodeId={selectedSpanNodeId}
-              />
-            </Suspense>
-          </div>
-        ) : (
-          <div
-            css={css`
-              height: 100%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            `}
-          >
-            <Empty message="Expand a trace and select a span to view its details" />
-          </div>
-        )}
+        <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
       </Panel>
     </Group>
+  );
+}
+
+function TraceRowList({
+  traces,
+  expandedIds,
+  selectedSpanNodeId,
+  onToggleExpanded,
+  onSpanClick,
+}: {
+  traces: SessionTraceRow[];
+  expandedIds: Set<string>;
+  selectedSpanNodeId: string | null;
+  onToggleExpanded: (id: string) => void;
+  onSpanClick: SpanClickHandler;
+}) {
+  return (
+    <div css={traceRowListCSS} data-testid="session-trace-row-list">
+      {traces.length === 0 ? (
+        <Empty message="No traces in this session" />
+      ) : (
+        traces.map((trace, index) => (
+          <TraceRow
+            key={trace.id}
+            trace={trace}
+            index={index}
+            isExpanded={expandedIds.has(trace.id)}
+            selectedSpanNodeId={selectedSpanNodeId}
+            onToggleExpanded={() => onToggleExpanded(trace.id)}
+            onSpanClick={onSpanClick}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function TraceRow({
+  trace,
+  index,
+  isExpanded,
+  selectedSpanNodeId,
+  onToggleExpanded,
+  onSpanClick,
+}: {
+  trace: SessionTraceRow;
+  index: number;
+  isExpanded: boolean;
+  selectedSpanNodeId: string | null;
+  onToggleExpanded: () => void;
+  onSpanClick: SpanClickHandler;
+}) {
+  return (
+    <div css={traceRowCSS} data-testid="session-trace-row">
+      <TraceRowHeader
+        trace={trace}
+        index={index}
+        isExpanded={isExpanded}
+        onToggleExpanded={onToggleExpanded}
+      />
+      {isExpanded ? (
+        <TraceTreeContainer
+          traceId={trace.traceId}
+          projectId={trace.rootSpan.project.id}
+          selectedSpanNodeId={selectedSpanNodeId}
+          onSpanClick={onSpanClick}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function TraceRowHeader({
+  trace,
+  index,
+  isExpanded,
+  onToggleExpanded,
+}: {
+  trace: SessionTraceRow;
+  index: number;
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      css={traceRowHeaderCSS}
+      aria-expanded={isExpanded}
+      onClick={onToggleExpanded}
+      data-testid="session-trace-row-header"
+    >
+      <TraceRowChevron isExpanded={isExpanded} />
+      <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
+        <TraceRowTitleLine trace={trace} index={index} />
+        <TraceRowMetricsLine trace={trace} />
+      </Flex>
+    </button>
+  );
+}
+
+function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
+  return (
+    <span
+      css={chevronCSS}
+      data-expanded={isExpanded}
+      data-testid="session-trace-row-chevron"
+    >
+      <Icon svg={<Icons.ChevronRight />} />
+    </span>
+  );
+}
+
+function TraceRowTitleLine({
+  trace,
+  index,
+}: {
+  trace: SessionTraceRow;
+  index: number;
+}) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  const paddedIndex = String(index + 1).padStart(2, "0");
+  return (
+    <Flex
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      gap="size-100"
+    >
+      <Flex
+        direction="row"
+        gap="size-100"
+        alignItems="center"
+        flex={1}
+        minWidth={0}
+      >
+        <Text
+          fontFamily="mono"
+          color="text-500"
+          data-testid="session-trace-row-index"
+        >
+          {paddedIndex}
+        </Text>
+        <Flex flex={1} minWidth={0}>
+          <Truncate maxWidth="100%" title={trace.rootSpan.name}>
+            <Text weight="heavy" data-testid="session-trace-row-name">
+              {trace.rootSpan.name}
+            </Text>
+          </Truncate>
+        </Flex>
+      </Flex>
+      <Text
+        color="text-700"
+        size="XS"
+        data-testid="session-trace-row-timestamp"
+      >
+        {fullTimeFormatter(new Date(trace.rootSpan.startTime))}
+      </Text>
+    </Flex>
+  );
+}
+
+function TraceRowMetricsLine({ trace }: { trace: SessionTraceRow }) {
+  const cost = trace.rootSpan.trace.costSummary?.total?.cost;
+  const latencyMs = trace.rootSpan.latencyMs;
+  return (
+    <Flex
+      direction="row"
+      gap="size-100"
+      alignItems="center"
+      wrap
+      data-testid="session-trace-row-metrics"
+    >
+      <TokenCount size="S">
+        {trace.rootSpan.cumulativeTokenCountTotal ?? 0}
+      </TokenCount>
+      {cost != null ? <TokenCosts size="S">{cost}</TokenCosts> : null}
+      {latencyMs != null ? (
+        <LatencyText latencyMs={latencyMs} size="S" />
+      ) : null}
+    </Flex>
+  );
+}
+
+function TraceTreeContainer({
+  traceId,
+  projectId,
+  selectedSpanNodeId,
+  onSpanClick,
+}: {
+  traceId: string;
+  projectId: string;
+  selectedSpanNodeId: string | null;
+  onSpanClick: SpanClickHandler;
+}) {
+  return (
+    <div css={traceTreeContainerCSS} data-testid="session-trace-tree">
+      <Suspense fallback={<TraceTreeSkeleton />}>
+        <LazyTraceTree
+          traceId={traceId}
+          projectId={projectId}
+          selectedSpanNodeId={selectedSpanNodeId}
+          onSpanClick={onSpanClick}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+function SpanDetailsPanel({
+  selectedSpanNodeId,
+}: {
+  selectedSpanNodeId: string | null;
+}) {
+  if (!selectedSpanNodeId) {
+    return (
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="center"
+        height="100%"
+        data-testid="session-span-details-empty"
+      >
+        <Empty message="Expand a trace and select a span to view its details" />
+      </Flex>
+    );
+  }
+  return (
+    <div css={spanDetailsContainerCSS} data-testid="session-span-details">
+      <Suspense fallback={<Loading />}>
+        <SpanDetails key={selectedSpanNodeId} spanNodeId={selectedSpanNodeId} />
+      </Suspense>
+    </div>
   );
 }
 
@@ -345,7 +411,7 @@ function LazyTraceTree({
   traceId: string;
   projectId: string;
   selectedSpanNodeId: string | null;
-  onSpanClick: (span: { id: string }) => void;
+  onSpanClick: SpanClickHandler;
 }) {
   const data = useLazyLoadQuery<SessionDetailsTracesViewTreeQuery>(
     graphql`
@@ -373,3 +439,68 @@ function LazyTraceTree({
     </TraceTreeProvider>
   );
 }
+
+const viewGroupCSS = css`
+  flex: 1 1 auto;
+  overflow: hidden;
+`;
+
+const tracesListPanelCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
+const traceRowListCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+`;
+
+const traceRowCSS = css`
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--global-border-color-default);
+`;
+
+const traceRowHeaderCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-static-size-200);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+
+  &:hover {
+    background: var(--global-list-item-hover-background-color);
+  }
+`;
+
+const chevronCSS = css`
+  flex: none;
+  transition: transform 120ms ease;
+  display: inline-flex;
+
+  &[data-expanded="true"] {
+    transform: rotate(90deg);
+  }
+`;
+
+const traceTreeContainerCSS = css`
+  max-height: 500px;
+  overflow: auto;
+  border-top: 1px solid var(--global-border-color-default);
+  background: var(--ac-global-color-grey-75);
+`;
+
+const spanDetailsContainerCSS = css`
+  height: 100%;
+  overflow: auto;
+`;
