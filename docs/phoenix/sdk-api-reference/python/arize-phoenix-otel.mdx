@@ -14,7 +14,7 @@ pip install "arize-phoenix-otel>=0.16.0"
 ```
 
 <Note>
-Starting in **0.16.0**, `phoenix.otel` re-exports the OpenInference context managers and semantic conventions, so manual instrumentation no longer requires separately installing `openinference-instrumentation` or `openinference-semantic-conventions`.
+Starting in **0.16.0**, `phoenix.otel` re-exports the OpenInference context managers and semantic conventions, so manual instrumentation no longer requires separately installing `openinference-instrumentation` or `openinference-semantic-conventions`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace` instead.
 </Note>
 
 ## Quick Start

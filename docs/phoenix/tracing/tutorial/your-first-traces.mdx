@@ -61,7 +61,7 @@ First, install the dependencies and configure OpenTelemetry to send traces to Ph
     ```
 
     <Note>
-    `arize-phoenix-otel` **0.16.0+** is required to import `SpanAttributes` and the OpenInference context managers directly from `phoenix.otel`.
+    `arize-phoenix-otel` **0.16.0+** is required to import `SpanAttributes` and the OpenInference context managers directly from `phoenix.otel`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace` instead.
     </Note>
   </Tab>
 </Tabs>
