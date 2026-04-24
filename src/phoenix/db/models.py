@@ -2758,7 +2758,7 @@ class SandboxConfig(HasId):
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
-    timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("30"))
+    timeout: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("300"))
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

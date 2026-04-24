@@ -192,7 +192,9 @@ class SandboxConfig(Node):
         record = await self._get_record(info)
         return cast(JSON, record.config)
 
-    @strawberry.field
+    @strawberry.field(  # type: ignore
+        description="Execution timeout in seconds (includes package install on ephemeral calls)."
+    )
     async def timeout(self, info: Info[Context, None]) -> int:
         record = await self._get_record(info)
         return record.timeout

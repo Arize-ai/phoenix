@@ -124,7 +124,7 @@ class E2BConfig(BaseModel):
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -149,7 +149,7 @@ class DaytonaPythonConfig(BaseModel):
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -169,7 +169,7 @@ class DenoConfig(BaseModel):
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -184,7 +184,7 @@ class _VercelConfigBase(BaseModel):
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -234,7 +234,7 @@ class ModalConfig(BaseModel):
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,

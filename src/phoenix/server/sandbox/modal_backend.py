@@ -122,10 +122,6 @@ class ModalSandboxBackend(SandboxBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        if timeout is not None:
-            logger.warning(
-                "ModalSandboxBackend: per-call timeout not supported; using sandbox-level timeout"
-            )
         try:
             sandbox = self._sessions.get(session_key)
             if sandbox is not None:

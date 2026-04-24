@@ -41,11 +41,33 @@ mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
 }
 """
 
+_CREATE_WITH_TIMEOUT = """
+mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+    createSandboxConfig(input: $input) {
+        sandboxConfig {
+            id
+            timeout
+        }
+    }
+}
+"""
+
 _UPDATE = """
 mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
     updateSandboxConfig(input: $input) {
         sandboxConfig {
             id
+        }
+    }
+}
+"""
+
+_UPDATE_WITH_TIMEOUT = """
+mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
+    updateSandboxConfig(input: $input) {
+        sandboxConfig {
+            id
+            timeout
         }
     }
 }
@@ -477,3 +499,115 @@ class TestReservedSecretKeyRejected:
                 },
             )
         assert result.data and not result.errors
+
+
+class TestSandboxConfigTimeoutDefault:
+    """The default timeout is 300s at both the DB and application layers."""
+
+    async def test_create_without_timeout_persists_300(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Creating a config without an explicit timeout must default to 300."""
+        provider = await _get_provider(db, "E2B")
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-default-timeout",
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["createSandboxConfig"]["sandboxConfig"]["timeout"] == 300
+
+    async def test_create_with_explicit_timeout_persists_given_value(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Creating a config with an explicit timeout must persist that value."""
+        provider = await _get_provider(db, "E2B")
+
+        for timeout_value in (30, 60, 120):
+            with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+                result = await gql_client.execute(
+                    _CREATE_WITH_TIMEOUT,
+                    variables={
+                        "input": {
+                            "sandboxProviderId": _provider_global_id(provider.id),
+                            "name": f"e2b-explicit-timeout-{timeout_value}",
+                            "timeout": timeout_value,
+                        }
+                    },
+                )
+            assert result.data and not result.errors
+            assert result.data["createSandboxConfig"]["sandboxConfig"]["timeout"] == timeout_value
+
+    async def test_update_timeout_to_null_resets_to_300(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Setting timeout=null via update resets to the default of 300."""
+        provider = await _get_provider(db, "E2B")
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-reset-timeout",
+                config={},
+                timeout=60,
+            )
+            session.add(config)
+            await session.flush()
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config.id),
+                        "timeout": None,
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["updateSandboxConfig"]["sandboxConfig"]["timeout"] == 300
+
+    async def test_existing_explicit_timeout_preserved_when_not_updated(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Updating an unrelated field leaves an explicitly-stored timeout untouched."""
+        provider = await _get_provider(db, "E2B")
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-preserve-timeout",
+                config={},
+                timeout=30,
+            )
+            session.add(config)
+            await session.flush()
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config.id),
+                        "description": "updated description only",
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["updateSandboxConfig"]["sandboxConfig"]["timeout"] == 30

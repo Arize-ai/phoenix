@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import json
 import logging
 import re
@@ -57,7 +58,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.sandbox import MissingSecretError  # noqa: E402
-from phoenix.server.sandbox.types import SandboxBackend, UnsupportedOperation
+from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
@@ -2494,6 +2495,15 @@ def _infer_typescript_evaluate_input_schema(
     return (_make_object_input_schema(parameter_names, required_names), None)
 
 
+async def _stop_session_quietly(
+    backend: SandboxBackend, session_key: str, log: logging.Logger
+) -> None:
+    try:
+        await backend.stop_session(session_key)
+    except Exception as exc:
+        log.warning("stop_session failed during timeout teardown: %s", exc)
+
+
 class CodeEvaluatorRunner(BaseEvaluator):
     """
     Evaluator that executes user-provided source code in a sandbox.
@@ -2629,11 +2639,21 @@ class CodeEvaluatorRunner(BaseEvaluator):
             code = self._build_typescript_harness(mapped_inputs)
 
         try:
-            execution = await self._sandbox_backend.execute(
-                code,
-                session_key=session_key or self._name,
+            execution = await asyncio.wait_for(
+                self._sandbox_backend.execute(
+                    code,
+                    session_key=session_key or self._name,
+                    timeout=self._timeout,
+                ),
                 timeout=self._timeout,
             )
+        except asyncio.TimeoutError:
+            asyncio.create_task(
+                _stop_session_quietly(
+                    self._sandbox_backend, session_key or self._name, logger
+                )
+            )
+            execution = ExecutionResult(stdout="", stderr="", error="timeout")
         except UnsupportedOperation as exc:
             err = f"Sandbox backend does not support this operation: {exc}"
             return [

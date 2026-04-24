@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,7 +31,9 @@ def _make_daytona_mocks() -> tuple[MagicMock, MagicMock]:
     workspace.process.code_run = AsyncMock(
         return_value=MagicMock(stdout="ok", stderr="", exit_code=0)
     )
-    daytona_mod.Daytona.return_value.create = AsyncMock(return_value=workspace)
+    client = daytona_mod.Daytona.return_value
+    client.create = AsyncMock(return_value=workspace)
+    client.remove = AsyncMock()
 
     return daytona_mod, process_mod
 
@@ -158,3 +161,60 @@ class TestNetworkBlockAll:
         assert create_call.kwargs.get("network_block_all") is True, (
             f"Expected network_block_all=True in start_session path; got {create_call.kwargs}"
         )
+
+
+class TestEphemeralTeardown:
+    """Verify that ephemeral execute() always removes the workspace, even on failure or cancel."""
+
+    @pytest.mark.asyncio
+    async def test_remove_called_when_code_run_raises(self) -> None:
+        """client.remove() is called exactly once when code_run raises."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+        client = daytona_mod.Daytona.return_value
+        client.create.return_value.process.code_run = AsyncMock(
+            side_effect=RuntimeError("code_run failed")
+        )
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key="test-key")
+            result = await backend.execute("raise RuntimeError()", session_key="ephemeral")
+
+        assert result.error is not None
+        assert client.create.call_count == 1
+        assert client.remove.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_remove_called_on_cancellation(self) -> None:
+        """client.remove() is called when the coroutine is cancelled via asyncio.wait_for."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+        client = daytona_mod.Daytona.return_value
+
+        async def _slow_code_run(*args: object, **kwargs: object) -> None:
+            await asyncio.sleep(10)
+
+        client.create.return_value.process.code_run = AsyncMock(side_effect=_slow_code_run)
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key="test-key")
+            with pytest.raises((asyncio.TimeoutError, TimeoutError)):
+                await asyncio.wait_for(
+                    backend.execute("sleep(10)", session_key="ephemeral"),
+                    timeout=0.05,
+                )
+
+        assert client.create.call_count == 1
+        assert client.remove.call_count == 1
