@@ -970,7 +970,7 @@ class EvalWorkItem(WorkItem):
             error_result = next((r for r in eval_results if r.get("error") is not None), None)
             if error_result is not None:
                 error_exc = error_result.get("error_exc") or Exception(error_result["error"])
-                logger.warning(f"EvalWorkItem {self.debug_identifier} returned error: {error_exc}")
+                logger.debug(f"EvalWorkItem {self.debug_identifier} returned error: {error_exc}")
                 await self._running_experiment.on_failure(self, error_exc)
             else:
                 logger.debug(
@@ -1828,7 +1828,7 @@ class RunningExperiment:
         """
         self._record_failure(work_item)
         category = "TASK" if isinstance(work_item, TaskWorkItem) else "EVAL"
-        logger.warning(f"{work_item.debug_identifier} {error}")
+        logger.debug(f"{work_item.debug_identifier} {error}")
         await self._persist_log(
             self._make_log(
                 work_item,
@@ -1865,7 +1865,7 @@ class RunningExperiment:
             heapq.heappush(self._retry_heap, RetryItem(ready_at=ready_at, work_item=work_item))
             return
         error_msg = f"{reason} after {self._max_retries} retries"
-        logger.warning(
+        logger.debug(
             f"{work_item.debug_identifier} exceeded max retries "
             f"({self._max_retries}), reason: {reason}"
         )
