@@ -28,7 +28,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  FieldError,
   Flex,
   Form,
   Icon,
@@ -36,6 +35,7 @@ import {
   Label,
   Modal,
   ModalOverlay,
+  RedactedCredentialField,
   Text,
   ToggleButton,
   ToggleButtonGroup,
@@ -495,6 +495,7 @@ function ServerCredentials({
     {
       defaultValues: savedServerValues,
       values: savedServerValues, // Syncs form when server data changes after refetch
+      mode: "onChange",
     }
   );
 
@@ -627,17 +628,19 @@ function ServerCredentials({
                   `${credentialConfig.envVarName} is required`
               : undefined,
           }}
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <CredentialField
+          render={({
+            field: { name, onChange, onBlur, value },
+            fieldState: { error },
+          }) => (
+            <RedactedCredentialField
+              label={credentialConfig.envVarName}
               isRequired={credentialConfig.isRequired}
-              onChange={onChange}
+              name={name}
               value={value ?? ""}
-              isInvalid={!!error}
-            >
-              <Label>{credentialConfig.envVarName}</Label>
-              <CredentialInput />
-              {error?.message && <FieldError>{error.message}</FieldError>}
-            </CredentialField>
+              onChange={onChange}
+              onBlur={onBlur}
+              errorMessage={error?.message}
+            />
           )}
         />
       ))}

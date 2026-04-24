@@ -3,13 +3,12 @@ import { Controller, useForm } from "react-hook-form";
 
 import {
   Button,
-  CredentialField,
-  CredentialInput,
   FieldError,
   Flex,
   Form,
   Input,
   Label,
+  RedactedCredentialField,
   Text,
   TextField,
   View,
@@ -26,6 +25,7 @@ export function SecretMutationForm({
   title,
   submitLabel,
   defaultKey = "",
+  defaultValue = "",
   fixedKey,
   isSubmitting,
   onSubmit,
@@ -33,6 +33,11 @@ export function SecretMutationForm({
   title?: string;
   submitLabel: string;
   defaultKey?: string;
+  /**
+   * Initial form value. May be a server-redacted token — `RedactedCredentialField`
+   * detects this and starts in sealed mode with a preview.
+   */
+  defaultValue?: string;
   fixedKey?: string;
   isSubmitting: boolean;
   onSubmit: (params: SecretFormParams) => void;
@@ -45,7 +50,7 @@ export function SecretMutationForm({
   } = useForm<SecretFormParams>({
     defaultValues: {
       key: defaultKey,
-      value: "",
+      value: defaultValue,
     },
     mode: "onChange",
   });
@@ -141,23 +146,19 @@ export function SecretMutationForm({
                 return true;
               },
             }}
-            render={({ field: { onChange, value }, fieldState: { error } }) => (
-              <CredentialField
-                isInvalid={!!error}
-                onChange={onChange}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Value"
+                placeholder="Enter a secret value"
+                name={name}
                 value={value}
-              >
-                <Label>Value</Label>
-                <CredentialInput placeholder="Enter a secret value" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    This value is write-only and will not be shown again after
-                    it is saved.
-                  </Text>
-                )}
-              </CredentialField>
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
         </Flex>

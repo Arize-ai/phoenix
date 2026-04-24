@@ -13,7 +13,7 @@ from secrets import token_hex
 from phoenix.server.redaction import Redactor
 from tests.integration._helpers import _AppInfo, _gql
 
-_REDACTED_PREFIX = "\ue000[REDACTED]"
+_REDACTED_PREFIX = "\ue000REDACTED\ue000"
 
 
 _CREATE_MUTATION = """

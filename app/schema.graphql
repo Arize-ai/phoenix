@@ -1071,7 +1071,7 @@ type DbTableStats {
 }
 
 type DecryptedSecret {
-  value: String!
+  value: RedactedString!
 }
 
 input DeleteAnnotationConfigsInput {

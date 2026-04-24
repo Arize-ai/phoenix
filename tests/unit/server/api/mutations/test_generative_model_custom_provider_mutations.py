@@ -17,7 +17,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 # Matches the redactor the test `app` fixture constructs: create_app is called
 # without a secret, so the server-side Redactor is keyed off Secret("").
 _REDACTOR = Redactor(secret=Secret(""))
-_REDACTED_PREFIX = "\ue000[REDACTED]"
+_REDACTED_PREFIX = "\ue000REDACTED\ue000"
 
 
 def _assert_redacted_equals(value: Any, expected: str) -> None:

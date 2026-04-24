@@ -80,6 +80,7 @@ export function SecretsTable({
         return (
           <Flex direction="row" gap="size-50" width="100%" justifyContent="end">
             <ReplaceSecretButton
+              secretId={row.original.id}
               secretKey={row.original.key}
               connectionId={connectionId}
             />
