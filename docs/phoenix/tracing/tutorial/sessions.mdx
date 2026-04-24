@@ -53,8 +53,12 @@ You'll need Phoenix OTEL to register tracing and set session context:
 
   <Tab title="Python" icon="python">
     ```bash
-    pip install openinference-instrumentation
+    pip install "arize-phoenix-otel>=0.16.0"
     ```
+
+    <Note>
+    `arize-phoenix-otel` **0.16.0+** is required to import `using_session` and `SpanAttributes` from `phoenix.otel`. On older versions, install `openinference-instrumentation` and `openinference-semantic-conventions` and import from those packages instead.
+    </Note>
   </Tab>
 </Tabs>
 
@@ -113,8 +117,7 @@ Here's how to modify your support agent to support sessions:
   <Tab title="Python" icon="python">
     ```python
     from opentelemetry import trace
-    from openinference.instrumentation import using_session
-    from openinference.semconv.trace import SpanAttributes
+    from phoenix.otel import SpanAttributes, using_session
 
     tracer = trace.get_tracer("support-agent")
 
@@ -490,7 +493,7 @@ Here's the full evaluation flow. First, fetch spans from Phoenix and group them 
     import json
     from typing import Dict, List, Any
     from phoenix.client.resources.spans import SpanAnnotationData
-    from openinference.semconv.trace import SpanAttributes
+    from phoenix.otel import SpanAttributes
 
     # Fetch all agent spans
     spans = phoenix_client.spans.get_spans(

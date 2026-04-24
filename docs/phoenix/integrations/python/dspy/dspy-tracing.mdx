@@ -45,7 +45,7 @@ class BasicQA(dspy.Signature):
 
 
 if __name__ == "__main__":
-    from openinference.instrumentation import using_attributes
+    from phoenix.otel import using_attributes  # requires arize-phoenix-otel>=0.16.0
 
     turbo = dspy.LM("openai/gpt-3.5-turbo")
 
