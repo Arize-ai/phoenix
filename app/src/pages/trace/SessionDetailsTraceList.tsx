@@ -20,9 +20,7 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
-  Counter,
   Flex,
-  Heading,
   Icon,
   Icons,
   Link,
@@ -337,19 +335,6 @@ const turnDetailRowCSS = css`
   }
 `;
 
-const sessionPanelHeaderCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
-  border-bottom: 1px solid var(--global-border-color-default);
-  height: var(--global-dimension-size-600);
-  flex: none;
-`;
-
 const panelContentCSS = css`
   display: flex;
   flex-direction: column;
@@ -361,13 +346,11 @@ export function SessionDetailsTraceList({
   queryRef,
   sessionView,
   onSessionViewChange,
-  showSessionViewTabs,
   traceCount,
 }: {
   queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
   sessionView: SessionView;
   onSessionViewChange: (view: SessionView) => void;
-  showSessionViewTabs: boolean;
   traceCount: number;
 }) {
   const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
@@ -547,23 +530,13 @@ export function SessionDetailsTraceList({
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
         <div css={panelContentCSS}>
-          {showSessionViewTabs ? (
-            <SessionViewTabs
-              sessionView={sessionView}
-              onSessionViewChange={onSessionViewChange}
-              traceCount={traceCount}
-            >
-              {turnListPanel}
-            </SessionViewTabs>
-          ) : (
-            <>
-              <div css={sessionPanelHeaderCSS}>
-                <Heading level={3}>Turns</Heading>
-                <Counter variant="quiet">{traceCount}</Counter>
-              </div>
-              {turnListPanel}
-            </>
-          )}
+          <SessionViewTabs
+            sessionView={sessionView}
+            onSessionViewChange={onSessionViewChange}
+            traceCount={traceCount}
+          >
+            {turnListPanel}
+          </SessionViewTabs>
         </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />

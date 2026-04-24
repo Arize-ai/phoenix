@@ -13,7 +13,6 @@ import {
 } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
@@ -129,7 +128,6 @@ export type SessionDetailsProps = {
  */
 export function SessionDetails(props: SessionDetailsProps) {
   const { sessionId } = props;
-  const sessionsUXEnabled = useFeatureFlag("sessions_ux");
   const [sessionView, setSessionView] = useState<SessionView>("turns");
   const data = useLazyLoadQuery<SessionDetailsQuery>(
     graphql`
@@ -172,7 +170,7 @@ export function SessionDetails(props: SessionDetailsProps) {
     throw new Error("Session not found");
   }
   const traceCount = data.session.numTraces ?? 0;
-  const showTracesView = sessionsUXEnabled && sessionView === "traces";
+  const showTracesView = sessionView === "traces";
 
   const [traceListQueryRef, loadTraceListQuery] =
     useQueryLoader<SessionDetailsTraceListQuery>(sessionDetailsTraceListQuery);
@@ -247,7 +245,6 @@ export function SessionDetails(props: SessionDetailsProps) {
                 queryRef={traceListQueryRef}
                 sessionView={sessionView}
                 onSessionViewChange={handleSessionViewChange}
-                showSessionViewTabs={sessionsUXEnabled}
                 traceCount={traceCount}
               />
             )}
