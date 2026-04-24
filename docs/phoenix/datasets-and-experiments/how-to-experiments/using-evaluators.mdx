@@ -166,6 +166,7 @@ More complex evaluations can use additional information. These values can be acc
 | `expected` | example output | `def eval(expected): ...` |
 | `reference` | alias for `expected` | `def eval(reference): ...` |
 | `metadata` | experiment metadata | `def eval(metadata): ...` |
+| `trace_id` | trace ID of the task execution (may be `None` if the task was not traced) | `def eval(trace_id): ...` |
 
 These parameters can be used in any combination and any order to write custom complex evaluators!
 

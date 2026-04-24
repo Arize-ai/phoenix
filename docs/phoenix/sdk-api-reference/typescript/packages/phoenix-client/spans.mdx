@@ -32,6 +32,29 @@ for (const span of result.spans) {
 }
 ```
 
+### Filtering by Attributes
+
+Use the `attributes` parameter to filter spans by OpenInference attribute key-value pairs. Multiple entries are ANDed together. The JS type of the value determines how the stored attribute is matched: a `number` matches a stored integer or float, a `boolean` matches a stored boolean, and a `string` matches a stored string.
+
+```ts
+// Spans from a specific model
+const result = await getSpans({
+  project: { projectName: "support-bot" },
+  attributes: { "llm.model_name": "gpt-4o" },
+});
+
+// Spans for a session and a specific user (AND semantics)
+const result = await getSpans({
+  project: { projectName: "support-bot" },
+  attributes: {
+    "session.id": "sess-abc123",
+    "user.id": "user-42",
+  },
+});
+```
+
+Non-finite number values (`Infinity`, `NaN`) throw a `RangeError`. Requires Phoenix server ≥ 14.9.0.
+
 ## Root Span Queries
 
 Use `parentId: null` to limit results to root spans only.
@@ -45,8 +68,12 @@ const rootSpans = await getSpans({
 
 ## Span Maintenance
 
+### Adding Notes
+
+Use `addSpanNote` to attach a free-text note to a span. Multiple notes can be added to the same span — they are independent entries, each with its own timestamp.
+
 ```ts
-import { addSpanNote, deleteSpan } from "@arizeai/phoenix-client/spans";
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
 
 await addSpanNote({
   spanNote: {
@@ -54,6 +81,12 @@ await addSpanNote({
     note: "Escalated due to failed retrieval",
   },
 });
+```
+
+### Deleting Spans
+
+```ts
+import { deleteSpan } from "@arizeai/phoenix-client/spans";
 
 await deleteSpan({
   spanIdentifier: "abc123def456",

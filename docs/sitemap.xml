@@ -2105,7 +2105,12 @@
 
   <url>
     <loc>https://arize.com/docs/phoenix/settings/api-keys</loc>
-    
+
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/secrets</loc>
+
   </url>
 
   <url>
