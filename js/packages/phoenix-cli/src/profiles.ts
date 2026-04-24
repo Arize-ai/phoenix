@@ -5,7 +5,7 @@
  * describe the on-disk `settings.json` format. Runtime I/O, parsing, and
  * profile resolution logic live alongside the CLI commands that consume
  * them; this file is the canonical source for
- * `schemas/phoenix-cli-1.json` (emitted by `scripts/build-schema.ts`).
+ * `schemas/phoenix-cli-settings-1.json` (emitted by `scripts/build-schema.ts`).
  */
 
 import { z } from "zod";

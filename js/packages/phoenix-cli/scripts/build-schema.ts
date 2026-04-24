@@ -9,7 +9,7 @@ import { ProfilesFileSchema } from "../src/profiles.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..", "..", "..");
 const outDir = path.join(repoRoot, "schemas");
-const outFile = path.join(outDir, "phoenix-cli-1.json");
+const outFile = path.join(outDir, "phoenix-cli-settings-1.json");
 
 const schema = toJSONSchema(ProfilesFileSchema, { target: "draft-7" });
 
