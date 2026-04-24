@@ -1,5 +1,22 @@
 # Changelog
 
+## [14.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.11.0...arize-phoenix-v14.12.0) (2026-04-24)
+
+
+### Features
+
+* add trace annotations column to spans table ([#12802](https://github.com/Arize-ai/phoenix/issues/12802)) ([f251ddc](https://github.com/Arize-ai/phoenix/commit/f251ddc593d680e68fe7e2cea26f58a4a91763cd))
+* aggregate span info on traces ([#12820](https://github.com/Arize-ai/phoenix/issues/12820)) ([38b26d1](https://github.com/Arize-ai/phoenix/commit/38b26d1d93fd46ab3f9d01de341ea28c8624bac5))
+* **app:** portal page controls into top nav ([#12801](https://github.com/Arize-ai/phoenix/issues/12801)) ([e2bc44c](https://github.com/Arize-ai/phoenix/commit/e2bc44c010b10697df563852ca10c35595679f9b))
+
+
+### Bug Fixes
+
+* **app:** update secrets list synchronously on mutation ([#12804](https://github.com/Arize-ai/phoenix/issues/12804)) ([9211d0a](https://github.com/Arize-ai/phoenix/commit/9211d0ade33ffa9431aaa3b128346b12f64fac42))
+* **cost:** update built-in model token prices ([#12828](https://github.com/Arize-ai/phoenix/issues/12828)) ([a3fbce0](https://github.com/Arize-ai/phoenix/commit/a3fbce09cfff6799239701159707313c43de6a36))
+* demote redundant experiment failure logs to debug ([#12839](https://github.com/Arize-ai/phoenix/issues/12839)) ([ec35f3c](https://github.com/Arize-ai/phoenix/commit/ec35f3caf1e0e7deca0d743580bff03e68f0db1c))
+* retain authenticated root Relay query data ([#12812](https://github.com/Arize-ai/phoenix/issues/12812)) ([d17ae12](https://github.com/Arize-ai/phoenix/commit/d17ae1272f871f03ac72c9bc2dc2b524c43b1baa))
+
 ## [14.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.10.0...arize-phoenix-v14.11.0) (2026-04-22)
 
 
