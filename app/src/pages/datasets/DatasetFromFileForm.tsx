@@ -243,7 +243,7 @@ const rowCountCSS = css`
 export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onCancel, mode } = props;
   const [pendingAction, setPendingAction] = useState<
-    "create" | "append" | null
+    "create" | "append" | "update" | null
   >(null);
   const isSubmitting = pendingAction !== null;
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -556,7 +556,10 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [columns, setValue]);
 
   const onSubmit = useCallback(
-    (data: CreateDatasetFromFileParams, action: "create" | "append") => {
+    (
+      data: CreateDatasetFromFileParams,
+      action: "create" | "append" | "update"
+    ) => {
       if (!data.file) {
         return;
       }
@@ -664,6 +667,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const handleSubmitCreate = handleSubmit((data) => onSubmit(data, "create"));
   const handleSubmitAppend = handleSubmit((data) => onSubmit(data, "append"));
+  const handleSubmitUpdate = handleSubmit((data) => onSubmit(data, "update"));
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
 
@@ -895,12 +899,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 type="button"
                 isDisabled={!isValid || isSubmitting || isParsing}
                 leadingVisual={
-                  pendingAction === "create" ? (
+                  pendingAction === "update" ? (
                     <Icon svg={<Icons.LoadingOutline />} />
                   ) : undefined
                 }
               >
-                {pendingAction === "create"
+                {pendingAction === "update"
                   ? "Replacing..."
                   : "Replace Examples"}
               </Button>
@@ -940,7 +944,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                               size="S"
                               onPress={() => {
                                 close();
-                                handleSubmitCreate();
+                                handleSubmitUpdate();
                               }}
                             >
                               Replace Examples
