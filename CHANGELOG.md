@@ -1,5 +1,27 @@
 # Changelog
 
+## [14.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.12.0...arize-phoenix-v14.13.0) (2026-04-24)
+
+
+### Features
+
+* Add a dedicated span notes column and clean up annotation selection ([#12789](https://github.com/Arize-ai/phoenix/issues/12789)) ([ec6565e](https://github.com/Arize-ai/phoenix/commit/ec6565ea3114b1ccd0905be87718198f31c2b260))
+* add trace note REST endpoint for Phoenix CLI ([#12710](https://github.com/Arize-ai/phoenix/issues/12710)) ([ed66c02](https://github.com/Arize-ai/phoenix/commit/ed66c02805ef17d9dcd812f998a62d66cb611f83))
+* **phoenix-otel:** re-export openinference helpers, decorators, and semconv ([#12844](https://github.com/Arize-ai/phoenix/issues/12844)) ([23576da](https://github.com/Arize-ai/phoenix/commit/23576da85d9de51527b525b3d20625785e175b23))
+* **ui:** add trace notes column to spans table ([#12847](https://github.com/Arize-ai/phoenix/issues/12847)) ([c83d9ec](https://github.com/Arize-ai/phoenix/commit/c83d9ec3281d83661cd21ea38ae7a8d5d3a84820))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#12845](https://github.com/Arize-ai/phoenix/issues/12845)) ([ff5b646](https://github.com/Arize-ai/phoenix/commit/ff5b646a3e71cfebbb93ae90e3815c6131a36cea))
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-16-2026 through 04-22-2026 ([#12806](https://github.com/Arize-ai/phoenix/issues/12806)) ([5a8f5c8](https://github.com/Arize-ai/phoenix/commit/5a8f5c8eb0649ee39162db9766cf3f79cc3ca4a6))
+* adopt phoenix.otel re-exports for manual instrumentation ([#12853](https://github.com/Arize-ai/phoenix/issues/12853)) ([833c189](https://github.com/Arize-ai/phoenix/commit/833c189430a96f562be0f384048d08564799a349))
+* fill 4 HIGH gaps from 2026-04-22 weekly audit ([#12842](https://github.com/Arize-ai/phoenix/issues/12842)) ([9944c8f](https://github.com/Arize-ai/phoenix/commit/9944c8f09fba89222ef04707d4acb0dfa474301a))
+
 ## [14.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.11.0...arize-phoenix-v14.12.0) (2026-04-24)
 
 
