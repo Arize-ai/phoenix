@@ -256,7 +256,7 @@ describe("trace add-note", () => {
     const fetchMock = makeFetchMock([
       {
         ok: true,
-        text: "14.12.0",
+        text: "14.13.0",
       },
       {
         ok: true,
