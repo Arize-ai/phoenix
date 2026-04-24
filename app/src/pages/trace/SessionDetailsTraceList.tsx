@@ -275,7 +275,7 @@ function SessionTurnList({
               >
                 <Flex
                   direction="row"
-                  gap="size-50"
+                  gap="size-100"
                   alignItems="center"
                   flex={1}
                   minWidth={0}
