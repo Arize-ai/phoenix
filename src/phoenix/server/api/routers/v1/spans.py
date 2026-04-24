@@ -1207,7 +1207,7 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
     description=(
         "Add a note annotation to a span. Notes are special annotations that allow "
         "multiple entries per span (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique UUIDv7 identifier."
+        "and identifier). Each note gets a unique UUIDv4 identifier."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span note created successfully",
@@ -1222,7 +1222,7 @@ async def create_span_note(
 
     Notes are a special type of annotation that:
     - Have the fixed name "note"
-    - Use a UUIDv7 identifier to allow multiple notes per span
+    - Use a UUIDv4 identifier to allow multiple notes per span
     - Are always created with annotator_kind="HUMAN" and source="API"
     - Store the note text in the explanation field
     """

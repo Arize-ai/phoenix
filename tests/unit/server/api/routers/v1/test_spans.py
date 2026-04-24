@@ -125,7 +125,7 @@ async def test_rest_create_span_note(
     assert orm_annotation.explanation == note_text
     assert orm_annotation.source == "API"
     assert orm_annotation.identifier.startswith("px-span-note:")
-    assert UUID(orm_annotation.identifier.removeprefix("px-span-note:")).version == 7
+    assert UUID(orm_annotation.identifier.removeprefix("px-span-note:")).version == 4
     assert orm_annotation.label is None
     assert orm_annotation.score is None
     assert orm_annotation.metadata_ == dict()
@@ -184,7 +184,7 @@ async def test_rest_create_multiple_span_notes(
     identifiers = [a.identifier for a in annotations]
     assert len(identifiers) == len(set(identifiers))  # All unique
     assert all(
-        UUID(identifier.removeprefix("px-span-note:")).version == 7 for identifier in identifiers
+        UUID(identifier.removeprefix("px-span-note:")).version == 4 for identifier in identifiers
     )
 
 

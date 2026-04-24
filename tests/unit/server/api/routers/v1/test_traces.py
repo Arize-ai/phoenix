@@ -170,7 +170,7 @@ async def test_rest_create_trace_note(
     assert orm_annotation.explanation == note_text
     assert orm_annotation.source == "API"
     assert orm_annotation.identifier.startswith("px-trace-note:")
-    assert UUID(orm_annotation.identifier.removeprefix("px-trace-note:")).version == 7
+    assert UUID(orm_annotation.identifier.removeprefix("px-trace-note:")).version == 4
     assert orm_annotation.label is None
     assert orm_annotation.score is None
     assert orm_annotation.metadata_ == dict()
@@ -223,7 +223,7 @@ async def test_rest_create_multiple_trace_notes(
     identifiers = [annotation.identifier for annotation in annotations]
     assert len(identifiers) == len(set(identifiers))
     assert all(
-        UUID(identifier.removeprefix("px-trace-note:")).version == 7 for identifier in identifiers
+        UUID(identifier.removeprefix("px-trace-note:")).version == 4 for identifier in identifiers
     )
 
 

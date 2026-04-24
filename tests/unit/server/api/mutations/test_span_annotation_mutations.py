@@ -242,7 +242,7 @@ class TestSpanAnnotationMutations:
             "Use the createSpanNote mutation or POST /v1/span_notes instead."
         ) in response.errors[0].message
 
-    async def test_create_span_note_uses_uuidv7_identifier(
+    async def test_create_span_note_uses_uuidv4_identifier(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
@@ -276,4 +276,4 @@ class TestSpanAnnotationMutations:
 
         assert annotation is not None
         assert annotation.identifier.startswith("px-span-note:")
-        assert UUID(annotation.identifier.removeprefix("px-span-note:")).version == 7
+        assert UUID(annotation.identifier.removeprefix("px-span-note:")).version == 4

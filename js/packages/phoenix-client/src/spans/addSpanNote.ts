@@ -27,7 +27,7 @@ export interface AddSpanNoteParams extends ClientFn {
  *
  * Notes are a special type of annotation that allow multiple entries per span
  * (unlike regular annotations which are unique by name and identifier).
- * Each note gets a unique UUIDv7 identifier.
+ * Each note gets a unique UUIDv4 identifier.
  *
  * @param params - The parameters to add a span note
  * @returns The ID of the created note annotation

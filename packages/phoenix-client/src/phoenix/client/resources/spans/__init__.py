@@ -831,7 +831,7 @@ class Spans:
 
         Notes are a special type of annotation that allow multiple entries per span
         (unlike regular annotations which are unique by name and identifier). Each note
-        gets a unique UUIDv7 identifier automatically.
+        gets a unique UUIDv4 identifier automatically.
 
         Args:
             span_id (str): The OpenTelemetry span ID of the span to add the note to.
@@ -2106,7 +2106,7 @@ class AsyncSpans:
 
         Notes are a special type of annotation that allow multiple entries per span
         (unlike regular annotations which are unique by name and identifier). Each note
-        gets a unique UUIDv7 identifier automatically.
+        gets a unique UUIDv4 identifier automatically.
 
         Args:
             span_id (str): The OpenTelemetry span ID of the span to add the note to.

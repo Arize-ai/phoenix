@@ -452,7 +452,7 @@ class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
     description=(
         "Add a note annotation to a trace. Notes are special annotations that allow "
         "multiple entries per trace (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique UUIDv7 identifier."
+        "and identifier). Each note gets a unique UUIDv4 identifier."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
     response_description="Trace note created successfully",
