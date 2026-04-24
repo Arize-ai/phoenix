@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.8.0
+
+### Minor Changes
+
+- a4dad8b: Add `addTraceNote()` helper for creating trace notes via `POST /v1/trace_notes`. The call performs a preflight server-version check and throws a descriptive error when the connected Phoenix server is too old. Requires Phoenix server >= 14.13.0.
+
 ## 6.7.0
 
 ### Minor Changes
