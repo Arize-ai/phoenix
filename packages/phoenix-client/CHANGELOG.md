@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.4.0...arize-phoenix-client-v2.5.0) (2026-04-25)
+
+
+### Features
+
+* add trace note REST endpoint for Phoenix CLI ([#12710](https://github.com/Arize-ai/phoenix/issues/12710)) ([ed66c02](https://github.com/Arize-ai/phoenix/commit/ed66c02805ef17d9dcd812f998a62d66cb611f83))
+
 ## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.1...arize-phoenix-client-v2.4.0) (2026-04-22)
 
 
