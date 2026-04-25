@@ -115,6 +115,11 @@ px span list --parent-id null --limit 10                   # only root spans
 px span list --parent-id <span-id> --limit 10              # only children of a span
 px span list --include-annotations --limit 10              # include annotation scores
 px span list --include-notes --limit 10                    # include span notes
+px span list --attribute llm.model_name:gpt-4 --limit 10  # filter by string attribute
+px span list --attribute llm.token_count.total:500 --limit 10  # filter by numeric attribute
+px span list --attribute 'user.id:"12345"' --limit 10     # force string match for numeric-looking value
+px span list --attribute session.id:sess:abc:123 --limit 20  # colon in value OK (split on first colon only)
+px span list --attribute llm.model_name:gpt-4 --attribute session.id:abc --limit 10  # AND multiple filters
 px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
