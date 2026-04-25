@@ -298,6 +298,7 @@ async def post_traces(
     background_tasks: BackgroundTasks,
     content_type: Optional[str] = Header(default=None),
     content_encoding: Optional[str] = Header(default=None),
+    x_phoenix_project_name: Optional[str] = Header(default=None),
 ) -> Response:
     if content_type != "application/x-protobuf":
         raise HTTPException(
@@ -322,7 +323,7 @@ async def post_traces(
             detail="Request body is invalid ExportTraceServiceRequest",
             status_code=422,
         )
-    background_tasks.add_task(_add_spans, req, request.state)
+    background_tasks.add_task(_add_spans, req, request.state, x_phoenix_project_name)
 
     # "The server MUST use the same Content-Type in the response as it received in the request"
     response_message = ExportTraceServiceResponse()
@@ -505,9 +506,25 @@ async def create_trace_note(
     )
 
 
-async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
+async def _add_spans(
+    req: ExportTraceServiceRequest,
+    state: State,
+    project_name_header: Optional[str] = None,
+) -> None:
+    """Ingest spans from an OTLP ExportTraceServiceRequest.
+
+    The project name is resolved in the following order of precedence:
+    1. The ``x-phoenix-project-name`` HTTP header (if provided).
+    2. The ``openinference.project.name`` OTLP resource attribute on each
+       ``ResourceSpans`` message.
+    3. The server default project (``DEFAULT_PROJECT_NAME``).
+    """
     for resource_spans in req.resource_spans:
-        project_name = get_project_name(resource_spans.resource.attributes)
+        project_name = (
+            project_name_header
+            if project_name_header is not None
+            else get_project_name(resource_spans.resource.attributes)
+        )
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)

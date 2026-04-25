@@ -65,9 +65,49 @@ Phoenix uses projects to group traces. If left unspecified, all traces are sent 
 
   </Tab>
 
+  <Tab title="Via HTTP Header">
+
+    If you are using a configuration-based OTEL tool (such as an OTEL Collector, OpenClaw, or any framework that does not let you set resource attributes in code), you can route traces to a specific Phoenix project by setting the `x-phoenix-project-name` HTTP header on OTLP HTTP exports.
+
+    The header takes precedence over the `openinference.project.name` resource attribute, so every span in the request is assigned to the named project regardless of what the sending library sets in its resource.
+
+    **Using `OTEL_EXPORTER_OTLP_HEADERS` environment variable:**
+
+    ```bash
+    export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:6006"
+    export OTEL_EXPORTER_OTLP_HEADERS="x-phoenix-project-name=my-project"
+    ```
+
+    **Using an OTEL Collector `otlphttp` exporter:**
+
+    ```yaml
+    exporters:
+      otlphttp:
+        endpoint: "http://phoenix:6006"
+        headers:
+          x-phoenix-project-name: "my-project"
+    ```
+
+    **Setting the header in Python directly:**
+
+    ```python
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    exporter = OTLPSpanExporter(
+        endpoint="http://localhost:6006/v1/traces",
+        headers={"x-phoenix-project-name": "my-project"},
+    )
+    ```
+
+    <Note>
+    The `x-phoenix-project-name` header is only supported by the **HTTP** OTLP endpoint (`/v1/traces`). If you are using gRPC, set the project name via the `openinference.project.name` resource attribute instead.
+    </Note>
+
+  </Tab>
+
 </Tabs>
 
-Projects work by setting something called the **Resource** attributes (as seen in the OTEL example above). The phoenix server uses the project name attribute to group traces into the appropriate project.
+Projects work by setting something called the **Resource** attributes (as seen in the OTEL example above). The phoenix server uses the project name attribute to group traces into the appropriate project. Alternatively, the `x-phoenix-project-name` HTTP header can be used to override the project name for all spans in an OTLP HTTP request.
 
 # Switching projects in a notebook
 
