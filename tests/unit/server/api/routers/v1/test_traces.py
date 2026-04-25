@@ -524,7 +524,7 @@ async def test_post_traces_project_header_overrides_resource_attribute(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """The x-phoenix-project-name header takes precedence over the resource attribute."""
+    """The x-project-name header takes precedence over the resource attribute."""
     req = _make_otlp_request(project_resource_attr="resource-project")
 
     response = await httpx_client.post(
@@ -532,7 +532,7 @@ async def test_post_traces_project_header_overrides_resource_attribute(
         content=req.SerializeToString(),
         headers={
             "Content-Type": "application/x-protobuf",
-            "x-phoenix-project-name": "header-project",
+            "x-project-name": "header-project",
         },
     )
     assert response.status_code == 200
