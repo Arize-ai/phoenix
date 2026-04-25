@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-21T16:57:34.149961Z"
+exclude-newer = "2026-04-22T00:31:54.790915967Z"
 exclude-newer-span = "P3D"
 
 [manifest]
@@ -770,7 +770,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-client"
-version = "2.4.0"
+version = "2.5.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
     { name = "httpx" },
