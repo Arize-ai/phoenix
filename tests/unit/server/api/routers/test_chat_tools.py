@@ -25,7 +25,7 @@ class TestResolveContextualTools:
         self,
         db: DbSessionFactory,
     ) -> None:
-        resolved = ResolvedContexts(project=ProjectContext(type="project", project_id="P1"))
+        resolved = ResolvedContexts(project=ProjectContext(type="project", project_node_id="P1"))
         defs, dispatch = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
         assert "search_project" in dispatch
         search = next(tool for tool in defs if tool.name == "search_project")
@@ -72,7 +72,7 @@ class TestResolveContextualTools:
 
         project_id = str(GlobalID(ProjectNodeType.__name__, str(project.id)))
         defs, dispatch = resolve_contextual_tools(
-            ResolvedContexts(project=ProjectContext(type="project", project_id=project_id)),
+            ResolvedContexts(project=ProjectContext(type="project", project_node_id=project_id)),
             ToolExecutionEnv(user=None, db=db),
         )
 

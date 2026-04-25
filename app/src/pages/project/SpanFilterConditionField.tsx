@@ -301,7 +301,11 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     if (!isConditionValidState || !trimmed || !projectId) {
       return null;
     }
-    return { type: "span_filter", projectId, condition: trimmed };
+    return {
+      type: "span_filter",
+      projectNodeId: projectId,
+      condition: trimmed,
+    };
   }, [deferredFilterCondition, isConditionValidState, projectId]);
 
   // Keep the agent's mounted UI context aligned with the current validated

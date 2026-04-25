@@ -1,10 +1,13 @@
-import { useMemo } from "react";
-
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { agentContextKey } from "@phoenix/agent/context/agentContextTypes";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import { PromptInputContextRow } from "@phoenix/components/ai/prompt-input";
-import { Badge } from "@phoenix/components/core/badge/Badge";
+import {
+  Attachment,
+  AttachmentInfo,
+  AttachmentPreview,
+  Attachments,
+} from "@phoenix/components/ai/attachment";
+import type { AttachmentContextData } from "@phoenix/components/ai/attachment";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 const MAX_CONDITION_CHARS = 40;
@@ -25,37 +28,50 @@ function contextLabel(context: AgentContext): string {
     case "project":
       return "Project";
     case "trace":
-      return `Trace: ${truncateId(context.traceId)}`;
+      return `Trace: ${truncateId(context.otelTraceId)}`;
     case "span":
-      return `Span: ${truncateId(context.spanId)}`;
+      return `Span: ${truncateId(context.spanNodeId ?? context.otelSpanId)}`;
     case "span_filter":
       return `Filter: ${truncate(context.condition, MAX_CONDITION_CHARS)}`;
   }
 }
 
+function toAttachmentData(context: AgentContext): AttachmentContextData {
+  return {
+    type: "context",
+    id: agentContextKey(context),
+    category: context.type,
+    label: contextLabel(context),
+  };
+}
+
 /**
- * Renders the active agent contexts as badges above the chat input so the
- * user can see, at a glance, what Phoenix state the agent is aware of for
- * the next turn (project, trace, selected span, active span filter).
+ * Renders the active agent contexts as non-removable attachments above the
+ * chat input so the user can see, at a glance, what Phoenix state the agent
+ * is aware of for the next turn (project, trace, selected span, active span
+ * filter).
  *
  * Reads from the same `selectActiveContexts` selector used to populate the
  * chat request payload, so what the user sees is what the agent receives.
  */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
-  const pills = useMemo(
-    () =>
-      contexts.map((context) => (
-        <Badge key={agentContextKey(context)} variant="info" size="M">
-          {contextLabel(context)}
-        </Badge>
-      )),
-    [contexts]
-  );
 
   if (contexts.length === 0) {
     return null;
   }
 
-  return <PromptInputContextRow>{pills}</PromptInputContextRow>;
+  return (
+    <Attachments variant="inline">
+      {contexts.map((context) => {
+        const data = toAttachmentData(context);
+        return (
+          <Attachment key={data.id} data={data}>
+            <AttachmentPreview />
+            <AttachmentInfo />
+          </Attachment>
+        );
+      })}
+    </Attachments>
+  );
 }

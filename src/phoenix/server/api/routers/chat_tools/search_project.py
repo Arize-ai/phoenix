@@ -62,7 +62,7 @@ def _build_search_project_callable(
     from phoenix.server.api.types.Span import Span as SpanNodeType
 
     assert resolved.project is not None
-    project_id = resolved.project.project_id
+    project_id = resolved.project.project_node_id
 
     async def call(args: dict[str, Any]) -> str:
         query = str(args.get("query") or "").strip()

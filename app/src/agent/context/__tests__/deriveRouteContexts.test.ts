@@ -20,9 +20,9 @@ describe("deriveRouteContexts", () => {
     );
 
     expect(contexts).toEqual([
-      { type: "project", projectId: "P1" },
-      { type: "trace", projectId: "P1", traceId: "T1" },
-      { type: "span", projectId: "P1", spanId: "S1" },
+      { type: "project", projectNodeId: "P1" },
+      { type: "trace", projectNodeId: "P1", otelTraceId: "T1" },
+      { type: "span", projectNodeId: "P1", spanNodeId: "S1" },
     ]);
   });
 
@@ -33,20 +33,20 @@ describe("deriveRouteContexts", () => {
     );
 
     expect(contexts).toEqual([
-      { type: "project", projectId: "P1" },
-      { type: "span", projectId: "P1", spanId: "selected-span" },
+      { type: "project", projectNodeId: "P1" },
+      { type: "span", projectNodeId: "P1", spanNodeId: "selected-span" },
     ]);
   });
 
-  it("falls back to the route span id when no selected span param exists", () => {
+  it("falls back to the route span id (OTel hex) when no selected span param exists", () => {
     const contexts = deriveRouteContexts(
       [match({ projectId: "P1" }), match({ spanId: "S1" })],
       new URLSearchParams()
     );
 
     expect(contexts).toEqual([
-      { type: "project", projectId: "P1" },
-      { type: "span", projectId: "P1", spanId: "S1" },
+      { type: "project", projectNodeId: "P1" },
+      { type: "span", projectNodeId: "P1", otelSpanId: "S1" },
     ]);
   });
 
@@ -56,6 +56,6 @@ describe("deriveRouteContexts", () => {
       new URLSearchParams(`${SELECTED_SPAN_NODE_ID_PARAM}=S1`)
     );
 
-    expect(contexts).toEqual([{ type: "span", spanId: "S1" }]);
+    expect(contexts).toEqual([{ type: "span", spanNodeId: "S1" }]);
   });
 });

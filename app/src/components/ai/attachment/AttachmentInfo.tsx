@@ -1,0 +1,37 @@
+import { useAttachmentContext } from "./AttachmentContext";
+import { attachmentInfoCSS } from "./styles";
+import type { AttachmentInfoProps } from "./types";
+import { getAttachmentLabel } from "./utils";
+
+/**
+ * Text info slot for an `<Attachment>`. Renders the attachment label and,
+ * when `showMediaType` is set, the media type beneath it.
+ *
+ * Renders nothing in the `"grid"` variant — grid tiles are image-only.
+ */
+export function AttachmentInfo({
+  ref,
+  showMediaType = false,
+  ...restProps
+}: AttachmentInfoProps) {
+  const { data, variant } = useAttachmentContext();
+
+  if (variant === "grid") {
+    return null;
+  }
+
+  const label = getAttachmentLabel(data);
+  const mediaType =
+    data.type === "file" || data.type === "source-document"
+      ? data.mediaType
+      : undefined;
+
+  return (
+    <div ref={ref} css={attachmentInfoCSS} {...restProps}>
+      <span className="attachment-info__label">{label}</span>
+      {showMediaType && mediaType ? (
+        <span className="attachment-info__media-type">{mediaType}</span>
+      ) : null}
+    </div>
+  );
+}

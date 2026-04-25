@@ -36,30 +36,35 @@ export function deriveRouteContexts(
   const params = collectRouteParams(matches);
   const contexts: AgentContext[] = [];
 
-  const projectId = params["projectId"];
-  const traceId = params["traceId"];
-  const routeSpanId = params["spanId"];
+  // The `:projectId` route segment carries a Phoenix relay node ID; the
+  // `:traceId` segment carries an OpenTelemetry hex trace ID; the
+  // `:spanId` segment (used by /playground/spans/:spanId) carries an OTel
+  // hex span ID, while the `?selectedSpanNodeId=` search param carries a
+  // relay node ID. See agentContextTypes.ts for the format conventions.
+  const projectNodeId = params["projectId"];
+  const otelTraceId = params["traceId"];
+  const routeOtelSpanId = params["spanId"];
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
 
-  if (projectId) {
-    contexts.push({ type: "project", projectId });
+  if (projectNodeId) {
+    contexts.push({ type: "project", projectNodeId });
   }
 
-  if (projectId && traceId) {
-    contexts.push({ type: "trace", projectId, traceId });
+  if (projectNodeId && otelTraceId) {
+    contexts.push({ type: "trace", projectNodeId, otelTraceId });
   }
 
   if (selectedSpanNodeId) {
     contexts.push(
-      projectId
-        ? { type: "span", projectId, spanId: selectedSpanNodeId }
-        : { type: "span", spanId: selectedSpanNodeId }
+      projectNodeId
+        ? { type: "span", projectNodeId, spanNodeId: selectedSpanNodeId }
+        : { type: "span", spanNodeId: selectedSpanNodeId }
     );
-  } else if (routeSpanId) {
+  } else if (routeOtelSpanId) {
     contexts.push(
-      projectId
-        ? { type: "span", projectId, spanId: routeSpanId }
-        : { type: "span", spanId: routeSpanId }
+      projectNodeId
+        ? { type: "span", projectNodeId, otelSpanId: routeOtelSpanId }
+        : { type: "span", otelSpanId: routeOtelSpanId }
     );
   }
 

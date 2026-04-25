@@ -23,3 +23,4 @@ Read the relevant file(s) based on the task:
 | `rules/error-display.md` | Error scoping, inline alerts, input validation |
 | `rules/bem.md` | Naming CSS classes |
 | `rules/tokens.md` | Creating or consuming CSS design tokens |
+| `rules/icons.md` | Picking an icon for a noun (project, trace, span, file, etc.) |
