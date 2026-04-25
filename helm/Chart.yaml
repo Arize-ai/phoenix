@@ -48,7 +48,7 @@ version: 6.0.12
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "14.13.0"
+appVersion: "14.14.0"
 icon: https://phoenix.arize.com/wp-content/uploads/2025/04/logo-with-arize.svg
 maintainers:
   - name: arize
