@@ -17,6 +17,18 @@ function collectRouteParams(matches: UIMatch[]): Record<string, string> {
   }, {});
 }
 
+/**
+ * Derive the ordered list of {@link AgentContext}s implied by the current
+ * route and URL.
+ *
+ * Route params are flattened across all matched routes, and contexts are
+ * emitted in natural containment order: project → trace → span. The selected
+ * span search param (from the spans table) takes precedence over a `spanId`
+ * in the route, since it reflects the user's most recent selection.
+ *
+ * Used by {@link ./AgentContextSync.AgentContextSync} to keep the agent
+ * store's `routeContexts` slice in sync with navigation.
+ */
 export function deriveRouteContexts(
   matches: UIMatch[],
   searchParams: URLSearchParams

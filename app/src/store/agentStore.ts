@@ -198,8 +198,17 @@ export interface AgentState extends AgentProps {
   ) => void;
 
   // -- Page and mounted contexts advertised with /chat (ephemeral) --
+  //
+  // Both slices are rebuilt from the UI each render — they are never
+  // persisted. `selectActiveContexts` merges and dedupes them for each chat
+  // turn so the agent sees a single flat list of typed contexts.
 
+  /** Derived from route params by `AgentContextSync` on navigation. */
   routeContexts: AgentContext[];
+  /**
+   * Feature-level contexts keyed by a stable per-mount id. Populated via
+   * `useAdvertiseAgentContext`; entries are cleared on unmount.
+   */
   mountedContexts: Record<string, AgentContext>;
   setRouteContexts: (next: AgentContext[]) => void;
   setMountedContext: (key: string, context: AgentContext) => void;

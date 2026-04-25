@@ -33,6 +33,14 @@ function contextLabel(context: AgentContext): string {
   }
 }
 
+/**
+ * Renders the active agent contexts as badges above the chat input so the
+ * user can see, at a glance, what Phoenix state the agent is aware of for
+ * the next turn (project, trace, selected span, active span filter).
+ *
+ * Reads from the same `selectActiveContexts` selector used to populate the
+ * chat request payload, so what the user sees is what the agent receives.
+ */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
   const pills = useMemo(
