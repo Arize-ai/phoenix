@@ -23,3 +23,7 @@ Read the relevant file(s) based on the task:
 ## Verification
 
 After visual changes, use `agent-browser` to verify the UI looks correct. When modifying a shared component, check its usages across the app.
+
+## URL State
+
+Significant view state must be recreatable from the URL. If a user can select a tab, sub-view, or detail state that should survive reloads, sharing, or adjacent-record pagination, encode it in route params or search params and preserve the relevant URL state during navigation.

@@ -38,11 +38,20 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
       featureFlagsFromLocalStorage
     ) as Record<string, unknown>;
     const next = { ...DEFAULT_FEATURE_FLAGS };
+    const hasUnknownFeatureFlags = Object.keys(parsedFeatureFlags).some(
+      (key) => !(key in DEFAULT_FEATURE_FLAGS)
+    );
     for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
       const v = parsedFeatureFlags[key];
       if (typeof v === "boolean") {
         next[key] = v;
       }
+    }
+    if (hasUnknownFeatureFlags) {
+      localStorage.setItem(
+        LOCAL_STORAGE_FEATURE_FLAGS_KEY,
+        JSON.stringify(next)
+      );
     }
     return next;
   } catch (_e) {

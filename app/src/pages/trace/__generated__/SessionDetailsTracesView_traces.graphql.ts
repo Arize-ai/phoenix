@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14ef3a15ef3943ee204ad28dc999ced8>>
+ * @generated SignedSource<<7948f0795fe74788d4eda328bdaea173>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,9 +9,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type MimeType = "json" | "text";
 import { FragmentRefs } from "relay-runtime";
-export type SessionDetailsTraceList_traces$data = {
+export type SessionDetailsTracesView_traces$data = {
   readonly id: string;
   readonly numTraces: number;
   readonly traces: {
@@ -19,23 +18,13 @@ export type SessionDetailsTraceList_traces$data = {
       readonly trace: {
         readonly id: string;
         readonly rootSpan: {
-          readonly attributes: string;
           readonly cumulativeTokenCountTotal: number | null;
           readonly id: string;
-          readonly input: {
-            readonly mimeType: MimeType;
-            readonly value: string;
-          } | null;
           readonly latencyMs: number | null;
           readonly name: string;
-          readonly output: {
-            readonly mimeType: MimeType;
-            readonly value: string;
-          } | null;
           readonly project: {
             readonly id: string;
           };
-          readonly spanId: string;
           readonly startTime: string;
           readonly trace: {
             readonly costSummary: {
@@ -45,20 +34,19 @@ export type SessionDetailsTraceList_traces$data = {
             };
             readonly id: string;
           };
-          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
         } | null;
         readonly traceId: string;
       };
     }>;
   };
-  readonly " $fragmentType": "SessionDetailsTraceList_traces";
+  readonly " $fragmentType": "SessionDetailsTracesView_traces";
 };
-export type SessionDetailsTraceList_traces$key = {
-  readonly " $data"?: SessionDetailsTraceList_traces$data;
-  readonly " $fragmentSpreads": FragmentRefs<"SessionDetailsTraceList_traces">;
+export type SessionDetailsTracesView_traces$key = {
+  readonly " $data"?: SessionDetailsTracesView_traces$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SessionDetailsTracesView_traces">;
 };
 
-import SessionDetailsTraceListRefetchQuery_graphql from './SessionDetailsTraceListRefetchQuery.graphql';
+import SessionDetailsTracesViewRefetchQuery_graphql from './SessionDetailsTracesViewRefetchQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -70,23 +58,7 @@ v1 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-},
-v2 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "value",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "mimeType",
-    "storageKey": null
-  }
-];
+};
 return {
   "argumentDefinitions": [
     {
@@ -122,14 +94,14 @@ return {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": SessionDetailsTraceListRefetchQuery_graphql,
+      "operation": SessionDetailsTracesViewRefetchQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "SessionDetailsTraceList_traces",
+  "name": "SessionDetailsTracesView_traces",
   "selections": [
     {
       "alias": null,
@@ -143,7 +115,7 @@ return {
       "args": null,
       "concreteType": "TraceConnection",
       "kind": "LinkedField",
-      "name": "__SessionDetailsTraceList_traces_connection",
+      "name": "__SessionDetailsTracesView_traces_connection",
       "plural": false,
       "selections": [
         {
@@ -178,6 +150,47 @@ return {
                   "name": "rootSpan",
                   "plural": false,
                   "selections": [
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "name",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "startTime",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "cumulativeTokenCountTotal",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "latencyMs",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "Project",
+                      "kind": "LinkedField",
+                      "name": "project",
+                      "plural": false,
+                      "selections": [
+                        (v1/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -218,86 +231,6 @@ return {
                         }
                       ],
                       "storageKey": null
-                    },
-                    (v1/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "attributes",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "Project",
-                      "kind": "LinkedField",
-                      "name": "project",
-                      "plural": false,
-                      "selections": [
-                        (v1/*: any*/)
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanIOValue",
-                      "kind": "LinkedField",
-                      "name": "input",
-                      "plural": false,
-                      "selections": (v2/*: any*/),
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SpanIOValue",
-                      "kind": "LinkedField",
-                      "name": "output",
-                      "plural": false,
-                      "selections": (v2/*: any*/),
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "cumulativeTokenCountTotal",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "latencyMs",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "startTime",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "spanId",
-                      "storageKey": null
-                    },
-                    {
-                      "args": null,
-                      "kind": "FragmentSpread",
-                      "name": "AnnotationSummaryGroup"
                     }
                   ],
                   "storageKey": null
@@ -368,6 +301,6 @@ return {
 };
 })();
 
-(node as any).hash = "a8c766a3e99780c2b1c0d17747eb5bfb";
+(node as any).hash = "3dcba931effcd48427f002639dbda225";
 
 export default node;
