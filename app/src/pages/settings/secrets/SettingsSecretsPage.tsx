@@ -8,7 +8,6 @@ import {
 import {
   ConnectionHandler,
   graphql,
-  usePreloadedQuery,
   useRefetchableFragment,
 } from "react-relay";
 import { Navigate, useLoaderData } from "react-router";
@@ -28,6 +27,7 @@ import {
 import { SecretOwnerFilterOptions } from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { SettingsSecretsPageFragment$key } from "./__generated__/SettingsSecretsPageFragment.graphql";
 import type { settingsSecretsPageLoaderQuery } from "./__generated__/settingsSecretsPageLoaderQuery.graphql";
@@ -44,10 +44,10 @@ export function SettingsSecretsPage() {
   const canManageSecrets = !viewer || viewer.role.name === "ADMIN";
   const loaderData = useLoaderData<SettingsSecretsPageLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<settingsSecretsPageLoaderQuery>(
-    settingsSecretsPageLoaderGql,
-    loaderData
-  );
+  const data = useOwnedPreloadedQuery<settingsSecretsPageLoaderQuery>({
+    query: settingsSecretsPageLoaderGql,
+    queryRef: loaderData,
+  });
 
   if (!canManageSecrets) {
     return <Navigate to="/settings/general" replace />;

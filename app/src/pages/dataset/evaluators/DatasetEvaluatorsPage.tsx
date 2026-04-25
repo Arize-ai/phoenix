@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useMemo, useState } from "react";
-import { useFragment, usePreloadedQuery } from "react-relay";
+import { useFragment } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
@@ -13,6 +13,8 @@ import {
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { datasetEvaluatorsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorsLoaderQuery.graphql";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
 import { datasetEvaluatorsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
@@ -39,7 +41,10 @@ export function DatasetEvaluatorsPageContent() {
 
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(datasetEvaluatorsLoaderGQL, loaderData);
+  const data = useOwnedPreloadedQuery<datasetEvaluatorsLoaderQuery>({
+    query: datasetEvaluatorsLoaderGQL,
+    queryRef: loaderData,
+  });
   const evaluatorsTableProps = useDatasetEvaluatorsTable(data.dataset);
   const evaluatorsTableData = evaluatorsTableProps.data;
 

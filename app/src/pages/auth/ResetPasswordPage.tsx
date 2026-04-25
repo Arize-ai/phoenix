@@ -1,7 +1,7 @@
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 
 import { Flex, View } from "@phoenix/components";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { resetPasswordLoaderQuery as ResetPasswordLoaderQuery } from "./__generated__/resetPasswordLoaderQuery.graphql";
 import { AuthLayout } from "./AuthLayout";
@@ -12,10 +12,10 @@ import { resetPasswordLoaderQuery } from "./resetPasswordLoader";
 
 export function ResetPasswordPage() {
   const loaderData = useLoaderData<ResetPasswordLoaderData>();
-  const data = usePreloadedQuery<ResetPasswordLoaderQuery>(
-    resetPasswordLoaderQuery,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<ResetPasswordLoaderQuery>({
+    query: resetPasswordLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">

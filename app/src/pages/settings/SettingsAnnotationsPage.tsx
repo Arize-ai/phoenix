@@ -1,9 +1,4 @@
-import {
-  graphql,
-  useMutation,
-  usePreloadedQuery,
-  useRefetchableFragment,
-} from "react-relay";
+import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -17,6 +12,8 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { settingsAnnotationsPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsAnnotationsPageLoaderQuery.graphql";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import type { SettingsAnnotationsPageLoaderType } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { settingsAnnotationsPageLoaderGql } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -28,7 +25,10 @@ import type { SettingsAnnotationsPageFragment$key } from "./__generated__/Settin
 export const SettingsAnnotationsPage = () => {
   const loaderData = useLoaderData<SettingsAnnotationsPageLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsAnnotationsPageLoaderGql, loaderData);
+  const data = useOwnedPreloadedQuery<settingsAnnotationsPageLoaderQuery>({
+    query: settingsAnnotationsPageLoaderGql,
+    queryRef: loaderData,
+  });
   return <SettingsAnnotations annotations={data} />;
 };
 
