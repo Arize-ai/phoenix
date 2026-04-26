@@ -59,3 +59,12 @@ tests/unit/server/api/
 | Adding or modifying a mutation, type, subscription, or input | `references/graphql-patterns.md` |
 | Writing or modifying tests | `references/test-patterns.md` |
 | Adding a migration or modifying database models | `references/database-patterns.md` |
+
+## Hard Rules
+
+- **Side effects belong on `Mutation`, not `Query`.** A resolver that makes outbound
+  network calls, reads secrets, writes state, or accepts a user-supplied URL/host
+  MUST be a `@strawberry.mutation` with `permission_classes=[...]`. Query fields
+  bypass the `make check-graphql-permissions` CI guard and are reachable
+  unauthenticated by default — this has been exploited as an SSRF vector. See
+  `references/graphql-patterns.md` → "Query vs Mutation".

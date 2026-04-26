@@ -2,6 +2,35 @@
 
 Full templates and patterns for mutations, types, subscriptions, and input types.
 
+## Query vs Mutation: Side Effects MUST Be Mutations
+
+A GraphQL field belongs on `Mutation` (not `Query`) if it does any of the following:
+
+- Makes outbound HTTP, gRPC, or other network calls to user-controlled or
+  user-influenced destinations (URLs, hostnames, headers, kwargs)
+- Calls a "test connection" / "validate credentials" / "ping" style operation
+- Writes to the database, the filesystem, or an external store
+- Reads or decrypts secrets
+- Triggers a side effect that costs money, time, or external rate limits
+
+**Why this matters:** `Query` fields are conventionally treated as safe, cacheable
+reads. They are easy to forget on the auth path, they are reachable through
+introspection, and `permission_classes` are far less commonly applied to query
+resolvers than to mutations. A query resolver that issues HTTP requests with a
+user-supplied `base_url` is an unauthenticated SSRF vector — this has happened
+in this codebase (`testGenerativeModelCustomProviderCredentials` was originally
+a query and was used to reach internal cloud metadata endpoints).
+
+If you find yourself writing a `@strawberry.field` on `Query` that takes a URL,
+a config object, credentials, or anything that ends up making a network call:
+**stop and make it a mutation** with `permission_classes=[...]`. The CI guard
+`make check-graphql-permissions` enforces that all mutations and subscriptions
+declare permission classes; queries get no such guarantee.
+
+When in doubt, ask: "could an unauthenticated attacker who can reach `/graphql`
+abuse this field to do something they should not?" If the answer is anything
+other than a confident no, it must be a mutation behind auth.
+
 ## Adding a Mutation
 
 ### Step-by-step

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3588f2463972c70e29be86b0524a5051>>
+ * @generated SignedSource<<542ea59620127fb6e3a68057d18cfd45>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,17 +93,17 @@ export type GoogleGenAIHttpOptionsInput = {
   baseUrl?: string | null;
   headers?: any | null;
 };
-export type CustomProviderFormTestCredentialsQuery$variables = {
+export type CustomProviderFormTestCredentialsMutation$variables = {
   input: GenerativeModelCustomerProviderConfigInput;
 };
-export type CustomProviderFormTestCredentialsQuery$data = {
+export type CustomProviderFormTestCredentialsMutation$data = {
   readonly testGenerativeModelCustomProviderCredentials: {
     readonly error: string | null;
   };
 };
-export type CustomProviderFormTestCredentialsQuery = {
-  response: CustomProviderFormTestCredentialsQuery$data;
-  variables: CustomProviderFormTestCredentialsQuery$variables;
+export type CustomProviderFormTestCredentialsMutation = {
+  response: CustomProviderFormTestCredentialsMutation$data;
+  variables: CustomProviderFormTestCredentialsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -145,29 +145,29 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "CustomProviderFormTestCredentialsQuery",
+    "name": "CustomProviderFormTestCredentialsMutation",
     "selections": (v1/*: any*/),
-    "type": "Query",
+    "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "CustomProviderFormTestCredentialsQuery",
+    "name": "CustomProviderFormTestCredentialsMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "1f6f6ef6861d65fb66b2e37cd46f2bd2",
+    "cacheID": "7680aac239abb387cb84f787e2b9c2dc",
     "id": null,
     "metadata": {},
-    "name": "CustomProviderFormTestCredentialsQuery",
-    "operationKind": "query",
-    "text": "query CustomProviderFormTestCredentialsQuery(\n  $input: GenerativeModelCustomerProviderConfigInput!\n) {\n  testGenerativeModelCustomProviderCredentials(input: $input) {\n    error\n  }\n}\n"
+    "name": "CustomProviderFormTestCredentialsMutation",
+    "operationKind": "mutation",
+    "text": "mutation CustomProviderFormTestCredentialsMutation(\n  $input: GenerativeModelCustomerProviderConfigInput!\n) {\n  testGenerativeModelCustomProviderCredentials(input: $input) {\n    error\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b14fa4b352682df4c07814d53900a9f4";
+(node as any).hash = "dff7b8eedafccb0a37f2748ccb1a7be6";
 
 export default node;

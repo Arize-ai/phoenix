@@ -33,6 +33,16 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Cache or store mutations MUST update affected collections to prevent stale lists in the UI
 - Form fields MUST have validation rules on required inputs
 
+## Security
+
+- GraphQL resolvers that perform side effects — outbound HTTP/RPC, "test connection" / credential validation, database writes, secret reads, filesystem writes, or any operation that takes a user-supplied URL, hostname, or set of HTTP headers — MUST be exposed as `@strawberry.mutation` (or `@strawberry.subscription`), NEVER as a `Query` field. Query fields are reachable through introspection, are not covered by the `make check-graphql-permissions` CI guard, and have historically been used to bypass auth (SSRF against internal services, including cloud metadata endpoints).
+- All `@strawberry.mutation` and `@strawberry.subscription` definitions MUST declare `permission_classes=[...]` — at minimum `IsNotReadOnly`, `IsNotViewer`, and (where appropriate) `IsAdminIfAuthEnabled` and/or `IsLocked`. The `make check-graphql-permissions` script enforces this in CI; do not bypass it.
+- User-supplied URLs, hostnames, base URLs, or endpoint overrides that the server will dial out to MUST be treated as untrusted. They MUST NOT be allowed to resolve to link-local, loopback, private, or cloud metadata addresses (e.g. `169.254.169.254`, `metadata.google.internal`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `::1`, `fc00::/7`, `fe80::/10`) unless the feature explicitly requires it and is gated behind admin-only auth.
+- User-supplied HTTP headers and client kwargs MUST NOT be forwarded to internal or privileged services without an allowlist. Headers like `Metadata-Flavor`, `X-Forwarded-For`, `Authorization`, and `Host` are particularly sensitive.
+- Secrets (API keys, tokens, encrypted config) MUST NOT appear in error messages, log lines, GraphQL error payloads, or telemetry. Error messages from upstream providers MAY be surfaced verbatim only when the upstream is the user's own configured provider; otherwise they MUST be sanitized.
+- GraphQL introspection-discoverable fields that perform privileged operations MUST have a regression test that asserts both the schema location (mutation, not query) and the presence of the required `permission_classes`. See `tests/unit/server/api/mutations/test_generative_model_custom_provider_mutations.py::test_test_credentials_is_an_auth_gated_mutation_not_a_query` for the canonical pattern.
+- Authentication and authorization checks MUST NOT be implemented only on the frontend. Server-side enforcement is REQUIRED for every privileged operation.
+
 ## Skip
 
 - Generated files under `__generated__` directories

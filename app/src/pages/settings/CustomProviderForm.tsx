@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
@@ -51,7 +51,7 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 
-import type { CustomProviderFormTestCredentialsQuery } from "./__generated__/CustomProviderFormTestCredentialsQuery.graphql";
+import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/CustomProviderFormTestCredentialsMutation.graphql";
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
@@ -1071,8 +1071,8 @@ export const ProviderForm = ({
   );
 };
 
-const testCredentialsQuery = graphql`
-  query CustomProviderFormTestCredentialsQuery(
+const testCredentialsMutation = graphql`
+  mutation CustomProviderFormTestCredentialsMutation(
     $input: GenerativeModelCustomerProviderConfigInput!
   ) {
     testGenerativeModelCustomProviderCredentials(input: $input) {
@@ -1224,7 +1224,10 @@ function TestConnectionButton({
   getValues: UseFormGetValues<ProviderFormData>;
   sdk: GenerativeModelSDK;
 }) {
-  const environment = useRelayEnvironment();
+  const [commitTestCredentials] =
+    useMutation<CustomProviderFormTestCredentialsMutation>(
+      testCredentialsMutation
+    );
   const [testConnectionState, dispatchTestConnectionState] = useReducer(
     testConnectionReducer,
     INITIAL_TEST_CONNECTION_STATE
@@ -1288,11 +1291,15 @@ function TestConnectionButton({
     try {
       const formValues = getValues();
       const clientConfig = buildClientConfig(formValues);
-      const result = await fetchQuery<CustomProviderFormTestCredentialsQuery>(
-        environment,
-        testCredentialsQuery,
-        { input: clientConfig }
-      ).toPromise();
+      const result = await new Promise<
+        CustomProviderFormTestCredentialsMutation["response"] | null
+      >((resolve, reject) => {
+        commitTestCredentials({
+          variables: { input: clientConfig },
+          onCompleted: (response) => resolve(response),
+          onError: (error) => reject(error),
+        });
+      });
 
       // Ignore result if form changed during request
       if (shouldIgnoreResultRef.current) {
@@ -1348,7 +1355,7 @@ function TestConnectionButton({
     } finally {
       dispatchTestConnectionState({ type: "complete" });
     }
-  }, [canTest, environment, getValues]);
+  }, [canTest, commitTestCredentials, getValues]);
 
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
 

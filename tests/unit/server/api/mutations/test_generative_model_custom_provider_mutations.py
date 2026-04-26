@@ -3,6 +3,8 @@ from typing import Any
 
 from strawberry.relay.types import GlobalID
 
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.schema import _EXPORTED_GRAPHQL_SCHEMA
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -122,6 +124,51 @@ class TestGenerativeModelCustomProviderMutations:
         }
       }
     """
+
+    async def test_test_credentials_is_an_auth_gated_mutation_not_a_query(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Security regression: testGenerativeModelCustomProviderCredentials must be a
+        mutation with auth permission classes, not an unauthenticated query field. The
+        resolver makes user-controlled outbound HTTP requests, which is an SSRF vector
+        if exposed via the unauthenticated Query type.
+        """
+        introspection = """
+          query SchemaShape {
+            queryType: __type(name: "Query") { fields { name } }
+            mutationType: __type(name: "Mutation") { fields { name } }
+          }
+        """
+        result = await gql_client.execute(query=introspection)
+        assert not result.errors
+        assert result.data is not None
+
+        query_field_names = {f["name"] for f in result.data["queryType"]["fields"]}
+        mutation_field_names = {f["name"] for f in result.data["mutationType"]["fields"]}
+
+        assert "testGenerativeModelCustomProviderCredentials" not in query_field_names, (
+            "testGenerativeModelCustomProviderCredentials must not be exposed as a Query "
+            "field — it triggers user-controlled outbound HTTP and would be reachable "
+            "without authentication."
+        )
+        assert "testGenerativeModelCustomProviderCredentials" in mutation_field_names
+
+        from strawberry.types.base import StrawberryObjectDefinition
+
+        mutation_definition = _EXPORTED_GRAPHQL_SCHEMA.schema_converter.type_map[
+            "Mutation"
+        ].definition
+        assert isinstance(mutation_definition, StrawberryObjectDefinition)
+        resolver_field = next(
+            f
+            for f in mutation_definition.fields
+            if f.python_name == "test_generative_model_custom_provider_credentials"
+        )
+        permission_classes = set(resolver_field.permission_classes)
+        assert IsNotReadOnly in permission_classes
+        assert IsNotViewer in permission_classes
+        assert IsAdminIfAuthEnabled in permission_classes
 
     async def test_all_provider_mutations_comprehensive(
         self,

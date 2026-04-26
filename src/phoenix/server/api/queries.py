@@ -2,11 +2,9 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
-from secrets import token_hex
 from typing import Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
-import anyio
 import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
@@ -61,9 +59,6 @@ from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
 from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
-from phoenix.server.api.input_types.GenerativeModelCustomerProviderConfigInput import (
-    GenerativeModelCustomerProviderConfigInput,
-)
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
@@ -212,11 +207,6 @@ class ExperimentRunMetricComparisons:
 
 
 @strawberry.type
-class TestGenerativeModelCustomProviderCredentialsResult:
-    error: str | None = None
-
-
-@strawberry.type
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
@@ -318,107 +308,6 @@ class Query:
             has_previous_page=has_previous_page,
             has_next_page=has_next_page,
         )
-
-    @strawberry.field
-    async def test_generative_model_custom_provider_credentials(
-        self,
-        input: GenerativeModelCustomerProviderConfigInput,
-    ) -> TestGenerativeModelCustomProviderCredentialsResult:
-        """
-        Test provider credentials by making a lightweight API call.
-        Uses models.list() where available, or a dummy model name where
-        non-auth errors indicate valid credentials.
-        """
-        config = input.to_orm()
-
-        if config.root.type == "openai":
-            try:
-                with anyio.move_on_after(10) as scope:
-                    async with config.root.get_client_factory()() as openai_client:
-                        await openai_client.models.list(timeout=10)
-                if scope.cancelled_caught:
-                    return TestGenerativeModelCustomProviderCredentialsResult(
-                        error="Request timed out after 10 seconds"
-                    )
-            except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "azure_openai":
-            try:
-                with anyio.move_on_after(10) as scope:
-                    async with config.root.get_client_factory()() as azure_openai_client:
-                        await azure_openai_client.models.list(timeout=10)
-                if scope.cancelled_caught:
-                    return TestGenerativeModelCustomProviderCredentialsResult(
-                        error="Request timed out after 10 seconds"
-                    )
-            except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "anthropic":
-            try:
-                from anthropic import NotFoundError as AnthropicNotFoundError
-
-                # Use dummy model - non-auth errors mean credentials are valid
-                with anyio.move_on_after(10) as scope:
-                    async with config.root.get_client_factory()() as anthropic_client:
-                        await anthropic_client.messages.create(
-                            model="test-credential-check",
-                            messages=[{"role": "user", "content": "Hi"}],
-                            max_tokens=10,
-                            timeout=10,
-                        )
-                if scope.cancelled_caught:
-                    return TestGenerativeModelCustomProviderCredentialsResult(
-                        error="Request timed out after 10 seconds"
-                    )
-            except AnthropicNotFoundError:
-                pass  # Fall through to return VALID
-            except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "aws_bedrock":
-            try:
-                from botocore.exceptions import ClientError  # type: ignore[import-untyped]
-
-                # Use dummy model - ValidationException means credentials are valid
-                # Use async aioboto3 client
-                with anyio.move_on_after(10) as scope:
-                    async with config.root.get_client_factory()() as client:
-                        await client.converse(
-                            modelId=f"test-credential-check-{token_hex(4)}",
-                            messages=[{"role": "user", "content": [{"text": "Hi"}]}],
-                            inferenceConfig={"maxTokens": 10},
-                        )
-                if scope.cancelled_caught:
-                    return TestGenerativeModelCustomProviderCredentialsResult(
-                        error="Request timed out after 10 seconds"
-                    )
-            except ClientError as e:
-                error_code = e.response.get("Error", {}).get("Code", "")
-                # ValidationException means credentials are valid but model ID is wrong
-                # This is still a successful credential test
-                if error_code == "ValidationException":
-                    pass  # Fall through to return VALID
-                else:
-                    return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-            except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        elif config.root.type == "google_genai":
-            try:
-                from google.genai.types import HttpOptions, ListModelsConfig
-
-                with anyio.move_on_after(10) as scope:
-                    async with config.root.get_client_factory()() as google_genai_client:
-                        await google_genai_client.models.list(
-                            config=ListModelsConfig(http_options=HttpOptions(timeout=10_000))
-                        )
-                if scope.cancelled_caught:
-                    return TestGenerativeModelCustomProviderCredentialsResult(
-                        error="Request timed out after 10 seconds"
-                    )
-            except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
-        else:
-            raise BadRequest("Invalid input")
-        return TestGenerativeModelCustomProviderCredentialsResult(error=None)
 
     @strawberry.field
     async def generative_models(
