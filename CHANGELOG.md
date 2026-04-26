@@ -1,5 +1,23 @@
 # Changelog
 
+## [14.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.14.0...arize-phoenix-v14.15.0) (2026-04-26)
+
+
+### Features
+
+* **app:** add sessions_ux flag with Turns/Traces toggle ([#12826](https://github.com/Arize-ai/phoenix/issues/12826)) ([e9cadd5](https://github.com/Arize-ai/phoenix/commit/e9cadd5ded309fbecbec5f9c3cb6ae35fbf2de6a))
+* **skills:** add phoenix-skills-audit skill and weekly GHA ([#12863](https://github.com/Arize-ai/phoenix/issues/12863)) ([3d6cc81](https://github.com/Arize-ai/phoenix/commit/3d6cc81a7a6a360dd230e49173ae684caf022682))
+
+
+### Bug Fixes
+
+* **server:** require auth for custom provider credential test (SSRF) ([#12870](https://github.com/Arize-ai/phoenix/issues/12870)) ([8c68957](https://github.com/Arize-ai/phoenix/commit/8c68957e68222a030587d3b14a8824e13785de22))
+
+
+### Documentation
+
+* **skills:** weekly audit — 2026-04-25 ([#12864](https://github.com/Arize-ai/phoenix/issues/12864)) ([a394e1b](https://github.com/Arize-ai/phoenix/commit/a394e1b5f2e4517e2f2e1a1df4da891bf9cacefb))
+
 ## [14.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.13.0...arize-phoenix-v14.14.0) (2026-04-24)
 
 
