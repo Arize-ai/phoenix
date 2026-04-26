@@ -44,6 +44,25 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 
 Always use `--format raw --no-progress` when piping to `jq`.
 
+## Quick Reference
+
+| Task | Files |
+| ---- | ----- |
+| Open code sampled traces | [references/open-coding](references/open-coding.md) |
+| Analyze errors (axial coding) | [references/axial-coding](references/axial-coding.md) |
+
+## Workflows
+
+**Error Analysis:**
+[open-coding](references/open-coding.md) → [axial-coding](references/axial-coding.md)
+
+## Reference Categories
+
+| Prefix | Description |
+| ------ | ----------- |
+| `references/open-coding` | Sample traces and label them with open codes |
+| `references/axial-coding` | Group open codes into error categories |
+
 ## Auth
 
 ```bash
