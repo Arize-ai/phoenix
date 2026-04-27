@@ -1,3 +1,4 @@
+import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -17,7 +18,6 @@ import {
   ModalOverlay,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy } from "@phoenix/components/auth";
-import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
@@ -27,10 +27,7 @@ import { settingsDataPageLoaderGql } from "./settingsDataPageLoader";
 export function SettingsDataPage() {
   const loaderData = useLoaderData<SettingsDataLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = useOwnedPreloadedQuery({
-    query: settingsDataPageLoaderGql,
-    queryRef: loaderData,
-  });
+  const data = usePreloadedQuery(settingsDataPageLoaderGql, loaderData);
   return (
     <Card
       title="Retention Policies"
