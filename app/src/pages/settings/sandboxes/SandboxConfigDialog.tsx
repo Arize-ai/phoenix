@@ -135,6 +135,13 @@ type SandboxConfigDialogContentProps = (
 
 const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
 
+function shouldShowLocalDenoTrustWarning() {
+  // Heuristic: managed Phoenix deployments inject managementUrl and users do
+  // not control the host runtime directly. Prefer a server-provided deployment
+  // capability flag if one becomes available.
+  return !window.Config.managementUrl;
+}
+
 function defaultConfigName(provider: ProviderRow): string {
   return `${provider.backend.displayName}`;
 }
@@ -341,7 +348,8 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
       <form onSubmit={handleSubmit}>
         <View padding="size-200">
           <Flex direction="column" gap="size-200">
-            {activeBackend?.backendType === "DENO" ? (
+            {activeBackend?.backendType === "DENO" &&
+            shouldShowLocalDenoTrustWarning() ? (
               <Alert variant="warning">
                 Deno runs locally on the Phoenix server and relies on Deno's
                 permission system for isolation. Only enable it for trusted code
