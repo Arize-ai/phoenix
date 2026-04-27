@@ -341,6 +341,13 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
       <form onSubmit={handleSubmit}>
         <View padding="size-200">
           <Flex direction="column" gap="size-200">
+            {activeBackend?.backendType === "DENO" ? (
+              <Alert variant="warning">
+                Deno runs locally on the Phoenix server and relies on Deno's
+                permission system for isolation. Only enable it for trusted code
+                execution.
+              </Alert>
+            ) : null}
             {mode === "create" ? (
               <Controller
                 name="sandboxProviderId"
