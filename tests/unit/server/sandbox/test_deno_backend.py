@@ -46,6 +46,9 @@ class TestDenoAdapter:
             "/opt/homebrew/bin/deno",
             "run",
             "--no-prompt",
+            "--no-config",
+            "--no-remote",
+            "--no-npm",
             "--allow-env=TOKEN",
             "-",
         ]
@@ -62,6 +65,9 @@ class TestDenoSandboxBackend:
             "/usr/local/bin/deno",
             "run",
             "--no-prompt",
+            "--no-config",
+            "--no-remote",
+            "--no-npm",
             "--allow-env=A,B",
             "-",
         ]
@@ -100,6 +106,9 @@ class TestDenoSandboxBackend:
             "/usr/local/bin/deno",
             "run",
             "--no-prompt",
+            "--no-config",
+            "--no-remote",
+            "--no-npm",
             "--allow-env=FOO,TOKEN",
             "-",
         )

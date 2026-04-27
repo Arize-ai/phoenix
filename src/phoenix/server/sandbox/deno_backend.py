@@ -43,7 +43,20 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         self._user_env: dict[str, str] = user_env or {}
 
     def _build_command(self) -> list[str]:
-        cmd = [self._deno_executable, "run", "--no-prompt"]
+        # Deno security docs: permissions are denied by default, but config
+        # files can also supply permissions and module loading from remote/npm
+        # can still occur unless explicitly disabled.
+        # Docs:
+        # - https://docs.deno.com/runtime/fundamentals/security/
+        # - https://docs.deno.com/runtime/reference/cli/run/
+        cmd = [
+            self._deno_executable,
+            "run",
+            "--no-prompt",
+            "--no-config",
+            "--no-remote",
+            "--no-npm",
+        ]
         if self._user_env:
             allowed_env_names = ",".join(sorted(self._user_env))
             cmd.append(f"--allow-env={allowed_env_names}")
