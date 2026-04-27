@@ -5,7 +5,7 @@
  * describe the on-disk `settings.json` format. Runtime I/O, parsing, and
  * profile resolution logic live alongside the CLI commands that consume
  * them; this file is the canonical source for
- * `schemas/phoenix-cli-settings-1.json` (emitted by `scripts/build-schema.ts`).
+ * `schemas/phoenix-cli-settings.json` (emitted by `scripts/build-schema.ts`).
  */
 
 import { z } from "zod";
@@ -44,9 +44,6 @@ export const ProfilesFileSchema = z.object({
     .describe(
       "Optional JSON Schema URL for editor autocomplete. Pin to a GitHub raw URL at a released tag; see README."
     ),
-  version: z
-    .literal(1)
-    .describe("Schema version. Bumped on breaking changes to the file format."),
   activeProfile: z
     .union([z.string(), z.null()])
     .describe(
