@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -18,6 +17,7 @@ import {
   View,
 } from "@phoenix/components";
 import { PromptChatMessages } from "@phoenix/components/prompt/PromptChatMessagesCard";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 import type { PromptVersionLoaderData } from "@phoenix/pages/prompt/promptVersionLoader";
 import { promptVersionLoaderQuery } from "@phoenix/pages/prompt/promptVersionLoader";
@@ -33,10 +33,10 @@ import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export function PromptVersionDetailsPage() {
   const loaderData = useLoaderData<PromptVersionLoaderData>();
-  const data = usePreloadedQuery<PromptVersionLoaderQuery>(
-    promptVersionLoaderQuery,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<PromptVersionLoaderQuery>({
+    query: promptVersionLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
   return <PromptVersionDetailsPageContent promptVersion={data.promptVersion} />;
 }
 

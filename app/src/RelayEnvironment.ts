@@ -12,6 +12,10 @@ import invariant from "tiny-invariant";
 import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
+import {
+  instrumentRelayEnvironment,
+  isRelayDebugEnabled,
+} from "./relayDebugInstrumentation";
 import { isObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
@@ -109,14 +113,25 @@ const subscribe = createFetchMultipartSubscription(graphQLPath, {
   fetch: graphQLFetch,
 });
 
-// Export a singleton instance of Relay Environment configured with our network layer:
-export default new Environment({
-  network: Network.create(fetchRelay, subscribe),
-  store: new Store(new RecordSource(), {
-    // This property tells Relay to not immediately clear its cache when the user
-    // navigates around the app. Relay will hold onto the specified number of
-    // query results, allowing the user to return to recently visited pages
-    // and reusing cached data if its available/fresh.
-    gcReleaseBufferSize: 20,
-  }),
+const relayStore = new Store(new RecordSource(), {
+  // This property tells Relay to not immediately clear its cache when the user
+  // navigates around the app. Relay will hold onto the specified number of
+  // query results, allowing the user to return to recently visited pages
+  // and reusing cached data if its available/fresh.
+  gcReleaseBufferSize: 20,
 });
+
+const relayEnvironment = new Environment({
+  network: Network.create(fetchRelay, subscribe),
+  store: relayStore,
+});
+
+if (isRelayDebugEnabled()) {
+  instrumentRelayEnvironment({
+    environment: relayEnvironment,
+    store: relayStore,
+  });
+}
+
+// Export a singleton instance of Relay Environment configured with our network layer:
+export default relayEnvironment;

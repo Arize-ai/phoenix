@@ -7,3 +7,7 @@
  * module declaration.
  */
 declare module "vite/modulepreload-polyfill" {}
+
+interface ImportMetaEnv {
+  readonly VITE_DEBUG_RELAY?: string;
+}
