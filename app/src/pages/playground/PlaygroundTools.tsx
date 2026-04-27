@@ -8,7 +8,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
-import { getToolName } from "./playgroundUtils";
+import { getFunctionToolName } from "./playgroundUtils";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
@@ -32,7 +32,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
   const toolNames = useMemo(
     () =>
       tools
-        .map((tool) => getToolName(tool))
+        .map((tool) => getFunctionToolName(tool))
         .filter((name): name is NonNullable<typeof name> => name != null),
     [tools]
   );

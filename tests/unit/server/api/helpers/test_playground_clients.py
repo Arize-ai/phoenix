@@ -1,5 +1,5 @@
 import json
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -18,7 +18,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 
+from phoenix.db.types.model_provider import LLMClientFactory
 from phoenix.db.types.prompts import (
+    PromptToolChoiceSpecificFunctionTool,
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
@@ -26,6 +28,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    AnthropicStreamingClient,
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
     AzureOpenAIStreamingClient,
@@ -59,7 +62,7 @@ class TestOpenAIBaseStreamingClient:
         openai_api_key: str,
     ) -> Any:
         @asynccontextmanager
-        async def factory() -> Any:
+        async def factory() -> AsyncIterator[Any]:
             yield AsyncOpenAI(max_retries=0)
 
         return factory
@@ -439,6 +442,71 @@ class TestOpenAIBaseStreamingClient:
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
         assert not attributes
+
+
+class TestAnthropicStreamingClient:
+    def test_specific_tool_choice_includes_tool_definitions(self) -> None:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        client: Any = AnthropicStreamingClient(
+            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            model_name="claude-3-5-sonnet-latest",
+            provider="anthropic",
+        )
+        tools = PromptTools(
+            type="tools",
+            tool_choice=PromptToolChoiceSpecificFunctionTool(
+                type="specific_function",
+                function_name="correctness",
+            ),
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="correctness",
+                        description="Evaluate correctness",
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string"},
+                                "explanation": {"type": "string"},
+                            },
+                            "required": ["label", "explanation"],
+                        },
+                    ),
+                )
+            ],
+        )
+
+        params = client._anthropic_message_params(
+            messages=[
+                create_playground_message(
+                    ChatCompletionMessageRole.USER,
+                    "Evaluate this answer.",
+                )
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters={"max_tokens": 1024},
+        )
+
+        assert params["tool_choice"] == {"type": "tool", "name": "correctness"}
+        assert params["tools"] == [
+            {
+                "name": "correctness",
+                "description": "Evaluate correctness",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "explanation": {"type": "string"},
+                    },
+                    "required": ["label", "explanation"],
+                },
+            }
+        ]
 
 
 # mime types

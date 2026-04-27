@@ -12,6 +12,7 @@ import {
 } from "../../schemas/llm/converters";
 import type { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
+import { isPromptToolRaw } from "../../types/prompts";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { toSDKParamsBase, Variables } from "./types";
 
@@ -74,14 +75,22 @@ export const toOpenAI = <V extends Variables = Variables>({
       return openAIMessage;
     });
 
-    let tools = prompt.tools?.tools.map((tool) => {
-      const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
-        toolDefinition: tool,
-        targetProvider: "OPENAI",
-      });
-      invariant(openAIToolDefinition, "Tool definition is not valid");
-      return openAIToolDefinition;
-    });
+    const toolsList = prompt.tools?.tools;
+    let tools: ChatCompletionCreateParams["tools"] | undefined = Array.isArray(
+      toolsList
+    )
+      ? (toolsList.map((tool) => {
+          if (isPromptToolRaw(tool)) {
+            return tool.raw;
+          }
+          const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
+            toolDefinition: tool,
+            targetProvider: "OPENAI",
+          });
+          invariant(openAIToolDefinition, "Tool definition is not valid");
+          return openAIToolDefinition;
+        }) as unknown as ChatCompletionCreateParams["tools"])
+      : undefined;
     tools = (tools?.length ?? 0) > 0 ? tools : undefined;
 
     let tool_choice: OpenaiToolChoice | undefined =

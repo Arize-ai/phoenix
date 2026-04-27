@@ -7,6 +7,7 @@ import {
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
+import { isPromptToolRaw } from "../../types/prompts";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { toSDKParamsBase, Variables } from "./types";
 
@@ -62,14 +63,24 @@ export const toAnthropic = <V extends Variables = Variables>({
       return anthropicMessage;
     });
 
-    let tools = prompt.tools?.tools.map((tool) => {
-      const anthropicToolDefinition = safelyConvertToolDefinitionToProvider({
-        toolDefinition: tool,
-        targetProvider: "ANTHROPIC",
-      });
-      invariant(anthropicToolDefinition, "Tool definition is not valid");
-      return anthropicToolDefinition;
-    });
+    const toolsList = prompt.tools?.tools;
+    let tools: MessageCreateParams["tools"] | undefined = Array.isArray(
+      toolsList
+    )
+      ? (toolsList.map((tool) => {
+          if (isPromptToolRaw(tool)) {
+            return tool.raw;
+          }
+          const anthropicToolDefinition = safelyConvertToolDefinitionToProvider(
+            {
+              toolDefinition: tool,
+              targetProvider: "ANTHROPIC",
+            }
+          );
+          invariant(anthropicToolDefinition, "Tool definition is not valid");
+          return anthropicToolDefinition;
+        }) as MessageCreateParams["tools"])
+      : undefined;
     tools = (tools?.length ?? 0) > 0 ? tools : undefined;
 
     let tool_choice: AnthropicToolChoice | undefined =

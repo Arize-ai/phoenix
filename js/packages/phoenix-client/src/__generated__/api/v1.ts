@@ -2854,6 +2854,18 @@ export interface components {
             /** Strict */
             strict?: boolean;
         };
+        /** PromptToolRaw */
+        PromptToolRaw: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "raw";
+            /** Raw */
+            raw: {
+                [key: string]: unknown;
+            };
+        };
         /** PromptTools */
         PromptTools: {
             /**
@@ -2862,7 +2874,7 @@ export interface components {
              */
             type: "tools";
             /** Tools */
-            tools: components["schemas"]["PromptToolFunction"][];
+            tools: (components["schemas"]["PromptToolFunction"] | components["schemas"]["PromptToolRaw"])[];
             /** Tool Choice */
             tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
             /** Disable Parallel Tool Calls */

@@ -198,8 +198,14 @@ const EditEvaluatorDialog = ({
               promptVersion {
                 tools {
                   tools {
-                    function {
-                      parameters
+                    __typename
+                    ... on PromptToolFunction {
+                      function {
+                        parameters
+                      }
+                    }
+                    ... on PromptToolRaw {
+                      raw
                     }
                   }
                 }

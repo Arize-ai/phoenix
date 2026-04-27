@@ -464,6 +464,9 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             if dt := tools.tools:
                 tool_list: list[ChatCompletionFunctionToolParam] = []
                 for tool in dt:
+                    if tool.type == "raw":
+                        continue
+                    assert tool.type == "function"
                     f = tool.function
                     fn_def = FunctionDefinition(
                         name=f.name,
@@ -673,9 +676,13 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                     assert_never(tc.type)
             if tools.disable_parallel_tool_calls:
                 params["parallel_tool_calls"] = False
-            if dt := tools.tools:
+            elif tools.tools:
                 resp_tool_list: list[FunctionToolParam] = []
-                for tool in dt:
+                for tool in tools.tools:
+                    if tool.type == "raw":
+                        resp_tool_list.append(cast(FunctionToolParam, tool.raw))
+                        continue
+                    assert tool.type == "function"
                     f = tool.function
                     t = FunctionToolParam(
                         type="function",
@@ -1675,6 +1682,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         if tools:
             tool_list: list[ToolTypeDef] = []
             for tool in tools.tools:
+                if tool.type == "raw":
+                    tool_list.append(cast(ToolTypeDef, tool.raw))
+                    continue
+                assert tool.type == "function"
                 fn = tool.function
                 tool_spec = ToolSpecificationTypeDef(
                     name=fn.name,
@@ -2422,13 +2433,17 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                     params["tool_choice"] = choice_tool
                 else:
                     assert_never(tc.type)
-            elif tools.disable_parallel_tool_calls:
+            if tools.disable_parallel_tool_calls:
                 params["tool_choice"] = ToolChoiceAutoParam(
                     type="auto", disable_parallel_tool_use=True
                 )
-            if dt := tools.tools:
+            if tools.tools:
                 tool_list: list[ToolParam] = []
-                for tool in dt:
+                for tool in tools.tools:
+                    if tool.type == "raw":
+                        tool_list.append(cast(ToolParam, tool.raw))
+                        continue
+                    assert tool.type == "function"
                     f = tool.function
                     t = ToolParam(
                         input_schema=f.parameters if f.parameters else {"type": "object"},
@@ -2902,12 +2917,16 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
         if system_prompt:
             system_instruction = system_prompt
 
-        google_tools: list[types.Tool] | None = None
+        google_tools: list[types.Tool] = []
         google_tool_config: types.ToolConfig | None = None
+        function_declarations: list[types.FunctionDeclaration] = []
         if tools:
             if dt := tools.tools:
-                function_declarations = []
                 for tool in dt:
+                    if tool.type == "raw":
+                        google_tools.append(types.Tool.model_validate(tool.raw))
+                        continue
+                    assert tool.type == "function"
                     fn = tool.function
                     fd_kwargs: dict[str, Any] = {"name": fn.name}
                     if fn.description:
@@ -2915,9 +2934,11 @@ class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
                     if fn.parameters:
                         fd_kwargs["parameters_json_schema"] = fn.parameters
                     function_declarations.append(types.FunctionDeclaration(**fd_kwargs))
-                google_tools = [types.Tool(function_declarations=function_declarations)]
+                google_tools.extend([types.Tool(function_declarations=function_declarations)])
 
-            if tc := tools.tool_choice:
+            # function_calling_config only applies when function_declarations
+            # are present — Google rejects it for built-in tools like google_search.
+            if function_declarations and (tc := tools.tool_choice):
                 if tc.type == "none":
                     fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
                 elif tc.type == "zero_or_more":

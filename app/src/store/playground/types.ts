@@ -30,7 +30,7 @@ export type CanonicalResponseFormat = {
 
 /**
  * Provider-agnostic canonical tool definition stored on Tool.
- * Isomorphic to OpenAIToolDefinition.function but named independently
+ * Isomorphic to OpenAIChatCompletionsToolDefinition.function but named independently
  * of any provider, consistent with CanonicalToolChoice and CanonicalResponseFormat.
  */
 export type CanonicalToolDefinition = {
@@ -135,14 +135,27 @@ export type ModelConfig = {
 export type ModelInvocationParameterInput =
   ModelConfig["invocationParameters"][number];
 
-/**
- * The type of a tool in the playground
- */
-export type Tool = {
+export type FunctionTool = {
+  kind: "function";
   id: number;
   editorType: PhoenixToolEditorType;
   definition: CanonicalToolDefinition;
 };
+
+export type RawTool = {
+  kind: "raw";
+  id: number;
+  editorType: PhoenixToolEditorType;
+  raw: Record<string, unknown>;
+};
+
+/**
+ * The type of a tool in the playground.
+ *
+ * Function tools are canonical and portable across providers. Raw tools are
+ * raw provider JSON passthrough and are dropped when provider/API type changes.
+ */
+export type Tool = FunctionTool | RawTool;
 
 export type PlaygroundInstancePrompt = {
   /**

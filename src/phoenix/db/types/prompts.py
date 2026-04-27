@@ -134,7 +134,14 @@ class PromptToolFunction(DBBaseModel):
     function: PromptToolFunctionDefinition
 
 
-PromptTool: TypeAlias = Annotated[Union[PromptToolFunction], Field(..., discriminator="type")]
+class PromptToolRaw(DBBaseModel):
+    type: Literal["raw"]
+    raw: dict[str, Any]
+
+
+PromptTool: TypeAlias = Annotated[
+    Union[PromptToolFunction, PromptToolRaw], Field(..., discriminator="type")
+]
 
 
 class PromptToolChoiceNone(DBBaseModel):

@@ -470,7 +470,8 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        tools: list[ToolParam] = list(_ToolConversion.to_anthropic(obj["tools"]))
+        tools_value = obj["tools"]
+        tools: list[ToolParam] = list(_ToolConversion.to_anthropic(tools_value))  # type: ignore[arg-type]
         ans["tools"] = tools
         if "tool_choice" in obj:
             if obj["tool_choice"]["type"] == "none":

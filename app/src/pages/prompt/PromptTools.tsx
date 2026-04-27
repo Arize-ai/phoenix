@@ -32,11 +32,17 @@ export function PromptTools({
       fragment PromptTools__main on PromptVersion {
         tools {
           tools {
-            function {
-              name
-              description
-              parameters
-              strict
+            __typename
+            ... on PromptToolFunction {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            ... on PromptToolRaw {
+              raw
             }
           }
         }
@@ -48,6 +54,27 @@ export function PromptTools({
   const items: ToolDefinitionItem[] = useMemo(() => {
     if (!toolsData) return [];
     return toolsData.tools.map((tool, i) => {
+      if (tool.__typename === "PromptToolRaw") {
+        const definition = tool.raw;
+        const name =
+          typeof definition.name === "string"
+            ? definition.name
+            : typeof definition.type === "string"
+              ? definition.type
+              : `Tool ${i + 1}`;
+        return {
+          name,
+          description: undefined,
+          definition: safelyStringifyJSON(definition, null, 2).json || "{}",
+        };
+      }
+      if (tool.__typename !== "PromptToolFunction") {
+        return {
+          name: `Tool ${i + 1}`,
+          description: undefined,
+          definition: "{}",
+        };
+      }
       const fn = tool.function;
       const definition = { type: "function", function: fn };
       return {

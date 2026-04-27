@@ -22,7 +22,6 @@ import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   generateInstanceId,
   generateMessageId,
-  generateToolId,
 } from "@phoenix/store/playground/playgroundStore";
 import type {
   ModelConfig,
@@ -41,7 +40,11 @@ import {
   fetchSupportedInvocationParameters,
   objectToInvocationParameters,
 } from "./fetchPlaygroundPrompt";
-import { getChatRole } from "./playgroundUtils";
+import {
+  getChatRole,
+  inferOpenAIApiTypeFromTools,
+  promptToolFromGraphQL,
+} from "./playgroundUtils";
 
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {
@@ -96,11 +99,17 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
               }
               tools {
                 tools {
-                  function {
-                    name
-                    description
-                    parameters
-                    strict
+                  __typename
+                  ... on PromptToolFunction {
+                    function {
+                      name
+                      description
+                      parameters
+                      strict
+                    }
+                  }
+                  ... on PromptToolRaw {
+                    raw
                   }
                 }
                 toolChoice {
@@ -244,16 +253,9 @@ function taskConfigToPlaygroundProps(
 
   // --- Tools ---
   const toolsList = prompt.tools?.tools ?? [];
-  const tools = toolsList.map((t) => ({
-    id: generateToolId(),
-    editorType: "json" as const,
-    definition: {
-      name: t.function.name,
-      description: t.function.description ?? null,
-      parameters: t.function.parameters,
-      strict: t.function.strict ?? null,
-    },
-  }));
+  const tools = toolsList
+    .map(promptToolFromGraphQL)
+    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 
   // --- Tool Choice ---
   const rawToolChoice = prompt.tools?.toolChoice;
@@ -393,12 +395,18 @@ export async function fetchExperimentPlaygroundProps(
   const isOpenAIProvider =
     prompt.modelProvider === "OPENAI" ||
     prompt.modelProvider === "AZURE_OPENAI";
+  const promptTools = (prompt.tools?.tools ?? [])
+    .map(promptToolFromGraphQL)
+    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
+  const openaiApiType = isOpenAIProvider
+    ? (inferOpenAIApiTypeFromTools(promptTools) ?? DEFAULT_OPENAI_API_TYPE)
+    : null;
 
   const supportedInvocationParameters =
     (await fetchSupportedInvocationParameters({
       modelName: prompt.modelName,
       providerKey: prompt.modelProvider,
-      openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
+      openaiApiType,
     })) ?? [];
 
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(

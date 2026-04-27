@@ -40,6 +40,7 @@ import {
   getToolChoiceFromAttributes,
   getVariablesMapFromInstances,
   processAttributeToolCalls,
+  toolFromEditorJSON,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
@@ -433,6 +434,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         },
         tools: [
           {
+            kind: "function",
             id: expect.any(Number),
             editorType: "json",
             definition: testSpanOpenAIToolCanonical,
@@ -528,6 +530,61 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           provider: DEFAULT_MODEL_PROVIDER,
           modelName: "test-my-deployment",
         },
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should infer Responses API type from OpenAI Responses-only span tools", () => {
+    const result = getBaseModelConfigFromAttributes({
+      llm: {
+        provider: "openai",
+        model_name: "gpt-5.4-2026-03-05",
+        tools: [
+          {
+            tool: {
+              json_schema: JSON.stringify({ type: "tool_search" }),
+            },
+          },
+        ],
+      },
+      input: {
+        value: JSON.stringify({
+          input: "List open orders for customer CUST-12345.",
+          model: "gpt-5.4",
+        }),
+      },
+    });
+
+    expect(result).toEqual({
+      modelConfig: {
+        provider: "OPENAI",
+        modelName: "gpt-5.4-2026-03-05",
+        openaiApiType: "RESPONSES",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should not infer Responses API type from generic input payloads alone", () => {
+    const result = getBaseModelConfigFromAttributes({
+      llm: {
+        provider: "openai",
+        model_name: "gpt-4o",
+      },
+      input: {
+        value: JSON.stringify({ input: "hello" }),
+      },
+    });
+
+    expect(result).toEqual({
+      modelConfig: {
+        provider: "OPENAI",
+        modelName: "gpt-4o",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     });
@@ -1473,6 +1530,7 @@ describe("getToolsFromAttributes", () => {
       expect(result).toEqual({
         tools: [
           {
+            kind: "function",
             id: expect.any(Number),
             editorType: "json",
             definition: toolDefinition,
@@ -1482,6 +1540,99 @@ describe("getToolsFromAttributes", () => {
       });
     }
   );
+
+  it("should preserve raw non-function tools as raw tools", () => {
+    const rawTool = {
+      type: "web_search",
+      search_context_size: "medium",
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: rawTool,
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
+  it("should load flat OpenAI Responses function tools as function tools", () => {
+    const responsesFunctionTool = {
+      type: "function",
+      name: "get_weather",
+      description: "Get the current weather for a location.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name" },
+          unit: {
+            type: "string",
+            enum: ["celsius", "fahrenheit"],
+            default: "celsius",
+          },
+        },
+        required: ["city"],
+      },
+      strict: true,
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [
+          { tool: { json_schema: JSON.stringify(responsesFunctionTool) } },
+        ],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "function",
+          id: expect.any(Number),
+          editorType: "json",
+          definition: {
+            name: "get_weather",
+            description: "Get the current weather for a location.",
+            parameters: responsesFunctionTool.parameters,
+            strict: true,
+          },
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
+  it("should preserve Anthropic hosted web search as a raw tool", () => {
+    const rawTool = {
+      type: "web_search_20250305",
+      name: "web_search",
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: rawTool,
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
 
   it("should return null tools and parsing errors if tools are invalid", () => {
     const parsedAttributes = { llm: { tools: "invalid" } };
@@ -1501,6 +1652,87 @@ describe("getToolsFromAttributes", () => {
     });
   });
 });
+
+describe("toolFromEditorJSON", () => {
+  it("should convert function-shaped editor JSON into a function tool", () => {
+    const display = {
+      type: "function",
+      function: {
+        name: "get_weather",
+        description: "Get weather",
+        parameters: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+      },
+    };
+
+    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+      kind: "function",
+      id: 1,
+      editorType: "json",
+      definition: {
+        name: "get_weather",
+        description: "Get weather",
+        parameters: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+        strict: null,
+      },
+    });
+  });
+
+  it("should convert function-shaped editor JSON with unknown wrapper fields into a raw tool", () => {
+    const display = {
+      type: "function",
+      function: {
+        name: "get_weather",
+        description: "Get weather",
+        blah: "blah",
+        parameters: {
+          type: "object",
+          properties: { location: { type: "string" } },
+          required: ["location"],
+        },
+      },
+    };
+
+    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+      kind: "raw",
+      id: 1,
+      editorType: "json",
+      raw: display,
+    });
+  });
+
+  it("should convert non-function object editor JSON into a raw tool", () => {
+    const display = {
+      type: "web_search",
+      search_context_size: "medium",
+    };
+
+    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+      kind: "raw",
+      id: 1,
+      editorType: "json",
+      raw: display,
+    });
+  });
+
+  it("should ignore non-object editor JSON", () => {
+    expect(
+      toolFromEditorJSON({
+        display: "not an object",
+        id: 1,
+        editorType: "json",
+      })
+    ).toBeNull();
+  });
+});
+
 describe("areInvocationParamsEqual", () => {
   it("should return true if invocation names are equal", () => {
     const paramA = {

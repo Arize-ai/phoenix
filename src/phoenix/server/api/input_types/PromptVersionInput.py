@@ -25,6 +25,7 @@ from phoenix.db.types.prompts import (
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
+    PromptToolRaw,
     PromptTools,
     RoleConversion,
     TextContentPart,
@@ -59,12 +60,17 @@ class PromptToolFunctionDefinitionInput:
         )
 
 
-@strawberry.input
-class PromptToolFunctionInput:
-    function: PromptToolFunctionDefinitionInput
+@strawberry.input(one_of=True)
+class PromptToolInput:
+    function: Optional[PromptToolFunctionDefinitionInput] = UNSET
+    raw: Optional[JSON] = UNSET
 
-    def to_orm(self) -> PromptToolFunction:
-        return PromptToolFunction(type="function", function=self.function.to_orm())
+    def to_orm(self) -> PromptToolFunction | PromptToolRaw:
+        if self.function:
+            return PromptToolFunction(type="function", function=self.function.to_orm())
+        if isinstance(self.raw, dict):
+            return PromptToolRaw(type="raw", raw=self.raw)
+        raise BadRequest("PromptToolInput: no field is set")
 
 
 @strawberry.input(one_of=True)
@@ -99,7 +105,7 @@ class PromptToolChoiceInput:
 
 @strawberry.input
 class PromptToolsInput:
-    tools: list[PromptToolFunctionInput]
+    tools: list[PromptToolInput]
     tool_choice: Optional[PromptToolChoiceInput] = None
     disable_parallel_tool_calls: Optional[bool] = None
 

@@ -2858,18 +2858,25 @@ input PromptToolFunctionDefinitionInput {
   strict: Boolean = null
 }
 
-input PromptToolFunctionInput {
-  function: PromptToolFunctionDefinitionInput!
+union PromptToolFunctionPromptToolRaw = PromptToolFunction | PromptToolRaw
+
+input PromptToolInput @oneOf {
+  function: PromptToolFunctionDefinitionInput
+  raw: JSON
+}
+
+type PromptToolRaw {
+  raw: JSON!
 }
 
 type PromptTools {
-  tools: [PromptToolFunction!]!
+  tools: [PromptToolFunctionPromptToolRaw!]!
   toolChoice: PromptToolChoice
   disableParallelToolCalls: Boolean
 }
 
 input PromptToolsInput {
-  tools: [PromptToolFunctionInput!]!
+  tools: [PromptToolInput!]!
   toolChoice: PromptToolChoiceInput = null
   disableParallelToolCalls: Boolean = null
 }

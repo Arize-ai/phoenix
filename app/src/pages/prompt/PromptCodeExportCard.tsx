@@ -56,11 +56,17 @@ export function PromptCodeExportCard({
         }
         tools {
           tools {
-            function {
-              name
-              description
-              parameters
-              strict
+            __typename
+            ... on PromptToolFunction {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            ... on PromptToolRaw {
+              raw
             }
           }
           toolChoice {

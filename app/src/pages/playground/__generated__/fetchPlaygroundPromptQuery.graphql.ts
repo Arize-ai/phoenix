@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<31714d8fb5e4bee80e36603fe8ec2494>>
+ * @generated SignedSource<<2f699a9f7c39cd4df5592ad9b7839c30>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -88,12 +88,20 @@ export type fetchPlaygroundPromptQuery$data = {
           readonly type: PromptToolChoiceType;
         } | null;
         readonly tools: ReadonlyArray<{
+          readonly __typename: "PromptToolFunction";
           readonly function: {
             readonly description: string | null;
             readonly name: string;
             readonly parameters: any;
             readonly strict: boolean | null;
           };
+        } | {
+          readonly __typename: "PromptToolRaw";
+          readonly raw: any;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
         }>;
       } | null;
       readonly " $fragmentSpreads": FragmentRefs<"fetchPlaygroundPrompt_promptVersionToInstance_promptVersion">;
@@ -421,31 +429,53 @@ v17 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "PromptToolFunction",
+      "concreteType": null,
       "kind": "LinkedField",
       "name": "tools",
       "plural": true,
       "selections": [
+        (v13/*: any*/),
         {
-          "alias": null,
-          "args": null,
-          "concreteType": "PromptToolFunctionDefinition",
-          "kind": "LinkedField",
-          "name": "function",
-          "plural": false,
+          "kind": "InlineFragment",
           "selections": [
-            (v3/*: any*/),
-            (v5/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptToolFunctionDefinition",
+              "kind": "LinkedField",
+              "name": "function",
+              "plural": false,
+              "selections": [
+                (v3/*: any*/),
+                (v5/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "parameters",
+                  "storageKey": null
+                },
+                (v11/*: any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "type": "PromptToolFunction",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "parameters",
+              "name": "raw",
               "storageKey": null
-            },
-            (v11/*: any*/)
+            }
           ],
-          "storageKey": null
+          "type": "PromptToolRaw",
+          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -669,16 +699,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4e6c0786bbb48c14f36dc08a06cbd72e",
+    "cacheID": "3ecf15a45d268cd09359f83c3fe359c7",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n  $promptVersionId: ID\n  $tagName: Identifier\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version(versionId: $promptVersionId, tagName: $tagName) {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        tags {\n          name\n          promptVersionId\n          id\n        }\n        responseFormat {\n          jsonSchema {\n            name\n            description\n            schema\n            strict\n          }\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          tools {\n            function {\n              name\n              description\n              parameters\n              strict\n            }\n          }\n          toolChoice {\n            type\n            functionName\n          }\n          disableParallelToolCalls\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      function {\n        name\n        description\n        parameters\n        strict\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: ID!\n  $promptVersionId: ID\n  $tagName: Identifier\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      version(versionId: $promptVersionId, tagName: $tagName) {\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n        description\n        modelName\n        modelProvider\n        invocationParameters\n        templateType\n        templateFormat\n        tags {\n          name\n          promptVersionId\n          id\n        }\n        responseFormat {\n          jsonSchema {\n            name\n            description\n            schema\n            strict\n          }\n        }\n        template {\n          __typename\n          ... on PromptChatTemplate {\n            messages {\n              role\n              content {\n                __typename\n                ... on TextContentPart {\n                  text {\n                    text\n                  }\n                }\n                ... on ToolCallContentPart {\n                  toolCall {\n                    toolCallId\n                    toolCall {\n                      name\n                      arguments\n                    }\n                  }\n                }\n                ... on ToolResultContentPart {\n                  toolResult {\n                    toolCallId\n                    result\n                  }\n                }\n              }\n            }\n          }\n        }\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                name\n                description\n                parameters\n                strict\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n          toolChoice {\n            type\n            functionName\n          }\n          disableParallelToolCalls\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c66168caffed09fc56261c64d40e915c";
+(node as any).hash = "2f837a24ab1747ca83714f5823cda072";
 
 export default node;

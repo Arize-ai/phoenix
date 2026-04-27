@@ -7,6 +7,7 @@ import {
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
 import { findToolDefinitionName } from "../../schemas/llm/utils";
+import { isPromptToolRaw } from "../../types/prompts";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { Variables, toSDKParamsBase } from "./types";
 
@@ -68,15 +69,24 @@ export const toAI = <V extends Variables>({
     });
 
     let tools: ToolSet | undefined;
-    if (prompt.tools?.tools && prompt.tools.tools.length > 0) {
+    const toolsList = prompt.tools?.tools;
+    if (toolsList && Array.isArray(toolsList) && toolsList.length > 0) {
       const toolsRecord: Record<string, unknown> = {};
-      for (const tool of prompt.tools.tools) {
-        const name = findToolDefinitionName(tool);
+      for (const tool of toolsList) {
+        const name = isPromptToolRaw(tool)
+          ? typeof tool.raw.name === "string"
+            ? tool.raw.name
+            : typeof tool.raw.type === "string"
+              ? tool.raw.type
+              : null
+          : findToolDefinitionName(tool);
         invariant(name, "Tool definition name is not valid");
-        const converted = safelyConvertToolDefinitionToProvider({
-          toolDefinition: tool,
-          targetProvider: "VERCEL_AI",
-        });
+        const converted = isPromptToolRaw(tool)
+          ? tool.raw
+          : safelyConvertToolDefinitionToProvider({
+              toolDefinition: tool,
+              targetProvider: "VERCEL_AI",
+            });
         invariant(converted, "Tool definition is not valid");
         toolsRecord[name] = converted;
       }

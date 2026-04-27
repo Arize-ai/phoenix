@@ -660,8 +660,9 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
+        tools_value = obj["tools"]
         tools: list[ChatCompletionToolParam] = []
-        for tool in obj["tools"]:
+        for tool in tools_value:
             if tool["type"] == "function":
                 tools.append(_FunctionToolConversion.to_openai(tool))
         if not tools:

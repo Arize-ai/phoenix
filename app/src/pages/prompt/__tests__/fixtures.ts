@@ -40,7 +40,7 @@ export const TOOL_FUNCTION = {
 };
 
 export const TOOLS_FIXTURE = {
-  tools: [{ function: TOOL_FUNCTION }],
+  tools: [{ __typename: "PromptToolFunction", function: TOOL_FUNCTION }],
   toolChoice: null,
   disableParallelToolCalls: null,
 } satisfies NonNullable<FixturePromptVersion["tools"]>;

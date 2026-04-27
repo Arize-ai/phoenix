@@ -14,8 +14,8 @@ import {
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
+  openAIChatCompletionsToolDefinitionSchema,
   openAIResponsesToolDefinitionSchema,
-  openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
@@ -436,6 +436,10 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         ),
         modelName,
         provider,
+        ...getOpenAIApiTypeConfigFromAttributes({
+          parsedAttributes,
+          provider,
+        }),
         invocationParameters: [],
         supportedInvocationParameters: [],
       },
@@ -443,6 +447,76 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+function getOpenAIApiTypeConfigFromAttributes({
+  parsedAttributes,
+  provider,
+}: {
+  parsedAttributes: unknown;
+  provider: ModelProvider;
+}): Pick<ModelConfig, "openaiApiType"> {
+  if (provider !== "OPENAI" && provider !== "AZURE_OPENAI") {
+    return {};
+  }
+  return isOpenAIResponsesSpan(parsedAttributes)
+    ? { openaiApiType: "RESPONSES" }
+    : {};
+}
+
+export function inferOpenAIApiTypeFromTools(
+  tools: readonly Tool[]
+): OpenAIApiType | null {
+  return tools.some(
+    (tool) =>
+      tool.kind === "raw" &&
+      typeof tool.raw.type === "string" &&
+      tool.raw.type !== "function"
+  )
+    ? "RESPONSES"
+    : null;
+}
+
+function inferOpenAIApiTypeFromRawToolDefinitions(
+  rawDefinitions: readonly unknown[]
+): OpenAIApiType | null {
+  return rawDefinitions.some(
+    (definition) =>
+      isStringKeyedObject(definition) &&
+      typeof definition.type === "string" &&
+      definition.type !== "function"
+  )
+    ? "RESPONSES"
+    : null;
+}
+
+function isOpenAIResponsesSpan(parsedAttributes: unknown): boolean {
+  const llm =
+    isStringKeyedObject(parsedAttributes) &&
+    isStringKeyedObject(parsedAttributes.llm)
+      ? parsedAttributes.llm
+      : null;
+  if (llm == null) {
+    return false;
+  }
+  const tools = Array.isArray(llm.tools) ? llm.tools : [];
+  const rawToolDefinitions = tools
+    .map((tool) => {
+      if (!isStringKeyedObject(tool) || !isStringKeyedObject(tool.tool)) {
+        return null;
+      }
+      const rawSchema = tool.tool.json_schema;
+      if (typeof rawSchema !== "string") {
+        return null;
+      }
+      return safelyParseJSON(rawSchema).json;
+    })
+    .filter((definition): definition is NonNullable<typeof definition> => {
+      return definition != null;
+    });
+  return (
+    inferOpenAIApiTypeFromRawToolDefinitions(rawToolDefinitions) === "RESPONSES"
+  );
 }
 
 /**
@@ -877,6 +951,27 @@ export function getResponseFormatFromAttributes(
  * @param tools tools from the span attributes
  * @returns playground tools
  */
+function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
+  const definition = toCanonicalToolDefinition(rawDefinition);
+  if (definition != null) {
+    return {
+      kind: "function",
+      id: generateToolId(),
+      editorType: "json",
+      definition,
+    };
+  }
+  if (isStringKeyedObject(rawDefinition)) {
+    return {
+      kind: "raw",
+      id: generateToolId(),
+      editorType: "json",
+      raw: rawDefinition,
+    };
+  }
+  return null;
+}
+
 function processAttributeTools(tools: LlmToolSchema): Tool[] {
   return (tools?.llm?.tools ?? [])
     .map((tool) => {
@@ -884,17 +979,7 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      // Normalize to canonical hub form (OpenAI Responses API → Chat Completions
-      // is handled transparently by toCanonicalToolDefinition).
-      const definition = toCanonicalToolDefinition(rawDefinition);
-      if (definition == null) {
-        return null;
-      }
-      return {
-        id: generateToolId(),
-        editorType: "json",
-        definition,
-      } satisfies Tool;
+      return createToolFromRawDefinition(rawDefinition);
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -1281,7 +1366,15 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
 export const getToolName = (tool: Tool): string | null => {
-  return tool.definition?.name ?? null;
+  if (tool.kind === "function") {
+    return tool.definition?.name ?? null;
+  }
+  const rawName = tool.raw.name ?? tool.raw.type;
+  return typeof rawName === "string" ? rawName : null;
+};
+
+export const getFunctionToolName = (tool: Tool): string | null => {
+  return tool.kind === "function" ? (tool.definition?.name ?? null) : null;
 };
 
 /**
@@ -1325,6 +1418,7 @@ export const createTool = ({
     definition ?? getDefaultCanonicalToolDefinition(toolNumber);
 
   return {
+    kind: "function",
     id: generateToolId(),
     editorType: type,
     definition: defaultDefinition,
@@ -1764,8 +1858,15 @@ function canonicalParameters(parameters: unknown): unknown {
 export function toCanonicalToolDefinition(
   raw: unknown
 ): CanonicalToolDefinition | null {
+  if (
+    isStringKeyedObject(raw) &&
+    typeof raw.type === "string" &&
+    raw.type !== "function"
+  ) {
+    return null;
+  }
   // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
-  const openai = openAIToolDefinitionSchema.safeParse(raw);
+  const openai = openAIChatCompletionsToolDefinitionSchema.safeParse(raw);
   if (openai.success) {
     const fn = openai.data.function as Record<string, unknown>;
     return {
@@ -1937,6 +2038,84 @@ export function buildPromptToolFunctionInput(
   };
 }
 
+type GraphQLPromptTool = {
+  readonly __typename?: string;
+  readonly function?: {
+    readonly name: string;
+    readonly description: string | null;
+    readonly parameters: unknown;
+    readonly strict: boolean | null;
+  } | null;
+  readonly raw?: unknown;
+};
+
+export function promptToolFromGraphQL(tool: GraphQLPromptTool): Tool | null {
+  if (tool.__typename === "PromptToolRaw" || tool.raw != null) {
+    return isStringKeyedObject(tool.raw)
+      ? {
+          kind: "raw",
+          id: generateToolId(),
+          editorType: "json",
+          raw: tool.raw,
+        }
+      : null;
+  }
+  if (tool.function != null) {
+    return {
+      kind: "function",
+      id: generateToolId(),
+      editorType: "json",
+      definition: {
+        name: tool.function.name,
+        description: tool.function.description ?? null,
+        parameters: tool.function.parameters,
+        strict: tool.function.strict ?? null,
+      },
+    };
+  }
+  return null;
+}
+
+export function toolFromEditorJSON({
+  display,
+  id,
+  editorType,
+}: {
+  display: unknown;
+  id: number;
+  editorType: PhoenixToolEditorType;
+}): Tool | null {
+  if (!isStringKeyedObject(display)) {
+    return null;
+  }
+  const definition = toCanonicalToolDefinition(display);
+  if (definition != null) {
+    return {
+      kind: "function",
+      id,
+      editorType,
+      definition,
+    };
+  }
+  return {
+    kind: "raw",
+    id,
+    editorType,
+    raw: display,
+  };
+}
+
+export function toolToPromptToolInput(
+  tool: Tool
+):
+  | ReturnType<typeof buildPromptToolFunctionInput>
+  | { raw: Record<string, unknown> } {
+  if (tool.kind === "raw") {
+    return { raw: tool.raw };
+  }
+  return buildPromptToolFunctionInput(tool.definition);
+}
+
 /**
  * Convert a canonical tool choice to the PromptToolChoiceInput wire format
  * (isomorphic to DB PromptToolChoice).
@@ -2040,7 +2219,7 @@ export const getChatCompletionInput = ({
     ),
     tools: instance.tools.length
       ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          tools: instance.tools.map(toolToPromptToolInput),
           toolChoice: toCanonicalToolChoice(instance.toolChoice),
         }
       : null,
@@ -2144,7 +2323,7 @@ export const getChatCompletionOverDatasetInput = ({
     ),
     tools: instance.tools.length
       ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          tools: instance.tools.map(toolToPromptToolInput),
           toolChoice: toCanonicalToolChoice(instance.toolChoice),
         }
       : null,

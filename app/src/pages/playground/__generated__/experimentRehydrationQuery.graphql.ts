@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f216e68a83a7566ed8e2bc8b9d1771f4>>
+ * @generated SignedSource<<bb3475d97547d24c2ef8ae882e08e41f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -120,12 +120,20 @@ export type experimentRehydrationQuery$data = {
               readonly type: PromptToolChoiceType;
             } | null;
             readonly tools: ReadonlyArray<{
+              readonly __typename: "PromptToolFunction";
               readonly function: {
                 readonly description: string | null;
                 readonly name: string;
                 readonly parameters: any;
                 readonly strict: boolean | null;
               };
+            } | {
+              readonly __typename: "PromptToolRaw";
+              readonly raw: any;
+            } | {
+              // This will never be '%other', but we need some
+              // value in case none of the concrete values match.
+              readonly __typename: "%other";
             }>;
           } | null;
         };
@@ -419,31 +427,53 @@ v12 = {
         {
           "alias": null,
           "args": null,
-          "concreteType": "PromptToolFunction",
+          "concreteType": null,
           "kind": "LinkedField",
           "name": "tools",
           "plural": true,
           "selections": [
+            (v7/*: any*/),
             {
-              "alias": null,
-              "args": null,
-              "concreteType": "PromptToolFunctionDefinition",
-              "kind": "LinkedField",
-              "name": "function",
-              "plural": false,
+              "kind": "InlineFragment",
               "selections": [
-                (v9/*: any*/),
-                (v10/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptToolFunctionDefinition",
+                  "kind": "LinkedField",
+                  "name": "function",
+                  "plural": false,
+                  "selections": [
+                    (v9/*: any*/),
+                    (v10/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "parameters",
+                      "storageKey": null
+                    },
+                    (v11/*: any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "PromptToolFunction",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "parameters",
+                  "name": "raw",
                   "storageKey": null
-                },
-                (v11/*: any*/)
+                }
               ],
-              "storageKey": null
+              "type": "PromptToolRaw",
+              "abstractKey": null
             }
           ],
           "storageKey": null
@@ -790,16 +820,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1ac181a242bce7b7e49603784d880ac7",
+    "cacheID": "fe30f2cd3262e3f350dc77b3e38712bc",
     "id": null,
     "metadata": {},
     "name": "experimentRehydrationQuery",
     "operationKind": "query",
-    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          prompt {\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              tools {\n                function {\n                  name\n                  description\n                  parameters\n                  strict\n                }\n              }\n              toolChoice {\n                type\n                functionName\n              }\n              disableParallelToolCalls\n            }\n            responseFormat {\n              jsonSchema {\n                name\n                description\n                schema\n                strict\n              }\n            }\n            invocationParameters\n            modelProvider\n            modelName\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              baseUrl\n            }\n          }\n          customProvider {\n            id\n            name\n          }\n          playgroundConfig {\n            templateVariablesPath\n            appendedMessagesPath\n          }\n          streamModelOutput\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query experimentRehydrationQuery(\n  $experimentId: ID!\n) {\n  node(id: $experimentId) {\n    __typename\n    ... on Experiment {\n      dataset {\n        id\n      }\n      job {\n        maxConcurrency\n        datasetEvaluators {\n          edges {\n            node {\n              id\n            }\n          }\n        }\n        taskConfig {\n          prompt {\n            templateType\n            templateFormat\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              tools {\n                __typename\n                ... on PromptToolFunction {\n                  function {\n                    name\n                    description\n                    parameters\n                    strict\n                  }\n                }\n                ... on PromptToolRaw {\n                  raw\n                }\n              }\n              toolChoice {\n                type\n                functionName\n              }\n              disableParallelToolCalls\n            }\n            responseFormat {\n              jsonSchema {\n                name\n                description\n                schema\n                strict\n              }\n            }\n            invocationParameters\n            modelProvider\n            modelName\n          }\n          connection {\n            __typename\n            ... on OpenAIConnectionConfig {\n              baseUrl\n              openaiApiType\n            }\n            ... on AzureOpenAIConnectionConfig {\n              azureEndpoint\n              openaiApiType\n            }\n            ... on AnthropicConnectionConfig {\n              baseUrl\n            }\n            ... on AWSBedrockConnectionConfig {\n              regionName\n              endpointUrl\n            }\n            ... on GoogleGenAIConnectionConfig {\n              baseUrl\n            }\n          }\n          customProvider {\n            id\n            name\n          }\n          playgroundConfig {\n            templateVariablesPath\n            appendedMessagesPath\n          }\n          streamModelOutput\n          id\n        }\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0571ee0f2dd3e36672abba5fb0a487f4";
+(node as any).hash = "89f796d8e827866352e9df637cdf385f";
 
 export default node;

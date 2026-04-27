@@ -40,14 +40,26 @@ class PromptToolFunction:
 
 
 @strawberry.type
+class PromptToolRaw:
+    raw: JSON
+
+    @classmethod
+    def from_orm(cls, t: orm.PromptToolRaw) -> PromptToolRaw:
+        return cls(raw=JSON(t.raw))
+
+
+@strawberry.type
 class PromptTools:
-    tools: list[PromptToolFunction]
+    tools: list[PromptToolFunction | PromptToolRaw]
     tool_choice: PromptToolChoice | None
     disable_parallel_tool_calls: bool | None
 
     @classmethod
     def from_orm(cls, orm_tools: orm.PromptTools) -> PromptTools:
-        tools = [PromptToolFunction.from_orm(t) for t in orm_tools.tools]
+        tools: list[PromptToolFunction | PromptToolRaw] = [
+            PromptToolFunction.from_orm(t) if t.type == "function" else PromptToolRaw.from_orm(t)
+            for t in orm_tools.tools
+        ]
         tool_choice = (
             PromptToolChoice.from_orm(orm_tools.tool_choice)
             if orm_tools.tool_choice is not UNDEFINED and orm_tools.tool_choice is not None

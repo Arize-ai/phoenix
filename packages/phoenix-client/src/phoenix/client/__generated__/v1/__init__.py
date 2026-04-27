@@ -475,6 +475,11 @@ class PromptToolFunctionDefinition(TypedDict):
     strict: NotRequired[bool]
 
 
+class PromptToolRaw(TypedDict):
+    type: Literal["raw"]
+    raw: Mapping[str, Any]
+
+
 class PromptVersionTag(TypedDict):
     name: str
     id: str
@@ -971,7 +976,7 @@ class PromptToolFunction(TypedDict):
 
 class PromptTools(TypedDict):
     type: Literal["tools"]
-    tools: Sequence[PromptToolFunction]
+    tools: Sequence[Union[PromptToolFunction, PromptToolRaw]]
     tool_choice: NotRequired[
         Union[
             PromptToolChoiceNone,

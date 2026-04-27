@@ -254,7 +254,8 @@ export const inferIncludeExplanationFromPrompt = (
   promptTools?:
     | {
         readonly tools: ReadonlyArray<{
-          readonly function: { readonly parameters: unknown };
+          readonly __typename?: string;
+          readonly function?: { readonly parameters: unknown } | null;
         }>;
       }
     | null
@@ -264,8 +265,10 @@ export const inferIncludeExplanationFromPrompt = (
     return false;
   }
 
-  const tool = promptTools.tools[0];
-  if (!tool) {
+  const tool = promptTools.tools.find(
+    (tool) => tool.__typename !== "PromptToolRaw" && tool.function != null
+  );
+  if (!tool?.function) {
     return false;
   }
 
