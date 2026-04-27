@@ -2,6 +2,8 @@
 
 Free-form note-writing against sampled traces, before any taxonomy exists. Open coding is step 2 of the 5-step error-analysis workflow: sample → **open code** → axial code → quantify → prioritize. After you pick a sample of traces, read each one and write a short, specific observation of what went wrong. These raw notes become the raw material for [axial coding](axial-coding.md), where they are grouped into named failure categories.
 
+**Reach for this whenever** the user wants to look at traces or spans without a fixed taxonomy yet — e.g., "what's going wrong with this agent", "I just instrumented my app, where do I start", "review these traces", "what kinds of mistakes is the model making", "help me make sense of these outputs", or any framing that needs grounded observations before categories.
+
 ## Process
 
 1. **Inspect** — fetch a span or trace from your sample

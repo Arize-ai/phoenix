@@ -2,6 +2,8 @@
 
 Group open-ended notes into structured failure taxonomies. Axial coding is **step 3** of the 5-step error-analysis workflow: sample → open code → **axial code** → quantify → prioritize. See [open-coding.md](open-coding.md) for step 2 (adding open-coding notes to spans).
 
+**Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
+
 ## Process
 
 1. **Gather** - Collect open coding notes from reviewed spans
