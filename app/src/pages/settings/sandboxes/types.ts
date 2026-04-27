@@ -36,3 +36,8 @@ export type SandboxConfigFormValues = {
   dependenciesText: string;
   dependenciesLockfile: string | null;
 };
+
+// Must stay aligned with the backend column server_default in
+// src/phoenix/db/models.py and the mutation fallback in
+// src/phoenix/server/api/mutations/sandbox_config_mutations.py.
+export const DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300;
