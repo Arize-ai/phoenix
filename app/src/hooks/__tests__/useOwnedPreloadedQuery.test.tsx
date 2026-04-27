@@ -78,6 +78,9 @@ function QueryReader({
 }: {
   queryRef: OwnedPreloadedQueryRef<datasetStore_latestVersionQuery>;
 }) {
+  // This mirrors the real route-loader pattern we care about: the component
+  // receives a preloaded query ref it did not create, then assumes ownership
+  // through useOwnedPreloadedQuery.
   const data = useOwnedPreloadedQuery<datasetStore_latestVersionQuery>({
     query: datasetStoreLatestVersionQueryNode,
     queryRef,
@@ -135,6 +138,9 @@ describe("useOwnedPreloadedQuery", () => {
 
   it("owns and disposes a direct-return loader query ref", async () => {
     const environment = createTestEnvironment();
+    // We intentionally create two refs for the same query with different
+    // variables. The regression we want to catch is "initial ref works, but a
+    // later ref passed on rerender is ignored or the old ref is leaked".
     const firstQueryRef = loadDatasetQueryRef({
       environment,
       datasetId: "dataset-1",
@@ -171,7 +177,11 @@ describe("useOwnedPreloadedQuery", () => {
       );
     });
 
+    // If this ever stops updating, it means our hook is no longer adopting a
+    // replacement query ref from the caller.
     expect(container.textContent).toBe("dataset-2:version-dataset-2");
+    // When ownership moves to the new ref, the old one must be released to
+    // avoid retaining unused data indefinitely.
     expect(firstReleaseSpy).toHaveBeenCalledTimes(1);
     expect(secondReleaseSpy).not.toHaveBeenCalled();
 
@@ -180,6 +190,8 @@ describe("useOwnedPreloadedQuery", () => {
     });
     isUnmounted = true;
 
+    // The currently owned ref should also be released when the component
+    // unmounts, matching the manual ownership contract this hook exists for.
     expect(secondReleaseSpy).toHaveBeenCalledTimes(1);
   });
 
