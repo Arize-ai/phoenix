@@ -24,7 +24,10 @@ export type CreateDatasetResponse = {
 };
 
 /**
- * Create a new dataset with examples.
+ * Create a dataset with the given examples.
+ *
+ * If a dataset with the same name already exists, it is updated to match the
+ * provided examples. Re-running with the same inputs is a no-op.
  *
  * @experimental this interface may change in the future
  *
@@ -82,27 +85,57 @@ export async function createDataset({
   // Only include span_ids in the request if at least one example has a span ID
   const hasSpanIds = spanIds.some((id) => id !== null);
 
-  const createDatasetResponse = await client.POST("/v1/datasets/upload", {
-    params: {
-      query: {
-        // TODO: parameterize this
-        sync: true,
+  const post = (action: "update" | "create") =>
+    client.POST("/v1/datasets/upload", {
+      params: {
+        query: {
+          // TODO: parameterize this
+          sync: true,
+        },
       },
-    },
-    body: {
-      name,
-      description,
-      action: "create",
-      inputs,
-      outputs,
-      metadata,
-      splits,
-      ...(hasSpanIds ? { span_ids: spanIds } : {}),
-    },
-  });
+      body: {
+        name,
+        description,
+        action,
+        inputs,
+        outputs,
+        metadata,
+        splits,
+        ...(hasSpanIds ? { span_ids: spanIds } : {}),
+      },
+    });
+
+  let createDatasetResponse = await post("update");
+  if (isUnsupportedUpdateActionResponse(createDatasetResponse)) {
+    warnUpdateFallback();
+    createDatasetResponse = await post("create");
+  }
   invariant(createDatasetResponse.data?.data, "Failed to create dataset");
   const datasetId = createDatasetResponse.data.data.dataset_id;
   return {
     datasetId,
   };
+}
+
+function isUnsupportedUpdateActionResponse(result: {
+  response?: Response;
+  error?: unknown;
+}): boolean {
+  if (result.response?.status !== 422) return false;
+  const body =
+    typeof result.error === "string"
+      ? result.error
+      : JSON.stringify(result.error ?? "");
+  return (
+    body.includes("Invalid dateset action") ||
+    body.includes("Invalid dataset action")
+  );
+}
+
+function warnUpdateFallback(): void {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "Phoenix server does not support declarative update semantics. " +
+      "Upgrade to Phoenix v15 or later."
+  );
 }

@@ -3444,12 +3444,10 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
-            /** New Version Created */
-            new_version_created: boolean;
             /** Num Created Examples */
             num_created_examples: number;
-            /** Num Patched Examples */
-            num_patched_examples: number;
+            /** Num Updated Examples */
+            num_updated_examples: number;
             /** Num Deleted Examples */
             num_deleted_examples: number;
         };
@@ -4148,8 +4146,6 @@ export interface operations {
             query?: {
                 /** @description If true, fulfill request synchronously and return JSON containing dataset_id. */
                 sync?: boolean;
-                /** @description If true, fail with 409 when action=create and a dataset with the given name already exists. */
-                strict?: boolean;
             };
             header?: never;
             path?: never;
@@ -4159,7 +4155,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     inputs: Record<string, unknown>[];
@@ -4174,7 +4170,7 @@ export interface operations {
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     "input_keys[]": string[];
@@ -4205,6 +4201,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset with the given name already exists (action=create). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

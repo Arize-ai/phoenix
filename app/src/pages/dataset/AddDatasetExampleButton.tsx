@@ -70,8 +70,12 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
 
   const handleFileUploadCompleted = useCallback(
     (summary: DatasetUploadSummary) => {
+      const totalChanged =
+        summary.numCreatedExamples +
+        summary.numPatchedExamples +
+        summary.numDeletedExamples;
       let message: string;
-      if (!summary.newVersionCreated) {
+      if (totalChanged === 0) {
         message = "No examples were changed.";
       } else {
         const formatPart = (count: number, verb: string) =>
@@ -86,17 +90,11 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         if (summary.numDeletedExamples > 0) {
           parts.push(formatPart(summary.numDeletedExamples, "deleted"));
         }
-        if (parts.length === 0) {
-          message = "A new dataset version was created.";
-        } else {
-          const joined = parts.join(", ") + ".";
-          message = joined.charAt(0).toUpperCase() + joined.slice(1);
-        }
+        const joined = parts.join(", ") + ".";
+        message = joined.charAt(0).toUpperCase() + joined.slice(1);
       }
       notifySuccess({
-        title: summary.newVersionCreated
-          ? "Dataset Updated"
-          : "Dataset Unchanged",
+        title: totalChanged > 0 ? "Dataset Updated" : "Dataset Unchanged",
         message,
       });
       onAddExampleCompleted();

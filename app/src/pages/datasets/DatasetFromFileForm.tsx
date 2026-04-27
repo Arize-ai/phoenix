@@ -53,7 +53,6 @@ import { DatasetPreviewTable } from "./DatasetPreview";
 import { RowPreviewTable } from "./RowPreview";
 
 export type DatasetUploadSummary = {
-  newVersionCreated: boolean;
   numCreatedExamples: number;
   numPatchedExamples: number;
   numDeletedExamples: number;
@@ -243,7 +242,7 @@ const rowCountCSS = css`
 export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   const { onCancel, mode } = props;
   const [pendingAction, setPendingAction] = useState<
-    "create" | "append" | null
+    "create" | "append" | "update" | null
   >(null);
   const isSubmitting = pendingAction !== null;
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -556,7 +555,10 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [columns, setValue]);
 
   const onSubmit = useCallback(
-    (data: CreateDatasetFromFileParams, action: "create" | "append") => {
+    (
+      data: CreateDatasetFromFileParams,
+      action: "create" | "append" | "update"
+    ) => {
       if (!data.file) {
         return;
       }
@@ -615,10 +617,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         formData.append("example_id_key", data.example_id_key);
       }
 
-      const uploadUrl =
-        mode === "create"
-          ? "/v1/datasets/upload?sync=true&strict=true"
-          : "/v1/datasets/upload?sync=true";
+      const uploadUrl = "/v1/datasets/upload?sync=true";
       return authFetch(prependBasename(uploadUrl), {
         method: "POST",
         body: formData,
@@ -636,9 +635,8 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         .then((res) => {
           const payload = res["data"];
           const summary: DatasetUploadSummary = {
-            newVersionCreated: Boolean(payload["new_version_created"]),
             numCreatedExamples: Number(payload["num_created_examples"] ?? 0),
-            numPatchedExamples: Number(payload["num_patched_examples"] ?? 0),
+            numPatchedExamples: Number(payload["num_updated_examples"] ?? 0),
             numDeletedExamples: Number(payload["num_deleted_examples"] ?? 0),
           };
           if (props.mode === "append") {
@@ -667,6 +665,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
 
   const handleSubmitCreate = handleSubmit((data) => onSubmit(data, "create"));
   const handleSubmitAppend = handleSubmit((data) => onSubmit(data, "append"));
+  const handleSubmitUpdate = handleSubmit((data) => onSubmit(data, "update"));
 
   const hasPreviewData = columns.length > 0 && previewRows.length > 0;
 
@@ -898,12 +897,12 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 type="button"
                 isDisabled={!isValid || isSubmitting || isParsing}
                 leadingVisual={
-                  pendingAction === "create" ? (
+                  pendingAction === "update" ? (
                     <Icon svg={<Icons.LoadingOutline />} />
                   ) : undefined
                 }
               >
-                {pendingAction === "create"
+                {pendingAction === "update"
                   ? "Replacing..."
                   : "Replace Examples"}
               </Button>
@@ -943,7 +942,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                               size="S"
                               onPress={() => {
                                 close();
-                                handleSubmitCreate();
+                                handleSubmitUpdate();
                               }}
                             >
                               Replace Examples
