@@ -120,6 +120,23 @@ class TestDenoSandboxBackend:
         assert result.error == "permission denied\n"
 
     @pytest.mark.asyncio
+    async def test_execute_strips_ansi_sequences_from_stderr(self) -> None:
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
+        proc = _StubProcess(
+            stderr=(b"\x1b[0m\x1b[1m\x1b[31merror\x1b[0m: Uncaught (in promise) NotCapable\n"),
+            returncode=1,
+        )
+
+        with patch(
+            "phoenix.server.sandbox.deno_backend.asyncio.create_subprocess_exec",
+            AsyncMock(return_value=proc),
+        ):
+            result = await backend.execute("console.log('x')", session_key="test", timeout=5)
+
+        assert result.stderr == "error: Uncaught (in promise) NotCapable\n"
+        assert result.error == "error: Uncaught (in promise) NotCapable\n"
+
+    @pytest.mark.asyncio
     async def test_execute_timeout_kills_process_and_returns_error(self) -> None:
         backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
         proc = _StubProcess()
