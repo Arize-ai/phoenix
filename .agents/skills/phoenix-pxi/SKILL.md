@@ -17,10 +17,11 @@ Before changing PXI behavior, identify which layer you are working in and read t
 
 Read the relevant file(s) based on the task:
 
-| Resource file                                     | When to read                                                                                                                                          |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resources/extending-frontend-tool-registry.md`   | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
-| `resources/system-prompt-xml-conventions.md`      | Adding to, editing, or reviewing the PXI agent system prompt, any `*ToolCapabilities.ts` module, or cross-cutting output-format guidance              |
+| Resource file                                          | When to read                                                                                                                                          |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resources/extending-frontend-tool-registry.md`        | Adding, editing, or removing a frontend-executed PXI tool; changing capability-gated tool behavior; updating request/dispatch flow for frontend tools |
+| `resources/system-prompt-xml-conventions.md`           | Adding to, editing, or reviewing the PXI agent system prompt, any `*ToolCapabilities.ts` module, or cross-cutting output-format guidance              |
+| `resources/per-turn-context-and-cache-management.md`   | Injecting per-turn page or UI state into a chat request; sanitizing user-controlled values that flow into prompts; preserving prompt-cache prefixes   |
 
 ## Verification
 

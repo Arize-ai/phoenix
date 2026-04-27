@@ -6,6 +6,10 @@ import { devtools, persist } from "zustand/middleware";
 import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
+  agentContextKey,
+  type AgentContext,
+} from "@phoenix/agent/context/agentContextTypes";
+import {
   createDefaultAgentCapabilities,
   type AgentCapabilities,
   type AgentCapabilityKey,
@@ -192,7 +196,50 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     newUsage: { prompt: number; completion: number }
   ) => void;
+
+  // -- Page and mounted contexts advertised with /chat (ephemeral) --
+  //
+  // Both slices are rebuilt from the UI each render — they are never
+  // persisted. `selectActiveContexts` merges and dedupes them for each chat
+  // turn so the agent sees a single flat list of typed contexts.
+
+  /** Derived from route params by `AgentContextSync` on navigation. */
+  routeContexts: AgentContext[];
+  /**
+   * Feature-level contexts keyed by a stable per-mount id. Populated via
+   * `useAdvertiseAgentContext`; entries are cleared on unmount.
+   */
+  mountedContexts: Record<string, AgentContext>;
+  setRouteContexts: (next: AgentContext[]) => void;
+  setMountedContext: (key: string, context: AgentContext) => void;
+  removeMountedContext: (key: string) => void;
+
+  // -- Server-advertised, client-executed tool actions (ephemeral) --
+  //
+  // The server may advertise tools whose definitions are gated on resolved
+  // context but whose implementations live in the browser (e.g. mutating a
+  // page-local form). Mounted components register their handlers here keyed
+  // by tool name; `handleAgentToolCall` looks up the entry when the matching
+  // tool is invoked. Handlers must resolve to a discriminated result shape
+  // so the dispatcher can map success/failure back to AI-SDK tool output.
+  registeredClientActions: Record<string, AgentClientAction>;
+  registerClientAction: (name: string, action: AgentClientAction) => void;
+  unregisterClientAction: (name: string) => void;
 }
+
+/**
+ * Handler for a server-advertised, client-executed agent tool. Receives the
+ * raw `input` object the model produced (handlers are responsible for
+ * validating shape) and resolves to a discriminated result the tool dispatch
+ * surfaces back to the model as either tool output or a tool error.
+ */
+export type AgentClientActionResult =
+  | { ok: true; output?: string }
+  | { ok: false; error: string };
+
+export type AgentClientAction = (
+  input: unknown
+) => Promise<AgentClientActionResult>;
 
 /**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
@@ -219,6 +266,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
+    routeContexts: [],
+    mountedContexts: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -495,6 +544,84 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setSessionUsage" }
+      );
+    },
+
+    // -- Page and mounted contexts (ephemeral) --
+    setRouteContexts: (next) => {
+      set(
+        (state) => {
+          if (state.routeContexts.length === next.length) {
+            let same = true;
+            for (let index = 0; index < next.length; index++) {
+              if (
+                agentContextKey(state.routeContexts[index]!) !==
+                agentContextKey(next[index]!)
+              ) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              return state;
+            }
+          }
+          return { routeContexts: next };
+        },
+        false,
+        { type: "setRouteContexts" }
+      );
+    },
+    setMountedContext: (key, context) => {
+      set(
+        (state) => ({
+          mountedContexts: { ...state.mountedContexts, [key]: context },
+        }),
+        false,
+        { type: "setMountedContext" }
+      );
+    },
+    removeMountedContext: (key) => {
+      set(
+        (state) => {
+          if (!(key in state.mountedContexts)) {
+            return state;
+          }
+          const next = { ...state.mountedContexts };
+          delete next[key];
+          return { mountedContexts: next };
+        },
+        false,
+        { type: "removeMountedContext" }
+      );
+    },
+
+    // -- Server-advertised, client-executed tool actions --
+    registeredClientActions: {},
+    registerClientAction: (name, action) => {
+      set(
+        (state) => ({
+          registeredClientActions: {
+            ...state.registeredClientActions,
+            [name]: action,
+          },
+        }),
+        false,
+        { type: "registerClientAction" }
+      );
+    },
+    unregisterClientAction: (name) => {
+      set(
+        (state) => {
+          if (!(name in state.registeredClientActions)) {
+            return state;
+          }
+          const next = { ...state.registeredClientActions };
+          delete next[name];
+          return { registeredClientActions: next };
+        },
+        false,
+        { type: "unregisterClientAction" }
       );
     },
 

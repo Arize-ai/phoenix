@@ -30,6 +30,7 @@ import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
+import { AgentContextPills } from "./AgentContextPills";
 import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
@@ -357,6 +358,7 @@ export function ChatView({
               value={inputValue}
               onValueChange={setInputValue}
             >
+              <AgentContextPills />
               <PromptInputBody>
                 <PromptInputTextarea
                   ref={textareaRef}

@@ -12,6 +12,7 @@ import {
   assistantMessageMetadataSchema,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
+import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -94,6 +95,7 @@ export function useAgentChat({
                     hasRemoteCollector: Boolean(
                       store.getState().agentsConfig.collectorEndpoint
                     ),
+                    contexts: selectActiveContexts(store.getState()),
                   }),
                 }),
               }),
