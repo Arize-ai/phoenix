@@ -5,7 +5,8 @@ Covers issue #12703 — the substring-based policy mis-routed several current
 OpenAI model families.  The new policy is:
 
 - ``gpt-*`` → ``"system"``
-- ``o\\d*`` (reasoning models) → ``"developer"``
+- ``o1-mini`` / ``o1-preview`` → ``"user"``
+- other ``o\\d*`` reasoning models → ``"developer"``
 - anything else (unknown / empty / None) → ``"developer"``
 """
 
@@ -45,8 +46,6 @@ def test_gpt_models_use_system(model: str) -> None:
     "model",
     [
         "o1",
-        "o1-mini",
-        "o1-preview",
         "o3",
         "o3-mini",
         "o4-mini",
@@ -55,6 +54,12 @@ def test_gpt_models_use_system(model: str) -> None:
 def test_reasoning_models_use_developer(model: str) -> None:
     adapter = _make_adapter(model)
     assert adapter._system_role() == "developer"
+
+
+@pytest.mark.parametrize("model", ["o1-mini", "o1-preview"])
+def test_legacy_o1_reasoning_models_use_user(model: str) -> None:
+    adapter = _make_adapter(model)
+    assert adapter._system_role() == "user"
 
 
 def test_azure_prefix_stripped_for_reasoning_model() -> None:

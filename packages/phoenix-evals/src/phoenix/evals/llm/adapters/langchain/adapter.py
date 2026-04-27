@@ -352,8 +352,6 @@ class LangChainModelAdapter(BaseLLMAdapter):
             for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
                 validate_message_dict(msg, index=i)
                 role = normalize_role(msg["role"])
-                # Map MessageRole enum back to the string form that
-                # ``convert_openai_messages`` understands.
                 if role == MessageRole.USER:
                     role_str = "user"
                 elif role == MessageRole.AI:

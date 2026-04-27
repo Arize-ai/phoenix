@@ -401,7 +401,8 @@ class OpenAIAdapter(BaseLLMAdapter):
 
         Policy:
         - ``gpt-*`` (Chat Completions family) → ``"system"``
-        - OpenAI reasoning models (``o1``, ``o3``, ``o4``, ...) → ``"developer"``
+        - ``o1-mini`` / ``o1-preview`` → ``"user"``
+        - Other OpenAI reasoning models (``o1``, ``o3``, ``o4``, ...) → ``"developer"``
         - Anything else (empty, unknown) → ``"developer"`` (safe default for
           modern OpenAI-compatible endpoints that follow the reasoning-model
           convention).
@@ -411,6 +412,10 @@ class OpenAIAdapter(BaseLLMAdapter):
         if "/" in model:
             model = model.split("/", 1)[1]
 
+        if model.lower().startswith("o1-mini"):
+            return "user"
+        if model.lower().startswith("o1-preview"):
+            return "user"
         if re.match(r"^o\d", model, flags=re.IGNORECASE):
             return "developer"
         if re.match(r"^gpt[-\d]", model, flags=re.IGNORECASE):

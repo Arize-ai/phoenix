@@ -167,7 +167,7 @@ def test_missing_content_raises() -> None:
 
 def test_none_content_raises() -> None:
     with pytest.raises(ValueError, match="None content"):
-        _make_adapter()._build_prompt([{"role": "user", "content": None}])
+        _make_adapter()._build_prompt([{"role": "assistant", "content": None}])
 
 
 def test_empty_string_content_raises() -> None:

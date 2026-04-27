@@ -59,7 +59,6 @@ _ROLE_ALIASES: Dict[str, "MessageRole"] = {
     "developer": MessageRole.SYSTEM,
 }
 
-
 def normalize_role(role: Any) -> "MessageRole":
     """Normalize a role value to a :class:`MessageRole`.
 

@@ -173,6 +173,7 @@ def test_unknown_role_raises() -> None:
     "model,expected_system_role",
     [
         ("gpt-4o", "system"),
+        ("o1-mini", "user"),
         ("o3-mini", "developer"),
     ],
 )
@@ -186,6 +187,7 @@ def test_system_role_routing_on_typed_messages(model: str, expected_system_role:
     "model,expected_system_role",
     [
         ("gpt-4o", "system"),
+        ("o1-mini", "user"),
         ("o3-mini", "developer"),
     ],
 )
