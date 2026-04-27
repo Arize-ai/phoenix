@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 
@@ -10,6 +12,14 @@ const containerCSS = css`
   max-width: 780px;
   width: 100%;
 `;
+
+function OpenByDefault({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector("details")?.setAttribute("open", "");
+  }, []);
+  return <div ref={ref}>{children}</div>;
+}
 
 // ---------------------------------------------------------------------------
 // Mock data helpers
@@ -118,9 +128,11 @@ const toolPartMeta = {
   component: ToolPart,
   decorators: [
     (Story) => (
-      <div css={containerCSS}>
-        <Story />
-      </div>
+      <OpenByDefault>
+        <div css={containerCSS}>
+          <Story />
+        </div>
+      </OpenByDefault>
     ),
   ],
   parameters: {

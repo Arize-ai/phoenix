@@ -610,6 +610,7 @@ export const darkThemeCSS = css`
     --global-text-color-900: rgba(255, 255, 255, 0.9);
     --global-text-color-700: rgba(255, 255, 255, 0.7);
     --global-text-color-500: rgba(255, 255, 255, 0.5);
+    --global-text-color-400: rgba(255, 255, 255, 0.4);
     --global-text-color-300: rgba(255, 255, 255, 0.3);
 
     // Link colors
@@ -878,6 +879,7 @@ export const lightThemeCSS = css`
     --global-text-color-900: rgba(0, 0, 0, 0.9);
     --global-text-color-700: rgba(0, 0, 0, 0.7);
     --global-text-color-500: rgba(0, 0, 0, 0.5);
+    --global-text-color-400: rgba(0, 0, 0, 0.4);
     --global-text-color-300: rgba(0, 0, 0, 0.3);
 
     --global-link-color: var(--global-color-blue-800);
@@ -1021,7 +1023,16 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color-hover: var(--global-color-gray-100);
+    --global-card-header-background-color: ${
+      theme === "light"
+        ? "var(--global-color-gray-100)"
+        : "var(--global-color-gray-75)"
+    };
+    --global-card-header-background-color-hover: ${
+      theme === "light"
+        ? "var(--global-color-gray-200)"
+        : "var(--global-color-gray-100)"
+    };
   }
 `;
 
@@ -1031,15 +1042,17 @@ const toolCallCSS = (theme: Theme) => css`
     --tool-call-border-color: var(--global-card-border-color);
     --tool-call-border-color-hover: var(--global-color-gray-200);
     --tool-call-background-color: var(--global-color-gray-100);
-    --tool-call-header-background-color: var(--global-color-gray-75);
+    --tool-call-header-background-color: var(
+      --global-card-header-background-color
+    );
     --tool-call-header-background-color-hover: var(
       --global-card-header-background-color-hover
     );
-    --tool-call-body-background-color: var(--global-color-gray-50);
+    --tool-call-body-background-color: var(--global-color-gray-75);
     --tool-call-body-border-color: var(--global-color-gray-200);
     --tool-call-title-color: var(--global-text-color-700);
-    --tool-call-secondary-color: var(--global-text-color-300);
-    --tool-call-error-color: var(--global-color-danger);
+    --tool-call-secondary-color: var(--global-text-color-400);
+    --tool-call-error-color: var(--global-color-danger-700);
   }
 `;
 
