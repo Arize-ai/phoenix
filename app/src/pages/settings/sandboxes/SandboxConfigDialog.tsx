@@ -51,6 +51,7 @@ import type {
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
+import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
 import { formValuesToConfigPatch, languageLabel } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
@@ -228,7 +229,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             sandboxProviderId: defaultProvider?.provider.id ?? "",
             name: defaultProvider ? defaultConfigName(defaultProvider) : "",
             description: "",
-            timeout: 30,
+            timeout: DEFAULT_SANDBOX_TIMEOUT_SECONDS,
             envVars: [],
             internetAccessEnabled: false,
             dependenciesText: "",
