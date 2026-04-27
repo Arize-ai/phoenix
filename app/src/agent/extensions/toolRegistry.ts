@@ -134,12 +134,26 @@ type ApplySpanFilterConditionInput = {
   condition: string;
 };
 
+// Mirrors the server-side schema in chat_tools/apply_span_filter_condition.py.
+// The server is the source of truth advertised to the model; this copy exists
+// so the description still reads correctly if it ever surfaces in synthesis,
+// session summaries, or developer tooling.
 const applySpanFilterConditionToolDefinition: FrontendToolDefinition = {
   name: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-  description: "Server-advertised, client-executed. See server schema.",
+  description:
+    "Apply a Phoenix span filter to the project span list to narrow the spans visible in the UI. " +
+    "Examples: `span_kind == 'LLM'`, `status_code == 'ERROR' and latency_ms >= 5000`, " +
+    "`'agent' in input.value`, `annotations['Hallucination'].label == 'hallucinated'`. " +
+    "Pass an empty string to clear the filter.",
   parameters: {
     type: "object",
-    properties: { condition: { type: "string" } },
+    properties: {
+      condition: {
+        type: "string",
+        description:
+          "The span filter DSL expression to apply. Pass an empty string to clear the filter.",
+      },
+    },
     required: ["condition"],
     additionalProperties: false,
   },
