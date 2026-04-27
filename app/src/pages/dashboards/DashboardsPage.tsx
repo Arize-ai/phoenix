@@ -7,7 +7,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useRef } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 
 import {
@@ -25,6 +24,7 @@ import {
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
 import type { DashboardsLoaderData } from "./dashboardsLoader";
@@ -140,10 +140,10 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 export function DashboardsPage() {
   "use no memo";
   const loaderData = useLoaderData<DashboardsLoaderData>();
-  const data = usePreloadedQuery<DashboardsLoaderQuery>(
-    dashboardsLoaderQuery,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<DashboardsLoaderQuery>({
+    query: dashboardsLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
   // For now, use mock data for dashboards
   const dashboards = [
     {

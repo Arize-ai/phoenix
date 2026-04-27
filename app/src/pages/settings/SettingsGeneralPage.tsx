@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -13,6 +12,7 @@ import {
 } from "@phoenix/components";
 import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
@@ -39,10 +39,10 @@ const formCSS = css`
 export function SettingsGeneralPage() {
   const loaderData = useLoaderData<settingsGeneralPageLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<settingsGeneralPageLoaderQuery>(
-    settingsGeneralPageLoaderGQL,
-    loaderData
-  );
+  const data = useOwnedPreloadedQuery<settingsGeneralPageLoaderQuery>({
+    query: settingsGeneralPageLoaderGQL,
+    queryRef: loaderData,
+  });
   return (
     <div css={gridCSS}>
       <Card title="Platform">

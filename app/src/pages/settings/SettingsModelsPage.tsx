@@ -1,5 +1,4 @@
 import { startTransition, useState } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -16,6 +15,7 @@ import {
   SelectValue,
   Text,
 } from "@phoenix/components";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { GenerativeModelKind } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
 import type { SettingsModelsLoaderType } from "@phoenix/pages/settings/settingsModelsLoader";
 import { settingsModelsLoaderGql } from "@phoenix/pages/settings/settingsModelsLoader";
@@ -36,7 +36,10 @@ export function SettingsModelsPage() {
   const [search, setSearch] = useState("");
   const loaderData = useLoaderData<SettingsModelsLoaderType>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(settingsModelsLoaderGql, loaderData);
+  const data = useOwnedPreloadedQuery({
+    query: settingsModelsLoaderGql,
+    queryRef: loaderData,
+  });
 
   return (
     <Flex direction="column" gap="size-200">
