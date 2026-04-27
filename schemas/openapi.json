@@ -11355,9 +11355,9 @@
             "type": "integer",
             "title": "Num Created Examples"
           },
-          "num_patched_examples": {
+          "num_updated_examples": {
             "type": "integer",
-            "title": "Num Patched Examples"
+            "title": "Num Updated Examples"
           },
           "num_deleted_examples": {
             "type": "integer",
@@ -11369,7 +11369,7 @@
           "dataset_id",
           "version_id",
           "num_created_examples",
-          "num_patched_examples",
+          "num_updated_examples",
           "num_deleted_examples"
         ],
         "title": "UploadDatasetData"

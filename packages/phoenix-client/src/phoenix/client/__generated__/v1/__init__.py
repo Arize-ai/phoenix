@@ -626,7 +626,7 @@ class UploadDatasetData(TypedDict):
     dataset_id: str
     version_id: str
     num_created_examples: int
-    num_patched_examples: int
+    num_updated_examples: int
     num_deleted_examples: int
 
 

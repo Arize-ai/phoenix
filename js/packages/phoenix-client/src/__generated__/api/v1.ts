@@ -3446,8 +3446,8 @@ export interface components {
             version_id: string;
             /** Num Created Examples */
             num_created_examples: number;
-            /** Num Patched Examples */
-            num_patched_examples: number;
+            /** Num Updated Examples */
+            num_updated_examples: number;
             /** Num Deleted Examples */
             num_deleted_examples: number;
         };

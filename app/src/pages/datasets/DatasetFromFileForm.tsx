@@ -636,7 +636,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           const payload = res["data"];
           const summary: DatasetUploadSummary = {
             numCreatedExamples: Number(payload["num_created_examples"] ?? 0),
-            numPatchedExamples: Number(payload["num_patched_examples"] ?? 0),
+            numPatchedExamples: Number(payload["num_updated_examples"] ?? 0),
             numDeletedExamples: Number(payload["num_deleted_examples"] ?? 0),
           };
           if (props.mode === "append") {

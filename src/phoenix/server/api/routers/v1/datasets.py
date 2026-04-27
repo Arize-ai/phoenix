@@ -339,7 +339,7 @@ class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
     num_created_examples: int
-    num_patched_examples: int
+    num_updated_examples: int
     num_deleted_examples: int
 
 
@@ -636,7 +636,7 @@ async def upload_dataset(
                 dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
                 version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
                 num_created_examples=event.num_created_examples,
-                num_patched_examples=event.num_patched_examples,
+                num_updated_examples=event.num_patched_examples,
                 num_deleted_examples=event.num_deleted_examples,
             )
         )
