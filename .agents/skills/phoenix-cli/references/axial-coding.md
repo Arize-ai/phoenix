@@ -73,7 +73,7 @@ Filter to a specific annotation name to check coverage:
 
 ```bash
 px span list --include-annotations --format raw --no-progress | jq '
-  [ .[] | select(.annotations | map(select(.name == "failure_category")) | length > 0) ]
+  [ .[] | select((.annotations // []) | any(.name == "failure_category")) ]
   | length
 '
 ```
