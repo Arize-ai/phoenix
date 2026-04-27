@@ -992,7 +992,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 span.set_attributes(
                     dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
                 )
-            if text_chunks or tool_call_chunks:
+            elif text_chunks or tool_call_chunks:
                 span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
             return
 
@@ -1211,7 +1211,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             span.set_attributes(
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
-        if text_chunks or tool_call_chunks:
+        elif text_chunks or tool_call_chunks:
             span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
 
     def _to_openai_chat_completion_message_param(
