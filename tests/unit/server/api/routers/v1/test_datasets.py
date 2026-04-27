@@ -3151,8 +3151,7 @@ async def test_append_with_nonexistent_node_id_returns_422(
         },
     )
     assert response.status_code == 422
-    assert "must match existing examples" in response.text
-    assert "do not correspond" in response.text
+    assert "No examples found in this dataset" in response.text
     assert bogus_id in response.text
 
 
@@ -3204,7 +3203,7 @@ async def test_append_with_node_id_from_different_dataset_returns_422(
         },
     )
     assert response.status_code == 422
-    assert "do not correspond" in response.text
+    assert "No examples found in this dataset" in response.text
     assert cross_dataset_node_id in response.text
 
 

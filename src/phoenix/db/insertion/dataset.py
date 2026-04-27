@@ -909,9 +909,7 @@ async def _write_revisions_for_changes(
     if node_ids_without_example_record:
         formatted_ids = ", ".join(repr(s) for s in node_ids_without_example_record)
         raise InvalidDatasetExampleIDError(
-            "Example IDs that look like node IDs "
-            "must match existing examples, but the following do not correspond to any "
-            f"existing examples: {formatted_ids}"
+            f"No examples found in this dataset with the following IDs: {formatted_ids}"
         )
     create_external_ids = [
         example.content.external_id
