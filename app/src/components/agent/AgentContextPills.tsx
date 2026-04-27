@@ -31,8 +31,6 @@ function contextLabel(context: AgentContext): string {
       return `Trace: ${truncateId(context.otelTraceId)}`;
     case "span":
       return `Span: ${truncateId(context.spanNodeId ?? context.otelSpanId)}`;
-    case "span_filter":
-      return `Filter: ${truncate(context.condition, MAX_CONDITION_CHARS)}`;
   }
 }
 
@@ -42,6 +40,26 @@ function toAttachmentData(context: AgentContext): AttachmentContextData {
     id: agentContextKey(context),
     category: context.type,
     label: contextLabel(context),
+  };
+}
+
+/**
+ * Render a project's active span filter as its own pill so the user can see
+ * the filter the agent is aware of, even though the filter rides as a field
+ * on the project context rather than its own context type.
+ */
+function spanFilterAttachmentData(
+  context: AgentContext
+): AttachmentContextData | null {
+  if (context.type !== "project" || !context.spanFilter) {
+    return null;
+  }
+  const id = `${agentContextKey(context)}:span_filter`;
+  return {
+    type: "context",
+    id,
+    category: "span_filter",
+    label: `Filter: ${truncate(context.spanFilter, MAX_CONDITION_CHARS)}`,
   };
 }
 
@@ -61,17 +79,21 @@ export function AgentContextPills() {
     return null;
   }
 
+  const items = contexts.flatMap((context) => {
+    const filterPill = spanFilterAttachmentData(context);
+    return filterPill
+      ? [toAttachmentData(context), filterPill]
+      : [toAttachmentData(context)];
+  });
+
   return (
     <Attachments variant="inline">
-      {contexts.map((context) => {
-        const data = toAttachmentData(context);
-        return (
-          <Attachment key={data.id} data={data}>
-            <AttachmentPreview />
-            <AttachmentInfo />
-          </Attachment>
-        );
-      })}
+      {items.map((data) => (
+        <Attachment key={data.id} data={data}>
+          <AttachmentPreview />
+          <AttachmentInfo />
+        </Attachment>
+      ))}
     </Attachments>
   );
 }

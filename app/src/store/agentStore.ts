@@ -213,7 +213,33 @@ export interface AgentState extends AgentProps {
   setRouteContexts: (next: AgentContext[]) => void;
   setMountedContext: (key: string, context: AgentContext) => void;
   removeMountedContext: (key: string) => void;
+
+  // -- Server-advertised, client-executed tool actions (ephemeral) --
+  //
+  // The server may advertise tools whose definitions are gated on resolved
+  // context but whose implementations live in the browser (e.g. mutating a
+  // page-local form). Mounted components register their handlers here keyed
+  // by tool name; `handleAgentToolCall` looks up the entry when the matching
+  // tool is invoked. Handlers must resolve to a discriminated result shape
+  // so the dispatcher can map success/failure back to AI-SDK tool output.
+  registeredClientActions: Record<string, AgentClientAction>;
+  registerClientAction: (name: string, action: AgentClientAction) => void;
+  unregisterClientAction: (name: string) => void;
 }
+
+/**
+ * Handler for a server-advertised, client-executed agent tool. Receives the
+ * raw `input` object the model produced (handlers are responsible for
+ * validating shape) and resolves to a discriminated result the tool dispatch
+ * surfaces back to the model as either tool output or a tool error.
+ */
+export type AgentClientActionResult =
+  | { ok: true; output?: string }
+  | { ok: false; error: string };
+
+export type AgentClientAction = (
+  input: unknown
+) => Promise<AgentClientActionResult>;
 
 /**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
@@ -567,6 +593,35 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "removeMountedContext" }
+      );
+    },
+
+    // -- Server-advertised, client-executed tool actions --
+    registeredClientActions: {},
+    registerClientAction: (name, action) => {
+      set(
+        (state) => ({
+          registeredClientActions: {
+            ...state.registeredClientActions,
+            [name]: action,
+          },
+        }),
+        false,
+        { type: "registerClientAction" }
+      );
+    },
+    unregisterClientAction: (name) => {
+      set(
+        (state) => {
+          if (!(name in state.registeredClientActions)) {
+            return state;
+          }
+          const next = { ...state.registeredClientActions };
+          delete next[name];
+          return { registeredClientActions: next };
+        },
+        false,
+        { type: "unregisterClientAction" }
       );
     },
 

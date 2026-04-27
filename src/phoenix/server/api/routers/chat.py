@@ -120,8 +120,8 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
     ) -> Response:
         from phoenix.server.api.routers.chat_context import (
             ToolExecutionEnv,
-            build_current_phoenix_context_system_prompt,
-            prepend_system_prompt_message,
+            build_phoenix_context_user_message_content,
+            insert_context_user_message,
         )
         from phoenix.server.api.routers.chat_tools import resolve_contextual_tools
         from phoenix.server.api.routers.data_stream_protocol import (
@@ -154,9 +154,10 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         mcp_client = _get_mcp_client(request)
 
         body = parse_chat_body(await request.body())
-        context_prompt = build_current_phoenix_context_system_prompt(body.resolved)
-        if context_prompt is not None:
-            body.messages = prepend_system_prompt_message(body.messages, context_prompt)
+        body.messages = insert_context_user_message(
+            body.messages,
+            build_phoenix_context_user_message_content(body.resolved),
+        )
 
         return await stream_text(
             request,

@@ -8,28 +8,41 @@ import { agentContextKey, type AgentContext } from "./agentContextTypes";
  *
  * Route contexts come first (they establish the page-level frame), then any
  * feature-level mounted contexts. Duplicates are collapsed by
- * {@link agentContextKey} so that, e.g., a project that appears in both
- * sources is only sent once.
+ * {@link agentContextKey}. Project entries are *merged* rather than dropped
+ * so a route-derived project (no spanFilter) and a mounted project entry
+ * (carrying the active span filter) collapse into a single project context
+ * with the spanFilter attached.
  */
 export function selectActiveContexts(state: AgentState): AgentContext[] {
-  const seen = new Set<string>();
-  const result: AgentContext[] = [];
+  const byKey = new Map<string, AgentContext>();
+  const order: string[] = [];
 
-  const push = (context: AgentContext) => {
+  const upsert = (context: AgentContext) => {
     const key = agentContextKey(context);
-    if (seen.has(key)) {
+    const existing = byKey.get(key);
+    if (existing === undefined) {
+      byKey.set(key, context);
+      order.push(key);
       return;
     }
-    seen.add(key);
-    result.push(context);
+    if (existing.type === "project" && context.type === "project") {
+      // Layer mounted spanFilter onto the route-derived entry. The route
+      // version usually has no spanFilter; the mounted version is the only
+      // source of the on-screen filter expression.
+      byKey.set(key, {
+        ...existing,
+        ...context,
+        spanFilter: context.spanFilter ?? existing.spanFilter,
+      });
+    }
   };
 
   for (const context of state.routeContexts) {
-    push(context);
+    upsert(context);
   }
   for (const context of Object.values(state.mountedContexts)) {
-    push(context);
+    upsert(context);
   }
 
-  return result;
+  return order.map((key) => byKey.get(key) as AgentContext);
 }

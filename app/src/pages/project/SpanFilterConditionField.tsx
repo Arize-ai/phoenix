@@ -23,6 +23,7 @@ import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { APPLY_SPAN_FILTER_CONDITION_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
 import {
   Button,
   DialogTrigger,
@@ -39,6 +40,7 @@ import {
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -295,22 +297,89 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
   const advertisedContext = useMemo<AgentContext | null>(() => {
-    // Only advertise a mounted filter context after validation succeeds so the
-    // agent never receives a stale or invalid condition.
-    const trimmed = deferredFilterCondition.trim();
-    if (!isConditionValidState || !trimmed || !projectId) {
+    // Advertise a project context that carries the current spanFilter while
+    // the field is mounted. The merge in `selectActiveContexts` layers this
+    // on top of the route-derived project context (which carries no filter)
+    // so the server sees a single project entry with the filter included.
+    // An in-progress invalid edit surfaces as empty rather than a known-bad
+    // expression.
+    if (!projectId) {
       return null;
     }
+    const trimmed = deferredFilterCondition.trim();
+    const spanFilter = isConditionValidState && trimmed ? trimmed : "";
     return {
-      type: "span_filter",
+      type: "project",
       projectNodeId: projectId,
-      condition: trimmed,
+      spanFilter,
     };
   }, [deferredFilterCondition, isConditionValidState, projectId]);
 
   // Keep the agent's mounted UI context aligned with the current validated
   // filter expression while this field is rendered.
   useAdvertiseAgentContext(advertisedContext);
+
+  // Register a client action so the agent's apply_span_filter_condition tool
+  // (advertised by the server, executed in the browser) can drive this field.
+  // The handler validates the condition through the same GraphQL path the
+  // user-facing input uses, then commits the value via setFilterCondition and
+  // notifies the parent so the spans table refetches.
+  const agentStore = useAgentStore();
+  const setFilterConditionRef = useRef(setFilterCondition);
+  const onValidConditionRef = useRef(onValidCondition);
+  const projectIdRef = useRef(projectId);
+  setFilterConditionRef.current = setFilterCondition;
+  onValidConditionRef.current = onValidCondition;
+  projectIdRef.current = projectId;
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(
+      APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
+      async (input) => {
+        if (
+          typeof input !== "object" ||
+          input === null ||
+          !("condition" in input) ||
+          typeof (input as { condition: unknown }).condition !== "string"
+        ) {
+          return {
+            ok: false,
+            error: "Invalid input: expected { condition: string }.",
+          };
+        }
+        const condition = (input as { condition: string }).condition;
+        const currentProjectId = projectIdRef.current;
+        if (!currentProjectId) {
+          return {
+            ok: false,
+            error: "Span filter field is not bound to a project on this page.",
+          };
+        }
+        const validation = await isConditionValid(condition, currentProjectId);
+        if (!validation?.isValid) {
+          return {
+            ok: false,
+            error:
+              validation?.errorMessage ??
+              "Filter condition failed validation; not applied.",
+          };
+        }
+        setFilterConditionRef.current(condition);
+        onValidConditionRef.current(condition);
+        return {
+          ok: true,
+          output: condition
+            ? `Applied filter: ${condition}`
+            : "Cleared the span filter.",
+        };
+      }
+    );
+    return () => {
+      unregisterClientAction(APPLY_SPAN_FILTER_CONDITION_TOOL_NAME);
+    };
+  }, [agentStore]);
 
   useEffect(() => {
     let isCancelled = false;

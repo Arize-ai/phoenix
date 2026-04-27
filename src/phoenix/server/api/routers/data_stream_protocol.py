@@ -394,7 +394,12 @@ async def stream_text(
             logger.exception("Failed to fetch backend MCP tool definitions")
 
     backend_tool_defs = mcp_tool_defs + contextual_tool_defs
-    backend_tool_names = mcp_tool_names | frozenset(tool.name for tool in contextual_tool_defs)
+    # Only tools with a server-side callable count as "backend": MCP tools
+    # always run server-side, and contextual tools that registered an entry in
+    # ``contextual_dispatch``. Contextual tools advertised without a dispatch
+    # entry are server-defined but client-executed — their calls flow through
+    # to the browser via the standard frontend-tool path.
+    backend_tool_names = mcp_tool_names | frozenset(contextual_dispatch.keys())
 
     frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])

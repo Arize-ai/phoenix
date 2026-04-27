@@ -47,12 +47,18 @@ type AgentToolHandlerContext<TInput> = {
 /**
  * One frontend tool entry: schema exposed to the model, parser for raw input,
  * optional capability gates, and the implementation that handles the call.
+ *
+ * `isServerAdvertised` marks tools whose `ToolDefinition` is supplied by the
+ * server (gated on resolved chat context) rather than sent in the chat
+ * request body. The client still owns execution; only the advertisement
+ * channel differs. These entries are excluded from `agentToolDefinitions`.
  */
 type RegisteredAgentTool<TInput> = {
   definition: FrontendToolDefinition;
   parseInput: (input: unknown) => TInput | null;
   invalidInputErrorText: string;
   requiredCapabilities?: AgentCapabilityKey[];
+  isServerAdvertised?: boolean;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 };
 
@@ -115,10 +121,84 @@ const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
   },
 });
 
+/**
+ * Server-advertised, client-executed: the server owns the canonical schema
+ * and description (see chat_tools/apply_span_filter_condition.py); this name
+ * is the single source of truth for routing the call to the matching client
+ * action registered by SpanFilterConditionField.
+ */
+export const APPLY_SPAN_FILTER_CONDITION_TOOL_NAME =
+  "apply_span_filter_condition";
+
+type ApplySpanFilterConditionInput = {
+  condition: string;
+};
+
+const applySpanFilterConditionToolDefinition: FrontendToolDefinition = {
+  name: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
+  description: "Server-advertised, client-executed. See server schema.",
+  parameters: {
+    type: "object",
+    properties: { condition: { type: "string" } },
+    required: ["condition"],
+    additionalProperties: false,
+  },
+};
+
+function parseApplySpanFilterConditionInput(
+  input: unknown
+): ApplySpanFilterConditionInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as { condition?: unknown };
+  if (typeof candidate.condition !== "string") return null;
+  return { condition: candidate.condition };
+}
+
+const applySpanFilterConditionAgentTool =
+  createRegisteredAgentTool<ApplySpanFilterConditionInput>({
+    definition: applySpanFilterConditionToolDefinition,
+    parseInput: parseApplySpanFilterConditionInput,
+    invalidInputErrorText: `Invalid ${APPLY_SPAN_FILTER_CONDITION_TOOL_NAME} input. Expected { condition: string }.`,
+    isServerAdvertised: true,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          APPLY_SPAN_FILTER_CONDITION_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The span filter field is not mounted on this page; cannot apply a filter.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Filter applied.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
+  applySpanFilterConditionAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */
@@ -152,10 +232,14 @@ function buildMissingCapabilitiesErrorText(
   ].join("\n");
 }
 
-/** Tool schemas sent with every chat request. */
-export const agentToolDefinitions = agentToolRegistry.map(
-  (tool) => tool.definition
-);
+/**
+ * Tool schemas sent with every chat request. Server-advertised tools are
+ * excluded — the server inserts their definitions itself based on resolved
+ * chat context, and including them here would duplicate names.
+ */
+export const agentToolDefinitions = agentToolRegistry
+  .filter((tool) => !tool.isServerAdvertised)
+  .map((tool) => tool.definition);
 
 /**
  * Validates and dispatches one tool call from the AI SDK runtime to the

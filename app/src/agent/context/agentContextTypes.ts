@@ -35,11 +35,22 @@
  * {@link ../context/selectors.selectActiveContexts}.
  */
 
-/** Project the user is currently viewing. */
+/**
+ * Project the user is currently viewing.
+ *
+ * `spanFilter` carries the project-scoped span filter expression when the
+ * span filter field is mounted on the page — empty string when the field is
+ * present with no condition applied, `undefined` when the field is not
+ * mounted at all. Tools that drive the on-screen filter (e.g.
+ * `apply_span_filter_condition`) are gated server-side on whether this field
+ * is set.
+ */
 export type AgentProjectContext = {
   type: "project";
   /** Phoenix GraphQL relay node ID (base64). */
   projectNodeId: string;
+  /** Validated span filter DSL expression; empty when no condition applied. */
+  spanFilter?: string;
 };
 
 /** Trace the user is currently viewing (always nested under a project). */
@@ -79,20 +90,11 @@ export type AgentSpanContext = {
     }
 );
 
-/** Validated span filter expression active in the project view. */
-export type AgentSpanFilterContext = {
-  type: "span_filter";
-  /** Phoenix GraphQL relay node ID (base64). */
-  projectNodeId: string;
-  condition: string;
-};
-
 /** Discriminated union of every context type the agent understands. */
 export type AgentContext =
   | AgentProjectContext
   | AgentTraceContext
-  | AgentSpanContext
-  | AgentSpanFilterContext;
+  | AgentSpanContext;
 
 /**
  * Stable string key for an {@link AgentContext}.
@@ -113,7 +115,5 @@ export function agentContextKey(context: AgentContext): string {
         : `otel:${context.otelSpanId}`;
       return `span:${project}:${span}`;
     }
-    case "span_filter":
-      return `span_filter:${context.projectNodeId}:${context.condition}`;
   }
 }
