@@ -1,6 +1,8 @@
+import importlib
 from importlib.metadata import version
+from typing import Any
 
-from . import llm, metrics, templating, tracing, utils
+from . import llm, metrics, tracing, utils
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -19,6 +21,12 @@ from .llm import LLM, phoenix_prompt_to_prompt_template
 from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
+
+
+def __getattr__(name: str) -> Any:
+    if name == "templating":
+        return importlib.import_module(f"{__name__}.templating")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
