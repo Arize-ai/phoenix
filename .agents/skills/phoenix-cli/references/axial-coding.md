@@ -124,7 +124,7 @@ agent_failures:
 
 ### Transition Matrix — jq sketch
 
-To find where failures occur between agent states, identify the last-OK span before each first-ERROR span within a trace:
+To find where failures occur between agent states, identify the last non-error span before each first-error span within a trace. Note: OTel leaves most spans at `status_code == "UNSET"` and only sets `"OK"` when code explicitly does so — match `!= "ERROR"` rather than `== "OK"` so the matrix works on typical OTel data.
 
 ```bash
 px span list --format raw --no-progress | jq '
@@ -132,12 +132,12 @@ px span list --format raw --no-progress | jq '
   | map(
       sort_by(.start_time)
       | { trace_id: .[0].context.trace_id,
-          last_ok:    map(select(.status_code == "OK"))    | last | .name,
-          first_err:  map(select(.status_code == "ERROR")) | first | .name }
+          last_non_error: map(select(.status_code != "ERROR")) | last | .name,
+          first_err:      map(select(.status_code == "ERROR")) | first | .name }
     )
   | [ .[] | select(.first_err != null) ]
-  | group_by([.last_ok, .first_err])
-  | map({ transition: "\(.[0].last_ok) → \(.[0].first_err)", count: length })
+  | group_by([.last_non_error, .first_err])
+  | map({ transition: "\(.[0].last_non_error) → \(.[0].first_err)", count: length })
   | sort_by(-.count)
 '
 ```
