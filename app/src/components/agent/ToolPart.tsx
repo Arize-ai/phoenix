@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { getToolName } from "ai";
 
-import { Icon, Icons } from "@phoenix/components";
+import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
 
 import {
   AskUserToolDetails,
@@ -69,17 +69,49 @@ export const toolPartCSS = css`
     transform: rotate(0deg);
   }
 
-  pre {
-    margin: 0;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    overflow-x: auto;
+  .tool-part__body {
+    background: var(--tool-call-body-background-color);
+    font-family: var(--ac-global-font-family-code);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
     white-space: pre-wrap;
     word-break: break-word;
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-s);
-    font-family: var(--ac-global-font-family-code);
-    background: var(--tool-call-body-background-color);
-    border-top: 1px solid var(--tool-call-body-border-color);
+    overflow-x: auto;
+    padding-top: var(--global-dimension-size-125);
+    padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250) 0;
+  
+    // Adds perimeter spacing when the last element isn't a copyable output,
+    // such as the EXIT CODE summary line.
+    &:last-child {
+      padding-bottom: var(--global-dimension-size-125);
+    }
+  }
+
+  .tool-part__line--copyable {
+    .copy-to-clipboard-button {
+      opacity: 0;
+      transition: opacity 150ms ease;
+    }
+
+    &:hover .copy-to-clipboard-button {
+      opacity: 1;
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+
+  .tool-part__code {
+    flex: 1;
+    min-width: 0;
   }
 
   .tool-part__summary {
@@ -125,20 +157,22 @@ export const toolPartCSS = css`
   }
 
   .tool-part__chevron {
-    font-size: 12px;
-    color: var(--tool-call-secondary-color);
+    font-size: 18px;
+    color: var(--tool-call-title-color);
     transition: transform 150ms ease;
     transform: rotate(-90deg);
   }
 
   .tool-part__label {
-    display: block;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0;
     color: var(--tool-call-secondary-color);
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
+  .tool-part__label[data-tone="error"] {
+    color: var(--tool-call-error-color);
   }
 `;
 
@@ -224,26 +258,63 @@ function getToolPresentation(
           details: <DocsToolDetails part={part} />,
         };
       }
+      const inputStr = JSON.stringify(part.input, null, 2);
+      const outputStr =
+        part.state === "output-available"
+          ? JSON.stringify(part.output, null, 2)
+          : "";
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
         details: (
-          <>
-            <span className="tool-part__label">Input</span>
-            <pre>{JSON.stringify(part.input, null, 2)}</pre>
+          <div className="tool-part__body">
+            <div className="tool-part__line">
+              <span className="tool-part__label">Input</span>
+            </div>
+            <div className="tool-part__line tool-part__line--copyable">
+              <code className="tool-part__code">{inputStr}</code>
+              <CopyToClipboardButton
+                text={inputStr}
+                size="S"
+                variant="quiet"
+                tooltipText="Copy input"
+              />
+            </div>
             {part.state === "output-available" ? (
               <>
-                <span className="tool-part__label">Output</span>
-                <pre>{JSON.stringify(part.output, null, 2)}</pre>
+                <div className="tool-part__line">
+                  <span className="tool-part__label">Output</span>
+                </div>
+                <div className="tool-part__line tool-part__line--copyable">
+                  <code className="tool-part__code">{outputStr}</code>
+                  <CopyToClipboardButton
+                    text={outputStr}
+                    size="S"
+                    variant="quiet"
+                    tooltipText="Copy output"
+                  />
+                </div>
               </>
             ) : null}
             {part.state === "output-error" ? (
               <>
-                <span className="tool-part__label">Error</span>
-                <pre>{part.errorText}</pre>
+                <div className="tool-part__line">
+                  <span className="tool-part__label" data-tone="error">
+                    Error
+                  </span>
+                </div>
+                <div className="tool-part__line tool-part__line--copyable">
+                  <code className="tool-part__code">{part.errorText}</code>
+                  <CopyToClipboardButton
+                    text={part.errorText ?? ""}
+                    size="S"
+                    variant="quiet"
+                    tooltipText="Copy error"
+                  />
+                </div>
               </>
             ) : null}
-          </>
+          </div>
         ),
       };
     }

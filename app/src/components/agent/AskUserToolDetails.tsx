@@ -29,7 +29,7 @@ export function formatAskUserState(state: ToolUIPartState): string {
     case "output-available":
       return "Answered";
     case "output-error":
-      return "Failed";
+      return "Error";
     default:
       return formatToolState(state);
   }

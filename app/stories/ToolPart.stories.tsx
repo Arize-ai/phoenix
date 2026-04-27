@@ -57,7 +57,7 @@ const bashCompletedPart = makePart({
   },
 });
 
-const bashFailedPart = makePart({
+const bashErrorPart = makePart({
   toolName: "bash",
   state: "output-error",
   input: { command: "npm run build" },
@@ -149,9 +149,9 @@ export const BashCompleted: Story = {
   args: { part: bashCompletedPart },
 };
 
-/** A bash tool call that failed with an error message. */
-export const BashFailed: Story = {
-  args: { part: bashFailedPart },
+/** A bash tool call that errored with an error message. */
+export const BashError: Story = {
+  args: { part: bashErrorPart },
 };
 
 /** A bash tool call currently running (input-available state). */

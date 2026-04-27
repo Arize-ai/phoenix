@@ -9,53 +9,13 @@ import { CopyToClipboardButton } from "@phoenix/components";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
-const bashDetailsCSS = css`
-  background: var(--tool-call-body-background-color);
-  font-family: var(--ac-global-font-family-code);
-  font-size: var(--global-font-size-xs);
-  line-height: var(--global-line-height-xs);
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-  padding-top: var(--global-dimension-size-125);
-  padding-bottom: var(--global-dimension-size-200);
-`;
-
-const lineCSS = css`
-  display: flex;
-  align-items: flex-start;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-250) 0;
-
-  .copy-to-clipboard-button {
-    opacity: 0;
-    transition: opacity 150ms ease;
-  }
-
-  &:hover .copy-to-clipboard-button {
-    opacity: 1;
-  }
-`;
-
-const codeCSS = css`
-  flex: 1;
-  min-width: 0;
-`;
-
-const labelCSS = css`
-  color: var(--tool-call-secondary-color);
-  text-transform: uppercase;
-  font-size: var(--global-font-size-xs);
-  letter-spacing: 0.05em;
-  user-select: none;
-`;
-
 const metaRowCSS = css`
   display: flex;
   align-items: center;
   gap: var(--global-dimension-size-200);
   // extra top padding makes gap consistent with outputs that contain copy buttons
-  padding: var(--global-dimension-size-200) var(--global-dimension-size-250) 0;
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-250)
+    var(--global-dimension-size-150);
 `;
 
 const metaGroupCSS = css`
@@ -95,12 +55,12 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
   const stdout = bashResult?.stdout || "";
 
   return (
-    <div css={bashDetailsCSS}>
-      <div css={lineCSS}>
-        <span css={labelCSS}>Command</span>
+    <div className="tool-part__body">
+      <div className="tool-part__line">
+        <span className="tool-part__label">Command</span>
       </div>
-      <div css={lineCSS}>
-        <code css={codeCSS}>{command || "(empty)"}</code>
+      <div className="tool-part__line tool-part__line--copyable">
+        <code className="tool-part__code">{command || "(empty)"}</code>
         <CopyToClipboardButton
           text={command || ""}
           size="S"
@@ -112,11 +72,11 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
         <>
           {stdout ? (
             <>
-              <div css={lineCSS}>
-                <span css={labelCSS}>Output</span>
+              <div className="tool-part__line">
+                <span className="tool-part__label">Output</span>
               </div>
-              <div css={lineCSS}>
-                <code css={codeCSS}>{stdout}</code>
+              <div className="tool-part__line tool-part__line--copyable">
+                <code className="tool-part__code">{stdout}</code>
                 <CopyToClipboardButton
                   text={stdout}
                   size="S"
@@ -142,20 +102,19 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <div css={lineCSS}>
-            <span
-              css={[
-                labelCSS,
-                css`
-                  color: var(--tool-call-error-color);
-                `,
-              ]}
-            >
+          <div className="tool-part__line">
+            <span className="tool-part__label" data-tone="error">
               Error
             </span>
           </div>
-          <div css={lineCSS}>
-            <code css={codeCSS}>{part.errorText}</code>
+          <div className="tool-part__line tool-part__line--copyable">
+            <code className="tool-part__code">{part.errorText}</code>
+            <CopyToClipboardButton
+              text={part.errorText ?? ""}
+              size="S"
+              variant="quiet"
+              tooltipText="Copy error"
+            />
           </div>
         </>
       ) : null}

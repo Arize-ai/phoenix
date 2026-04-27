@@ -46,7 +46,7 @@ export function formatDocsToolState(
     case "output-available":
       return "Done";
     case "output-error":
-      return "Failed";
+      return "Error";
     default:
       return formatToolState(state);
   }

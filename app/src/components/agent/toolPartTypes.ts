@@ -41,7 +41,7 @@ export function formatToolState(state: ToolUIPartState): string {
     case "output-available":
       return "Completed";
     case "output-error":
-      return "Failed";
+      return "Error";
     case "output-denied":
       return "Denied";
   }
