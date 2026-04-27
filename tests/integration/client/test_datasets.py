@@ -1681,3 +1681,257 @@ What is NLP?,Natural Language Processing,
             assert revision["metadata"] == {}
             # No span link
             assert ex["node"]["span"] is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_explicit_example_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_explicit_ids_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"v": "A"}, {"v": "B"}],
+                outputs=[{"r": "1"}, {"r": "2"}],
+                example_ids=["alpha", "beta"],
+            )
+        )
+
+        assert len(dataset) == 2
+        assert {ex["id"] for ex in dataset.examples} == {"alpha", "beta"}
+
+        retrieved = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name,
+            )
+        )
+        by_id = {ex["id"]: ex for ex in retrieved.examples}
+        assert by_id["alpha"]["input"] == {"v": "A"}
+        assert by_id["beta"]["input"] == {"v": "B"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_per_example_id_field(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_per_example_id_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"id": "alpha", "input": {"v": "A"}, "output": {"r": "1"}},
+                    {"id": "beta", "input": {"v": "B"}, "output": {"r": "2"}},
+                ],
+            )
+        )
+
+        assert len(dataset) == 2
+        by_id = {ex["id"]: ex for ex in dataset.examples}
+        assert set(by_id) == {"alpha", "beta"}
+        assert by_id["alpha"]["output"] == {"r": "1"}
+        assert by_id["beta"]["output"] == {"r": "2"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_idempotence(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_upsert_idempotent_{token_hex(4)}"
+        payload = [
+            {"id": "a", "input": {"v": "A"}, "output": {"r": "1"}},
+            {"id": "b", "input": {"v": "B"}, "output": {"r": "2"}},
+        ]
+
+        first = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=payload,
+            )
+        )
+        second = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=payload,
+            )
+        )
+
+        assert second.version_id == first.version_id
+        assert len(second) == 2
+        assert {ex["id"] for ex in second.examples} == {"a", "b"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_patch_delete_create(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_upsert_pdc_{token_hex(4)}"
+
+        seeded = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"id": "a", "input": {"v": "A"}, "output": {}},
+                    {"id": "b", "input": {"v": "B"}, "output": {}},
+                    {"id": "c", "input": {"v": "C"}, "output": {}},
+                ],
+            )
+        )
+
+        modified = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"id": "a", "input": {"v": "A'"}, "output": {}},
+                    {"id": "c", "input": {"v": "C"}, "output": {}},
+                    {"id": "d", "input": {"v": "D"}, "output": {}},
+                ],
+            )
+        )
+
+        assert modified.version_id != seeded.version_id
+        assert len(modified) == 3
+        by_id = {ex["id"]: ex for ex in modified.examples}
+        assert set(by_id) == {"a", "c", "d"}
+        assert by_id["a"]["input"] == {"v": "A'"}
+        assert by_id["c"]["input"] == {"v": "C"}
+        assert by_id["d"]["input"] == {"v": "D"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_splits_only_change(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_upsert_splits_only_{token_hex(4)}"
+
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"id": "a", "input": {"v": "A"}, "output": {}, "splits": "s1"},
+                    {"id": "b", "input": {"v": "B"}, "output": {}, "splits": "s1"},
+                ],
+            )
+        )
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                examples=[
+                    {"id": "a", "input": {"v": "A"}, "output": {}, "splits": "s2"},
+                    {"id": "b", "input": {"v": "B"}, "output": {}, "splits": "s1"},
+                ],
+            )
+        )
+
+        s1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name,
+                splits=["s1"],
+            )
+        )
+        s2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=unique_name,
+                splits=["s2"],
+            )
+        )
+        assert {ex["id"] for ex in s1.examples} == {"b"}
+        assert {ex["id"] for ex in s2.examples} == {"a"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_examples_to_dataset_with_example_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_append_ids_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"v": "A"}],
+                outputs=[{"r": "1"}],
+            )
+        )
+        appended = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=dataset,
+                inputs=[{"v": "B"}, {"v": "C"}],
+                outputs=[{"r": "2"}, {"r": "3"}],
+                example_ids=["beta", "gamma"],
+            )
+        )
+
+        assert len(appended) == 3
+        ids = {ex["id"] for ex in appended.examples}
+        assert {"beta", "gamma"}.issubset(ids)
+        by_id = {ex["id"]: ex for ex in appended.examples}
+        assert by_id["beta"]["input"] == {"v": "B"}
+        assert by_id["gamma"]["input"] == {"v": "C"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_partial_example_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        api_key = _app.admin_secret
+        unique_name = f"test_partial_ids_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                inputs=[{"v": "A"}, {"v": "B"}, {"v": "C"}],
+                outputs=[{}, {}, {}],
+                example_ids=["alpha", None, "gamma"],
+            )
+        )
+
+        assert len(dataset) == 3
+        ids = {ex["id"] for ex in dataset.examples}
+        assert "alpha" in ids
+        assert "gamma" in ids
+        # The middle example gets a server-generated id (not the literal None or "")
+        other_ids = ids - {"alpha", "gamma"}
+        assert len(other_ids) == 1
+        assert next(iter(other_ids))
