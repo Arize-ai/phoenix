@@ -788,6 +788,49 @@ async def test_post_dataset_upload_splits_only_change_counts_as_patched(
     assert second_data["version_id"] == first_data["version_id"]
 
 
+async def test_post_dataset_upload_deleted_example_with_split_does_not_count_as_updated(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting an example that was assigned to a split should count as a
+    deletion only — the loss of split membership is a consequence of the
+    deletion and must not be double-counted as an update."""
+    name = inspect.stack()[0][3]
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"a": 1}, {"a": 2}],
+            "outputs": [{"b": 1}, {"b": 2}],
+            "metadata": [{}, {}],
+            "example_ids": ["x", "y"],
+            "splits": ["train", "train"],
+        },
+    )
+    assert first_response.status_code == 200
+    first_data = first_response.json()["data"]
+    assert first_data["num_created_examples"] == 2
+
+    second_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "update",
+            "name": name,
+            "inputs": [{"a": 1}],
+            "outputs": [{"b": 1}],
+            "metadata": [{}],
+            "example_ids": ["x"],
+            "splits": ["train"],
+        },
+    )
+    assert second_response.status_code == 200
+    second_data = second_response.json()["data"]
+    assert second_data["num_created_examples"] == 0
+    assert second_data["num_updated_examples"] == 0
+    assert second_data["num_deleted_examples"] == 1
+
+
 async def test_post_dataset_upload_csv_create_then_append(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,

@@ -1033,8 +1033,12 @@ async def _update_dataset_examples(
     )
     created_example_ids = {e.example_id for e in created_examples}
     # Created examples get their initial split assignments as part of being
-    # created, not as a later "split change".
-    split_changed_example_ids = split_applied_example_ids - created_example_ids
+    # created, not as a later "split change". Deleted examples are reported as
+    # deletions, not as split changes — losing split assignments is a
+    # consequence of the deletion.
+    split_changed_example_ids = (
+        split_applied_example_ids - created_example_ids - set(diff.delete_example_ids)
+    )
     return DatasetExampleChanges(
         dataset_id=dataset_id,
         dataset_version_id=dataset_version_id,
