@@ -1021,9 +1021,7 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color-hover: ${
-      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
-    };
+    --global-card-header-background-color-hover: var(--global-color-gray-100);
   }
 `;
 
@@ -1031,6 +1029,7 @@ const toolCallCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --tool-call-border-color: var(--global-card-border-color);
+    --tool-call-border-color-hover: var(--global-color-gray-200);
     --tool-call-background-color: var(--global-color-gray-100);
     --tool-call-header-background-color: var(--global-color-gray-75);
     --tool-call-header-background-color-hover: var(
@@ -1039,7 +1038,7 @@ const toolCallCSS = (theme: Theme) => css`
     --tool-call-body-background-color: var(--global-color-gray-50);
     --tool-call-body-border-color: var(--global-color-gray-200);
     --tool-call-title-color: var(--global-text-color-700);
-    --tool-call-secondary-color: var(--global-text-color-500);
+    --tool-call-secondary-color: var(--global-text-color-300);
     --tool-call-error-color: var(--global-color-danger);
   }
 `;

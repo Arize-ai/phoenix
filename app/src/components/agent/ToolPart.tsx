@@ -26,9 +26,14 @@ export type ToolPartType = MessagePart;
 export const toolPartCSS = css`
   margin-top: var(--global-dimension-size-150);
   border: 1px solid var(--tool-call-border-color);
-  border-radius: var(--global-rounding-medium);
+  border-radius: var(--global-rounding-small);
   background: var(--tool-call-background-color);
   overflow: hidden;
+  transition: border-color 150ms ease;
+
+  &:hover {
+    border-color: var(--tool-call-border-color-hover);
+  }
 
   &:has(+ :not(.tool-part)) {
     margin-bottom: var(--global-dimension-size-150);
@@ -37,9 +42,8 @@ export const toolPartCSS = css`
   summary {
     cursor: pointer;
     list-style: none;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-50);
     background: var(--tool-call-header-background-color);
-    border-radius: var(--global-rounding-medium);
     transition: background 150ms ease;
 
     &:hover {
@@ -57,7 +61,7 @@ export const toolPartCSS = css`
   }
 
   &[open] summary {
-    border-radius: var(--global-rounding-medium) var(--global-rounding-medium) 0 0;
+    border-bottom: 1px solid var(--tool-call-body-border-color);
   }
 
   /* Rotate chevron when open */
@@ -91,9 +95,10 @@ export const toolPartCSS = css`
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-50);
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     flex-shrink: 0;
+    color: var(--global-text-color-800);
   }
 
   .tool-part__preview {
@@ -112,6 +117,7 @@ export const toolPartCSS = css`
     white-space: nowrap;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
+    padding-inline-end: var(--global-dimension-size-50);
   }
 
   .tool-part__status[data-tone="error"] {
