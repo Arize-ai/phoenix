@@ -68,6 +68,7 @@ class Dataset(TypedDict):
 
 class DatasetExample(TypedDict):
     id: str
+    node_id: str
     input: Mapping[str, Any]
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]

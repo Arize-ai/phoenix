@@ -48,6 +48,7 @@ class TestDataset:
             examples=[
                 v1.DatasetExample(
                     id="ex1",
+                    node_id="ex1",
                     input={"text": "hello"},
                     output={"response": "hi"},
                     metadata={"source": "test"},
@@ -55,6 +56,7 @@ class TestDataset:
                 ),
                 v1.DatasetExample(
                     id="ex2",
+                    node_id="ex2",
                     input={"text": "world"},
                     output={"response": "earth"},
                     metadata={"source": "test"},
@@ -248,6 +250,65 @@ class TestDatasetKeys:
                 split_key="splits",
             )
 
+    def test_valid_keys_with_example_id_key(self) -> None:
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            example_id_key="ext_id",
+        )
+        assert keys.example_id == "ext_id"
+        assert "ext_id" in set(keys)
+
+    def test_example_id_key_overlap_with_input(self) -> None:
+        with pytest.raises(ValueError, match="example_id_key"):
+            DatasetKeys(
+                input_keys=frozenset(["a", "ext_id"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                example_id_key="ext_id",
+            )
+
+    def test_example_id_key_overlap_with_output(self) -> None:
+        with pytest.raises(ValueError, match="example_id_key"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b", "ext_id"]),
+                metadata_keys=frozenset(["c"]),
+                example_id_key="ext_id",
+            )
+
+    def test_example_id_key_overlap_with_metadata(self) -> None:
+        with pytest.raises(ValueError, match="example_id_key"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c", "ext_id"]),
+                example_id_key="ext_id",
+            )
+
+    def test_example_id_key_overlap_with_split(self) -> None:
+        with pytest.raises(ValueError, match="example_id_key"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                split_keys=frozenset(["ext_id"]),
+                example_id_key="ext_id",
+            )
+
+    def test_check_differences_with_example_id_key(self) -> None:
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            example_id_key="ext_id",
+        )
+        keys.check_differences(frozenset(["a", "b", "c", "ext_id", "extra"]))
+
+        with pytest.raises(ValueError, match="Keys not found"):
+            keys.check_differences(frozenset(["a", "b", "c"]))  # ext_id missing
+
 
 class TestHelperFunctions:
     def test_parse_datetime(self) -> None:
@@ -266,6 +327,7 @@ class TestHelperFunctions:
     def test_is_valid_dataset_example(self) -> None:
         valid_example = v1.DatasetExample(
             id="ex1",
+            node_id="ex1",
             input={"text": "hello"},
             output={"response": "hi"},
             metadata={"source": "test"},
@@ -401,6 +463,33 @@ class TestHelperFunctions:
 
         with pytest.raises(ValueError, match="DataFrame has no data"):
             _prepare_dataframe_as_csv(df, keys)
+
+    def test_prepare_dataframe_as_csv_with_id_key(self) -> None:
+        df = pd.DataFrame(
+            {
+                "input": ["a", "b"],
+                "output": ["x", "y"],
+                "ext_id": ["my-example-1", "my-example-2"],
+            }
+        )
+        keys = DatasetKeys(
+            input_keys=frozenset(["input"]),
+            output_keys=frozenset(["output"]),
+            metadata_keys=frozenset(),
+            example_id_key="ext_id",
+        )
+
+        name, file_obj, content_type, headers = _prepare_dataframe_as_csv(df, keys)
+
+        assert name == "dataframe.csv"
+        assert content_type == "text/csv"
+        assert headers == {"Content-Encoding": "gzip"}
+
+        file_obj.seek(0)
+        decompressed = gzip.decompress(file_obj.read()).decode()
+        assert "ext_id" in decompressed
+        assert "my-example-1" in decompressed
+        assert "my-example-2" in decompressed
 
 
 class TestDatasetUploadError:

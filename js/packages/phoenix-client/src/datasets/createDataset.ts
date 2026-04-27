@@ -85,6 +85,12 @@ export async function createDataset({
   // Only include span_ids in the request if at least one example has a span ID
   const hasSpanIds = spanIds.some((id) => id !== null);
 
+  // Extract example IDs from examples, preserving null/undefined as null
+  const exampleIds = examples.map((example) => example?.id ?? null);
+
+  // Only include example_ids in the request if at least one example has an ID
+  const hasExampleIds = exampleIds.some((id) => id !== null);
+
   const post = (action: "update" | "create") =>
     client.POST("/v1/datasets/upload", {
       params: {
@@ -102,6 +108,7 @@ export async function createDataset({
         metadata,
         splits,
         ...(hasSpanIds ? { span_ids: spanIds } : {}),
+        ...(hasExampleIds ? { example_ids: exampleIds } : {}),
       },
     });
 
