@@ -12,6 +12,11 @@ Package layout
 ``model_factory``
     Constructs ``pydantic_ai.Model`` instances for both built-in providers
     (with secret-store / env credentials) and custom provider records.
+    Transport-neutral; raises ``AgentError`` subclasses on failure.
+``exceptions``
+    Domain exception hierarchy (``AgentError`` and provider-specific
+    subclasses). Each carries a ``status_code`` so the REST router can
+    translate them to HTTP responses without inspecting types.
 ``mcp``
     Mintlify-hosted MCP backend tool client. Lazily connected and shared
     across requests via ``app.state``.

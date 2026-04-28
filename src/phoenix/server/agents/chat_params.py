@@ -5,21 +5,33 @@ Discriminated on ``provider_type``: ``"custom"`` selects a stored
 managed provider with credentials from the secret store or environment.
 """
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, field_validator
+from strawberry.relay import GlobalID
 
 from phoenix.db.types.model_provider import ModelProvider
 
 
 class CustomProviderChatSearchParams(BaseModel):
-    """Chat against a stored custom provider record (``provider_id`` is its
-    relay GlobalID). Model selection and credentials are resolved from the
-    encrypted provider config."""
+    """Chat against a stored custom provider record.
+
+    The wire format of ``provider_id`` is a relay GlobalID (e.g.
+    ``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at
+    parse time so downstream consumers don't need to know the GlobalID
+    encoding.
+    """
 
     provider_type: Literal["custom"]
-    provider_id: str
+    provider_id: int
     model_name: str
+
+    @field_validator("provider_id", mode="before")
+    @classmethod
+    def _decode_global_id(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return int(GlobalID.from_id(value).node_id)
+        return value
 
 
 class BuiltInProviderChatSearchParams(BaseModel):

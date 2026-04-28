@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import pytest
-from fastapi import HTTPException
 
 from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
@@ -13,6 +12,11 @@ from phoenix.db.types.model_provider import (
 from phoenix.server.agents.chat_params import (
     BuiltInProviderChatSearchParams,
     CustomProviderChatSearchParams,
+)
+from phoenix.server.agents.exceptions import (
+    ProviderConfigError,
+    ProviderCredentialsError,
+    ProviderNotFoundError,
 )
 from phoenix.server.agents.model_factory import (
     _get_pydantic_ai_model_from_generative_model_custom_provider,
@@ -36,11 +40,11 @@ class TestBuildChatModel:
         )
 
         async with db() as session:
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(ProviderNotFoundError) as exc_info:
                 await build_chat_model(params, session=session, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 404
-        assert exc_info.value.detail == "Custom provider not found."
+        assert str(exc_info.value) == "Custom provider not found."
 
     async def test_builtin_openai_requires_credentials_when_no_custom_base_url(
         self,
@@ -56,11 +60,11 @@ class TestBuildChatModel:
         )
 
         async with db() as session:
-            with pytest.raises(HTTPException) as exc_info:
+            with pytest.raises(ProviderCredentialsError) as exc_info:
                 await build_chat_model(params, session=session, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 400
-        assert "OPENAI_API_KEY" in exc_info.value.detail
+        assert "OPENAI_API_KEY" in str(exc_info.value)
 
 
 class TestCustomProviderModels:
@@ -75,7 +79,7 @@ class TestCustomProviderModels:
         )
 
     async def test_custom_provider_decrypt_failure_becomes_http_400(self) -> None:
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderConfigError) as exc_info:
             await _get_pydantic_ai_model_from_generative_model_custom_provider(
                 provider_record=_ProviderRecord(config=b"ciphertext"),
                 model_name="gpt-4o-mini",
@@ -83,10 +87,10 @@ class TestCustomProviderModels:
             )
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "Failed to decrypt custom provider config."
+        assert str(exc_info.value) == "Failed to decrypt custom provider config."
 
     async def test_custom_provider_parse_failure_becomes_http_400(self) -> None:
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderConfigError) as exc_info:
             await _get_pydantic_ai_model_from_generative_model_custom_provider(
                 provider_record=_ProviderRecord(config=b"not-json"),
                 model_name="gpt-4o-mini",
@@ -94,7 +98,7 @@ class TestCustomProviderModels:
             )
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "Failed to parse custom provider config."
+        assert str(exc_info.value) == "Failed to parse custom provider config."
 
     async def test_openai_family_custom_providers_disable_sdk_retries(
         self,
@@ -159,6 +163,43 @@ class TestCustomProviderModels:
             decrypt=lambda value: value,
         )
         assert cast(Any, anthropic_model)._provider.client.kwargs["max_retries"] == 0
+
+
+class TestSecretResolutionErrorTranslation:
+    """Regression: a stored secret that cannot be decrypted used to bubble up
+    as ``BadRequest`` from ``playground_clients._resolve_secrets`` and reach
+    FastAPI as an unhandled exception (500). It must surface as
+    ``ProviderConfigError`` so the chat router maps it to a 400."""
+
+    async def test_decrypt_failure_during_secret_lookup_surfaces_as_provider_config_error(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db import models as db_models
+        from phoenix.server.encryption import EncryptionService
+
+        encryption = EncryptionService()
+        async with db() as session:
+            session.add(
+                db_models.Secret(key="OPENAI_API_KEY", value=encryption.encrypt(b"sk-stored"))
+            )
+            await session.commit()
+
+        params = BuiltInProviderChatSearchParams(
+            provider_type="builtin",
+            provider="OPENAI",
+            model_name="gpt-4o-mini",
+        )
+
+        def _decrypt_fails(_: bytes) -> bytes:
+            raise ValueError("decrypt failed")
+
+        async with db() as session:
+            with pytest.raises(ProviderConfigError) as exc_info:
+                await build_chat_model(params, session=session, decrypt=_decrypt_fails)
+
+        assert exc_info.value.status_code == 400
+        assert "OPENAI_API_KEY" in str(exc_info.value)
 
 
 def _global_id(type_name: str, node_id: str) -> str:

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -10,6 +10,7 @@ from phoenix.server.agents.context import (
     build_phoenix_context_user_message_content,
     insert_context_user_message,
 )
+from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.mcp import get_mcp_client
 from phoenix.server.agents.model_factory import build_chat_model
 from phoenix.server.agents.tools import resolve_contextual_tools
@@ -26,12 +27,15 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         params: Annotated[ChatSearchParamsModel, Query()],
     ) -> Response:
-        async with request.app.state.db() as session:
-            model = await build_chat_model(
-                params.root,
-                session=session,
-                decrypt=request.app.state.decrypt,
-            )
+        try:
+            async with request.app.state.db() as session:
+                model = await build_chat_model(
+                    params.root,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         body = parse_chat_body(await request.body())
         body.messages = insert_context_user_message(

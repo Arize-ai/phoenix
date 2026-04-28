@@ -6,10 +6,13 @@ Azure OpenAI, AWS Bedrock, Google GenAI, OpenAI-compatible) or to a
 built-in provider whose credentials are resolved from the secret store
 first and the environment second.
 
-Provider construction is centralised here so the ``/chat`` router stays a
-thin HTTP layer. As more providers land this file is the obvious split
-point — a per-provider module under ``agents/providers/`` is the planned
-follow-up.
+This module is **transport-neutral**: it does not import ``fastapi`` or
+raise ``HTTPException``. Failures surface as ``AgentError`` subclasses
+(see ``phoenix.server.agents.exceptions``) and the REST router maps them
+to HTTP responses at the boundary. The only remaining infrastructure
+dependency is ``AsyncSession`` for secret-store and provider-record
+lookups; the planned next step is to swap that for a small resolver
+protocol so this module is fully composable.
 """
 
 from __future__ import annotations
@@ -17,10 +20,8 @@ from __future__ import annotations
 from os import getenv
 from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, cast
 
-from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -33,6 +34,14 @@ from phoenix.server.agents.chat_params import (
     ChatSearchParams,
     CustomProviderChatSearchParams,
 )
+from phoenix.server.agents.exceptions import (
+    ProviderConfigError,
+    ProviderCredentialsError,
+    ProviderDependencyError,
+    ProviderNotFoundError,
+    ProviderUnsupportedError,
+)
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -79,10 +88,16 @@ async def _resolve_secret_or_env(
     Each key in ``keys`` is checked in order; the first non-empty value
     wins. The secret store is consulted before any environment lookup so
     that explicit Phoenix-managed secrets always take precedence over
-    leftover dev environment variables.
+    leftover dev environment variables. A failure to decrypt a stored
+    secret surfaces as ``ProviderConfigError`` so callers don't need to
+    know about the GraphQL-flavoured exception that ``_resolve_secrets``
+    raises.
     """
     if keys:
-        secrets = await _resolve_secrets(session, decrypt, *keys)
+        try:
+            secrets = await _resolve_secrets(session, decrypt, *keys)
+        except BadRequest as exc:
+            raise ProviderConfigError(str(exc)) from exc
         for key in keys:
             if value := secrets.get(key):
                 return value
@@ -103,7 +118,7 @@ def _placeholder_or_error_for_openai_compatible_provider(
         return api_key
     if base_url and base_url != default_base_url:
         return "sk-placeholder"
-    raise HTTPException(status_code=400, detail=missing_credential_message)
+    raise ProviderCredentialsError(missing_credential_message)
 
 
 async def build_chat_model(
@@ -125,18 +140,23 @@ async def build_chat_model(
         A ready-to-use ``pydantic_ai.models.Model`` instance.
 
     Raises:
-        HTTPException: ``404`` if a custom provider record is missing;
-            ``400`` if its config cannot be decrypted/parsed, or if a
-            built-in provider's required credentials are not available.
+        ProviderNotFoundError: A custom provider record is missing.
+        ProviderConfigError: A custom provider's config cannot be
+            decrypted or parsed, or a stored secret cannot be decrypted.
+        ProviderCredentialsError: A built-in provider's required
+            credentials are not available.
+        ProviderDependencyError: An optional SDK package required by the
+            selected provider is not installed.
+        ProviderUnsupportedError: The requested provider type is not
+            recognised by this builder.
     """
     if isinstance(params, CustomProviderChatSearchParams):
-        custom_provider_id = int(GlobalID.from_id(params.provider_id).node_id)
         provider = await session.get(
             models.GenerativeModelCustomProvider,
-            custom_provider_id,
+            params.provider_id,
         )
         if provider is None:
-            raise HTTPException(status_code=404, detail="Custom provider not found.")
+            raise ProviderNotFoundError("Custom provider not found.")
         return await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
             model_name=params.model_name,
@@ -173,18 +193,12 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
     try:
         decrypted_data = decrypt(provider_record.config)
     except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to decrypt custom provider config.",
-        ) from exc
+        raise ProviderConfigError("Failed to decrypt custom provider config.") from exc
 
     try:
         config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data).root
     except ValidationError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="Failed to parse custom provider config.",
-        ) from exc
+        raise ProviderConfigError("Failed to parse custom provider config.") from exc
 
     if config.type == "openai":
         openai_kwargs = config.openai_client_kwargs
@@ -225,10 +239,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             try:
                 from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
             except ImportError as exc:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Azure identity package not installed.",
-                ) from exc
+                raise ProviderDependencyError("Azure identity package not installed.") from exc
             credential = ClientSecretCredential(
                 tenant_id=azure_method.azure_tenant_id,
                 client_id=azure_method.azure_client_id,
@@ -247,10 +258,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
             except ImportError as exc:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Azure identity package not installed.",
-                ) from exc
+                raise ProviderDependencyError("Azure identity package not installed.") from exc
             token_provider = get_bearer_token_provider(
                 DefaultAzureCredential(),
                 "https://cognitiveservices.azure.com/.default",
@@ -318,7 +326,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
         else:
             assert_never(bedrock_method.type)
         return BedrockConverseModel(model_name, provider=bedrock_provider)
-    raise HTTPException(status_code=400, detail=f"Unsupported custom provider type: {config.type}")
+    raise ProviderUnsupportedError(f"Unsupported custom provider type: {config.type}")
 
 
 async def _get_pydantic_ai_model_from_builtin_provider(
@@ -364,12 +372,9 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         api_key = await _resolve_secret_or_env(session, decrypt, "AZURE_OPENAI_API_KEY")
         azure_endpoint = params.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
         if not azure_endpoint:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "An Azure endpoint is required for Azure OpenAI models. "
-                    "Set the AZURE_OPENAI_ENDPOINT environment variable."
-                ),
+            raise ProviderCredentialsError(
+                "An Azure endpoint is required for Azure OpenAI models. "
+                "Set the AZURE_OPENAI_ENDPOINT environment variable."
             )
         base_url = azure_endpoint_to_base_url(azure_endpoint)
         if api_key:
@@ -384,12 +389,9 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
             except ImportError as exc:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "Provide an Azure OpenAI API key or install azure-identity "
-                        "to use default credentials."
-                    ),
+                raise ProviderDependencyError(
+                    "Provide an Azure OpenAI API key or install azure-identity "
+                    "to use default credentials."
                 ) from exc
             token_provider = get_bearer_token_provider(
                 DefaultAzureCredential(),
@@ -412,12 +414,9 @@ async def _get_pydantic_ai_model_from_builtin_provider(
 
         api_key = await _resolve_secret_or_env(session, decrypt, "ANTHROPIC_API_KEY")
         if not api_key:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "An API key is required for Anthropic models. "
-                    "Set the ANTHROPIC_API_KEY environment variable or store it in Phoenix secrets."
-                ),
+            raise ProviderCredentialsError(
+                "An API key is required for Anthropic models. "
+                "Set the ANTHROPIC_API_KEY environment variable or store it in Phoenix secrets."
             )
         anthropic_provider = AnthropicProvider(
             anthropic_client=AsyncAnthropic(
@@ -430,12 +429,9 @@ async def _get_pydantic_ai_model_from_builtin_provider(
     if params.provider == ModelProvider.GOOGLE:
         api_key = await _resolve_secret_or_env(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
         if not api_key:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "An API key is required for Google GenAI models. "
-                    "Set GEMINI_API_KEY or GOOGLE_API_KEY in the environment or Phoenix secrets."
-                ),
+            raise ProviderCredentialsError(
+                "An API key is required for Google GenAI models. "
+                "Set GEMINI_API_KEY or GOOGLE_API_KEY in the environment or Phoenix secrets."
             )
         google_provider = GoogleProvider(api_key=api_key, base_url=params.base_url)
         return GoogleModel(params.model_name, provider=google_provider)
@@ -543,7 +539,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         )
         if params.provider == ModelProvider.OLLAMA:
             if not base_url:
-                raise HTTPException(status_code=400, detail=missing_credential_message)
+                raise ProviderCredentialsError(missing_credential_message)
             api_key = "ollama"
         else:
             api_key = _placeholder_or_error_for_openai_compatible_provider(
@@ -564,7 +560,4 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             provider=openai_provider,
             openai_api_type="chat_completions",
         )
-    raise HTTPException(
-        status_code=400,
-        detail=f"Unsupported built-in provider: {params.provider.value}",
-    )
+    raise ProviderUnsupportedError(f"Unsupported built-in provider: {params.provider.value}")
