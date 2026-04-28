@@ -6,6 +6,7 @@ import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 
 import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 
 /**
  * Returns the preview text for the collapsed ask_user tool summary.
@@ -43,23 +44,26 @@ export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
   const input = parseElicitToolInput(part.input);
   const output = part.output as ElicitToolOutput | null;
 
+  const questionsText = formatQuestions(input);
+  const answersText = output ? stringifyToolValue(output) : "";
+
   return (
-    <>
-      <span className="tool-part__label">Questions</span>
-      <pre>{formatQuestions(input)}</pre>
+    <div className="tool-part__body">
+      <ToolPartLabel>Questions</ToolPartLabel>
+      <ToolPartCodeBlock>{questionsText}</ToolPartCodeBlock>
       {part.state === "output-available" && output ? (
         <>
-          <span className="tool-part__label">Answers</span>
-          <pre>{stringifyToolValue(output)}</pre>
+          <ToolPartLabel>Answers</ToolPartLabel>
+          <ToolPartCodeBlock>{answersText}</ToolPartCodeBlock>
         </>
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <span className="tool-part__label">Error</span>
-          <pre>{part.errorText}</pre>
+          <ToolPartLabel tone="error">Error</ToolPartLabel>
+          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-    </>
+    </div>
   );
 }
 

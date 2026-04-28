@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { getToolName } from "ai";
 
-import { CopyToClipboardButton, Icon, Icons } from "@phoenix/components";
+import { Icon, Icons } from "@phoenix/components";
 
 import {
   AskUserToolDetails,
@@ -15,6 +15,7 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
 
@@ -43,12 +44,7 @@ export const toolPartCSS = css`
     cursor: pointer;
     list-style: none;
     padding: var(--global-dimension-size-50);
-    background: var(--tool-call-header-background-color);
-    transition: background 150ms ease;
-
-    &:hover {
-      background: var(--tool-call-header-background-color-hover);
-    }
+    background: var(--global-code-block-header-background-color);
 
     &:focus-visible {
       outline: 2px solid var(--global-color-primary);
@@ -141,6 +137,7 @@ export const toolPartCSS = css`
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+    transition: color 150ms ease;
   }
 
   .tool-part__status {
@@ -150,17 +147,45 @@ export const toolPartCSS = css`
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
     padding-inline-end: var(--global-dimension-size-50);
+    transition: color 150ms ease;
   }
 
   .tool-part__status[data-tone="error"] {
     color: var(--tool-call-error-color);
   }
 
+  summary:hover .tool-part__preview,
+  summary:hover .tool-part__status:not([data-tone="error"]) {
+    color: var(--tool-call-title-color);
+    transition: none;
+  }
+
+  .tool-part__chevron,
+  .tool-part__tool-icon {
+    width: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tool-call-title-color);
+  }
+
   .tool-part__chevron {
     font-size: 18px;
-    color: var(--tool-call-title-color);
     transition: transform 150ms ease;
     transform: rotate(-90deg);
+    display: none;
+  }
+
+  .tool-part__tool-icon {
+    font-size: 0.75rem;
+  }
+
+  summary:hover .tool-part__chevron {
+    display: block;
+  }
+
+  summary:hover .tool-part__tool-icon {
+    display: none;
   }
 
   .tool-part__label {
@@ -173,6 +198,31 @@ export const toolPartCSS = css`
 
   .tool-part__label[data-tone="error"] {
     color: var(--tool-call-error-color);
+  }
+
+  .tool-part__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-200) var(--global-dimension-size-250)
+      var(--global-dimension-size-150);
+  }
+
+  .tool-part__meta-group {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+  }
+
+  .tool-part__meta-label {
+    color: var(--tool-call-secondary-color);
+    text-transform: uppercase;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+  }
+
+  .tool-part__meta-value {
+    color: var(--tool-call-secondary-color);
   }
 `;
 
@@ -196,12 +246,7 @@ export function ToolPart({ part }: { part: MessagePart }) {
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
-            <Icon
-              svg={<Icons.WrenchOutline />}
-              css={css`
-                font-size: 0.75rem;
-              `}
-            />
+            <Icon svg={<Icons.WrenchOutline />} className="tool-part__tool-icon" />
             {toolName}
           </span>
           {preview ? (
@@ -268,50 +313,20 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         details: (
           <div className="tool-part__body">
-            <div className="tool-part__line">
-              <span className="tool-part__label">Input</span>
-            </div>
-            <div className="tool-part__line tool-part__line--copyable">
-              <code className="tool-part__code">{inputStr}</code>
-              <CopyToClipboardButton
-                text={inputStr}
-                size="S"
-                variant="quiet"
-                tooltipText="Copy input"
-              />
-            </div>
+            <ToolPartLabel>Input</ToolPartLabel>
+            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
             {part.state === "output-available" ? (
               <>
-                <div className="tool-part__line">
-                  <span className="tool-part__label">Output</span>
-                </div>
-                <div className="tool-part__line tool-part__line--copyable">
-                  <code className="tool-part__code">{outputStr}</code>
-                  <CopyToClipboardButton
-                    text={outputStr}
-                    size="S"
-                    variant="quiet"
-                    tooltipText="Copy output"
-                  />
-                </div>
+                <ToolPartLabel>Output</ToolPartLabel>
+                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
               </>
             ) : null}
             {part.state === "output-error" ? (
               <>
-                <div className="tool-part__line">
-                  <span className="tool-part__label" data-tone="error">
-                    Error
-                  </span>
-                </div>
-                <div className="tool-part__line tool-part__line--copyable">
-                  <code className="tool-part__code">{part.errorText}</code>
-                  <CopyToClipboardButton
-                    text={part.errorText ?? ""}
-                    size="S"
-                    variant="quiet"
-                    tooltipText="Copy error"
-                  />
-                </div>
+                <ToolPartLabel tone="error">Error</ToolPartLabel>
+                <ToolPartCodeBlock>
+                  {part.errorText ?? ""}
+                </ToolPartCodeBlock>
               </>
             ) : null}
           </div>

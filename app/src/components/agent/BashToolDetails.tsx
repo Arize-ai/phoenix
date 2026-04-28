@@ -1,39 +1,15 @@
-import { css } from "@emotion/react";
-
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
 } from "@phoenix/agent/tools/bash";
-import { CopyToClipboardButton } from "@phoenix/components";
 
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
-
-const metaRowCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-200);
-  // extra top padding makes gap consistent with outputs that contain copy buttons
-  padding: var(--global-dimension-size-200) var(--global-dimension-size-250)
-    var(--global-dimension-size-150);
-`;
-
-const metaGroupCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-50);
-`;
-
-const metaLabelCSS = css`
-  color: var(--tool-call-secondary-color);
-  text-transform: uppercase;
-  font-size: var(--global-font-size-xs);
-  letter-spacing: 0.05em;
-`;
-
-const metaValueCSS = css`
-  color: var(--tool-call-secondary-color);
-`;
+import {
+  ToolPartCodeBlock,
+  ToolPartLabel,
+  ToolPartMeta,
+} from "./ToolPartPrimitives";
 
 /**
  * Returns the preview text for the collapsed bash tool summary.
@@ -54,68 +30,32 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
   const command = bashInput?.command ?? stringifyToolValue(part.input);
   const stdout = bashResult?.stdout || "";
 
+  const metaItems = [
+    { label: "Exit code", value: bashResult?.exitCode ?? 0 },
+    ...(bashResult?.durationText
+      ? [{ label: "Duration", value: bashResult.durationText }]
+      : []),
+  ];
+
   return (
     <div className="tool-part__body">
-      <div className="tool-part__line">
-        <span className="tool-part__label">Command</span>
-      </div>
-      <div className="tool-part__line tool-part__line--copyable">
-        <code className="tool-part__code">{command || "(empty)"}</code>
-        <CopyToClipboardButton
-          text={command || ""}
-          size="S"
-          variant="quiet"
-          tooltipText="Copy command"
-        />
-      </div>
+      <ToolPartLabel>Command</ToolPartLabel>
+      <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
       {part.state === "output-available" ? (
         <>
           {stdout ? (
             <>
-              <div className="tool-part__line">
-                <span className="tool-part__label">Output</span>
-              </div>
-              <div className="tool-part__line tool-part__line--copyable">
-                <code className="tool-part__code">{stdout}</code>
-                <CopyToClipboardButton
-                  text={stdout}
-                  size="S"
-                  variant="quiet"
-                  tooltipText="Copy output"
-                />
-              </div>
+              <ToolPartLabel>Output</ToolPartLabel>
+              <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
             </>
           ) : null}
-          <div css={metaRowCSS}>
-            <span css={metaGroupCSS}>
-              <span css={metaLabelCSS}>Exit code</span>
-              <code css={metaValueCSS}>{bashResult?.exitCode ?? 0}</code>
-            </span>
-            {bashResult?.durationText ? (
-              <span css={metaGroupCSS}>
-                <span css={metaLabelCSS}>Duration</span>
-                <code css={metaValueCSS}>{bashResult.durationText}</code>
-              </span>
-            ) : null}
-          </div>
+          <ToolPartMeta items={metaItems} />
         </>
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <div className="tool-part__line">
-            <span className="tool-part__label" data-tone="error">
-              Error
-            </span>
-          </div>
-          <div className="tool-part__line tool-part__line--copyable">
-            <code className="tool-part__code">{part.errorText}</code>
-            <CopyToClipboardButton
-              text={part.errorText ?? ""}
-              size="S"
-              variant="quiet"
-              tooltipText="Copy error"
-            />
-          </div>
+          <ToolPartLabel tone="error">Error</ToolPartLabel>
+          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
     </div>

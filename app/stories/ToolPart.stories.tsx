@@ -76,6 +76,37 @@ const bashStreamingPart = makePart({
   input: { command: "curl https://api.example" },
 });
 
+const bashMultilineCommandPart = makePart({
+  toolName: "bash",
+  state: "output-available",
+  input: {
+    command: `docker run -d \\
+  --name phoenix-db \\
+  -e POSTGRES_USER=phoenix \\
+  -e POSTGRES_PASSWORD=secret \\
+  -e POSTGRES_DB=phoenix \\
+  -p 5432:5432 \\
+  postgres:15`,
+  },
+  output: {
+    command: `docker run -d \\
+  --name phoenix-db \\
+  -e POSTGRES_USER=phoenix \\
+  -e POSTGRES_PASSWORD=secret \\
+  -e POSTGRES_DB=phoenix \\
+  -p 5432:5432 \\
+  postgres:15`,
+    stdout: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
+    stderr: "",
+    exitCode: 0,
+    durationMs: 1523,
+    startedAt: "2025-03-10T09:12:00Z",
+    completedAt: "2025-03-10T09:12:01Z",
+    stdoutBytes: 52,
+    stderrBytes: 0,
+  },
+});
+
 const readPart = makePart({
   toolName: "read",
   state: "output-available",
@@ -117,6 +148,90 @@ const approvalRequestedPart = makePart({
   state: "approval-requested",
   input: { command: "git push origin main --force" },
   approval: { id: "approval-2" },
+});
+
+// ---------------------------------------------------------------------------
+// AskUser tool mocks
+// ---------------------------------------------------------------------------
+
+const askUserAwaitingPart = makePart({
+  toolName: "ask_user",
+  state: "input-available",
+  input: {
+    questions: [
+      {
+        type: "single_select",
+        prompt: "Which database would you like to use?",
+        options: [
+          { label: "PostgreSQL", description: "Recommended for production" },
+          { label: "SQLite", description: "Great for development" },
+          { label: "MySQL", description: "Legacy support" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+      {
+        type: "text",
+        prompt: "What should we name the database?",
+        allow_skip: true,
+        allow_freeform: true,
+      },
+    ],
+  },
+});
+
+const askUserAnsweredPart = makePart({
+  toolName: "ask_user",
+  state: "output-available",
+  input: {
+    questions: [
+      {
+        type: "single_select",
+        prompt: "Which environment should we deploy to?",
+        options: [
+          { label: "staging", description: "For testing" },
+          { label: "production", description: "Live users" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+    ],
+  },
+  output: {
+    answers: [{ selected: "staging" }],
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Docs tool mocks
+// ---------------------------------------------------------------------------
+
+const docsSearchPart = makePart({
+  toolName: "search_phoenix",
+  state: "output-available",
+  input: { query: "how to configure tracing" },
+  output:
+    "Found 3 results:\n\n1. Getting Started with Tracing\n   /docs/tracing/quickstart\n\n2. Tracing Configuration Options\n   /docs/tracing/configuration\n\n3. Advanced Tracing Patterns\n   /docs/tracing/advanced",
+});
+
+const docsSearchRunningPart = makePart({
+  toolName: "search_phoenix",
+  state: "input-available",
+  input: { query: "embeddings visualization" },
+});
+
+const docsGetPagePart = makePart({
+  toolName: "get_page_phoenix",
+  state: "output-available",
+  input: { page: "/docs/tracing/quickstart" },
+  output:
+    "# Getting Started with Tracing\n\nPhoenix tracing helps you understand your LLM application's behavior...\n\n## Installation\n\n```bash\npip install arize-phoenix\n```\n\n## Quick Start\n\nImport and initialize the tracer:\n\n```python\nimport phoenix as px\npx.launch_app()\n```",
+});
+
+const docsGetPageRunningPart = makePart({
+  toolName: "get_page_phoenix",
+  state: "input-available",
+  input: { page: "/docs/evaluation/overview" },
 });
 
 // ---------------------------------------------------------------------------
@@ -164,6 +279,11 @@ export const BashStreaming: Story = {
   args: { part: bashStreamingPart },
 };
 
+/** A bash tool call with a multi-line command. */
+export const BashMultilineCommand: Story = {
+  args: { part: bashMultilineCommandPart },
+};
+
 /** A non-bash tool (read) with JSON-rendered input and output. */
 export const ReadTool: Story = {
   args: { part: readPart },
@@ -182,4 +302,34 @@ export const Denied: Story = {
 /** A tool call awaiting user approval. */
 export const ApprovalRequested: Story = {
   args: { part: approvalRequestedPart },
+};
+
+/** An ask_user tool awaiting the user's response. */
+export const AskUserAwaiting: Story = {
+  args: { part: askUserAwaitingPart },
+};
+
+/** An ask_user tool with answers received. */
+export const AskUserAnswered: Story = {
+  args: { part: askUserAnsweredPart },
+};
+
+/** A docs search tool that completed with results. */
+export const DocsSearch: Story = {
+  args: { part: docsSearchPart },
+};
+
+/** A docs search tool currently running. */
+export const DocsSearchRunning: Story = {
+  args: { part: docsSearchRunningPart },
+};
+
+/** A docs get_page tool that fetched page content. */
+export const DocsGetPage: Story = {
+  args: { part: docsGetPagePart },
+};
+
+/** A docs get_page tool currently fetching. */
+export const DocsGetPageRunning: Story = {
+  args: { part: docsGetPageRunningPart },
 };

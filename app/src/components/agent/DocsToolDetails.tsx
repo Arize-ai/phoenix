@@ -8,6 +8,7 @@ import {
 
 import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 
 /**
  * Maximum number of characters to show in the collapsed output preview.
@@ -65,24 +66,22 @@ export function DocsToolDetails({ part }: { part: ToolInvocationPart }) {
   const outputText = getOutputText(part);
 
   return (
-    <>
-      <span className="tool-part__label">{inputLabel}</span>
-      <pre>{inputText || "(empty)"}</pre>
+    <div className="tool-part__body">
+      <ToolPartLabel>{inputLabel}</ToolPartLabel>
+      <ToolPartCodeBlock>{inputText}</ToolPartCodeBlock>
       {part.state === "output-available" ? (
         <>
-          <span className="tool-part__label">
-            {isSearch ? "Results" : "Content"}
-          </span>
-          <pre>{outputText || "(no output)"}</pre>
+          <ToolPartLabel>{isSearch ? "Results" : "Content"}</ToolPartLabel>
+          <ToolPartCodeBlock>{outputText || "(no output)"}</ToolPartCodeBlock>
         </>
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <span className="tool-part__label">Error</span>
-          <pre>{part.errorText}</pre>
+          <ToolPartLabel tone="error">Error</ToolPartLabel>
+          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-    </>
+    </div>
   );
 }
 
