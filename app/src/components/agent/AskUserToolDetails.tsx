@@ -21,7 +21,12 @@ export function getAskUserToolPreview(part: ToolInvocationPart): string {
 /**
  * Formats an ask_user tool state into a human-readable label.
  */
-export function formatAskUserState(state: ToolUIPartState): string {
+export function formatAskUserState(
+  state: ToolUIPartState,
+  part: ToolInvocationPart
+): string {
+  const input = parseElicitToolInput(part.input);
+  if (!input) return "Error";
   switch (state) {
     case "input-streaming":
       return "Preparing questions";
@@ -49,7 +54,7 @@ export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
 
   return (
     <div className="tool-part__body">
-      <ToolPartLabel>Questions</ToolPartLabel>
+      <ToolPartLabel variant={input ? undefined : "danger"}>Questions</ToolPartLabel>
       <ToolPartCodeBlock>{questionsText}</ToolPartCodeBlock>
       {part.state === "output-available" && output ? (
         <>
@@ -59,7 +64,7 @@ export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <ToolPartLabel tone="error">Error</ToolPartLabel>
+          <ToolPartLabel variant="danger">Error</ToolPartLabel>
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
@@ -68,7 +73,7 @@ export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
 }
 
 function formatQuestions(input: ElicitToolInput | null): string {
-  if (!input) return "(no questions)";
+  if (!input) return "Missing questions";
   return input.questions
     .map((q, i) => {
       const flags = [
@@ -82,7 +87,7 @@ function formatQuestions(input: ElicitToolInput | null): string {
         ? "\n   " +
           q.options
             .map(
-              (o) => `- ${o.label}${o.description ? ` — ${o.description}` : ""}`
+              (o) => `▸ ${o.label}${o.description ? ` — ${o.description}` : ""}`
             )
             .join("\n   ")
         : "";

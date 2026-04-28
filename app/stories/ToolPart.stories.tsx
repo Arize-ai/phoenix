@@ -160,21 +160,25 @@ const askUserAwaitingPart = makePart({
   input: {
     questions: [
       {
-        type: "single_select",
+        id: "q-database",
+        type: "single",
         prompt: "Which database would you like to use?",
         options: [
-          { label: "PostgreSQL", description: "Recommended for production" },
-          { label: "SQLite", description: "Great for development" },
-          { label: "MySQL", description: "Legacy support" },
+          {
+            id: "postgres",
+            label: "PostgreSQL",
+            description: "Recommended for production",
+          },
+          { id: "sqlite", label: "SQLite", description: "Great for development" },
+          { id: "mysql", label: "MySQL", description: "Legacy support" },
         ],
         allow_skip: false,
         allow_freeform: false,
       },
       {
-        type: "text",
+        id: "q-dbname",
+        type: "freeform",
         prompt: "What should we name the database?",
-        allow_skip: true,
-        allow_freeform: true,
       },
     ],
   },
@@ -186,11 +190,12 @@ const askUserAnsweredPart = makePart({
   input: {
     questions: [
       {
-        type: "single_select",
+        id: "q-environment",
+        type: "single",
         prompt: "Which environment should we deploy to?",
         options: [
-          { label: "staging", description: "For testing" },
-          { label: "production", description: "Live users" },
+          { id: "staging", label: "staging", description: "For testing" },
+          { id: "production", label: "production", description: "Live users" },
         ],
         allow_skip: false,
         allow_freeform: false,
@@ -198,7 +203,16 @@ const askUserAnsweredPart = makePart({
     ],
   },
   output: {
-    answers: [{ selected: "staging" }],
+    answers: { "q-environment": ["staging"] },
+    freeformTexts: {},
+  },
+});
+
+const askUserMalformedPart = makePart({
+  toolName: "ask_user",
+  state: "input-available",
+  input: {
+    questions: [],
   },
 });
 
@@ -312,6 +326,11 @@ export const AskUserAwaiting: Story = {
 /** An ask_user tool with answers received. */
 export const AskUserAnswered: Story = {
   args: { part: askUserAnsweredPart },
+};
+
+/** An ask_user tool with malformed input (empty questions array). */
+export const AskUserMalformed: Story = {
+  args: { part: askUserMalformedPart },
 };
 
 /** A docs search tool that completed with results. */

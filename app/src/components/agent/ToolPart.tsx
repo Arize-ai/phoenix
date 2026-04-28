@@ -15,7 +15,11 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartCodeBlock,
+  ToolPartLabel,
+  ToolPartStatus,
+} from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
 
@@ -91,17 +95,24 @@ export const toolPartCSS = css`
   }
 
   .tool-part__line--copyable {
+    position: relative;
+    padding-bottom: var(--global-dimension-size-150);
+    padding-right: calc(var(--global-dimension-size-250) + 28px);
+
     .copy-to-clipboard-button {
+      position: absolute;
+      top: 0;
+      right: var(--global-dimension-size-250);
       opacity: 0;
       transition: opacity 150ms ease;
+
+      &:focus-within {
+        opacity: 1;
+      }
     }
 
     &:hover .copy-to-clipboard-button {
       opacity: 1;
-    }
-
-    &:last-child {
-      padding-bottom: 0;
     }
   }
 
@@ -150,12 +161,20 @@ export const toolPartCSS = css`
     transition: color 150ms ease;
   }
 
-  .tool-part__status[data-tone="error"] {
+  .tool-part__status[data-variant="danger"] {
     color: var(--tool-call-error-color);
   }
 
+  .tool-part__status[data-variant="warning"] {
+    color: var(--global-color-orange-600);
+  }
+
+  .tool-part__status[data-variant="success"] {
+    color: var(--global-color-success);
+  }
+
   summary:hover .tool-part__preview,
-  summary:hover .tool-part__status:not([data-tone="error"]) {
+  summary:hover .tool-part__status:not([data-variant]) {
     color: var(--tool-call-title-color);
     transition: none;
   }
@@ -163,6 +182,7 @@ export const toolPartCSS = css`
   .tool-part__chevron,
   .tool-part__tool-icon {
     width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -181,7 +201,7 @@ export const toolPartCSS = css`
   }
 
   summary:hover .tool-part__chevron {
-    display: block;
+    display: flex;
   }
 
   summary:hover .tool-part__tool-icon {
@@ -196,15 +216,23 @@ export const toolPartCSS = css`
     user-select: none;
   }
 
-  .tool-part__label[data-tone="error"] {
+  .tool-part__label[data-variant="danger"] {
     color: var(--tool-call-error-color);
+  }
+
+  .tool-part__label[data-variant="warning"] {
+    color: var(--global-color-orange-600);
+  }
+
+  .tool-part__label[data-variant="success"] {
+    color: var(--global-color-success);
   }
 
   .tool-part__meta {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-200);
-    padding: var(--global-dimension-size-200) var(--global-dimension-size-250)
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
       var(--global-dimension-size-150);
   }
 
@@ -237,8 +265,10 @@ export function ToolPart({ part }: { part: MessagePart }) {
   }
 
   const toolName = getToolName(part);
-  const { preview, stateLabel, details } = getToolPresentation(toolName, part);
-  const isError = part.state === "output-error";
+  const { preview, stateLabel, statusVariant, details } = getToolPresentation(
+    toolName,
+    part
+  );
 
   return (
     <details className="tool-part" css={toolPartCSS}>
@@ -252,12 +282,7 @@ export function ToolPart({ part }: { part: MessagePart }) {
           {preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          <span
-            className="tool-part__status"
-            data-tone={isError ? "error" : undefined}
-          >
-            {stateLabel}
-          </span>
+          <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
         </div>
       </summary>
       <div>{details}</div>
@@ -271,35 +296,60 @@ export function ToolPart({ part }: { part: MessagePart }) {
 
 /**
  * Returns the presentation elements for a given tool: the collapsed preview
- * string, the status label, and the expanded detail JSX. New tools are
- * added as additional cases here.
+ * string, the status label and variant, and the expanded detail JSX. New tools
+ * are added as additional cases here.
  */
+type StatusVariant = "danger" | "warning" | "success";
+
+function getStatusVariant(
+  state: ToolInvocationPart["state"]
+): StatusVariant | undefined {
+  switch (state) {
+    case "output-error":
+      return "danger";
+    case "output-denied":
+      return "warning";
+    case "approval-responded":
+      return "success";
+    default:
+      return undefined;
+  }
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
 ): {
   preview: string;
   stateLabel: string;
+  statusVariant?: StatusVariant;
   details: React.ReactNode;
 } {
+  const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
     case "bash":
       return {
         preview: getBashToolPreview(part),
         stateLabel: formatToolState(part.state),
+        statusVariant,
         details: <BashToolDetails part={part} />,
       };
-    case "ask_user":
+    case "ask_user": {
+      const stateLabel = formatAskUserState(part.state, part);
+      const isError = stateLabel === "Error";
       return {
         preview: getAskUserToolPreview(part),
-        stateLabel: formatAskUserState(part.state),
+        stateLabel,
+        statusVariant: isError ? "danger" : statusVariant,
         details: <AskUserToolDetails part={part} />,
       };
+    }
     default: {
       if (isDocsToolName(toolName)) {
         return {
           preview: getDocsToolPreview(part),
           stateLabel: formatDocsToolState(part.state, part),
+          statusVariant,
           details: <DocsToolDetails part={part} />,
         };
       }
@@ -311,6 +361,7 @@ function getToolPresentation(
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
+        statusVariant,
         details: (
           <div className="tool-part__body">
             <ToolPartLabel>Input</ToolPartLabel>
@@ -323,7 +374,7 @@ function getToolPresentation(
             ) : null}
             {part.state === "output-error" ? (
               <>
-                <ToolPartLabel tone="error">Error</ToolPartLabel>
+                <ToolPartLabel variant="danger">Error</ToolPartLabel>
                 <ToolPartCodeBlock>
                   {part.errorText ?? ""}
                 </ToolPartCodeBlock>

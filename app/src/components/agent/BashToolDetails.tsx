@@ -54,7 +54,7 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <ToolPartLabel tone="error">Error</ToolPartLabel>
+          <ToolPartLabel variant="danger">Error</ToolPartLabel>
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}

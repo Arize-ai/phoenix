@@ -5,14 +5,14 @@ import { CopyToClipboardButton } from "@phoenix/components";
  */
 export function ToolPartLabel({
   children,
-  tone,
+  variant,
 }: {
   children: React.ReactNode;
-  tone?: "error";
+  variant?: "danger" | "warning" | "success";
 }) {
   return (
     <div className="tool-part__line">
-      <span className="tool-part__label" data-tone={tone}>
+      <span className="tool-part__label" data-variant={variant}>
         {children}
       </span>
     </div>
@@ -43,6 +43,23 @@ export function ToolPartCodeBlock({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Status indicator for the tool part summary bar (e.g., "Running", "Error").
+ */
+export function ToolPartStatus({
+  children,
+  variant,
+}: {
+  children: React.ReactNode;
+  variant?: "danger" | "warning" | "success";
+}) {
+  return (
+    <span className="tool-part__status" data-variant={variant}>
+      {children}
+    </span>
   );
 }
 
