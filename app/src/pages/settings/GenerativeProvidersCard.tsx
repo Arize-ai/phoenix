@@ -586,19 +586,12 @@ function ServerCredentials({
     notifySuccess,
   ]);
 
-  // Check if any credentials for this provider have parse errors
-  const { providerUnparsableSecrets, editableConfigs } = useMemo(() => {
-    const unparsable = provider.credentialRequirements
-      .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
-      .map(({ envVarName }) => ({
-        envVarName,
-        parseError: unparsableSecrets.get(envVarName)!,
-      }));
-    const editable = provider.credentialRequirements.filter(
-      ({ envVarName }) => !unparsableSecrets.has(envVarName)
-    );
-    return { providerUnparsableSecrets: unparsable, editableConfigs: editable };
-  }, [provider.credentialRequirements, unparsableSecrets]);
+  const providerUnparsableSecrets = provider.credentialRequirements
+    .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
+    .map(({ envVarName }) => ({
+      envVarName,
+      parseError: unparsableSecrets.get(envVarName)!,
+    }));
 
   if (provider.credentialRequirements.length === 0) {
     return (
@@ -616,7 +609,7 @@ function ServerCredentials({
           {parseError}
         </Alert>
       ))}
-      {editableConfigs.map((credentialConfig) => (
+      {provider.credentialRequirements.map((credentialConfig) => (
         <Controller
           key={credentialConfig.envVarName}
           name={credentialConfig.envVarName}

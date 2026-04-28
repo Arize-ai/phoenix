@@ -18,12 +18,7 @@ export function isRedacted(value: string | null | undefined): value is string {
   return typeof value === "string" && value.startsWith(WIRE_PREFIX);
 }
 
-/**
- * Extract the preview (trailing chars of the plaintext) from a redacted token.
- * Returns null if `value` is not redacted or carries no preview.
- */
-export function previewOf(value: string | null | undefined): string | null {
-  if (!isRedacted(value)) return null;
+function previewOf(value: string): string | null {
   const rest = value.slice(WIRE_PREFIX.length);
   const i = rest.indexOf(DELIM);
   if (i < 0) return null;

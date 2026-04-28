@@ -25,7 +25,6 @@ export function SecretMutationForm({
   title,
   submitLabel,
   defaultKey = "",
-  defaultValue = "",
   fixedKey,
   isSubmitting,
   onSubmit,
@@ -33,11 +32,6 @@ export function SecretMutationForm({
   title?: string;
   submitLabel: string;
   defaultKey?: string;
-  /**
-   * Initial form value. May be a server-redacted token — `RedactedCredentialField`
-   * detects this and starts in sealed mode with a preview.
-   */
-  defaultValue?: string;
   fixedKey?: string;
   isSubmitting: boolean;
   onSubmit: (params: SecretFormParams) => void;
@@ -50,7 +44,7 @@ export function SecretMutationForm({
   } = useForm<SecretFormParams>({
     defaultValues: {
       key: defaultKey,
-      value: defaultValue,
+      value: "",
     },
     mode: "onChange",
   });
@@ -153,6 +147,7 @@ export function SecretMutationForm({
               <RedactedCredentialField
                 label="Value"
                 placeholder="Enter a secret value"
+                description="This value is write-only and will not be shown again after it is saved."
                 name={name}
                 value={value}
                 onChange={onChange}

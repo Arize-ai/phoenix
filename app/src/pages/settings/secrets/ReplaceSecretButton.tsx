@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import {
   Alert,
@@ -23,13 +23,10 @@ import { useSecretMutation } from "./SecretsMutation";
 
 export function ReplaceSecretButton({
   secretKey,
-  redactedValue,
   parseError,
   connectionId,
 }: {
   secretKey: string;
-  /** Server-issued redacted token for the stored secret. Empty for unparseable. */
-  redactedValue: string;
   /** Decrypt error from the server, when the stored secret is unparseable. */
   parseError: string | null;
   connectionId: string;
@@ -39,31 +36,28 @@ export function ReplaceSecretButton({
   const notifySuccess = useNotifySuccess();
   const [commit, isCommitting] = useSecretMutation();
 
-  const handleSubmit = useCallback(
-    ({ value }: { value: string }) => {
-      setError(null);
-      commit({
-        variables: {
-          input: {
-            secrets: [{ key: secretKey, value: value.trim() }],
-          },
-          connections: [connectionId],
+  const handleSubmit = ({ value }: { value: string }) => {
+    setError(null);
+    commit({
+      variables: {
+        input: {
+          secrets: [{ key: secretKey, value: value.trim() }],
         },
-        onCompleted: () => {
-          setIsOpen(false);
-          notifySuccess({
-            title: "Secret updated",
-            message: `${secretKey} has been replaced.`,
-          });
-        },
-        onError: (error) => {
-          const formattedError = getErrorMessagesFromRelayMutationError(error);
-          setError(formattedError?.[0] ?? error.message);
-        },
-      });
-    },
-    [commit, connectionId, notifySuccess, secretKey]
-  );
+        connections: [connectionId],
+      },
+      onCompleted: () => {
+        setIsOpen(false);
+        notifySuccess({
+          title: "Secret updated",
+          message: `${secretKey} has been replaced.`,
+        });
+      },
+      onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
+        setError(formattedError?.[0] ?? error.message);
+      },
+    });
+  };
 
   return (
     <DialogTrigger
@@ -89,21 +83,20 @@ export function ReplaceSecretButton({
                   <DialogCloseButton slot="close" />
                 </DialogTitleExtra>
               </DialogHeader>
-              {error ? <Alert variant="danger">{error}</Alert> : null}
+              {error ? (
+                <Alert variant="danger" banner>
+                  {error}
+                </Alert>
+              ) : null}
               {parseError && (
-                <Alert variant="warning">
-                  The stored secret could not be decrypted. Enter a new value
-                  below.
-                  <div style={{ marginTop: 8, fontSize: "0.875em" }}>
-                    Error: {parseError}
-                  </div>
+                <Alert variant="warning" banner>
+                  Could not decrypt the stored value.
                 </Alert>
               )}
               <SecretMutationForm
                 title="Enter a new value to replace the stored secret."
                 fixedKey={secretKey}
                 defaultKey={secretKey}
-                defaultValue={redactedValue}
                 submitLabel={isCommitting ? "Saving..." : "Save Secret"}
                 isSubmitting={isCommitting}
                 onSubmit={handleSubmit}

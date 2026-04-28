@@ -8,6 +8,9 @@ from strawberry.relay.types import GlobalID
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
+    _redact_provider_error,
+)
 from phoenix.server.api.schema import _EXPORTED_GRAPHQL_SCHEMA
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
@@ -947,3 +950,139 @@ class TestGenerativeModelCustomProviderMutations:
         assert message == (
             "Invalid redacted string. Please fetch the correct redacted value from the server."
         ), message
+
+
+class TestRedactProviderError:
+    """Upstream LLM providers can echo the rejected credential back in error
+    messages (e.g. OpenAI's "Incorrect API key provided: <key>"). The
+    test-credentials mutation must scrub those secrets before returning the
+    error to the client.
+    """
+
+    def test_openai_api_key_is_scrubbed(self) -> None:
+        api_key = "sk-super-secret-1234567890"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.OpenAICustomProviderConfig(
+                openai_authentication_method=mp.AuthenticationMethodApiKey(api_key=api_key),
+            )
+        )
+        error = Exception(
+            f"Error code: 401 - {{'error': {{'message': "
+            f"'Incorrect API key provided: {api_key}.'}}}}"
+        )
+
+        result = _redact_provider_error(error, config)
+
+        assert api_key not in result
+        assert "[REDACTED]" in result
+        # Diagnostic detail around the key is preserved.
+        assert "401" in result
+        assert "Incorrect API key provided" in result
+
+    def test_anthropic_api_key_is_scrubbed(self) -> None:
+        api_key = "sk-ant-abcdefg1234567890"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.AnthropicCustomProviderConfig(
+                anthropic_authentication_method=mp.AuthenticationMethodApiKey(api_key=api_key),
+            )
+        )
+        error = Exception(f"authentication_error: invalid x-api-key {api_key}")
+
+        result = _redact_provider_error(error, config)
+
+        assert api_key not in result
+        assert "[REDACTED]" in result
+
+    def test_google_genai_api_key_is_scrubbed(self) -> None:
+        api_key = "AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.GoogleGenAICustomProviderConfig(
+                google_genai_authentication_method=mp.AuthenticationMethodApiKey(api_key=api_key),
+            )
+        )
+        error = Exception(f"API key not valid. Please pass a valid API key. key={api_key}")
+
+        result = _redact_provider_error(error, config)
+
+        assert api_key not in result
+        assert "[REDACTED]" in result
+
+    def test_azure_openai_api_key_is_scrubbed(self) -> None:
+        api_key = "azure-secret-key-xyz"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.AzureOpenAICustomProviderConfig(
+                azure_openai_authentication_method=mp.AuthenticationMethodApiKey(api_key=api_key),
+                azure_openai_client_kwargs=mp.AzureOpenAIClientKwargs(
+                    azure_endpoint="https://test.openai.azure.com",
+                ),
+            )
+        )
+        error = Exception(f"Access denied due to invalid subscription key {api_key}")
+
+        result = _redact_provider_error(error, config)
+
+        assert api_key not in result
+        assert "[REDACTED]" in result
+
+    def test_azure_ad_token_provider_client_secret_is_scrubbed(self) -> None:
+        client_secret = "azure-client-secret-zzz"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.AzureOpenAICustomProviderConfig(
+                azure_openai_authentication_method=mp.AuthenticationMethodAzureADTokenProvider(
+                    azure_tenant_id="tenant",
+                    azure_client_id="client",
+                    azure_client_secret=client_secret,
+                ),
+                azure_openai_client_kwargs=mp.AzureOpenAIClientKwargs(
+                    azure_endpoint="https://test.openai.azure.com",
+                ),
+            )
+        )
+        error = Exception(f"AADSTS7000215: Invalid client secret provided: {client_secret}")
+
+        result = _redact_provider_error(error, config)
+
+        assert client_secret not in result
+        assert "[REDACTED]" in result
+        # Non-secret identifiers may remain in the message.
+        assert "AADSTS7000215" in result
+
+    def test_aws_bedrock_secret_and_session_token_are_scrubbed(self) -> None:
+        secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+        session_token = "FwoGZXIvYXdzEFAKE1234567890SESSIONTOKEN"
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.AWSBedrockCustomProviderConfig(
+                aws_bedrock_authentication_method=mp.AWSBedrockAuthenticationMethodAccessKeys(
+                    aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+                    aws_secret_access_key=secret_access_key,
+                    aws_session_token=session_token,
+                ),
+                aws_bedrock_client_kwargs=mp.AWSBedrockClientKwargs(region_name="us-east-1"),
+            )
+        )
+        error = Exception(
+            f"InvalidSignatureException: signature mismatch using secret={secret_access_key} "
+            f"token={session_token}"
+        )
+
+        result = _redact_provider_error(error, config)
+
+        assert secret_access_key not in result
+        assert session_token not in result
+        assert result.count("[REDACTED]") == 2
+
+    def test_default_credentials_have_no_secrets_to_scrub(self) -> None:
+        """Default-credential auth methods carry no user-supplied secrets;
+        the helper must not crash and must pass the message through unchanged.
+        """
+        config = mp.GenerativeModelCustomerProviderConfig(
+            root=mp.AWSBedrockCustomProviderConfig(
+                aws_bedrock_authentication_method=mp.AuthenticationMethodDefaultCredentials(),
+                aws_bedrock_client_kwargs=mp.AWSBedrockClientKwargs(region_name="us-east-1"),
+            )
+        )
+        error = Exception("NoCredentialsError: Unable to locate credentials")
+
+        result = _redact_provider_error(error, config)
+
+        assert result == "NoCredentialsError: Unable to locate credentials"
