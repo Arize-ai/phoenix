@@ -26,6 +26,31 @@ import time
 from phoenix.client import Client
 
 
+def _run_experiment_and_assert(
+    client: Client,
+    dataset,
+    *,
+    label: str,
+    expected_outputs: set[str],
+) -> None:
+    result = client.experiments.run_experiment(
+        dataset=dataset,
+        task=lambda input: input["v"],
+        experiment_name=f"{dataset.name}-{label}-experiment",
+        print_summary=False,
+    )
+    actual_outputs = {str(run["output"]) for run in result["task_runs"]}
+    print(
+        f"{label} experiment: experiment_id={result['experiment_id']} "
+        f"version={dataset.version_id} runs={len(result['task_runs'])}"
+    )
+    assert len(result["task_runs"]) == len(dataset)
+    assert len(result["evaluation_runs"]) == 0
+    assert actual_outputs == expected_outputs, (
+        f"expected experiment outputs {expected_outputs}, got {actual_outputs}"
+    )
+
+
 def main() -> None:
     client = Client()
     name = f"upsert-smoke-{int(time.time())}"
@@ -40,12 +65,24 @@ def main() -> None:
     d1 = client.datasets.create_dataset(name=name, examples=seed)
     print(f"step 1 seed         : version={d1.version_id}  n={len(d1)}")
     assert len(d1) == 4
+    _run_experiment_and_assert(
+        client,
+        d1,
+        label="step-1-seed",
+        expected_outputs={"A", "B", "C", "D"},
+    )
 
     # ── step 2: idempotence ──────────────────────────────────────────────
     d2 = client.datasets.create_dataset(name=name, examples=seed)
     print(f"step 2 idempotence  : version={d2.version_id}  n={len(d2)}")
     assert d2.version_id == d1.version_id, "expected no new version"
     assert len(d2) == 4
+    _run_experiment_and_assert(
+        client,
+        d2,
+        label="step-2-idempotence",
+        expected_outputs={"A", "B", "C", "D"},
+    )
 
     # ── step 3: modify ───────────────────────────────────────────────────
     # a: A → A'  (PATCH, matched by id="a")
@@ -63,6 +100,12 @@ def main() -> None:
     print(f"step 3 modify       : version={d3.version_id}  n={len(d3)}")
     assert d3.version_id != d1.version_id, "expected new version"
     assert len(d3) == 4
+    _run_experiment_and_assert(
+        client,
+        d3,
+        label="step-3-modify",
+        expected_outputs={"A'", "C", "D", "E"},
+    )
 
     inputs_now = [dict(ex["input"]) for ex in d3]
     assert {"v": "A'"} in inputs_now and {"v": "E"} in inputs_now
