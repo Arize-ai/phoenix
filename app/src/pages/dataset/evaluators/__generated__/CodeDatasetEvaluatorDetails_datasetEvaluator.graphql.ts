@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<706fe9847aee0a328c978ae0dc511fc7>>
+ * @generated SignedSource<<5874c2192c0296501acfe449f2a10b6e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,17 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
         readonly score: number | null;
       }>;
     }>;
+    readonly sandboxConfig?: {
+      readonly config: any;
+      readonly description: string | null;
+      readonly id: string;
+      readonly name: string;
+      readonly provider: {
+        readonly backendType: string;
+        readonly language: Language;
+      };
+      readonly timeout: number;
+    } | null;
     readonly sourceCode?: string;
   };
   readonly id: string;
@@ -143,6 +154,20 @@ v3 = {
     }
   ],
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "language",
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [],
@@ -197,25 +222,60 @@ return {
           "selections": [
             (v0/*: any*/),
             (v1/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "description",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "language",
-              "storageKey": null
-            },
+            (v4/*: any*/),
+            (v5/*: any*/),
             {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
               "name": "sourceCode",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "SandboxConfig",
+              "kind": "LinkedField",
+              "name": "sandboxConfig",
+              "plural": false,
+              "selections": [
+                (v0/*: any*/),
+                (v1/*: any*/),
+                (v4/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "config",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "timeout",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SandboxProvider",
+                  "kind": "LinkedField",
+                  "name": "provider",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "backendType",
+                      "storageKey": null
+                    },
+                    (v5/*: any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             },
             (v3/*: any*/)
@@ -232,6 +292,6 @@ return {
 };
 })();
 
-(node as any).hash = "16b385d6bfcbbd872f72f1c6a4827eb9";
+(node as any).hash = "88fd86cc602541670d30c2d0f1a2c25b";
 
 export default node;
