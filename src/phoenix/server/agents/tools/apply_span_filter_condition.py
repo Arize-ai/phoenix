@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from phoenix.server.api.routers.chat_tools.registry import ContextualTool
+    from phoenix.server.agents.tools.registry import ContextualTool
 
 
 APPLY_SPAN_FILTER_CONDITION_NAME = "apply_span_filter_condition"
@@ -31,7 +31,7 @@ APPLY_SPAN_FILTER_CONDITION_PARAMETERS: dict[str, Any] = {
 
 
 def build_apply_span_filter_condition_tool() -> "ContextualTool":
-    from phoenix.server.api.routers.chat_tools.registry import ContextualTool
+    from phoenix.server.agents.tools.registry import ContextualTool
 
     return ContextualTool(
         name=APPLY_SPAN_FILTER_CONDITION_NAME,

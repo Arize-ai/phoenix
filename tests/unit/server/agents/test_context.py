@@ -7,7 +7,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from phoenix.server.api.routers.chat_context import (
+from phoenix.server.agents.context import (
     ProjectContext,
     ResolvedContexts,
     SpanContext,
@@ -77,7 +77,6 @@ class TestBuildPhoenixContextUserMessageContent:
         content = build_phoenix_context_user_message_content(resolved)
         assert content is not None
         assert "… [truncated]" in content
-        # The unsanitized 1000-char value must not appear verbatim.
         assert long_condition not in content
 
     def test_span_filter_condition_collapses_newlines(self) -> None:
@@ -91,8 +90,6 @@ class TestBuildPhoenixContextUserMessageContent:
         content = build_phoenix_context_user_message_content(resolved)
         assert content is not None
         assert "line_one line_two line_three" in content
-        # The body itself spans multiple lines, but the condition value must be
-        # single-line so it cannot mimic the surrounding prompt structure.
         condition_line = next(
             line for line in content.splitlines() if "Active span filter condition" in line
         )
@@ -109,8 +106,6 @@ class TestBuildPhoenixContextUserMessageContent:
         )
         content = build_phoenix_context_user_message_content(resolved)
         assert content is not None
-        # The literal closing tag must not appear inside the body — the only
-        # occurrence is the trailing wrapper closing tag.
         assert content.count("</phoenix_ui_context>") == 1
         assert "[/phoenix_ui_context]" in content
 
@@ -120,7 +115,7 @@ class TestInsertContextUserMessage:
         original: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
         result = insert_context_user_message(original, None)
         assert result == original
-        assert result is not original  # defensive copy
+        assert result is not original
 
     def test_appends_user_message_at_end(self) -> None:
         original: list[ModelMessage] = [
@@ -132,7 +127,6 @@ class TestInsertContextUserMessage:
         result = insert_context_user_message(
             original, "<phoenix_ui_context>...</phoenix_ui_context>"
         )
-        # Prefix is byte-identical — caching depends on this.
         assert result[: len(original)] == original
         assert len(result) == len(original) + 1
         appended = result[-1]
@@ -156,8 +150,6 @@ class TestInsertContextUserMessage:
         assert len(result) == len(original)
 
     def test_dedupe_does_not_match_system_prompt_part(self) -> None:
-        # A SystemPromptPart with the same content should NOT block injection —
-        # we only dedupe against user-role messages.
         content = "shared text"
         original: list[ModelMessage] = [
             ModelRequest(parts=[SystemPromptPart(content=content)]),

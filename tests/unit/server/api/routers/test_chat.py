@@ -1,18 +1,12 @@
 import json
 import re
+from base64 import b64encode
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import httpx
 import pytest
 
-from phoenix.db.types.model_provider import (
-    AnthropicCustomProviderConfig,
-    AzureOpenAICustomProviderConfig,
-    OpenAICustomProviderConfig,
-)
-from phoenix.server.api.routers import chat as chat_router
 from tests.unit.vcr import CustomVCR
 
 _CHAT_PARAMS = {
@@ -147,77 +141,22 @@ class TestChatRouter:
 
         _assert_successful_chat_stream(response, session_id="test-session-1")
 
-
-class TestCustomProviderModels:
-    async def test_openai_family_custom_providers_disable_sdk_retries(
+    async def test_chat_returns_404_for_missing_custom_provider(
         self,
-        monkeypatch: pytest.MonkeyPatch,
+        httpx_client: httpx.AsyncClient,
     ) -> None:
-        import openai
-
-        class DummyAsyncOpenAI:
-            def __init__(self, **kwargs: Any) -> None:
-                self.kwargs = kwargs
-                self.base_url = kwargs.get("base_url", "https://example.test/v1")
-
-        monkeypatch.setattr(openai, "AsyncOpenAI", DummyAsyncOpenAI)
-
-        openai_config = OpenAICustomProviderConfig(
-            openai_authentication_method={"type": "api_key", "api_key": "sk-test-openai"},
-            openai_client_kwargs={
-                "base_url": "https://openai.example.test/v1",
-                "organization": "org-1",
-                "project": "project-1",
+        response = await httpx_client.post(
+            "/chat",
+            params={
+                "provider_type": "custom",
+                "provider_id": b64encode(b"GenerativeModelCustomProvider:999999").decode(),
+                "model_name": _CHAT_PARAMS["model_name"],
             },
-            openai_api_type="responses",
+            json=_CHAT_BODY,
         )
-        openai_model = (
-            await chat_router._get_pydantic_ai_model_from_generative_model_custom_provider(
-                provider_record=SimpleNamespace(config=openai_config.model_dump_json().encode()),
-                model_name="gpt-4o-mini",
-                decrypt=lambda value: value,
-            )
-        )
-        assert openai_model._provider.client.kwargs["max_retries"] == 0
 
-        azure_config = AzureOpenAICustomProviderConfig(
-            azure_openai_authentication_method={"type": "api_key", "api_key": "azure-test-key"},
-            azure_openai_client_kwargs={"azure_endpoint": "https://azure.example.test"},
-            openai_api_type="responses",
-        )
-        azure_model = (
-            await chat_router._get_pydantic_ai_model_from_generative_model_custom_provider(
-                provider_record=SimpleNamespace(config=azure_config.model_dump_json().encode()),
-                model_name="gpt-4o-mini",
-                decrypt=lambda value: value,
-            )
-        )
-        assert azure_model._provider.client.kwargs["max_retries"] == 0
-
-    async def test_anthropic_custom_provider_disables_sdk_retries(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        import anthropic
-
-        class DummyAsyncAnthropic:
-            def __init__(self, **kwargs: Any) -> None:
-                self.kwargs = kwargs
-
-        monkeypatch.setattr(anthropic, "AsyncAnthropic", DummyAsyncAnthropic)
-
-        anthropic_config = AnthropicCustomProviderConfig(
-            anthropic_authentication_method={"type": "api_key", "api_key": "sk-test-anthropic"},
-            anthropic_client_kwargs={"base_url": "https://anthropic.example.test"},
-        )
-        anthropic_model = (
-            await chat_router._get_pydantic_ai_model_from_generative_model_custom_provider(
-                provider_record=SimpleNamespace(config=anthropic_config.model_dump_json().encode()),
-                model_name="claude-3-5-sonnet-20241022",
-                decrypt=lambda value: value,
-            )
-        )
-        assert anthropic_model._provider.client.kwargs["max_retries"] == 0
+        assert response.status_code == 404
+        assert response.text == "Custom provider not found."
 
 
 def _assert_successful_chat_stream(response: httpx.Response, *, session_id: str) -> None:

@@ -3,11 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-from phoenix.server.api.routers.chat_context import (
-    ResolvedContexts,
-    ToolCallable,
-    ToolExecutionEnv,
-)
+from phoenix.server.agents.context import ResolvedContexts, ToolCallable, ToolExecutionEnv
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -85,7 +81,7 @@ def resolve_contextual_tools(
     return defs, dispatch
 
 
-from phoenix.server.api.routers.chat_tools.apply_span_filter_condition import (  # noqa: E402
+from phoenix.server.agents.tools.apply_span_filter_condition import (  # noqa: E402
     build_apply_span_filter_condition_tool,
 )
 

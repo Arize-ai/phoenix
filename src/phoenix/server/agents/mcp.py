@@ -11,6 +11,10 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from starlette.requests import Request
+
+from phoenix.config import get_env_allow_external_resources
+
 if TYPE_CHECKING:
     from mcp import ClientSession
     from pydantic_ai.tools import ToolDefinition
@@ -20,7 +24,7 @@ logger = logging.getLogger(__name__)
 _MCP_URL = "https://arizeai-433a7140.mintlify.app/mcp"
 _MCP_CALL_TIMEOUT = timedelta(seconds=10)
 
-# Tool names served by the Mintlify MCP endpoint.  Used by the module-level
+# Tool names served by the Mintlify MCP endpoint. Used by the module-level
 # ``is_backend_tool`` helper so callers can check tool ownership without
 # instantiating a client.
 _KNOWN_BACKEND_TOOLS: set[str] = set()
@@ -35,7 +39,7 @@ class MintlifyDocsClient:
     """Async MCP client that provides Mintlify documentation search tools.
 
     The client lazily connects to the MCP server on first use and keeps the
-    connection alive for reuse across requests.  It is safe to call from
+    connection alive for reuse across requests. It is safe to call from
     multiple concurrent tasks — an ``asyncio.Lock`` serialises all session
     I/O (connection, tool listing, and tool invocations).
 
@@ -52,10 +56,6 @@ class MintlifyDocsClient:
         self._exit_stack: Any | None = None  # contextlib.AsyncExitStack
         self._tool_definitions: list[ToolDefinition] | None = None
 
-    # ------------------------------------------------------------------
-    # Async context manager
-    # ------------------------------------------------------------------
-
     async def __aenter__(self) -> MintlifyDocsClient:
         return self
 
@@ -66,10 +66,6 @@ class MintlifyDocsClient:
         exc_tb: Any,
     ) -> None:
         await self.close()
-
-    # ------------------------------------------------------------------
-    # Connection management
-    # ------------------------------------------------------------------
 
     async def connect(self) -> None:
         """Establish the MCP connection if not already connected.
@@ -83,7 +79,7 @@ class MintlifyDocsClient:
             await self._connect_locked()
 
     async def _connect_locked(self) -> None:
-        """Open the MCP transport and session.  Caller must hold ``_lock``."""
+        """Open the MCP transport and session. Caller must hold ``_lock``."""
         import contextlib
 
         from mcp import ClientSession
@@ -117,11 +113,7 @@ class MintlifyDocsClient:
         assert self._session is not None  # noqa: S101
         return self._session
 
-    # ------------------------------------------------------------------
-    # Tool discovery
-    # ------------------------------------------------------------------
-
-    async def get_tool_definitions(self) -> list[ToolDefinition]:
+    async def get_tool_definitions(self) -> list["ToolDefinition"]:
         """Return tool definitions suitable for ``pydantic_ai``.
 
         Results are cached after the first successful fetch.
@@ -159,21 +151,8 @@ class MintlifyDocsClient:
             )
             return definitions
 
-    # ------------------------------------------------------------------
-    # Tool invocation
-    # ------------------------------------------------------------------
-
     async def call_tool(self, name: str, args: dict[str, Any]) -> str:
-        """Invoke a tool on the MCP server and return the text result.
-
-        Args:
-            name: The tool name as returned by ``get_tool_definitions``.
-            args: The arguments to pass to the tool.
-
-        Returns:
-            The concatenated text content blocks from the tool result, or
-            ``"No results found"`` if the response contains no text.
-        """
+        """Invoke a tool on the MCP server and return the text result."""
         async with self._lock:
             session = await self._ensure_session_locked()
             try:
@@ -191,10 +170,6 @@ class MintlifyDocsClient:
         """Check whether *name* belongs to this client's tool set."""
         return name in _KNOWN_BACKEND_TOOLS
 
-    # ------------------------------------------------------------------
-    # Shutdown
-    # ------------------------------------------------------------------
-
     async def close(self) -> None:
         """Tear down the MCP session and transport."""
         async with self._lock:
@@ -207,3 +182,36 @@ class MintlifyDocsClient:
                 await stack.aclose()
             except Exception:
                 logger.exception("Error closing MCP connection")
+
+
+def get_mcp_client(request: Request) -> MintlifyDocsClient | None:
+    """Return the shared MCP client from app state, creating it on first use.
+
+    Returns ``None`` when external networking is disabled
+    (``PHOENIX_ALLOW_EXTERNAL_RESOURCES=false``) or if the client fails to
+    initialise, so the chat endpoint degrades gracefully (backend tools
+    simply won't be available).
+    """
+    state = request.app.state
+    if not hasattr(state, "_mcp_client"):
+        if not get_env_allow_external_resources():
+            state._mcp_client = None
+        else:
+            try:
+                client = MintlifyDocsClient()
+                state._mcp_client = client
+
+                # Register cleanup so the HTTP transport and MCP session are
+                # closed on server shutdown rather than abandoned.
+                async def _close_mcp_client() -> None:
+                    try:
+                        await client.close()
+                    except Exception:
+                        pass
+
+                request.app.router.on_shutdown.append(_close_mcp_client)
+            except Exception:
+                logger.exception("Failed to create MCP client")
+                state._mcp_client = None
+    result: MintlifyDocsClient | None = state._mcp_client
+    return result

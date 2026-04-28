@@ -14,11 +14,12 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from phoenix.server.api.routers.chat_context import (
+from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
 )
+from phoenix.server.agents.mcp import MintlifyDocsClient
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
@@ -33,8 +34,7 @@ if TYPE_CHECKING:
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
     from pydantic_ai.usage import RequestUsage
 
-    from phoenix.server.api.routers.chat_context import ToolCallable
-    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
+    from phoenix.server.agents.context import ToolCallable
 
 logger = logging.getLogger(__name__)
 
