@@ -933,6 +933,7 @@ async def get_experiment_csv(
                 "repetition_number": run.repetition_number,
                 "input": json.dumps(revision.input),
                 "reference_output": json.dumps(revision.output),
+                **{f"metadata_{k}": v for k, v in revision.metadata_.items()},
                 "output": serialized_run_output,
                 "error": run.error,
                 "latency_ms": run.latency_ms,
