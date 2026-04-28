@@ -503,3 +503,95 @@ class TestMultiOutputEvaluate:
             output_configs=[_categorical_config("score")],
         )
         assert results[0]["name"] == "myeval"
+
+    async def test_multi_output_naming_convention(self) -> None:
+        """Verify {evaluator_name}.{config.name} convention for multi-output evaluators."""
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        configs = [_categorical_config("toxicity"), _categorical_config("safety")]
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="content-check",
+            output_configs=configs,
+        )
+        names = {r["name"] for r in results}
+        assert "content-check.toxicity" in names
+        assert "content-check.safety" in names
+
+
+class TestExplanationPlumbing:
+    async def test_explanation_from_dict_label_is_plumbed_through(self) -> None:
+        payload = json.dumps({"label": "pass", "explanation": "matched keywords"})
+        runner, _ = _make_runner(backend_stdout=payload)
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        assert results[0]["label"] == "pass"
+        assert results[0]["explanation"] == "matched keywords"
+
+    async def test_explanation_from_dict_score_is_plumbed_through(self) -> None:
+        payload = json.dumps({"score": 0.75, "explanation": "moderate confidence"})
+        runner, _ = _make_runner(backend_stdout=payload)
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+        assert results[0]["score"] == pytest.approx(0.75)
+        assert results[0]["explanation"] == "moderate confidence"
+
+    async def test_bare_return_has_no_explanation(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+        assert results[0]["explanation"] is None
+
+    async def test_shared_explanation_fallback_in_multi_output_routing(self) -> None:
+        """Top-level explanation in routing dict is used as shared fallback."""
+        payload = json.dumps(
+            {
+                "a": "pass",
+                "b": "fail",
+                "explanation": "shared rationale",
+            }
+        )
+        runner, _ = _make_runner(backend_stdout=payload)
+        configs = [_categorical_config("a"), _categorical_config("b")]
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="eval",
+            output_configs=configs,
+        )
+        assert len(results) == 2
+        for r in results:
+            assert r["explanation"] == "shared rationale"
+
+    async def test_per_config_explanation_wins_over_shared_fallback(self) -> None:
+        """Per-config sub-value explanation takes precedence over top-level fallback."""
+        payload = json.dumps(
+            {
+                "a": {"label": "pass", "explanation": "config-specific"},
+                "b": "fail",
+                "explanation": "shared fallback",
+            }
+        )
+        runner, _ = _make_runner(backend_stdout=payload)
+        configs = [_categorical_config("a"), _categorical_config("b")]
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="eval",
+            output_configs=configs,
+        )
+        results_by_name = {r["name"]: r for r in results}
+        assert results_by_name["eval.a"]["explanation"] == "config-specific"
+        assert results_by_name["eval.b"]["explanation"] == "shared fallback"

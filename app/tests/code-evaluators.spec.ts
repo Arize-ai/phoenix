@@ -574,4 +574,256 @@ test.describe.serial("Code Evaluators", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
+
+  // Phase 4: Config-aware placeholder assertions
+
+  const placeholderCategoricalName = `placeholder-cat-${randomUUID().slice(0, 8)}`;
+  const placeholderContinuousName = `placeholder-cont-${randomUUID().slice(0, 8)}`;
+
+  async function getEditorContent(page: Page): Promise<string> {
+    // The editable CodeMirror panel is the first .cm-content in the dialog
+    return (
+      (await page
+        .getByRole("dialog")
+        .locator(".cm-content")
+        .first()
+        .textContent()) ?? ""
+    );
+  }
+
+  async function openOutputConfig(page: Page): Promise<void> {
+    const dialog = page.getByRole("dialog");
+    const panel = dialog.getByText(
+      "Define the output type and optimization direction"
+    );
+    if (!(await panel.isVisible())) {
+      await dialog
+        .getByRole("button", { name: "Output Configuration" })
+        .click();
+    }
+    await expect(panel).toBeVisible();
+  }
+
+  test("categorical placeholder shows substituted label from config", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new code evaluator" })
+      .click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    await dialog
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill(placeholderCategoricalName);
+
+    await selectComboboxOption(page, "Sandbox", pythonSandboxName, dialog);
+    await openOutputConfig(page);
+
+    // Switch to categorical
+    const outputTypeSelect = dialog.getByRole("button", {
+      name: /Continuous score|Categorical label/,
+    });
+    await outputTypeSelect.click();
+    await page
+      .getByRole("option", { name: "Categorical label", exact: true })
+      .click();
+
+    // Fill first choice label
+    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
+    await choiceInputs.first().fill("excellent");
+    await choiceInputs.nth(1).fill("poor");
+
+    // Allow store to sync and editor to re-render, then check placeholder
+    await page.waitForTimeout(200);
+    const content = await getEditorContent(page);
+
+    // Substituted label "excellent" should appear in return statement
+    expect(content).toContain('"excellent"');
+    // Static fallback "pass" should NOT appear as the return value
+    expect(content).not.toMatch(/return "pass"/);
+    // Dict-form comment with explanation key must be present
+    expect(content).toContain("explanation");
+
+    await page.getByRole("button", { name: "Create" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: placeholderCategoricalName, exact: true })
+    ).toBeVisible();
+  });
+
+  test("continuous placeholder shows midpoint and bounds-range comment", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new code evaluator" })
+      .click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+
+    await dialog
+      .getByRole("textbox", { name: "Name", exact: true })
+      .fill(placeholderContinuousName);
+
+    await selectComboboxOption(page, "Sandbox", pythonSandboxName, dialog);
+    await openOutputConfig(page);
+
+    // Ensure continuous is selected and set bounds
+    const contConfig = dialog.locator('input[type="number"]');
+    // Lower bound (first number input) = 0, upper bound = 10
+    await contConfig.first().fill("0");
+    await contConfig.last().fill("10");
+
+    await page.waitForTimeout(200);
+    const content = await getEditorContent(page);
+
+    // Midpoint of 0..10 is 5.0
+    expect(content).toContain("5.0");
+    // Bounds range comment
+    expect(content).toContain("0.0 - 10.0");
+    // Dict-form comment with explanation key
+    expect(content).toContain("explanation");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  test("categorical with empty values falls back to static placeholder", async ({
+    page,
+  }) => {
+    // Open the existing categorical evaluator which has "Good"/"Bad" labels
+    await gotoDatasetEvaluators(page, datasetName);
+    await openEvaluatorEditor(page, categoricalEvaluatorName);
+
+    const dialog = page.getByRole("dialog");
+    await openOutputConfig(page);
+
+    // Clear all choice labels to trigger the empty-values fallback
+    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
+    await choiceInputs.first().fill("");
+    await choiceInputs.last().fill("");
+
+    await page.waitForTimeout(200);
+
+    // Press Reset — with empty values config, should produce static fallback "pass"
+    await dialog.getByRole("button", { name: "Reset" }).click();
+    await page.waitForTimeout(200);
+
+    const content = await getEditorContent(page);
+    expect(content).toContain('"pass"');
+    // Dict form comment must still be present
+    expect(content).toContain("explanation");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  test("Reset on complete categorical config produces substituted placeholder", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+    await openEvaluatorEditor(page, categoricalEvaluatorName);
+
+    const dialog = page.getByRole("dialog");
+
+    // Overwrite the editor with custom code
+    const editor = dialog.locator(".cm-content").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.insertText("# custom user code");
+
+    // Reset should restore the substituted placeholder for "Good"/"Bad"
+    await dialog.getByRole("button", { name: "Reset" }).click();
+    await page.waitForTimeout(200);
+
+    const content = await getEditorContent(page);
+    // "Good" is the first label in the categorical config
+    expect(content).toContain('"Good"');
+    expect(content).not.toMatch(/return "pass"/);
+    expect(content).toContain("explanation");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  test("language switch on categorical preserves substituted placeholder", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+    await openEvaluatorEditor(page, categoricalEvaluatorName);
+
+    const dialog = page.getByRole("dialog");
+
+    // Editor starts with Python substituted placeholder containing "Good"
+    let content = await getEditorContent(page);
+    expect(content).toContain('"Good"');
+
+    // Switch to TypeScript — guard should recognize default and auto-swap
+    await selectLanguage(page, dialog, "TypeScript");
+    await page.waitForTimeout(200);
+
+    content = await getEditorContent(page);
+    // TypeScript substituted placeholder still uses "Good"
+    expect(content).toContain('"Good"');
+    // TypeScript syntax: function keyword
+    expect(content).toContain("function evaluate");
+    expect(content).toContain("explanation");
+
+    // Switch back to Python — guard still recognizes it as a generated default
+    await selectLanguage(page, dialog, "Python");
+    await page.waitForTimeout(200);
+
+    content = await getEditorContent(page);
+    expect(content).toContain('"Good"');
+    expect(content).toContain("def evaluate");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+
+  test("shape change from continuous to categorical auto-swaps placeholder", async ({
+    page,
+  }) => {
+    await gotoDatasetEvaluators(page, datasetName);
+
+    // Open the continuous evaluator for editing
+    await openEvaluatorEditor(page, placeholderContinuousName);
+
+    const dialog = page.getByRole("dialog");
+    await openOutputConfig(page);
+
+    // Verify the editor shows a continuous placeholder (contains numeric return)
+    let content = await getEditorContent(page);
+    expect(content).toContain("5.0");
+
+    // Switch output type to categorical
+    const outputTypeSelect = dialog.getByRole("button", {
+      name: /Continuous score|Categorical label/,
+    });
+    await outputTypeSelect.click();
+    await page
+      .getByRole("option", { name: "Categorical label", exact: true })
+      .click();
+    await page.waitForTimeout(200);
+
+    content = await getEditorContent(page);
+    // Categorical fallback (default labels are "pass"/"fail" since no saved labels)
+    expect(content).toContain('"pass"');
+    expect(content).toContain("explanation");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
 });

@@ -903,11 +903,12 @@ async def get_evaluators(
         elif isinstance(ev, models.CodeEvaluator):
             code_runner = code_evaluators_by_id.get(ev.id)
             if code_runner is None:
+                ev_name = ev.name.root if ev.name else str(ev.id)
                 evaluator_lang = code_evaluator_languages_by_id.get(ev.id, "")
                 lang_hint = f" for language '{evaluator_lang}'" if evaluator_lang else ""
                 raise NotFound(
-                    f"CODE evaluator with ID '{ev.id}' could not be resolved{lang_hint}. "
-                    "Please configure a sandbox provider for this evaluator."
+                    f"Code evaluator '{ev_name}' could not be resolved{lang_hint}. "
+                    "Please configure a sandbox provider at /settings/sandboxes."
                 )
             evaluators.append(code_runner)
         else:
@@ -2682,21 +2683,45 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 raw_value = stdout
 
         multi_output = len(output_configs) > 1
+
+        # Multi-output routing: when raw_value is a dict whose keys cover every
+        # config.name, dispatch each named sub-value to _coerce_output individually.
+        # Top-level "explanation" acts as a shared fallback when a per-config
+        # sub-value omits its own explanation.
+        routed = (
+            multi_output
+            and isinstance(raw_value, dict)
+            and all(c.name in raw_value for c in output_configs)
+        )
+        shared_explanation: Optional[str] = None
+        if routed and isinstance(raw_value, dict):
+            top_level_explanation = raw_value.get("explanation")
+            if isinstance(top_level_explanation, str):
+                shared_explanation = top_level_explanation
+
         results: list[EvaluationResult] = []
         for config in output_configs:
             annotation_name = f"{name}.{config.name}" if multi_output else name
+            coerce_value = (
+                raw_value[config.name] if routed and isinstance(raw_value, dict) else raw_value
+            )
             try:
-                label, score = _coerce_output(raw_value, config)
+                label, score, explanation = _coerce_output(
+                    coerce_value, config, language=self._language
+                )
             except ValueError as exc:
                 results.append(self._make_error_result(annotation_name, str(exc), start_time))
                 continue
+            # Per-config explanation wins; fall back to shared top-level explanation.
+            if explanation is None:
+                explanation = shared_explanation
             results.append(
                 EvaluationResult(
                     name=annotation_name,
                     annotator_kind="CODE",
                     label=label,
                     score=score,
-                    explanation=None,
+                    explanation=explanation,
                     metadata={},
                     error=None,
                     trace_id=None,
