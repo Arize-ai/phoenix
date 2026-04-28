@@ -6,6 +6,19 @@ from typing_extensions import Self, TypeAlias
 
 from .db_helper_types import DBBaseModel
 
+_PYTHON = "PYTHON"
+_TYPESCRIPT = "TYPESCRIPT"
+
+
+def _return_stmt(value: str, language: str) -> str:
+    if language == _TYPESCRIPT:
+        return f"return {value};"
+    return f"return {value}"
+
+
+def _comment(text: str, language: str) -> str:
+    return f"// {text}" if language == _TYPESCRIPT else f"# {text}"
+
 
 class AnnotationType(Enum):
     CATEGORICAL = "CATEGORICAL"
@@ -101,9 +114,54 @@ class AnnotationConfig(RootModel[AnnotationConfigType]):
 class CategoricalOutputConfig(CategoricalAnnotationConfig):
     name: str
 
+    def shape_examples(self, language: str = _PYTHON, mode: str = "full") -> list[str]:
+        """Return code snippet strings illustrating valid return shapes for this config.
+
+        mode='full'    — all valid shapes (bare label + dict-by-key)
+        mode='curated' — same for categorical (bare + dict-with-explanation)
+        Tuples are NOT included per D5 deferral.
+        """
+        example_label = self.values[0].label if self.values else "pass"
+        bare = _return_stmt(f'"{example_label}"', language)
+        dict_form = _return_stmt(f'{{"label": "{example_label}", "explanation": "..."}}', language)
+        return [bare, dict_form]
+
 
 class ContinuousOutputConfig(ContinuousAnnotationConfig):
     name: str
+
+    def shape_examples(self, language: str = _PYTHON, mode: str = "full") -> list[str]:
+        """Return code snippet strings illustrating valid return shapes for this config.
+
+        mode='full'    — all valid shapes (bare score + dict-by-key)
+        mode='curated' — same for continuous (bare + dict-with-explanation)
+        Tuples are NOT included per D5 deferral.
+        """
+        if self.lower_bound is not None and self.upper_bound is not None:
+            example_score = (self.lower_bound + self.upper_bound) / 2
+            bounds_hint = f"{self.lower_bound} - {self.upper_bound}"
+        elif self.lower_bound is not None:
+            example_score = self.lower_bound
+            bounds_hint = f">= {self.lower_bound}"
+        elif self.upper_bound is not None:
+            example_score = self.upper_bound
+            bounds_hint = f"<= {self.upper_bound}"
+        else:
+            example_score = 0.5
+            bounds_hint = None
+
+        score_str = f"{example_score}"
+        bare = _return_stmt(score_str, language)
+        if bounds_hint:
+            range_comment = _comment(f"score in range {bounds_hint}", language)
+            dict_form = (
+                range_comment
+                + "\n"
+                + _return_stmt(f'{{"score": {score_str}, "explanation": "..."}}', language)
+            )
+        else:
+            dict_form = _return_stmt(f'{{"score": {score_str}, "explanation": "..."}}', language)
+        return [bare, dict_form]
 
 
 OutputConfigType: TypeAlias = Annotated[
@@ -114,3 +172,55 @@ OutputConfigType: TypeAlias = Annotated[
 
 class OutputConfig(RootModel[OutputConfigType]):
     root: OutputConfigType
+
+
+def bare_shape_examples(language: str = _PYTHON, mode: str = "full") -> list[str]:
+    """Return code snippet strings illustrating valid return shapes when no output config exists.
+
+    Accepts bare scalars (str → label, numeric → score) and recognized dict-by-key shapes.
+    Lists and nested objects are rejected.
+    """
+    bare_str = _return_stmt('"pass"', language)
+    bare_num = _return_stmt("0.5", language)
+    dict_form = _return_stmt('{"label": "pass", "explanation": "..."}', language)
+    dict_score_form = _return_stmt('{"score": 0.5, "explanation": "..."}', language)
+    if mode == "curated":
+        return [bare_str, dict_form]
+    return [bare_str, bare_num, dict_form, dict_score_form]
+
+
+def _config_bare_value(config: "CategoricalOutputConfig | ContinuousOutputConfig") -> str:
+    if isinstance(config, CategoricalOutputConfig):
+        label = config.values[0].label if config.values else "pass"
+        return f'"{label}"'
+    # ContinuousOutputConfig
+    if config.lower_bound is not None and config.upper_bound is not None:
+        score = (config.lower_bound + config.upper_bound) / 2
+    elif config.lower_bound is not None:
+        score = config.lower_bound
+    elif config.upper_bound is not None:
+        score = config.upper_bound
+    else:
+        score = 0.5
+    return str(score)
+
+
+def multi_output_shape_examples(
+    configs: "list[CategoricalOutputConfig | ContinuousOutputConfig]",
+    language: str = _PYTHON,
+    mode: str = "curated",
+) -> list[str]:
+    """Return code snippet strings for multi-output routing dicts.
+
+    Renders a routing dict where each key is a config name and the value is
+    the curated bare shape for that config. A top-level 'explanation' key is
+    shown as a shared fallback.
+    """
+    lines: list[str] = []
+    for config in configs:
+        bare_value = _config_bare_value(config)
+        lines.append(f'    "{config.name}": {bare_value},')
+    lines.append('    "explanation": "...",')
+    inner = "\n".join(lines)
+    routing_dict = "{\n" + inner + "\n}"
+    return [_return_stmt(routing_dict, language)]

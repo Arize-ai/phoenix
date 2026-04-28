@@ -98,6 +98,7 @@
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
+- [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): All accepted return shapes, multi-output routing, and explanation field semantics
 - [Batch Evaluations](https://arize.com/docs/phoenix/evaluation/how-to-evals/batch-evaluations): Run evaluations at scale with automatic concurrency
 - [Using Evals with Phoenix](https://arize.com/docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix): Run evals on traces, datasets, or custom data sources
 

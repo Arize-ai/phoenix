@@ -45,8 +45,10 @@ import {
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import {
-  DEFAULT_CODE_EVALUATOR_SOURCE,
   extractCodeEvaluatorVariables,
+  getAllGeneratedSources,
+  getDefaultCodeEvaluatorSource,
+  type EvaluatorOutputShape,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
@@ -117,10 +119,15 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSandboxConfigId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+  const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
+  const outputShape: EvaluatorOutputShape =
+    outputConfig && "values" in outputConfig ? "categorical" : "continuous";
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
     useState<CodeEvaluatorLanguage>(initialLanguage);
+  // Track the shape from the previous render so the shape-change guard can compare.
+  const prevShapeRef = useRef<EvaluatorOutputShape>(outputShape);
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialSandboxConfigId ?? null
   );
@@ -193,6 +200,25 @@ export const EditCodeEvaluatorDialogContent = ({
       checkForDirtyChanges();
     });
   }, [store]);
+
+  // Output-shape-change guard: when outputShape changes and sourceCode is still
+  // a generated default for the previous {language, shape}, replace it with the
+  // generated default for the new shape. Preserves user-edited source.
+  useEffect(() => {
+    const prevShape = prevShapeRef.current;
+    if (prevShape !== outputShape) {
+      const prevDefaults = getAllGeneratedSources(language, outputConfig);
+      if (prevDefaults.includes(sourceCode)) {
+        setSourceCode(
+          getDefaultCodeEvaluatorSource(language, outputShape, outputConfig)
+        );
+      }
+      prevShapeRef.current = outputShape;
+    }
+    // outputConfig intentionally excluded: shape change is what drives the swap,
+    // not every config field edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outputShape]);
 
   const handleCancel = () => {
     onCancel?.();
@@ -317,10 +343,20 @@ export const EditCodeEvaluatorDialogContent = ({
           language={language}
           onLanguageChange={(nextLanguage) => {
             setLanguage((currentLanguage) => {
-              if (
-                sourceCode === DEFAULT_CODE_EVALUATOR_SOURCE[currentLanguage]
-              ) {
-                setSourceCode(DEFAULT_CODE_EVALUATOR_SOURCE[nextLanguage]);
+              // Auto-swap if sourceCode matches any generated default for the
+              // current language (substituted or fallback, across all shapes).
+              const currentDefaults = getAllGeneratedSources(
+                currentLanguage,
+                outputConfig
+              );
+              if (currentDefaults.includes(sourceCode)) {
+                setSourceCode(
+                  getDefaultCodeEvaluatorSource(
+                    nextLanguage,
+                    outputShape,
+                    outputConfig
+                  )
+                );
               }
               return nextLanguage;
             });
@@ -339,6 +375,8 @@ export const EditCodeEvaluatorDialogContent = ({
               <div css={editorPanelCSS}>
                 <CodeEditorSection
                   language={language}
+                  outputShape={outputShape}
+                  outputConfig={outputConfig}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
                 />
@@ -498,10 +536,14 @@ const CompactHeaderBar = ({
  */
 const CodeEditorSection = ({
   language,
+  outputShape,
+  outputConfig,
   sourceCode,
   onChange,
 }: {
   language: CodeEvaluatorLanguage;
+  outputShape: EvaluatorOutputShape;
+  outputConfig: AnnotationConfig | undefined;
   sourceCode: string;
   onChange: (value: string) => void;
 }) => {
@@ -527,6 +569,11 @@ const CodeEditorSection = ({
     [language, evaluatorMappingSource]
   );
 
+  const descriptionText =
+    outputShape === "categorical"
+      ? "Define an evaluate function that returns a string label."
+      : "Define an evaluate function that returns a numerical score.";
+
   return (
     <div css={editorSectionCSS}>
       {/* Editor header with reset button */}
@@ -537,13 +584,16 @@ const CodeEditorSection = ({
         flex="none"
       >
         <Text color="text-500" size="XS">
-          Define an <code>evaluate</code> function that returns a score or
-          label.
+          {descriptionText}
         </Text>
         <Button
           size="S"
           variant="quiet"
-          onPress={() => onChange(DEFAULT_CODE_EVALUATOR_SOURCE[language])}
+          onPress={() =>
+            onChange(
+              getDefaultCodeEvaluatorSource(language, outputShape, outputConfig)
+            )
+          }
         >
           <Icon svg={<Icons.Refresh />} />
           Reset

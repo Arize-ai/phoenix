@@ -331,7 +331,7 @@ class ChatCompletionMutationMixin:
                                 }
 
                     # Eagerly capture scalar fields before session closes
-                    evaluator_name = str(code_evaluator_record.name)
+                    evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
                     evaluator_source_code = code_evaluator_record.source_code
                     output_configs = [
@@ -357,8 +357,9 @@ class ChatCompletionMutationMixin:
                             raise BadRequest(str(exc))
                 if sandbox_backend is None:
                     raise BadRequest(
-                        f"No sandbox backend configured for language '{language}'. "
-                        "Please configure a sandbox provider for this evaluator."
+                        f"Code evaluator '{evaluator_name}' has no sandbox backend configured"
+                        f" for language '{language}'. "
+                        "Please configure a sandbox provider at /settings/sandboxes."
                     )
 
                 runner = CodeEvaluatorRunner(

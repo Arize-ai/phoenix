@@ -1,25 +1,178 @@
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  CodeEvaluatorLanguage,
+  ContinuousEvaluatorAnnotationConfig,
+} from "@phoenix/types";
+
+export type EvaluatorOutputShape = "categorical" | "continuous";
+
+type OutputConfig =
+  | ClassificationEvaluatorAnnotationConfig
+  | ContinuousEvaluatorAnnotationConfig;
+
+/**
+ * Returns hardcoded two-shape templates (bare return + dict-form comment) with
+ * static fallback values ("pass" for categorical, 0.5 for continuous).
+ */
+export function getStaticFallbackSource(
+  language: CodeEvaluatorLanguage,
+  shape: EvaluatorOutputShape
+): string {
+  if (language === "PYTHON") {
+    if (shape === "categorical") {
+      return `def evaluate(output, reference=None, input=None, metadata=None):
+    # Full dict form: return {"label": "pass", "score": 1, "explanation": "..."}
+    return "pass"
+`;
+    }
+    // continuous
+    return `def evaluate(output, reference=None, input=None, metadata=None):
+    # Full dict form: return {"score": 0.5, "explanation": "..."}
+    return 0.5
+`;
+  }
+  // TYPESCRIPT
+  if (shape === "categorical") {
+    return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  // Full dict form: return { label: "pass", score: 1, explanation: "..." };
+  return "pass";
+}
+`;
+  }
+  // continuous
+  return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  // Full dict form: return { score: 0.5, explanation: "..." };
+  return 0.5;
+}
+`;
+}
+
+/**
+ * Returns a config-aware two-shape template. Substitutes the first label
+ * (categorical) or the midpoint of bounds (continuous) into the template.
+ * Falls back to getStaticFallbackSource on any error or incomplete config and
+ * emits a structured console.warn describing the reason.
+ */
+export function getDefaultCodeEvaluatorSource(
+  language: CodeEvaluatorLanguage,
+  shape: EvaluatorOutputShape,
+  config?: OutputConfig
+): string {
+  try {
+    if (!config) {
+      // eslint-disable-next-line no-console
+      console.warn({
+        component: "getDefaultCodeEvaluatorSource",
+        shape,
+        language,
+        reason: "missing_config",
+      });
+      return getStaticFallbackSource(language, shape);
+    }
+
+    if (shape === "categorical") {
+      const catConfig = config as ClassificationEvaluatorAnnotationConfig;
+      if (!catConfig.values || catConfig.values.length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn({
+          component: "getDefaultCodeEvaluatorSource",
+          shape,
+          language,
+          reason: "empty_values",
+        });
+        return getStaticFallbackSource(language, shape);
+      }
+      const label = catConfig.values[0].label;
+      if (language === "PYTHON") {
+        return `def evaluate(output, reference=None, input=None, metadata=None):
+    # Full dict form: return {"label": "${label}", "score": 1, "explanation": "..."}
+    return "${label}"
+`;
+      }
+      // TYPESCRIPT
+      return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  // Full dict form: return { label: "${label}", score: 1, explanation: "..." };
+  return "${label}";
+}
+`;
+    }
+
+    if (shape === "continuous") {
+      const contConfig = config as ContinuousEvaluatorAnnotationConfig;
+      const lower = contConfig.lowerBound;
+      const upper = contConfig.upperBound;
+      if (lower == null || upper == null) {
+        // eslint-disable-next-line no-console
+        console.warn({
+          component: "getDefaultCodeEvaluatorSource",
+          shape,
+          language,
+          reason: "missing_bounds",
+        });
+        return getStaticFallbackSource(language, shape);
+      }
+      const midpoint = (lower + upper) / 2;
+      const rangeComment = `${lower.toFixed(1)} - ${upper.toFixed(1)}`;
+      if (language === "PYTHON") {
+        return `def evaluate(output, reference=None, input=None, metadata=None):
+    # Full dict form: return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # expected range: ${rangeComment}
+    return ${midpoint.toFixed(1)}
+`;
+      }
+      // TYPESCRIPT
+      return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  // Full dict form: return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // expected range: ${rangeComment}
+  return ${midpoint.toFixed(1)};
+}
+`;
+    }
+
+    // unexpected shape
+    // eslint-disable-next-line no-console
+    console.warn({
+      component: "getDefaultCodeEvaluatorSource",
+      shape,
+      language,
+      reason: "unexpected_shape",
+    });
+    return getStaticFallbackSource(language, shape);
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn({
+      component: "getDefaultCodeEvaluatorSource",
+      shape,
+      language,
+      reason: "substitution_threw",
+    });
+    return getStaticFallbackSource(language, shape);
+  }
+}
+
+/**
+ * Returns all possible generated source strings for a given language across
+ * both shapes, including both substituted and static-fallback variants for
+ * any config. Used by guards to detect whether the current editor content
+ * is a generated default (vs. user-edited).
+ */
+export function getAllGeneratedSources(
+  language: CodeEvaluatorLanguage,
+  config?: OutputConfig
+): string[] {
+  const shapes: EvaluatorOutputShape[] = ["categorical", "continuous"];
+  const sources: string[] = [];
+  for (const shape of shapes) {
+    sources.push(getStaticFallbackSource(language, shape));
+    sources.push(getDefaultCodeEvaluatorSource(language, shape, config));
+  }
+  return [...new Set(sources)];
+}
 
 export const DEFAULT_CODE_EVALUATOR_SOURCE: Record<
   CodeEvaluatorLanguage,
   string
 > = {
-  PYTHON: `def evaluate(output, reference=None, input=None, metadata=None):
-    """
-    Evaluate the output against the reference.
-    See the auto-generated type information below for the structure of each parameter.
-    """
-    candidate = output.get("answer", "") if isinstance(output, dict) else ""
-    expected = reference.get("answer", "") if isinstance(reference, dict) else ""
-    return 1 if candidate == expected else 0
-`,
-  TYPESCRIPT: `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // See the auto-generated type definitions below for the structure of each parameter.
-  const candidate = typeof output?.answer === "string" ? output.answer : "";
-  const expected = typeof reference?.answer === "string" ? reference.answer : "";
-  return candidate === expected ? 1 : 0;
-}
-`,
+  PYTHON: getStaticFallbackSource("PYTHON", "continuous"),
+  TYPESCRIPT: getStaticFallbackSource("TYPESCRIPT", "continuous"),
 };
 
 export const extractCodeEvaluatorVariables = ({

@@ -365,6 +365,7 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationValue!]!
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
 }
 
 input CategoricalAnnotationConfigInput {
@@ -550,6 +551,7 @@ type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
   optimizationDirection: OptimizationDirection!
   lowerBound: Float
   upperBound: Float
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
 }
 
 input ContinuousAnnotationConfigInput {
@@ -3135,6 +3137,10 @@ type SandboxConfig implements Node {
   name: String!
   description: String
   config: JSON!
+
+  """
+  Execution timeout in seconds (includes package install on ephemeral calls).
+  """
   timeout: Int!
   enabled: Boolean!
   provider: SandboxProvider!
@@ -3230,6 +3236,16 @@ type SetSandboxCredentialPayload {
   backendType: String!
   key: String!
   query: Query!
+}
+
+enum ShapeExamplesLanguage {
+  PYTHON
+  TYPESCRIPT
+}
+
+enum ShapeExamplesMode {
+  FULL
+  CURATED
 }
 
 enum SortDir {
