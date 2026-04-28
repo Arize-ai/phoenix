@@ -562,6 +562,7 @@
                   "docs/phoenix/integrations/python/agno/agno-tracing"
                 ]
               },
+              "docs/phoenix/integrations/python/asqav",
               {
                 "group": "AutoGen",
                 "pages": [
