@@ -31,7 +31,6 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import { AgentDebugMenu } from "./AgentDebugMenu";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { PxiGlyph } from "./PxiGlyph";
@@ -374,7 +373,6 @@ export function ChatView({
                     shouldFlip
                     variant="quiet"
                   />
-                  <AgentDebugMenu />
                 </PromptInputTools>
 
                 <PromptInputActions>

@@ -15,12 +15,13 @@ describe("agent capabilities", () => {
   });
 
   it("filters capabilities by control surface", () => {
-    const debugMenuCapabilities =
-      getAgentCapabilitiesForControlSurface("debug-menu");
+    const debugMenuCapabilities = getAgentCapabilitiesForControlSurface(
+      "experimental-settings"
+    );
 
     expect(debugMenuCapabilities).toEqual(
       AGENT_CAPABILITY_DEFINITIONS.filter(
-        (definition) => definition.controlSurface === "debug-menu"
+        (definition) => definition.controlSurface === "experimental-settings"
       )
     );
   });

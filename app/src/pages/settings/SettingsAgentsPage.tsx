@@ -12,6 +12,7 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
 } from "@phoenix/components/agent";
@@ -128,6 +129,7 @@ export function SettingsAgentsPage() {
         >
           <AssistantTraceCollectionInfo />
           <AgentSettingsForm />
+          <AgentExperimentalSettings />
         </Flex>
       </View>
     </Card>
