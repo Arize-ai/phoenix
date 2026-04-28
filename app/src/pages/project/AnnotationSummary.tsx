@@ -408,6 +408,37 @@ export function SummaryValuePreview({
   );
 }
 
+export function SummaryValueLabelPreview({
+  labelFractions,
+}: {
+  labelFractions: readonly { label: string; fraction: number }[];
+}) {
+  const largestFraction = labelFractions.reduce((max, current) => {
+    return Math.max(max, current.fraction);
+  }, 0);
+  const largestFractionLabel = labelFractions.find(
+    (fraction) => fraction.fraction === largestFraction
+  )?.label;
+  const totalCount = labelFractions.length - 1;
+  const hasMoreThanOneLabel = totalCount > 0;
+  if (!largestFractionLabel) {
+    return null;
+  }
+  return (
+    <Flex
+      direction="row"
+      alignItems="center"
+      gap="size-50"
+      maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+    >
+      <Token style={{ maxWidth: "100%" }}>
+        <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
+      </Token>
+      {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+    </Flex>
+  );
+}
+
 export function SummaryValueBreakdown({
   annotationName,
   labelFractions,
@@ -470,34 +501,13 @@ export function SummaryValueLabels({
   labelFractions: readonly { label: string; fraction: number }[];
   annotationConfig?: AnnotationConfig;
 }) {
-  const largestFraction = labelFractions.reduce((max, current) => {
-    return Math.max(max, current.fraction);
-  }, 0);
-  const largestFractionLabel = labelFractions.find(
-    (fraction) => fraction.fraction === largestFraction
-  )?.label;
-  const totalCount = labelFractions.length - 1;
-  const hasMoreThanOneLabel = totalCount > 0;
-  if (!largestFractionLabel) {
+  if (labelFractions.length === 0) {
     return null;
   }
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
-        <Flex
-          direction="row"
-          alignItems="center"
-          gap="size-50"
-          // Shrinks the container of tokens to allow for the + count to be visible
-          // while still truncating the biggest label
-          // otherwise, just shrink the container slightly for padding
-          maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
-        >
-          <Token style={{ maxWidth: "100%" }}>
-            <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
-          </Token>
-          {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
-        </Flex>
+        <SummaryValueLabelPreview labelFractions={labelFractions} />
       </TriggerWrap>
       <RichTooltip placement="bottom">
         <SummaryValueBreakdown
