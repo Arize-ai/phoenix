@@ -21,28 +21,28 @@ export function getStaticFallbackSource(
   if (language === "PYTHON") {
     if (shape === "categorical") {
       return `def evaluate(output, reference=None, input=None, metadata=None):
-    # Full dict form: return {"label": "pass", "score": 1, "explanation": "..."}
-    return "pass"
+    # return {"label": "pass", "score": 1, "explanation": "..."}  # also set score and explanation
+    return "pass"  # label only
 `;
     }
     // continuous
     return `def evaluate(output, reference=None, input=None, metadata=None):
-    # Full dict form: return {"score": 0.5, "explanation": "..."}
-    return 0.5
+    # return {"score": 0.5, "explanation": "..."}  # also set explanation
+    return 0.5  # score only
 `;
   }
   // TYPESCRIPT
   if (shape === "categorical") {
     return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // Full dict form: return { label: "pass", score: 1, explanation: "..." };
-  return "pass";
+  // return { label: "pass", score: 1, explanation: "..." };  // also set score and explanation
+  return "pass";  // label only
 }
 `;
   }
   // continuous
   return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // Full dict form: return { score: 0.5, explanation: "..." };
-  return 0.5;
+  // return { score: 0.5, explanation: "..." };  // also set explanation
+  return 0.5;  // score only
 }
 `;
 }
@@ -85,14 +85,14 @@ export function getDefaultCodeEvaluatorSource(
       const label = catConfig.values[0].label;
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-    # Full dict form: return {"label": "${label}", "score": 1, "explanation": "..."}
-    return "${label}"
+    # return {"label": "${label}", "score": 1, "explanation": "..."}  # also set score and explanation
+    return "${label}"  # label only
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // Full dict form: return { label: "${label}", score: 1, explanation: "..." };
-  return "${label}";
+  // return { label: "${label}", score: 1, explanation: "..." };  // also set score and explanation
+  return "${label}";  // label only
 }
 `;
     }
@@ -115,14 +115,14 @@ export function getDefaultCodeEvaluatorSource(
       const rangeComment = `${lower.toFixed(1)} - ${upper.toFixed(1)}`;
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-    # Full dict form: return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # expected range: ${rangeComment}
-    return ${midpoint.toFixed(1)}
+    # return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # also set explanation
+    return ${midpoint.toFixed(1)}  # score only (expected range: ${rangeComment})
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // Full dict form: return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // expected range: ${rangeComment}
-  return ${midpoint.toFixed(1)};
+  // return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // also set explanation
+  return ${midpoint.toFixed(1)};  // score only (expected range: ${rangeComment})
 }
 `;
     }
