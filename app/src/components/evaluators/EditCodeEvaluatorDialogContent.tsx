@@ -14,6 +14,8 @@ import {
   Icons,
   Input,
   Label,
+  List,
+  ListItem,
   ListBox,
   Popover,
   Select,
@@ -248,6 +250,10 @@ export const EditCodeEvaluatorDialogContent = ({
     ? "The previously selected sandbox is no longer available. Save to keep the existing sandbox, or choose a new one to update it."
     : undefined;
   const hasNoSandboxConfigs = sandboxConfigs.length === 0;
+  const selectedSandboxConfig =
+    sandboxConfigs.find(
+      (sandboxConfig) => sandboxConfig.id === selectedSandboxConfigId
+    ) ?? null;
 
   const handleSubmit = async () => {
     const isValid = await store.getState().validateAll();
@@ -388,79 +394,12 @@ export const EditCodeEvaluatorDialogContent = ({
             {/* Right panel: Collapsible Sidebar (40%) */}
             <Panel defaultSize="40%" minSize="25%" style={panelStyle}>
               <div css={sidebarPanelCSS}>
-                <DisclosureGroup
-                  defaultExpandedKeys={["output-config", "input-mapping"]}
-                >
-                  {/* Test Section */}
-                  <Disclosure id="test-section" defaultExpanded={false}>
-                    <DisclosureTrigger arrowPosition="start">
-                      <Text weight="heavy" size="S">
-                        Test Evaluator
-                      </Text>
-                    </DisclosureTrigger>
-                    <DisclosurePanel>
-                      <div css={accordionContentCSS}>
-                        <View marginY="size-100" paddingX="size-200">
-                          <CodeEvaluatorTestSection
-                            sourceCode={sourceCode}
-                            language={language}
-                            sandboxConfigId={selectedSandboxConfigId}
-                          />
-                        </View>
-                        <View paddingX="size-200" paddingTop="size-50">
-                          <EvaluatorExampleDataset />
-                        </View>
-                        <View marginTop="size-100">
-                          <EvaluatorInputPreview />
-                        </View>
-                      </div>
-                    </DisclosurePanel>
-                  </Disclosure>
-
-                  {/* Output Configuration Section */}
-                  <Disclosure id="output-config">
-                    <DisclosureTrigger arrowPosition="start">
-                      <Text weight="heavy" size="S">
-                        Output Configuration
-                      </Text>
-                    </DisclosureTrigger>
-                    <DisclosurePanel>
-                      <div css={accordionContentCSS}>
-                        <View paddingX="size-200" paddingTop="size-100">
-                          <Text color="text-500" size="XS">
-                            Define the output type and optimization direction
-                            for your evaluator.
-                          </Text>
-                          <View marginTop="size-100">
-                            <OutputConfigSection />
-                          </View>
-                        </View>
-                      </div>
-                    </DisclosurePanel>
-                  </Disclosure>
-
-                  {/* Input Mapping Section */}
-                  <Disclosure id="input-mapping">
-                    <DisclosureTrigger arrowPosition="start">
-                      <Text weight="heavy" size="S">
-                        Input Mapping
-                      </Text>
-                    </DisclosureTrigger>
-                    <DisclosurePanel>
-                      <div css={accordionContentCSS}>
-                        <View paddingX="size-200" paddingTop="size-100">
-                          <Text color="text-500" size="XS">
-                            Map evaluator arguments to dataset fields. Arguments
-                            are auto-detected from your code.
-                          </Text>
-                          <View marginTop="size-100">
-                            <EvaluatorInputMapping />
-                          </View>
-                        </View>
-                      </div>
-                    </DisclosurePanel>
-                  </Disclosure>
-                </DisclosureGroup>
+                <ConfiguratorSidebar
+                  selectedSandboxConfig={selectedSandboxConfig}
+                  selectedSandboxConfigId={selectedSandboxConfigId}
+                  sourceCode={sourceCode}
+                  language={language}
+                />
               </div>
             </Panel>
           </Group>
@@ -529,6 +468,236 @@ const CompactHeaderBar = ({
     </Flex>
   );
 };
+
+const ConfiguratorSidebar = ({
+  selectedSandboxConfig,
+  selectedSandboxConfigId,
+  sourceCode,
+  language,
+}: {
+  selectedSandboxConfig: SandboxConfigOption | null;
+  selectedSandboxConfigId: string | null;
+  sourceCode: string;
+  language: CodeEvaluatorLanguage;
+}) => {
+  return (
+    <DisclosureGroup defaultExpandedKeys={["output-config", "input-mapping"]}>
+      <Disclosure id="sandbox-runtime" defaultExpanded={false}>
+        <DisclosureTrigger arrowPosition="start">
+          <Text weight="heavy" size="S">
+            Sandbox Runtime
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <div css={accordionContentCSS}>
+            <View paddingTop="size-100">
+              <SandboxCapabilitySummaryCard
+                selectedSandboxConfig={selectedSandboxConfig}
+                description="Review the selected runtime before testing execution behavior or saving this evaluator."
+              />
+            </View>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
+
+      <Disclosure id="test-section" defaultExpanded={false}>
+        <DisclosureTrigger arrowPosition="start">
+          <Text weight="heavy" size="S">
+            Test Evaluator
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <div css={accordionContentCSS}>
+            <View marginY="size-100" paddingX="size-200">
+              <CodeEvaluatorTestSection
+                sourceCode={sourceCode}
+                language={language}
+                sandboxConfigId={selectedSandboxConfigId}
+              />
+            </View>
+            <View paddingX="size-200" paddingTop="size-50">
+              <EvaluatorExampleDataset />
+            </View>
+            <View marginTop="size-100">
+              <EvaluatorInputPreview />
+            </View>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
+
+      <Disclosure id="output-config">
+        <DisclosureTrigger arrowPosition="start">
+          <Text weight="heavy" size="S">
+            Output Configuration
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <div css={accordionContentCSS}>
+            <View paddingX="size-200" paddingTop="size-100">
+              <Text color="text-500" size="XS">
+                Define the output type and optimization direction for your
+                evaluator.
+              </Text>
+              <View marginTop="size-100">
+                <OutputConfigSection />
+              </View>
+            </View>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
+
+      <Disclosure id="input-mapping">
+        <DisclosureTrigger arrowPosition="start">
+          <Text weight="heavy" size="S">
+            Input Mapping
+          </Text>
+        </DisclosureTrigger>
+        <DisclosurePanel>
+          <div css={accordionContentCSS}>
+            <View paddingX="size-200" paddingTop="size-100">
+              <Text color="text-500" size="XS">
+                Map evaluator arguments to dataset fields. Arguments are
+                auto-detected from your code.
+              </Text>
+              <View marginTop="size-100">
+                <EvaluatorInputMapping />
+              </View>
+            </View>
+          </div>
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
+  );
+};
+
+const SandboxCapabilitySummaryCard = ({
+  selectedSandboxConfig,
+  description,
+}: {
+  selectedSandboxConfig: SandboxConfigOption | null;
+  description: string;
+}) => {
+  return (
+    <Flex direction="column" gap="size-100">
+      <Flex direction="column" gap="size-25">
+        <View paddingX="size-200">
+          <Text color="text-500" size="XS">
+            {description}
+          </Text>
+        </View>
+      </Flex>
+      {selectedSandboxConfig == null ? (
+        <View paddingX="size-200">
+          <Text color="text-500" size="XS">
+            Choose a sandbox to review its configured execution settings.
+          </Text>
+        </View>
+      ) : (
+        <List size="S">
+          <SandboxCapabilityRow
+            label="config"
+            value={selectedSandboxConfig.name}
+          />
+          {selectedSandboxConfig.timeout != null ? (
+            <SandboxCapabilityRow
+              label="timeout"
+              value={`${selectedSandboxConfig.timeout} seconds`}
+            />
+          ) : null}
+          <SandboxCapabilityRow
+            label="env_vars"
+            value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
+          />
+          <SandboxCapabilityRow
+            label="internet_access"
+            value={getSandboxInternetAccessConfigLabel(
+              selectedSandboxConfig.config
+            )}
+          />
+          <SandboxCapabilityRow
+            label="dependencies"
+            value={getSandboxDependenciesConfigLabel(
+              selectedSandboxConfig.config
+            )}
+          />
+        </List>
+      )}
+    </Flex>
+  );
+};
+
+const SandboxCapabilityRow = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) => {
+  return (
+    <ListItem>
+      <View paddingStart="size-100" paddingEnd="size-100">
+        <Flex direction="row" justifyContent="space-between">
+          <Text size="XS" color="text-700">
+            {label}
+          </Text>
+          <Text size="XS">{value}</Text>
+        </Flex>
+      </View>
+    </ListItem>
+  );
+};
+
+function getSandboxEnvVarsLabel(config: unknown) {
+  const sandboxConfig = getSandboxConfigRecord(config);
+  const envVars = Array.isArray(sandboxConfig?.env_vars)
+    ? sandboxConfig.env_vars
+    : [];
+  const envVarNames = envVars
+    .map((entry) => {
+      if (entry != null && typeof entry === "object" && "name" in entry) {
+        return String((entry as Record<string, unknown>).name ?? "");
+      }
+      return "";
+    })
+    .filter(Boolean);
+
+  return envVarNames.length > 0 ? envVarNames.join(", ") : "none";
+}
+
+function getSandboxInternetAccessConfigLabel(config: unknown) {
+  const sandboxConfig = getSandboxConfigRecord(config);
+  const internetAccess = sandboxConfig?.internet_access;
+  if (internetAccess == null || typeof internetAccess !== "object") {
+    return "not configured";
+  }
+
+  const mode = (internetAccess as Record<string, unknown>).mode;
+  return typeof mode === "string" ? mode : "not configured";
+}
+
+function getSandboxDependenciesConfigLabel(config: unknown) {
+  const sandboxConfig = getSandboxConfigRecord(config);
+  const dependencies = sandboxConfig?.dependencies;
+  if (dependencies == null || typeof dependencies !== "object") {
+    return "none";
+  }
+
+  const packages = Array.isArray(
+    (dependencies as Record<string, unknown>).packages
+  )
+    ? ((dependencies as Record<string, unknown>).packages as unknown[])
+        .map((pkg) => String(pkg))
+        .filter(Boolean)
+    : [];
+
+  return packages.length > 0 ? packages.join(", ") : "none";
+}
+
+function getSandboxConfigRecord(config: unknown) {
+  return config != null && typeof config === "object"
+    ? (config as Record<string, unknown>)
+    : null;
+}
 
 /**
  * Code editor section - full height, primary element
