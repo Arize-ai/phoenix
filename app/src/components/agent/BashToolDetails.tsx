@@ -3,13 +3,13 @@ import {
   getBashToolInput,
 } from "@phoenix/agent/tools/bash";
 
-import type { ToolInvocationPart } from "./toolPartTypes";
-import { stringifyToolValue } from "./toolPartTypes";
 import {
   ToolPartCodeBlock,
   ToolPartLabel,
   ToolPartMeta,
 } from "./ToolPartPrimitives";
+import type { ToolInvocationPart } from "./toolPartTypes";
+import { stringifyToolValue } from "./toolPartTypes";
 
 /**
  * Returns the preview text for the collapsed bash tool summary.

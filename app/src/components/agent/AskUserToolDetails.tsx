@@ -4,9 +4,9 @@ import type {
 } from "@phoenix/agent/tools/elicit";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 
 /**
  * Returns the preview text for the collapsed ask_user tool summary.
@@ -54,7 +54,9 @@ export function AskUserToolDetails({ part }: { part: ToolInvocationPart }) {
 
   return (
     <div className="tool-part__body">
-      <ToolPartLabel variant={input ? undefined : "danger"}>Questions</ToolPartLabel>
+      <ToolPartLabel variant={input ? undefined : "danger"}>
+        Questions
+      </ToolPartLabel>
       <ToolPartCodeBlock>{questionsText}</ToolPartCodeBlock>
       {part.state === "output-available" && output ? (
         <>

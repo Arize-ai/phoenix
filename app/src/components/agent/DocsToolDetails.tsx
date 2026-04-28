@@ -6,9 +6,9 @@ import {
   parseDocsSearchInput,
 } from "@phoenix/agent/tools/docs";
 
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 
 /**
  * Maximum number of characters to show in the collapsed output preview.

@@ -276,7 +276,10 @@ export function ToolPart({ part }: { part: MessagePart }) {
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
-            <Icon svg={<Icons.WrenchOutline />} className="tool-part__tool-icon" />
+            <Icon
+              svg={<Icons.WrenchOutline />}
+              className="tool-part__tool-icon"
+            />
             {toolName}
           </span>
           {preview ? (
@@ -375,9 +378,7 @@ function getToolPresentation(
             {part.state === "output-error" ? (
               <>
                 <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartCodeBlock>
-                  {part.errorText ?? ""}
-                </ToolPartCodeBlock>
+                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
               </>
             ) : null}
           </div>

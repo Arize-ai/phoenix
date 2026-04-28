@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
-
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
+import { useEffect, useRef } from "react";
 
 import {
   ToolPart,
@@ -169,7 +168,11 @@ const askUserAwaitingPart = makePart({
             label: "PostgreSQL",
             description: "Recommended for production",
           },
-          { id: "sqlite", label: "SQLite", description: "Great for development" },
+          {
+            id: "sqlite",
+            label: "SQLite",
+            description: "Great for development",
+          },
           { id: "mysql", label: "MySQL", description: "Legacy support" },
         ],
         allow_skip: false,
