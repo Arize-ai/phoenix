@@ -1,6 +1,6 @@
 import base64
-from types import SimpleNamespace
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
@@ -20,6 +20,11 @@ from phoenix.server.agents.model_factory import (
     build_chat_model,
 )
 from phoenix.server.types import DbSessionFactory
+
+
+@dataclass
+class _ProviderRecord:
+    config: bytes
 
 
 class TestBuildChatModel:
@@ -72,7 +77,7 @@ class TestCustomProviderModels:
     async def test_custom_provider_decrypt_failure_becomes_http_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _get_pydantic_ai_model_from_generative_model_custom_provider(
-                provider_record=SimpleNamespace(config=b"ciphertext"),
+                provider_record=_ProviderRecord(config=b"ciphertext"),
                 model_name="gpt-4o-mini",
                 decrypt=_raise_value_error,
             )
@@ -83,7 +88,7 @@ class TestCustomProviderModels:
     async def test_custom_provider_parse_failure_becomes_http_400(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
             await _get_pydantic_ai_model_from_generative_model_custom_provider(
-                provider_record=SimpleNamespace(config=b"not-json"),
+                provider_record=_ProviderRecord(config=b"not-json"),
                 model_name="gpt-4o-mini",
                 decrypt=lambda value: value,
             )
@@ -114,11 +119,11 @@ class TestCustomProviderModels:
             openai_api_type="responses",
         )
         openai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
-            provider_record=SimpleNamespace(config=openai_config.model_dump_json().encode()),
+            provider_record=_ProviderRecord(config=openai_config.model_dump_json().encode()),
             model_name="gpt-4o-mini",
             decrypt=lambda value: value,
         )
-        assert openai_model._provider.client.kwargs["max_retries"] == 0
+        assert cast(Any, openai_model)._provider.client.kwargs["max_retries"] == 0
 
         azure_config = AzureOpenAICustomProviderConfig(
             azure_openai_authentication_method={"type": "api_key", "api_key": "azure-test-key"},
@@ -126,11 +131,11 @@ class TestCustomProviderModels:
             openai_api_type="responses",
         )
         azure_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
-            provider_record=SimpleNamespace(config=azure_config.model_dump_json().encode()),
+            provider_record=_ProviderRecord(config=azure_config.model_dump_json().encode()),
             model_name="gpt-4o-mini",
             decrypt=lambda value: value,
         )
-        assert azure_model._provider.client.kwargs["max_retries"] == 0
+        assert cast(Any, azure_model)._provider.client.kwargs["max_retries"] == 0
 
     async def test_anthropic_custom_provider_disables_sdk_retries(
         self,
@@ -149,11 +154,11 @@ class TestCustomProviderModels:
             anthropic_client_kwargs={"base_url": "https://anthropic.example.test"},
         )
         anthropic_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
-            provider_record=SimpleNamespace(config=anthropic_config.model_dump_json().encode()),
+            provider_record=_ProviderRecord(config=anthropic_config.model_dump_json().encode()),
             model_name="claude-3-5-sonnet-20241022",
             decrypt=lambda value: value,
         )
-        assert anthropic_model._provider.client.kwargs["max_retries"] == 0
+        assert cast(Any, anthropic_model)._provider.client.kwargs["max_retries"] == 0
 
 
 def _global_id(type_name: str, node_id: str) -> str:

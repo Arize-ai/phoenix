@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from os import getenv
-from typing import TYPE_CHECKING, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol, cast
 
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -26,19 +26,24 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model as PydanticAIModel
 
 
+class _EncryptedProviderRecord(Protocol):
+    config: bytes
+
+
 def _build_openai_model(
     *,
     model_name: str,
-    provider: object,
+    provider: Any,
     openai_api_type: Literal["chat_completions", "responses"],
 ) -> "PydanticAIModel":
     from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 
     if openai_api_type == "responses":
-        return OpenAIResponsesModel(model_name, provider=provider)
+        return cast("PydanticAIModel", OpenAIResponsesModel(model_name, provider=provider))
     if openai_api_type == "chat_completions":
-        return OpenAIChatModel(model_name, provider=provider)
+        return cast("PydanticAIModel", OpenAIChatModel(model_name, provider=provider))
     assert_never(openai_api_type)
+    raise ValueError(f"Unsupported OpenAI API type: {openai_api_type}")
 
 
 def azure_endpoint_to_base_url(azure_endpoint: str) -> str:
@@ -102,10 +107,11 @@ async def build_chat_model(
             decrypt=decrypt,
         )
     assert_never(params)
+    raise ValueError(f"Unsupported chat search params type: {type(params).__name__}")
 
 
 async def _get_pydantic_ai_model_from_generative_model_custom_provider(
-    provider_record: models.GenerativeModelCustomProvider,
+    provider_record: _EncryptedProviderRecord,
     model_name: str,
     decrypt: Callable[[bytes], bytes],
 ) -> "PydanticAIModel":
@@ -137,15 +143,15 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
         ) from exc
 
     if config.type == "openai":
-        kwargs = config.openai_client_kwargs
-        headers = kwargs.default_headers if kwargs else None
+        openai_kwargs = config.openai_client_kwargs
+        headers = openai_kwargs.default_headers if openai_kwargs else None
         with without_env_vars("OPENAI_*"):
             openai_provider = OpenAIProvider(
                 openai_client=AsyncOpenAI(
                     api_key=config.openai_authentication_method.api_key,
-                    base_url=kwargs.base_url if kwargs else None,
-                    organization=kwargs.organization if kwargs else None,
-                    project=kwargs.project if kwargs else None,
+                    base_url=openai_kwargs.base_url if openai_kwargs else None,
+                    organization=openai_kwargs.organization if openai_kwargs else None,
+                    project=openai_kwargs.project if openai_kwargs else None,
                     default_headers=headers,
                     max_retries=0,
                 )
@@ -156,22 +162,22 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             openai_api_type=config.openai_api_type,
         )
     if config.type == "azure_openai":
-        kwargs = config.azure_openai_client_kwargs
-        headers = kwargs.default_headers
-        base_url = azure_endpoint_to_base_url(kwargs.azure_endpoint)
-        method = config.azure_openai_authentication_method
+        azure_kwargs = config.azure_openai_client_kwargs
+        headers = azure_kwargs.default_headers
+        base_url = azure_endpoint_to_base_url(azure_kwargs.azure_endpoint)
+        azure_method = config.azure_openai_authentication_method
 
-        if method.type == "api_key":
+        if azure_method.type == "api_key":
             with without_env_vars("AZURE_*", "OPENAI_*"):
                 openai_provider = OpenAIProvider(
                     openai_client=AsyncOpenAI(
-                        api_key=method.api_key,
+                        api_key=azure_method.api_key,
                         base_url=base_url,
                         default_headers=headers,
                         max_retries=0,
                     )
                 )
-        elif method.type == "azure_ad_token_provider":
+        elif azure_method.type == "azure_ad_token_provider":
             try:
                 from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
             except ImportError as exc:
@@ -180,11 +186,11 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
                     detail="Azure identity package not installed.",
                 ) from exc
             credential = ClientSecretCredential(
-                tenant_id=method.azure_tenant_id,
-                client_id=method.azure_client_id,
-                client_secret=method.azure_client_secret,
+                tenant_id=azure_method.azure_tenant_id,
+                client_id=azure_method.azure_client_id,
+                client_secret=azure_method.azure_client_secret,
             )
-            token_provider = get_bearer_token_provider(credential, method.scope)
+            token_provider = get_bearer_token_provider(credential, azure_method.scope)
             openai_provider = OpenAIProvider(
                 openai_client=AsyncOpenAI(
                     api_key=token_provider,
@@ -193,7 +199,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
                     max_retries=0,
                 )
             )
-        elif method.type == "default_credentials":
+        elif azure_method.type == "default_credentials":
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
             except ImportError as exc:
@@ -214,7 +220,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
                 )
             )
         else:
-            assert_never(method.type)
+            assert_never(azure_method.type)
 
         return _build_openai_model(
             model_name=model_name,
@@ -222,21 +228,21 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             openai_api_type=config.openai_api_type,
         )
     if config.type == "anthropic":
-        kwargs = config.anthropic_client_kwargs
-        headers = kwargs.default_headers if kwargs else None
+        anthropic_kwargs = config.anthropic_client_kwargs
+        headers = anthropic_kwargs.default_headers if anthropic_kwargs else None
         with without_env_vars("ANTHROPIC_*"):
             anthropic_provider = AnthropicProvider(
                 anthropic_client=AsyncAnthropic(
                     api_key=config.anthropic_authentication_method.api_key,
-                    base_url=kwargs.base_url if kwargs else None,
+                    base_url=anthropic_kwargs.base_url if anthropic_kwargs else None,
                     default_headers=headers,
                     max_retries=0,
                 )
             )
         return AnthropicModel(model_name, provider=anthropic_provider)
     if config.type == "google_genai":
-        kwargs = config.google_genai_client_kwargs
-        http_options = kwargs.http_options if kwargs else None
+        google_kwargs = config.google_genai_client_kwargs
+        http_options = google_kwargs.http_options if google_kwargs else None
         # TODO(mikeldking): preserve get_client_factory timeout semantics when
         # custom Google provider headers are configured.
         google_provider = GoogleProvider(
@@ -250,23 +256,23 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
         )
         return GoogleModel(model_name, provider=google_provider)
     if config.type == "aws_bedrock":
-        kwargs = config.aws_bedrock_client_kwargs
-        method = config.aws_bedrock_authentication_method
-        if method.type == "access_keys":
+        bedrock_kwargs = config.aws_bedrock_client_kwargs
+        bedrock_method = config.aws_bedrock_authentication_method
+        if bedrock_method.type == "access_keys":
             bedrock_provider = BedrockProvider(
-                aws_access_key_id=method.aws_access_key_id,
-                aws_secret_access_key=method.aws_secret_access_key,
-                aws_session_token=method.aws_session_token,
-                region_name=kwargs.region_name,
-                base_url=kwargs.endpoint_url,
+                aws_access_key_id=bedrock_method.aws_access_key_id,
+                aws_secret_access_key=bedrock_method.aws_secret_access_key,
+                aws_session_token=bedrock_method.aws_session_token,
+                region_name=bedrock_kwargs.region_name,
+                base_url=bedrock_kwargs.endpoint_url,
             )
-        elif method.type == "default_credentials":
+        elif bedrock_method.type == "default_credentials":
             bedrock_provider = BedrockProvider(
-                region_name=kwargs.region_name,
-                base_url=kwargs.endpoint_url,
+                region_name=bedrock_kwargs.region_name,
+                base_url=bedrock_kwargs.endpoint_url,
             )
         else:
-            assert_never(method.type)
+            assert_never(bedrock_method.type)
         return BedrockConverseModel(model_name, provider=bedrock_provider)
     raise HTTPException(status_code=400, detail=f"Unsupported custom provider type: {config.type}")
 

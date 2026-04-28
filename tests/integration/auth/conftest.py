@@ -426,9 +426,15 @@ def _env_ldap_posix_memberuid(_ldap_server: _LDAPServer) -> dict[str, str]:
 
 @pytest.fixture(scope="package")
 def _env_agents() -> dict[str, str]:
-    """Configure agent feature flag for testing."""
+    """Configure agents testing environment.
+
+    The chat auth integration tests use the Anthropic built-in provider only
+    to exercise route authentication, not provider credential validation, so
+    provide a fake key to keep those requests on the authenticated code path.
+    """
     return {
         "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
+        "ANTHROPIC_API_KEY": "sk-fake-anthropic-key",
     }
 
 

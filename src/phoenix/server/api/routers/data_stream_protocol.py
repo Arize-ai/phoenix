@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
@@ -19,7 +19,6 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
     resolve_contexts,
 )
-from phoenix.server.agents.mcp import MintlifyDocsClient
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
@@ -34,7 +33,7 @@ if TYPE_CHECKING:
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
     from pydantic_ai.usage import RequestUsage
 
-    from phoenix.server.agents.context import ToolCallable
+    from phoenix.server.agents.mcp import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
 
@@ -332,7 +331,11 @@ async def stream_text(
     *,
     body: ChatBody,
     mcp_client: "MintlifyDocsClient | None" = None,
-    contextual_tools: tuple[list["ToolDefinition"], dict[str, "ToolCallable"]] | None = None,
+    contextual_tools: tuple[
+        list["ToolDefinition"],
+        dict[str, Callable[[dict[str, Any]], Awaitable[str]]],
+    ]
+    | None = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
         ModelRequest,

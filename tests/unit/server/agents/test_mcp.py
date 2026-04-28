@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from starlette.requests import Request
 
 from phoenix.server.agents import mcp
 
@@ -31,7 +32,9 @@ class TestMintlifyDocsClient:
         async def _ensure_session_locked(_: mcp.MintlifyDocsClient) -> DummySession:
             return DummySession()
 
-        monkeypatch.setattr(mcp.MintlifyDocsClient, "_ensure_session_locked", _ensure_session_locked)
+        monkeypatch.setattr(
+            mcp.MintlifyDocsClient, "_ensure_session_locked", _ensure_session_locked
+        )
 
         first = await client.get_tool_definitions()
         second = await client.get_tool_definitions()
@@ -101,10 +104,19 @@ class TestGetMcpClient:
         assert request.app.state._mcp_client is None
 
 
-def _make_request() -> SimpleNamespace:
-    return SimpleNamespace(
-        app=SimpleNamespace(
-            state=SimpleNamespace(),
-            router=SimpleNamespace(on_shutdown=[]),
-        )
+def _make_request() -> Request:
+    app = SimpleNamespace(
+        state=SimpleNamespace(),
+        router=SimpleNamespace(on_shutdown=[]),
+    )
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "raw_path": b"/",
+            "query_string": b"",
+            "headers": [],
+            "app": app,
+        }
     )

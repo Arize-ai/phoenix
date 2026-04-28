@@ -207,7 +207,7 @@ def get_mcp_client(request: Request) -> MintlifyDocsClient | None:
                     try:
                         await client.close()
                     except Exception:
-                        pass
+                        logger.exception("Error closing MCP client during shutdown")
 
                 request.app.router.on_shutdown.append(_close_mcp_client)
             except Exception:
