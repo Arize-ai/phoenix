@@ -60,77 +60,17 @@ Resume is also useful when you want to:
 
 * Attach a new dataset evaluator and score existing runs.
 * Re-run failed tasks after a transient provider outage.
-* Add more dataset examples and execute tasks only on the new ones.
+
+## The *Record* Toggle
+
+When *Record* is off, the experiment is ephemeral: it does not appear in the experiments list, and its database records are deleted after a set period.
 
 ## Leaving the Playground Mid-Experiment
 
-Navigating away from the Playground while an experiment is still in progress opens a confirmation dialog. The dialog depends on whether the experiment is *ephemeral*.
-
-### Ephemeral Experiments
-
-Experiments started with temporary credentials — for example, an API key entered directly in the browser — are ephemeral. They stop on disconnect because the credentials cannot be persisted on the server, and they're automatically deleted 24 hours after their last update.
-
-When you navigate away, Phoenix opens an **Experiment In Progress** dialog warning that the experiment will stop if you leave. From there you can:
-
-* **Stay** — cancel navigation and remain in the Playground.
-* **Leave** — navigate away; the experiment stops.
-
-### Persistent Experiments
-
-Experiments that use configured model credentials keep running after you leave the Playground. Phoenix opens a **Leave this page?** dialog confirming that the experiment will continue in the background and that you can keep tabs on it from the experiments table. You can:
-
-* **Stay on page** — cancel navigation.
-* **Delete experiment** — delete the experiment and then navigate away.
-* **Leave page** — navigate away; the experiment keeps running.
+With *Record* on, you can leave the Playground while an experiment is still running, and Phoenix will continue it in the background. With *Record* off, leaving stops the experiment.
 
 ## Automatic Recovery
 
 If the Phoenix server restarts — or a replica crashes in a multi-replica deployment — any experiments that were running are automatically picked back up within a few minutes. No manual action is required.
 
 Recovery re-queries the database for incomplete runs and missing evaluations, so the experiment continues exactly where it left off.
-
-## Querying Job Status via the API
-
-Every `Experiment` exposes a `job` field of type `ExperimentJob` for experiments that are managed by the server. The field is `null` for experiments submitted through the Python or TypeScript SDK.
-
-```graphql
-query ExperimentStatus($experimentId: ID!) {
-  node(id: $experimentId) {
-    ... on Experiment {
-      name
-      isEphemeral
-      job {
-        status
-        createdAt
-        maxConcurrency
-        lastError {
-          message
-          occurredAt
-          level
-        }
-      }
-    }
-  }
-}
-```
-
-Use `lastError` for a quick "what went wrong most recently" view, or page through `errors` on `ExperimentJob` to inspect the full error history.
-
-To list all experiment jobs for a dataset:
-
-```graphql
-query DatasetJobs($datasetId: ID!) {
-  node(id: $datasetId) {
-    ... on Dataset {
-      experimentJobs(first: 50) {
-        edges {
-          node {
-            status
-            experiment { name }
-          }
-        }
-      }
-    }
-  }
-}
-```
