@@ -115,10 +115,10 @@ class TestReservedCredentialNameHelper:
     @pytest.mark.parametrize(
         "name",
         [
-            "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
-            "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
-            "phoenix_sandbox_modal_token_id",
-            "phoenix_sandbox_modal_token_secret",
+            "MODAL_TOKEN_ID",
+            "MODAL_TOKEN_SECRET",
+            "modal_token_id",
+            "modal_token_secret",
         ],
     )
     def test_modal_token_keys_are_reserved(self, name: str) -> None:
@@ -128,6 +128,7 @@ class TestReservedCredentialNameHelper:
         assert is_reserved_credential_name("PHOENIX_SANDBOX_E2B_API_KEY")
         assert is_reserved_credential_name("PHOENIX_SANDBOX_VERCEL_TOKEN")
         assert is_reserved_credential_name("phoenix_sandbox_vercel_token")
+        assert is_reserved_credential_name("VERCEL_OIDC_TOKEN")
 
 
 class TestValidateConfigRejectsDuplicateEnvVarNames:

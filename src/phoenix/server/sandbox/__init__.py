@@ -236,7 +236,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of "
+                "Set `VERCEL_OIDC_TOKEN`, or all of "
                 "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
                 "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
                 "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
@@ -252,7 +252,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of "
+                "Set `VERCEL_OIDC_TOKEN`, or all of "
                 "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
                 "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
                 "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
@@ -277,10 +277,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `modal` extra.",
-            (
-                "Provide `PHOENIX_SANDBOX_MODAL_TOKEN_ID` and "
-                "`PHOENIX_SANDBOX_MODAL_TOKEN_SECRET` environment variables."
-            ),
+            "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -541,7 +538,7 @@ async def get_missing_sandbox_auth_detail(
         return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
 
     if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
-        oidc_key = "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN"
+        oidc_key = "VERCEL_OIDC_TOKEN"
         access_keys = [
             "PHOENIX_SANDBOX_VERCEL_TOKEN",
             "PHOENIX_SANDBOX_VERCEL_PROJECT_ID",
@@ -553,23 +550,18 @@ async def get_missing_sandbox_auth_detail(
         missing_access_keys = [key for key in access_keys if key not in resolved]
         if len(missing_access_keys) < len(access_keys):
             return (
-                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or add "
+                "Set `VERCEL_OIDC_TOKEN`, or add "
                 f"{_format_required_keys(missing_access_keys)} to complete "
                 "the Vercel access token configuration."
             )
         return (
-            "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+            "Set `VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
             "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
         )
 
     if backend_type == "MODAL":
         missing_modal_keys = [
-            key
-            for key in (
-                "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
-                "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
-            )
-            if not os.getenv(key)
+            key for key in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if not os.getenv(key)
         ]
         if not missing_modal_keys:
             return None
@@ -746,8 +738,8 @@ _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
         # Contrast with SandboxAdapter.credential_specs (adapter-declared, settable
         # via mutation). RESERVED_CREDENTIAL_NAMES is the derived union of both.
         # Modal remains env-var-only, so reserve its names explicitly.
-        "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
-        "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
+        "MODAL_TOKEN_ID",
+        "MODAL_TOKEN_SECRET",
     }
 )
 

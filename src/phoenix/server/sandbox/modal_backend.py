@@ -4,9 +4,8 @@ Modal sandbox backend.
 Requires the ``modal`` package (optional extra).
 Import is deferred to avoid top-level failures when the extra is absent.
 
-Authentication is env-var-only: Modal picks up
-PHOENIX_SANDBOX_MODAL_TOKEN_ID and PHOENIX_SANDBOX_MODAL_TOKEN_SECRET
-automatically from the environment (D6 design decision —
+Authentication is env-var-only: Modal picks up MODAL_TOKEN_ID and
+MODAL_TOKEN_SECRET automatically from the environment (D6 design decision —
 no credentials stored in DB config).
 
 Session lifecycle

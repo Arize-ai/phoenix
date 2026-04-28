@@ -8,9 +8,9 @@ otherwise spins up an ephemeral sandbox (create → run_command → stop).
 Requires the ``vercel`` extra (``vercel>=0.5.1``).
 Import is deferred to avoid top-level failures when the extra is absent.
 
-Authentication follows the Vercel Sandbox SDK: either
-``PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`` (for local ``vercel env pull`` or
-deployments on Vercel), or the access-token triple
+Authentication follows the Vercel Sandbox SDK: either ``VERCEL_OIDC_TOKEN``
+(for local ``vercel env pull`` or deployments on Vercel — read directly from
+the process environment by the SDK), or the Phoenix-scoped access-token triple
 ``PHOENIX_SANDBOX_VERCEL_TOKEN``, ``PHOENIX_SANDBOX_VERCEL_PROJECT_ID``, and
 ``PHOENIX_SANDBOX_VERCEL_TEAM_ID``. See
 https://vercel.com/docs/vercel-sandbox/concepts/authentication
@@ -37,8 +37,12 @@ from .types import (
     VercelTypescriptConfig,
 )
 
-# Phoenix-scoped Vercel credentials.
-ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN = "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN"
+# OIDC token is read directly from the SDK-native env var because
+# AsyncSandbox.create() with no token kwargs reads VERCEL_OIDC_TOKEN from
+# os.environ — renaming this would silently break authentication.
+ENV_VERCEL_OIDC_TOKEN = "VERCEL_OIDC_TOKEN"
+# Phoenix-scoped Vercel access-token credentials. These flow through
+# AsyncSandbox.create() as kwargs, so the rename is purely Phoenix-internal.
 ENV_PHOENIX_SANDBOX_VERCEL_TOKEN = "PHOENIX_SANDBOX_VERCEL_TOKEN"
 ENV_PHOENIX_SANDBOX_VERCEL_PROJECT_ID = "PHOENIX_SANDBOX_VERCEL_PROJECT_ID"
 ENV_PHOENIX_SANDBOX_VERCEL_TEAM_ID = "PHOENIX_SANDBOX_VERCEL_TEAM_ID"
@@ -71,9 +75,10 @@ class VercelSandboxBackend(SandboxBackend):
     across multiple execute() calls, or ephemeral execution (no session) which
     spins up a fresh sandbox per call.
 
-    Credentials: either rely on ``PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`` in the
-    process environment (``use_oidc_env=True``), or pass an access-token triple
-    ``token``, ``project_id``, and ``team_id`` for ``AsyncSandbox.create``.
+    Credentials: either rely on ``VERCEL_OIDC_TOKEN`` in the process environment
+    (``use_oidc_env=True`` — the SDK reads this env var directly), or pass an
+    access-token triple ``token``, ``project_id``, and ``team_id`` for
+    ``AsyncSandbox.create``.
     """
 
     def __init__(
@@ -207,14 +212,12 @@ def _resolve_vercel_team_id(config: dict[str, Any]) -> str:
 
 
 def _resolve_vercel_oidc_token(config: dict[str, Any]) -> str:
-    return str(config.get(ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN) or "") or os.environ.get(
-        ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN, ""
-    )
+    return str(config.get(ENV_VERCEL_OIDC_TOKEN) or "") or os.environ.get(ENV_VERCEL_OIDC_TOKEN, "")
 
 
 _VERCEL_ENV_VAR_SPECS = [
     ProviderCredentialSpec(
-        key="PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN",
+        key="VERCEL_OIDC_TOKEN",
         display_name="Vercel OIDC Token",
         description="OIDC token for Vercel sandbox (e.g. from `vercel env pull`).",
     ),
@@ -271,7 +274,7 @@ class VercelPythonAdapter(SandboxAdapter):
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "
-            "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
+            "VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
             "or set all of PHOENIX_SANDBOX_VERCEL_TOKEN, "
             "PHOENIX_SANDBOX_VERCEL_PROJECT_ID, and PHOENIX_SANDBOX_VERCEL_TEAM_ID. See "
             "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
@@ -307,7 +310,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "
-            "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
+            "VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
             "or set all of PHOENIX_SANDBOX_VERCEL_TOKEN, "
             "PHOENIX_SANDBOX_VERCEL_PROJECT_ID, and PHOENIX_SANDBOX_VERCEL_TEAM_ID. See "
             "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
