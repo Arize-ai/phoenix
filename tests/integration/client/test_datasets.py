@@ -12,7 +12,6 @@ from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
-from phoenix.experiments.functions import run_experiment
 
 from .._helpers import _AppInfo, _await_or_return, _ExistingSpan, _gql
 
@@ -802,6 +801,8 @@ Capital of Germany?,Berlin,geography,validation
 
         def simple_evaluator(output: str, expected: dict[str, Any]) -> float:
             return 1.0 if expected["answer"] in output else 0.0
+
+        from phoenix.experiments.functions import run_experiment  # type: ignore[import-untyped]
 
         result = run_experiment(
             dataset=dataset,
