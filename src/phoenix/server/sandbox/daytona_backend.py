@@ -8,10 +8,7 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any, Optional
-
-from phoenix.config import ENV_PHOENIX_SANDBOX_TOKEN
 
 from .types import (
     DaytonaPythonConfig,
@@ -154,12 +151,7 @@ class DaytonaPythonAdapter(SandboxAdapter):
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        api_key: str = (
-            config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
-            or os.environ.get("PHOENIX_SANDBOX_DAYTONA_API_KEY")
-            or os.environ.get(ENV_PHOENIX_SANDBOX_TOKEN)
-            or ""
-        )
+        api_key: str = config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY") or ""
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         internet_access = config.get("internet_access") or {}

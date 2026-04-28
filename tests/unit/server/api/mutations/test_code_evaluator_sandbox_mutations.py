@@ -946,8 +946,8 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Non-PHOENIX_SANDBOX reserved names (adapter-owned credentials like
-        VERCEL_TOKEN) must also be rejected at createSandboxConfig time —
+        """Prefixed adapter-owned credentials like PHOENIX_SANDBOX_VERCEL_TOKEN
+        must also be rejected at createSandboxConfig time —
         reserved-name coverage is derived from every adapter's credential_specs,
         not just the PHOENIX_SANDBOX_ prefix."""
         async with db() as session:
@@ -968,7 +968,7 @@ class TestConfigValidationPath:
                             "env_vars": [
                                 {
                                     "kind": "secret_ref",
-                                    "name": "VERCEL_TOKEN",
+                                    "name": "PHOENIX_SANDBOX_VERCEL_TOKEN",
                                     "secret_key": "anything",
                                 }
                             ]
@@ -983,16 +983,16 @@ class TestConfigValidationPath:
                     "input": {
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-vercel-token-top",
-                        "config": {"VERCEL_TOKEN": "attacker-value"},
+                        "config": {"PHOENIX_SANDBOX_VERCEL_TOKEN": "attacker-value"},
                     }
                 },
             )
         assert env_var_result.errors, (
-            "Expected BadRequest for VERCEL_TOKEN in env_vars; "
+            "Expected BadRequest for PHOENIX_SANDBOX_VERCEL_TOKEN in env_vars; "
             "reserved-name enforcement may not cover adapter-owned credentials"
         )
         assert top_level_result.errors, (
-            "Expected BadRequest for VERCEL_TOKEN as top-level config key; "
+            "Expected BadRequest for PHOENIX_SANDBOX_VERCEL_TOKEN as top-level config key; "
             "reserved-name enforcement may not cover top-level SandboxConfig.config"
         )
 
@@ -1029,7 +1029,7 @@ class TestConfigValidationPath:
                             "env_vars": [
                                 {
                                     "kind": "secret_ref",
-                                    "name": "PHOENIX_SANDBOX_TOKEN",
+                                    "name": "PHOENIX_SANDBOX_VERCEL_TOKEN",
                                     "secret_key": "my-secret",
                                 }
                             ]

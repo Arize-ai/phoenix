@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cfcf992839d7669d41bb44982fc47656>>
+ * @generated SignedSource<<5e7217b521d69f64a137190e14bd60a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
-export type SandboxBackendStatus = "AVAILABLE" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{

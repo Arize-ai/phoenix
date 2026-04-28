@@ -31,10 +31,10 @@ _e2b_adapter = E2BAdapter()
 # Reserved names exposed by the MODAL and VERCEL adapters (case-preserved for
 # readability; the mutation check is case-insensitive).
 _RESERVED_NAMES = [
-    "MODAL_TOKEN_SECRET",
-    "MODAL_TOKEN_ID",
-    "VERCEL_TOKEN",
-    "VERCEL_OIDC_TOKEN",
+    "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
+    "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
+    "PHOENIX_SANDBOX_VERCEL_TOKEN",
+    "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN",
 ]
 
 

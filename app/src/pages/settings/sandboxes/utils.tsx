@@ -1,3 +1,12 @@
+import { css } from "@emotion/react";
+
+import {
+  Flex,
+  RichTooltip,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
@@ -7,14 +16,51 @@ import type {
   SandboxProvider,
 } from "./types";
 
-export function StatusText({ status }: { status: BackendInfo["status"] }) {
+export function StatusText({
+  status,
+  detail,
+  dependencyHints = [],
+}: {
+  status: BackendInfo["status"];
+  detail?: BackendInfo["statusDetail"];
+  dependencyHints?: BackendInfo["dependencyHints"];
+}) {
   const color =
     status === "AVAILABLE"
       ? "var(--global-color-success)"
-      : status === "UNAVAILABLE"
+      : status === "UNAVAILABLE" || status === "MISSING_CREDENTIALS"
         ? "var(--global-color-warning)"
         : "var(--ac-global-text-color-700)";
-  return <span style={{ color }}>{statusLabel(status)}</span>;
+  const label = statusLabel(status);
+  const tooltipLines = detail ? [detail] : dependencyHints;
+
+  if (status === "AVAILABLE" || tooltipLines.length === 0) {
+    return <span style={{ color }}>{label}</span>;
+  }
+
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Text
+          color={status === "NOT_INSTALLED" ? "text-700" : "warning"}
+          css={css`
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+            cursor: help;
+          `}
+        >
+          {label}
+        </Text>
+      </TriggerWrap>
+      <RichTooltip width={320}>
+        <Flex direction="column" gap="size-50">
+          {tooltipLines.map((line) => (
+            <Text key={line}>{line}</Text>
+          ))}
+        </Flex>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
 }
 
 export function formatTimestamp(value: string) {
@@ -25,6 +71,8 @@ export function statusLabel(status: BackendInfo["status"]) {
   switch (status) {
     case "AVAILABLE":
       return "Available";
+    case "MISSING_CREDENTIALS":
+      return "Authentication required";
     case "UNAVAILABLE":
       return "Unavailable";
     case "NOT_INSTALLED":

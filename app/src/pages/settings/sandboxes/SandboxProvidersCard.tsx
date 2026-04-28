@@ -1,27 +1,17 @@
-import { css } from "@emotion/react";
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Card,
-  Flex,
-  Label,
-  RichTooltip,
-  Switch,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@phoenix/components";
+import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
 import { cardIntroCSS, sandboxesTableCSS } from "./styles";
-import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
+import type { ProviderRow, SandboxProvider } from "./types";
 import {
   formatTimestamp,
   getBackendDescription,
   languageLabel,
-  statusLabel,
+  StatusText,
 } from "./utils";
 
 export function SandboxProvidersCard({
@@ -64,7 +54,11 @@ export function SandboxProvidersCard({
                   <Text>{getBackendDescription(backend.backendType)}</Text>
                 </td>
                 <td>
-                  <ProviderStatusText backend={backend} />
+                  <StatusText
+                    status={backend.status}
+                    detail={backend.statusDetail}
+                    dependencyHints={backend.dependencyHints}
+                  />
                 </td>
 
                 <td>{formatTimestamp(provider.updatedAt)}</td>
@@ -86,42 +80,6 @@ export function SandboxProvidersCard({
         </tbody>
       </table>
     </Card>
-  );
-}
-
-function ProviderStatusText({ backend }: { backend: BackendInfo }) {
-  const label = statusLabel(backend.status);
-
-  if (backend.status === "AVAILABLE") {
-    return <Text color="success">{label}</Text>;
-  }
-
-  if (backend.dependencyHints.length === 0) {
-    return <Text color="text-700">{label}</Text>;
-  }
-
-  return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <Text
-          color="text-700"
-          css={css`
-            text-decoration: underline dotted;
-            text-underline-offset: 2px;
-            cursor: help;
-          `}
-        >
-          {label}
-        </Text>
-      </TriggerWrap>
-      <RichTooltip width={320}>
-        <Flex direction="column" gap="size-50">
-          {backend.dependencyHints.map((hint: string) => (
-            <Text key={hint}>{hint}</Text>
-          ))}
-        </Flex>
-      </RichTooltip>
-    </TooltipTrigger>
   );
 }
 

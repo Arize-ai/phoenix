@@ -81,7 +81,11 @@ export function SandboxConfigsCard({
                   </td>
                   <td>
                     <div css={inlineTokenRowCSS}>
-                      <StatusText status={backend.status} />
+                      <StatusText
+                        status={backend.status}
+                        detail={backend.statusDetail}
+                        dependencyHints={backend.dependencyHints}
+                      />
                     </div>
                   </td>
                   <td>

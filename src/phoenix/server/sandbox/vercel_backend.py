@@ -8,9 +8,11 @@ otherwise spins up an ephemeral sandbox (create → run_command → stop).
 Requires the ``vercel`` extra (``vercel>=0.5.1``).
 Import is deferred to avoid top-level failures when the extra is absent.
 
-Authentication follows the Vercel Sandbox SDK: either ``VERCEL_OIDC_TOKEN`` (for
-local ``vercel env pull`` or deployments on Vercel), or the access-token
-triple ``VERCEL_TOKEN``, ``VERCEL_PROJECT_ID``, and ``VERCEL_TEAM_ID``. See
+Authentication follows the Vercel Sandbox SDK: either
+``PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`` (for local ``vercel env pull`` or
+deployments on Vercel), or the access-token triple
+``PHOENIX_SANDBOX_VERCEL_TOKEN``, ``PHOENIX_SANDBOX_VERCEL_PROJECT_ID``, and
+``PHOENIX_SANDBOX_VERCEL_TEAM_ID``. See
 https://vercel.com/docs/vercel-sandbox/concepts/authentication
 
 Language routing
@@ -35,11 +37,11 @@ from .types import (
     VercelTypescriptConfig,
 )
 
-# Vercel SDK env (https://vercel.com/docs/vercel-sandbox/concepts/authentication)
-ENV_VERCEL_OIDC_TOKEN = "VERCEL_OIDC_TOKEN"
-ENV_VERCEL_TOKEN = "VERCEL_TOKEN"
-ENV_VERCEL_PROJECT_ID = "VERCEL_PROJECT_ID"
-ENV_VERCEL_TEAM_ID = "VERCEL_TEAM_ID"
+# Phoenix-scoped Vercel credentials.
+ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN = "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN"
+ENV_PHOENIX_SANDBOX_VERCEL_TOKEN = "PHOENIX_SANDBOX_VERCEL_TOKEN"
+ENV_PHOENIX_SANDBOX_VERCEL_PROJECT_ID = "PHOENIX_SANDBOX_VERCEL_PROJECT_ID"
+ENV_PHOENIX_SANDBOX_VERCEL_TEAM_ID = "PHOENIX_SANDBOX_VERCEL_TEAM_ID"
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +71,9 @@ class VercelSandboxBackend(SandboxBackend):
     across multiple execute() calls, or ephemeral execution (no session) which
     spins up a fresh sandbox per call.
 
-    Credentials: either rely on ``VERCEL_OIDC_TOKEN`` in the process environment
-    (``use_oidc_env=True``), or pass an access-token triple ``token``,
-    ``project_id``, and ``team_id`` for ``AsyncSandbox.create``.
+    Credentials: either rely on ``PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`` in the
+    process environment (``use_oidc_env=True``), or pass an access-token triple
+    ``token``, ``project_id``, and ``team_id`` for ``AsyncSandbox.create``.
     """
 
     def __init__(
@@ -187,37 +189,55 @@ class VercelSandboxBackend(SandboxBackend):
 
 
 def _resolve_vercel_access_token(config: dict[str, Any]) -> str:
-    return str(config.get(ENV_VERCEL_TOKEN) or "") or os.environ.get(ENV_VERCEL_TOKEN, "")
+    return str(config.get(ENV_PHOENIX_SANDBOX_VERCEL_TOKEN) or "") or os.environ.get(
+        ENV_PHOENIX_SANDBOX_VERCEL_TOKEN, ""
+    )
 
 
 def _resolve_vercel_project_id(config: dict[str, Any]) -> str:
-    return str(config.get(ENV_VERCEL_PROJECT_ID) or "") or os.environ.get(ENV_VERCEL_PROJECT_ID, "")
+    return str(config.get(ENV_PHOENIX_SANDBOX_VERCEL_PROJECT_ID) or "") or os.environ.get(
+        ENV_PHOENIX_SANDBOX_VERCEL_PROJECT_ID, ""
+    )
 
 
 def _resolve_vercel_team_id(config: dict[str, Any]) -> str:
-    return str(config.get(ENV_VERCEL_TEAM_ID) or "") or os.environ.get(ENV_VERCEL_TEAM_ID, "")
+    return str(config.get(ENV_PHOENIX_SANDBOX_VERCEL_TEAM_ID) or "") or os.environ.get(
+        ENV_PHOENIX_SANDBOX_VERCEL_TEAM_ID, ""
+    )
+
+
+def _resolve_vercel_oidc_token(config: dict[str, Any]) -> str:
+    return str(config.get(ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN) or "") or os.environ.get(
+        ENV_PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN, ""
+    )
 
 
 _VERCEL_ENV_VAR_SPECS = [
     ProviderCredentialSpec(
-        key="VERCEL_OIDC_TOKEN",
+        key="PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN",
         display_name="Vercel OIDC Token",
         description="OIDC token for Vercel sandbox (e.g. from `vercel env pull`).",
     ),
     ProviderCredentialSpec(
-        key="VERCEL_TOKEN",
+        key="PHOENIX_SANDBOX_VERCEL_TOKEN",
         display_name="Vercel Access Token",
-        description="Vercel personal access token (used with VERCEL_PROJECT_ID and VERCEL_TEAM_ID).",  # noqa: E501
+        description="Vercel personal access token (used with PHOENIX_SANDBOX_VERCEL_PROJECT_ID and PHOENIX_SANDBOX_VERCEL_TEAM_ID).",  # noqa: E501
     ),
     ProviderCredentialSpec(
-        key="VERCEL_PROJECT_ID",
+        key="PHOENIX_SANDBOX_VERCEL_PROJECT_ID",
         display_name="Vercel Project ID",
-        description="Vercel project ID (used with VERCEL_TOKEN and VERCEL_TEAM_ID).",
+        description=(
+            "Vercel project ID (used with PHOENIX_SANDBOX_VERCEL_TOKEN and "
+            "PHOENIX_SANDBOX_VERCEL_TEAM_ID)."
+        ),
     ),
     ProviderCredentialSpec(
-        key="VERCEL_TEAM_ID",
+        key="PHOENIX_SANDBOX_VERCEL_TEAM_ID",
         display_name="Vercel Team ID",
-        description="Vercel team ID (used with VERCEL_TOKEN and VERCEL_PROJECT_ID).",
+        description=(
+            "Vercel team ID (used with PHOENIX_SANDBOX_VERCEL_TOKEN and "
+            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID)."
+        ),
     ),
 ]
 
@@ -235,7 +255,7 @@ class VercelPythonAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
+        if _resolve_vercel_oidc_token(config):
             return VercelSandboxBackend(use_oidc_env=True, language="PYTHON", user_env=user_env)
 
         token = _resolve_vercel_access_token(config)
@@ -250,9 +270,10 @@ class VercelPythonAdapter(SandboxAdapter):
                 user_env=user_env,
             )
         raise ValueError(
-            "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
-            "(e.g. from `vercel env pull`), or set all of VERCEL_TOKEN, "
-            "VERCEL_PROJECT_ID, and VERCEL_TEAM_ID. See "
+            "Vercel sandbox authentication is not configured. Set "
+            "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
+            "or set all of PHOENIX_SANDBOX_VERCEL_TOKEN, "
+            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID, and PHOENIX_SANDBOX_VERCEL_TEAM_ID. See "
             "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
         )
 
@@ -270,7 +291,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        if os.environ.get(ENV_VERCEL_OIDC_TOKEN):
+        if _resolve_vercel_oidc_token(config):
             return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT", user_env=user_env)
 
         token = _resolve_vercel_access_token(config)
@@ -285,8 +306,9 @@ class VercelTypescriptAdapter(SandboxAdapter):
                 user_env=user_env,
             )
         raise ValueError(
-            "Vercel sandbox authentication is not configured. Set VERCEL_OIDC_TOKEN "
-            "(e.g. from `vercel env pull`), or set all of VERCEL_TOKEN, "
-            "VERCEL_PROJECT_ID, and VERCEL_TEAM_ID. See "
+            "Vercel sandbox authentication is not configured. Set "
+            "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN (e.g. from `vercel env pull`), "
+            "or set all of PHOENIX_SANDBOX_VERCEL_TOKEN, "
+            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID, and PHOENIX_SANDBOX_VERCEL_TEAM_ID. See "
             "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
         )

@@ -207,7 +207,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `e2b` extra.",
-            "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+            "Provide `PHOENIX_SANDBOX_E2B_API_KEY`.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -218,7 +218,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
-            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
+            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -235,8 +235,12 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
-            "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
-            "`VERCEL_TEAM_ID`.",
+            (
+                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of "
+                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
+                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+            ),
         ],
         supports_env_vars=True,
         internet_access_capability="none",
@@ -247,8 +251,12 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="TYPESCRIPT",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
-            "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
-            "`VERCEL_TEAM_ID`.",
+            (
+                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of "
+                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
+                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+            ),
         ],
         supports_env_vars=True,
         internet_access_capability="none",
@@ -269,7 +277,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `modal` extra.",
-            "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
+            (
+                "Provide `PHOENIX_SANDBOX_MODAL_TOKEN_ID` and "
+                "`PHOENIX_SANDBOX_MODAL_TOKEN_SECRET` environment variables."
+            ),
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -346,8 +357,9 @@ async def invalidate_backend_cache_for_key(key: str) -> None:
     of each `ProviderCredentialSpec`.
 
     Broader than `invalidate_backend_cache` because one credential key may be
-    shared by multiple backend_types (e.g. VERCEL_TOKEN across VERCEL_PYTHON
-    and VERCEL_TYPESCRIPT). A per-adapter eviction failure logs and continues —
+    shared by multiple backend_types (e.g.
+    PHOENIX_SANDBOX_VERCEL_TOKEN across VERCEL_PYTHON and VERCEL_TYPESCRIPT).
+    A per-adapter eviction failure logs and continues —
     a rotation must not stall because one backend failed to close.
     """
     matched = 0
@@ -454,6 +466,125 @@ async def _resolve_user_env(
     return user_env
 
 
+async def _resolve_named_credentials(
+    session: Optional[AsyncSession],
+    decrypt: Optional[Callable[[bytes], bytes]],
+    keys: list[str],
+) -> dict[str, str]:
+    """Resolve arbitrary credential keys via DB secret lookup + env fallback."""
+    if not keys:
+        return {}
+
+    deduped_keys = list(dict.fromkeys(keys))
+    db_secrets: dict[str, str] = {}
+
+    if session is not None and decrypt is not None:
+        import sqlalchemy as sa
+
+        from phoenix.db import models
+
+        rows = (
+            await session.scalars(
+                sa.select(models.Secret).where(models.Secret.key.in_(deduped_keys))
+            )
+        ).all()
+        for row in rows:
+            try:
+                db_secrets[row.key] = decrypt(row.value).decode("utf-8")
+            except Exception:
+                logger.warning(f"Failed to decrypt sandbox credential {row.key!r}", exc_info=True)
+
+    result: dict[str, str] = {}
+    for key in deduped_keys:
+        if key in db_secrets:
+            result[key] = db_secrets[key]
+        else:
+            env_val = os.getenv(key)
+            if env_val:
+                result[key] = env_val
+    return result
+
+
+def _format_required_keys(keys: list[str]) -> str:
+    quoted = [f"`{key}`" for key in keys]
+    if len(quoted) == 1:
+        return quoted[0]
+    if len(quoted) == 2:
+        return f"{quoted[0]} and {quoted[1]}"
+    return f"{', '.join(quoted[:-1])}, and {quoted[-1]}"
+
+
+async def get_missing_sandbox_auth_detail(
+    backend_type: str,
+    session: Optional[AsyncSession] = None,
+    decrypt: Optional[Callable[[bytes], bytes]] = None,
+) -> Optional[str]:
+    """Return a user-facing auth requirement message when backend credentials are missing."""
+    adapter = _SANDBOX_ADAPTERS.get(backend_type)
+    if adapter is None:
+        return None
+
+    if backend_type == "E2B":
+        resolved = await _resolve_named_credentials(
+            session, decrypt, ["PHOENIX_SANDBOX_E2B_API_KEY"]
+        )
+        if "PHOENIX_SANDBOX_E2B_API_KEY" in resolved:
+            return None
+        return "Set `PHOENIX_SANDBOX_E2B_API_KEY`."
+
+    if backend_type == "DAYTONA_PYTHON":
+        resolved = await _resolve_named_credentials(
+            session, decrypt, ["PHOENIX_SANDBOX_DAYTONA_API_KEY"]
+        )
+        if "PHOENIX_SANDBOX_DAYTONA_API_KEY" in resolved:
+            return None
+        return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
+
+    if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
+        oidc_key = "PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN"
+        access_keys = [
+            "PHOENIX_SANDBOX_VERCEL_TOKEN",
+            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID",
+            "PHOENIX_SANDBOX_VERCEL_TEAM_ID",
+        ]
+        resolved = await _resolve_named_credentials(session, decrypt, [oidc_key, *access_keys])
+        if oidc_key in resolved or all(key in resolved for key in access_keys):
+            return None
+        missing_access_keys = [key for key in access_keys if key not in resolved]
+        if len(missing_access_keys) < len(access_keys):
+            return (
+                "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or add "
+                f"{_format_required_keys(missing_access_keys)} to complete "
+                "the Vercel access token configuration."
+            )
+        return (
+            "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+            "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+        )
+
+    if backend_type == "MODAL":
+        missing_modal_keys = [
+            key
+            for key in (
+                "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
+                "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
+            )
+            if not os.getenv(key)
+        ]
+        if not missing_modal_keys:
+            return None
+        return f"Set {_format_required_keys(missing_modal_keys)}."
+
+    if not adapter.credential_specs:
+        return None
+
+    resolved = await _resolve_sandbox_credentials(session, decrypt, adapter.credential_specs)
+    missing_keys = [spec.key for spec in adapter.credential_specs if spec.key not in resolved]
+    if not missing_keys:
+        return None
+    return f"Set {_format_required_keys(missing_keys)}."
+
+
 async def _resolve_sandbox_credentials(
     session: Optional[AsyncSession],
     decrypt: Optional[Callable[[bytes], bytes]],
@@ -465,35 +596,11 @@ async def _resolve_sandbox_credentials(
     to os.getenv(). Keys absent from both tiers are omitted from the result.
     Safe when session or decrypt are None (returns env-only resolution).
     """
-    if not credential_specs:
-        return {}
-
-    keys = [spec.key for spec in credential_specs]
-    db_secrets: dict[str, str] = {}
-
-    if session is not None and decrypt is not None:
-        import sqlalchemy as sa
-
-        from phoenix.db import models
-
-        rows = (
-            await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
-        ).all()
-        for row in rows:
-            try:
-                db_secrets[row.key] = decrypt(row.value).decode("utf-8")
-            except Exception:
-                logger.warning(f"Failed to decrypt sandbox credential {row.key!r}", exc_info=True)
-
-    result: dict[str, str] = {}
-    for key in keys:
-        if key in db_secrets:
-            result[key] = db_secrets[key]
-        else:
-            env_val = os.getenv(key)
-            if env_val:
-                result[key] = env_val
-    return result
+    return await _resolve_named_credentials(
+        session=session,
+        decrypt=decrypt,
+        keys=[spec.key for spec in credential_specs],
+    )
 
 
 async def get_or_create_backend(
@@ -628,10 +735,9 @@ except ImportError:
 # matching any of these (case-insensitive) are rejected at mutation time so
 # they cannot shadow resolved credentials in the factory merge.
 #
-# Derived from every registered adapter's credential_specs, unioned with the
-# Phoenix-level fallback env vars that adapters consult before env lookup.
-# Includes the fallbacks explicitly so missing optional extras (e.g. the
-# e2b adapter not registered) cannot narrow the reserved set.
+# Derived from every registered adapter's credential_specs, unioned with
+# reservation-only names for env-var-only backends so missing optional extras
+# cannot narrow the reserved set.
 # ---------------------------------------------------------------------------
 
 _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
@@ -639,12 +745,9 @@ _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
         # Reservation-only names: NOT settable via setSandboxCredential mutation.
         # Contrast with SandboxAdapter.credential_specs (adapter-declared, settable
         # via mutation). RESERVED_CREDENTIAL_NAMES is the derived union of both.
-        "PHOENIX_SANDBOX_TOKEN",
-        "PHOENIX_SANDBOX_API_KEY",
-        # Modal tokens — added here so dropping credential_specs from ModalAdapter
-        # (task 3) does not silently narrow the reserved set.
-        "MODAL_TOKEN_ID",
-        "MODAL_TOKEN_SECRET",
+        # Modal remains env-var-only, so reserve its names explicitly.
+        "PHOENIX_SANDBOX_MODAL_TOKEN_ID",
+        "PHOENIX_SANDBOX_MODAL_TOKEN_SECRET",
     }
 )
 
@@ -663,7 +766,8 @@ RESERVED_CREDENTIAL_NAMES: frozenset[str] = _build_reserved_credential_names()
 def is_reserved_credential_name(name: str) -> bool:
     """Return True if `name` collides with a reserved provider-credential key.
 
-    Comparison is case-insensitive: `VERCEL_TOKEN`, `Vercel_Token`, and
-    `vercel_token` are all reserved.
+    Comparison is case-insensitive: `PHOENIX_SANDBOX_VERCEL_TOKEN`,
+    `Phoenix_Sandbox_Vercel_Token`, and `phoenix_sandbox_vercel_token` are all
+    reserved.
     """
     return name.lower() in RESERVED_CREDENTIAL_NAMES

@@ -366,8 +366,9 @@ class SandboxConfigMutationMixin:
                     on_conflict=OnConflict.DO_UPDATE,
                 )
             )
-        # Key-level fan-out covers shared credential_specs (e.g., VERCEL_TOKEN
-        # shared between VERCEL_PYTHON and VERCEL_TYPESCRIPT). Per-backend_type
+        # Key-level fan-out covers shared credential_specs (e.g.,
+        # PHOENIX_SANDBOX_VERCEL_TOKEN shared between VERCEL_PYTHON and
+        # VERCEL_TYPESCRIPT). Per-backend_type
         # invalidation remains as a defense-in-depth backstop.
         await invalidate_backend_cache_for_key(key)
         await invalidate_backend_cache(backend_type)

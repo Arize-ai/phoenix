@@ -1,9 +1,46 @@
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.sandbox import (
+    _BACKEND_CACHE,
+    _SANDBOX_ADAPTERS,
+    SANDBOX_ADAPTER_METADATA,
+    AdapterMetadata,
+)
+from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+_TEST_AUTH_BACKEND = "TEST_AUTH_BACKEND"
+_TEST_AUTH_KEY = "TEST_AUTH_KEY"
+
+
+class _TestAuthAdapter(SandboxAdapter):
+    key = _TEST_AUTH_BACKEND
+    display_name = "Test Auth Backend"
+    language = "PYTHON"
+    credential_specs = [ProviderCredentialSpec(key=_TEST_AUTH_KEY, display_name="Test Auth Key")]
+
+    def build_backend(
+        self,
+        config: dict,  # type: ignore[type-arg]
+        user_env: dict | None = None,  # type: ignore[type-arg]
+    ) -> SandboxBackend:
+        return MagicMock(spec=SandboxBackend)
+
+
+@pytest.fixture(autouse=True)
+def _clean_test_auth_backend() -> Any:
+    yield
+    SANDBOX_ADAPTER_METADATA.pop(_TEST_AUTH_BACKEND, None)
+    _SANDBOX_ADAPTERS.pop(_TEST_AUTH_BACKEND, None)
+    for key in [key for key in _BACKEND_CACHE if key[0] == _TEST_AUTH_BACKEND]:
+        _BACKEND_CACHE.pop(key, None)
 
 
 async def test_sandbox_providers_returns_nested_configs(
@@ -75,6 +112,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
           displayName
           supportedLanguages
           status
+          statusDetail
           dependencyHints
         }
         sandboxProviders {
@@ -97,21 +135,50 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     ]
     assert backends["E2B"]["dependencyHints"] == [
         "Install Phoenix with the `e2b` extra.",
-        "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+        "Provide `PHOENIX_SANDBOX_E2B_API_KEY`.",
     ]
     assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
-        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
+        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
     ]
     assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",
-        "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
-        "`VERCEL_TEAM_ID`.",
+        "Set `PHOENIX_SANDBOX_VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, `PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`.",
     ]
     assert backends["DENO"]["dependencyHints"] == [
         "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
     ]
     assert len(response.data["sandboxProviders"]) == provider_count
+
+
+async def test_sandbox_backends_reports_missing_credentials_status(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(_TEST_AUTH_KEY, raising=False)
+    SANDBOX_ADAPTER_METADATA[_TEST_AUTH_BACKEND] = AdapterMetadata(
+        display_name="Test Auth Backend",
+        language="PYTHON",
+    )
+    _SANDBOX_ADAPTERS[_TEST_AUTH_BACKEND] = _TestAuthAdapter()
+
+    query = """
+      query {
+        sandboxBackends {
+          backendType
+          status
+          statusDetail
+        }
+      }
+    """
+
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data is not None
+
+    backends = {backend["backendType"]: backend for backend in response.data["sandboxBackends"]}
+    assert backends[_TEST_AUTH_BACKEND]["status"] == "MISSING_CREDENTIALS"
+    assert backends[_TEST_AUTH_BACKEND]["statusDetail"] == f"Set `{_TEST_AUTH_KEY}`."
 
 
 async def test_sandbox_backends_config_field_specs(

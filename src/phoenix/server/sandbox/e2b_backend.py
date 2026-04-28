@@ -8,11 +8,8 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
-import os
 import shlex
 from typing import Any, Optional
-
-from phoenix.config import ENV_PHOENIX_SANDBOX_API_KEY
 
 from .types import (
     E2BConfig,
@@ -168,12 +165,7 @@ class E2BAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        api_key: str = (
-            config.get("PHOENIX_SANDBOX_E2B_API_KEY")
-            or os.environ.get("PHOENIX_SANDBOX_E2B_API_KEY")
-            or os.environ.get(ENV_PHOENIX_SANDBOX_API_KEY)
-            or ""
-        )
+        api_key: str = config.get("PHOENIX_SANDBOX_E2B_API_KEY") or ""
         internet_access = config.get("internet_access")
         if internet_access is not None:
             mode = (

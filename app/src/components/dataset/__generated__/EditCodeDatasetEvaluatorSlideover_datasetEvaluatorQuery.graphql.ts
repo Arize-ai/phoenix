@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fe6e5c2285fbbb703b2d6de39673e389>>
+ * @generated SignedSource<<ed3a776c45e35c2b916631abe67ccf05>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendStatus = "AVAILABLE" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
