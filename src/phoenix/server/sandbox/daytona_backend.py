@@ -139,7 +139,7 @@ class DaytonaSandboxBackend(SandboxBackend):
 
 class DaytonaPythonAdapter(SandboxAdapter):
     key = "DAYTONA_PYTHON"
-    display_name = "Daytona (Python)"
+    display_name = "Daytona"
     language = "PYTHON"
     config_model = DaytonaPythonConfig
     credential_specs = [
