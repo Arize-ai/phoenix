@@ -175,10 +175,6 @@ class MintlifyDocsClient:
         texts = [block.text for block in result.content if hasattr(block, "text")]
         return "\n".join(texts) if texts else "No results found"
 
-    def is_backend_tool(self, name: str) -> bool:
-        """Check whether *name* belongs to this client's tool set."""
-        return name in _KNOWN_BACKEND_TOOLS
-
     async def close(self) -> None:
         """Tear down the MCP session and transport."""
         async with self._lock:

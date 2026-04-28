@@ -1,3 +1,17 @@
+"""Construct ``pydantic_ai`` model instances for the chat endpoint.
+
+Two entry points: ``build_chat_model`` dispatches on
+``ChatSearchParams`` to either a stored custom-provider record (Anthropic,
+Azure OpenAI, AWS Bedrock, Google GenAI, OpenAI-compatible) or to a
+built-in provider whose credentials are resolved from the secret store
+first and the environment second.
+
+Provider construction is centralised here so the ``/chat`` router stays a
+thin HTTP layer. As more providers land this file is the obvious split
+point — a per-provider module under ``agents/providers/`` is the planned
+follow-up.
+"""
+
 from __future__ import annotations
 
 from os import getenv
@@ -42,6 +56,9 @@ def _build_openai_model(
         return cast("PydanticAIModel", OpenAIResponsesModel(model_name, provider=provider))
     if openai_api_type == "chat_completions":
         return cast("PydanticAIModel", OpenAIChatModel(model_name, provider=provider))
+    # ``assert_never`` raises at runtime; the explicit ``raise`` below is
+    # unreachable but required to satisfy CodeQL's flow analysis, which
+    # does not recognise ``Never``-returning calls. Keep both.
     assert_never(openai_api_type)
     raise ValueError(f"Unsupported OpenAI API type: {openai_api_type}")
 
@@ -56,6 +73,14 @@ async def _resolve_secret_or_env(
     decrypt: Callable[[bytes], bytes],
     *keys: str,
 ) -> str | None:
+    """Resolve a credential value, preferring the Phoenix secret store over
+    the process environment.
+
+    Each key in ``keys`` is checked in order; the first non-empty value
+    wins. The secret store is consulted before any environment lookup so
+    that explicit Phoenix-managed secrets always take precedence over
+    leftover dev environment variables.
+    """
     if keys:
         secrets = await _resolve_secrets(session, decrypt, *keys)
         for key in keys:
@@ -87,6 +112,23 @@ async def build_chat_model(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
 ) -> "PydanticAIModel":
+    """Build a ``pydantic_ai`` model for a chat request.
+
+    Args:
+        params: Discriminated request schema selecting either a stored
+            custom provider or a built-in provider.
+        session: Open async session used for secret-store and provider
+            lookups.
+        decrypt: Callable that decrypts secret/provider config payloads.
+
+    Returns:
+        A ready-to-use ``pydantic_ai.models.Model`` instance.
+
+    Raises:
+        HTTPException: ``404`` if a custom provider record is missing;
+            ``400`` if its config cannot be decrypted/parsed, or if a
+            built-in provider's required credentials are not available.
+    """
     if isinstance(params, CustomProviderChatSearchParams):
         custom_provider_id = int(GlobalID.from_id(params.provider_id).node_id)
         provider = await session.get(
@@ -106,6 +148,8 @@ async def build_chat_model(
             session=session,
             decrypt=decrypt,
         )
+    # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
+    # both appear.
     assert_never(params)
     raise ValueError(f"Unsupported chat search params type: {type(params).__name__}")
 

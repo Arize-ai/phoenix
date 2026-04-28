@@ -1,3 +1,25 @@
+"""Contextual tool registry for the chat agent.
+
+A *contextual tool* is exposed to the model only when the user's current
+UI context provides everything the tool needs. For example, the span
+filter tool is only advertised when the user is viewing a project page
+that has a span filter field mounted.
+
+Adding a new contextual tool
+----------------------------
+1. Create ``agents/tools/<your_tool>.py`` with a builder function that
+   returns a ``ContextualTool``.
+2. Append the builder's result to ``CONTEXTUAL_TOOLS`` at the bottom of
+   this file.
+3. Set ``required_contexts`` to the names recognised by
+   ``_available_context_types`` (``project``, ``span_filter``, ``trace``,
+   ``span``); add a new name there if the UI exposes new state.
+4. For ``executes_on="server"`` tools, supply a ``build_callable`` that
+   takes ``(ToolExecutionEnv, ResolvedContexts)`` and returns an async
+   callable. For ``executes_on="client"`` tools, leave it ``None`` —
+   dispatch happens via the data-stream protocol.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,1 +1,25 @@
-"""Agent-domain helpers for Phoenix chat orchestration."""
+"""Agent-domain helpers for Phoenix chat orchestration.
+
+Package layout
+--------------
+``chat_params``
+    Pydantic schemas for the discriminated chat-request payload (built-in
+    versus custom provider).
+``context``
+    UI-context resolution and sanitization. Builds the per-turn
+    ``<phoenix_ui_context>`` user message and exposes ``ToolExecutionEnv``
+    and ``ResolvedContexts`` consumed by tool builders.
+``model_factory``
+    Constructs ``pydantic_ai.Model`` instances for both built-in providers
+    (with secret-store / env credentials) and custom provider records.
+``mcp``
+    Mintlify-hosted MCP backend tool client. Lazily connected and shared
+    across requests via ``app.state``.
+``tools``
+    Contextual tool registry. ``resolve_contextual_tools`` filters the
+    registry to the tools whose required UI contexts are present, and
+    builds dispatch callables for server-executed tools.
+
+The ``/chat`` router (``phoenix.server.api.routers.chat``) is the only
+intended caller; treat anything not re-exported here as internal.
+"""
