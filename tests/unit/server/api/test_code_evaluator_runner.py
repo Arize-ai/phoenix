@@ -110,6 +110,13 @@ class TestHarnessGeneration:
         harness = runner._build_typescript_harness({"k": "v"})
         assert "JSON.stringify" in harness
 
+    def test_typescript_harness_awaits_evaluate_result(self) -> None:
+        runner, _ = _make_runner(language="TYPESCRIPT")
+        harness = runner._build_typescript_harness({"k": "v"})
+        assert "const _run = async () => {" in harness
+        assert "await evaluate(_inputs)" in harness
+        assert "await _run();" in harness
+
 
 class TestInputSchemaInference:
     def test_python_input_schema_infers_top_level_parameters(self) -> None:
@@ -447,6 +454,28 @@ class TestBackendConfiguration:
         # TypeScript harness uses console.log and JSON.stringify
         assert "JSON.stringify" in code_arg
         assert "console.log" in code_arg
+        assert "await evaluate(_inputs)" in code_arg
+
+    async def test_async_typescript_evaluator_source_is_wrapped_correctly(self) -> None:
+        runner, backend = _make_runner(
+            source_code=(
+                "async function evaluate({ output }: EvaluatorParams) { return output ? 1 : 0; }"
+            ),
+            language="TYPESCRIPT",
+            backend_stdout="1",
+        )
+        await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        assert "async function evaluate" in code_arg
+        assert "const _run = async () => {" in code_arg
+        assert "await evaluate(_inputs)" in code_arg
+        assert "await _run();" in code_arg
 
     async def test_python_language_uses_python_harness(self) -> None:
         """Runner selects Python harness when language is PYTHON."""

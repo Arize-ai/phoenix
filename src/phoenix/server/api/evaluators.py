@@ -2577,8 +2577,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
         return (
             f"{self._source_code}\n\n"
             f"const _inputs = {inputs_json};\n"
-            f"const _result = evaluate(_inputs);\n"
-            f"console.log(JSON.stringify(_result));\n"
+            f"const _run = async () => {{\n"
+            f"  const _result = await evaluate(_inputs);\n"
+            f"  console.log(JSON.stringify(_result));\n"
+            f"}};\n"
+            f"await _run();\n"
         )
 
     def _make_error_result(
