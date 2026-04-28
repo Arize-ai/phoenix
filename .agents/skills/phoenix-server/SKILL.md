@@ -68,3 +68,23 @@ tests/unit/server/api/
   bypass the `make check-graphql-permissions` CI guard and are reachable
   unauthenticated by default — this has been exploited as an SSRF vector. See
   `references/graphql-patterns.md` → "Query vs Mutation".
+
+## Docstrings
+
+The project rule of "default to no comments" is about **inline comments**, not
+docstrings. Public APIs should be documented.
+
+- **Document parameters and return values on public methods of reusable classes**
+  (clients, services, factories, builders). Use Google-style `Args:` / `Returns:`
+  /  `Raises:` blocks when the meaning isn't fully recoverable from the type
+  signature. Do not strip these during refactors — semantics outlive file moves.
+- **Describe behavior, not implementation.** A method on a docs-search client
+  says "Invoke a backend tool and return its text result", not "Invoke a tool
+  on the MCP server" — the underlying transport is an implementation detail and
+  the docstring should survive a transport swap. Internal helpers (leading `_`)
+  may reference the transport directly since their scope is bounded.
+- **One-liner docstrings are fine** when the name and types fully convey intent
+  (`close()`, `is_backend_tool(name)`). Don't pad them with restated signatures.
+- **Module docstrings** belong at the top of any file that exposes public
+  surface (a client class, a router, a service module). One sentence on what
+  the module is for is enough.
