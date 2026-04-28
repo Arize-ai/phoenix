@@ -17,7 +17,7 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "debug-menu";
+  controlSurface?: "experimental-settings";
   systemPromptState?: {
     enabled: string;
     disabled: string;
@@ -41,7 +41,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Keeps browser bash runtimes alive when switching sessions instead of eagerly garbage-collecting them.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "debug-menu",
+    controlSurface: "experimental-settings",
   },
   {
     key: "graphql.mutations",
@@ -50,7 +50,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "debug-menu",
+    controlSurface: "experimental-settings",
     systemPromptState: {
       enabled:
         "GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.",
