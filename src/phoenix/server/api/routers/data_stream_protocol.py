@@ -330,7 +330,7 @@ async def stream_text(
     model: "Model",
     *,
     body: ChatBody,
-    mcp_client: "MintlifyDocsClient | None" = None,
+    mcp_client: MintlifyDocsClient | None = None,
     contextual_tools: tuple[
         list["ToolDefinition"],
         dict[str, Callable[[dict[str, Any]], Awaitable[str]]],
