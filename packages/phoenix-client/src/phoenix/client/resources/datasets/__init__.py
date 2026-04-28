@@ -897,7 +897,12 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
-            example_ids_from_examples = [example.get("id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example["id"]
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1044,7 +1049,12 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
-            example_ids_from_examples = [example.get("id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example["id"]
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1766,7 +1776,12 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
-            example_ids_from_examples = [example.get("id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example["id"]
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1908,7 +1923,12 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
-            example_ids_from_examples = [example.get("id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example["id"]
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path

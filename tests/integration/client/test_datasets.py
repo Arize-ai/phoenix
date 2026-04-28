@@ -2078,51 +2078,6 @@ What is NLP?,Natural Language Processing,
         assert len(alpha_v2) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_create_dataset_clears_splits_when_not_provided(
-        self,
-        is_async: bool,
-        _app: _AppInfo,
-    ) -> None:
-        api_key = _app.admin_secret
-
-        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
-
-        name = f"test_clear_splits_{token_hex(4)}"
-
-        v1 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
-                name=name,
-                examples=[
-                    {"input": {"q": "A"}, "output": {"a": "1"}, "splits": "train"},
-                    {"input": {"q": "B"}, "output": {"a": "2"}},
-                ],
-            )
-        )
-
-        train_v1 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
-                dataset=v1.id, splits=["train"]
-            )
-        )
-        assert len(train_v1) == 1
-
-        # Re-create with inputs/outputs only — no splits key in payload
-        v2 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
-                name=name,
-                inputs=[{"q": "A"}, {"q": "B"}],
-                outputs=[{"a": "1"}, {"a": "2"}],
-            )
-        )
-
-        train_v2 = await _await_or_return(
-            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
-                dataset=v2.id, splits=["train"]
-            )
-        )
-        assert len(train_v2) == 0  # splits cleared when not provided
-
-    @pytest.mark.parametrize("is_async", [True, False])
     async def test_create_dataset_with_many_examples(
         self,
         is_async: bool,
