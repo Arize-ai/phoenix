@@ -152,7 +152,16 @@ class MintlifyDocsClient:
             return definitions
 
     async def call_tool(self, name: str, args: dict[str, Any]) -> str:
-        """Invoke a tool on the MCP server and return the text result."""
+        """Invoke a backend tool and return its text result.
+
+        Args:
+            name: The tool name as returned by ``get_tool_definitions``.
+            args: The arguments to pass to the tool.
+
+        Returns:
+            The concatenated text content blocks from the tool result, or
+            ``"No results found"`` if the response contains no text.
+        """
         async with self._lock:
             session = await self._ensure_session_locked()
             try:
