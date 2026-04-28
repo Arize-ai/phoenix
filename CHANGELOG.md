@@ -1,5 +1,26 @@
 # Changelog
 
+## [14.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.15.0...arize-phoenix-v14.16.0) (2026-04-28)
+
+
+### Features
+
+* **agents:** advertise phoenix page context to chat ([#12835](https://github.com/Arize-ai/phoenix/issues/12835)) ([917da7b](https://github.com/Arize-ai/phoenix/commit/917da7b31ad5e68193a21b41f955a412c9c9a9bd))
+* **agents:** move advanced PXI toggles into Assistant config ([#12895](https://github.com/Arize-ai/phoenix/issues/12895)) ([f8da519](https://github.com/Arize-ai/phoenix/commit/f8da5190351d85613ff129d94866bc0ee7a9c30f)), closes [#12893](https://github.com/Arize-ai/phoenix/issues/12893)
+* **server:** redact sensitive GraphQL fields with RedactedString ([#12807](https://github.com/Arize-ai/phoenix/issues/12807)) ([7dca138](https://github.com/Arize-ai/phoenix/commit/7dca138c7e5eb89722377224d828cb85ef849141))
+
+
+### Bug Fixes
+
+* **app:** own loader-created Relay query refs in route pages ([#12873](https://github.com/Arize-ai/phoenix/issues/12873)) ([b342096](https://github.com/Arize-ai/phoenix/commit/b342096c9683eed785a95189a03fb6ffb2872dd1))
+* **cost:** update built-in model token prices ([#12874](https://github.com/Arize-ai/phoenix/issues/12874)) ([61cfc60](https://github.com/Arize-ai/phoenix/commit/61cfc60d262c04316e1cea248e50b57edbf5d4e3))
+* **playground:** avoid duplicate Responses output messages ([#12890](https://github.com/Arize-ai/phoenix/issues/12890)) ([5570e89](https://github.com/Arize-ai/phoenix/commit/5570e892b8e574955ed9294b67b1685da639eea6))
+
+
+### Documentation
+
+* **experiments:** how-to page for running experiments in the background ([#12736](https://github.com/Arize-ai/phoenix/issues/12736)) ([1243ca9](https://github.com/Arize-ai/phoenix/commit/1243ca9bbebf14dd54b18983c32dded093387fe2))
+
 ## [14.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.14.0...arize-phoenix-v14.15.0) (2026-04-26)
 
 
