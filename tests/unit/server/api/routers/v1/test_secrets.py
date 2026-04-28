@@ -5,11 +5,17 @@ from secrets import token_hex
 import httpx
 import pytest
 import sqlalchemy as sa
+from starlette.datastructures import Secret
 
 from phoenix.db import models
 from phoenix.server.api.openapi.schema import get_openapi_schema
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+# The in-process test app is constructed with no PHOENIX_SECRET, so the
+# server-side Redactor is keyed off Secret("").
+_REDACTOR = Redactor(secret=Secret(""))
 
 SECRETS_QUERY = """
 query SecretsQuery($keys: [String!]) {
@@ -55,7 +61,7 @@ class TestUpsertOrDeleteSecrets:
         edges = result.data["secrets"]["edges"]
         assert len(edges) == 1
         assert edges[0]["node"]["key"] == key
-        assert edges[0]["node"]["value"]["value"] == value
+        assert _REDACTOR.unredact(edges[0]["node"]["value"]["value"]) == value
 
     async def test_missing_value_field_returns_422_without_deleting_existing_secret(
         self,

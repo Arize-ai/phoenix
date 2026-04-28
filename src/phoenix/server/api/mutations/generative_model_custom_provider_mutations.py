@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Mapping, Sequence
+from typing import Iterator, Mapping, Sequence
 
 import anyio
 import sqlalchemy as sa
@@ -16,6 +16,10 @@ from typing_extensions import assert_never
 from phoenix.db import models
 from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
+    AuthenticationMethodApiKey,
+    AuthenticationMethodAzureADTokenProvider,
+    AuthenticationMethodDefaultCredentials,
+    AWSBedrockAuthenticationMethodAccessKeys,
     AWSBedrockCustomProviderConfig,
     AzureOpenAICustomProviderConfig,
     GenerativeModelCustomerProviderConfig,
@@ -39,6 +43,65 @@ from phoenix.server.bearer_auth import PhoenixUser
 @strawberry.type
 class TestGenerativeModelCustomProviderCredentialsResult:
     error: str | None = None
+
+
+def _iter_secret_values(
+    config: GenerativeModelCustomerProviderConfig,
+) -> Iterator[str]:
+    """Yield the user-supplied secret values present in a provider config.
+
+    Used to scrub these values from upstream provider error messages — e.g.
+    OpenAI's "Incorrect API key provided: <key>" echoes the rejected key back.
+    """
+    root = config.root
+    if isinstance(root, OpenAICustomProviderConfig):
+        yield root.openai_authentication_method.api_key
+    elif isinstance(root, AzureOpenAICustomProviderConfig):
+        method = root.azure_openai_authentication_method
+        if isinstance(method, AuthenticationMethodApiKey):
+            yield method.api_key
+        elif isinstance(method, AuthenticationMethodAzureADTokenProvider):
+            yield method.azure_client_secret
+        elif isinstance(method, AuthenticationMethodDefaultCredentials):
+            return
+        else:
+            assert_never(method)
+    elif isinstance(root, AnthropicCustomProviderConfig):
+        yield root.anthropic_authentication_method.api_key
+    elif isinstance(root, AWSBedrockCustomProviderConfig):
+        method_aws = root.aws_bedrock_authentication_method
+        if isinstance(method_aws, AWSBedrockAuthenticationMethodAccessKeys):
+            yield method_aws.aws_secret_access_key
+            if method_aws.aws_session_token:
+                yield method_aws.aws_session_token
+        elif isinstance(method_aws, AuthenticationMethodDefaultCredentials):
+            return
+        else:
+            assert_never(method_aws)
+    elif isinstance(root, GoogleGenAICustomProviderConfig):
+        yield root.google_genai_authentication_method.api_key
+    else:
+        assert_never(root)
+
+
+def _redact_provider_error(
+    error: BaseException,
+    config: GenerativeModelCustomerProviderConfig,
+) -> str:
+    """Stringify a provider exception with any user-supplied secrets scrubbed.
+
+    Upstream providers may echo the rejected credential back in their error
+    message (notably OpenAI's "Incorrect API key provided: <key>"). Replacing
+    each known secret value with a placeholder keeps the diagnostic detail
+    without leaking the secret to the client.
+    """
+    message = str(error)
+    # Replace longer secrets first so a short secret that is a substring of a
+    # longer one doesn't shadow it.
+    for secret in sorted(set(_iter_secret_values(config)), key=len, reverse=True):
+        if secret.strip():
+            message = message.replace(secret, "[REDACTED]")
+    return message
 
 
 def _get_sdk_from_config(
@@ -291,7 +354,9 @@ class GenerativeModelCustomProviderMutationMixin:
                         error="Request timed out after 10 seconds"
                     )
             except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(e, config)
+                )
         elif config.root.type == "azure_openai":
             try:
                 with anyio.move_on_after(10) as scope:
@@ -302,7 +367,9 @@ class GenerativeModelCustomProviderMutationMixin:
                         error="Request timed out after 10 seconds"
                     )
             except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(e, config)
+                )
         elif config.root.type == "anthropic":
             try:
                 from anthropic import NotFoundError as AnthropicNotFoundError
@@ -323,7 +390,9 @@ class GenerativeModelCustomProviderMutationMixin:
             except AnthropicNotFoundError:
                 pass  # Fall through to return VALID
             except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(e, config)
+                )
         elif config.root.type == "aws_bedrock":
             try:
                 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
@@ -348,9 +417,13 @@ class GenerativeModelCustomProviderMutationMixin:
                 if error_code == "ValidationException":
                     pass  # Fall through to return VALID
                 else:
-                    return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                    return TestGenerativeModelCustomProviderCredentialsResult(
+                        error=_redact_provider_error(e, config)
+                    )
             except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(e, config)
+                )
         elif config.root.type == "google_genai":
             try:
                 from google.genai.types import HttpOptions, ListModelsConfig
@@ -365,7 +438,9 @@ class GenerativeModelCustomProviderMutationMixin:
                         error="Request timed out after 10 seconds"
                     )
             except Exception as e:
-                return TestGenerativeModelCustomProviderCredentialsResult(error=str(e))
+                return TestGenerativeModelCustomProviderCredentialsResult(
+                    error=_redact_provider_error(e, config)
+                )
         else:
             raise BadRequest("Invalid input")
         return TestGenerativeModelCustomProviderCredentialsResult(error=None)

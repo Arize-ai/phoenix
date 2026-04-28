@@ -185,6 +185,7 @@ from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -398,6 +399,21 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
         return response
+
+
+class RedactorMiddleware(BaseHTTPMiddleware):
+    """Binds the per-app Redactor to the `current_redactor` ContextVar."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        token = current_redactor.set(request.app.state.redactor)
+        try:
+            return await call_next(request)
+        finally:
+            current_redactor.reset(token)
 
 
 def user_fastapi_middlewares() -> list[Middleware]:
@@ -1066,7 +1082,10 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [
+        Middleware(HeadersMiddleware),
+        Middleware(RedactorMiddleware),
+    ]
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
@@ -1135,6 +1154,7 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
+    redactor = Redactor(secret=secret or Secret(""))
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
@@ -1272,6 +1292,7 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
+    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)

@@ -28,7 +28,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  FieldError,
   Flex,
   Form,
   Icon,
@@ -36,6 +35,7 @@ import {
   Label,
   Modal,
   ModalOverlay,
+  RedactedCredentialField,
   Text,
   ToggleButton,
   ToggleButtonGroup,
@@ -495,6 +495,7 @@ function ServerCredentials({
     {
       defaultValues: savedServerValues,
       values: savedServerValues, // Syncs form when server data changes after refetch
+      mode: "onChange",
     }
   );
 
@@ -585,19 +586,12 @@ function ServerCredentials({
     notifySuccess,
   ]);
 
-  // Check if any credentials for this provider have parse errors
-  const { providerUnparsableSecrets, editableConfigs } = useMemo(() => {
-    const unparsable = provider.credentialRequirements
-      .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
-      .map(({ envVarName }) => ({
-        envVarName,
-        parseError: unparsableSecrets.get(envVarName)!,
-      }));
-    const editable = provider.credentialRequirements.filter(
-      ({ envVarName }) => !unparsableSecrets.has(envVarName)
-    );
-    return { providerUnparsableSecrets: unparsable, editableConfigs: editable };
-  }, [provider.credentialRequirements, unparsableSecrets]);
+  const providerUnparsableSecrets = provider.credentialRequirements
+    .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
+    .map(({ envVarName }) => ({
+      envVarName,
+      parseError: unparsableSecrets.get(envVarName)!,
+    }));
 
   if (provider.credentialRequirements.length === 0) {
     return (
@@ -615,7 +609,7 @@ function ServerCredentials({
           {parseError}
         </Alert>
       ))}
-      {editableConfigs.map((credentialConfig) => (
+      {provider.credentialRequirements.map((credentialConfig) => (
         <Controller
           key={credentialConfig.envVarName}
           name={credentialConfig.envVarName}
@@ -627,17 +621,19 @@ function ServerCredentials({
                   `${credentialConfig.envVarName} is required`
               : undefined,
           }}
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <CredentialField
+          render={({
+            field: { name, onChange, onBlur, value },
+            fieldState: { error },
+          }) => (
+            <RedactedCredentialField
+              label={credentialConfig.envVarName}
               isRequired={credentialConfig.isRequired}
-              onChange={onChange}
+              name={name}
               value={value ?? ""}
-              isInvalid={!!error}
-            >
-              <Label>{credentialConfig.envVarName}</Label>
-              <CredentialInput />
-              {error?.message && <FieldError>{error.message}</FieldError>}
-            </CredentialField>
+              onChange={onChange}
+              onBlur={onBlur}
+              errorMessage={error?.message}
+            />
           )}
         />
       ))}

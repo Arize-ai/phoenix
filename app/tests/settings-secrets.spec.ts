@@ -205,6 +205,8 @@ test.describe("Settings Secrets", () => {
 
     await row.getByRole("button", { name: `Replace ${secretKey}` }).click();
     await expect(secretsDialog(page)).toBeVisible();
+    // Replace dialog opens with an empty hidden input — the plaintext is never
+    // pre-filled, only the masked preview shows in the table column.
     await expect(page.getByLabel("Value")).toHaveValue("");
 
     const inputValuesInReplaceDialog = await page
