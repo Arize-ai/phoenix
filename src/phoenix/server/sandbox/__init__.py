@@ -214,7 +214,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependencies_language="PYTHON",
     ),
     "DAYTONA_PYTHON": AdapterMetadata(
-        display_name="Daytona (Python)",
+        display_name="Daytona",
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
@@ -231,7 +231,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     # ships; flip internet_access_capability to "boolean" and wire network_policy
     # then. Until that lands, both Vercel adapters remain internet_access="none".
     "VERCEL_PYTHON": AdapterMetadata(
-        display_name="Vercel Sandbox (Python)",
+        display_name="Vercel Sandbox",
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
@@ -243,7 +243,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependencies_language=None,
     ),
     "VERCEL_TYPESCRIPT": AdapterMetadata(
-        display_name="Vercel Sandbox (TypeScript)",
+        display_name="Vercel Sandbox",
         language="TYPESCRIPT",
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",

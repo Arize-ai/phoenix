@@ -224,7 +224,7 @@ _VERCEL_ENV_VAR_SPECS = [
 
 class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
-    display_name = "Vercel Sandbox (Python)"
+    display_name = "Vercel Sandbox"
     language = "PYTHON"
     config_model = VercelPythonConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS
@@ -259,7 +259,7 @@ class VercelPythonAdapter(SandboxAdapter):
 
 class VercelTypescriptAdapter(SandboxAdapter):
     key = "VERCEL_TYPESCRIPT"
-    display_name = "Vercel Sandbox (TypeScript)"
+    display_name = "Vercel Sandbox"
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS
