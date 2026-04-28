@@ -110,11 +110,16 @@ const CreateCodeEvaluatorDialog = ({
             id
             name
             description
+            timeout
+            config
           }
         }
         sandboxBackends {
           backendType
           status
+          supportsEnvVars
+          internetAccess
+          dependenciesLanguage
         }
       }
     `,

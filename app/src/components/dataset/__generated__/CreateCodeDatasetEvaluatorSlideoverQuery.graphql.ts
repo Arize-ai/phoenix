@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e569775dd6d69ca1c8f074190c66e94>>
+ * @generated SignedSource<<cfcf992839d7669d41bb44982fc47656>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,20 +9,26 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
     readonly backendType: string;
+    readonly dependenciesLanguage: Language | null;
+    readonly internetAccess: InternetAccessMode;
     readonly status: SandboxBackendStatus;
+    readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
     readonly backendType: string;
     readonly configs: ReadonlyArray<{
+      readonly config: any;
       readonly description: string | null;
       readonly id: string;
       readonly name: string;
+      readonly timeout: number;
     }>;
     readonly enabled: boolean;
     readonly language: Language;
@@ -84,6 +90,20 @@ v4 = {
       "kind": "ScalarField",
       "name": "description",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "timeout",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "config",
+      "storageKey": null
     }
   ],
   "storageKey": null
@@ -102,6 +122,27 @@ v5 = {
       "args": null,
       "kind": "ScalarField",
       "name": "status",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "supportsEnvVars",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "internetAccess",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "dependenciesLanguage",
       "storageKey": null
     }
   ],
@@ -160,16 +201,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a0ca8e56dc9f78382ace98a30550e113",
+    "cacheID": "829630d1a89eebd47463937078c1212c",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n  }\n}\n"
+    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6dc158e2f8dcebc2e068c3d0edcb4060";
+(node as any).hash = "07b3d83efa8b385d187c54ab77bf6108";
 
 export default node;
