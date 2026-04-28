@@ -1156,6 +1156,7 @@
               {
                 "group": "04.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api",
                   "docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16",
                   "docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id",
                   "docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7",

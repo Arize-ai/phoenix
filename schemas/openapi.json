@@ -5029,6 +5029,68 @@
         }
       }
     },
+    "/v1/session_notes": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Create a session note",
+        "description": "Add a note annotation to a session. Notes are special annotations that allow multiple entries per session (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
+        "operationId": "createSessionNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSessionNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/document_annotations": {
       "post": {
         "tags": [
@@ -6118,6 +6180,30 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreateSessionNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteRequestBody"
+      },
+      "CreateSessionNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedSessionAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteResponseBody"
       },
       "CreateSpanNoteRequestBody": {
         "properties": {
@@ -10351,6 +10437,28 @@
           "traces"
         ],
         "title": "SessionData"
+      },
+      "SessionNoteData": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Session Id",
+            "description": "Session ID"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "note"
+        ],
+        "title": "SessionNoteData"
       },
       "SessionTraceData": {
         "properties": {

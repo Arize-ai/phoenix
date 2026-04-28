@@ -503,6 +503,11 @@ class SessionAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SessionNoteData(TypedDict):
+    session_id: str
+    note: str
+
+
 class SessionTraceData(TypedDict):
     id: str
     trace_id: str
@@ -751,6 +756,14 @@ class CreateExperimentRunResponseBody(TypedDict):
 
 class CreateProjectResponseBody(TypedDict):
     data: Project
+
+
+class CreateSessionNoteRequestBody(TypedDict):
+    data: SessionNoteData
+
+
+class CreateSessionNoteResponseBody(TypedDict):
+    data: InsertedSessionAnnotation
 
 
 class CreateSpanNoteRequestBody(TypedDict):

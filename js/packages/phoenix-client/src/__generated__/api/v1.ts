@@ -914,6 +914,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/session_notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a session note
+         * @description Add a note annotation to a session. Notes are special annotations that allow multiple entries per session (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         */
+        post: operations["createSessionNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/document_annotations": {
         parameters: {
             query?: never;
@@ -1284,6 +1304,14 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateSessionNoteRequestBody */
+        CreateSessionNoteRequestBody: {
+            data: components["schemas"]["SessionNoteData"];
+        };
+        /** CreateSessionNoteResponseBody */
+        CreateSessionNoteResponseBody: {
+            data: components["schemas"]["InsertedSessionAnnotation"];
         };
         /** CreateSpanNoteRequestBody */
         CreateSpanNoteRequestBody: {
@@ -2946,6 +2974,19 @@ export interface components {
             end_time: string;
             /** Traces */
             traces: components["schemas"]["SessionTraceData"][];
+        };
+        /** SessionNoteData */
+        SessionNoteData: {
+            /**
+             * Session Id
+             * @description Session ID
+             */
+            session_id: string;
+            /**
+             * Note
+             * @description The note text to add to the session
+             */
+            note: string;
         };
         /** SessionTraceData */
         SessionTraceData: {
@@ -6534,6 +6575,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnnotateSessionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createSessionNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionNoteRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Session note created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSessionNoteResponseBody"];
                 };
             };
             /** @description Forbidden */
