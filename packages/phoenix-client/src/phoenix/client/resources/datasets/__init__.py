@@ -898,7 +898,7 @@ class Datasets:
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
             example_ids_from_examples = [
-                example["id"]
+                example.get("id")
                 if example.get("id") is not None and example.get("id") != example.get("node_id")
                 else None
                 for example in examples_list
@@ -1050,7 +1050,7 @@ class Datasets:
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
             example_ids_from_examples = [
-                example["id"]
+                example.get("id")
                 if example.get("id") is not None and example.get("id") != example.get("node_id")
                 else None
                 for example in examples_list
@@ -1777,7 +1777,7 @@ class AsyncDatasets:
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
             example_ids_from_examples = [
-                example["id"]
+                example.get("id")
                 if example.get("id") is not None and example.get("id") != example.get("node_id")
                 else None
                 for example in examples_list
@@ -1924,7 +1924,7 @@ class AsyncDatasets:
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
             example_ids_from_examples = [
-                example["id"]
+                example.get("id")
                 if example.get("id") is not None and example.get("id") != example.get("node_id")
                 else None
                 for example in examples_list
