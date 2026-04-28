@@ -17,7 +17,7 @@ class AgentError(PhoenixException):
 class ProviderNotFoundError(AgentError):
     """Custom provider record does not exist."""
 
-    status_code = 404
+    status_code: int = 404
 
 
 class ProviderConfigError(AgentError):

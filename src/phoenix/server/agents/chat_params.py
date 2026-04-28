@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, RootModel, field_validator
 from strawberry.relay import GlobalID
 
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 class CustomProviderChatSearchParams(BaseModel):
@@ -30,7 +31,9 @@ class CustomProviderChatSearchParams(BaseModel):
     @classmethod
     def _decode_global_id(cls, value: Any) -> Any:
         if isinstance(value, str):
-            return int(GlobalID.from_id(value).node_id)
+            return from_global_id_with_expected_type(
+                GlobalID.from_id(value), "GenerativeModelCustomProvider"
+            )
         return value
 
 

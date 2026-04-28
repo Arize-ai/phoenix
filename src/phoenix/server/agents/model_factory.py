@@ -77,32 +77,42 @@ def azure_endpoint_to_base_url(azure_endpoint: str) -> str:
     return (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
 
 
+_AZURE_IDENTITY_MISSING_MESSAGE = "Azure identity package not installed."
+
+
+async def _resolve_secrets_or_env(
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    *keys: str,
+) -> dict[str, str | None]:
+    """Resolve credentials for ``keys`` in a single DB query.
+
+    For each key, the secret store is consulted first and the process
+    environment second; absent keys map to ``None``. A failure to decrypt
+    a stored secret surfaces as ``ProviderConfigError`` so callers don't
+    need to know about the GraphQL-flavoured exception that
+    ``_resolve_secrets`` raises.
+    """
+    if not keys:
+        return {}
+    try:
+        secrets = await _resolve_secrets(session, decrypt, *keys)
+    except BadRequest as exc:
+        raise ProviderConfigError(str(exc)) from exc
+    return {key: secrets.get(key) or getenv(key) for key in keys}
+
+
 async def _resolve_secret_or_env(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     *keys: str,
 ) -> str | None:
-    """Resolve a credential value, preferring the Phoenix secret store over
-    the process environment.
-
-    Each key in ``keys`` is checked in order; the first non-empty value
-    wins. The secret store is consulted before any environment lookup so
-    that explicit Phoenix-managed secrets always take precedence over
-    leftover dev environment variables. A failure to decrypt a stored
-    secret surfaces as ``ProviderConfigError`` so callers don't need to
-    know about the GraphQL-flavoured exception that ``_resolve_secrets``
-    raises.
+    """First non-empty credential value across ``keys``, in order, with
+    secret-store values winning over the environment for any given key.
     """
-    if keys:
-        try:
-            secrets = await _resolve_secrets(session, decrypt, *keys)
-        except BadRequest as exc:
-            raise ProviderConfigError(str(exc)) from exc
-        for key in keys:
-            if value := secrets.get(key):
-                return value
+    resolved = await _resolve_secrets_or_env(session, decrypt, *keys)
     for key in keys:
-        if value := getenv(key):
+        if value := resolved.get(key):
             return value
     return None
 
@@ -239,7 +249,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             try:
                 from azure.identity.aio import ClientSecretCredential, get_bearer_token_provider
             except ImportError as exc:
-                raise ProviderDependencyError("Azure identity package not installed.") from exc
+                raise ProviderDependencyError(_AZURE_IDENTITY_MISSING_MESSAGE) from exc
             credential = ClientSecretCredential(
                 tenant_id=azure_method.azure_tenant_id,
                 client_id=azure_method.azure_client_id,
@@ -258,7 +268,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
             try:
                 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
             except ImportError as exc:
-                raise ProviderDependencyError("Azure identity package not installed.") from exc
+                raise ProviderDependencyError(_AZURE_IDENTITY_MISSING_MESSAGE) from exc
             token_provider = get_bearer_token_provider(
                 DefaultAzureCredential(),
                 "https://cognitiveservices.azure.com/.default",
@@ -436,15 +446,17 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         google_provider = GoogleProvider(api_key=api_key, base_url=params.base_url)
         return GoogleModel(params.model_name, provider=google_provider)
     if params.provider == ModelProvider.AWS:
-        aws_access_key_id = await _resolve_secret_or_env(session, decrypt, "AWS_ACCESS_KEY_ID")
-        aws_secret_access_key = await _resolve_secret_or_env(
-            session, decrypt, "AWS_SECRET_ACCESS_KEY"
+        aws_creds = await _resolve_secrets_or_env(
+            session,
+            decrypt,
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
         )
-        aws_session_token = await _resolve_secret_or_env(session, decrypt, "AWS_SESSION_TOKEN")
         bedrock_provider = BedrockProvider(
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
+            aws_access_key_id=aws_creds["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=aws_creds["AWS_SECRET_ACCESS_KEY"],
+            aws_session_token=aws_creds["AWS_SESSION_TOKEN"],
             region_name=params.region or getenv("AWS_REGION") or "us-east-1",
             base_url=params.base_url,
         )
