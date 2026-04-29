@@ -1,5 +1,21 @@
 # Changelog
 
+## [14.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.16.0...arize-phoenix-v14.17.0) (2026-04-29)
+
+
+### Features
+
+* **agents:** support custom providers and secret store values ([#12901](https://github.com/Arize-ai/phoenix/issues/12901)) ([3f09c7b](https://github.com/Arize-ai/phoenix/commit/3f09c7b4fa079533dfe684e30e0829b7f9e0e57e))
+* **api:** add session notes endpoint ([#12902](https://github.com/Arize-ai/phoenix/issues/12902)) ([187df7e](https://github.com/Arize-ai/phoenix/commit/187df7e8abf20b3a6c3e851bcde373229d0e7f05))
+* **cli:** add JSON schema for settings config ([#12817](https://github.com/Arize-ai/phoenix/issues/12817)) ([47bf011](https://github.com/Arize-ai/phoenix/commit/47bf011914315b9af271f29974ca0eb016728fab))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#12912](https://github.com/Arize-ai/phoenix/issues/12912)) ([a38e57b](https://github.com/Arize-ai/phoenix/commit/a38e57bc0c5ca212b1ed2b544adb4c6ee3d46112))
+* **playground:** prevent OTel context leak in single chat completion subscription ([#12922](https://github.com/Arize-ai/phoenix/issues/12922)) ([966e595](https://github.com/Arize-ai/phoenix/commit/966e595b5af8b198edbd859e3abfe697f412184e))
+* show label-only annotations in summary cells ([#12898](https://github.com/Arize-ai/phoenix/issues/12898)) ([b971061](https://github.com/Arize-ai/phoenix/commit/b9710617958ec85121cd594bc1915b6b2f817868))
+
 ## [14.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.15.0...arize-phoenix-v14.16.0) (2026-04-28)
 
 
