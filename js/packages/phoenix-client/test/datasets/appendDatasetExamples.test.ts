@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.unmock("../../src/utils/serverVersionUtils");
 
+import type { PhoenixClient } from "../../src/client";
 import { appendDatasetExamples } from "../../src/datasets/appendDatasetExamples";
 
 // Mock the fetch module
@@ -15,15 +16,20 @@ vi.mock("openapi-fetch", () => ({
   }),
 }));
 
-// Tests that exercise the example_ids gate must supply a client whose
-// `getServerVersion` returns a known version (otherwise the auto-created
-// client would try to `fetch("/arize_phoenix_version")` for real).
-function makeClient(version: [number, number, number]) {
+/**
+ * Build a stub {@link PhoenixClient} whose `getServerVersion` returns the
+ * given version.
+ *
+ * Tests that exercise the `example_ids` capability gate must supply such a
+ * client; otherwise the auto-created client would try to
+ * `fetch("/arize_phoenix_version")` for real.
+ */
+function makeClient(version: [number, number, number]): PhoenixClient {
   return {
     getServerVersion: async () => version,
     POST: mockPost,
     GET: mockGet,
-  };
+  } as unknown as PhoenixClient;
 }
 
 describe("appendDatasetExamples", () => {
@@ -349,7 +355,7 @@ describe("appendDatasetExamples", () => {
     });
 
     await appendDatasetExamples({
-      client: makeClient([15, 0, 0]) as never,
+      client: makeClient([15, 0, 0]),
       dataset: { datasetName: "test-dataset" },
       examples: [
         {
@@ -394,7 +400,7 @@ describe("appendDatasetExamples", () => {
     });
 
     await appendDatasetExamples({
-      client: makeClient([15, 0, 0]) as never,
+      client: makeClient([15, 0, 0]),
       dataset: { datasetName: "test-dataset" },
       examples: [
         {
@@ -502,7 +508,7 @@ describe("appendDatasetExamples", () => {
     it("fails fast on Phoenix < 15.0.0 when an example carries a stable id", async () => {
       await expect(
         appendDatasetExamples({
-          client: makeClient([14, 17, 0]) as never,
+          client: makeClient([14, 17, 0]),
           dataset: { datasetName: "ds" },
           examples: [{ input: { q: 1 }, id: "stable-id" }],
         })
@@ -516,7 +522,7 @@ describe("appendDatasetExamples", () => {
       const getServerVersionSpy = vi.spyOn(client, "getServerVersion");
 
       await appendDatasetExamples({
-        client: client as never,
+        client,
         dataset: { datasetName: "ds" },
         examples: [{ input: { q: 1 } }],
       });
@@ -527,7 +533,7 @@ describe("appendDatasetExamples", () => {
 
     it("succeeds on Phoenix >= 15.0.0 when examples carry ids", async () => {
       await appendDatasetExamples({
-        client: makeClient([15, 0, 0]) as never,
+        client: makeClient([15, 0, 0]),
         dataset: { datasetName: "ds" },
         examples: [{ input: { q: 1 }, id: "stable-id" }],
       });
