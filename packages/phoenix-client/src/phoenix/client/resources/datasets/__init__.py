@@ -910,6 +910,10 @@ class Datasets:
             ]
 
         if has_tabular:
+            if split_key:
+                self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return self._upload_tabular_dataset(
@@ -927,6 +931,8 @@ class Datasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return self._upload_json_dataset(
                 dataset_name=name,
                 inputs=inputs,
@@ -1062,6 +1068,10 @@ class Datasets:
             ]
 
         if has_tabular:
+            if split_key:
+                self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return self._upload_tabular_dataset(
@@ -1079,6 +1089,8 @@ class Datasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return self._upload_json_dataset(
                 dataset_name=resolved_name,
                 inputs=inputs,
@@ -1182,11 +1194,6 @@ class Datasets:
                     "pandas is required to upload DataFrames. Install it with 'pip install pandas'"
                 )
             file = _prepare_dataframe_as_csv(table, keys)
-
-        if keys.split_key:
-            self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
-        if keys.example_id:
-            self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
 
         logger.info("Uploading dataset...")
         data_dict: dict[str, Any] = {
@@ -1308,7 +1315,6 @@ class Datasets:
             payload["span_ids"] = span_ids_list
         if example_ids_list and any(s is not None for s in example_ids_list):
             payload["example_ids"] = example_ids_list
-            self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1795,6 +1801,10 @@ class AsyncDatasets:
             ]
 
         if has_tabular:
+            if split_key:
+                await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return await self._upload_tabular_dataset(
@@ -1812,6 +1822,8 @@ class AsyncDatasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return await self._upload_json_dataset(
                 dataset_name=name,
                 inputs=inputs,
@@ -1942,6 +1954,10 @@ class AsyncDatasets:
             ]
 
         if has_tabular:
+            if split_key:
+                await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return await self._upload_tabular_dataset(
@@ -1959,6 +1975,8 @@ class AsyncDatasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return await self._upload_json_dataset(
                 dataset_name=resolved_name,
                 inputs=inputs,
@@ -2047,11 +2065,6 @@ class AsyncDatasets:
                     "pandas is required to upload DataFrames. Install it with 'pip install pandas'"
                 )
             file = _prepare_dataframe_as_csv(table, keys)
-
-        if keys.split_key:
-            await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
-        if keys.example_id:
-            await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
 
         logger.info("Uploading dataset...")
         data_dict: dict[str, Any] = {
@@ -2171,7 +2184,6 @@ class AsyncDatasets:
             payload["span_ids"] = span_ids_list
         if example_ids_list and any(s is not None for s in example_ids_list):
             payload["example_ids"] = example_ids_list
-            await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
         if dataset_description is not None:
             payload["description"] = dataset_description
 
