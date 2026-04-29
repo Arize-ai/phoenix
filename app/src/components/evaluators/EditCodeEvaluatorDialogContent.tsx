@@ -790,6 +790,7 @@ const CodeEditorSection = ({
                 theme={codeMirrorTheme}
                 extensions={extensions}
                 height="100%"
+                indentWithTab
                 basicSetup={{
                   lineNumbers: true,
                   foldGutter: true,
