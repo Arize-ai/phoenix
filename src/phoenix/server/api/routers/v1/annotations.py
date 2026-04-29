@@ -6,7 +6,7 @@ from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import exists, select
+from sqlalchemy import delete, exists, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -19,6 +19,12 @@ from phoenix.server.api.types.ProjectSessionAnnotation import (
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation as TraceAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import (
+    ProjectSessionAnnotationDeleteEvent,
+    SpanAnnotationDeleteEvent,
+    TraceAnnotationDeleteEvent,
+)
 
 from .utils import PaginatedResponseBody, add_errors_to_responses, get_project_by_identifier
 
@@ -730,3 +736,264 @@ async def list_session_annotations(
         ]
 
     return SessionAnnotationsResponseBody(data=data, next_cursor=next_cursor)
+
+
+def _resolve_non_admin_user_id(request: Request) -> Optional[int]:
+    """Return the caller's user_id when auth is enabled and the caller is a
+    non-admin PhoenixUser. Returns None when auth is disabled or the caller
+    is an admin (admin/no-auth → unconditional delete; non-admin → narrow by
+    user_id). System users are admins (PhoenixSystemUser.is_admin == True).
+    """
+    if not request.app.state.authentication_enabled:
+        return None
+    user = request.user
+    if not isinstance(user, PhoenixUser):
+        # is_authenticated dependency would have already rejected this with 401,
+        # but guard defensively for typing.
+        return None
+    if user.is_admin:
+        return None
+    return int(user.identity)
+
+
+@router.delete(
+    "/projects/{project_identifier}/span_annotations",
+    operation_id="deleteSpanAnnotationsByIdentifier",
+    summary=(
+        "Delete every span annotation in a project that matches the given "
+        "(name, identifier) selector."
+    ),
+    description=(
+        """
+        Hard-delete all span annotations within the named project whose
+        `name` and `identifier` match the supplied query parameters.
+
+        - The `name` and `identifier` query parameters are both required and
+          must be non-empty.
+        - The endpoint is idempotent: a request that matches no rows still
+          returns 204.
+        - When authentication is enabled, non-admin callers can only delete
+          rows they own (`user_id == current_user.id`); admins delete all
+          matching rows.
+        """
+    ),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_span_annotations_by_identifier(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name as "
+            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
+            "characters."
+        )
+    ),
+    name: str = Query(
+        ...,
+        min_length=1,
+        description="The annotation name. Required and non-empty.",
+    ),
+    identifier: str = Query(
+        ...,
+        min_length=1,
+        description=(
+            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
+            "prevent accidental mass-delete of the default identifier bucket."
+        ),
+    ),
+) -> None:
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        span_rowids_in_project = (
+            select(models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == project.id)
+        )
+        predicate = [
+            models.SpanAnnotation.name == name,
+            models.SpanAnnotation.identifier == identifier,
+            models.SpanAnnotation.span_rowid.in_(span_rowids_in_project),
+        ]
+        if user_id_for_filter is not None:
+            predicate.append(models.SpanAnnotation.user_id == user_id_for_filter)
+
+        stmt = delete(models.SpanAnnotation).where(*predicate).returning(models.SpanAnnotation.id)
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(SpanAnnotationDeleteEvent(tuple(deleted_ids)))
+
+
+@router.delete(
+    "/projects/{project_identifier}/trace_annotations",
+    operation_id="deleteTraceAnnotationsByIdentifier",
+    summary=(
+        "Delete every trace annotation in a project that matches the given "
+        "(name, identifier) selector."
+    ),
+    description=(
+        """
+        Hard-delete all trace annotations within the named project whose
+        `name` and `identifier` match the supplied query parameters.
+
+        - The `name` and `identifier` query parameters are both required and
+          must be non-empty.
+        - The endpoint is idempotent: a request that matches no rows still
+          returns 204.
+        - When authentication is enabled, non-admin callers can only delete
+          rows they own (`user_id == current_user.id`); admins delete all
+          matching rows.
+        """
+    ),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_trace_annotations_by_identifier(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name as "
+            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
+            "characters."
+        )
+    ),
+    name: str = Query(
+        ...,
+        min_length=1,
+        description="The annotation name. Required and non-empty.",
+    ),
+    identifier: str = Query(
+        ...,
+        min_length=1,
+        description=(
+            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
+            "prevent accidental mass-delete of the default identifier bucket."
+        ),
+    ),
+) -> None:
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        trace_rowids_in_project = select(models.Trace.id).where(
+            models.Trace.project_rowid == project.id
+        )
+        predicate = [
+            models.TraceAnnotation.name == name,
+            models.TraceAnnotation.identifier == identifier,
+            models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project),
+        ]
+        if user_id_for_filter is not None:
+            predicate.append(models.TraceAnnotation.user_id == user_id_for_filter)
+
+        stmt = delete(models.TraceAnnotation).where(*predicate).returning(models.TraceAnnotation.id)
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(TraceAnnotationDeleteEvent(tuple(deleted_ids)))
+
+
+@router.delete(
+    "/projects/{project_identifier}/session_annotations",
+    operation_id="deleteSessionAnnotationsByIdentifier",
+    summary=(
+        "Delete every session annotation in a project that matches the given "
+        "(name, identifier) selector."
+    ),
+    description=(
+        """
+        Hard-delete all session annotations within the named project whose
+        `name` and `identifier` match the supplied query parameters.
+
+        - The `name` and `identifier` query parameters are both required and
+          must be non-empty.
+        - The endpoint is idempotent: a request that matches no rows still
+          returns 204.
+        - When authentication is enabled, non-admin callers can only delete
+          rows they own (`user_id == current_user.id`); admins delete all
+          matching rows.
+        """
+    ),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_session_annotations_by_identifier(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name as "
+            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
+            "characters."
+        )
+    ),
+    name: str = Query(
+        ...,
+        min_length=1,
+        description="The annotation name. Required and non-empty.",
+    ),
+    identifier: str = Query(
+        ...,
+        min_length=1,
+        description=(
+            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
+            "prevent accidental mass-delete of the default identifier bucket."
+        ),
+    ),
+) -> None:
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        session_rowids_in_project = select(models.ProjectSession.id).where(
+            models.ProjectSession.project_id == project.id
+        )
+        predicate = [
+            models.ProjectSessionAnnotation.name == name,
+            models.ProjectSessionAnnotation.identifier == identifier,
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project),
+        ]
+        if user_id_for_filter is not None:
+            predicate.append(models.ProjectSessionAnnotation.user_id == user_id_for_filter)
+
+        stmt = (
+            delete(models.ProjectSessionAnnotation)
+            .where(*predicate)
+            .returning(models.ProjectSessionAnnotation.id)
+        )
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(ProjectSessionAnnotationDeleteEvent(tuple(deleted_ids)))

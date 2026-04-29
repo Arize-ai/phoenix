@@ -480,6 +480,86 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete every span annotation in a project that matches the given (name, identifier) selector.",
+        "description": "Hard-delete all span annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "operationId": "deleteSpanAnnotationsByIdentifier",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation name. Required and non-empty.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Required and non-empty."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "title": "Identifier"
+            },
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/trace_annotations": {
@@ -662,6 +742,86 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete every trace annotation in a project that matches the given (name, identifier) selector.",
+        "description": "Hard-delete all trace annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "operationId": "deleteTraceAnnotationsByIdentifier",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation name. Required and non-empty.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Required and non-empty."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "title": "Identifier"
+            },
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/session_annotations": {
@@ -832,6 +992,86 @@
               }
             },
             "description": "Project or sessions not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete every session annotation in a project that matches the given (name, identifier) selector.",
+        "description": "Hard-delete all session annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "operationId": "deleteSessionAnnotationsByIdentifier",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation name. Required and non-empty.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Required and non-empty."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "title": "Identifier"
+            },
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
           },
           "422": {
             "content": {

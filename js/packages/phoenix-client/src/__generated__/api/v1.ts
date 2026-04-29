@@ -74,7 +74,20 @@ export interface paths {
         get: operations["listSpanAnnotationsBySpanIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete every span annotation in a project that matches the given (name, identifier) selector.
+         * @description Hard-delete all span annotations within the named project whose
+         *             `name` and `identifier` match the supplied query parameters.
+         *
+         *             - The `name` and `identifier` query parameters are both required and
+         *               must be non-empty.
+         *             - The endpoint is idempotent: a request that matches no rows still
+         *               returns 204.
+         *             - When authentication is enabled, non-admin callers can only delete
+         *               rows they own (`user_id == current_user.id`); admins delete all
+         *               matching rows.
+         */
+        delete: operations["deleteSpanAnnotationsByIdentifier"];
         options?: never;
         head?: never;
         patch?: never;
@@ -94,7 +107,20 @@ export interface paths {
         get: operations["listTraceAnnotationsByTraceIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete every trace annotation in a project that matches the given (name, identifier) selector.
+         * @description Hard-delete all trace annotations within the named project whose
+         *             `name` and `identifier` match the supplied query parameters.
+         *
+         *             - The `name` and `identifier` query parameters are both required and
+         *               must be non-empty.
+         *             - The endpoint is idempotent: a request that matches no rows still
+         *               returns 204.
+         *             - When authentication is enabled, non-admin callers can only delete
+         *               rows they own (`user_id == current_user.id`); admins delete all
+         *               matching rows.
+         */
+        delete: operations["deleteTraceAnnotationsByIdentifier"];
         options?: never;
         head?: never;
         patch?: never;
@@ -114,7 +140,20 @@ export interface paths {
         get: operations["listSessionAnnotationsBySessionIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete every session annotation in a project that matches the given (name, identifier) selector.
+         * @description Hard-delete all session annotations within the named project whose
+         *             `name` and `identifier` match the supplied query parameters.
+         *
+         *             - The `name` and `identifier` query parameters are both required and
+         *               must be non-empty.
+         *             - The endpoint is idempotent: a request that matches no rows still
+         *               returns 204.
+         *             - When authentication is enabled, non-admin callers can only delete
+         *               rows they own (`user_id == current_user.id`); admins delete all
+         *               matching rows.
+         */
+        delete: operations["deleteSessionAnnotationsByIdentifier"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4037,6 +4076,59 @@ export interface operations {
             };
         };
     };
+    deleteSpanAnnotationsByIdentifier: {
+        parameters: {
+            query: {
+                /** @description The annotation name. Required and non-empty. */
+                name: string;
+                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket. */
+                identifier: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listTraceAnnotationsByTraceIds: {
         parameters: {
             query?: {
@@ -4100,6 +4192,59 @@ export interface operations {
             };
         };
     };
+    deleteTraceAnnotationsByIdentifier: {
+        parameters: {
+            query: {
+                /** @description The annotation name. Required and non-empty. */
+                name: string;
+                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket. */
+                identifier: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listSessionAnnotationsBySessionIds: {
         parameters: {
             query?: {
@@ -4144,6 +4289,59 @@ export interface operations {
                 };
             };
             /** @description Project or sessions not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteSessionAnnotationsByIdentifier: {
+        parameters: {
+            query: {
+                /** @description The annotation name. Required and non-empty. */
+                name: string;
+                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket. */
+                identifier: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
             404: {
                 headers: {
                     [name: string]: unknown;
