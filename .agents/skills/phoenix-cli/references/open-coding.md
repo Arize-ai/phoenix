@@ -6,34 +6,36 @@ Free-form note-writing against sampled traces, before any taxonomy exists. Open 
 
 ## Process
 
-1. **Inspect** — fetch a span or trace from your sample
+1. **Inspect** — fetch a trace from your sample, then drill to the relevant span
 2. **Read** — look at input, output, exceptions, tool calls, retrieved context
 3. **Note** — write one specific sentence describing what went wrong (or skip if correct)
 4. **Record** — attach the note to the span with `px span add-note`
-5. **Iterate** — move to the next span; repeat until the sample is exhausted or saturation hits
+5. **Iterate** — move to the next trace; repeat until the sample is exhausted or saturation hits
 
 ## Inspection
 
-Use `px` to read span context before writing a note. Sampling commands are covered in SKILL.md's Spans section — this reference assumes you already have a set of span IDs to review.
+Use `px` to read trace and span context before writing a note. Open coding samples by **trace** — read the input → tool calls → retrieved context → output as a unit, then drill to the specific span the failure landed on.
+
+> **Don't filter the sample by `--status-code ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised Python exception (network failure, 5xx, parse error). Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly and arrive as `OK` or `UNSET`. Sampling for open coding by `--status-code ERROR` excludes the population this workflow exists to surface.
 
 ```bash
-# Peek at error spans — input, output, status
-px span list --status-code ERROR --limit 20 --format raw --no-progress | jq '
-  .[] | {span_id: .context.span_id, name, status_code,
-         input: .attributes["input.value"],
-         output: .attributes["output.value"]}
+# Sample recent traces — the unit of inspection in open coding
+px trace list --limit 100 --format raw --no-progress | jq '
+  .[] | {trace_id: .traceId, root: .rootSpan.name, status,
+         input: .rootSpan.attributes["input.value"],
+         output: .rootSpan.attributes["output.value"]}
 '
-
-# Full attribute set for one span (drilldown by span_id — px span get does not exist)
-px span list --trace-id <trace-id> --format raw --no-progress \
-  | jq '.[] | select(.context.span_id == "<span-id>")'
 
 # Trace-level context — all spans in one trace, ordered by start_time
 px trace get <trace-id> --format raw | jq '
-  .spans | sort_by(.start_time) | map({name, status_code,
+  .spans | sort_by(.start_time) | map({span_id: .context.span_id, name, status_code,
     input: .attributes["input.value"],
     output: .attributes["output.value"]})
 '
+
+# Drill to one span (px span get does not exist; filter via span list)
+px span list --trace-id <trace-id> --format raw --no-progress \
+  | jq '.[] | select(.context.span_id == "<span-id>")'
 
 # Check existing notes on spans you are about to review
 # Notes are stored as annotations with name="note"; use --include-notes (not --include-annotations)
@@ -47,28 +49,31 @@ Always pipe through `jq` with `--format raw --no-progress` when scripting.
 
 ## Recording Notes
 
-The primary write path is `px span add-note <span-id> --text "..."`.
+The primary write path is `px span add-note <span-id> --text "..."`. Notes are span-level — when a trace fails, attach the note to the span the failure landed on (often the LLM or tool span, not always the root).
 
 ```bash
 # Add a note to a single span
 px span add-note <span-id> --text "Cited a product feature that does not exist in the schema"
 
-# Automated loop — tag all error spans with a fixed label (LLM-driven or scripted)
-px span list --status-code ERROR --last-n-minutes 60 --format raw --no-progress \
-  | jq -r '.[].context.span_id' \
-  | while read sid; do
-      px span add-note "$sid" --text "error span flagged for review"
-    done
-
-# Interactive loop — review each span and write a custom note or skip
-px span list --status-code ERROR --last-n-minutes 60 --format raw --no-progress \
-  | jq -r '.[].context.span_id' \
-  | while read sid; do
-      read -p "Note for $sid (blank to skip): " note
+# Interactive loop — walk a trace sample, drill to a span, write a note
+px trace list --last-n-minutes 60 --limit 50 --format raw --no-progress \
+  | jq -r '.[].traceId' \
+  | while read tid; do
+      echo "── trace $tid ──"
+      px trace get "$tid" --format raw | jq '
+        .spans | sort_by(.start_time)
+        | map({span_id: .context.span_id, name, status_code,
+               output: .attributes["output.value"]})
+      '
+      read -p "Span ID to annotate (blank to skip trace): " sid
+      [ -z "$sid" ] && continue
+      read -p "Note for $sid: " note
       [ -z "$note" ] && continue
       px span add-note "$sid" --text "$note"
     done
 ```
+
+Bulk auto-tagging by status code (e.g. `px span list --status-code ERROR | xargs ... add-note "error"`) is **not open coding** — open coding is manual, observation-grounded, and ranges over all failure modes, not just spans where Python raised. Skip the bulk-by-status-code shortcut; it produces fewer, less informative notes than walking traces.
 
 **Fallback write paths (one-line asides):**
 

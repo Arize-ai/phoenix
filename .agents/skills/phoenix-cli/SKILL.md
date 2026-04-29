@@ -60,7 +60,7 @@ Always use `--format raw --no-progress` when piping to `jq`.
 
 | Prefix | Description |
 | ------ | ----------- |
-| `references/open-coding` | Free-form notes against sampled spans — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
+| `references/open-coding` | Free-form notes against sampled traces — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
 | `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth

@@ -94,11 +94,12 @@ Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-ki
 
 ### Bulk recording
 
-Stream span IDs from `px span list` and apply `px span annotate` per span:
+Axial coding categorizes the spans you took notes on during open coding, so stream span IDs from spans that already carry an open-coding note. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
 
 ```bash
-px span list --status-code ERROR --format raw --no-progress \
-  | jq -r '.[].context.span_id' \
+# Bulk-annotate spans that already have open-coding notes
+px span list --include-notes --format raw --no-progress \
+  | jq -r '.[] | select((.notes // []) | length > 0) | .context.span_id' \
   | while read sid; do
       px span annotate "$sid" \
         --name failure_category \
