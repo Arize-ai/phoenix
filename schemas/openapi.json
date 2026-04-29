@@ -8640,6 +8640,9 @@
             "type": "array",
             "title": "Stop Sequences"
           },
+          "output_config": {
+            "$ref": "#/components/schemas/PromptAnthropicOutputConfig"
+          },
           "thinking": {
             "oneOf": [
               {
@@ -8647,16 +8650,25 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive"
               }
             ],
             "title": "Thinking",
             "discriminator": {
               "propertyName": "type",
               "mapping": {
+                "adaptive": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive",
                 "disabled": "#/components/schemas/PromptAnthropicThinkingConfigDisabled",
                 "enabled": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
               }
             }
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8665,6 +8677,47 @@
           "max_tokens"
         ],
         "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAnthropicOutputConfig": {
+        "properties": {
+          "effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAnthropicOutputConfig"
+      },
+      "PromptAnthropicThinkingConfigAdaptive": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "adaptive",
+            "title": "Type"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptAnthropicThinkingConfigAdaptive"
       },
       "PromptAnthropicThinkingConfigDisabled": {
         "properties": {
@@ -8692,6 +8745,14 @@
             "type": "integer",
             "minimum": 1024.0,
             "title": "Budget Tokens"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
           }
         },
         "additionalProperties": false,
@@ -8734,6 +8795,13 @@
           "top_p": {
             "type": "number",
             "title": "Top P"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
           }
         },
         "additionalProperties": false,
@@ -8789,6 +8857,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8800,6 +8875,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8855,6 +8935,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8866,6 +8953,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8990,6 +9082,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9001,6 +9100,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9056,6 +9160,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9067,6 +9178,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9124,11 +9240,39 @@
           "top_k": {
             "type": "integer",
             "title": "Top K"
+          },
+          "thinking_config": {
+            "$ref": "#/components/schemas/PromptGoogleThinkingConfig"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "PromptGoogleInvocationParametersContent"
+      },
+      "PromptGoogleThinkingConfig": {
+        "properties": {
+          "thinking_budget": {
+            "type": "integer",
+            "title": "Thinking Budget"
+          },
+          "thinking_level": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Thinking Level"
+          },
+          "include_thoughts": {
+            "type": "boolean",
+            "title": "Include Thoughts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGoogleThinkingConfig"
       },
       "PromptGroqInvocationParameters": {
         "properties": {
@@ -9179,6 +9323,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9190,6 +9341,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9302,6 +9458,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9313,6 +9476,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9368,6 +9536,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9379,6 +9554,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9434,6 +9614,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9445,6 +9632,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9500,6 +9692,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9511,6 +9710,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9649,6 +9853,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9660,6 +9871,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -10252,6 +10468,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -10263,6 +10486,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,

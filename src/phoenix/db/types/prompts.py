@@ -201,7 +201,11 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     presence_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     seed: int = UNDEFINED
+    # https://github.com/openai/openai-python/blob/e507a4ebeea4c3f93cd48986014a3e2ca79230c2/src/openai/types/chat/completion_create_params.py#L264  # noqa: E501
+    stop: list[str] = UNDEFINED
+    # https://github.com/openai/openai-python/blob/e507a4ebeea4c3f93cd48986014a3e2ca79230c2/src/openai/types/chat/completion_create_params.py#L196  # noqa: E501
     reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] = UNDEFINED
+    extra_body: dict[str, Any] = UNDEFINED
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):
@@ -305,7 +309,21 @@ class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
 
 class PromptAnthropicThinkingConfigEnabled(DBBaseModel):
     type: Literal["enabled"]
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_enabled_param.py#L12  # noqa: E501
     budget_tokens: int = Field(..., ge=1024)
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_enabled_param.py#L27  # noqa: E501
+    display: Literal["summarized", "omitted"] = UNDEFINED
+
+
+class PromptAnthropicThinkingConfigAdaptive(DBBaseModel):
+    type: Literal["adaptive"]
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_adaptive_param.py#L14  # noqa: E501
+    display: Literal["summarized", "omitted"] = UNDEFINED
+
+
+class PromptAnthropicOutputConfig(DBBaseModel):
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/output_config_param.py#L14  # noqa: E501
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = UNDEFINED
 
 
 class PromptAnthropicInvocationParametersContent(DBBaseModel):
@@ -313,10 +331,18 @@ class PromptAnthropicInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/message_create_params.py#L138  # noqa: E501
+    output_config: PromptAnthropicOutputConfig = UNDEFINED
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/message_create_params.py#L181  # noqa: E501
     thinking: Annotated[
-        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled],
+        Union[
+            PromptAnthropicThinkingConfigDisabled,
+            PromptAnthropicThinkingConfigEnabled,
+            PromptAnthropicThinkingConfigAdaptive,
+        ],
         Field(..., discriminator="type"),
     ] = UNDEFINED
+    extra_body: dict[str, Any] = UNDEFINED
 
     @model_validator(mode="after")
     def check_thinking_budget_tokens_lt_max_tokens(self) -> Self:
@@ -336,11 +362,21 @@ class PromptAwsInvocationParametersContent(DBBaseModel):
     max_tokens: int = UNDEFINED
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
 
 
 class PromptAwsInvocationParameters(DBBaseModel):
     type: Literal["aws"]
     aws: PromptAwsInvocationParametersContent
+
+
+class PromptGoogleThinkingConfig(DBBaseModel):
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L5321  # noqa: E501
+    thinking_budget: int = UNDEFINED
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L316  # noqa: E501
+    thinking_level: Literal["minimal", "low", "medium", "high"] = UNDEFINED
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L5316  # noqa: E501
+    include_thoughts: bool = UNDEFINED
 
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):
@@ -351,6 +387,7 @@ class PromptGoogleInvocationParametersContent(DBBaseModel):
     frequency_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     top_k: int = UNDEFINED
+    thinking_config: PromptGoogleThinkingConfig = UNDEFINED
 
 
 class PromptGoogleInvocationParameters(DBBaseModel):

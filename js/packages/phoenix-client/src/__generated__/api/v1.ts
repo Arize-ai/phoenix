@@ -2262,8 +2262,34 @@ export interface components {
             top_p?: number;
             /** Stop Sequences */
             stop_sequences?: string[];
+            output_config?: components["schemas"]["PromptAnthropicOutputConfig"];
             /** Thinking */
-            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
+            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"] | components["schemas"]["PromptAnthropicThinkingConfigAdaptive"];
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PromptAnthropicOutputConfig */
+        PromptAnthropicOutputConfig: {
+            /**
+             * Effort
+             * @enum {string}
+             */
+            effort?: "low" | "medium" | "high" | "xhigh" | "max";
+        };
+        /** PromptAnthropicThinkingConfigAdaptive */
+        PromptAnthropicThinkingConfigAdaptive: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "adaptive";
+            /**
+             * Display
+             * @enum {string}
+             */
+            display?: "summarized" | "omitted";
         };
         /** PromptAnthropicThinkingConfigDisabled */
         PromptAnthropicThinkingConfigDisabled: {
@@ -2282,6 +2308,11 @@ export interface components {
             type: "enabled";
             /** Budget Tokens */
             budget_tokens: number;
+            /**
+             * Display
+             * @enum {string}
+             */
+            display?: "summarized" | "omitted";
         };
         /** PromptAwsInvocationParameters */
         PromptAwsInvocationParameters: {
@@ -2300,6 +2331,8 @@ export interface components {
             temperature?: number;
             /** Top P */
             top_p?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
         };
         /** PromptAzureOpenAIInvocationParameters */
         PromptAzureOpenAIInvocationParameters: {
@@ -2326,11 +2359,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptCerebrasInvocationParameters */
         PromptCerebrasInvocationParameters: {
@@ -2357,11 +2396,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -2410,11 +2455,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptFireworksInvocationParameters */
         PromptFireworksInvocationParameters: {
@@ -2441,11 +2492,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -2472,6 +2529,19 @@ export interface components {
             top_p?: number;
             /** Top K */
             top_k?: number;
+            thinking_config?: components["schemas"]["PromptGoogleThinkingConfig"];
+        };
+        /** PromptGoogleThinkingConfig */
+        PromptGoogleThinkingConfig: {
+            /** Thinking Budget */
+            thinking_budget?: number;
+            /**
+             * Thinking Level
+             * @enum {string}
+             */
+            thinking_level?: "minimal" | "low" | "medium" | "high";
+            /** Include Thoughts */
+            include_thoughts?: boolean;
         };
         /** PromptGroqInvocationParameters */
         PromptGroqInvocationParameters: {
@@ -2498,11 +2568,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptMessage */
         PromptMessage: {
@@ -2539,11 +2615,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptOllamaInvocationParameters */
         PromptOllamaInvocationParameters: {
@@ -2570,11 +2652,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
@@ -2601,11 +2689,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptPerplexityInvocationParameters */
         PromptPerplexityInvocationParameters: {
@@ -2632,11 +2726,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -2705,11 +2805,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptToolChoiceNone */
         PromptToolChoiceNone: {
@@ -2856,11 +2962,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
