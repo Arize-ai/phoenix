@@ -1,17 +1,34 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
+    DatasetAction,
+    DatasetNameConflictError,
     ExampleContent,
+    ExampleWithHash,
     add_dataset_examples,
     bulk_assign_examples_to_splits,
     bulk_create_dataset_splits,
     resolve_span_ids_to_rowids,
 )
 from phoenix.server.types import DbSessionFactory
+from phoenix.utilities.content_hashing import compute_example_content_hash
+
+
+def _hash_examples(examples: list[ExampleContent]) -> list[ExampleWithHash]:
+    return [
+        ExampleWithHash(
+            content=ex,
+            content_hash=compute_example_content_hash(
+                input=ex.input, output=ex.output, metadata=ex.metadata
+            ),
+        )
+        for ex in examples
+    ]
 
 
 async def test_create_dataset(
@@ -20,10 +37,12 @@ async def test_create_dataset(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
-                ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1, "y": 2}, output={"z": 3}, metadata={"zz": 4}),
+                    ExampleContent(input={"x": 11, "y": 22}, output={"z": 33}, metadata={"zz": 44}),
+                ]
+            ),
             name="abc",
             description="xyz",
             metadata={"m": 0},
@@ -118,28 +137,30 @@ async def test_create_dataset_with_span_links(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(
-                    input={"x": 1},
-                    output={"z": 3},
-                    span_id="span-abc-123",
-                ),
-                ExampleContent(
-                    input={"x": 2},
-                    output={"z": 6},
-                    span_id="span-def-456",
-                ),
-                ExampleContent(
-                    input={"x": 3},
-                    output={"z": 9},
-                    span_id="nonexistent-span",  # This span doesn't exist
-                ),
-                ExampleContent(
-                    input={"x": 4},
-                    output={"z": 12},
-                    span_id=None,  # No span link
-                ),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"z": 3},
+                        span_id="span-abc-123",
+                    ),
+                    ExampleContent(
+                        input={"x": 2},
+                        output={"z": 6},
+                        span_id="span-def-456",
+                    ),
+                    ExampleContent(
+                        input={"x": 3},
+                        output={"z": 9},
+                        span_id="nonexistent-span",  # This span doesn't exist
+                    ),
+                    ExampleContent(
+                        input={"x": 4},
+                        output={"z": 12},
+                        span_id=None,  # No span link
+                    ),
+                ]
+            ),
             name="dataset-with-spans",
         )
 
@@ -300,7 +321,9 @@ async def test_bulk_assign_examples_to_splits_batches_large_inputs(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[ExampleContent(input={"x": i}, output={"z": i * 2}) for i in range(10)],
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i * 2}) for i in range(10)]
+            ),
             name="batch-split-test",
         )
 
@@ -347,9 +370,11 @@ async def test_bulk_assign_examples_to_splits_handles_duplicates(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[
-                ExampleContent(input={"x": 1}, output={"z": 2}),
-            ],
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"z": 2}),
+                ]
+            ),
             name="duplicate-split-test",
         )
 
@@ -382,6 +407,306 @@ async def test_bulk_assign_examples_to_splits_handles_duplicates(
         assert len(all_assignments) == 1
 
 
+async def test_add_dataset_examples_returns_update_counts(
+    db: DbSessionFactory,
+) -> None:
+    initial_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+            ExampleContent(input={"x": 3}, output={"y": 3}, external_id="c"),
+        ]
+    )
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert first_event.num_created_examples == 3
+    assert first_event.num_patched_examples == 0
+    assert first_event.num_deleted_examples == 0
+
+    async with db() as session:
+        unchanged_event = await add_dataset_examples(
+            session=session,
+            examples=initial_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert unchanged_event.num_created_examples == 0
+    assert unchanged_event.num_patched_examples == 0
+    assert unchanged_event.num_deleted_examples == 0
+    assert unchanged_event.dataset_version_id == first_event.dataset_version_id
+
+    mixed_examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 222}, external_id="b"),
+            ExampleContent(input={"x": 9}, output={"y": 9}, external_id="d"),
+        ]
+    )
+    async with db() as session:
+        update_event = await add_dataset_examples(
+            session=session,
+            examples=mixed_examples,
+            name="update-counts",
+            action=DatasetAction.UPDATE,
+        )
+    assert update_event.num_created_examples == 1
+    assert update_event.num_patched_examples == 1
+    assert update_event.num_deleted_examples == 1
+    assert update_event.dataset_version_id != first_event.dataset_version_id
+
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 42}, output={"y": 42}, external_id="e"),
+                ]
+            ),
+            name="update-counts",
+            action=DatasetAction.APPEND,
+        )
+    assert append_event.num_created_examples == 1
+    assert append_event.num_patched_examples == 0
+    assert append_event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_splits_only_change_counts_as_patch(
+    db: DbSessionFactory,
+) -> None:
+    """Changing only splits (content unchanged) should count as patched examples
+    without producing a new dataset version."""
+    initial = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"train"}), external_id="a"
+            ),
+            ExampleContent(
+                input={"x": 2}, output={"y": 2}, splits=frozenset({"train"}), external_id="b"
+            ),
+        ]
+    )
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=initial,
+            name="splits-only-change",
+            action=DatasetAction.UPDATE,
+        )
+    assert first_event.num_created_examples == 2
+    assert first_event.num_patched_examples == 0
+
+    splits_changed = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"test"}), external_id="a"
+            ),
+            ExampleContent(
+                input={"x": 2}, output={"y": 2}, splits=frozenset({"test"}), external_id="b"
+            ),
+        ]
+    )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=splits_changed,
+            name="splits-only-change",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 2
+    assert event.num_deleted_examples == 0
+    # Splits are not versioned, so no new dataset version is created.
+    assert event.dataset_version_id == first_event.dataset_version_id
+
+
+async def test_add_dataset_examples_splits_only_change_append_counts_as_patch(
+    db: DbSessionFactory,
+) -> None:
+    """APPEND where the only change for a matched example is its split
+    membership should count as a patched example."""
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"train"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="splits-only-append",
+            action=DatasetAction.CREATE,
+        )
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"test"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="splits-only-append",
+            action=DatasetAction.APPEND,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 0
+    assert event.dataset_version_id == first_event.dataset_version_id
+
+
+async def test_add_dataset_examples_content_and_splits_change_counts_once(
+    db: DbSessionFactory,
+) -> None:
+    """An example whose content AND splits both change should count as a
+    single patched example, not two."""
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 1},
+                        splits=frozenset({"train"}),
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="content-and-splits",
+            action=DatasetAction.UPDATE,
+        )
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(
+                        input={"x": 1},
+                        output={"y": 999},  # content changed
+                        splits=frozenset({"test"}),  # splits changed too
+                        external_id="a",
+                    ),
+                ]
+            ),
+            name="content-and-splits",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_identical_splits_is_noop(
+    db: DbSessionFactory,
+) -> None:
+    """Re-uploading identical content AND identical splits should not count
+    any example as patched."""
+    examples = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": 1}, output={"y": 1}, splits=frozenset({"train"}), external_id="a"
+            ),
+        ]
+    )
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="splits-identical-noop",
+            action=DatasetAction.UPDATE,
+        )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="splits-identical-noop",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 0
+
+
+async def test_add_dataset_examples_create_raises_on_name_conflict(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples([ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a")])
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="create-conflict",
+            action=DatasetAction.CREATE,
+        )
+
+    async with db() as session:
+        with pytest.raises(DatasetNameConflictError, match='"create-conflict"'):
+            await add_dataset_examples(
+                session=session,
+                examples=examples,
+                name="create-conflict",
+                action=DatasetAction.CREATE,
+            )
+
+    # CREATE must not block APPEND on an existing dataset.
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b")]
+            ),
+            name="create-conflict",
+            action=DatasetAction.APPEND,
+        )
+    assert append_event.num_created_examples == 1
+
+    # UPDATE on the existing dataset converges without raising.
+    async with db() as session:
+        update_event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="create-conflict",
+            action=DatasetAction.UPDATE,
+        )
+    assert update_event.num_deleted_examples == 1  # the example added by APPEND
+
+
+async def test_add_dataset_examples_update_auto_creates_missing_dataset(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples(
+        [
+            ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+            ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+        ]
+    )
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="update-auto-create",
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 2
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 0
+
+
 async def test_add_dataset_examples_with_many_splits(
     db: DbSessionFactory,
 ) -> None:
@@ -390,19 +715,21 @@ async def test_add_dataset_examples_with_many_splits(
     This tests the full flow through add_dataset_examples -> bulk_assign_examples_to_splits.
     """
     # Create 15 examples each belonging to 3 different splits
-    examples = [
-        ExampleContent(
-            input={"x": i},
-            output={"z": i * 2},
-            splits=frozenset(["train", "eval", "test"]),
-        )
-        for i in range(15)
-    ]
+    hashed_examples = _hash_examples(
+        [
+            ExampleContent(
+                input={"x": i},
+                output={"z": i * 2},
+                splits=frozenset(["train", "eval", "test"]),
+            )
+            for i in range(15)
+        ]
+    )
 
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=examples,
+            examples=hashed_examples,
             name="many-splits-dataset",
         )
 
@@ -488,7 +815,9 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
     async with db() as session:
         await add_dataset_examples(
             session=session,
-            examples=[ExampleContent(input={"x": i}, output={"z": i}) for i in range(5)],
+            examples=_hash_examples(
+                [ExampleContent(input={"x": i}, output={"z": i}) for i in range(5)]
+            ),
             name=f"batch-size-{batch_size}-split-test",
         )
 
@@ -522,3 +851,123 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
         )
         all_assignments = result.scalars().all()
         assert len(all_assignments) == 10
+
+
+async def _simulate_pre_v15_dataset(db: DbSessionFactory, dataset_name: str) -> list[int]:
+    """Null out content_hash and external_id on every revision/example in the
+    given dataset so it looks like a pre-v15 dataset (the v15 migration adds
+    those columns as nullable without a backfill). Returns the example db ids
+    in insertion order."""
+    async with db() as session:
+        example_ids = list(
+            (
+                await session.scalars(
+                    select(models.DatasetExample.id)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == dataset_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            ).all()
+        )
+        await session.execute(
+            update(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+            .values(content_hash=None)
+        )
+        await session.execute(
+            update(models.DatasetExample)
+            .where(models.DatasetExample.id.in_(example_ids))
+            .values(external_id=None)
+        )
+        await session.commit()
+    return example_ids
+
+
+async def test_action_update_deletes_pre_upsert_examples(
+    db: DbSessionFactory,
+) -> None:
+    """Examples in pre-v15 datasets (NULL content_hash, NULL external_id from
+    the nullable-without-backfill migration) must be deleted under
+    action=update when not referenced by the incoming payload — otherwise they
+    remain as invisible orphans."""
+    name = "pre-upsert-update-delete"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    await _simulate_pre_v15_dataset(db, name)
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 9}, output={"y": 9}, external_id="z"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 1
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 2
+
+
+async def test_action_update_can_patch_pre_upsert_example_by_global_id(
+    db: DbSessionFactory,
+) -> None:
+    """An example in a pre-v15 dataset referenced by its DatasetExample
+    GlobalID is matched via the node_id branch and PATCHed (acquiring a
+    content_hash); other unmatched pre-v15 examples are deleted."""
+    name = "pre-upsert-update-patch"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    example_ids = await _simulate_pre_v15_dataset(db, name)
+    target_example_id = example_ids[0]
+    target_global_id = str(GlobalID(type_name="DatasetExample", node_id=str(target_example_id)))
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 100}, external_id=target_global_id),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 1
+
+    async with db() as session:
+        latest_revision = await session.scalar(
+            select(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id == target_example_id)
+            .order_by(models.DatasetExampleRevision.id.desc())
+            .limit(1)
+        )
+        assert latest_revision is not None
+        assert latest_revision.content_hash is not None
+        assert latest_revision.output == {"y": 100}
