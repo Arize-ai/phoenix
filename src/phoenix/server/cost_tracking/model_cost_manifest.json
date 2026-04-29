@@ -3175,17 +3175,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 0.00003,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00036,
+          "base_rate": 0.00018,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -3197,17 +3197,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 0.00003,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00036,
+          "base_rate": 0.00018,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
