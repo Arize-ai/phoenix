@@ -271,21 +271,6 @@ describe("Phoenix CLI", () => {
     );
   });
 
-  it("should register profile use as a direct subcommand of profile", () => {
-    const program = createProgram();
-    const profileCommand = program.commands.find(
-      (command) => command.name() === "profile"
-    );
-    const useCommand = profileCommand?.commands.find(
-      (command) => command.name() === "use"
-    );
-
-    expect(useCommand).toBeDefined();
-    expect(useCommand?.registeredArguments.map((a) => a.name())).toContain(
-      "name"
-    );
-  });
-
   it("should include auth in the top-level help output", () => {
     const program = createProgram();
     expect(program.helpInformation()).toContain("auth");

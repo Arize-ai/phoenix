@@ -1,6 +1,6 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
-import { type PhoenixConfig } from "./config";
+import type { PhoenixConfig } from "./config";
 
 export interface CreatePhoenixClientOptions {
   /**
@@ -10,7 +10,7 @@ export interface CreatePhoenixClientOptions {
 }
 
 /**
- * Create a Phoenix client from configuration.
+ * Create a Phoenix client from configuration
  */
 export function createPhoenixClient({
   config,

@@ -12,7 +12,13 @@ vi.mock("@clack/prompts", () => ({
   isCancel: isCancelMock,
 }));
 
-import { confirmAction, confirmOrExit } from "../src/confirm";
+import {
+  assertDeletesEnabled,
+  confirmAction,
+  confirmOrExit,
+  ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+  parseBooleanEnvironmentVariable,
+} from "../src/confirm";
 import { ExitCode, InvalidArgumentError } from "../src/exitCodes";
 
 describe("confirmAction", () => {
@@ -172,5 +178,87 @@ describe("confirmOrExit", () => {
     await expect(
       confirmOrExit({ message: "Delete?", yes: false })
     ).rejects.toThrow(`process.exit:${ExitCode.CANCELLED}`);
+  });
+});
+
+describe("parseBooleanEnvironmentVariable", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the default when the env var is not set", () => {
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: false,
+      })
+    ).toBe(false);
+  });
+
+  it("parses true values case-insensitively", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "TRUE");
+
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: false,
+      })
+    ).toBe(true);
+  });
+
+  it("parses false values case-insensitively", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "False");
+
+    expect(
+      parseBooleanEnvironmentVariable({
+        envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+        defaultValue: true,
+      })
+    ).toBe(false);
+  });
+
+  it.each(["1", "yes", ""])(
+    "rejects invalid boolean env values like %s",
+    (value) => {
+      vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, value);
+
+      expect(() =>
+        parseBooleanEnvironmentVariable({
+          envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+          defaultValue: false,
+        })
+      ).toThrow(
+        `${ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES} must be set to TRUE or FALSE (case-insensitive). Got: ${value}`
+      );
+    }
+  );
+});
+
+describe("assertDeletesEnabled", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("exits when deletes are not enabled", () => {
+    expect(() => assertDeletesEnabled()).toThrow(
+      new InvalidArgumentError("Delete commands are disabled.")
+    );
+  });
+
+  it("allows deletes when the env var is true", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "true");
+
+    expect(() => assertDeletesEnabled()).not.toThrow();
+  });
+
+  it("surfaces invalid env values", () => {
+    vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "1");
+
+    expect(() => assertDeletesEnabled()).toThrow(
+      new InvalidArgumentError(
+        `${ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES} must be set to TRUE or FALSE (case-insensitive). Got: 1`
+      )
+    );
   });
 });

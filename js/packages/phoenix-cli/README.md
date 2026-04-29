@@ -45,13 +45,16 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                 | Description                       |
-| ------------------------ | --------------------------------- |
-| `PHOENIX_HOST`           | Phoenix API endpoint              |
-| `PHOENIX_PROJECT`        | Project name or ID                |
-| `PHOENIX_API_KEY`        | API key (if auth is enabled)      |
-| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string     |
-| `PHOENIX_PROFILE`        | Active profile name override      |
+| Variable                                 | Description                                   |
+| ---------------------------------------- | --------------------------------------------- |
+| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
+| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
+| `PHOENIX_PROFILE`                        | Active profile name override                  |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+
+Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
 ## Profiles
 

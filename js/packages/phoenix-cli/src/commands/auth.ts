@@ -223,6 +223,7 @@ export function createAuthCommand(): Command {
 
   command.description("Manage Phoenix authentication");
 
+  // Add subcommands
   command.addCommand(createAuthStatusCommand());
 
   return command;

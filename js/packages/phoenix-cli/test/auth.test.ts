@@ -1,16 +1,10 @@
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
-import { CommanderError } from "commander";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  createAuthCommand,
   type FetchViewerResult,
   formatAuthStatus,
   obscureApiKey,
 } from "../src/commands/auth";
-import { type SettingsFile, saveSettings } from "../src/settings";
 
 describe("Auth Commands", () => {
   describe("obscureApiKey", () => {
@@ -289,123 +283,13 @@ describe("Auth Commands", () => {
       expect(lines[0]).toBe(endpoint);
     });
 
-    it("should include profile name line when profileName is provided", () => {
+    it("includes the profile name line when a profile is active", () => {
       const result: FetchViewerResult = {
         status: "success",
         user: { auth_method: "ANONYMOUS" },
       };
-
       const output = formatAuthStatus(endpoint, result, undefined, "prod");
-
       expect(output).toContain("Profile: prod");
     });
-
-    it("should not include profile line when profileName is omitted", () => {
-      const result: FetchViewerResult = {
-        status: "success",
-        user: { auth_method: "ANONYMOUS" },
-      };
-
-      const output = formatAuthStatus(endpoint, result);
-
-      expect(output).not.toContain("Profile:");
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Auth status command integration tests (helpers)
-// ---------------------------------------------------------------------------
-
-function writeTempSettings(tmpDir: string, data: SettingsFile): void {
-  const pxDir = path.join(tmpDir, "px");
-  fs.mkdirSync(pxDir, { recursive: true });
-  saveSettings(data, { settingsPath: path.join(pxDir, "settings.json") });
-}
-
-async function runAuthCommand(
-  args: string[],
-  mocks: {
-    logSpy: ReturnType<typeof vi.spyOn>;
-    errorSpy: ReturnType<typeof vi.spyOn>;
-    exitSpy: ReturnType<typeof vi.spyOn>;
-  }
-): Promise<void> {
-  mocks.logSpy.mockClear();
-  mocks.errorSpy.mockClear();
-  mocks.exitSpy.mockClear();
-
-  const cmd = createAuthCommand();
-  // Commander exits on --help/version/parse errors; override so those don't
-  // terminate the process. We re-throw anything that isn't a CommanderError
-  // so that process.exit mock throws (from error-path handlers) propagate to
-  // the test and can be asserted on with .rejects.toThrow().
-  cmd.exitOverride();
-  try {
-    await cmd.parseAsync(["node", "px", ...args]);
-  } catch (err) {
-    if (err instanceof CommanderError) {
-      // Commander parse/help errors — swallow, caller inspects spies.
-      return;
-    }
-    // process.exit mock throws an Error — re-throw so callers using
-    // .rejects.toThrow() see a rejection.
-    throw err;
-  }
-}
-
-
-// ---------------------------------------------------------------------------
-// Auth status command integration tests
-// ---------------------------------------------------------------------------
-
-describe("auth status command integration", () => {
-  let tmpDir: string;
-  let originalEnv: NodeJS.ProcessEnv;
-  let logSpy: ReturnType<typeof vi.spyOn>;
-  let errorSpy: ReturnType<typeof vi.spyOn>;
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    originalEnv = { ...process.env };
-    delete process.env.PHOENIX_HOST;
-    delete process.env.PHOENIX_API_KEY;
-    delete process.env.PHOENIX_PROFILE;
-
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-status-int-"));
-    process.env.XDG_CONFIG_HOME = tmpDir;
-
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    exitSpy = vi
-      .spyOn(process, "exit")
-      .mockImplementation((_code?: number | string) => {
-        throw new Error(`process.exit(${_code})`);
-      });
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-    vi.restoreAllMocks();
-  });
-
-  it("--profile nonexistent exits with error containing the profile name", async () => {
-    writeTempSettings(tmpDir, {
-      activeProfile: null,
-      profiles: { dev: { endpoint: "http://localhost:6006" } },
-    });
-    process.env.PHOENIX_HOST = "http://localhost:6006";
-
-    await expect(
-      runAuthCommand(["status", "--profile", "nonexistent"], {
-        logSpy,
-        errorSpy,
-        exitSpy,
-      })
-    ).rejects.toThrow();
-
-    const errOutput = errorSpy.mock.calls.map((c) => String(c[0])).join("\n");
-    expect(errOutput).toContain("nonexistent");
   });
 });

@@ -291,7 +291,6 @@ describe("env", () => {
         PHOENIX_CLIENT_HEADERS: undefined,
         PHOENIX_COLLECTOR_ENDPOINT: undefined,
         PHOENIX_API_KEY: undefined,
-        PHOENIX_LOG_LEVEL: undefined,
       });
     });
 

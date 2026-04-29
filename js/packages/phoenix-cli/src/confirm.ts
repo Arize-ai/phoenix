@@ -1,6 +1,9 @@
 import { cancel, confirm, isCancel } from "@clack/prompts";
 
-import { ExitCode } from "./exitCodes.js";
+import { ExitCode, InvalidArgumentError } from "./exitCodes.js";
+
+export const ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES =
+  "PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES";
 
 /**
  * Prompt the user with a yes/no question.
@@ -32,6 +35,61 @@ export interface ConfirmOrExitOptions {
    * When `true`, skips the prompt and proceeds without confirmation.
    */
   yes?: boolean;
+}
+
+interface ParseBooleanEnvironmentVariableOptions {
+  /**
+   * The name of the environment variable to read.
+   */
+  envVar: string;
+  /**
+   * The value to return when the variable is not set.
+   */
+  defaultValue?: boolean;
+}
+
+/**
+ * Parse a boolean environment variable using Phoenix backend semantics.
+ *
+ * Accepted values are `true` and `false` in any casing. Unset variables return
+ * `defaultValue`.
+ */
+export function parseBooleanEnvironmentVariable({
+  envVar,
+  defaultValue,
+}: ParseBooleanEnvironmentVariableOptions): boolean | undefined {
+  const value = process.env[envVar];
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  const normalizedValue = value.toLowerCase();
+  if (normalizedValue === "true") {
+    return true;
+  }
+  if (normalizedValue === "false") {
+    return false;
+  }
+
+  throw new InvalidArgumentError(
+    `${envVar} must be set to TRUE or FALSE (case-insensitive). Got: ${value}`
+  );
+}
+
+/**
+ * Block delete commands unless explicitly enabled via environment variable.
+ */
+export function assertDeletesEnabled(): void {
+  const areDeletesEnabled = parseBooleanEnvironmentVariable({
+    envVar: ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES,
+    defaultValue: false,
+  });
+
+  if (areDeletesEnabled) {
+    return;
+  }
+
+  throw new InvalidArgumentError("Delete commands are disabled.");
 }
 
 /**
