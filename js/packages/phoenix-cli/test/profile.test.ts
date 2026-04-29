@@ -415,6 +415,70 @@ describe("ProfileEntrySchema endpoint URL validation", () => {
 });
 
 // ---------------------------------------------------------------------------
+// $schema auto-write — included on first save, preserved thereafter,
+// not re-added when a user has explicitly removed it
+// ---------------------------------------------------------------------------
+
+describe("settings file $schema handling", () => {
+  const ctx = setupProfileTestContext("phoenix-profile-schema-");
+
+  it("first `profile create` writes a $schema pointer to the GitHub raw URL", async () => {
+    await runProfileCommand(
+      ["create", "demo", "--endpoint", "http://localhost:6006", "--activate"],
+      ctx
+    );
+    const data: Record<string, unknown> = JSON.parse(
+      fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
+    );
+    expect(data.$schema).toBe(
+      "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json"
+    );
+  });
+
+  it("subsequent saves preserve the $schema line", async () => {
+    await runProfileCommand(
+      ["create", "demo", "--endpoint", "http://localhost:6006"],
+      ctx
+    );
+    await runProfileCommand(
+      ["create", "staging", "--endpoint", "http://staging:6006"],
+      ctx
+    );
+    const data: Record<string, unknown> = JSON.parse(
+      fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
+    );
+    expect(typeof data.$schema).toBe("string");
+  });
+
+  it("does not re-add $schema when the user has explicitly removed it", async () => {
+    // User authored a settings.json with no $schema field.
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: "manual",
+      profiles: { manual: { endpoint: "http://localhost:6006" } },
+    });
+    expect(
+      "$schema" in
+        JSON.parse(
+          fs.readFileSync(
+            path.join(ctx.tmpDir, "px", "settings.json"),
+            "utf-8"
+          )
+        )
+    ).toBe(false);
+
+    // Run a mutation; the file gets rewritten but $schema must not appear.
+    await runProfileCommand(
+      ["create", "new-one", "--endpoint", "http://other:6006"],
+      ctx
+    );
+    const data: Record<string, unknown> = JSON.parse(
+      fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
+    );
+    expect("$schema" in data).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resolveEditorCommand — splits multi-token EDITOR strings (Codex review #4)
 // ---------------------------------------------------------------------------
 

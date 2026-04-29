@@ -107,13 +107,41 @@ export class ProfileResolutionError extends InvalidArgumentError {
 }
 
 /**
- * Empty settings state. Used as the initial value and as the fallback in
- * forgiving mode when the file is missing or corrupt.
+ * Default `$schema` URL written into newly-created settings files so editors
+ * (VS Code, JetBrains, etc.) can validate and autocomplete out of the box.
+ *
+ * Pinned to `main` for now while the schema is still moving. We'll move it
+ * to a SchemaStore entry once registered, and at that point this constant
+ * becomes the fallback rather than the canonical pointer.
+ */
+export const DEFAULT_SCHEMA_URL =
+  "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json";
+
+/**
+ * Empty settings state. Used as the forgiving-mode fallback when the file
+ * exists but is unreadable or unparseable — see {@link getInitialSettingsFile}
+ * for the freshly-created variant that includes `$schema`.
  */
 export const DEFAULT_SETTINGS_FILE: SettingsFile = {
   activeProfile: null,
   profiles: {},
 };
+
+/**
+ * Settings state used when no file exists yet. Differs from
+ * {@link DEFAULT_SETTINGS_FILE} only in that it carries a `$schema` pointer,
+ * so the very first `saveSettings` call writes a file editors can validate
+ * without users having to add the line themselves. Any subsequent load
+ * preserves whatever's already on disk — if a user removes `$schema`, we
+ * don't put it back.
+ */
+export function getInitialSettingsFile(): SettingsFile {
+  return {
+    $schema: DEFAULT_SCHEMA_URL,
+    activeProfile: null,
+    profiles: {},
+  };
+}
 
 /**
  * Format a Zod error path segment for human-readable messages.
@@ -292,9 +320,13 @@ export interface LoadSettingsOptions {
 /**
  * Load the settings file from disk.
  *
- * - Missing file: always returns `DEFAULT_SETTINGS_FILE` (not an error — no settings exist yet).
- * - Malformed JSON / schema-invalid, forgiving mode (default): returns `DEFAULT_SETTINGS_FILE`
- *   and writes a warning to stderr.
+ * - Missing file: returns `getInitialSettingsFile()` — a fresh state that
+ *   carries `$schema`, so the very first save writes a file editors can
+ *   validate.
+ * - Malformed JSON / schema-invalid, forgiving mode (default): returns
+ *   `DEFAULT_SETTINGS_FILE` (no `$schema` — we don't want to clobber a user's
+ *   intentional removal during a forgiving fallback) and writes a warning to
+ *   stderr.
  * - Malformed JSON / schema-invalid, strict mode: throws `SettingsFileError`.
  */
 export function loadSettings(options?: LoadSettingsOptions): SettingsFile {
@@ -310,7 +342,7 @@ export function loadSettings(options?: LoadSettingsOptions): SettingsFile {
       err !== null &&
       (err as NodeJS.ErrnoException).code === "ENOENT"
     ) {
-      return { ...DEFAULT_SETTINGS_FILE, profiles: {} };
+      return getInitialSettingsFile();
     }
     if (strict) {
       throw err;

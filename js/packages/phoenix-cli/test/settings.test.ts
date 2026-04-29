@@ -4,6 +4,7 @@ import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_SCHEMA_URL,
   DEFAULT_SETTINGS_FILE,
   SettingsFileError,
   loadSettings,
@@ -24,7 +25,22 @@ describe("loadSettings / saveSettings", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns DEFAULT_SETTINGS_FILE when the file does not exist", () => {
+  it("returns initial state with $schema when the file does not exist", () => {
+    // First-time load: file does not exist on disk. Returns the initial
+    // state, which differs from DEFAULT_SETTINGS_FILE only in carrying a
+    // $schema pointer so the very first save writes a file editors can
+    // validate.
+    expect(loadSettings({ settingsPath })).toEqual({
+      $schema: DEFAULT_SCHEMA_URL,
+      activeProfile: null,
+      profiles: {},
+    });
+  });
+
+  it("forgiving fallback on a corrupt file does NOT add $schema", () => {
+    // Distinct from the missing-file case: a corrupt file means the user
+    // had something on disk; we fall back without imposing a $schema line.
+    fs.writeFileSync(settingsPath, "not-json", "utf-8");
     expect(loadSettings({ settingsPath })).toEqual(DEFAULT_SETTINGS_FILE);
   });
 

@@ -84,8 +84,9 @@ script, read `~/.px/settings.json` directly.
 
 ### Editor autocompletion via `$schema`
 
-Add a `$schema` field to your `settings.json` for validation and autocompletion
-in VS Code, JetBrains, and other editors:
+The CLI writes a `$schema` field automatically the first time it creates
+your `settings.json`, so editors like VS Code and JetBrains validate and
+autocomplete the file out of the box:
 
 ```json
 {
@@ -95,11 +96,10 @@ in VS Code, JetBrains, and other editors:
 }
 ```
 
-The schema lives at `schemas/phoenix-cli-settings.json` in the Phoenix
-repository and tracks the published Zod schema. Pin to `main` for the
-latest definitions, or substitute a Phoenix release tag (e.g.
-`arize-phoenix-v14.16.0`) once a release that ships the schema is
-available.
+If you remove the line by hand, the CLI won't add it back. The schema
+lives at `schemas/phoenix-cli-settings.json` in the Phoenix repository
+and tracks the published Zod schema. The pointer is currently pinned to
+`main`; we'll switch to a SchemaStore entry once registered.
 
 For VS Code project-wide association add to `.vscode/settings.json`:
 
