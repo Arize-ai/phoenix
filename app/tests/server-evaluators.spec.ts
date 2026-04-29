@@ -59,11 +59,11 @@ test.describe.serial("Server Evaluators", () => {
       page.getByRole("heading", { name: datasetName })
     ).toBeVisible();
 
-    // Add an example to the dataset (required for playground to work)
-    await page
-      .getByRole("button", { name: "Add Dataset Example" })
-      .or(page.getByRole("button", { name: "Example" }))
-      .click();
+    // Add an example to the dataset (required for playground to work).
+    // The Examples button opens a menu with options to add an example manually
+    // or upload from a file. Choose the manual option to open the dialog.
+    await page.getByRole("button", { name: "Add Dataset Example" }).click();
+    await page.getByRole("menuitem", { name: "Add Example Manually" }).click();
 
     // Wait for the Add Example dialog to open
     await expect(page.getByRole("dialog")).toBeVisible();

@@ -410,14 +410,16 @@ test.describe("Dataset File Upload", () => {
       await expect(collapseSwitch).toBeVisible();
     });
 
-    test("can toggle collapse and see collapsed data in preview", async ({
+    test("auto-enables collapse and shows collapsed data in preview", async ({
       page,
     }) => {
       /**
-       * This test verifies that toggling collapse:
-       * 1. The column assigner keeps showing original top-level keys (input, output, id)
+       * This test verifies that when a file with collapsible top-level keys is
+       * uploaded:
+       * 1. The collapse toggle is automatically turned on
+       * 2. The column assigner keeps showing original top-level keys (input, output, id)
        *    because those are what get sent to the backend for assignment
-       * 2. The dataset preview shows the collapsed/flattened data structure
+       * 3. The dataset preview shows the collapsed/flattened data structure
        *
        * The backend handles the actual flattening - the frontend just passes
        * which keys to flatten via flatten_keys parameter.
@@ -433,18 +435,18 @@ test.describe("Dataset File Upload", () => {
 
       await expect(dialog.getByText("nested.jsonl")).toBeVisible();
 
-      // Without collapse, we should see top-level keys: input, output, id
+      // Even with collapse enabled, the column assigner still shows the original
+      // top-level keys: input, output, id
       // "input" and "output" should be auto-assigned to their buckets
       await expectColumnInBucket(page, "input", "INPUT");
       await expectColumnInBucket(page, "output", "OUTPUT");
       await expectColumnInBucket(page, "id", "KEYS");
 
-      // Enable collapse - click on the label text instead of the switch for Firefox compatibility
+      // Collapse is automatically enabled when collapsible keys are detected
       const collapseSwitch = dialog.getByRole("switch", {
         name: "Collapse top-level keys",
       });
       await expect(collapseSwitch).toBeVisible();
-      await dialog.getByText("Collapse top-level keys").click();
       await expect(collapseSwitch).toBeChecked();
 
       // Column assigner still shows original keys (backend does the flattening)
@@ -484,13 +486,11 @@ test.describe("Dataset File Upload", () => {
 
       await expect(dialog.getByText("nested.jsonl")).toBeVisible();
 
-      // Enable collapse - click on the label text instead of the switch for Firefox compatibility
+      // Collapse is automatically enabled when collapsible keys are detected
       const collapseSwitch = dialog.getByRole("switch", {
         name: "Collapse top-level keys",
       });
       await expect(collapseSwitch).toBeVisible();
-      // Click on the text label which triggers the switch more reliably across browsers
-      await dialog.getByText("Collapse top-level keys").click();
       await expect(collapseSwitch).toBeChecked();
 
       // Set dataset name
@@ -548,12 +548,11 @@ test.describe("Dataset File Upload", () => {
 
       await expect(dialog.getByText("nested.jsonl")).toBeVisible();
 
-      // Enable collapse - click on the label text instead of the switch for Firefox compatibility
+      // Collapse is automatically enabled when collapsible keys are detected
       const collapseSwitch = dialog.getByRole("switch", {
         name: "Collapse top-level keys",
       });
       await expect(collapseSwitch).toBeVisible();
-      await dialog.getByText("Collapse top-level keys").click();
       await expect(collapseSwitch).toBeChecked();
 
       // Switch to "Dataset Preview" tab to see the preview table
