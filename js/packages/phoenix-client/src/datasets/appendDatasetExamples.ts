@@ -1,8 +1,10 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
+import { DATASET_UPLOAD_EXAMPLE_IDS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { DatasetSelector, Example } from "../types/datasets";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import { getDatasetInfo } from "./getDatasetInfo";
 
 export type AppendDatasetExamplesParams = ClientFn & {
@@ -92,6 +94,12 @@ export async function appendDatasetExamples({
       dataset,
     });
     datasetName = datasetInfo.name;
+  }
+  if (hasExampleIds) {
+    await ensureServerCapability({
+      client,
+      requirement: DATASET_UPLOAD_EXAMPLE_IDS,
+    });
   }
   const appendResponse = await client.POST("/v1/datasets/upload", {
     params: {

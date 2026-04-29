@@ -29,6 +29,11 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    DATASET_UPLOAD_EXAMPLE_ID_KEY,
+    DATASET_UPLOAD_EXAMPLE_IDS,
+    DATASET_UPLOAD_SPLIT_KEY,
+)
 from phoenix.client.utils.id_handling import is_node_id
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
@@ -1178,6 +1183,11 @@ class Datasets:
                 )
             file = _prepare_dataframe_as_csv(table, keys)
 
+        if keys.split_key:
+            self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+        if keys.example_id:
+            self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
+
         logger.info("Uploading dataset...")
         data_dict: dict[str, Any] = {
             "action": action,
@@ -1298,6 +1308,7 @@ class Datasets:
             payload["span_ids"] = span_ids_list
         if example_ids_list and any(s is not None for s in example_ids_list):
             payload["example_ids"] = example_ids_list
+            self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -2037,6 +2048,11 @@ class AsyncDatasets:
                 )
             file = _prepare_dataframe_as_csv(table, keys)
 
+        if keys.split_key:
+            await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+        if keys.example_id:
+            await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
+
         logger.info("Uploading dataset...")
         data_dict: dict[str, Any] = {
             "action": action,
@@ -2155,6 +2171,7 @@ class AsyncDatasets:
             payload["span_ids"] = span_ids_list
         if example_ids_list and any(s is not None for s in example_ids_list):
             payload["example_ids"] = example_ids_list
+            await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
         if dataset_description is not None:
             payload["description"] = dataset_description
 

@@ -91,6 +91,14 @@ export const GET_SPANS_BY_ATTRIBUTE: ParameterRequirement = {
   minServerVersion: [14, 9, 0],
 };
 
+export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "example_ids",
+  parameterLocation: "body",
+  route: "POST /v1/datasets/upload",
+  minServerVersion: [15, 0, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -108,4 +116,5 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_FILTERS,
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
+  DATASET_UPLOAD_EXAMPLE_IDS,
 ] as const;
