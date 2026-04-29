@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any
+from uuid import UUID
 
 import httpx
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -245,6 +247,140 @@ class TestDeleteSessions:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         response = await httpx_client.post("v1/sessions/delete", json={"session_identifiers": []})
+        assert response.status_code == 422
+
+
+class TestAnnotateSessions:
+    async def test_rest_session_annotation_rejects_note_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+
+        request_body = {
+            "data": [
+                {
+                    "session_id": session_model.session_id,
+                    "name": "note",
+                    "annotator_kind": "HUMAN",
+                    "result": {"explanation": "This should use the notes endpoint"},
+                }
+            ]
+        }
+        response = await httpx_client.post("v1/session_annotations?sync=true", json=request_body)
+
+        assert response.status_code == 400
+        assert (
+            "The name 'note' is reserved for session notes. Use POST /v1/session_notes instead."
+            in response.text
+        )
+
+
+class TestCreateSessionNote:
+    async def test_rest_create_session_note(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        note_text = "Review complete"
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": session_model.session_id, "note": note_text}},
+        )
+
+        assert response.status_code == 200
+        annotation_id = response.json()["data"]["id"]
+        rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), "ProjectSessionAnnotation"
+        )
+
+        async with db() as session:
+            orm_annotation = await session.scalar(
+                select(models.ProjectSessionAnnotation).where(
+                    models.ProjectSessionAnnotation.id == rowid,
+                    models.ProjectSessionAnnotation.name == "note",
+                    models.ProjectSessionAnnotation.explanation == note_text,
+                )
+            )
+
+        assert orm_annotation is not None
+        assert orm_annotation.project_session_id == session_model.id
+        assert orm_annotation.name == "note"
+        assert orm_annotation.label is None
+        assert orm_annotation.score is None
+        assert orm_annotation.explanation == note_text
+        assert orm_annotation.annotator_kind == "HUMAN"
+        assert orm_annotation.metadata_ == {}
+        assert orm_annotation.source == "API"
+        assert orm_annotation.identifier.startswith("px-session-note:")
+        assert UUID(orm_annotation.identifier.removeprefix("px-session-note:")).version == 4
+
+    async def test_rest_create_session_note_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        missing_session_id = token_hex(16)
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": missing_session_id, "note": "This should fail"}},
+        )
+
+        assert response.status_code == 404
+        assert f"Session with session_id {missing_session_id} not found" in response.text
+
+    async def test_rest_create_multiple_session_notes(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        note_texts = ["first note", "second note", "third note"]
+
+        for note_text in note_texts:
+            response = await httpx_client.post(
+                "v1/session_notes",
+                json={"data": {"session_id": session_model.session_id, "note": note_text}},
+            )
+            assert response.status_code == 200
+
+        async with db() as session:
+            annotations = list(
+                (
+                    await session.scalars(
+                        select(models.ProjectSessionAnnotation).where(
+                            models.ProjectSessionAnnotation.project_session_id == session_model.id,
+                            models.ProjectSessionAnnotation.name == "note",
+                        )
+                    )
+                ).all()
+            )
+
+        assert len(annotations) == 3
+        assert {annotation.explanation for annotation in annotations} == set(note_texts)
+        identifiers = [annotation.identifier for annotation in annotations]
+        assert len(set(identifiers)) == 3
+        assert all(identifier.startswith("px-session-note:") for identifier in identifiers)
+        assert all(
+            UUID(identifier.removeprefix("px-session-note:")).version == 4
+            for identifier in identifiers
+        )
+
+    async def test_rest_create_session_note_blank_text_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": session_model.session_id, "note": "   "}},
+        )
+
         assert response.status_code == 422
 
 

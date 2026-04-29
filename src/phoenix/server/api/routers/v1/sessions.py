@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import Field
-from sqlalchemy import delete, select
+from pydantic import BeforeValidator, Field
+from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -15,6 +14,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -25,10 +25,17 @@ from phoenix.server.api.routers.v1.utils import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
+from phoenix.server.api.types.ProjectSessionAnnotation import (
+    ProjectSessionAnnotation as SessionAnnotationNodeType,
+)
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import SpanDeleteEvent
+from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent, SpanDeleteEvent
 
 from .annotations import SessionAnnotationData
 from .utils import RequestBody
@@ -59,6 +66,23 @@ class AnnotateSessionsRequestBody(RequestBody[list[SessionAnnotationData]]):
 
 
 class AnnotateSessionsResponseBody(ResponseBody[list[InsertedSessionAnnotation]]):
+    pass
+
+
+class SessionNoteData(V1RoutesBaseModel):
+    session_id: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(min_length=1, description="Session ID")
+    note: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(min_length=1, description="The note text to add to the session")
+
+
+class CreateSessionNoteRequestBody(RequestBody[SessionNoteData]):
+    data: SessionNoteData
+
+
+class CreateSessionNoteResponseBody(ResponseBody[InsertedSessionAnnotation]):
     pass
 
 
@@ -370,22 +394,20 @@ async def annotate_sessions(
 ) -> AnnotateSessionsResponseBody:
     if not request_body.data:
         return AnnotateSessionsResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'note' is reserved for session notes. Use POST /v1/session_notes instead."
+            ),
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
 
     session_annotations = request_body.data
-    filtered_session_annotations = list(filter(lambda d: d.name != "note", session_annotations))
-    if len(filtered_session_annotations) != len(session_annotations):
-        warnings.warn(
-            (
-                "Session annotations with the name 'note' are not supported in this endpoint. "
-                "They will be ignored."
-            ),
-            UserWarning,
-        )
-    precursors = [d.as_precursor(user_id=user_id) for d in filtered_session_annotations]
+    precursors = [d.as_precursor(user_id=user_id) for d in session_annotations]
     if not sync:
         await request.state.enqueue_annotations(*precursors)
         return AnnotateSessionsResponseBody(data=[])
@@ -426,4 +448,71 @@ async def annotate_sessions(
 
     return AnnotateSessionsResponseBody(
         data=[InsertedSessionAnnotation(id=str(inserted_id)) for inserted_id in inserted_ids]
+    )
+
+
+@router.post(
+    "/session_notes",
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
+    operation_id="createSessionNote",
+    summary="Create a session note",
+    description=(
+        "Add a note annotation to a session. Notes are special annotations that allow "
+        "multiple entries per session (unlike regular annotations which are unique by name "
+        "and identifier). Each note gets a unique UUIDv4 identifier."
+    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Session not found"}]),
+    response_description="Session note created successfully",
+    status_code=200,
+)
+async def create_session_note(
+    request: Request,
+    request_body: CreateSessionNoteRequestBody,
+) -> CreateSessionNoteResponseBody:
+    note_data = request_body.data
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        project_session_id = await session.scalar(
+            select(models.ProjectSession.id).where(
+                models.ProjectSession.session_id == note_data.session_id
+            )
+        )
+
+        if project_session_id is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session with session_id {note_data.session_id} not found",
+            )
+
+        result = await session.execute(
+            insert(models.ProjectSessionAnnotation)
+            .values(
+                project_session_id=project_session_id,
+                name="note",
+                label=None,
+                score=None,
+                explanation=note_data.note,
+                annotator_kind="HUMAN",
+                metadata_={},
+                identifier=get_note_identifier("px-session-note"),
+                source="API",
+                user_id=user_id,
+            )
+            .returning(models.ProjectSessionAnnotation.id)
+        )
+        annotation_id = result.scalar_one()
+
+    request.state.event_queue.put(ProjectSessionAnnotationInsertEvent((annotation_id,)))
+    return CreateSessionNoteResponseBody(
+        data=InsertedSessionAnnotation(
+            id=str(GlobalID(SessionAnnotationNodeType.__name__, str(annotation_id)))
+        )
     )
