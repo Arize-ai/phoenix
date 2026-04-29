@@ -75,7 +75,7 @@ export type SettingsFile = z.infer<typeof SettingsFileSchema>;
  * Result type returned by `parseSettingsFile`. Using a discriminated union
  * keeps parse errors explicit and avoids exceptions in the caller.
  */
-export type SettingsParseResult =
+type SettingsParseResult =
   | { ok: true; data: SettingsFile }
   | { ok: false; reason: string };
 
@@ -132,7 +132,7 @@ function formatZodPath(pathSegments: (string | number)[]): string {
  * Returns `{ ok: false, reason }` rather than throwing on any parse failure
  * so callers can decide whether to warn+continue or throw a typed error.
  */
-export function parseSettingsFile(rawJson: string): SettingsParseResult {
+function parseSettingsFile(rawJson: string): SettingsParseResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);
@@ -244,16 +244,6 @@ export function getActiveProfile(
       : undefined;
   }
   return undefined;
-}
-
-/**
- * Look up a profile by name. Returns `undefined` if not found.
- */
-export function getProfile(
-  file: SettingsFile,
-  name: string
-): ProfileEntry | undefined {
-  return file.profiles[name];
 }
 
 // ---------------------------------------------------------------------------

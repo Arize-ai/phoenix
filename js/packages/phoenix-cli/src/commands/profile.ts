@@ -12,7 +12,6 @@ import {
   type ProfileEntry,
   type SettingsFile,
   ProfileEntrySchema,
-  ProfileResolutionError,
   SettingsFileError,
   getActiveProfile,
   loadSettings,
@@ -32,12 +31,23 @@ import {
 function buildProfileListEntries(file: SettingsFile): ProfileListEntry[] {
   const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
   const activeName = getActiveProfile(file, envProfileName)?.name;
-  return Object.entries(file.profiles).map(([name, entry]) => ({
+  return Object.entries(file.profiles).map(([name, entry]) =>
+    buildSingleProfileEntry(name, entry, name === activeName)
+  );
+}
+
+function buildSingleProfileEntry(
+  name: string,
+  entry: ProfileEntry,
+  active: boolean
+): ProfileListEntry {
+  return {
     name,
     endpoint: entry.endpoint,
     project: entry.project,
-    active: name === activeName,
-  }));
+    hasApiKey: entry.apiKey !== undefined && entry.apiKey.length > 0,
+    active,
+  };
 }
 
 function isValidUrl(value: string): boolean {
@@ -51,6 +61,24 @@ function isValidUrl(value: string): boolean {
 
 function collectStrings(value: string, previous: string[]): string[] {
   return previous.concat([value]);
+}
+
+/**
+ * Load settings in strict mode. On any parse / I/O error, write the failure
+ * to stderr and exit with `ExitCode.FAILURE`. Mutation commands all share
+ * this preamble so a corrupt settings file fails loudly instead of silently
+ * overwriting whatever's on disk.
+ */
+function loadSettingsStrictOrExit(): SettingsFile {
+  try {
+    return loadSettings({ strict: true });
+  } catch (err) {
+    if (err instanceof SettingsFileError) {
+      writeError({ message: `Error reading settings file: ${err.message}` });
+      process.exit(ExitCode.FAILURE);
+    }
+    throw err;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -119,12 +147,11 @@ async function profileShowHandler(
 
   const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
   const activeName = getActiveProfile(file, envProfileName)?.name;
-  const profileEntry: ProfileListEntry = {
-    name: resolvedName,
-    endpoint: entry.endpoint,
-    project: entry.project,
-    active: resolvedName === activeName,
-  };
+  const profileEntry = buildSingleProfileEntry(
+    resolvedName,
+    entry,
+    resolvedName === activeName
+  );
   const output = formatProfilesOutput({
     profiles: profileEntry,
     format: options.format,
@@ -150,9 +177,9 @@ function createProfileShowCommand(): Command {
 interface ProfileCreateOptions {
   endpoint?: string;
   project?: string;
+  apiKey?: string;
   header?: string[];
-  current?: boolean;
-  format?: OutputFormat;
+  activate?: boolean;
 }
 
 async function profileCreateHandler(
@@ -186,16 +213,7 @@ async function profileCreateHandler(
     headers[h.slice(0, idx)] = h.slice(idx + 1);
   }
 
-  let file: SettingsFile;
-  try {
-    file = loadSettings({ strict: true });
-  } catch (err) {
-    if (err instanceof SettingsFileError) {
-      writeError({ message: `Error reading settings file: ${err.message}` });
-      process.exit(ExitCode.FAILURE);
-    }
-    throw err;
-  }
+  const file = loadSettingsStrictOrExit();
 
   if (file.profiles[name] !== undefined) {
     writeError({
@@ -207,30 +225,22 @@ async function profileCreateHandler(
   const entry: ProfileEntry = {
     ...(options.endpoint ? { endpoint: options.endpoint } : {}),
     ...(options.project ? { project: options.project } : {}),
+    ...(options.apiKey ? { apiKey: options.apiKey } : {}),
     ...(Object.keys(headers).length > 0 ? { headers } : {}),
   };
 
   const newFile: SettingsFile = {
     ...file,
     profiles: { ...file.profiles, [name]: entry },
-    activeProfile: options.current ? name : file.activeProfile,
+    activeProfile: options.activate ? name : file.activeProfile,
   };
 
   saveSettings(newFile);
 
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const activeName = getActiveProfile(newFile, envProfileName)?.name;
-  const profileEntry: ProfileListEntry = {
-    name,
-    endpoint: entry.endpoint,
-    project: entry.project,
-    active: name === activeName,
-  };
-  const output = formatProfilesOutput({
-    profiles: [profileEntry],
-    format: options.format,
-  });
-  writeOutput({ message: output });
+  const message = options.activate
+    ? `Created profile "${name}" and set as active.`
+    : `Created profile "${name}".`;
+  writeOutput({ message });
 }
 
 function createProfileCreateCommand(): Command {
@@ -240,15 +250,18 @@ function createProfileCreateCommand(): Command {
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--project <name>", "Default project name")
     .option(
+      "--api-key <key>",
+      "Phoenix API key for authentication. Stored in the settings file (mode 0600); never echoed back to stdout."
+    )
+    .option(
       "--header <key=value>",
       "Custom HTTP header (repeatable)",
       collectStrings,
       []
     )
-    .option("--current", "Make this the active profile")
     .option(
-      "--format <format>",
-      'Output format: pretty, json, or raw (default: "pretty")'
+      "--activate",
+      "Make this the active profile after creation (matches `gcloud config configurations create --activate`)"
     )
     .action(profileCreateHandler);
 }
@@ -257,34 +270,19 @@ function createProfileCreateCommand(): Command {
 // edit (interactive, strict kubectl semantics)
 // ---------------------------------------------------------------------------
 
-export function resolveEditor(): string {
+function resolveEditor(): string {
   return process.env.PHOENIX_EDITOR ?? process.env.EDITOR ?? "vi";
 }
 
-export type RunEditor = (editor: string, filePath: string) => void;
-
-export function spawnEditorSync(editor: string, filePath: string): void {
+function runEditor(editor: string, filePath: string): void {
   const result = spawnSync(editor, [filePath], { stdio: "inherit" });
   if (result.error) {
     throw result.error;
   }
 }
 
-async function profileEditHandler(
-  name: string,
-  _options: Record<string, never>,
-  runEditor: RunEditor = spawnEditorSync
-): Promise<void> {
-  let file: SettingsFile;
-  try {
-    file = loadSettings({ strict: true });
-  } catch (err) {
-    if (err instanceof SettingsFileError) {
-      writeError({ message: `Error reading settings file: ${err.message}` });
-      process.exit(ExitCode.FAILURE);
-    }
-    throw err;
-  }
+async function profileEditHandler(name: string): Promise<void> {
+  const file = loadSettingsStrictOrExit();
 
   const existingEntry = file.profiles[name];
   if (existingEntry === undefined) {
@@ -336,16 +334,7 @@ async function profileEditHandler(
     };
     saveSettings(newFile);
 
-    const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-    const activeName = getActiveProfile(newFile, envProfileName)?.name;
-    const profileEntry: ProfileListEntry = {
-      name,
-      endpoint: validEntry.endpoint,
-      project: validEntry.project,
-      active: name === activeName,
-    };
-    const output = formatProfilesOutput({ profiles: [profileEntry] });
-    writeOutput({ message: output });
+    writeOutput({ message: `Updated profile "${name}".` });
   } finally {
     try {
       fs.unlinkSync(tmpFile);
@@ -359,31 +348,15 @@ function createProfileEditCommand(): Command {
   return new Command("edit")
     .description("Edit a profile in $EDITOR (interactive, validates on save)")
     .argument("<name>", "Profile name to edit")
-    .action((name, options) => profileEditHandler(name, options));
+    .action(profileEditHandler);
 }
 
 // ---------------------------------------------------------------------------
 // use
 // ---------------------------------------------------------------------------
 
-interface ProfileUseOptions {
-  format?: OutputFormat;
-}
-
-async function profileUseHandler(
-  name: string,
-  options: ProfileUseOptions
-): Promise<void> {
-  let file: SettingsFile;
-  try {
-    file = loadSettings({ strict: true });
-  } catch (err) {
-    if (err instanceof SettingsFileError) {
-      writeError({ message: `Error reading settings file: ${err.message}` });
-      process.exit(ExitCode.FAILURE);
-    }
-    throw err;
-  }
+async function profileUseHandler(name: string): Promise<void> {
+  const file = loadSettingsStrictOrExit();
 
   const entry = file.profiles[name];
   if (entry === undefined) {
@@ -393,29 +366,30 @@ async function profileUseHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
+  // Compute the transition message before mutating. We deliberately ignore
+  // PHOENIX_PROFILE here — `use` writes the *stored* active profile, so the
+  // before/after we report should reflect what's persisted, not what an env
+  // var override happens to point at right now.
+  const previousActive = file.activeProfile;
+
+  if (previousActive === name) {
+    writeOutput({ message: `Already active: ${name}` });
+    return;
+  }
+
   saveSettings({ ...file, activeProfile: name });
 
-  const profileEntry: ProfileListEntry = {
-    name,
-    endpoint: entry.endpoint,
-    project: entry.project,
-    active: true,
-  };
-  const output = formatProfilesOutput({
-    profiles: [profileEntry],
-    format: options.format,
-  });
-  writeOutput({ message: output });
+  const message =
+    previousActive === null
+      ? `Active profile set to ${name}`
+      : `Switched active profile: ${previousActive} → ${name}`;
+  writeOutput({ message });
 }
 
 function createProfileUseCommand(): Command {
   return new Command("use")
     .description("Set the active profile")
     .argument("<name>", "Profile name to activate")
-    .option(
-      "--format <format>",
-      'Output format: pretty, json, or raw (default: "pretty")'
-    )
     .action(profileUseHandler);
 }
 
@@ -425,23 +399,13 @@ function createProfileUseCommand(): Command {
 
 interface ProfileDeleteOptions {
   yes?: boolean;
-  format?: OutputFormat;
 }
 
 async function profileDeleteHandler(
   name: string,
   options: ProfileDeleteOptions
 ): Promise<void> {
-  let file: SettingsFile;
-  try {
-    file = loadSettings({ strict: true });
-  } catch (err) {
-    if (err instanceof SettingsFileError) {
-      writeError({ message: `Error reading settings file: ${err.message}` });
-      process.exit(ExitCode.FAILURE);
-    }
-    throw err;
-  }
+  const file = loadSettingsStrictOrExit();
 
   if (file.profiles[name] === undefined) {
     writeError({ message: `Profile "${name}" does not exist.` });
@@ -454,19 +418,14 @@ async function profileDeleteHandler(
     yes: options.yes,
   });
 
-  const deletedEntry = file.profiles[name];
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const wasActive = name === getActiveProfile(file, envProfileName)?.name;
-
   const updatedProfiles = { ...file.profiles };
   delete updatedProfiles[name];
 
   let newActiveProfile = file.activeProfile;
+  let wasActive = false;
   if (file.activeProfile === name) {
     newActiveProfile = null;
-    writeProgress({
-      message: `Warning: "${name}" was the stored default profile and has been deleted. Run \`px profile use <name>\` to set a new default.`,
-    });
+    wasActive = true;
   }
 
   saveSettings({
@@ -475,17 +434,10 @@ async function profileDeleteHandler(
     activeProfile: newActiveProfile,
   });
 
-  const entry: ProfileListEntry = {
-    name,
-    endpoint: deletedEntry.endpoint,
-    project: deletedEntry.project,
-    active: wasActive,
-  };
-  const output = formatProfilesOutput({
-    profiles: [entry],
-    format: options.format,
-  });
-  writeOutput({ message: output });
+  const message = wasActive
+    ? `Deleted profile "${name}" (was the active profile; no profile is active now). Run \`px profile use <name>\` to set a new active profile.`
+    : `Deleted profile "${name}".`;
+  writeOutput({ message });
 }
 
 function createProfileDeleteCommand(): Command {
@@ -493,10 +445,6 @@ function createProfileDeleteCommand(): Command {
     .description("Delete a profile")
     .argument("<name>", "Profile name to delete")
     .option("--yes", "Skip confirmation prompt")
-    .option(
-      "--format <format>",
-      'Output format: pretty, json, or raw (default: "pretty")'
-    )
     .action(profileDeleteHandler);
 }
 
@@ -515,6 +463,3 @@ export function createProfileCommand(): Command {
   command.addCommand(createProfileDeleteCommand());
   return command;
 }
-
-// Re-export for callers that need ProfileResolutionError
-export { ProfileResolutionError };

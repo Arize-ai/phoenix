@@ -5,7 +5,8 @@ import { CommanderError } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createProfileCommand } from "../src/commands/profile";
-import { type SettingsFile } from "../src/settings";
+import { API_KEY_MASK } from "../src/commands/formatProfiles";
+import type { SettingsFile } from "../src/settings";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -19,6 +20,16 @@ function writeTempSettings(tmpDir: string, data: SettingsFile): void {
     JSON.stringify(data, null, 2),
     "utf-8"
   );
+}
+
+function readSettings(tmpDir: string): SettingsFile {
+  return JSON.parse(
+    fs.readFileSync(path.join(tmpDir, "px", "settings.json"), "utf-8")
+  );
+}
+
+function logCalls(spy: ReturnType<typeof vi.spyOn>): string {
+  return spy.mock.calls.map((c) => String(c[0])).join("\n");
 }
 
 async function runProfileCommand(
@@ -91,7 +102,7 @@ function setupProfileTestContext(prefix: string) {
 describe("px profile edit", () => {
   const ctx = setupProfileTestContext("phoenix-profile-edit-");
 
-  it("editor writes valid JSON, profile is persisted", async () => {
+  it("editor writes valid JSON, profile is persisted and confirmation is printed", async () => {
     writeTempSettings(ctx.tmpDir, {
       activeProfile: null,
       profiles: { dev: { endpoint: "http://localhost:6006" } },
@@ -107,10 +118,9 @@ describe("px profile edit", () => {
 
     await runProfileCommand(["edit", "dev"], ctx);
 
-    const data: SettingsFile = JSON.parse(
-      fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
-    );
+    const data = readSettings(ctx.tmpDir);
     expect(data.profiles.dev.endpoint).toBe("http://patched:6006");
+    expect(logCalls(ctx.logSpy)).toBe('Updated profile "dev".');
   });
 });
 
@@ -121,49 +131,202 @@ describe("px profile edit", () => {
 describe("px profile lifecycle", () => {
   const ctx = setupProfileTestContext("phoenix-lifecycle-test-");
 
-  it("create --current → list → show → create b → use b → delete a → list", async () => {
-    // create "a" as the active profile
+  it("create --activate → list → show → create b → use b → delete a → list", async () => {
+    // create "a" as the active profile (using new --activate flag name)
     await runProfileCommand(
-      ["create", "a", "--endpoint", "http://alpha:6006", "--current"],
+      ["create", "a", "--endpoint", "http://alpha:6006", "--activate"],
       ctx
+    );
+    expect(logCalls(ctx.logSpy)).toBe(
+      'Created profile "a" and set as active.'
     );
 
     // list shows "a" as active
     await runProfileCommand(["list", "--format", "json"], ctx);
-    const afterCreate = JSON.parse(
-      ctx.logSpy.mock.calls.map((c) => String(c[0])).join("\n")
-    );
+    const afterCreate = JSON.parse(logCalls(ctx.logSpy));
     expect(afterCreate.profiles).toHaveLength(1);
     expect(afterCreate.profiles[0].name).toBe("a");
     expect(afterCreate.profiles[0].active).toBe(true);
 
     // show "a" returns its endpoint
     await runProfileCommand(["show", "a", "--format", "json"], ctx);
-    const shown = JSON.parse(
-      ctx.logSpy.mock.calls.map((c) => String(c[0])).join("\n")
-    );
+    const shown = JSON.parse(logCalls(ctx.logSpy));
     expect(shown.endpoint).toBe("http://alpha:6006");
 
-    // create "b" then switch active to it
+    // create "b" without activating — confirmation should NOT mention "set as active"
     await runProfileCommand(
       ["create", "b", "--endpoint", "http://beta:6006"],
       ctx
     );
+    expect(logCalls(ctx.logSpy)).toBe('Created profile "b".');
+
+    // use "b" — confirmation should show transition
     await runProfileCommand(["use", "b"], ctx);
-    const afterUse: SettingsFile = JSON.parse(
-      fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
-    );
-    expect(afterUse.activeProfile).toBe("b");
+    expect(logCalls(ctx.logSpy)).toBe("Switched active profile: a → b");
+    expect(readSettings(ctx.tmpDir).activeProfile).toBe("b");
+
+    // use "b" again — already active
+    await runProfileCommand(["use", "b"], ctx);
+    expect(logCalls(ctx.logSpy)).toBe("Already active: b");
 
     // delete "a"
     await runProfileCommand(["delete", "a", "--yes"], ctx);
+    expect(logCalls(ctx.logSpy)).toBe('Deleted profile "a".');
 
     // list now contains only "b"
     await runProfileCommand(["list", "--format", "json"], ctx);
-    const afterDelete = JSON.parse(
-      ctx.logSpy.mock.calls.map((c) => String(c[0])).join("\n")
-    );
+    const afterDelete = JSON.parse(logCalls(ctx.logSpy));
     expect(afterDelete.profiles).toHaveLength(1);
     expect(afterDelete.profiles[0].name).toBe("b");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// use semantics — first activation, transition, no-op
+// ---------------------------------------------------------------------------
+
+describe("px profile use", () => {
+  const ctx = setupProfileTestContext("phoenix-profile-use-");
+
+  it("first activation when nothing was active", async () => {
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: null,
+      profiles: { staging: { endpoint: "http://staging:6006" } },
+    });
+
+    await runProfileCommand(["use", "staging"], ctx);
+    expect(logCalls(ctx.logSpy)).toBe("Active profile set to staging");
+    expect(readSettings(ctx.tmpDir).activeProfile).toBe("staging");
+  });
+
+  it("deleting the active profile clears activeProfile and reports it in the confirmation", async () => {
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: "staging",
+      profiles: { staging: { endpoint: "http://staging:6006" } },
+    });
+
+    await runProfileCommand(["delete", "staging", "--yes"], ctx);
+    expect(logCalls(ctx.logSpy)).toContain(
+      'Deleted profile "staging" (was the active profile'
+    );
+    expect(readSettings(ctx.tmpDir).activeProfile).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// API key handling — wired through create, masked in show output, never raw
+// ---------------------------------------------------------------------------
+
+describe("px profile create --api-key", () => {
+  const ctx = setupProfileTestContext("phoenix-profile-apikey-");
+
+  it("persists the apiKey in settings.json verbatim", async () => {
+    await runProfileCommand(
+      [
+        "create",
+        "prod",
+        "--endpoint",
+        "https://phoenix.example.com",
+        "--api-key",
+        "sk-secret-value",
+      ],
+      ctx
+    );
+
+    const data = readSettings(ctx.tmpDir);
+    expect(data.profiles.prod.apiKey).toBe("sk-secret-value");
+  });
+
+  it("create confirmation does not echo the apiKey", async () => {
+    await runProfileCommand(
+      [
+        "create",
+        "prod",
+        "--endpoint",
+        "https://phoenix.example.com",
+        "--api-key",
+        "sk-secret-value",
+      ],
+      ctx
+    );
+
+    const out = logCalls(ctx.logSpy);
+    expect(out).not.toContain("sk-secret-value");
+  });
+
+  it("show --format json masks the apiKey", async () => {
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: "prod",
+      profiles: {
+        prod: {
+          endpoint: "https://phoenix.example.com",
+          apiKey: "sk-secret-value",
+        },
+      },
+    });
+
+    await runProfileCommand(["show", "prod", "--format", "json"], ctx);
+    const shown = JSON.parse(logCalls(ctx.logSpy));
+    expect(shown.apiKey).toBe(API_KEY_MASK);
+    expect(JSON.stringify(shown)).not.toContain("sk-secret-value");
+  });
+
+  it("list --format json masks the apiKey across entries", async () => {
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: "prod",
+      profiles: {
+        prod: {
+          endpoint: "https://phoenix.example.com",
+          apiKey: "sk-secret-value",
+        },
+        dev: {
+          endpoint: "http://localhost:6006",
+        },
+      },
+    });
+
+    await runProfileCommand(["list", "--format", "json"], ctx);
+    const parsed = JSON.parse(logCalls(ctx.logSpy));
+    const prodEntry = parsed.profiles.find(
+      (p: { name: string }) => p.name === "prod"
+    );
+    const devEntry = parsed.profiles.find(
+      (p: { name: string }) => p.name === "dev"
+    );
+    expect(prodEntry.apiKey).toBe(API_KEY_MASK);
+    expect(devEntry.apiKey).toBeUndefined();
+    expect(JSON.stringify(parsed)).not.toContain("sk-secret-value");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// list pretty output — kubectl-style "current" column header
+// ---------------------------------------------------------------------------
+
+describe("px profile list (pretty output)", () => {
+  const ctx = setupProfileTestContext("phoenix-profile-list-pretty-");
+
+  it("renders a `current` column header with `*` marking the active profile", async () => {
+    writeTempSettings(ctx.tmpDir, {
+      activeProfile: "prod",
+      profiles: {
+        prod: { endpoint: "https://phoenix.example.com", project: "main" },
+        dev: { endpoint: "http://localhost:6006" },
+      },
+    });
+
+    await runProfileCommand(["list"], ctx);
+    const out = logCalls(ctx.logSpy);
+    expect(out).toContain("current");
+    expect(out).toContain("auth");
+    // Active row carries the asterisk
+    const lines = out.split("\n");
+    const prodLine = lines.find((l) => l.includes("prod"));
+    expect(prodLine).toBeDefined();
+    expect(prodLine).toContain("*");
+    // Inactive row does not
+    const devLine = lines.find((l) => l.includes("dev"));
+    expect(devLine).toBeDefined();
+    expect(devLine!.split("│")[1]?.trim()).toBe("");
   });
 });

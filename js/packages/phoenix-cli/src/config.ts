@@ -7,7 +7,6 @@ import {
 } from "@arizeai/phoenix-config";
 
 import {
-  type SettingsFile,
   getActiveProfile,
   loadSettings,
   ProfileResolutionError,
@@ -120,7 +119,7 @@ export function loadConfigFromProfile(profileName?: string): PhoenixConfig {
           ? "--profile"
           : `${ENV_PHOENIX_PROFILE} env var`;
       throw new ProfileResolutionError(
-        `Profile "${explicitName}" (from ${source}) does not exist. Run \`px auth profile list\` to see available profiles.`
+        `Profile "${explicitName}" (from ${source}) does not exist. Run \`px profile list\` to see available profiles.`
       );
     }
     return {};
@@ -257,6 +256,3 @@ export function getConfigErrorMessage({
   ];
   return lines.join("\n");
 }
-
-// Re-export for consumers that import ProfileResolutionError from config
-export { ProfileResolutionError, type SettingsFile };

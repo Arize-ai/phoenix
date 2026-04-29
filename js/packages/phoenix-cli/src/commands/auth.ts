@@ -209,7 +209,7 @@ function createAuthStatusCommand(): Command {
     .description("Show current Phoenix authentication status")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
-    .option("--profile <name>", "Auth profile to use")
+    .option("--profile <name>", "Profile to use")
     .action(authStatusHandler);
 
   return command;

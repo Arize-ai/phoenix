@@ -58,18 +58,29 @@ Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENA
 
 ## Profiles
 
-Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
+Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`).
 
 ```bash
-px profile create prod --endpoint https://phoenix.example.com --project main
-px profile use prod            # set active profile
-px profile list                # show all profiles
-px profile show prod           # show a specific profile
+px profile create prod --endpoint https://phoenix.example.com --project main \
+                       --api-key sk-xxx --activate
+px profile list                # all profiles, kubectl-style "current" column
+px profile show                # the active profile (or pass <name>)
+px profile use prod            # switch the active profile
 px profile edit prod           # open in $EDITOR, validates on save
-px profile delete prod         # remove a profile
+px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Use `--profile <name>` on any command to override the active profile for that invocation.
+Every command reads the active profile through the standard config chain:
+**built-in defaults → active profile → env vars → CLI flags** (highest wins).
+To use a different profile for one invocation without changing the active
+one, set `PHOENIX_PROFILE=<name>` in the environment, e.g.
+`PHOENIX_PROFILE=staging px trace list`. The `auth status` command also
+accepts `--profile <name>` directly.
+
+API keys are stored verbatim in the settings file (mode `0600`) but are
+never echoed back through `profile create`, `profile show`, or `profile
+list` — they appear as a fixed-width mask. If you need the raw value for a
+script, read `~/.px/settings.json` directly.
 
 ### Editor autocompletion via `$schema`
 
