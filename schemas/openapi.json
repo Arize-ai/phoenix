@@ -485,8 +485,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every span annotation in a project that matches the given (name, identifier) selector.",
-        "description": "Hard-delete all span annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "summary": "Delete every span annotation in a project that matches the given identifier (and optionally name) selector.",
+        "description": "Hard-delete span annotations within the named project that match the\n        supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          span annotation in the project matching `identifier` is deleted\n          regardless of name (including span notes, which use the reserved\n          name `\"note\"`) \u2014 useful for callers that tag a batch of\n          annotations with a single rollback identifier and want to clear\n          the whole batch in one call.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
         "operationId": "deleteSpanAnnotationsByIdentifier",
         "parameters": [
           {
@@ -501,28 +501,35 @@
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           },
           {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation name. Required and non-empty.",
-              "title": "Name"
-            },
-            "description": "The annotation name. Required and non-empty."
-          },
-          {
             "name": "identifier",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
               "title": "Identifier"
             },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
           }
         ],
         "responses": {
@@ -747,8 +754,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every trace annotation in a project that matches the given (name, identifier) selector.",
-        "description": "Hard-delete all trace annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "summary": "Delete every trace annotation in a project that matches the given identifier (and optionally name) selector.",
+        "description": "Hard-delete trace annotations within the named project that match the\n        supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          trace annotation in the project matching `identifier` is deleted\n          regardless of name (including trace notes, which use the reserved\n          name `\"note\"`).\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
         "operationId": "deleteTraceAnnotationsByIdentifier",
         "parameters": [
           {
@@ -763,28 +770,35 @@
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           },
           {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation name. Required and non-empty.",
-              "title": "Name"
-            },
-            "description": "The annotation name. Required and non-empty."
-          },
-          {
             "name": "identifier",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
               "title": "Identifier"
             },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
           }
         ],
         "responses": {
@@ -1009,8 +1023,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every session annotation in a project that matches the given (name, identifier) selector.",
-        "description": "Hard-delete all session annotations within the named project whose\n        `name` and `identifier` match the supplied query parameters.\n\n        - The `name` and `identifier` query parameters are both required and\n          must be non-empty.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
+        "summary": "Delete every session annotation in a project that matches the given identifier (and optionally name) selector.",
+        "description": "Hard-delete session annotations within the named project that match\n        the supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          session annotation in the project matching `identifier` is deleted\n          regardless of name (including session notes, which use the\n          reserved name `\"note\"`).\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
         "operationId": "deleteSessionAnnotationsByIdentifier",
         "parameters": [
           {
@@ -1025,28 +1039,35 @@
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           },
           {
-            "name": "name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation name. Required and non-empty.",
-              "title": "Name"
-            },
-            "description": "The annotation name. Required and non-empty."
-          },
-          {
             "name": "identifier",
             "in": "query",
             "required": true,
             "schema": {
               "type": "string",
               "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket.",
+              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
               "title": "Identifier"
             },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the default identifier bucket."
+            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
           }
         ],
         "responses": {

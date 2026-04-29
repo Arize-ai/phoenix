@@ -898,17 +898,21 @@ async def test_delete_annotations_unknown_project_404(
 @pytest.mark.parametrize(
     "params",
     [
-        pytest.param({"identifier": "x"}, id="missing-name"),
-        pytest.param({"name": "", "identifier": "x"}, id="empty-name"),
         pytest.param({"name": "x"}, id="missing-identifier"),
-        pytest.param({"name": "x", "identifier": ""}, id="empty-identifier"),
+        pytest.param(
+            {"name": "x", "identifier": ""},
+            id="empty-identifier-prevents-mass-delete-of-default-bucket",
+        ),
+        pytest.param({"name": "", "identifier": "x"}, id="empty-name-still-rejected"),
     ],
 )
-async def test_delete_annotations_rejects_missing_or_empty_selectors_422(
+async def test_delete_annotations_rejects_invalid_selectors_422(
     httpx_client: httpx.AsyncClient,
     params: dict[str, str],
 ) -> None:
-    """Both `name` and `identifier` are required and non-empty."""
+    """`identifier` is required and non-empty (empty rejected to prevent
+    accidental mass-delete of the pre-identifier / default-identifier
+    bucket). `name` is optional, but if present must be non-empty."""
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-X/span_annotations",
@@ -1008,3 +1012,64 @@ def test_resolve_non_admin_user_id_non_phoenix_user_returns_none() -> None:
     """
     request = _build_request(auth_enabled=True, user=object())
     assert _resolve_non_admin_user_id(request) is None
+
+
+async def test_delete_annotations_omitting_name_deletes_across_names_and_notes(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    two_projects_with_annotations: dict[str, Any],
+) -> None:
+    """When `name` is omitted, every annotation matching `identifier` in the
+    project is deleted regardless of name — including notes (which use the
+    reserved `name="note"`). This is the agent-rollback flow: a single tag
+    on creation can roll back every annotation the agent created under it
+    in one call. Project-scope isolation must still hold: project-B's
+    matching row must remain.
+    """
+    identifier = two_projects_with_annotations["identifier"]
+
+    # Add a span note in project-A with the same `identifier` as the
+    # rollback-tag span annotation, so the project-A side carries two rows
+    # under different names.
+    async with db() as session:
+        proj_a = await session.scalar(
+            select(models.Project).where(models.Project.name == "project-A")
+        )
+        assert proj_a is not None
+        span_a = await session.scalar(
+            select(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == proj_a.id)
+        )
+        assert span_a is not None
+        await session.execute(
+            insert(models.SpanAnnotation).values(
+                span_rowid=span_a.id,
+                name="note",
+                label=None,
+                score=None,
+                explanation="Agent run note",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                identifier=identifier,
+            )
+        )
+        await session.commit()
+
+    # Pre: 3 rows total under this identifier (2 in project-A: rollback-tag
+    # + note, 1 in project-B: rollback-tag).
+    pre = await _count(db, models.SpanAnnotation, identifier=identifier)
+    assert pre == 3
+
+    # DELETE without name — should remove both project-A rows regardless of
+    # name and leave project-B untouched.
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/project-A/span_annotations",
+        params={"identifier": identifier},
+    )
+    assert response.status_code == 204
+
+    post = await _count(db, models.SpanAnnotation, identifier=identifier)
+    assert post == 1, "project-B's matching row must be preserved (project-scope isolation)"

@@ -761,15 +761,23 @@ def _resolve_non_admin_user_id(request: Request) -> Optional[int]:
     operation_id="deleteSpanAnnotationsByIdentifier",
     summary=(
         "Delete every span annotation in a project that matches the given "
-        "(name, identifier) selector."
+        "identifier (and optionally name) selector."
     ),
     description=(
         """
-        Hard-delete all span annotations within the named project whose
-        `name` and `identifier` match the supplied query parameters.
+        Hard-delete span annotations within the named project that match the
+        supplied selector.
 
-        - The `name` and `identifier` query parameters are both required and
-          must be non-empty.
+        - `identifier` is **required** and must be non-empty. Empty
+          identifiers are rejected to prevent accidental mass-delete of the
+          pre-identifier / default-identifier bucket.
+        - `name` is **optional**. When present it must be non-empty and the
+          delete narrows to annotations of that name. When omitted, every
+          span annotation in the project matching `identifier` is deleted
+          regardless of name (including span notes, which use the reserved
+          name `"note"`) — useful for callers that tag a batch of
+          annotations with a single rollback identifier and want to clear
+          the whole batch in one call.
         - The endpoint is idempotent: a request that matches no rows still
           returns 204.
         - When authentication is enabled, non-admin callers can only delete
@@ -794,17 +802,21 @@ async def delete_span_annotations_by_identifier(
             "characters."
         )
     ),
-    name: str = Query(
-        ...,
-        min_length=1,
-        description="The annotation name. Required and non-empty.",
-    ),
     identifier: str = Query(
         ...,
         min_length=1,
         description=(
             "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the default identifier bucket."
+            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+        ),
+    ),
+    name: Optional[str] = Query(
+        default=None,
+        min_length=1,
+        description=(
+            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
+            "in the project is deleted regardless of name (including notes). When present, must "
+            "be non-empty and narrows the delete to annotations of that name."
         ),
     ),
 ) -> None:
@@ -823,10 +835,11 @@ async def delete_span_annotations_by_identifier(
             .where(models.Trace.project_rowid == project.id)
         )
         predicate = [
-            models.SpanAnnotation.name == name,
             models.SpanAnnotation.identifier == identifier,
             models.SpanAnnotation.span_rowid.in_(span_rowids_in_project),
         ]
+        if name is not None:
+            predicate.append(models.SpanAnnotation.name == name)
         if user_id_for_filter is not None:
             predicate.append(models.SpanAnnotation.user_id == user_id_for_filter)
 
@@ -842,15 +855,21 @@ async def delete_span_annotations_by_identifier(
     operation_id="deleteTraceAnnotationsByIdentifier",
     summary=(
         "Delete every trace annotation in a project that matches the given "
-        "(name, identifier) selector."
+        "identifier (and optionally name) selector."
     ),
     description=(
         """
-        Hard-delete all trace annotations within the named project whose
-        `name` and `identifier` match the supplied query parameters.
+        Hard-delete trace annotations within the named project that match the
+        supplied selector.
 
-        - The `name` and `identifier` query parameters are both required and
-          must be non-empty.
+        - `identifier` is **required** and must be non-empty. Empty
+          identifiers are rejected to prevent accidental mass-delete of the
+          pre-identifier / default-identifier bucket.
+        - `name` is **optional**. When present it must be non-empty and the
+          delete narrows to annotations of that name. When omitted, every
+          trace annotation in the project matching `identifier` is deleted
+          regardless of name (including trace notes, which use the reserved
+          name `"note"`).
         - The endpoint is idempotent: a request that matches no rows still
           returns 204.
         - When authentication is enabled, non-admin callers can only delete
@@ -875,17 +894,21 @@ async def delete_trace_annotations_by_identifier(
             "characters."
         )
     ),
-    name: str = Query(
-        ...,
-        min_length=1,
-        description="The annotation name. Required and non-empty.",
-    ),
     identifier: str = Query(
         ...,
         min_length=1,
         description=(
             "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the default identifier bucket."
+            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+        ),
+    ),
+    name: Optional[str] = Query(
+        default=None,
+        min_length=1,
+        description=(
+            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
+            "in the project is deleted regardless of name (including notes). When present, must "
+            "be non-empty and narrows the delete to annotations of that name."
         ),
     ),
 ) -> None:
@@ -902,10 +925,11 @@ async def delete_trace_annotations_by_identifier(
             models.Trace.project_rowid == project.id
         )
         predicate = [
-            models.TraceAnnotation.name == name,
             models.TraceAnnotation.identifier == identifier,
             models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project),
         ]
+        if name is not None:
+            predicate.append(models.TraceAnnotation.name == name)
         if user_id_for_filter is not None:
             predicate.append(models.TraceAnnotation.user_id == user_id_for_filter)
 
@@ -921,15 +945,21 @@ async def delete_trace_annotations_by_identifier(
     operation_id="deleteSessionAnnotationsByIdentifier",
     summary=(
         "Delete every session annotation in a project that matches the given "
-        "(name, identifier) selector."
+        "identifier (and optionally name) selector."
     ),
     description=(
         """
-        Hard-delete all session annotations within the named project whose
-        `name` and `identifier` match the supplied query parameters.
+        Hard-delete session annotations within the named project that match
+        the supplied selector.
 
-        - The `name` and `identifier` query parameters are both required and
-          must be non-empty.
+        - `identifier` is **required** and must be non-empty. Empty
+          identifiers are rejected to prevent accidental mass-delete of the
+          pre-identifier / default-identifier bucket.
+        - `name` is **optional**. When present it must be non-empty and the
+          delete narrows to annotations of that name. When omitted, every
+          session annotation in the project matching `identifier` is deleted
+          regardless of name (including session notes, which use the
+          reserved name `"note"`).
         - The endpoint is idempotent: a request that matches no rows still
           returns 204.
         - When authentication is enabled, non-admin callers can only delete
@@ -954,17 +984,21 @@ async def delete_session_annotations_by_identifier(
             "characters."
         )
     ),
-    name: str = Query(
-        ...,
-        min_length=1,
-        description="The annotation name. Required and non-empty.",
-    ),
     identifier: str = Query(
         ...,
         min_length=1,
         description=(
             "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the default identifier bucket."
+            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+        ),
+    ),
+    name: Optional[str] = Query(
+        default=None,
+        min_length=1,
+        description=(
+            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
+            "in the project is deleted regardless of name (including notes). When present, must "
+            "be non-empty and narrows the delete to annotations of that name."
         ),
     ),
 ) -> None:
@@ -981,10 +1015,11 @@ async def delete_session_annotations_by_identifier(
             models.ProjectSession.project_id == project.id
         )
         predicate = [
-            models.ProjectSessionAnnotation.name == name,
             models.ProjectSessionAnnotation.identifier == identifier,
             models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project),
         ]
+        if name is not None:
+            predicate.append(models.ProjectSessionAnnotation.name == name)
         if user_id_for_filter is not None:
             predicate.append(models.ProjectSessionAnnotation.user_id == user_id_for_filter)
 
