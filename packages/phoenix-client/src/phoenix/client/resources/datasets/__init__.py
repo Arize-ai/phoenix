@@ -29,6 +29,11 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    DATASET_UPLOAD_EXAMPLE_ID_KEY,
+    DATASET_UPLOAD_EXAMPLE_IDS,
+    DATASET_UPLOAD_SPLIT_KEY,
+)
 from phoenix.client.utils.id_handling import is_node_id
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
@@ -905,6 +910,10 @@ class Datasets:
             ]
 
         if has_tabular:
+            if split_key:
+                self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return self._upload_tabular_dataset(
@@ -922,6 +931,8 @@ class Datasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return self._upload_json_dataset(
                 dataset_name=name,
                 inputs=inputs,
@@ -1057,6 +1068,10 @@ class Datasets:
             ]
 
         if has_tabular:
+            if split_key:
+                self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return self._upload_tabular_dataset(
@@ -1074,6 +1089,8 @@ class Datasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return self._upload_json_dataset(
                 dataset_name=resolved_name,
                 inputs=inputs,
@@ -1784,6 +1801,10 @@ class AsyncDatasets:
             ]
 
         if has_tabular:
+            if split_key:
+                await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return await self._upload_tabular_dataset(
@@ -1801,6 +1822,8 @@ class AsyncDatasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return await self._upload_json_dataset(
                 dataset_name=name,
                 inputs=inputs,
@@ -1931,6 +1954,10 @@ class AsyncDatasets:
             ]
 
         if has_tabular:
+            if split_key:
+                await self._guard.require(DATASET_UPLOAD_SPLIT_KEY)
+            if example_id_key:
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_ID_KEY)
             table = dataframe if dataframe is not None else csv_file_path
             assert table is not None
             return await self._upload_tabular_dataset(
@@ -1948,6 +1975,8 @@ class AsyncDatasets:
                 timeout=timeout,
             )
         else:
+            if any(s is not None for s in example_ids_from_examples):
+                await self._guard.require(DATASET_UPLOAD_EXAMPLE_IDS)
             return await self._upload_json_dataset(
                 dataset_name=resolved_name,
                 inputs=inputs,

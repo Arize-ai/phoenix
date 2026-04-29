@@ -1,8 +1,10 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
+import { DATASET_UPLOAD_EXAMPLE_IDS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { Example } from "../types/datasets";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 export type CreateDatasetParams = ClientFn & {
   /**
@@ -112,6 +114,12 @@ export async function createDataset({
       },
     });
 
+  if (hasExampleIds) {
+    await ensureServerCapability({
+      client,
+      requirement: DATASET_UPLOAD_EXAMPLE_IDS,
+    });
+  }
   let createDatasetResponse = await post("update");
   if (isUnsupportedUpdateActionResponse(createDatasetResponse)) {
     warnUpdateFallback();

@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.unmock("../../src/utils/serverVersionUtils");
+
+import type { PhoenixClient } from "../../src/client";
 import { appendDatasetExamples } from "../../src/datasets/appendDatasetExamples";
 
 // Mock the fetch module
@@ -12,6 +15,22 @@ vi.mock("openapi-fetch", () => ({
     use: () => {},
   }),
 }));
+
+/**
+ * Build a stub {@link PhoenixClient} whose `getServerVersion` returns the
+ * given version.
+ *
+ * Tests that exercise the `example_ids` capability gate must supply such a
+ * client; otherwise the auto-created client would try to
+ * `fetch("/arize_phoenix_version")` for real.
+ */
+function makeClient(version: [number, number, number]): PhoenixClient {
+  return {
+    getServerVersion: async () => version,
+    POST: mockPost,
+    GET: mockGet,
+  } as unknown as PhoenixClient;
+}
 
 describe("appendDatasetExamples", () => {
   beforeEach(() => {
@@ -336,6 +355,7 @@ describe("appendDatasetExamples", () => {
     });
 
     await appendDatasetExamples({
+      client: makeClient([15, 0, 0]),
       dataset: { datasetName: "test-dataset" },
       examples: [
         {
@@ -380,6 +400,7 @@ describe("appendDatasetExamples", () => {
     });
 
     await appendDatasetExamples({
+      client: makeClient([15, 0, 0]),
       dataset: { datasetName: "test-dataset" },
       examples: [
         {
@@ -480,6 +501,44 @@ describe("appendDatasetExamples", () => {
         splits: [null],
         span_ids: ["span-abc123"],
       },
+    });
+  });
+
+  describe("server version gating for example_ids", () => {
+    it("fails fast on Phoenix < 15.0.0 when an example carries a stable id", async () => {
+      await expect(
+        appendDatasetExamples({
+          client: makeClient([14, 17, 0]),
+          dataset: { datasetName: "ds" },
+          examples: [{ input: { q: 1 }, id: "stable-id" }],
+        })
+      ).rejects.toThrow(/requires Phoenix server >= 15\.0\.0/);
+
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it("does not check server version when no example carries an id", async () => {
+      const client = makeClient([14, 17, 0]);
+      const getServerVersionSpy = vi.spyOn(client, "getServerVersion");
+
+      await appendDatasetExamples({
+        client,
+        dataset: { datasetName: "ds" },
+        examples: [{ input: { q: 1 } }],
+      });
+
+      expect(getServerVersionSpy).not.toHaveBeenCalled();
+      expect(mockPost).toHaveBeenCalled();
+    });
+
+    it("succeeds on Phoenix >= 15.0.0 when examples carry ids", async () => {
+      await appendDatasetExamples({
+        client: makeClient([15, 0, 0]),
+        dataset: { datasetName: "ds" },
+        examples: [{ input: { q: 1 }, id: "stable-id" }],
+      });
+
+      expect(mockPost).toHaveBeenCalled();
     });
   });
 });
