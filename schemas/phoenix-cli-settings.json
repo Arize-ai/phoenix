@@ -6,11 +6,6 @@
       "description": "Optional JSON Schema URL for editor autocomplete. Pin to a GitHub raw URL at a released tag; see README.",
       "type": "string"
     },
-    "version": {
-      "type": "number",
-      "const": 1,
-      "description": "Schema version. Bumped on breaking changes to the file format."
-    },
     "activeProfile": {
       "anyOf": [
         {
@@ -58,6 +53,6 @@
       "description": "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
     }
   },
-  "required": ["version", "activeProfile", "profiles"],
+  "required": ["activeProfile", "profiles"],
   "additionalProperties": false
 }
