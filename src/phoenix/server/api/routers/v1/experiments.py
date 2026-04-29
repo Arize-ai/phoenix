@@ -585,6 +585,7 @@ async def get_incomplete_runs(
                 IncompleteExperimentRun(
                     dataset_example=DatasetExample(
                         id=str(example_globalid),
+                        node_id=str(example_globalid),
                         input=revision.input,
                         output=revision.output,
                         metadata=revision.metadata_,

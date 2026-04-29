@@ -58,12 +58,21 @@ export interface Example {
    * in the Phoenix UI, enabling traceability from datasets back to traces.
    */
   spanId?: string | null;
+  /**
+   * Optional user-provided ID for this example.
+   * If not provided, the server will generate an ID.
+   */
+  id?: string | null;
 }
 
 /**
  * An example that has been synced to the server
  */
-export interface ExampleWithId extends Example, Node {
+export interface ExampleWithId extends Example {
+  /** The user-provided or server-generated ID for this example. */
+  id: string;
+  /** Server-generated node ID for this example. */
+  nodeId: string;
   updatedAt: Date;
 }
 

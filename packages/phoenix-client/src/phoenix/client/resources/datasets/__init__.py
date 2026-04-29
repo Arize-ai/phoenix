@@ -50,6 +50,7 @@ class _InputDatasetExample(TypedDict, total=False):
     metadata: Mapping[str, Any]
     span_id: Optional[str]
     splits: Optional[Union[str, list[str]]]
+    id: Optional[str]
 
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
@@ -326,6 +327,7 @@ class DatasetKeys:
         split_keys: frozenset[str] = frozenset(),
         span_id_key: Optional[str] = None,
         split_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
     ):
         if split_key and split_keys:
             raise ValueError(
@@ -338,6 +340,7 @@ class DatasetKeys:
         self.split_key: Optional[str] = split_key
         self.split: frozenset[str] = frozenset([split_key]) if split_key else split_keys
         self.span_id = span_id_key
+        self.example_id = example_id_key
 
         if self.input & self.output:
             raise ValueError(f"Input and output keys overlap: {self.input & self.output}")
@@ -364,11 +367,25 @@ class DatasetKeys:
             if self.split & span_id_set:
                 raise ValueError(f"span_id_key '{self.span_id}' overlaps with split keys")
 
+        # Validate example_id_key doesn't overlap with other keys
+        if self.example_id:
+            example_id_set = frozenset([self.example_id])
+            if self.input & example_id_set:
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with input keys")
+            if self.output & example_id_set:
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with output keys")
+            if self.metadata & example_id_set:
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with metadata keys")
+            if self.split & example_id_set:
+                raise ValueError(f"example_id_key '{self.example_id}' overlaps with split keys")
+
     def check_differences(self, available_keys: frozenset[str]) -> None:
         """Check that all specified keys exist in available keys."""
         all_keys = self.input | self.output | self.metadata | self.split
         if self.span_id:
             all_keys = all_keys | frozenset([self.span_id])
+        if self.example_id:
+            all_keys = all_keys | frozenset([self.example_id])
         if diff := all_keys - available_keys:
             raise ValueError(f"Keys not found in available columns: {diff}")
 
@@ -377,6 +394,8 @@ class DatasetKeys:
         all_keys = self.input | self.output | self.metadata | self.split
         if self.span_id:
             all_keys = all_keys | frozenset([self.span_id])
+        if self.example_id:
+            all_keys = all_keys | frozenset([self.example_id])
         return iter(all_keys)
 
 
@@ -771,6 +790,7 @@ class Datasets:
         split_keys: Iterable[str] = (),
         split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -797,6 +817,8 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
+            example_id_key: Optional column name containing stable IDs for examples.
+                If not provided, the server will generate an ID for new examples.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -855,7 +877,10 @@ class Datasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
+            if not isinstance(examples, Mapping):
+                examples = list(examples)
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
@@ -872,6 +897,12 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example.get("id")
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -885,6 +916,7 @@ class Datasets:
                 split_keys=split_keys,
                 split_key=split_key,
                 span_id_key=span_id_key,
+                example_id_key=example_id_key,
                 dataset_description=dataset_description,
                 action="update",
                 timeout=timeout,
@@ -897,6 +929,7 @@ class Datasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="update",
                 timeout=timeout,
@@ -915,6 +948,7 @@ class Datasets:
         split_keys: Iterable[str] = (),
         split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -941,6 +975,8 @@ class Datasets:
             span_id_key: Optional column name containing span IDs to link dataset examples
                 back to their original traces. The column should contain OTEL span_id values
                 (string format). Examples will be linked to spans if they exist in the database.
+            example_id_key: Optional column name containing user-provided IDs for examples.
+                If not provided, the server will generate an ID for each example.
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
@@ -993,7 +1029,10 @@ class Datasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
+            if not isinstance(examples, Mapping):
+                examples = list(examples)
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
@@ -1010,6 +1049,12 @@ class Datasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example.get("id")
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1023,6 +1068,7 @@ class Datasets:
                 split_keys=split_keys,
                 split_key=split_key,
                 span_id_key=span_id_key,
+                example_id_key=example_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1035,6 +1081,7 @@ class Datasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1087,6 +1134,7 @@ class Datasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         split_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1113,6 +1161,7 @@ class Datasets:
             split_keys=split_keys_set,
             span_id_key=span_id_key,
             split_key=split_key,
+            example_id_key=example_id_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1149,6 +1198,10 @@ class Datasets:
         if keys.span_id:
             data_dict["span_id_key"] = keys.span_id
 
+        # Add example_id_key if present
+        if keys.example_id:
+            data_dict["example_id_key"] = keys.example_id
+
         response = self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
@@ -1182,6 +1235,7 @@ class Datasets:
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
+        example_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1195,6 +1249,7 @@ class Datasets:
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
+        example_ids_list = list(example_ids) if example_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -1241,6 +1296,8 @@ class Datasets:
             payload["splits"] = splits_list
         if span_ids_list and any(s is not None for s in span_ids_list):
             payload["span_ids"] = span_ids_list
+        if example_ids_list and any(s is not None for s in example_ids_list):
+            payload["example_ids"] = example_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -1639,6 +1696,7 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1698,7 +1756,10 @@ class AsyncDatasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
+            if not isinstance(examples, Mapping):
+                examples = list(examples)
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
@@ -1715,6 +1776,12 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits", None) for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example.get("id")
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1728,6 +1795,7 @@ class AsyncDatasets:
                 split_keys=split_keys,
                 split_key=split_key,
                 span_id_key=span_id_key,
+                example_id_key=example_id_key,
                 dataset_description=dataset_description,
                 action="update",
                 timeout=timeout,
@@ -1740,6 +1808,7 @@ class AsyncDatasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=dataset_description,
                 action="update",
                 timeout=timeout,
@@ -1758,6 +1827,7 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         split_key: Optional[str] = None,
         span_id_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
@@ -1833,7 +1903,10 @@ class AsyncDatasets:
 
         splits_from_examples: list[Any] = []
         span_ids_from_examples: list[Optional[str]] = []
+        example_ids_from_examples: list[Optional[str]] = []
         if examples is not None:
+            if not isinstance(examples, Mapping):
+                examples = list(examples)
             examples_list: list[_InputDatasetExample]
             if _is_input_dataset_example(examples):
                 examples_list = [examples]
@@ -1850,6 +1923,12 @@ class AsyncDatasets:
             metadata = [dict(example.get("metadata", {})) for example in examples_list]
             splits_from_examples = [example.get("splits") for example in examples_list]
             span_ids_from_examples = [example.get("span_id", None) for example in examples_list]
+            example_ids_from_examples = [
+                example.get("id")
+                if example.get("id") is not None and example.get("id") != example.get("node_id")
+                else None
+                for example in examples_list
+            ]
 
         if has_tabular:
             table = dataframe if dataframe is not None else csv_file_path
@@ -1863,6 +1942,7 @@ class AsyncDatasets:
                 split_keys=split_keys,
                 split_key=split_key,
                 span_id_key=span_id_key,
+                example_id_key=example_id_key,
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1875,6 +1955,7 @@ class AsyncDatasets:
                 metadata=metadata,
                 splits=splits_from_examples if examples is not None else [],
                 span_ids=span_ids_from_examples if examples is not None else [],
+                example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
                 action="append",
                 timeout=timeout,
@@ -1914,6 +1995,7 @@ class AsyncDatasets:
         split_keys: Iterable[str] = (),
         span_id_key: Optional[str] = None,
         split_key: Optional[str] = None,
+        example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -1938,6 +2020,7 @@ class AsyncDatasets:
             split_keys=split_keys_set,
             span_id_key=span_id_key,
             split_key=split_key,
+            example_id_key=example_id_key,
         )
 
         if isinstance(table, Path) or isinstance(table, str):
@@ -1974,6 +2057,10 @@ class AsyncDatasets:
         if keys.span_id:
             data_dict["span_id_key"] = keys.span_id
 
+        # Add example_id_key if present
+        if keys.example_id:
+            data_dict["example_id_key"] = keys.example_id
+
         response = await self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
@@ -2007,6 +2094,7 @@ class AsyncDatasets:
         metadata: Iterable[Mapping[str, Any]] = (),
         splits: Iterable[Any] = (),
         span_ids: Iterable[Optional[str]] = (),
+        example_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -2018,6 +2106,7 @@ class AsyncDatasets:
         metadata_list = list(metadata) if metadata else []
         splits_list = list(splits) if splits else []
         span_ids_list = list(span_ids) if span_ids else []
+        example_ids_list = list(example_ids) if example_ids else []
 
         if not inputs_list:
             raise ValueError("inputs must be non-empty")
@@ -2064,6 +2153,8 @@ class AsyncDatasets:
             payload["splits"] = splits_list
         if span_ids_list and any(s is not None for s in span_ids_list):
             payload["span_ids"] = span_ids_list
+        if example_ids_list and any(s is not None for s in example_ids_list):
+            payload["example_ids"] = example_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
 
@@ -2178,12 +2269,14 @@ def _prepare_dataframe_as_csv(
 
     keys.check_differences(frozenset(df.columns))
 
-    # Ensure consistent column ordering: input, output, metadata, split, span_id
+    # Ensure consistent column ordering: input, output, metadata, split, span_id, example_id
     selected_columns: list[str] = (
         sorted(keys.input) + sorted(keys.output) + sorted(keys.metadata) + sorted(keys.split)
     )
     if keys.span_id:
         selected_columns.append(keys.span_id)
+    if keys.example_id:
+        selected_columns.append(keys.example_id)
 
     csv_buffer = BytesIO()
     df[selected_columns].to_csv(csv_buffer, index=False)  # pyright: ignore[reportUnknownMemberType]

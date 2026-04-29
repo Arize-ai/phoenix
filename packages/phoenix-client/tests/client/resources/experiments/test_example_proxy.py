@@ -12,6 +12,7 @@ def sample_dataset_example() -> v1.DatasetExample:
     """Create a sample dataset example for testing."""
     return v1.DatasetExample(
         id="test-example-123",
+        node_id="test-example-123",
         updated_at="2024-01-15T10:30:00Z",
         input={"question": "What is the capital of France?", "context": "Geography"},
         output={"answer": "Paris", "confidence": 0.95},
@@ -45,13 +46,13 @@ class TestExampleProxyMapping:
         proxy = ExampleProxy(sample_dataset_example)
 
         keys = list(proxy)
-        expected_keys = ["id", "input", "output", "metadata", "updated_at"]
+        expected_keys = ["id", "node_id", "input", "output", "metadata", "updated_at"]
         assert set(keys) == set(expected_keys)
 
     def test_length(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test len() function on proxy."""
         proxy = ExampleProxy(sample_dataset_example)
-        assert len(proxy) == 5  # id, input, output, metadata, updated_at
+        assert len(proxy) == 6  # id, node_id, input, output, metadata, updated_at
 
     def test_get_method(self, sample_dataset_example: v1.DatasetExample) -> None:
         """Test dictionary-style get method."""
@@ -145,6 +146,7 @@ class TestExampleProxyEdgeCases:
         """Test proxy behavior with empty input/output/metadata."""
         example = v1.DatasetExample(
             id="empty-example",
+            node_id="empty-example",
             updated_at="2024-01-15T10:30:00Z",
             input={},
             output={},
@@ -169,6 +171,7 @@ class TestExampleProxyEdgeCases:
         """Test access to nested data structures."""
         example = v1.DatasetExample(
             id="nested-example",
+            node_id="nested-example",
             updated_at="2024-01-15T10:30:00Z",
             input={"nested": {"level1": {"level2": "deep_value"}}},
             output={"results": [{"score": 0.8}, {"score": 0.9}]},

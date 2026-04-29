@@ -475,6 +475,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "type": "string",
                                 "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
                             },
+                            "example_id_key": {
+                                "type": "string",
+                                "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes.",  # noqa: E501
+                            },
                             "file": {"type": "string", "format": "binary"},
                         },
                     }
@@ -1290,6 +1294,7 @@ async def _parse_form_data(
 
 class DatasetExample(V1RoutesBaseModel):
     id: str
+    node_id: str
     input: dict[str, Any]
     output: dict[str, Any]
     metadata: dict[str, Any]
@@ -1448,6 +1453,7 @@ async def get_dataset_examples(
                 id=example.external_id
                 if isinstance(example.external_id, str)
                 else str(GlobalID("DatasetExample", str(example.id))),
+                node_id=str(GlobalID("DatasetExample", str(example.id))),
                 input=revision.input,
                 output=revision.output,
                 metadata=revision.metadata_,

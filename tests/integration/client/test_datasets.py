@@ -8,6 +8,8 @@ from typing import Any, Sequence
 
 import pandas as pd
 import pytest
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
 
@@ -24,9 +26,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -68,9 +67,6 @@ class TestDatasetIntegration:
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_dataset_{token_hex(4)}"
@@ -106,9 +102,6 @@ class TestDatasetIntegration:
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -151,9 +144,6 @@ class TestDatasetIntegration:
         tmp_path: Path,
     ) -> None:
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -246,9 +236,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         df = pd.DataFrame(
@@ -277,15 +264,167 @@ Capital of Germany?,Berlin,geography,validation
         assert dataset[2]["metadata"]["rating"] == "5"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    async def test_dataset_to_dataframe_round_trip(
+    async def test_create_dataset_from_dataframe_with_example_id_key(
         self,
         is_async: bool,
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        df = pd.DataFrame(
+            {
+                "prompt": ["Write a poem", "Tell a joke", "Explain gravity"],
+                "response": ["Roses are red...", "Why did the chicken...", "Gravity is a force..."],
+                "example_id": ["poem-1", "joke-1", "gravity-1"],
+            }
+        )
+
+        unique_name = f"test_df_id_{token_hex(4)}"
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=unique_name,
+                dataframe=df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                example_id_key="example_id",
+            )
+        )
+
+        assert len(dataset) == 3
+        example_ids = {ex["id"] for ex in dataset.examples}
+        assert example_ids == {"poem-1", "joke-1", "gravity-1"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_dataset_from_dataframe_with_example_id_key(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_upsert_df_{token_hex(4)}"
+
+        # v1: 3 examples with stable IDs
+        v1_df = pd.DataFrame(
+            {
+                "prompt": ["Q1", "Q2", "Q3"],
+                "response": ["A1", "A2-old", "A3"],
+                "row_id": ["id-1", "id-2", "id-3"],
+            }
+        )
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                dataframe=v1_df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                example_id_key="row_id",
+            )
+        )
+
+        assert len(v1) == 3
+        assert {ex["id"] for ex in v1.examples} == {"id-1", "id-2", "id-3"}
+
+        # v2: id-2 patched, id-3 omitted (deleted), id-4 added
+        v2_df = pd.DataFrame(
+            {
+                "prompt": ["Q1", "Q2-updated", "Q4"],
+                "response": ["A1", "A2-new", "A4"],
+                "row_id": ["id-1", "id-2", "id-4"],
+            }
+        )
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                dataframe=v2_df,
+                input_keys=["prompt"],
+                output_keys=["response"],
+                example_id_key="row_id",
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 3
+
+        v2_by_id = {ex["id"]: ex for ex in v2.examples}
+        assert set(v2_by_id.keys()) == {"id-1", "id-2", "id-4"}
+
+        # id-1: unchanged
+        assert v2_by_id["id-1"]["input"]["prompt"] == "Q1"
+        assert v2_by_id["id-1"]["output"]["response"] == "A1"
+
+        # id-2: patched
+        assert v2_by_id["id-2"]["input"]["prompt"] == "Q2-updated"
+        assert v2_by_id["id-2"]["output"]["response"] == "A2-new"
+
+        # id-3: deleted
+        assert "id-3" not in v2_by_id
+
+        # id-4: new
+        assert v2_by_id["id-4"]["input"]["prompt"] == "Q4"
+        assert v2_by_id["id-4"]["output"]["response"] == "A4"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_examples_to_dataset_preserves_example_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_add_ex_ids_{token_hex(4)}"
+
+        # Create a dataset with one example (no user-provided ID)
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "Q1"}],
+                outputs=[{"a": "A1"}],
+            )
+        )
+
+        assert len(v1) == 1
+
+        # Append examples with user-provided IDs
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
+                dataset=name,
+                examples=[
+                    {"input": {"q": "Q2"}, "output": {"a": "A2"}, "id": "ex-2"},
+                    {"input": {"q": "Q3"}, "output": {"a": "A3"}, "id": "ex-3"},
+                ],
+            )
+        )
+
+        assert len(v2) == 3
+
+        v2_by_id = {ex["id"]: ex for ex in v2.examples}
+
+        # The appended examples should have the user-provided IDs
+        assert "ex-2" in v2_by_id
+        assert v2_by_id["ex-2"]["input"]["q"] == "Q2"
+        assert v2_by_id["ex-2"]["output"]["a"] == "A2"
+
+        assert "ex-3" in v2_by_id
+        assert v2_by_id["ex-3"]["input"]["q"] == "Q3"
+        assert v2_by_id["ex-3"]["output"]["a"] == "A3"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_dataset_to_dataframe_round_trip(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -345,9 +484,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Create source dataset
@@ -363,10 +499,15 @@ Capital of Germany?,Berlin,geography,validation
 
         # Create target dataset with single example from source
         target_name = f"test_target_{token_hex(4)}"
+        example = source[0]
         target = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=target_name,
-                examples=source[0],  # Single example
+                examples={
+                    "input": example["input"],
+                    "output": example["output"],
+                    "metadata": example["metadata"],
+                },
             )
         )
 
@@ -462,9 +603,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_flex_{token_hex(4)}"
@@ -514,9 +652,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         api_key = _app.admin_secret
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         # Test dataset not found
@@ -545,9 +680,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that dataset.examples can be passed directly to add_examples_to_dataset."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -614,7 +746,14 @@ Capital of Germany?,Berlin,geography,validation
         subset_dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=subset_target_name,
-                examples=source_dataset.examples[:2],  # Only first 2 examples
+                examples=[
+                    {
+                        "input": example["input"],
+                        "output": example["output"],
+                        "metadata": example["metadata"],
+                    }
+                    for example in source_dataset.examples[:2]
+                ],
             )
         )
 
@@ -630,10 +769,6 @@ Capital of Germany?,Berlin,geography,validation
     ) -> None:
         """Test that Dataset.to_dict() and Dataset.from_dict() work correctly for round-tripping."""
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-        from phoenix.client.resources.datasets import Dataset
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -757,9 +892,6 @@ Capital of Germany?,Berlin,geography,validation
         - Type safety with proper v1.Dataset annotations
         """  # noqa: E501
         api_key = _app.admin_secret
-
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
@@ -977,9 +1109,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_{token_hex(4)}"
@@ -1127,9 +1256,6 @@ Capital of Germany?,Berlin,geography,validation
         api_key = _app.admin_secret
         api_key_str = str(api_key)
 
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
-
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         unique_name = f"test_splits_dedup_{token_hex(4)}"
@@ -1276,8 +1402,6 @@ Capital of Germany?,Berlin,geography,validation
         tmp_path: Path,
     ) -> None:
         """Test creating dataset with span_id_key parameter from CSV."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1358,8 +1482,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id_key parameter from DataFrame."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1436,8 +1558,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test creating dataset with span_id in examples parameter (JSON path)."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1526,8 +1646,6 @@ What is NLP?,Natural Language Processing,
         _existing_spans: Sequence[_ExistingSpan],
     ) -> None:
         """Test adding examples with span_id to existing dataset."""
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1613,8 +1731,6 @@ What is NLP?,Natural Language Processing,
         when they have no meaningful values. The server should handle missing
         keys and create examples with default values.
         """
-        from phoenix.client import AsyncClient
-        from phoenix.client import Client as SyncClient
 
         Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
         api_key = _app.admin_secret
@@ -1681,3 +1797,432 @@ What is NLP?,Natural Language Processing,
             assert revision["metadata"] == {}
             # No span link
             assert ex["node"]["span"] is None
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_is_idempotent(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_idem_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"question": "What is AI?"}, {"question": "What is ML?"}],
+                outputs=[{"answer": "Artificial Intelligence"}, {"answer": "Machine Learning"}],
+            )
+        )
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"question": "What is AI?"}, {"question": "What is ML?"}],
+                outputs=[{"answer": "Artificial Intelligence"}, {"answer": "Machine Learning"}],
+            )
+        )
+
+        assert v2.version_id == v1.version_id
+        assert len(v2) == 2
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_patches_changed_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_patch_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"question": "Capital of Germany?"}],
+                outputs=[{"answer": "Munich"}],  # wrong answer
+            )
+        )
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"question": "Capital of Germany?"}],
+                outputs=[{"answer": "Berlin"}],  # corrected
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 1
+        assert v2[0]["output"]["answer"] == "Berlin"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_deletes_removed_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_del_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "A"}, {"q": "B"}, {"q": "C"}],
+                outputs=[{"a": "1"}, {"a": "2"}, {"a": "3"}],
+            )
+        )
+
+        assert len(v1) == 3
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "A"}, {"q": "B"}],
+                outputs=[{"a": "1"}, {"a": "2"}],
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 2
+        assert all(ex["input"]["q"] in {"A", "B"} for ex in v2.examples)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_adds_new_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_add_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "A"}],
+                outputs=[{"a": "1"}],
+            )
+        )
+
+        assert len(v1) == 1
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                inputs=[{"q": "A"}, {"q": "B"}],
+                outputs=[{"a": "1"}, {"a": "2"}],
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 2
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_external_id_matching(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """The id field on an example should pin it to an existing example across calls."""
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_extid_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {
+                        "input": {"question": "Capital of Germany?"},
+                        "output": {"answer": "Munich"},  # incorrect
+                        "id": "germany",
+                    },
+                    {
+                        "input": {"question": "Capital of Japan?"},
+                        "output": {"answer": "Tokyo"},
+                        "id": "japan",
+                    },
+                ],
+            )
+        )
+
+        assert len(v1) == 2
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {
+                        "input": {"question": "Capital of Germany?"},
+                        "output": {"answer": "Berlin"},  # correct
+                        "id": "germany",
+                    },
+                    {
+                        "input": {"question": "Capital of Japan?"},
+                        "output": {"answer": "Tokyo"},
+                        "id": "japan",
+                    },
+                ],
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 2  # patched in-place, not duplicated
+
+        v2_by_question = {ex["input"]["question"]: ex for ex in v2.examples}
+        assert v2_by_question["Capital of Germany?"]["output"]["answer"] == "Berlin"
+        assert v2_by_question["Capital of Japan?"]["output"]["answer"] == "Tokyo"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_upsert_using_server_assigned_node_id(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_nodeid_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {
+                        "input": {"question": "Fastest land animal?"},
+                        "output": {"answer": "Cheetah"},
+                    },
+                ],
+            )
+        )
+
+        node_id = v1[0]["id"]
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {
+                        "input": {"question": "Fastest land animal?"},
+                        "output": {"answer": "Cheetah"},
+                        "metadata": {"fun_fact": "Up to 70 mph"},
+                        "id": node_id,
+                    },
+                ],
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 1
+        assert v2[0]["metadata"]["fun_fact"] == "Up to 70 mph"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_updates_splits_when_provided(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_rebuild_splits_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {"input": {"q": "A"}, "output": {"a": "1"}, "splits": "alpha"},
+                    {"input": {"q": "B"}, "output": {"a": "2"}, "splits": "beta"},
+                ],
+            )
+        )
+
+        alpha_v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=v1.id, splits=["alpha"]
+            )
+        )
+        assert len(alpha_v1) == 1
+
+        # Move both examples to alpha, removing beta assignment
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {"input": {"q": "A"}, "output": {"a": "1"}, "splits": "alpha"},
+                    {"input": {"q": "B"}, "output": {"a": "2"}, "splits": "alpha"},
+                ],
+            )
+        )
+
+        alpha_v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset(
+                dataset=v2.id, splits=["alpha"]
+            )
+        )
+        assert len(alpha_v2) == 2
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_dataset_with_many_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        """
+        V1 creates 8 examples. V2 re-creates with 5, triggering every combination
+        of match strategy x outcome:
+
+          Explicit id:
+            1. Unchanged — same content, matched by id → no new revision
+            2. Patch     — content changed, matched by id
+            3. Delete    — omitted from v2
+
+          Content hash (no id):
+            4. Unchanged — identical content, matched by hash
+            5. Delete    — omitted from v2
+
+          Node id round-trip (server-assigned GlobalID passed back as id):
+            6. Unchanged — same content, matched by node id
+            7. Patch     — content changed, matched by node id
+            8. Delete    — omitted from v2
+        """
+        api_key = _app.admin_secret
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        name = f"test_all_cases_{token_hex(4)}"
+
+        v1 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    # Explicit id cases
+                    {
+                        "input": {"question": "Capital of Japan?"},
+                        "output": {"answer": "Tokyo"},
+                        "id": "japan",
+                    },
+                    {
+                        "input": {"question": "Capital of Germany?"},
+                        "output": {"answer": "Munich"},
+                        "id": "germany",
+                    },  # wrong — fixed in v2
+                    {
+                        "input": {"question": "Capital of France?"},
+                        "output": {"answer": "Paris"},
+                        "id": "france",
+                    },  # deleted in v2
+                    # Content hash cases (no id)
+                    {
+                        "input": {"question": "Boiling point of water?"},
+                        "output": {"answer": "100C"},
+                    },
+                    {
+                        "input": {"question": "Largest ocean?"},
+                        "output": {"answer": "Pacific"},
+                    },  # deleted in v2
+                    # Node id cases (no id yet — assigned by server)
+                    {
+                        "input": {"question": "Speed of light?"},
+                        "output": {"answer": "299792458 m/s"},
+                    },
+                    {
+                        "input": {"question": "Fastest land animal?"},
+                        "output": {"answer": "Cheetah"},
+                    },  # patched in v2
+                    {
+                        "input": {"question": "Tallest mountain?"},
+                        "output": {"answer": "Everest"},
+                    },  # deleted in v2
+                ],
+            )
+        )
+
+        assert len(v1) == 8
+
+        # Extract server-assigned node IDs for the node-id round-trip cases
+        examples_by_question = {ex["input"]["question"]: ex for ex in v1.examples}
+        node_id_6 = examples_by_question["Speed of light?"]["id"]
+        node_id_7 = examples_by_question["Fastest land animal?"]["id"]
+
+        v2 = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=name,
+                examples=[
+                    # Case 1: explicit id, unchanged
+                    {
+                        "input": {"question": "Capital of Japan?"},
+                        "output": {"answer": "Tokyo"},
+                        "id": "japan",
+                    },
+                    # Case 2: explicit id, patched
+                    {
+                        "input": {"question": "Capital of Germany?"},
+                        "output": {"answer": "Berlin"},
+                        "id": "germany",
+                    },
+                    # Case 3: OMITTED → DELETE
+                    # Case 4: content hash, unchanged
+                    {
+                        "input": {"question": "Boiling point of water?"},
+                        "output": {"answer": "100C"},
+                    },
+                    # Case 5: OMITTED → DELETE
+                    # Case 6: node id, unchanged
+                    {
+                        "input": {"question": "Speed of light?"},
+                        "output": {"answer": "299792458 m/s"},
+                        "id": node_id_6,
+                    },
+                    # Case 7: node id, patched (metadata added)
+                    {
+                        "input": {"question": "Fastest land animal?"},
+                        "output": {"answer": "Cheetah"},
+                        "metadata": {"fun_fact": "Up to 70 mph"},
+                        "id": node_id_7,
+                    },
+                    # Case 8: OMITTED → DELETE
+                ],
+            )
+        )
+
+        assert v2.version_id != v1.version_id
+        assert len(v2) == 5
+
+        v2_by_question = {ex["input"]["question"]: ex for ex in v2.examples}
+
+        # Patched examples have updated content
+        assert v2_by_question["Capital of Germany?"]["output"]["answer"] == "Berlin"
+        assert v2_by_question["Fastest land animal?"]["metadata"]["fun_fact"] == "Up to 70 mph"
+
+        # Deleted examples are gone
+        assert "Capital of France?" not in v2_by_question
+        assert "Largest ocean?" not in v2_by_question
+        assert "Tallest mountain?" not in v2_by_question
+
+        # Unchanged examples are preserved
+        assert v2_by_question["Capital of Japan?"]["output"]["answer"] == "Tokyo"
+        assert v2_by_question["Boiling point of water?"]["output"]["answer"] == "100C"
+        assert v2_by_question["Speed of light?"]["output"]["answer"] == "299792458 m/s"
+
+        versions = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.get_dataset_versions(
+                dataset=v2
+            )
+        )
+        assert len(versions) == 2

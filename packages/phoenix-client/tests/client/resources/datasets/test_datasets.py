@@ -48,6 +48,7 @@ class TestDataset:
             examples=[
                 v1.DatasetExample(
                     id="ex1",
+                    node_id="ex1",
                     input={"text": "hello"},
                     output={"response": "hi"},
                     metadata={"source": "test"},
@@ -55,6 +56,7 @@ class TestDataset:
                 ),
                 v1.DatasetExample(
                     id="ex2",
+                    node_id="ex2",
                     input={"text": "world"},
                     output={"response": "earth"},
                     metadata={"source": "test"},
@@ -266,6 +268,7 @@ class TestHelperFunctions:
     def test_is_valid_dataset_example(self) -> None:
         valid_example = v1.DatasetExample(
             id="ex1",
+            node_id="ex1",
             input={"text": "hello"},
             output={"response": "hi"},
             metadata={"source": "test"},
