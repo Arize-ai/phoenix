@@ -1,5 +1,12 @@
 # @arizeai/phoenix-client
 
+## 6.8.1
+
+### Patch Changes
+
+- e381885: Gate `example_ids` on dataset upload (`createDataset`, `appendDatasetExamples`) by server version, so callers see a clear capability error when targeting a Phoenix server older than 15.0.0 instead of a confusing server-side failure.
+- 187df7e: Regenerate REST API types for the session notes endpoint.
+
 ## 6.8.0
 
 ### Minor Changes
