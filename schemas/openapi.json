@@ -10425,6 +10425,24 @@
             },
             "type": "array",
             "title": "Traces"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all descendant spans of all traces in this session.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all descendant spans of all traces in this session.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all descendant spans of all traces in this session (prompt + completion).",
+            "default": 0
           }
         },
         "type": "object",
@@ -10932,11 +10950,167 @@
         ],
         "title": "SpanNoteData"
       },
+      "SpanResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Span Global ID, distinct from the OpenTelemetry span ID",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the span operation"
+          },
+          "context": {
+            "$ref": "#/components/schemas/SpanContext",
+            "description": "Span context containing trace_id and span_id"
+          },
+          "span_kind": {
+            "type": "string",
+            "title": "Span Kind",
+            "description": "Type of work that the span encapsulates"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "OpenTelemetry span ID of the parent span"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "Start time of the span (must be timezone-aware)"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "End time of the span (must be timezone-aware)"
+          },
+          "status_code": {
+            "type": "string",
+            "title": "Status Code",
+            "description": "Status code of the span"
+          },
+          "status_message": {
+            "type": "string",
+            "title": "Status Message",
+            "description": "Status message",
+            "default": ""
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Attributes",
+            "description": "Span attributes"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            },
+            "type": "array",
+            "title": "Events",
+            "description": "Span events"
+          },
+          "token_count_prompt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Count Prompt",
+            "description": "Number of prompt tokens used by this span's LLM call. null indicates the column is unset (legacy/backfilled rows). 0 may indicate either no LLM call or zero tokens consumed \u2014 use span_kind to disambiguate."
+          },
+          "token_count_completion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Count Completion",
+            "description": "Number of completion tokens used by this span's LLM call. null indicates the column is unset (legacy/backfilled rows). 0 may indicate either no LLM call or zero tokens consumed \u2014 use span_kind to disambiguate."
+          },
+          "token_count_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Count Total",
+            "description": "Total tokens used by this span's LLM call (coalesce(prompt, 0) + coalesce(completion, 0)). null only when both prompt and completion are null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "context",
+          "span_kind",
+          "start_time",
+          "end_time",
+          "status_code"
+        ],
+        "title": "SpanResponse",
+        "examples": [
+          {
+            "attributes": {
+              "llm.model_name": "gpt-4",
+              "llm.token_count.completion": 50,
+              "llm.token_count.prompt": 100
+            },
+            "context": {
+              "span_id": "1a2b3c4d5e6f7a8b",
+              "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+            },
+            "end_time": "2024-01-01T12:00:01Z",
+            "events": [],
+            "name": "llm_call",
+            "span_kind": "LLM",
+            "start_time": "2024-01-01T12:00:00Z",
+            "status_code": "OK",
+            "status_message": "",
+            "token_count_completion": 50,
+            "token_count_prompt": 100,
+            "token_count_total": 150
+          },
+          {
+            "attributes": {},
+            "context": {
+              "span_id": "2b3c4d5e6f7a8b9c",
+              "trace_id": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
+            },
+            "end_time": "2024-01-01T12:00:00.5Z",
+            "events": [],
+            "name": "retrieval_call",
+            "span_kind": "RETRIEVER",
+            "start_time": "2024-01-01T12:00:00Z",
+            "status_code": "OK",
+            "status_message": ""
+          }
+        ]
+      },
       "SpansResponseBody": {
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/Span"
+              "$ref": "#/components/schemas/SpanResponse"
             },
             "type": "array",
             "title": "Data"
@@ -11300,6 +11474,24 @@
             "type": "string",
             "format": "date-time",
             "title": "End Time"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all descendant spans. 0 when no descendant span has an LLM call.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all descendant spans. 0 when no descendant span has an LLM call.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all descendant spans (token_count_prompt + token_count_completion).",
+            "default": 0
           },
           "spans": {
             "anyOf": [
