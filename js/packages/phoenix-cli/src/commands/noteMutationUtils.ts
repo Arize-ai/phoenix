@@ -1,7 +1,7 @@
 import { InvalidArgumentError } from "../exitCodes";
 import { trimToUndefined } from "../normalize";
 
-export type NoteTargetType = "span" | "trace";
+export type NoteTargetType = "span" | "trace" | "session";
 export const NOTE_ANNOTATION_NAME = "note";
 
 export interface NoteMutationResult {
@@ -16,7 +16,13 @@ function getTargetIdPlaceholder({
 }: {
   targetType: NoteTargetType;
 }): string {
-  return targetType === "span" ? "<span-id>" : "<trace-id>";
+  if (targetType === "span") {
+    return "<span-id>";
+  }
+  if (targetType === "trace") {
+    return "<trace-id>";
+  }
+  return "<session-id>";
 }
 
 function getAddNoteUsage({

@@ -1,7 +1,7 @@
 import { InvalidArgumentError } from "../exitCodes";
 import { parseNumber, trimToUndefined } from "../normalize";
 
-export type AnnotationTargetType = "span" | "trace";
+export type AnnotationTargetType = "span" | "trace" | "session";
 export type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
 
 export interface AnnotationMutationResult {
@@ -34,7 +34,13 @@ function getTargetIdPlaceholder({
 }: {
   targetType: AnnotationTargetType;
 }): string {
-  return targetType === "span" ? "<span-id>" : "<trace-id>";
+  if (targetType === "span") {
+    return "<span-id>";
+  }
+  if (targetType === "trace") {
+    return "<trace-id>";
+  }
+  return "<session-id>";
 }
 
 function getAnnotateUsage({

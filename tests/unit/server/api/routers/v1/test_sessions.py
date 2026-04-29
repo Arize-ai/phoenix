@@ -15,6 +15,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
+from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.types import DbSessionFactory
 
 
@@ -251,6 +253,58 @@ class TestDeleteSessions:
 
 
 class TestAnnotateSessions:
+    async def test_rest_session_annotation_sync_returns_global_ids_and_emits_dml_event(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: Any,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        events: list[Any] = []
+        original_put = DmlEventHandler.put
+
+        def spy_put(self: DmlEventHandler, event: Any) -> None:
+            events.append(event)
+            original_put(self, event)
+
+        monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+
+        request_body = {
+            "data": [
+                {
+                    "session_id": session_model.session_id,
+                    "name": "reviewer",
+                    "annotator_kind": "HUMAN",
+                    "result": {"label": "pass"},
+                    "metadata": {},
+                    "identifier": "identifier-name",
+                }
+            ]
+        }
+        response = await httpx_client.post("v1/session_annotations?sync=true", json=request_body)
+
+        assert response.status_code == 200
+        annotation_id = response.json()["data"][0]["id"]
+        rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), "ProjectSessionAnnotation"
+        )
+        dml_events = [
+            event for event in events if isinstance(event, ProjectSessionAnnotationInsertEvent)
+        ]
+        assert dml_events == [ProjectSessionAnnotationInsertEvent((rowid,))]
+
+        async with db() as session:
+            orm_annotation = await session.scalar(
+                select(models.ProjectSessionAnnotation).where(
+                    models.ProjectSessionAnnotation.id == rowid,
+                    models.ProjectSessionAnnotation.name == "reviewer",
+                )
+            )
+
+        assert orm_annotation is not None
+        assert orm_annotation.project_session_id == session_model.id
+        assert orm_annotation.label == "pass"
+
     async def test_rest_session_annotation_rejects_note_name(
         self,
         httpx_client: httpx.AsyncClient,

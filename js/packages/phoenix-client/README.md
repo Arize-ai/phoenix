@@ -505,6 +505,7 @@ import {
   listSessions,
   getSession,
   addSessionAnnotation,
+  addSessionNote,
 } from "@arizeai/phoenix-client/sessions";
 
 // List all sessions for a project
@@ -533,6 +534,19 @@ await addSessionAnnotation({
     label: "satisfied",
     score: 0.9,
     annotatorKind: "HUMAN",
+  },
+});
+```
+
+### Adding Session Notes
+
+Session notes require Phoenix server `14.17.0` or newer.
+
+```ts
+await addSessionNote({
+  sessionNote: {
+    sessionId: "my-session-id",
+    note: "Needs review",
   },
 });
 ```
