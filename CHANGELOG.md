@@ -1,5 +1,17 @@
 # Changelog
 
+## [15.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.17.0...arize-phoenix-v15.0.0) (2026-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860))
+
+### Features
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860)) ([9575738](https://github.com/Arize-ai/phoenix/commit/957573865202d2ee49c21eb1c73265760e07f2f9))
+* extend db prompt types for invocation paramaters ([#12855](https://github.com/Arize-ai/phoenix/issues/12855)) ([1499ca9](https://github.com/Arize-ai/phoenix/commit/1499ca956de972ba523d57e7af49b84e693f895a))
+
 ## [14.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.16.0...arize-phoenix-v14.17.0) (2026-04-29)
 
 
