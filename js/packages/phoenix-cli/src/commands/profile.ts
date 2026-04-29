@@ -46,6 +46,7 @@ function buildSingleProfileEntry(
     endpoint: entry.endpoint,
     project: entry.project,
     hasApiKey: entry.apiKey !== undefined && entry.apiKey.length > 0,
+    headers: entry.headers,
     active,
   };
 }
@@ -270,14 +271,44 @@ function createProfileCreateCommand(): Command {
 // edit (interactive, strict kubectl semantics)
 // ---------------------------------------------------------------------------
 
-function resolveEditor(): string {
-  return process.env.PHOENIX_EDITOR ?? process.env.EDITOR ?? "vi";
+/**
+ * Resolve the editor command and its baseline arguments from the environment.
+ *
+ * Splits on whitespace so common multi-token values like `code --wait`,
+ * `subl -w`, and `cursor --wait` work. The first token is the binary; any
+ * remaining tokens are flags that get prepended to the file path on spawn.
+ */
+export function resolveEditorCommand(): { command: string; args: string[] } {
+  const raw = process.env.PHOENIX_EDITOR ?? process.env.EDITOR ?? "vi";
+  const parts = raw
+    .trim()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+  const [command, ...args] = parts.length > 0 ? parts : ["vi"];
+  return { command, args };
 }
 
-function runEditor(editor: string, filePath: string): void {
-  const result = spawnSync(editor, [filePath], { stdio: "inherit" });
+/**
+ * Run the editor synchronously. Aborts the edit (throws) if the editor
+ * cannot be spawned, exits non-zero, or is killed by a signal — matching
+ * how `kubectl edit` and `git commit` treat editor exit status: a non-zero
+ * exit is the user's signal to discard the edit.
+ */
+function runEditor(filePath: string): void {
+  const { command, args } = resolveEditorCommand();
+  const result = spawnSync(command, [...args, filePath], { stdio: "inherit" });
   if (result.error) {
     throw result.error;
+  }
+  if (result.signal !== null) {
+    throw new Error(
+      `Editor "${command}" terminated by signal ${result.signal}; discarding edits.`
+    );
+  }
+  if (typeof result.status === "number" && result.status !== 0) {
+    throw new Error(
+      `Editor "${command}" exited with status ${result.status}; discarding edits.`
+    );
   }
 }
 
@@ -300,11 +331,19 @@ async function profileEditHandler(name: string): Promise<void> {
       mode: 0o600,
     });
 
-    const editor = resolveEditor();
     let validEntry: ProfileEntry | undefined;
 
     while (validEntry === undefined) {
-      runEditor(editor, tmpFile);
+      try {
+        runEditor(tmpFile);
+      } catch (err) {
+        // Editor failed to spawn, exited non-zero, or was killed by a
+        // signal — discard edits and surface a clean error.
+        writeError({
+          message: err instanceof Error ? err.message : String(err),
+        });
+        process.exit(ExitCode.FAILURE);
+      }
 
       const raw = fs.readFileSync(tmpFile, "utf-8");
       let parsed: unknown;

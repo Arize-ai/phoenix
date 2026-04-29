@@ -89,14 +89,17 @@ in VS Code, JetBrains, and other editors:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/v1.0.0/schemas/phoenix-cli-settings.json",
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json",
   "activeProfile": "prod",
   "profiles": { ... }
 }
 ```
 
-Replace `v1.0.0` with your installed CLI version (`px --version`). The schema is
-also available at `schemas/phoenix-cli-settings.json` in the Phoenix repository.
+The schema lives at `schemas/phoenix-cli-settings.json` in the Phoenix
+repository and tracks the published Zod schema. Pin to `main` for the
+latest definitions, or substitute a Phoenix release tag (e.g.
+`arize-phoenix-v14.16.0`) once a release that ships the schema is
+available.
 
 For VS Code project-wide association add to `.vscode/settings.json`:
 
@@ -105,7 +108,7 @@ For VS Code project-wide association add to `.vscode/settings.json`:
   "json.schemas": [
     {
       "fileMatch": ["settings.json"],
-      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/v1.0.0/schemas/phoenix-cli-settings.json"
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json"
     }
   ]
 }

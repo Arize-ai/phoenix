@@ -17,6 +17,9 @@ import { InvalidArgumentError } from "./exitCodes";
 export const ProfileEntrySchema = z.object({
   endpoint: z
     .string()
+    .url(
+      "endpoint must be an absolute URL (e.g. https://app.phoenix.arize.com or http://localhost:6006)"
+    )
     .optional()
     .describe(
       "Phoenix server URL this profile targets (e.g. https://app.phoenix.arize.com or http://localhost:6006)."
@@ -166,9 +169,19 @@ function parseSettingsFile(rawJson: string): SettingsParseResult {
         reason: `Profile "${name}".headers must be an object`,
       };
     }
+    // For string-typed fields the underlying issue is either a type
+    // mismatch ("must be a string") or a refinement failure (e.g. URL
+    // validation on `endpoint`). Surface Zod's own message for refinement
+    // failures so users see what actually went wrong.
+    if (issue.code === "invalid_type") {
+      return {
+        ok: false,
+        reason: `Profile "${name}".${field} must be a string`,
+      };
+    }
     return {
       ok: false,
-      reason: `Profile "${name}".${field} must be a string`,
+      reason: `Profile "${name}".${field}: ${issue.message}`,
     };
   }
 

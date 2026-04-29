@@ -26,6 +26,15 @@ export type ProfileListEntry = {
    * stores the raw value.
    */
   hasApiKey?: boolean;
+  /**
+   * Custom HTTP headers configured on this profile. Passed through to
+   * `--format json|raw` output verbatim because headers are user
+   * configuration (e.g. `X-Tenant`, `X-Region`), not credentials. If you
+   * use a header to carry an auth token, it will appear unmasked here —
+   * the recommended way to set a Phoenix API key is `--api-key`, which is
+   * masked everywhere.
+   */
+  headers?: Record<string, string>;
   active: boolean;
 };
 
@@ -45,6 +54,7 @@ interface JsonProfileEntry {
   endpoint?: string;
   project?: string;
   apiKey?: string;
+  headers?: Record<string, string>;
   active: boolean;
 }
 
@@ -53,6 +63,9 @@ function toJsonEntry(entry: ProfileListEntry): JsonProfileEntry {
   if (entry.endpoint !== undefined) out.endpoint = entry.endpoint;
   if (entry.project !== undefined) out.project = entry.project;
   if (entry.hasApiKey) out.apiKey = API_KEY_MASK;
+  if (entry.headers !== undefined && Object.keys(entry.headers).length > 0) {
+    out.headers = entry.headers;
+  }
   return out;
 }
 
