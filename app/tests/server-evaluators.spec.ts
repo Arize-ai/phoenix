@@ -66,12 +66,12 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("menuitem", { name: "Add Example Manually" }).click();
 
     // Wait for the Add Example dialog to open
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByTestId("dialog")).toBeVisible();
 
     // Fill in the input field with valid JSON
     // JSONEditor renders a CodeMirror editor with .cm-content
     // Scope to the dialog to avoid picking up background editors
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     const inputTextArea = dialog.locator(".cm-content").first();
     await expect(inputTextArea).toBeVisible();
     await inputTextArea.click();
@@ -92,7 +92,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Add Example" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the example appears in the table (or at least the table is no longer empty)
     await expect(page.getByRole("row")).toHaveCount(2); // header + 1 example
