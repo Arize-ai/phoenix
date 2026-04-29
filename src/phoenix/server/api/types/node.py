@@ -1,5 +1,6 @@
 import re
 from base64 import b64decode
+from binascii import Error as BinasciiError
 
 from strawberry.relay import GlobalID
 
@@ -7,7 +8,10 @@ _COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
 
 
 def is_composite_global_id(node_id: str) -> bool:
-    decoded_node_id = b64decode(node_id).decode()
+    try:
+        decoded_node_id = b64decode(node_id).decode()
+    except (BinasciiError, UnicodeDecodeError):
+        return False
     return _COMPOSITE_GLOBAL_ID_PATTERN.match(decoded_node_id) is not None
 
 
