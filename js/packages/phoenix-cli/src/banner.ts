@@ -1,4 +1,4 @@
-import { loadConfigFromEnvironment } from "./config";
+import { type PhoenixConfig, resolveConfig } from "./config";
 import { writeOutput } from "./io";
 import { getCliVersionStatus } from "./version";
 
@@ -54,7 +54,15 @@ export function renderBanner({ infoLines }: { infoLines: string[] }): string {
  * Print the Phoenix CLI banner with connection and update info aligned to the right of the logo.
  */
 export async function printBanner(): Promise<void> {
-  const config = loadConfigFromEnvironment();
+  // The banner is informational and must never abort `px` startup. Swallow
+  // config-resolution errors (e.g. a stale PHOENIX_PROFILE) and fall back to
+  // empty fields; the real command invocation will surface the error cleanly.
+  let config: PhoenixConfig = {};
+  try {
+    config = resolveConfig({ cliOptions: {} });
+  } catch {
+    // ignore — banner is informational
+  }
   const versionStatus = await getCliVersionStatus();
   const infoLines = getBannerInfoLines({
     serverUrl: config.endpoint ?? "not set",

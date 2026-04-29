@@ -45,15 +45,57 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                                 | Description                                   |
-| ---------------------------------------- | --------------------------------------------- |
-| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
-| `PHOENIX_PROJECT`                        | Project name or ID                            |
-| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
-| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+| Variable                 | Description                       |
+| ------------------------ | --------------------------------- |
+| `PHOENIX_HOST`           | Phoenix API endpoint              |
+| `PHOENIX_PROJECT`        | Project name or ID                |
+| `PHOENIX_API_KEY`        | API key (if auth is enabled)      |
+| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string     |
+| `PHOENIX_PROFILE`        | Active profile name override      |
 
-Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+## Profiles
+
+Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
+
+```bash
+px profile create prod --endpoint https://phoenix.example.com --project main
+px profile use prod            # set active profile
+px profile list                # show all profiles
+px profile show prod           # show a specific profile
+px profile edit prod           # open in $EDITOR, validates on save
+px profile delete prod         # remove a profile
+```
+
+Use `--profile <name>` on any command to override the active profile for that invocation.
+
+### Editor autocompletion via `$schema`
+
+Add a `$schema` field to your `settings.json` for validation and autocompletion
+in VS Code, JetBrains, and other editors:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/v1.0.0/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": { ... }
+}
+```
+
+Replace `v1.0.0` with your installed CLI version (`px --version`). The schema is
+also available at `schemas/phoenix-cli-settings.json` in the Phoenix repository.
+
+For VS Code project-wide association add to `.vscode/settings.json`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["settings.json"],
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/v1.0.0/schemas/phoenix-cli-settings.json"
+    }
+  ]
+}
+```
 
 ## Commands
 

@@ -9,7 +9,7 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
-import { assertDeletesEnabled, confirmOrExit } from "../confirm";
+import { confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -382,7 +382,6 @@ async function sessionDeleteHandler(
   options: SessionDeleteOptions
 ): Promise<void> {
   try {
-    assertDeletesEnabled();
 
     const config = resolveConfig({
       cliOptions: {
