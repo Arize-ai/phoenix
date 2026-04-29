@@ -1,9 +1,5 @@
-from phoenix.server.api.routers.chat_context import (
-    ProjectContext,
-    ResolvedContexts,
-    ToolExecutionEnv,
-)
-from phoenix.server.api.routers.chat_tools import resolve_contextual_tools
+from phoenix.server.agents.context import ProjectContext, ResolvedContexts, ToolExecutionEnv
+from phoenix.server.agents.tools import resolve_contextual_tools
 from phoenix.server.types import DbSessionFactory
 
 
@@ -16,8 +12,6 @@ class TestResolveContextualTools:
         assert dispatch == {}
 
     def test_no_tools_when_project_lacks_span_filter(self, db: DbSessionFactory) -> None:
-        # Project context is present but the span filter field is not mounted,
-        # so the apply_span_filter_condition tool must not be advertised.
         resolved = ResolvedContexts(
             project=ProjectContext(type="project", project_node_id="UHJvamVjdDox")
         )
@@ -39,7 +33,6 @@ class TestResolveContextualTools:
 
         names = [tool.name for tool in defs]
         assert "apply_span_filter_condition" in names
-        # Client-executed tool: must NOT have a server dispatch entry.
         assert dispatch == {}
 
     def test_apply_span_filter_condition_schema_requires_condition(
