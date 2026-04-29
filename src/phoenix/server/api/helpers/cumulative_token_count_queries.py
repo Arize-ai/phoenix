@@ -37,8 +37,8 @@ def cumulative_token_counts_by_trace(
     Returns a Select that SUMs cumulative token counts over root spans grouped by
     trace_rowid for the given trace rowid keys.
 
-    D3 multi-root correctness: a valid trace can have multiple root spans, so direct
-    single-root reads are unsafe — SUM-and-GROUP-BY is required here too.
+    A valid trace can have multiple root spans, so direct single-root reads are
+    unsafe — SUM-and-GROUP-BY is required here too.
 
     Columns: id_ (trace_rowid), prompt, completion
     """

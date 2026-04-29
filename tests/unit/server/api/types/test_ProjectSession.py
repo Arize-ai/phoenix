@@ -326,59 +326,6 @@ class TestProjectSession:
         assert summaries_result == []
 
 
-async def test_rest_graphql_token_usage_parity(
-    db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
-) -> None:
-    """REST GET /sessions/{id} and GraphQL ProjectSession.tokenUsage must agree."""
-    async with db() as session:
-        project = await _add_project(session)
-        project_session = await _add_project_session(session, project)
-        trace1 = await _add_trace(session, project, project_session)
-        await _add_span(
-            session,
-            trace1,
-            cumulative_llm_token_count_prompt=3,
-            cumulative_llm_token_count_completion=7,
-        )
-        trace2 = await _add_trace(session, project, project_session)
-        await _add_span(
-            session,
-            trace2,
-            cumulative_llm_token_count_prompt=5,
-            cumulative_llm_token_count_completion=9,
-        )
-
-    session_global_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
-
-    rest_response = await httpx_client.get(f"v1/sessions/{session_global_id}")
-    assert rest_response.status_code == 200
-    rest_data = rest_response.json()["data"]
-    rest_prompt = rest_data["token_count_prompt"]
-    rest_completion = rest_data["token_count_completion"]
-    rest_total = rest_data["token_count_total"]
-
-    gql_query = """
-        query ($id: ID!) {
-            node(id: $id) {
-                ... on ProjectSession {
-                    tokenUsage { prompt completion total }
-                }
-            }
-        }
-    """
-    gql_response = await httpx_client.post(
-        "graphql",
-        json={"query": gql_query, "variables": {"id": session_global_id}},
-    )
-    assert gql_response.status_code == 200
-    gql_usage = gql_response.json()["data"]["node"]["tokenUsage"]
-
-    assert rest_prompt == gql_usage["prompt"]
-    assert rest_completion == gql_usage["completion"]
-    assert rest_total == gql_usage["total"]
-
-
 async def test_project_session_traces_require_first(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,

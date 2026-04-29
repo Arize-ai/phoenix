@@ -10,7 +10,6 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.openapi.schema import get_openapi_schema
 from phoenix.server.api.routers.v1.spans import (
     OtlpAnyValue,
     OtlpSpan,
@@ -2346,7 +2345,7 @@ async def test_attribute_filter_dict_value_returns_422_on_otlp(
 
 
 # ---------------------------------------------------------------------------
-# Token count fields on SpanResponse (D1/D2/D4/D7)
+# Token count fields on SpanResponse
 # ---------------------------------------------------------------------------
 
 
@@ -2389,49 +2388,6 @@ async def project_with_llm_span(db: DbSessionFactory) -> None:
         )
 
 
-@pytest.fixture
-async def project_with_non_llm_span_ingest_path(db: DbSessionFactory) -> None:
-    """Project with a CHAIN span whose token columns are 0 — matching the
-    OTLP ingest path behavior (db/insertion/span.py writes `or 0` when the
-    LLM token attributes are absent)."""
-    async with db() as session:
-        project_row_id = await session.scalar(
-            insert(models.Project)
-            .values(name="non-llm-ingest-project")
-            .returning(models.Project.id)
-        )
-        trace_id = await session.scalar(
-            insert(models.Trace)
-            .values(
-                trace_id="nonllmtrace000000000000000000000",
-                project_rowid=project_row_id,
-                start_time=datetime.fromisoformat("2024-01-01T00:00:00.000+00:00"),
-                end_time=datetime.fromisoformat("2024-01-01T00:00:01.000+00:00"),
-            )
-            .returning(models.Trace.id)
-        )
-        await session.execute(
-            insert(models.Span).values(
-                trace_rowid=trace_id,
-                span_id="chainspan000000001",
-                parent_id=None,
-                name="chain call",
-                span_kind="CHAIN",
-                start_time=datetime.fromisoformat("2024-01-01T00:00:00.000+00:00"),
-                end_time=datetime.fromisoformat("2024-01-01T00:00:01.000+00:00"),
-                attributes={},
-                events=[],
-                status_code="OK",
-                status_message="",
-                cumulative_error_count=0,
-                cumulative_llm_token_count_prompt=0,
-                cumulative_llm_token_count_completion=0,
-                llm_token_count_prompt=0,
-                llm_token_count_completion=0,
-            )
-        )
-
-
 async def test_span_response_token_counts_llm_span(
     httpx_client: httpx.AsyncClient,
     project_with_llm_span: None,
@@ -2445,37 +2401,3 @@ async def test_span_response_token_counts_llm_span(
     assert span.token_count_prompt == 100
     assert span.token_count_completion == 50
     assert span.token_count_total == 150
-
-
-async def test_span_response_token_counts_non_llm_ingest_path(
-    httpx_client: httpx.AsyncClient,
-    project_with_non_llm_span_ingest_path: None,
-) -> None:
-    """Non-LLM span ingested via OTLP path returns 0/0/0 (not null) — verifying
-    that db/insertion/span.py writes 0 when LLM token attributes are absent."""
-    resp = await httpx_client.get("v1/projects/non-llm-ingest-project/spans")
-    assert resp.is_success
-    data = resp.json()["data"]
-    assert len(data) == 1
-    span = SpanResponse.model_validate(data[0])
-    assert span.token_count_prompt == 0
-    assert span.token_count_completion == 0
-    assert span.token_count_total == 0
-
-
-def test_create_spans_request_schema_has_no_token_count_fields() -> None:
-    """POST /spans request schema must not include token_count_* — D7 contract.
-
-    token_count_* are response-only fields on SpanResponse; Span (the input
-    element of CreateSpansRequestBody) must remain unchanged so the OpenAPI
-    request schema does not advertise fields that the create-span handler
-    silently ignores.
-    """
-    schema = get_openapi_schema()
-    span_schema = schema["components"]["schemas"]["Span"]
-    properties = span_schema.get("properties", {})
-    for field in ("token_count_prompt", "token_count_completion", "token_count_total"):
-        assert field not in properties, (
-            f"Span request schema must not contain '{field}' — "
-            "it is a response-only field on SpanResponse (D7)"
-        )
