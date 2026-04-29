@@ -459,10 +459,7 @@ describe("settings file $schema handling", () => {
     expect(
       "$schema" in
         JSON.parse(
-          fs.readFileSync(
-            path.join(ctx.tmpDir, "px", "settings.json"),
-            "utf-8"
-          )
+          fs.readFileSync(path.join(ctx.tmpDir, "px", "settings.json"), "utf-8")
         )
     ).toBe(false);
 
