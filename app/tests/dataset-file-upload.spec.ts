@@ -26,6 +26,27 @@ async function expectColumnInBucket(
   await expect(bucket.getByRole("option", { name: columnName })).toBeVisible();
 }
 
+/**
+ * Locate a cell in a preview table by row index and column header text.
+ * Resolves the column position from the rendered <thead> so the test does
+ * not depend on a fixed column ordering.
+ */
+async function getPreviewCell(
+  table: Locator,
+  rowIndex: number,
+  headerText: string
+): Promise<Locator> {
+  const headers = table.locator("thead th");
+  const headerCount = await headers.count();
+  for (let i = 0; i < headerCount; i++) {
+    const text = (await headers.nth(i).textContent()) ?? "";
+    if (text.includes(headerText)) {
+      return table.locator("tbody tr").nth(rowIndex).locator("td").nth(i);
+    }
+  }
+  throw new Error(`Preview table column with header "${headerText}" not found`);
+}
+
 test.describe("Dataset File Upload", () => {
   test.describe("CSV Upload", () => {
     test("can upload a simple CSV file and see columns", async ({ page }) => {
@@ -454,17 +475,16 @@ test.describe("Dataset File Upload", () => {
       await expectColumnInBucket(page, "output", "OUTPUT");
       await expectColumnInBucket(page, "id", "KEYS");
 
-      // Switch to Dataset Preview to verify collapsed data structure
-      await dialog.getByRole("tab", { name: "Dataset Preview" }).click();
+      // Switch to Examples Preview to verify collapsed data structure
+      await dialog.getByRole("tab", { name: "Examples Preview" }).click();
 
       // Wait for preview table
       const previewTable = dialog.locator("table");
       await expect(previewTable).toBeVisible();
 
       // The preview should show flattened child keys (question, context)
-      // instead of nested JSON under "input"
-      const firstRow = previewTable.locator("tbody tr").first();
-      const inputCell = firstRow.locator("td").nth(0);
+      // instead of nested JSON under "input".
+      const inputCell = await getPreviewCell(previewTable, 0, "Input");
       const inputText = await inputCell.textContent();
 
       // Should contain the child keys from the flattened structure
@@ -555,23 +575,18 @@ test.describe("Dataset File Upload", () => {
       await expect(collapseSwitch).toBeVisible();
       await expect(collapseSwitch).toBeChecked();
 
-      // Switch to "Dataset Preview" tab to see the preview table
-      await dialog.getByRole("tab", { name: "Dataset Preview" }).click();
+      // Switch to "Examples Preview" tab to see the preview table
+      await dialog.getByRole("tab", { name: "Examples Preview" }).click();
 
       // Wait for the preview table to render
       const previewTable = dialog.locator("table");
       await expect(previewTable).toBeVisible();
 
-      // Get the first row's Input and Output cell content from the preview
-      // The table has columns: Input, Output, Metadata
-      const previewFirstRow = previewTable.locator("tbody tr").first();
-
-      // Extract the text content of the first row's Input cell (first td)
-      const previewInputCell = previewFirstRow.locator("td").nth(0);
+      // Get the first row's Input and Output cell content from the preview.
+      const previewInputCell = await getPreviewCell(previewTable, 0, "Input");
       const previewInputText = await previewInputCell.textContent();
 
-      // Extract the text content of the first row's Output cell (second td)
-      const previewOutputCell = previewFirstRow.locator("td").nth(1);
+      const previewOutputCell = await getPreviewCell(previewTable, 0, "Output");
       const previewOutputText = await previewOutputCell.textContent();
 
       // The preview should show the collapsed structure:
