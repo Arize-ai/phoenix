@@ -853,7 +853,7 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
         assert len(all_assignments) == 10
 
 
-async def _simulate_pre_upsert_state(db: DbSessionFactory, dataset_name: str) -> list[int]:
+async def _simulate_pre_v15_dataset(db: DbSessionFactory, dataset_name: str) -> list[int]:
     """Null out content_hash and external_id on every revision/example in the
     given dataset so it looks like a pre-v15 dataset (the v15 migration adds
     those columns as nullable without a backfill). Returns the example db ids
@@ -904,7 +904,7 @@ async def test_action_update_deletes_pre_upsert_examples(
             action=DatasetAction.CREATE,
         )
 
-    await _simulate_pre_upsert_state(db, name)
+    await _simulate_pre_v15_dataset(db, name)
 
     async with db() as session:
         event = await add_dataset_examples(
@@ -942,7 +942,7 @@ async def test_action_update_can_patch_pre_upsert_example_by_global_id(
             action=DatasetAction.CREATE,
         )
 
-    example_ids = await _simulate_pre_upsert_state(db, name)
+    example_ids = await _simulate_pre_v15_dataset(db, name)
     target_example_id = example_ids[0]
     target_global_id = str(GlobalID(type_name="DatasetExample", node_id=str(target_example_id)))
 
