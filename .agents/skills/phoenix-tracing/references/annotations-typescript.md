@@ -5,7 +5,7 @@ Add feedback to spans, traces, documents, and sessions using the TypeScript clie
 ## Client Setup
 
 ```typescript
-import { createClient } from "phoenix-client";
+import { createClient } from "@arizeai/phoenix-client";
 const client = createClient();  // Default: http://localhost:6006
 ```
 
@@ -14,7 +14,7 @@ const client = createClient();  // Default: http://localhost:6006
 Add feedback to individual spans:
 
 ```typescript
-import { addSpanAnnotation } from "phoenix-client";
+import { addSpanAnnotation } from "@arizeai/phoenix-client/spans";
 
 await addSpanAnnotation({
   client,
@@ -31,12 +31,28 @@ await addSpanAnnotation({
 });
 ```
 
+## Span Notes
+
+Notes are a special annotation type that allow multiple entries per span (unlike regular annotations which are unique by name). Each note gets a unique UUIDv4 identifier automatically.
+
+```typescript
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
+
+await addSpanNote({
+  client,
+  spanNote: {
+    spanId: "abc123",
+    note: "This span shows unexpected behavior, needs review"
+  }
+});
+```
+
 ## Document Annotations
 
 Rate individual documents in RETRIEVER spans:
 
 ```typescript
-import { addDocumentAnnotation } from "phoenix-client";
+import { addDocumentAnnotation } from "@arizeai/phoenix-client/spans";
 
 await addDocumentAnnotation({
   client,
@@ -56,7 +72,7 @@ await addDocumentAnnotation({
 Feedback on entire traces:
 
 ```typescript
-import { addTraceAnnotation } from "phoenix-client";
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
 
 await addTraceAnnotation({
   client,
@@ -70,12 +86,28 @@ await addTraceAnnotation({
 });
 ```
 
+## Trace Notes
+
+Notes on entire traces (multiple notes allowed per trace):
+
+```typescript
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
+
+await addTraceNote({
+  client,
+  traceNote: {
+    traceId: "abc123def456",
+    note: "Needs follow-up — unexpected tool call sequence"
+  }
+});
+```
+
 ## Session Annotations
 
 Feedback on multi-turn conversations:
 
 ```typescript
-import { addSessionAnnotation } from "phoenix-client";
+import { addSessionAnnotation } from "@arizeai/phoenix-client/sessions";
 
 await addSessionAnnotation({
   client,
@@ -92,7 +124,9 @@ await addSessionAnnotation({
 ## RAG Pipeline Example
 
 ```typescript
-import { createClient, logDocumentAnnotations, addSpanAnnotation, addTraceAnnotation } from "phoenix-client";
+import { createClient } from "@arizeai/phoenix-client";
+import { logDocumentAnnotations, addSpanAnnotation } from "@arizeai/phoenix-client/spans";
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
 
 const client = createClient();
 

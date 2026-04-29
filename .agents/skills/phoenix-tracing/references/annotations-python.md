@@ -55,6 +55,17 @@ client.traces.add_trace_annotation(
 )
 ```
 
+## Span Notes
+
+Notes are a special annotation type that allow multiple entries per span (unlike regular annotations which are unique by name). Each note gets a unique UUIDv4 identifier automatically.
+
+```python
+client.spans.add_span_note(
+    span_id="abc123def456",
+    note="Unexpected token in response, needs review",
+)
+```
+
 ## Session Annotations
 
 Feedback on multi-turn conversations:
