@@ -13,14 +13,15 @@ vi.mock("openapi-fetch", () => ({
   }),
 }));
 
-// Auto-created clients call `fetch("/arize_phoenix_version")` inside
-// `getServerVersion()`. Stub it to a recent version so the example_ids gate
-// succeeds for tests that don't supply their own client. Gating-specific tests
-// pass a custom client and bypass this entirely.
-vi.stubGlobal(
-  "fetch",
-  vi.fn(async () => new Response("15.0.0", { status: 200 }))
-);
+// Tests that exercise the example_ids gate must supply a client whose
+// `getServerVersion` returns a known version (otherwise the auto-created
+// client would try to `fetch("/arize_phoenix_version")` for real).
+function makeClient(version: [number, number, number]) {
+  return {
+    getServerVersion: async () => version,
+    POST: mockPost,
+  };
+}
 
 describe("createDataset", () => {
   beforeEach(() => {
@@ -330,6 +331,7 @@ describe("createDataset", () => {
     });
 
     await createDataset({
+      client: makeClient([15, 0, 0]) as never,
       name: "test-dataset",
       description: "A dataset with IDs",
       examples: [
@@ -376,6 +378,7 @@ describe("createDataset", () => {
     });
 
     await createDataset({
+      client: makeClient([15, 0, 0]) as never,
       name: "test-dataset",
       description: "A dataset with partial IDs",
       examples: [
@@ -534,13 +537,6 @@ describe("createDataset", () => {
   });
 
   describe("server version gating for example_ids", () => {
-    function makeClient(version: [number, number, number]) {
-      return {
-        getServerVersion: async () => version,
-        POST: mockPost,
-      };
-    }
-
     it("fails fast on Phoenix < 15.0.0 when an example carries a stable id", async () => {
       await expect(
         createDataset({
