@@ -1,5 +1,9 @@
 # Migrations
 
+## v14.x to v15.0.0
+
+No action is required to upgrade from v14.x to v15.0.0.
+
 ## v13.x to v14.0.0
 
 ### Phoenix server CLI (`phoenix` / `python -m phoenix.server.main`)
