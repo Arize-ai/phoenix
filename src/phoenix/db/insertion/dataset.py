@@ -489,11 +489,9 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
             revisions_subq.c.dataset_example_id,
             models.DatasetExample.external_id,
             revisions_subq.c.content_hash,
-        )
-        .join(
+        ).join(
             models.DatasetExample, models.DatasetExample.id == revisions_subq.c.dataset_example_id
         )
-        .where(revisions_subq.c.content_hash.isnot(None))
     )
 
     return [(row.dataset_example_id, row.external_id, row.content_hash) for row in result]
@@ -584,6 +582,10 @@ class _ExampleMatcher:
     Priority:
       - If external_id is provided:  node_id match > external_id match > no match
       - If external_id is absent:    content_hash match > no match
+
+    Examples from pre-v15 datasets (NULL content_hash) are reachable only via
+    node_id; they cannot participate in content-hash dedup or external_id
+    lookup.
     """
 
     def __init__(self, previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]]) -> None:
@@ -595,7 +597,8 @@ class _ExampleMatcher:
             self._example_info_by_db_id[example_id] = info
             if external_id is not None:
                 self._example_info_by_external_id[external_id] = info
-            self._example_ids_by_content_hash.setdefault(content_hash, []).append(example_id)
+            if content_hash is not None:
+                self._example_ids_by_content_hash.setdefault(content_hash, []).append(example_id)
         self._already_matched: set[DatasetExampleId] = set()
 
     def find_match(self, incoming: ExampleWithHash) -> Optional[ExistingExampleInfo]:
@@ -635,6 +638,7 @@ def _diff_examples(
       - Matched + different hash     → PATCH
       - Unmatched incoming           → CREATE
       - Unmatched previous           → DELETE (skipped when skip_deletes=True)
+
     """
     matcher = _ExampleMatcher(previous)
     examples_to_create: list[ExampleWithHash] = []

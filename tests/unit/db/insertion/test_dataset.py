@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import (
@@ -850,3 +851,123 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
         )
         all_assignments = result.scalars().all()
         assert len(all_assignments) == 10
+
+
+async def _simulate_pre_v15_dataset(db: DbSessionFactory, dataset_name: str) -> list[int]:
+    """Null out content_hash and external_id on every revision/example in the
+    given dataset so it looks like a pre-v15 dataset (the v15 migration adds
+    those columns as nullable without a backfill). Returns the example db ids
+    in insertion order."""
+    async with db() as session:
+        example_ids = list(
+            (
+                await session.scalars(
+                    select(models.DatasetExample.id)
+                    .join(models.Dataset)
+                    .where(models.Dataset.name == dataset_name)
+                    .order_by(models.DatasetExample.id)
+                )
+            ).all()
+        )
+        await session.execute(
+            update(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id.in_(example_ids))
+            .values(content_hash=None)
+        )
+        await session.execute(
+            update(models.DatasetExample)
+            .where(models.DatasetExample.id.in_(example_ids))
+            .values(external_id=None)
+        )
+        await session.commit()
+    return example_ids
+
+
+async def test_action_update_deletes_pre_upsert_examples(
+    db: DbSessionFactory,
+) -> None:
+    """Examples in pre-v15 datasets (NULL content_hash, NULL external_id from
+    the nullable-without-backfill migration) must be deleted under
+    action=update when not referenced by the incoming payload — otherwise they
+    remain as invisible orphans."""
+    name = "pre-upsert-update-delete"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    await _simulate_pre_v15_dataset(db, name)
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 9}, output={"y": 9}, external_id="z"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 1
+    assert event.num_patched_examples == 0
+    assert event.num_deleted_examples == 2
+
+
+async def test_action_update_can_patch_pre_upsert_example_by_global_id(
+    db: DbSessionFactory,
+) -> None:
+    """An example in a pre-v15 dataset referenced by its DatasetExample
+    GlobalID is matched via the node_id branch and PATCHed (acquiring a
+    content_hash); other unmatched pre-v15 examples are deleted."""
+    name = "pre-upsert-update-patch"
+    async with db() as session:
+        await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a"),
+                    ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b"),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.CREATE,
+        )
+
+    example_ids = await _simulate_pre_v15_dataset(db, name)
+    target_example_id = example_ids[0]
+    target_global_id = str(GlobalID(type_name="DatasetExample", node_id=str(target_example_id)))
+
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [
+                    ExampleContent(input={"x": 1}, output={"y": 100}, external_id=target_global_id),
+                ]
+            ),
+            name=name,
+            action=DatasetAction.UPDATE,
+        )
+    assert event.num_created_examples == 0
+    assert event.num_patched_examples == 1
+    assert event.num_deleted_examples == 1
+
+    async with db() as session:
+        latest_revision = await session.scalar(
+            select(models.DatasetExampleRevision)
+            .where(models.DatasetExampleRevision.dataset_example_id == target_example_id)
+            .order_by(models.DatasetExampleRevision.id.desc())
+            .limit(1)
+        )
+        assert latest_revision is not None
+        assert latest_revision.content_hash is not None
+        assert latest_revision.output == {"y": 100}
