@@ -1006,13 +1006,13 @@ class TestClient:
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_weather",
-                                    input='{"city": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"city": "Los Angeles"},
                                 ),
                                 ToolUseBlockParam(
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_population",
-                                    input='{"location": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"location": "Los Angeles"},
                                 ),
                             ],
                         ),
@@ -1047,13 +1047,13 @@ class TestClient:
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_weather",
-                                    input='{"city": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"city": "Los Angeles"},
                                 ),
                                 ToolUseBlockParam(
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_population",
-                                    input='{"location": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"location": "Los Angeles"},
                                 ),
                             ],
                         ),
@@ -1107,13 +1107,13 @@ class TestClient:
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_weather",
-                                    input='{"city": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"city": "Los Angeles"},
                                 ),
                                 ToolUseBlockParam(
                                     type="tool_use",
                                     id=token_hex(8),
                                     name="get_population",
-                                    input='{"location": "Los Angeles"}',  # type: ignore[typeddict-item]
+                                    input={"location": "Los Angeles"},
                                 ),
                             ],
                         ),
