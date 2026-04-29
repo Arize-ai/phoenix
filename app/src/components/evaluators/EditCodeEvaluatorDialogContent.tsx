@@ -370,9 +370,13 @@ export const EditCodeEvaluatorDialogContent = ({
           sandboxConfigs={sandboxConfigs}
           selectedSandboxConfigId={selectedSandboxConfigId}
           onSandboxChange={setSandboxConfigId}
-          unavailableSelectionMessage={unavailableSandboxSelectionMessage}
           showSandboxHelperText={hasNoSandboxConfigs}
         />
+        {unavailableSandboxSelectionMessage ? (
+          <Alert variant="warning" title="Sandbox unavailable">
+            {unavailableSandboxSelectionMessage}
+          </Alert>
+        ) : null}
 
         <CodeEvaluatorInputVariablesProvider variables={variables}>
           <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
@@ -418,7 +422,6 @@ const CompactHeaderBar = ({
   sandboxConfigs,
   selectedSandboxConfigId,
   onSandboxChange,
-  unavailableSelectionMessage,
   showSandboxHelperText,
 }: {
   language: CodeEvaluatorLanguage;
@@ -426,7 +429,6 @@ const CompactHeaderBar = ({
   sandboxConfigs: SandboxConfigOption[];
   selectedSandboxConfigId: string | null;
   onSandboxChange: (sandboxConfigId: string | null) => void;
-  unavailableSelectionMessage?: string;
   showSandboxHelperText?: boolean;
 }) => {
   return (
@@ -461,7 +463,6 @@ const CompactHeaderBar = ({
             selectedSandboxConfigId={selectedSandboxConfigId}
             onSelectionChange={onSandboxChange}
             showHelperText={showSandboxHelperText}
-            unavailableSelectionMessage={unavailableSelectionMessage}
           />
         </div>
       </div>
@@ -777,7 +778,7 @@ const CodeEditorSection = ({
             <div
               css={editorWrapCSS}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
+                if (e.key === "Escape" || e.key === "Tab") {
                   e.stopPropagation();
                 }
               }}
@@ -798,6 +799,7 @@ const CodeEditorSection = ({
                   syntaxHighlighting: true,
                   highlightActiveLine: false,
                   highlightActiveLineGutter: false,
+                  tabSize: language === "PYTHON" ? 4 : 2,
                 }}
               />
             </div>

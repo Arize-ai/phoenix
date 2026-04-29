@@ -10,6 +10,9 @@ type OutputConfig =
   | ClassificationEvaluatorAnnotationConfig
   | ContinuousEvaluatorAnnotationConfig;
 
+const PYTHON_INDENT = "    ";
+const TYPESCRIPT_INDENT = "  ";
+
 /**
  * Returns hardcoded two-shape templates (bare return + dict-form comment) with
  * static fallback values ("pass" for categorical, 0.5 for continuous).
@@ -21,28 +24,28 @@ export function getStaticFallbackSource(
   if (language === "PYTHON") {
     if (shape === "categorical") {
       return `def evaluate(output, reference=None, input=None, metadata=None):
-    # return {"label": "pass", "score": 1, "explanation": "..."}  # also set score and explanation
-    return "pass"  # label only
+${PYTHON_INDENT}# return {"label": "pass", "score": 1, "explanation": "..."}  # also set score and explanation
+${PYTHON_INDENT}return "pass"  # label only
 `;
     }
     // continuous
     return `def evaluate(output, reference=None, input=None, metadata=None):
-    # return {"score": 0.5, "explanation": "..."}  # also set explanation
-    return 0.5  # score only
+${PYTHON_INDENT}# return {"score": 0.5, "explanation": "..."}  # also set explanation
+${PYTHON_INDENT}return 0.5  # score only
 `;
   }
   // TYPESCRIPT
   if (shape === "categorical") {
     return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // return { label: "pass", score: 1, explanation: "..." };  // also set score and explanation
-  return "pass";  // label only
+${TYPESCRIPT_INDENT}// return { label: "pass", score: 1, explanation: "..." };  // also set score and explanation
+${TYPESCRIPT_INDENT}return "pass";  // label only
 }
 `;
   }
   // continuous
   return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // return { score: 0.5, explanation: "..." };  // also set explanation
-  return 0.5;  // score only
+${TYPESCRIPT_INDENT}// return { score: 0.5, explanation: "..." };  // also set explanation
+${TYPESCRIPT_INDENT}return 0.5;  // score only
 }
 `;
 }
@@ -85,14 +88,14 @@ export function getDefaultCodeEvaluatorSource(
       const label = catConfig.values[0].label;
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-    # return {"label": "${label}", "score": 1, "explanation": "..."}  # also set score and explanation
-    return "${label}"  # label only
+${PYTHON_INDENT}# return {"label": "${label}", "score": 1, "explanation": "..."}  # also set score and explanation
+${PYTHON_INDENT}return "${label}"  # label only
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // return { label: "${label}", score: 1, explanation: "..." };  // also set score and explanation
-  return "${label}";  // label only
+${TYPESCRIPT_INDENT}// return { label: "${label}", score: 1, explanation: "..." };  // also set score and explanation
+${TYPESCRIPT_INDENT}return "${label}";  // label only
 }
 `;
     }
@@ -115,14 +118,14 @@ export function getDefaultCodeEvaluatorSource(
       const rangeComment = `${lower.toFixed(1)} - ${upper.toFixed(1)}`;
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-    # return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # also set explanation
-    return ${midpoint.toFixed(1)}  # score only (expected range: ${rangeComment})
+${PYTHON_INDENT}# return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # also set explanation
+${PYTHON_INDENT}return ${midpoint.toFixed(1)}  # score only (expected range: ${rangeComment})
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-  // return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // also set explanation
-  return ${midpoint.toFixed(1)};  // score only (expected range: ${rangeComment})
+${TYPESCRIPT_INDENT}// return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // also set explanation
+${TYPESCRIPT_INDENT}return ${midpoint.toFixed(1)};  // score only (expected range: ${rangeComment})
 }
 `;
     }
