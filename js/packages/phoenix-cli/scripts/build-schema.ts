@@ -1,4 +1,3 @@
-import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -15,14 +14,5 @@ const schema = toJSONSchema(SettingsFileSchema, { target: "draft-7" });
 
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(outFile, JSON.stringify(schema, null, 2) + "\n");
-
-// Run the repo's JSON formatter on the emitted schema so the committed
-// artifact matches `fmt:check`. Without this, `JSON.stringify` produces
-// multi-line `required` arrays that oxfmt flags as unformatted.
-execFileSync(
-  path.join(repoRoot, "js", "node_modules", ".bin", "oxfmt"),
-  ["--config", path.join(repoRoot, ".oxfmtrc.jsonc"), outFile],
-  { stdio: "inherit" }
-);
 
 process.stdout.write(`Written: ${outFile}\n`);
