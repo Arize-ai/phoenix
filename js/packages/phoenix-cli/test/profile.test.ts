@@ -4,8 +4,8 @@ import * as path from "path";
 import { CommanderError } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createProfileCommand } from "../src/commands/profile";
 import { API_KEY_MASK } from "../src/commands/formatProfiles";
+import { createProfileCommand } from "../src/commands/profile";
 import type { SettingsFile } from "../src/settings";
 
 // ---------------------------------------------------------------------------
@@ -143,9 +143,7 @@ describe("px profile lifecycle", () => {
       ["create", "a", "--endpoint", "http://alpha:6006", "--activate"],
       ctx
     );
-    expect(logCalls(ctx.logSpy)).toBe(
-      'Created profile "a" and set as active.'
-    );
+    expect(logCalls(ctx.logSpy)).toBe('Created profile "a" and set as active.');
 
     // list shows "a" as active
     await runProfileCommand(["list", "--format", "json"], ctx);
@@ -391,9 +389,7 @@ describe("ProfileEntrySchema endpoint URL validation", () => {
 
     // Trigger a forgiving load via `list` and assert the warning fires.
     await runProfileCommand(["list", "--format", "json"], ctx);
-    const errOut = ctx.errorSpy.mock.calls
-      .map((c) => String(c[0]))
-      .join("\n");
+    const errOut = ctx.errorSpy.mock.calls.map((c) => String(c[0])).join("\n");
     // The forgiving path writes warnings via process.stderr.write rather than
     // console.error. Assert the JSON output reflects a degraded state instead:
     // a corrupt settings file produces an empty profiles list.

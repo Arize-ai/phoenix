@@ -31,7 +31,7 @@
   "types": "build/index.d.ts",
   "scripts": {
     "build": "pnpm run build:schema && tsc && tsc-alias && chmod 755 build/index.js",
-    "build:schema": "tsx scripts/build-schema.ts && cd ../../.. && oxfmt --config .oxfmtrc.jsonc schemas/phoenix-cli-settings.json",
+    "build:schema": "tsx scripts/build-schema.ts && cd ../../.. && js/node_modules/.bin/oxfmt --config .oxfmtrc.jsonc schemas/phoenix-cli-settings.json",
     "clean": "rimraf build",
     "dev": "tsx src/index.ts",
     "prebuild": "pnpm run clean",
