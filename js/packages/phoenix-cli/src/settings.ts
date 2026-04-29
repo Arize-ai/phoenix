@@ -1,10 +1,10 @@
 /**
- * Profile storage schema definitions for the Phoenix CLI.
+ * Settings storage schema definitions for the Phoenix CLI.
  *
  * This module exports the Zod schemas and inferred TypeScript types that
- * describe the on-disk `settings.json` format. Runtime I/O, parsing, and
- * profile resolution logic live alongside the CLI commands that consume
- * them; this file is the canonical source for
+ * describe the on-disk settings file (`~/.px/settings.json`). Runtime I/O,
+ * parsing, and profile resolution logic live alongside the CLI commands
+ * that consume them; this file is the canonical source for
  * `schemas/phoenix-cli-settings.json` (emitted by `scripts/build-schema.ts`).
  */
 
@@ -37,7 +37,7 @@ export const ProfileEntrySchema = z.object({
     ),
 });
 
-export const ProfilesFileSchema = z.object({
+export const SettingsFileSchema = z.object({
   $schema: z
     .string()
     .optional()
@@ -63,6 +63,6 @@ export const ProfilesFileSchema = z.object({
 export type ProfileEntry = z.infer<typeof ProfileEntrySchema>;
 
 /**
- * On-disk schema for the profiles config file.
+ * On-disk schema for the CLI settings file.
  */
-export type ProfilesFile = z.infer<typeof ProfilesFileSchema>;
+export type SettingsFile = z.infer<typeof SettingsFileSchema>;
