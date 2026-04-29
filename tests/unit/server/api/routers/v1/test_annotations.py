@@ -701,8 +701,8 @@ async def two_projects_with_annotations(db: DbSessionFactory) -> dict[str, Any]:
     project-A leaves project-B's matching rows intact.
 
     Identifier intentionally uses uppercase characters to confirm that DELETE
-    accepts identifiers that the `Identifier` regex would reject (D2: create
-    accepts arbitrary strings, delete must accept what create allowed).
+    accepts identifiers that the `Identifier` regex would reject — create
+    accepts arbitrary strings, so delete must accept what create allowed.
     """
     name = "rollback-tag"
     identifier = "Agent-Run-1"  # uppercase — fails the Identifier regex
@@ -807,8 +807,7 @@ async def test_delete_span_annotations_by_identifier_happy_path(
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
     """204 + matching row in project-A removed + project-B's matching row
-    preserved + non-regex identifier accepted (D1, D2-compat, D3, project
-    scoping).
+    preserved + non-regex identifier accepted (project-scoped hard delete).
     """
     name = two_projects_with_annotations["name"]
     identifier = two_projects_with_annotations["identifier"]
@@ -866,7 +865,7 @@ async def test_delete_annotations_idempotent_204(
     httpx_client: httpx.AsyncClient,
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
-    """Re-issuing the same DELETE on an empty matching set returns 204 (D3)."""
+    """Re-issuing the same DELETE on an empty matching set returns 204 (idempotent)."""
     name = two_projects_with_annotations["name"]
     identifier = two_projects_with_annotations["identifier"]
 
@@ -909,7 +908,7 @@ async def test_delete_annotations_rejects_missing_or_empty_selectors_422(
     httpx_client: httpx.AsyncClient,
     params: dict[str, str],
 ) -> None:
-    """D2: both name and identifier are required and non-empty."""
+    """Both `name` and `identifier` are required and non-empty."""
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-X/span_annotations",
@@ -923,10 +922,10 @@ async def test_delete_annotations_emits_dml_event(
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
 ) -> None:
-    """D5: emit *AnnotationDeleteEvent with deleted-row IDs on non-empty
-    delete; do NOT emit when zero rows match. We verify the no-emit branch
-    by issuing a delete that matches no rows and asserting the test app's
-    in-process event_queue records nothing for span annotations.
+    """Emit *AnnotationDeleteEvent with deleted-row IDs on non-empty delete;
+    do NOT emit when zero rows match. We verify the no-emit branch by issuing
+    a delete that matches no rows and asserting the test app's in-process
+    event_queue records nothing for span annotations.
 
     The on-emit branch is verified indirectly via the happy-path tests
     (DB rows physically removed implies the DELETE...RETURNING path ran)
@@ -960,8 +959,8 @@ async def test_delete_annotations_emits_dml_event(
 
 
 # -----------------------------------------------------------------------------
-# Auth helper unit test — D4 logic: non-admin narrows by user_id; admin/no-auth
-# returns None. Tested directly because the unit suite's httpx_client runs with
+# Auth helper unit test: non-admin narrows by user_id; admin/no-auth returns
+# None. Tested directly because the unit suite's httpx_client runs with
 # authentication_enabled=False and cannot exercise this branch via HTTP.
 # -----------------------------------------------------------------------------
 
