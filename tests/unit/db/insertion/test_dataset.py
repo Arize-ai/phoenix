@@ -855,9 +855,9 @@ async def test_bulk_assign_examples_to_splits_various_batch_sizes(
 
 async def _simulate_pre_upsert_state(db: DbSessionFactory, dataset_name: str) -> list[int]:
     """Null out content_hash and external_id on every revision/example in the
-    given dataset so it looks like a dataset that existed before the upsert
-    feature shipped (the migration adds those columns as nullable without a
-    backfill). Returns the example db ids in insertion order."""
+    given dataset so it looks like a pre-v15 dataset (the v15 migration adds
+    those columns as nullable without a backfill). Returns the example db ids
+    in insertion order."""
     async with db() as session:
         example_ids = list(
             (
@@ -886,10 +886,10 @@ async def _simulate_pre_upsert_state(db: DbSessionFactory, dataset_name: str) ->
 async def test_action_update_deletes_pre_upsert_examples(
     db: DbSessionFactory,
 ) -> None:
-    """Pre-upsert examples (NULL content_hash, NULL external_id from the
-    nullable-without-backfill migration) must be deleted under action=update
-    when not referenced by the incoming payload — otherwise they remain as
-    invisible orphans."""
+    """Examples in pre-v15 datasets (NULL content_hash, NULL external_id from
+    the nullable-without-backfill migration) must be deleted under
+    action=update when not referenced by the incoming payload — otherwise they
+    remain as invisible orphans."""
     name = "pre-upsert-update-delete"
     async with db() as session:
         await add_dataset_examples(
@@ -925,9 +925,9 @@ async def test_action_update_deletes_pre_upsert_examples(
 async def test_action_update_can_patch_pre_upsert_example_by_global_id(
     db: DbSessionFactory,
 ) -> None:
-    """A pre-upsert example referenced by its DatasetExample GlobalID is
-    matched via the node_id branch and PATCHed (acquiring a content_hash);
-    other unmatched pre-upsert examples are deleted."""
+    """An example in a pre-v15 dataset referenced by its DatasetExample
+    GlobalID is matched via the node_id branch and PATCHed (acquiring a
+    content_hash); other unmatched pre-v15 examples are deleted."""
     name = "pre-upsert-update-patch"
     async with db() as session:
         await add_dataset_examples(

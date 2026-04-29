@@ -484,11 +484,6 @@ async def _get_external_ids_and_content_hashes_for_most_recent_version(
         latest_version_id, dataset_id=dataset_id
     ).subquery()
 
-    # Pre-upsert revisions have NULL content_hash because the column was added
-    # without a backfill. They are surfaced here so that action=update can mark
-    # them for deletion (otherwise they would be invisible orphans), and so that
-    # users can patch them by GlobalID. They cannot participate in content-hash
-    # dedup; see _ExampleMatcher.
     result = await session.execute(
         select(
             revisions_subq.c.dataset_example_id,
@@ -588,8 +583,9 @@ class _ExampleMatcher:
       - If external_id is provided:  node_id match > external_id match > no match
       - If external_id is absent:    content_hash match > no match
 
-    Pre-upsert examples (NULL content_hash) are reachable only via node_id;
-    they cannot participate in content-hash dedup or external_id lookup.
+    Examples from pre-v15 datasets (NULL content_hash) are reachable only via
+    node_id; they cannot participate in content-hash dedup or external_id
+    lookup.
     """
 
     def __init__(self, previous: list[tuple[DatasetExampleId, ExternalID, ContentHash]]) -> None:
@@ -643,10 +639,6 @@ def _diff_examples(
       - Unmatched incoming           → CREATE
       - Unmatched previous           → DELETE (skipped when skip_deletes=True)
 
-    Pre-upsert examples (NULL content_hash) appear in `previous` so that
-    action=update can mark them for deletion when not matched, and so users
-    can patch them by GlobalID. A patched pre-upsert example acquires a
-    content_hash and joins the tracked population from then on.
     """
     matcher = _ExampleMatcher(previous)
     examples_to_create: list[ExampleWithHash] = []
