@@ -55,14 +55,6 @@ Declared in `release-please-config.json`; current versions in `.release-please-m
 
 5. **Open the PR** with `chore:` title and the trailer also at the end of the PR body
    (defensive, in case squash settings change).
-6. **After merge, verify the trailer survived:**
-
-   ```bash
-   git fetch origin main && git log -1 origin/main --format='%B' | grep '^Release-As:'
-   ```
-
-   Then confirm release-please opened/updated
-   `release-please--branches--main--components--<package>` proposing the requested version.
 
 ## Squash-merge gotcha
 
@@ -72,12 +64,9 @@ Repo settings (verify with
 the PR description — so `Release-As` must live in a real commit's body. A trailer that exists
 only in the PR description is dropped on squash and release-please never sees it.
 
-## Common pitfalls
+## Bumping `arize-phoenix` (root)
 
-| Mistake | Fix |
-|---|---|
-| Empty commit / PR body only | Trailer needs a real file change *and* must be in a commit body. |
-| `Release-As: v2.6.0` | Use the bare version (`Release-As: 2.6.0`). |
-| Touched only `pyproject.toml` `version` | Revert; let release-please rewrite that file itself. |
-| Bumping `arize-phoenix` via a `docs/` or `tests/` edit | That path is in `exclude-paths`; pick a file under `src/phoenix/` instead. |
-| Multiple `Release-As` trailers across commits | Use one trailer on one commit. |
+The root package's entry in `release-please-config.json` lists many `exclude-paths`
+(`.github`, `docs`, `js`, `packages`, `tests`, `tutorials`, …). A change inside any of those
+paths is **not** counted as a server change. Pick a file under `src/phoenix/` (or another
+non-excluded path) for the path-touching edit.
