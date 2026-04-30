@@ -1,0 +1,104 @@
+name: Check Dependabot uv Version
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"  # Weekdays 13:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: check-dependabot-uv-version
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Get uv version supported by Dependabot
+        id: dependabot
+        run: |
+          set -euo pipefail
+          version=$(curl -sLf https://raw.githubusercontent.com/dependabot/dependabot-core/main/uv/Dockerfile \
+            | grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' \
+            | head -1 | cut -d: -f2)
+          if [ -z "$version" ]; then
+            echo "::error::Could not extract uv version from dependabot-core/uv/Dockerfile"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Get uv version pinned in this repo
+        id: repo
+        run: |
+          set -euo pipefail
+          version=$(grep -E '^required-version\s*=' pyproject.toml \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ -z "$version" ]; then
+            echo "::error::Could not extract uv version from pyproject.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check for existing open bump PR
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          count=$(gh pr list \
+            --search "chore(deps): bump uv to ${{ steps.dependabot.outputs.version }} in:title" \
+            --state open --json number --jq 'length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "An open PR for uv ${{ steps.dependabot.outputs.version }} already exists; skipping."
+          fi
+
+      - name: Create branch
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="claude/bump-uv-${{ steps.dependabot.outputs.version }}-$DATE"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Install target uv version
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ steps.dependabot.outputs.version }}
+
+      - name: Run Claude Code
+        if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
+        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          model: claude-sonnet-4-6
+          prompt: |
+            Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
+
+            Steps:
+            1. Use `git grep` (or ripgrep) to find every reference to `${{ steps.repo.outputs.version }}` that pins the uv CLI. Likely locations: `pyproject.toml` (`[tool.uv] required-version`), `Dockerfile` and other Dockerfiles (`ghcr.io/astral-sh/uv:` image tags, `pip install uv==`), and `.github/workflows/*.yml|*.yaml` (`astral-sh/setup-uv` `version:` inputs). Do NOT change unrelated occurrences of the same version string (e.g., CHANGELOG entries, unrelated dependency pins, lockfile-internal version metadata for other packages).
+            2. Update each genuine uv pin to `${{ steps.dependabot.outputs.version }}`.
+            3. After editing, run `git grep '${{ steps.repo.outputs.version }}'` and confirm any remaining matches are NOT uv pins (CHANGELOG entries, etc.). If any uv pin is left behind, fix it.
+            4. Run `uv lock` to regenerate the lockfile against the new uv version. Stage the resulting `uv.lock` change.
+            5. If you see no genuine uv pins to update, exit without making changes.
+            6. When done, commit all changes, push the branch, and open a PR via `gh pr create`.
+               Title the PR: "chore(deps): bump uv to ${{ steps.dependabot.outputs.version }} to match Dependabot"
+               In the PR body, link to https://github.com/dependabot/dependabot-core/blob/main/uv/Dockerfile and note this PR was generated by `.github/workflows/check-dependabot-uv-version.yml`.
+
+            Do NOT manually edit CHANGELOG.md or pre-existing release notes — those are historical records. Do NOT hand-edit `uv.lock`; only modify it via `uv lock`.
+          claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,"Bash(git:*)","Bash(gh:*)","Bash(rg:*)","Bash(grep:*)","Bash(sed:*)","Bash(find:*)","Bash(ls:*)","Bash(cat:*)","Bash(date:*)","Bash(uv:*)"'
