@@ -67,6 +67,25 @@ await addDocumentAnnotation({
 });
 ```
 
+## Trace Annotations
+
+Feedback on entire traces:
+
+```typescript
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
+
+await addTraceAnnotation({
+  client,
+  traceAnnotation: {
+    traceId: "trace_abc",
+    name: "correctness",
+    annotatorKind: "HUMAN",
+    label: "correct",
+    score: 1.0
+  }
+});
+```
+
 ## Trace Notes
 
 Notes on entire traces (multiple notes allowed per trace):
@@ -107,7 +126,7 @@ await addSessionAnnotation({
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
 import { logDocumentAnnotations, addSpanAnnotation } from "@arizeai/phoenix-client/spans";
-import { addTraceNote } from "@arizeai/phoenix-client/traces";
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
 
 const client = createClient();
 
@@ -134,17 +153,18 @@ await addSpanAnnotation({
   }
 });
 
-// Trace-level qualitative note
-await addTraceNote({
+// Overall trace quality
+await addTraceAnnotation({
   client,
-  traceNote: {
+  traceAnnotation: {
     traceId: "trace_123",
-    note: "End-to-end answer was correct and well-grounded"
+    name: "correctness",
+    annotatorKind: "HUMAN",
+    label: "correct",
+    score: 1.0
   }
 });
 ```
-
-> **Note:** Structured trace annotations (label/score by name) are not yet exposed in the TypeScript client — only `addTraceNote` is available. For structured trace annotations, use the Python client (`client.traces.add_trace_annotation`) or the REST API directly.
 
 ## API Reference
 
