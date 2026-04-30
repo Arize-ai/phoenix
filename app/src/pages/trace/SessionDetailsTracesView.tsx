@@ -196,6 +196,8 @@ export function SessionDetailsTracesView({
     handleTraceSelect({ traceId, spanNodeId });
   };
 
+  // The URL can preselect a trace before its paginated row is loaded. Page until
+  // that row exists, expand it once, then scroll it into view.
   useEffect(() => {
     const initialSelectedTraceId = initialSelectedTraceIdRef.current;
     if (
@@ -204,12 +206,29 @@ export function SessionDetailsTracesView({
     ) {
       return;
     }
+    const initialSelectedTrace = traces.find(
+      (trace) => trace.traceId === initialSelectedTraceId
+    );
+    if (initialSelectedTrace == null) {
+      if (hasNext && !isLoadingNext) {
+        loadNext(SESSION_DETAILS_PAGE_SIZE);
+      }
+      return;
+    }
     const el = rowRefs.current.get(initialSelectedTraceId);
     if (el) {
+      setExpandedIds((prev) => {
+        if (prev.has(initialSelectedTrace.id)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.add(initialSelectedTrace.id);
+        return next;
+      });
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       hasScrolledInitialSelectionRef.current = true;
     }
-  }, [traces.length]);
+  }, [hasNext, isLoadingNext, loadNext, traces]);
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "session-traces-view-layout",
@@ -313,9 +332,7 @@ function TraceRowList({
               trace={trace}
               index={index}
               isSelected={trace.traceId === selectedTraceId}
-              isExpanded={
-                expandedIds.has(trace.id) || trace.traceId === selectedTraceId
-              }
+              isExpanded={expandedIds.has(trace.id)}
               selectedSpanNodeId={selectedSpanNodeId}
               onToggleExpanded={() => onToggleExpanded(trace.id)}
               onTraceSelect={() =>
@@ -428,10 +445,12 @@ function TraceRowHeader({
       onClick={() => {
         if (!isSelected) {
           onTraceSelect();
+          if (!isExpanded) {
+            onToggleExpanded();
+          }
+          return;
         }
-        if (!isExpanded) {
-          onToggleExpanded();
-        }
+        onToggleExpanded();
       }}
       data-testid="session-trace-row-header"
     >
