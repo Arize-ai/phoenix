@@ -1,15 +1,20 @@
 # Axial Coding
 
-Group open-ended notes into structured failure taxonomies. Axial coding is **step 3** of the 5-step error-analysis workflow: sample → open code → **axial code** → quantify → prioritize. See [open-coding.md](open-coding.md) for step 2 (adding open-coding notes to spans).
+Group open-ended notes into structured failure taxonomies. Axial coding is **step 3** of the 5-step error-analysis workflow: sample → open code → **axial code** → quantify → prioritize. See [open-coding.md](open-coding.md) for step 2 (adding open-coding notes).
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
+## Choosing the unit
+
+Open-coding notes are usually **trace-level** (see [open-coding.md#choosing-the-unit](open-coding.md#choosing-the-unit)) — examples below lead with `px trace` and fall back to `px span` for span-level notes. **An axial label can live at a different level than the note that informed it** — that's a feature: a trace-level note "answered shipping when asked returns" can produce a span-level annotation on the retrieval span once a pattern reveals retrieval as the consistent culprit. Re-attribution at axial coding time is what axial coding *is*. Session-level rollups go through REST `/v1/projects/{id}/session_annotations` (no CLI write path).
+
 ## Process
 
-1. **Gather** - Collect open coding notes from reviewed spans
-2. **Pattern** - Group notes with common themes
-3. **Name** - Create actionable category names
-4. **Quantify** - Count failures per category
+1. **Gather** — Collect open-coding notes from the entities you reviewed (trace-level by default)
+2. **Pattern** — Group notes with common themes
+3. **Name** — Create actionable category names
+4. **Attribute** — Decide what level each category lives at; an axial label can move from the note's level to the component the pattern implicates
+5. **Quantify** — Count failures per category
 
 ## Example Taxonomy
 
@@ -39,12 +44,16 @@ failure_taxonomy:
 Open-coding notes are stored as annotations with `name="note"` and are only returned when `--include-notes` is passed. Use `--include-annotations` instead and you will get structured annotations but **not** notes — the server excludes notes from the annotations array.
 
 ```bash
+# Trace-level notes (default for open coding)
+px trace list --include-notes --format raw --no-progress | jq '
+  [ .[] | select((.notes // []) | length > 0) ]
+  | map({ trace_id: .traceId, notes: [ .notes[].result.explanation ] })
+'
+
+# Span-level notes (when open coding dropped to span for mechanical failures)
 px span list --include-notes --format raw --no-progress | jq '
-  [ .[] | select(.notes | length > 0) ]
-  | map({
-      span_id: .context.span_id,
-      notes: [ .notes[].result.explanation ]
-    })
+  [ .[] | select((.notes // []) | length > 0) ]
+  | map({ span_id: .context.span_id, notes: [ .notes[].result.explanation ] })
 '
 ```
 
@@ -54,11 +63,11 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding annotations
 
-Write one annotation per span using `px span annotate`. See the **Recording** section below.
+Write one annotation per entity using `px trace annotate` or `px span annotate`. The level can differ from where the source note lives — see the **Recording** section below.
 
 ### 4. Quantify — count per category
 
-After recording, use `--include-annotations` to count how many spans carry each label:
+After recording, use `--include-annotations` to count how many entities carry each label. Examples below show span-level counts; for trace-level annotations, swap `px span list` for `px trace list` (the `.annotations[]` shape is the same).
 
 ```bash
 px span list --include-annotations --format raw --no-progress | jq '
@@ -80,35 +89,45 @@ px span list --include-annotations --format raw --no-progress | jq '
 
 ## Recording
 
-Use `px span annotate` to write an axial-coding label for each span:
+Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)):
 
 ```bash
+# Trace-level label (most common — the trace as a whole exhibits the failure)
+px trace annotate <trace-id> \
+  --name failure_category \
+  --label answered_off_topic \
+  --explanation "asked about returns; answer covered shipping" \
+  --annotator-kind HUMAN
+
+# Span-level label (when the pattern implicates a specific component)
 px span annotate <span-id> \
   --name failure_category \
-  --label hallucination \
-  --explanation "invented a feature that does not exist" \
+  --label retrieval_off_topic \
+  --explanation "retrieved shipping docs for a returns query" \
   --annotator-kind HUMAN
 ```
 
-Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`). There are no `--identifier` or `--sync` flags on this command.
+Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`). There are no `--identifier` or `--sync` flags on these commands.
 
 ### Bulk recording
 
-Axial coding categorizes the spans you took notes on during open coding, so stream span IDs from spans that already carry an open-coding note. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
+Axial coding categorizes the entities you took notes on during open coding. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
 
 ```bash
-# Bulk-annotate spans that already have open-coding notes
-px span list --include-notes --format raw --no-progress \
-  | jq -r '.[] | select((.notes // []) | length > 0) | .context.span_id' \
-  | while read sid; do
-      px span annotate "$sid" \
+# Bulk-annotate traces that already have open-coding notes
+px trace list --include-notes --format raw --no-progress \
+  | jq -r '.[] | select((.notes // []) | length > 0) | .traceId' \
+  | while read tid; do
+      px trace annotate "$tid" \
         --name failure_category \
-        --label hallucination \
+        --label answered_off_topic \
         --annotator-kind HUMAN
     done
 ```
 
-Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation` and `addSpanNote`.
+The same pattern works for span-level notes — swap `px trace` for `px span` and `.traceId` for `.context.span_id`.
+
+Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation`, `addSpanNote`, and `addTraceNote`. (No `addTraceAnnotation` is exported today; use the REST endpoint or `px trace annotate` for trace-level annotations.)
 
 Aside: `px api graphql` rejects mutations — it cannot write annotations.
 
