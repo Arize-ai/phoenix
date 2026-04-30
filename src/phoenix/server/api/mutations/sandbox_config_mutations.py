@@ -264,7 +264,7 @@ class SandboxConfigMutationMixin:
                             raise BadRequest(str(exc))
                 row.config = config_dict
             if input.timeout is not strawberry.UNSET:
-                row.timeout = input.timeout if input.timeout is not None else 30
+                row.timeout = input.timeout if input.timeout is not None else 300
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 
@@ -320,6 +320,12 @@ class SandboxConfigMutationMixin:
                     dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
                 )
                 _check_reserved_top_level_keys(provider_config, row.backend_type)
+                adapter = _SANDBOX_ADAPTERS.get(row.backend_type)
+                if adapter is not None:
+                    try:
+                        provider_config = adapter.validate_config(provider_config)
+                    except (ValueError, ValidationError) as exc:
+                        raise BadRequest(str(exc))
                 row.config = provider_config
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
@@ -360,8 +366,9 @@ class SandboxConfigMutationMixin:
                     on_conflict=OnConflict.DO_UPDATE,
                 )
             )
-        # Key-level fan-out covers shared credential_specs (e.g., VERCEL_TOKEN
-        # shared between VERCEL_PYTHON and VERCEL_TYPESCRIPT). Per-backend_type
+        # Key-level fan-out covers shared credential_specs (e.g.,
+        # PHOENIX_SANDBOX_VERCEL_TOKEN shared between VERCEL_PYTHON and
+        # VERCEL_TYPESCRIPT). Per-backend_type
         # invalidation remains as a defense-in-depth backstop.
         await invalidate_backend_cache_for_key(key)
         await invalidate_backend_cache(backend_type)

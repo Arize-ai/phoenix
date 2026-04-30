@@ -21,6 +21,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server import sandbox as sandbox_module
+from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.wasm_backend import WASMAdapter
@@ -30,6 +31,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 _e2b_adapter = E2BAdapter()
 _deno_adapter = DenoAdapter()
 _wasm_adapter = WASMAdapter()
+_daytona_adapter = DaytonaPythonAdapter()
 
 _CREATE = """
 mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -41,10 +43,42 @@ mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
 }
 """
 
+_CREATE_WITH_TIMEOUT = """
+mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+    createSandboxConfig(input: $input) {
+        sandboxConfig {
+            id
+            timeout
+        }
+    }
+}
+"""
+
 _UPDATE = """
 mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
     updateSandboxConfig(input: $input) {
         sandboxConfig {
+            id
+        }
+    }
+}
+"""
+
+_UPDATE_WITH_TIMEOUT = """
+mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
+    updateSandboxConfig(input: $input) {
+        sandboxConfig {
+            id
+            timeout
+        }
+    }
+}
+"""
+
+_UPDATE_PROVIDER = """
+mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
+    updateSandboxProvider(input: $input) {
+        sandboxProvider {
             id
         }
     }
@@ -286,39 +320,6 @@ class TestStoredBaselinePassthrough:
             )
         assert result.errors
 
-    async def test_update_preserved_dependencies_packages_passes(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Stored config already has dependencies.packages; round-tripping the
-        same packages must succeed on a null-dependencies-language adapter."""
-        provider = await _get_provider(db, "WASM")
-        async with db() as session:
-            config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                name="wasm-preserved-deps",
-                description="Pre-existing config with dependencies",
-                config={"dependencies": {"packages": ["requests", "numpy"]}},
-                timeout=30,
-            )
-            session.add(config)
-            await session.flush()
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"WASM": _wasm_adapter}):
-            result = await gql_client.execute(
-                _UPDATE,
-                variables={
-                    "input": {
-                        "id": _config_global_id(config.id),
-                        # Order-independent: same packages in different order
-                        "config": {"dependencies": {"packages": ["numpy", "requests"]}},
-                    }
-                },
-            )
-        assert result.data and not result.errors
-
     async def test_update_adding_new_dependency_rejected(
         self,
         gql_client: AsyncGraphQLClient,
@@ -378,7 +379,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "VERCEL_TOKEN",
+                                    "secret_key": "PHOENIX_SANDBOX_VERCEL_TOKEN",
                                 }
                             ]
                         },
@@ -409,7 +410,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "VERCEL_TOKEN",
+                                    "secret_key": "PHOENIX_SANDBOX_VERCEL_TOKEN",
                                 }
                             ]
                         },
@@ -439,7 +440,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "vercel_token",
+                                    "secret_key": "phoenix_sandbox_vercel_token",
                                 }
                             ]
                         },
@@ -477,3 +478,185 @@ class TestReservedSecretKeyRejected:
                 },
             )
         assert result.data and not result.errors
+
+
+class TestSandboxConfigTimeoutDefault:
+    """The default timeout is 300s at both the DB and application layers."""
+
+    async def test_create_without_timeout_persists_300(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Creating a config without an explicit timeout must default to 300."""
+        provider = await _get_provider(db, "E2B")
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-default-timeout",
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["createSandboxConfig"]["sandboxConfig"]["timeout"] == 300
+
+    async def test_create_with_explicit_timeout_persists_given_value(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Creating a config with an explicit timeout must persist that value."""
+        provider = await _get_provider(db, "E2B")
+
+        for timeout_value in (30, 60, 120):
+            with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+                result = await gql_client.execute(
+                    _CREATE_WITH_TIMEOUT,
+                    variables={
+                        "input": {
+                            "sandboxProviderId": _provider_global_id(provider.id),
+                            "name": f"e2b-explicit-timeout-{timeout_value}",
+                            "timeout": timeout_value,
+                        }
+                    },
+                )
+            assert result.data and not result.errors
+            assert result.data["createSandboxConfig"]["sandboxConfig"]["timeout"] == timeout_value
+
+    async def test_update_timeout_to_null_resets_to_300(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Setting timeout=null via update resets to the default of 300."""
+        provider = await _get_provider(db, "E2B")
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-reset-timeout",
+                config={},
+                timeout=60,
+            )
+            session.add(config)
+            await session.flush()
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config.id),
+                        "timeout": None,
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["updateSandboxConfig"]["sandboxConfig"]["timeout"] == 300
+
+    async def test_existing_explicit_timeout_preserved_when_not_updated(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Updating an unrelated field leaves an explicitly-stored timeout untouched."""
+        provider = await _get_provider(db, "E2B")
+        async with db() as session:
+            config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="e2b-preserve-timeout",
+                config={},
+                timeout=30,
+            )
+            session.add(config)
+            await session.flush()
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_WITH_TIMEOUT,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config.id),
+                        "description": "updated description only",
+                    }
+                },
+            )
+        assert result.data and not result.errors
+        assert result.data["updateSandboxConfig"]["sandboxConfig"]["timeout"] == 30
+
+
+class TestCreateSandboxConfigNonCapabilityKeyRejected:
+    """createSandboxConfig must reject non-capability keys in config.
+
+    After Phase 5, adapter config models use extra="forbid". Unknown keys in a
+    create payload must surface as BadRequest, not silently persist.
+    """
+
+    async def test_template_key_returns_bad_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Posting template to createSandboxConfig must be rejected.
+
+        template was an E2BConfig field passed to AsyncSandbox.create; it is
+        now stripped. validate_config raises ValueError (extra=forbid), which
+        the create mutation converts to BadRequest.
+        """
+        provider = await _get_provider(db, "E2B")
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _CREATE,
+                variables={
+                    "input": {
+                        "sandboxProviderId": _provider_global_id(provider.id),
+                        "name": "e2b-template-rejected",
+                        "config": {"template": "python-3.11"},
+                    }
+                },
+            )
+        assert result.errors
+
+
+class TestUpdateSandboxProviderNonCapabilityKeyRejected:
+    """update_sandbox_provider must reject non-capability keys in config.
+
+    After Phase 5, adapter config models use extra="forbid". validate_config
+    is called at the mutation boundary (task-30), so unknown keys must surface
+    as BadRequest rather than silently persisting.
+    """
+
+    async def test_server_url_returns_bad_request(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Posting server_url to update_sandbox_provider must be rejected.
+
+        server_url is the Daytona SSRF footgun: it was previously consumed by
+        Daytona(server_url=...) but is now stripped. validate_config raises
+        ValueError (extra=forbid), which the mutation converts to BadRequest.
+        """
+        provider = await _get_provider(db, "DAYTONA_PYTHON")
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DAYTONA_PYTHON": _daytona_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_PROVIDER,
+                variables={
+                    "input": {
+                        "id": _provider_global_id(provider.id),
+                        "config": {"server_url": "https://attacker.example.com"},
+                    }
+                },
+            )
+        assert result.errors

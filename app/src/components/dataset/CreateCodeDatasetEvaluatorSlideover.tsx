@@ -10,7 +10,7 @@ import type { CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation } 
 import type { CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation.graphql";
 import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideoverQuery.graphql";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
-import { DEFAULT_CODE_EVALUATOR_SOURCE } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import {
   createDefaultContinuousOutputConfig,
   EditCodeEvaluatorDialogContent,
@@ -110,11 +110,16 @@ const CreateCodeEvaluatorDialog = ({
             id
             name
             description
+            timeout
+            config
           }
         }
         sandboxBackends {
           backendType
           status
+          supportsEnvVars
+          internetAccess
+          dependenciesLanguage
         }
       }
     `,
@@ -264,7 +269,11 @@ const CreateCodeEvaluatorDialog = ({
           mode="create"
           error={error}
           initialLanguage="PYTHON"
-          initialSourceCode={DEFAULT_CODE_EVALUATOR_SOURCE.PYTHON}
+          initialSourceCode={getDefaultCodeEvaluatorSource(
+            "PYTHON",
+            "continuous",
+            createDefaultContinuousOutputConfig("")
+          )}
           sandboxConfigs={sandboxConfigs}
           initialSandboxConfigId={null}
         />

@@ -224,58 +224,69 @@ export function SwitchableEvaluatorInput<TFieldValues extends FieldValues>({
               name={pathFieldName}
               control={control}
               rules={requiredRules}
-              render={({ field, fieldState: { error } }) => (
-                <ComboBox
-                  isInvalid={!!error}
-                  errorMessage={error?.message}
-                  aria-label={`${label} path mapping`}
-                  placeholder={pathPlaceholder}
-                  defaultItems={pathOptionsWithUnset}
-                  selectedKey={field.value ?? ""}
-                  // for some reason combobox sizing is out of sync with everything else
-                  size={size === "M" ? "L" : size === "S" ? "M" : size}
-                  id={`${fieldName}-${mode}`}
-                  allowsCustomValue
-                  onSelectionChange={(key) => {
-                    if (!key) {
-                      return;
+              render={({ field, fieldState: { error } }) => {
+                const pathValue =
+                  pathInputValue ?? (field.value as string | undefined) ?? "";
+                // Custom typed paths are valid input values, but only real
+                // options should become selected keys for React Aria ComboBox.
+                const selectedKey = pathOptionsWithUnset.some(
+                  (item) => item.id === pathValue
+                )
+                  ? pathValue
+                  : null;
+                return (
+                  <ComboBox
+                    isInvalid={!!error}
+                    errorMessage={error?.message}
+                    aria-label={`${label} path mapping`}
+                    placeholder={pathPlaceholder}
+                    defaultItems={pathOptionsWithUnset}
+                    selectedKey={selectedKey}
+                    // for some reason combobox sizing is out of sync with everything else
+                    size={size === "M" ? "L" : size === "S" ? "M" : size}
+                    id={`${fieldName}-${mode}`}
+                    allowsCustomValue
+                    onSelectionChange={(key) => {
+                      if (!key) {
+                        return;
+                      }
+                      // Toggle: if selecting the same value, clear it
+                      if (key === "__unset__") {
+                        onPathInputChange?.("");
+                        field.onChange(undefined);
+                      } else {
+                        onPathInputChange?.(key as string);
+                        field.onChange(key as string);
+                      }
+                    }}
+                    onInputChange={(value) => {
+                      field.onChange(value);
+                      onPathInputChange?.(value);
+                    }}
+                    inputValue={pathValue}
+                  >
+                    {(item) =>
+                      item.id !== "__unset__" ? (
+                        <ComboBoxItem
+                          key={item.id}
+                          id={item.id}
+                          textValue={item.id}
+                        >
+                          {item.label}
+                        </ComboBoxItem>
+                      ) : (
+                        <ComboBoxItem
+                          key={item.id}
+                          id={item.id}
+                          textValue={item.id}
+                        >
+                          <Text fontStyle="italic">{item.label}</Text>
+                        </ComboBoxItem>
+                      )
                     }
-                    // Toggle: if selecting the same value, clear it
-                    if (key === "__unset__") {
-                      onPathInputChange?.("");
-                      field.onChange(undefined);
-                    } else {
-                      onPathInputChange?.(key as string);
-                      field.onChange(key);
-                    }
-                  }}
-                  onInputChange={(value) => {
-                    field.onChange(value);
-                    onPathInputChange?.(value);
-                  }}
-                  inputValue={pathInputValue ?? (field.value as string) ?? ""}
-                >
-                  {(item) =>
-                    item.id !== "__unset__" ? (
-                      <ComboBoxItem
-                        key={item.id}
-                        id={item.id}
-                        textValue={item.id}
-                      >
-                        {item.label}
-                      </ComboBoxItem>
-                    ) : (
-                      <ComboBoxItem
-                        key={item.id}
-                        id={item.id}
-                        textValue={item.id}
-                      >
-                        <Text fontStyle="italic">{item.label}</Text>
-                      </ComboBoxItem>
-                    )
-                  }
-                </ComboBox>
-              )}
+                  </ComboBox>
+                );
+              }}
             />
           ) : (
             <Controller

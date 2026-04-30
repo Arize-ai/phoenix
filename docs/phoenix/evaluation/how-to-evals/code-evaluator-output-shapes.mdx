@@ -1,0 +1,226 @@
+---
+title: "Code Evaluator Output Shapes"
+---
+
+This page documents every return shape a code evaluator can produce and how Phoenix maps each one to an `EvaluationResult` with `label`, `score`, and `explanation` fields.
+
+<Info>
+This page covers the **server-side code evaluators** that run in the Phoenix UI (Sandbox evaluators). For client-side `create_evaluator` / `createEvaluator` SDK evaluators, see [Code Evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators).
+</Info>
+
+## The Triple-Collapse Model
+
+Every return value from a code evaluator is normalized to a **triple**: `(label, score, explanation)`. Phoenix applies this in two stages:
+
+1. **Stage 1 — Extract**: The raw return value is mapped to a `Triple` based on its shape (bare scalar or dict-by-key).
+2. **Stage 2 — Validate**: The triple is checked against the evaluator's output config (categorical, continuous, or none).
+
+Any value that cannot be cleanly mapped raises a `ValueError` whose message enumerates all accepted shapes for the configured output type.
+
+## Accepted Shapes by Output Config
+
+### Categorical Output Config
+
+A categorical config defines a fixed set of `{label, score}` pairs. The evaluator must return one of the configured labels; Phoenix looks up the associated score automatically.
+
+**Bare string (recommended):**
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return "pass"
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return "pass";
+```
+</Tab>
+</Tabs>
+
+**Dict with label and optional explanation:**
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return {"label": "pass", "explanation": "The output matched the expected format."}
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return {"label": "pass", "explanation": "The output matched the expected format."};
+```
+</Tab>
+</Tabs>
+
+Notes:
+- The label must exactly match one of the configured values; unrecognized labels raise `ValueError`.
+- Including a `score` key in the dict that conflicts with the config's lookup value raises `ValueError`.
+- Free-form `explanation` strings are always accepted and passed through to `EvaluationResult.explanation`.
+- Tuple shorthand (`return ("pass", 1.0)`) is **not** accepted; use the dict form if you need to supply additional fields.
+
+### Continuous Output Config
+
+A continuous config validates that the returned value is a finite number within optional `lower_bound` / `upper_bound` bounds. Labels are optional and free-form.
+
+**Bare number (recommended):**
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return 0.85
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return 0.85;
+```
+</Tab>
+</Tabs>
+
+**Dict with score and optional explanation:**
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+# score in range 0.0 - 1.0
+return {"score": 0.85, "explanation": "High confidence based on keyword match."}
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+// score in range 0.0 - 1.0
+return {"score": 0.85, "explanation": "High confidence based on keyword match."};
+```
+</Tab>
+</Tabs>
+
+Notes:
+- `bool` values are **not** treated as numeric and raise `ValueError`.
+- `NaN` and `Infinity` are rejected.
+- Free-form string labels are allowed in the dict form alongside a numeric score.
+- Tuple shorthand is **not** accepted.
+
+### No Output Config
+
+When no output config is specified, Phoenix applies a permissive bare passthrough:
+
+| Return value | Result |
+|---|---|
+| `str` | `label=<value>` |
+| `int` or `float` | `score=<value>` |
+| `bool` | `label="True"` or `label="False"` (not numeric) |
+| `None` | `(label=None, score=None)` |
+| `{"label": ..., "score": ..., "explanation": ...}` | triple by key |
+
+**Lists and arbitrary nested objects are rejected** — they previously silently stringified into labels, which masked misconfiguration. Return a recognized shape instead.
+
+## The `explanation` Field
+
+Any accepted shape may include an `explanation` string. Phoenix passes it through to `EvaluationResult.explanation` unchanged:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return {"label": "fail", "explanation": "Response contained prohibited content."}
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return {"label": "fail", "explanation": "Response contained prohibited content."};
+```
+</Tab>
+</Tabs>
+
+The explanation appears in the Phoenix UI alongside the label and score and is available in the evaluation results API.
+
+## Multi-Output Evaluators
+
+When an evaluator has **multiple output configs** (e.g., one for toxicity and one for safety), Phoenix supports two routing modes:
+
+### Shared value (default)
+
+Return a single value — Phoenix applies the same return value to each output config independently:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return "pass"  # applied to every output config
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return "pass";  // applied to every output config
+```
+</Tab>
+</Tabs>
+
+### Per-config routing dict
+
+Return a dict whose keys match every output config name. Phoenix routes each value to the corresponding config:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return {
+    "toxicity": 0.1,
+    "safety": "pass",
+    "explanation": "Content appears safe.",  # shared fallback
+}
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return {
+    "toxicity": 0.1,
+    "safety": "pass",
+    "explanation": "Content appears safe.",  // shared fallback
+};
+```
+</Tab>
+</Tabs>
+
+Routing rules:
+- The dict must contain a key for **every** output config name; a partial match is treated as a shared value, not a routing dict.
+- A top-level `"explanation"` key acts as a **shared fallback**: if a per-config sub-value omits explanation, the top-level value fills it in.
+- Per-config sub-values may themselves be dicts with their own `"explanation"` key — per-config explanation takes precedence over the shared fallback.
+
+**Per-config explanation example:**
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+return {
+    "toxicity": {"score": 0.9, "explanation": "Contains slurs."},
+    "safety": "fail",
+    "explanation": "Overall content is unsafe.",  # only used for safety
+}
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+return {
+    "toxicity": {"score": 0.9, "explanation": "Contains slurs."},
+    "safety": "fail",
+    "explanation": "Overall content is unsafe.",  // only used for safety
+};
+```
+</Tab>
+</Tabs>
+
+### Multi-output naming convention
+
+Each output config produces a separate `EvaluationResult` named `{evaluator_name}.{config_name}`. For example, an evaluator named `content-check` with configs `toxicity` and `safety` produces two results: `content-check.toxicity` and `content-check.safety`.
+
+## Error Messages
+
+When a return value does not match the accepted shapes, the `ValueError` message enumerates all valid shapes for the configured output type in the evaluator's language. For example, a categorical config with values `["pass", "fail"]` in Python would produce:
+
+```
+Label 'unknown' not in categorical output config values ['pass', 'fail'].
+Valid shapes:
+  return "pass"
+  return {"label": "pass", "explanation": "..."}
+```
+
+This makes it straightforward to identify and fix mismatches without consulting documentation.

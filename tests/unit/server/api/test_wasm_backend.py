@@ -11,7 +11,8 @@ metadata, build_backend config plumbing).
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from typing import Any  # noqa: F401
+from unittest.mock import MagicMock, patch  # noqa: F401
 
 import pytest
 
@@ -141,6 +142,219 @@ class TestEngineCaching:
         assert engine_a is not engine_b
         _MODULE_CACHE.pop(str(path_a), None)
         _MODULE_CACHE.pop(str(path_b), None)
+
+
+class TestRunWasmStdoutCapture:
+    """_run_wasm captures stdout/stderr via WasiConfig setter-property assignment.
+
+    Patches _get_engine_and_module and Linker.instantiate to exercise the real
+    WasiConfig setter-property code path without a WASM binary.  A real
+    wasmtime.Func is used for _start so isinstance(start, wasmtime.Func) passes;
+    its callback invokes the captured stdout callback, proving bytes flow through
+    the accumulator and are decoded into result.stdout.
+    """
+
+    def test_stdout_captured_via_setter_property(self) -> None:
+        import wasmtime
+
+        # Captures the stdout/stderr callbacks registered via setter assignment
+        stdout_cb_holder: list[Any] = []
+        stderr_cb_holder: list[Any] = []
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                stdout_cb_holder.append(cb)
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                stderr_cb_holder.append(cb)
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                pass
+
+            def inherit_env(self) -> None:
+                pass
+
+        # Real Store needed to construct a real wasmtime.Func
+        store = wasmtime.Store()
+        ft = wasmtime.FuncType([], [])
+
+        def _start_impl(caller: object) -> None:
+            if stdout_cb_holder:
+                stdout_cb_holder[0](b"hello from wasm\n")
+
+        start_func = wasmtime.Func(store, ft, _start_impl, access_caller=True)
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = start_func
+
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        fake_engine = wasmtime.Engine()
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(fake_engine, MagicMock()),
+        ):
+            with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                with patch("wasmtime.Linker") as mock_linker_cls:
+                    mock_linker = MagicMock()
+                    mock_linker_cls.return_value = mock_linker
+                    mock_linker.instantiate.return_value = mock_instance
+                    with patch("wasmtime.Store", return_value=store):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+
+        assert result.error is None
+        assert result.stdout == "hello from wasm\n"
+
+    def test_stderr_captured_via_setter_property(self) -> None:
+        import wasmtime
+
+        stderr_cb_holder: list[Any] = []
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                pass
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                stderr_cb_holder.append(cb)
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                pass
+
+            def inherit_env(self) -> None:
+                pass
+
+        store = wasmtime.Store()
+        ft = wasmtime.FuncType([], [])
+
+        def _start_impl(caller: object) -> None:
+            if stderr_cb_holder:
+                stderr_cb_holder[0](b"error output\n")
+
+        start_func = wasmtime.Func(store, ft, _start_impl, access_caller=True)
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = start_func
+
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        fake_engine = wasmtime.Engine()
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(fake_engine, MagicMock()),
+        ):
+            with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                with patch("wasmtime.Linker") as mock_linker_cls:
+                    mock_linker = MagicMock()
+                    mock_linker_cls.return_value = mock_linker
+                    mock_linker.instantiate.return_value = mock_instance
+                    with patch("wasmtime.Store", return_value=store):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+
+        assert result.error is None
+        assert result.stderr == "error output\n"
+
+    def test_wasi_config_setter_raises_on_read(self) -> None:
+        """WasiConfig.stdout_custom is set-only — reading it raises AttributeError."""
+        import wasmtime
+
+        wasi = wasmtime.WasiConfig()
+        with pytest.raises(AttributeError):
+            _ = wasi.stdout_custom
+
+    def test_stdin_assigned_via_setter_property(self) -> None:
+        """wasi.stdin_file assignment (not method call) is the correct API."""
+        import wasmtime
+
+        stdin_path_holder: list[Any] = []
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                pass
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                pass
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                stdin_path_holder.append(path)
+
+            def inherit_env(self) -> None:
+                pass
+
+        store = wasmtime.Store()
+        ft = wasmtime.FuncType([], [])
+        start_func = wasmtime.Func(store, ft, lambda c: None, access_caller=True)
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = start_func
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        fake_engine = wasmtime.Engine()
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(fake_engine, MagicMock()),
+        ):
+            with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                with patch("wasmtime.Linker") as mock_linker_cls:
+                    mock_linker = MagicMock()
+                    mock_linker_cls.return_value = mock_linker
+                    mock_linker.instantiate.return_value = mock_instance
+                    with patch("wasmtime.Store", return_value=store):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "print(1)", timeout=5)
+
+        assert result.error is None
+        assert len(stdin_path_holder) == 1
+        assert stdin_path_holder[0].endswith(".py")
 
 
 class TestTempFileCleanup:
