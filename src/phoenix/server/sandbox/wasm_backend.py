@@ -13,7 +13,6 @@ Requires the ``wasmtime`` package (optional extra).
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -61,8 +60,8 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     """Execute *code* in a wasmtime WASI context. Runs in a thread."""
     import wasmtime as _wasm
 
-    stdout_buf = io.StringIO()
-    stderr_buf = io.StringIO()
+    stdout_chunks: list[bytes] = []
+    stderr_chunks: list[bytes] = []
     stdin_path: str | None = None
 
     try:
@@ -72,14 +71,14 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         linker.define_wasi()
 
         wasi = _wasm.WasiConfig()
-        wasi.stdout_custom(stdout_buf)
-        wasi.stderr_custom(stderr_buf)
+        wasi.stdout_custom = lambda data: stdout_chunks.append(data)
+        wasi.stderr_custom = lambda data: stderr_chunks.append(data)
 
         # Inject code via a temp stdin file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(code)
             stdin_path = f.name
-        wasi.stdin_file(stdin_path)
+        wasi.stdin_file = stdin_path
 
         store = _wasm.Store(engine)
         store.set_wasi(wasi)
@@ -91,11 +90,14 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         if isinstance(start, _wasm.Func):
             start(store)
 
-        return ExecutionResult(stdout=stdout_buf.getvalue(), stderr=stderr_buf.getvalue())
+        return ExecutionResult(
+            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
+            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
+        )
     except Exception as exc:
         return ExecutionResult(
-            stdout=stdout_buf.getvalue(),
-            stderr=stderr_buf.getvalue(),
+            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
+            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
             error=str(exc),
         )
     finally:

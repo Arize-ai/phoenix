@@ -97,34 +97,19 @@ class ProviderCredentialSpec:
 
 # ---------------------------------------------------------------------------
 # Per-adapter pydantic config models.
-# extra="allow" preserves unknown keys (D9 contract).
+# extra="forbid" rejects unknown keys at validate_config (D7 contract).
 # All config fields are optional — adapters use defaults for missing keys.
 # Field(title=...) drives ConfigFieldSpec.display_name derivation.
 # ---------------------------------------------------------------------------
 
 
 class E2BConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    template: str = Field(
-        default="base",
-        title="Template",
-        description="E2B sandbox template ID. Defaults to 'base'.",
-    )
-    cwd: Optional[str] = Field(
-        default=None,
-        title="Working Directory",
-        description="Working directory for code execution inside the sandbox.",
-    )
-    metadata: Optional[str] = Field(
-        default=None,
-        title="Metadata",
-        description="Metadata string attached to the sandbox at creation time.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -139,17 +124,12 @@ class E2BConfig(BaseModel):
 
 
 class DaytonaPythonConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    server_url: str = Field(
-        default="",
-        title="Server URL",
-        description="Daytona server URL. Leave empty to use the default.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -164,12 +144,12 @@ class DaytonaPythonConfig(BaseModel):
 
 
 class DenoConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -179,12 +159,12 @@ class DenoConfig(BaseModel):
 
 
 class _VercelConfigBase(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -210,31 +190,16 @@ class VercelTypescriptConfig(_VercelConfigBase):
 
 
 class WASMConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
 
 class ModalConfig(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
-    app_name: str = Field(
-        default="phoenix-sandbox",
-        title="App Name",
-        description="Modal app name. Created on first use if it does not exist.",
-    )
-    timeout: int = Field(
-        default=600,
-        title="Timeout (seconds)",
-        description="Hard sandbox timeout in seconds.",
-    )
-    idle_timeout: int = Field(
-        default=300,
-        title="Idle Timeout (seconds)",
-        description="Duration of idleness before a sandbox is terminated.",
-    )
     env_vars: list[EnvVarEntry] = Field(
         default_factory=list,
         title="Environment Variables",
-        description="User-defined environment variables injected at execution time.",
+        description="Environment variables set at build time; not overridable per call.",
     )
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -637,6 +602,43 @@ class SandboxAdapter(ABC):
                         )
                     )
 
+        # Runtime-install adapters install packages INSIDE the sandbox via
+        # run_code, so a sandbox created with the network already denied has no
+        # PyPI access and the install silently fails. Reject the combination
+        # eagerly. No stored_config bypass: the combo never works, so
+        # round-tripping a stored config that's already in this state should
+        # also fail loudly rather than persisting a broken configuration.
+        if metadata.installs_packages_at_runtime and metadata.dependencies_language is not None:
+            ia_mode: Optional[str] = None
+            if isinstance(internet_access, dict):
+                ia_mode = internet_access.get("mode")
+            elif internet_access is not None:
+                ia_mode = getattr(internet_access, "mode", None)
+            packages_list: list[Any] = []
+            if isinstance(dependencies, dict):
+                packages_list = dependencies.get("packages") or []
+            elif dependencies is not None:
+                packages_list = getattr(dependencies, "packages", None) or []
+            if ia_mode == "deny" and packages_list:
+                errors.append(
+                    InitErrorDetails(
+                        type=PydanticCustomError(
+                            "capability_violation",
+                            (
+                                "{adapter} adapter installs packages inside the "
+                                "sandbox at runtime, so internet_access.mode='deny' "
+                                "is incompatible with non-empty "
+                                "dependencies.packages: pip cannot reach PyPI from "
+                                "a network-denied sandbox. Set internet_access.mode "
+                                "to 'allow' or remove dependencies.packages."
+                            ),
+                            {"adapter": self.key},
+                        ),
+                        loc=("dependencies", "packages"),
+                        input=packages_list,
+                    )
+                )
+
         if errors:
             raise ValidationError.from_exception_data(
                 type(self).__name__,
@@ -724,3 +726,29 @@ class SandboxAdapter(ABC):
                         "dependency installation. Remove `dependencies.packages` "
                         "or switch to a backend that supports dependencies."
                     )
+
+        # Runtime-install combo guard (mirrors _enforce_capability_gates).
+        # Defense-in-depth: validate_config already rejects this at write time,
+        # but a misconfigured stored config reaching build_backend (e.g. via a
+        # path that bypassed validate_config) must still fail loudly rather
+        # than silently producing a sandbox where pip install fails.
+        if metadata.installs_packages_at_runtime and metadata.dependencies_language is not None:
+            internet_access = config.get("internet_access")
+            ia_mode: Optional[str] = None
+            if isinstance(internet_access, dict):
+                ia_mode = internet_access.get("mode")
+            elif internet_access is not None:
+                ia_mode = getattr(internet_access, "mode", None)
+            deps = config.get("dependencies")
+            packages_list: list[Any] = []
+            if isinstance(deps, dict):
+                packages_list = deps.get("packages") or []
+            elif deps is not None:
+                packages_list = getattr(deps, "packages", None) or []
+            if ia_mode == "deny" and packages_list:
+                raise UnsupportedOperation(
+                    f"{self.display_name} backend installs packages inside the "
+                    "sandbox at runtime; internet_access.mode='deny' blocks pip "
+                    "from reaching PyPI. Set internet_access.mode to 'allow' or "
+                    "remove dependencies.packages."
+                )

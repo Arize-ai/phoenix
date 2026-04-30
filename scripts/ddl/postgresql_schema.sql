@@ -227,7 +227,7 @@ CREATE TABLE public.sandbox_configs (
     name VARCHAR NOT NULL,
     description VARCHAR,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
-    timeout INTEGER NOT NULL DEFAULT 30,
+    timeout INTEGER NOT NULL DEFAULT 300,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
