@@ -318,14 +318,14 @@ px session list --format raw --no-progress | jq '.[].session_id'
 px session list --include-annotations --include-notes --format raw | jq '.[].notes'
 ```
 
-| Option                  | Description                                       | Default  |
-| ----------------------- | ------------------------------------------------- | -------- |
-| `-n, --limit <number>`  | Maximum number of sessions                        | `10`     |
-| `--order <order>`       | Sort order: `asc` or `desc`                       | `desc`   |
-| `--include-annotations` | Include session annotations, excluding notes      | —        |
-| `--include-notes`       | Include session notes; requires Phoenix `14.17.0` | —        |
-| `--format <format>`     | `pretty`, `json`, or `raw`                        | `pretty` |
-| `--no-progress`         | Suppress progress output                          | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `-n, --limit <number>`  | Maximum number of sessions                   | `10`     |
+| `--order <order>`       | Sort order: `asc` or `desc`                  | `desc`   |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 
@@ -340,13 +340,13 @@ px session get my-session-id --include-annotations --format raw | jq '.session.a
 px session get my-session-id --include-notes --format raw | jq '.session.notes'
 ```
 
-| Option                  | Description                                       | Default  |
-| ----------------------- | ------------------------------------------------- | -------- |
-| `--file <path>`         | Save session to file instead of stdout            | —        |
-| `--include-annotations` | Include session annotations, excluding notes      | —        |
-| `--include-notes`       | Include session notes; requires Phoenix `14.17.0` | —        |
-| `--format <format>`     | `pretty`, `json`, or `raw`                        | `pretty` |
-| `--no-progress`         | Suppress progress output                          | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `--file <path>`         | Save session to file instead of stdout       | —        |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 

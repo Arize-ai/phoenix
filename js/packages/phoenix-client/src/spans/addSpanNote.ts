@@ -1,5 +1,6 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { formatApiError } from "../utils/apiErrorUtils";
 
 /**
  * Parameters for a single span note
@@ -58,7 +59,7 @@ export async function addSpanNote({
   });
 
   if (error) {
-    throw new Error(`Failed to add span note: ${error}`);
+    throw new Error(`Failed to add span note: ${formatApiError(error)}`);
   }
 
   if (!data?.data) {

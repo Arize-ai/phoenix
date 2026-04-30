@@ -1,6 +1,7 @@
 import { createClient } from "../client";
 import { ADD_SESSION_NOTE } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
@@ -62,7 +63,7 @@ export async function addSessionNote({
   });
 
   if (error) {
-    throw new Error(`Failed to add session note: ${error}`);
+    throw new Error(`Failed to add session note: ${formatApiError(error)}`);
   }
 
   if (!data?.data) {

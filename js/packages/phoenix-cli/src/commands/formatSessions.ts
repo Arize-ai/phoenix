@@ -24,11 +24,15 @@ export type SessionWithAnnotations = SessionData & {
 export interface FormatSessionsOutputOptions {
   sessions: SessionWithAnnotations[];
   format?: OutputFormat;
+  includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 export function formatSessionsOutput({
   sessions,
   format,
+  includeAnnotations,
+  includeNotes,
 }: FormatSessionsOutputOptions): string {
   const selected = format || "pretty";
   if (selected === "raw") {
@@ -37,60 +41,49 @@ export function formatSessionsOutput({
   if (selected === "json") {
     return JSON.stringify(sessions, null, 2);
   }
-  return formatSessionsPretty(sessions);
+  return formatSessionsPretty({ sessions, includeAnnotations, includeNotes });
 }
 
 export interface FormatSessionOutputOptions {
   session: SessionWithAnnotations;
-  annotations?: SessionAnnotation[];
-  notes?: SessionNote[];
   format?: OutputFormat;
 }
 
 export function formatSessionOutput({
   session,
-  annotations,
-  notes,
   format,
 }: FormatSessionOutputOptions): string {
-  const sessionWithAnnotations: SessionWithAnnotations = {
-    ...session,
-    ...(annotations ? { annotations } : {}),
-    ...(notes ? { notes } : {}),
-  };
   const selected = format || "pretty";
   if (selected === "raw") {
-    return JSON.stringify({
-      session: sessionWithAnnotations,
-      annotations,
-      notes,
-    });
+    return JSON.stringify({ session });
   }
   if (selected === "json") {
-    return JSON.stringify(
-      {
-        session: sessionWithAnnotations,
-        annotations,
-        notes,
-      },
-      null,
-      2
-    );
+    return JSON.stringify({ session }, null, 2);
   }
-  return formatSessionPretty(sessionWithAnnotations);
+  return formatSessionPretty(session);
 }
 
-function formatSessionsPretty(sessions: SessionWithAnnotations[]): string {
+function formatSessionsPretty({
+  sessions,
+  includeAnnotations,
+  includeNotes,
+}: {
+  sessions: SessionWithAnnotations[];
+  includeAnnotations?: boolean;
+  includeNotes?: boolean;
+}): string {
   if (sessions.length === 0) {
     return "No sessions found";
   }
 
-  const hasAnnotations = sessions.some(
-    (session) => session.annotations && session.annotations.length > 0
-  );
-  const hasNotes = sessions.some(
-    (session) => session.notes && session.notes.length > 0
-  );
+  const hasAnnotations =
+    Boolean(includeAnnotations) ||
+    sessions.some(
+      (session) => session.annotations && session.annotations.length > 0
+    );
+  const hasNotes =
+    Boolean(includeNotes) ||
+    sessions.some((session) => session.notes && session.notes.length > 0);
 
   const rows = sessions.map((s) => ({
     session_id: s.session_id,

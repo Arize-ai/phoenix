@@ -72,6 +72,23 @@ describe("addSessionNote", () => {
     ).rejects.toThrow("Failed to add session note: Session not found");
   });
 
+  it("formats FastAPI detail errors", async () => {
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: { detail: "Session not found" },
+    });
+
+    await expect(
+      addSessionNote({
+        client: makeClient() as never,
+        sessionNote: {
+          sessionId: "missing-session",
+          note: "This will fail",
+        },
+      })
+    ).rejects.toThrow("Failed to add session note: Session not found");
+  });
+
   it("throws when no data is returned", async () => {
     mockPOST.mockResolvedValueOnce({
       data: undefined,

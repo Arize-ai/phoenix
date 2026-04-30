@@ -175,7 +175,7 @@ SessionData
   start_time, end_time
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
-  notes[] (with --include-notes; requires Phoenix server 14.17.0+)
+  notes[] (with --include-notes)
     name="note", result { explanation }
   traces[]
     id, trace_id, start_time, end_time

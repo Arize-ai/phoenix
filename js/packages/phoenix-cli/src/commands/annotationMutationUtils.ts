@@ -34,13 +34,20 @@ function getTargetIdPlaceholder({
 }: {
   targetType: AnnotationTargetType;
 }): string {
-  if (targetType === "span") {
-    return "<span-id>";
+  switch (targetType) {
+    case "span":
+      return "<span-id>";
+    case "trace":
+      return "<trace-id>";
+    case "session":
+      return "<session-id>";
+    default:
+      return assertNever(targetType);
   }
-  if (targetType === "trace") {
-    return "<trace-id>";
-  }
-  return "<session-id>";
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported annotation target type: ${String(value)}`);
 }
 
 function getAnnotateUsage({

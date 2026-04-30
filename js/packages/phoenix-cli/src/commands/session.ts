@@ -425,11 +425,15 @@ async function sessionGetHandler(
       });
     }
 
+    const sessionWithAnnotations: SessionWithAnnotations = {
+      ...session,
+      ...(annotations ? { annotations } : {}),
+      ...(notes ? { notes } : {}),
+    };
+
     // Format output
     const output = formatSessionOutput({
-      session,
-      annotations,
-      notes,
+      session: sessionWithAnnotations,
       format: outputFormat,
     });
 
@@ -552,6 +556,8 @@ async function sessionListHandler(options: SessionListOptions): Promise<void> {
     const output = formatSessionsOutput({
       sessions,
       format: options.format,
+      includeAnnotations: options.includeAnnotations,
+      includeNotes: options.includeNotes,
     });
     writeOutput({ message: output });
   } catch (error) {

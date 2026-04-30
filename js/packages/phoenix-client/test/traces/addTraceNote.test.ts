@@ -72,6 +72,23 @@ describe("addTraceNote", () => {
     ).rejects.toThrow("Failed to add trace note: Trace not found");
   });
 
+  it("formats FastAPI detail errors", async () => {
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: { detail: "Trace not found" },
+    });
+
+    await expect(
+      addTraceNote({
+        client: makeClient() as never,
+        traceNote: {
+          traceId: "missing-trace",
+          note: "This will fail",
+        },
+      })
+    ).rejects.toThrow("Failed to add trace note: Trace not found");
+  });
+
   it("throws when no data is returned", async () => {
     mockPOST.mockResolvedValueOnce({
       data: undefined,

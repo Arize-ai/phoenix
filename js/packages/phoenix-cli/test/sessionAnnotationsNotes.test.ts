@@ -547,9 +547,7 @@ describe("session annotation and note readback", () => {
     expect(parsedOutput.session.notes).toEqual([
       expect.objectContaining({ id: "session-note-1", name: "note" }),
     ]);
-    expect(parsedOutput.notes).toEqual([
-      expect.objectContaining({ id: "session-note-1", name: "note" }),
-    ]);
+    expect(parsedOutput.notes).toBeUndefined();
   });
 
   it("excludes notes from session get annotations", async () => {
@@ -582,9 +580,38 @@ describe("session annotation and note readback", () => {
     expect(parsedOutput.session.annotations).toEqual([
       expect.objectContaining({ id: "session-annotation-1", name: "reviewer" }),
     ]);
+    expect(parsedOutput.annotations).toBeUndefined();
     expect(parsedOutput.session.annotations).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ name: "note" })])
     );
+  });
+
+  it("renders requested empty annotation and note columns in session list pretty output", async () => {
+    const fetchMock = makeFetchMock([
+      makeProjectResponse(),
+      makeSessionPageResponse(),
+      { ok: true, body: { data: [], next_cursor: null } },
+      { ok: true, body: { data: [], next_cursor: null } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createSessionCommand().parseAsync(
+      [
+        "list",
+        "--project",
+        "default",
+        "--include-annotations",
+        "--include-notes",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    const output = String(stdoutSpy.mock.calls[0]?.[0]);
+    expect(output).toContain("annotations");
+    expect(output).toContain("notes");
   });
 
   it("includes annotations and notes in session list raw output", async () => {
