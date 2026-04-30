@@ -450,9 +450,12 @@ class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
     operation_id="createTraceNote",
     summary="Create a trace note",
     description=(
-        "Add a note annotation to a trace. Notes are special annotations that allow "
-        "multiple entries per trace (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique UUIDv4 identifier."
+        "Add a note annotation to a trace. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "trace. Structured annotations, by contrast, are keyed by (name, trace_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a trace you "
+        "must supply distinct identifiers."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
     response_description="Trace note created successfully",
