@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import BaseModel, ConfigDict
 
 from phoenix.server.sandbox import (
     _BACKEND_CACHE,
@@ -13,7 +14,12 @@ from phoenix.server.sandbox import (
     get_or_create_backend,
     invalidate_backend_cache,
 )
+from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+
+
+class _StubConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
@@ -39,6 +45,7 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
         key = "STUB"
         display_name = "Stub"
         language = "PYTHON"
+        config_model = _StubConfig
         credential_specs = [ProviderCredentialSpec(key=cred_key, display_name="Cred X")]
 
         def build_backend(
@@ -136,7 +143,9 @@ class TestGetOrCreateBackendCredentialMerge:
     async def test_user_config_preserved_when_key_unresolved(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Non-credential user config keys pass through untouched."""
+        """Non-credential user config keys pass through untouched.
+        Credential keys supplied by the user are stripped before validate_config
+        and replaced only by the resolved value (empty string when unresolved)."""
         received: dict[str, Any] = {}
         adapter = _make_adapter(received, "CRED_X")
         monkeypatch.delenv("CRED_X", raising=False)
@@ -145,16 +154,16 @@ class TestGetOrCreateBackendCredentialMerge:
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
             await get_or_create_backend(
                 "STUB",
-                config={"template": "python", "CRED_X": "user-fallback"},
+                config={"custom_key": "some-value", "CRED_X": "user-fallback"},
                 session=session,
                 decrypt=_identity_decrypt,
             )
 
-        # When no DB/env value resolves, user-supplied key remains.
-        # (Reserved-name enforcement at mutation time prevents this for
-        # actual reserved credential keys; this is just shape-agnostic behavior.)
-        assert received["config"].get("template") == "python"
-        assert received["config"].get("CRED_X") == "user-fallback"
+        # Non-credential key passes through from user config untouched.
+        assert received["config"].get("custom_key") == "some-value"
+        # Credential key is stripped from user config before validate_config;
+        # when neither DB nor env resolves it, it is absent from effective_config.
+        assert "CRED_X" not in received["config"]
 
     @pytest.mark.asyncio
     async def test_no_session_resolves_from_env_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -211,10 +220,10 @@ class TestGetOrCreateBackendCache:
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
             b1 = await get_or_create_backend(
-                "STUB", config={"template": "a"}, session=session, decrypt=_identity_decrypt
+                "STUB", config={"region": "us-east-1"}, session=session, decrypt=_identity_decrypt
             )
             b2 = await get_or_create_backend(
-                "STUB", config={"template": "b"}, session=session, decrypt=_identity_decrypt
+                "STUB", config={"region": "eu-west-1"}, session=session, decrypt=_identity_decrypt
             )
 
         assert b1 is not b2
@@ -223,3 +232,44 @@ class TestGetOrCreateBackendCache:
     async def test_unregistered_backend_returns_none(self) -> None:
         result = await get_or_create_backend("NONEXISTENT", config={}, session=None, decrypt=None)
         assert result is None
+
+
+class TestProviderMergeSSRFBlocked:
+    """Provider-level non-capability keys must be rejected by validate_config
+    inside get_or_create_backend, blocking the SSRF vector.
+
+    The evaluators.py merge shape is:
+        merged = {**sandbox_config.config, **sandbox_provider.config}
+        get_or_create_backend(backend_type, config=merged, ...)
+
+    Provider config wins on key collision (admin-authored). Before Phase 5,
+    a poisoned provider config with server_url would flow into
+    Daytona(server_url=...) unchecked. After Phase 5, validate_config raises
+    ValueError (extra=forbid) before any Daytona client is constructed.
+    """
+
+    @pytest.mark.asyncio
+    async def test_daytona_provider_server_url_raises_before_build_backend(self) -> None:
+        """A sandbox_provider.config with server_url must not reach build_backend.
+
+        Simulates the evaluators.py merge where provider config wins over user
+        config. validate_config (called at line 536 of sandbox/__init__.py) must
+        raise ValueError so the evaluator layer converts it to BadRequest.
+        """
+        adapter = DaytonaPythonAdapter()
+        session = _make_session({})
+
+        merged_config = {
+            "server_url": "https://attacker.example.com",
+        }
+
+        with (
+            patch.dict(_SANDBOX_ADAPTERS, {"DAYTONA_PYTHON": adapter}),
+            pytest.raises(ValueError, match="Extra inputs are not permitted"),
+        ):
+            await get_or_create_backend(
+                "DAYTONA_PYTHON",
+                config=merged_config,
+                session=session,
+                decrypt=_identity_decrypt,
+            )

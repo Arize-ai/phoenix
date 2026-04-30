@@ -81,7 +81,11 @@ export function SandboxConfigsCard({
                   </td>
                   <td>
                     <div css={inlineTokenRowCSS}>
-                      <StatusText status={backend.status} />
+                      <StatusText
+                        status={backend.status}
+                        detail={backend.statusDetail}
+                        dependencyHints={backend.dependencyHints}
+                      />
                     </div>
                   </td>
                   <td>
@@ -94,7 +98,7 @@ export function SandboxConfigsCard({
                       >
                         {hasConfig(config.config)
                           ? summarizeConfig(config.config)
-                          : "No advanced settings"}
+                          : "No custom settings"}
                       </Text>
                     </Flex>
                   </td>

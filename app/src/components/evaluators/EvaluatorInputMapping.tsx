@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { Suspense, useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 
 import { Loading, Text } from "@phoenix/components";
@@ -61,9 +61,12 @@ const EvaluatorInputMappingTitle = ({ children }: PropsWithChildren) => {
 
 const useEvaluatorInputMappingControlsForm = () => {
   const store = useEvaluatorStoreInstance();
-  const { pathMapping, literalMapping } = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping
+  // Initialize RHF from the store once. Subscribing this component to the same
+  // mapping values it writes causes controlled input focus/caret churn.
+  const initialInputMappingRef = useRef(
+    store.getState().evaluator.inputMapping
   );
+  const { pathMapping, literalMapping } = initialInputMappingRef.current;
   // Escape keys for react-hook-form to prevent dots from being interpreted as nested paths
   const escapedPathMapping = useMemo(
     () => escapeMapping(pathMapping),
@@ -105,9 +108,6 @@ const EvaluatorInputMappingControls = () => {
     (state) => state.evaluatorMappingSource
   );
   const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
-  const inputValues = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping.pathMapping
-  );
   // iterate over all keys in the control
   // each row should have a variable, an arrow pointing to the example field, and a select field
   // the variable should be the key, the select field should have all flattened example keys as options
@@ -128,10 +128,6 @@ const EvaluatorInputMappingControls = () => {
             pathOptions={allExampleKeys}
             pathPlaceholder={variable}
             literalPlaceholder="Enter a value"
-            pathInputValue={inputValues[variable] ?? ""}
-            onPathInputChange={(val) =>
-              setValue(`pathMapping.${escapedVariable}`, val)
-            }
           />
         );
       })}

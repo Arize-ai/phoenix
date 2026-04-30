@@ -47,6 +47,7 @@ function SettingsSandboxesPageContent({
           dependencyHints
           supportedLanguages
           status
+          statusDetail
           supportsEnvVars
           internetAccess
           dependenciesLanguage

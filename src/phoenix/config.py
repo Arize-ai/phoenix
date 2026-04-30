@@ -779,18 +779,6 @@ Accepted values: WASM, E2B, DAYTONA_PYTHON, VERCEL_PYTHON, VERCEL_TYPESCRIPT, DE
 When not set, the WASM (local WebAssembly) backend is used.
 """
 
-ENV_PHOENIX_SANDBOX_API_KEY = "PHOENIX_SANDBOX_API_KEY"
-"""
-API key credential for the configured sandbox provider (e.g. E2B API key).
-Used by sandbox backends that require an API key for authentication.
-"""
-
-ENV_PHOENIX_SANDBOX_TOKEN = "PHOENIX_SANDBOX_TOKEN"
-"""
-Token credential for the configured sandbox provider (e.g. Daytona API token).
-Used by sandbox backends that require a bearer token for authentication.
-"""
-
 
 @dataclass(frozen=True)
 class TLSConfig:
