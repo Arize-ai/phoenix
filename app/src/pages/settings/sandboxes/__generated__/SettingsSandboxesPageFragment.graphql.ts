@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<398bee3fa30ed41d73ec0a21889eb907>>
+ * @generated SignedSource<<0f6f6a12695141fa562ec06945810b44>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
-export type SandboxBackendStatus = "AVAILABLE" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 import { FragmentRefs } from "relay-runtime";
 export type SettingsSandboxesPageFragment$data = {
   readonly sandboxBackends: ReadonlyArray<{
@@ -21,6 +21,7 @@ export type SettingsSandboxesPageFragment$data = {
     readonly displayName: string;
     readonly internetAccess: InternetAccessMode;
     readonly status: SandboxBackendStatus;
+    readonly statusDetail: string | null;
     readonly supportedLanguages: ReadonlyArray<Language>;
     readonly supportsEnvVars: boolean;
   }>;
@@ -131,6 +132,13 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "statusDetail",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "supportsEnvVars",
           "storageKey": null
         },
@@ -216,6 +224,6 @@ return {
 };
 })();
 
-(node as any).hash = "d448f7540d4e14bd05d86a348411cf36";
+(node as any).hash = "fbfdf2c6bcd4f7119c65cc9dbcf52876";
 
 export default node;

@@ -23,6 +23,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
+    get_missing_sandbox_auth_detail,
     get_or_create_backend,
 )
 from phoenix.server.sandbox.types import UnsupportedOperation
@@ -56,6 +57,8 @@ class SandboxBackendStatus(Enum):
 
     AVAILABLE = "AVAILABLE"
     """Adapter is installed and the backend was created successfully."""
+    MISSING_CREDENTIALS = "MISSING_CREDENTIALS"
+    """Adapter is installed, but required auth credentials are not configured."""
     UNAVAILABLE = "UNAVAILABLE"
     """Adapter is installed but backend creation failed (e.g. bad credentials)."""
     NOT_INSTALLED = "NOT_INSTALLED"
@@ -82,6 +85,7 @@ class SandboxBackendInfo:
     display_name: str
     supported_languages: list[Language]
     status: SandboxBackendStatus
+    status_detail: Optional[str]
     dependency_hints: list[str]
     config_field_specs: list[ConfigFieldSpecType]
     supports_env_vars: bool
@@ -192,7 +196,9 @@ class SandboxConfig(Node):
         record = await self._get_record(info)
         return cast(JSON, record.config)
 
-    @strawberry.field
+    @strawberry.field(  # type: ignore
+        description="Execution timeout in seconds (includes package install on ephemeral calls)."
+    )
     async def timeout(self, info: Info[Context, None]) -> int:
         record = await self._get_record(info)
         return record.timeout
@@ -309,33 +315,44 @@ async def _get_sandbox_backend_info_with_session(
 
     infos: list[SandboxBackendInfo] = []
     for backend_type, meta in SANDBOX_ADAPTER_METADATA.items():
+        status_detail: Optional[str] = None
         if backend_type not in _SANDBOX_ADAPTERS:
             status = SandboxBackendStatus.NOT_INSTALLED
         else:
-            # TODO: Add backend-specific dependency validation here where possible.
-            # Adapter registration and backend construction can still over-report
-            # availability when runtime prerequisites are only checked later
-            # (for example, missing binaries, API keys, or first-use downloads).
-            try:
-                backend = await get_or_create_backend(
-                    backend_type, session=session, decrypt=decrypt
-                )
-                status = (
-                    SandboxBackendStatus.AVAILABLE
-                    if backend is not None
-                    else SandboxBackendStatus.UNAVAILABLE
-                )
-            except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
-                # Adapter is registered but construction failed because a
-                # runtime precondition is not met (auth not configured,
-                # missing user secret, capability mismatch). Surface as
-                # UNAVAILABLE instead of 500ing the whole query — capability
-                # advertisement must continue to work for adapters the admin
-                # hasn't configured yet.
-                logger.debug(
-                    f"sandboxBackends: {backend_type!r} unavailable: {exc}",
-                )
-                status = SandboxBackendStatus.UNAVAILABLE
+            missing_auth_detail = await get_missing_sandbox_auth_detail(
+                backend_type,
+                session=session,
+                decrypt=decrypt,
+            )
+            if missing_auth_detail is not None:
+                status = SandboxBackendStatus.MISSING_CREDENTIALS
+                status_detail = missing_auth_detail
+            else:
+                # TODO: Add backend-specific dependency validation here where possible.
+                # Adapter registration and backend construction can still over-report
+                # availability when runtime prerequisites are only checked later
+                # (for example, missing binaries, API keys, or first-use downloads).
+                try:
+                    backend = await get_or_create_backend(
+                        backend_type, session=session, decrypt=decrypt
+                    )
+                    status = (
+                        SandboxBackendStatus.AVAILABLE
+                        if backend is not None
+                        else SandboxBackendStatus.UNAVAILABLE
+                    )
+                except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
+                    # Adapter is registered but construction failed because a
+                    # runtime precondition is not met (auth not configured,
+                    # missing user secret, capability mismatch). Surface as
+                    # UNAVAILABLE instead of 500ing the whole query — capability
+                    # advertisement must continue to work for adapters the admin
+                    # hasn't configured yet.
+                    logger.debug(
+                        f"sandboxBackends: {backend_type!r} unavailable: {exc}",
+                    )
+                    status = SandboxBackendStatus.UNAVAILABLE
+                    status_detail = str(exc)
         raw_specs = getattr(meta, "config_field_specs", [])
         infos.append(
             SandboxBackendInfo(
@@ -343,6 +360,7 @@ async def _get_sandbox_backend_info_with_session(
                 display_name=meta.display_name,
                 supported_languages=[Language(meta.language)] if meta.language else [],
                 status=status,
+                status_detail=status_detail,
                 dependency_hints=meta.dependency_hints,
                 config_field_specs=[
                     ConfigFieldSpecType(

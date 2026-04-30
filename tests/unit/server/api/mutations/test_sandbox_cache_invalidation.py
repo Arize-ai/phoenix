@@ -8,7 +8,8 @@ Three scenarios covered:
 1. Rebuild-with-new-value via setSandboxCredential — backend rebuilt with v2
    plaintext after rotation.
 2. Shared-spec invalidation — VERCEL_PYTHON and VERCEL_TYPESCRIPT share
-   `credential_specs` referencing VERCEL_TOKEN; rotating via either backend_type
+   `credential_specs` referencing PHOENIX_SANDBOX_VERCEL_TOKEN; rotating via
+   either backend_type
    evicts BOTH cache entries.
 3. upsertOrDeleteSecrets + SandboxConfig.secret_ref — rotating a user Secret
    referenced by `secret_ref` evicts the cache so the rebuilt backend sees
@@ -23,6 +24,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sqlalchemy as sa
+from pydantic import BaseModel, ConfigDict
 
 from phoenix.db import models
 from phoenix.server.encryption import EncryptionService
@@ -38,6 +40,19 @@ from phoenix.server.sandbox.types import (
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+
+class _PermissiveTestConfig(BaseModel):
+    """Permissive config model for cache-invalidation test adapters.
+
+    SandboxAdapter.config_model defaults to BaseModel itself, which Pydantic
+    refuses to instantiate (PydanticUserError). These tests exercise cache
+    eviction wiring (not config validation), so we accept any shape — env_vars
+    with secret_ref, empty dicts, etc. — without forbidding extras.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
 
 _SET_CRED_MUTATION = """
   mutation SetSandboxCredential(
@@ -64,6 +79,8 @@ _UPSERT_SECRETS_MUTATION = """
 
 class _CapturingAdapter(SandboxAdapter):
     """Test adapter that records each build_backend invocation for later assertions."""
+
+    config_model = _PermissiveTestConfig
 
     def __init__(
         self,
@@ -161,7 +178,8 @@ class TestRebuildWithNewValue:
 
 
 class TestSharedSpecInvalidation:
-    """Scenario 2: VERCEL_TOKEN is shared by VERCEL_PYTHON and VERCEL_TYPESCRIPT.
+    """Scenario 2: PHOENIX_SANDBOX_VERCEL_TOKEN is shared by VERCEL_PYTHON and
+    VERCEL_TYPESCRIPT.
 
     Rotating via either backend_type must evict BOTH cache entries.
     """

@@ -3671,6 +3671,47 @@ class TestGetEvaluators:
 
         assert evaluators == []
 
+    async def test_code_evaluator_not_found_message_contains_name_and_settings_hint(
+        self,
+        db: Any,
+    ) -> None:
+        """NotFound raised for a CodeEvaluator with no sandbox must name the evaluator."""
+        async with db() as session:
+            dataset = models.Dataset(name="test-dataset-code-no-sandbox", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            code_eval = models.CodeEvaluator(
+                name=Identifier("my-code-eval"),
+                source_code="def evaluate(output): return 1.0",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                sandbox_config_id=None,
+            )
+            session.add(code_eval)
+            await session.flush()
+
+            de_code = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_eval.id,
+                name=Identifier("my-code-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="code-eval-no-sandbox-project", description=""),
+            )
+            session.add(de_code)
+            await session.flush()
+
+            with pytest.raises(NotFound) as exc_info:
+                await get_evaluators(
+                    dataset_evaluator_ids=[de_code.id],
+                    session=session,
+                    decrypt=lambda x: x,
+                    credentials=None,
+                )
+
+        assert "my-code-eval" in str(exc_info.value)
+        assert "/settings/sandboxes" in str(exc_info.value)
+
     async def test_preserves_order_with_only_builtin_evaluators(
         self,
         db: Any,

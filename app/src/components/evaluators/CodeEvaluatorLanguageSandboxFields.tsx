@@ -23,6 +23,11 @@ export type SandboxConfigOption = {
   description?: string | null;
   providerLabel: string;
   providerLanguage: CodeEvaluatorLanguage;
+  timeout?: number | null;
+  config?: unknown;
+  supportsEnvVars?: boolean;
+  internetAccess?: string;
+  dependenciesLanguage?: CodeEvaluatorLanguage | null;
 };
 
 export type CodeEvaluatorLanguageFieldProps = {
@@ -72,8 +77,6 @@ export type CodeEvaluatorSandboxFieldProps = {
   size?: "M" | "L";
   /** Whether to show the helper text below the field */
   showHelperText?: boolean;
-  /** Optional warning shown when a saved selection is no longer available */
-  unavailableSelectionMessage?: string;
 };
 
 /**
@@ -87,7 +90,6 @@ export const CodeEvaluatorSandboxField = ({
   onSelectionChange,
   size = "L",
   showHelperText = false,
-  unavailableSelectionMessage,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
@@ -169,11 +171,6 @@ export const CodeEvaluatorSandboxField = ({
           in Settings if none are available here.
         </Text>
       )}
-      {unavailableSelectionMessage ? (
-        <Text color="danger" size="S">
-          {unavailableSelectionMessage}
-        </Text>
-      ) : null}
     </View>
   );
 };
@@ -204,32 +201,42 @@ export const mapSandboxConfigOptions = (
       id: string;
       name: string;
       description?: string | null;
+      timeout?: number | null;
+      config?: unknown;
     }>;
   }>,
   sandboxBackends: ReadonlyArray<{
     backendType: string;
     status: string;
+    supportsEnvVars?: boolean;
+    internetAccess?: string;
+    dependenciesLanguage?: CodeEvaluatorLanguage | null;
   }>
 ): SandboxConfigOption[] => {
-  // Build a set of available backend types
-  const availableBackendTypes = new Set(
+  const availableBackendsByType = new Map(
     sandboxBackends
       .filter((backend) => backend.status === "AVAILABLE")
-      .map((backend) => backend.backendType)
+      .map((backend) => [backend.backendType, backend])
   );
 
   return sandboxProviders
     .filter(
       (provider) =>
-        provider.enabled && availableBackendTypes.has(provider.backendType)
+        provider.enabled && availableBackendsByType.has(provider.backendType)
     )
-    .flatMap((provider) =>
-      provider.configs.map((config) => ({
+    .flatMap((provider) => {
+      const backend = availableBackendsByType.get(provider.backendType);
+      return provider.configs.map((config) => ({
         id: config.id,
         name: config.name,
         description: config.description,
         providerLanguage: provider.language,
         providerLabel: backendTypeLabel(provider.backendType),
-      }))
-    );
+        timeout: config.timeout,
+        config: config.config,
+        supportsEnvVars: backend?.supportsEnvVars,
+        internetAccess: backend?.internetAccess,
+        dependenciesLanguage: backend?.dependenciesLanguage,
+      }));
+    });
 };
