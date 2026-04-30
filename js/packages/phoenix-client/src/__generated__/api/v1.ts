@@ -67,7 +67,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get span annotations for a list of span_ids. */
+        /**
+         * Get span annotations filtered by span_ids and/or identifier.
+         * @description Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSpanAnnotationsBySpanIds"];
         put?: never;
         post?: never;
@@ -84,7 +87,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get trace annotations for a list of trace_ids. */
+        /**
+         * Get trace annotations filtered by trace_ids and/or identifier.
+         * @description Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listTraceAnnotationsByTraceIds"];
         put?: never;
         post?: never;
@@ -101,7 +107,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get session annotations for a list of session_ids. */
+        /**
+         * Get session annotations filtered by session_ids and/or identifier.
+         * @description Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSessionAnnotationsBySessionIds"];
         put?: never;
         post?: never;
@@ -3967,9 +3976,11 @@ export interface operations {
     };
     listSpanAnnotationsBySpanIds: {
         parameters: {
-            query: {
-                /** @description One or more span id to fetch annotations for */
-                span_ids: string[];
+            query?: {
+                /** @description Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                span_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4028,9 +4039,11 @@ export interface operations {
     };
     listTraceAnnotationsByTraceIds: {
         parameters: {
-            query: {
-                /** @description One or more trace id to fetch annotations for */
-                trace_ids: string[];
+            query?: {
+                /** @description Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                trace_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4089,9 +4102,11 @@ export interface operations {
     };
     listSessionAnnotationsBySessionIds: {
         parameters: {
-            query: {
-                /** @description One or more session id to fetch annotations for */
-                session_ids: string[];
+            query?: {
+                /** @description Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                session_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */

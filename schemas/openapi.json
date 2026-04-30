@@ -305,7 +305,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get span annotations for a list of span_ids.",
+        "summary": "Get span annotations filtered by span_ids and/or identifier.",
+        "description": "Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
@@ -322,17 +323,45 @@
           {
             "name": "span_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more span id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Span Ids"
             },
-            "description": "One or more span id to fetch annotations for"
+            "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -458,7 +487,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get trace annotations for a list of trace_ids.",
+        "summary": "Get trace annotations filtered by trace_ids and/or identifier.",
+        "description": "Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listTraceAnnotationsByTraceIds",
         "parameters": [
           {
@@ -475,17 +505,45 @@
           {
             "name": "trace_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more trace id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Trace Ids"
             },
-            "description": "One or more trace id to fetch annotations for"
+            "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -611,7 +669,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get session annotations for a list of session_ids.",
+        "summary": "Get session annotations filtered by session_ids and/or identifier.",
+        "description": "Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSessionAnnotationsBySessionIds",
         "parameters": [
           {
@@ -628,17 +687,45 @@
           {
             "name": "session_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more session id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Session Ids"
             },
-            "description": "One or more session id to fetch annotations for"
+            "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
