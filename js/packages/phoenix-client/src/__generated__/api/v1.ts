@@ -486,7 +486,7 @@ export interface paths {
         put?: never;
         /**
          * Create a trace note
-         * @description Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.
          */
         post: operations["createTraceNote"];
         delete?: never;
@@ -591,7 +591,7 @@ export interface paths {
         put?: never;
         /**
          * Create a span note
-         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.
          */
         post: operations["createSpanNote"];
         delete?: never;
@@ -942,7 +942,7 @@ export interface paths {
         put?: never;
         /**
          * Create a session note
-         * @description Add a note annotation to a session. Notes are special annotations that allow multiple entries per session (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.
          */
         post: operations["createSessionNote"];
         delete?: never;

@@ -57,7 +57,9 @@ client.traces.add_trace_annotation(
 
 ## Span Notes
 
-Notes are a special type of annotation for free-form text — useful for open coding, where reviewers leave qualitative observations on a span before any rubric exists. Later, those notes can be aggregated and distilled into structured labels or scores. Because they are open-ended, multiple notes can coexist on the same span (unlike regular annotations, which are unique by name). Each note gets a unique UUIDv4 identifier automatically.
+Notes are a special type of annotation for free-form text — useful for open coding, where reviewers leave qualitative observations on a span before any rubric exists. Later, those notes can be aggregated and distilled into structured labels or scores.
+
+Notes are **append-only**: each call auto-generates a UUIDv4 identifier, so multiple notes naturally accumulate on the same span. Structured annotations are keyed by `(name, span_id, identifier)` — you can have many same-named annotations on one span by supplying distinct identifiers (e.g. one per reviewer); writing the same `(name, span_id, identifier)` overwrites the existing entry.
 
 ```python
 client.spans.add_span_note(

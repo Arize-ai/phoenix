@@ -1205,9 +1205,12 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
     operation_id="createSpanNote",
     summary="Create a span note",
     description=(
-        "Add a note annotation to a span. Notes are special annotations that allow "
-        "multiple entries per span (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique UUIDv4 identifier."
+        "Add a note annotation to a span. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "span. Structured annotations, by contrast, are keyed by (name, span_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a span you "
+        "must supply distinct identifiers."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span note created successfully",
