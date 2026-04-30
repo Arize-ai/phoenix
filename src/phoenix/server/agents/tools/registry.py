@@ -111,8 +111,18 @@ def resolve_contextual_tools(
 
 def resolve_tools(
     resolved: ResolvedContexts,
-    env: ToolExecutionEnv,
+    env: ToolExecutionEnv | None = None,
 ) -> tuple[list["ToolDefinition"], dict[str, "ToolCallable"]]:
+    available = _available_context_types(resolved)
+    has_contextual_tools = any(
+        tool.required_contexts.issubset(available) for tool in CONTEXTUAL_TOOLS
+    )
+    if not has_contextual_tools:
+        # Non-UI entrypoints can advertise external tools without requiring a
+        # database-backed execution environment for contextual tools.
+        return list(EXTERNAL_TOOLS), {}
+    if env is None:
+        raise ValueError("ToolExecutionEnv is required when resolving contextual tools")
     contextual_defs, dispatch = resolve_contextual_tools(resolved, env)
     return [*EXTERNAL_TOOLS, *contextual_defs], dispatch
 
