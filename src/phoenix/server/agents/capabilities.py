@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AgentCapabilities(BaseModel):
-    """Runtime PXI capability state sent by the browser for a chat turn."""
+    """Runtime capability state sent by the browser for a chat turn."""
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
