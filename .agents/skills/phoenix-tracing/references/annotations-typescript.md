@@ -33,7 +33,7 @@ await addSpanAnnotation({
 
 ## Span Notes
 
-Notes are a special annotation type that allow multiple entries per span (unlike regular annotations which are unique by name). Each note gets a unique UUIDv4 identifier automatically.
+Notes are a special type of annotation for free-form text — useful for open coding, where reviewers leave qualitative observations on a span before any rubric exists. Later, those notes can be aggregated and distilled into structured labels or scores. Because they are open-ended, multiple notes can coexist on the same span (unlike regular annotations, which are unique by name). Each note gets a unique UUIDv4 identifier automatically.
 
 ```typescript
 import { addSpanNote } from "@arizeai/phoenix-client/spans";
@@ -63,25 +63,6 @@ await addDocumentAnnotation({
     annotatorKind: "LLM",
     label: "relevant",
     score: 0.95
-  }
-});
-```
-
-## Trace Annotations
-
-Feedback on entire traces:
-
-```typescript
-import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
-
-await addTraceAnnotation({
-  client,
-  traceAnnotation: {
-    traceId: "trace_abc",
-    name: "correctness",
-    annotatorKind: "HUMAN",
-    label: "correct",
-    score: 1.0
   }
 });
 ```
@@ -126,7 +107,7 @@ await addSessionAnnotation({
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
 import { logDocumentAnnotations, addSpanAnnotation } from "@arizeai/phoenix-client/spans";
-import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
 
 const client = createClient();
 
@@ -153,18 +134,17 @@ await addSpanAnnotation({
   }
 });
 
-// Overall trace quality
-await addTraceAnnotation({
+// Trace-level qualitative note
+await addTraceNote({
   client,
-  traceAnnotation: {
+  traceNote: {
     traceId: "trace_123",
-    name: "correctness",
-    annotatorKind: "HUMAN",
-    label: "correct",
-    score: 1.0
+    note: "End-to-end answer was correct and well-grounded"
   }
 });
 ```
+
+> **Note:** Structured trace annotations (label/score by name) are not yet exposed in the TypeScript client — only `addTraceNote` is available. For structured trace annotations, use the Python client (`client.traces.add_trace_annotation`) or the REST API directly.
 
 ## API Reference
 
