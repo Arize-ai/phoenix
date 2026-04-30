@@ -35,7 +35,7 @@ _BASH_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-TOOL_DEFINITION = ToolDefinition(
+BASH_TOOL_DEFINITION = ToolDefinition(
     name=BASH_TOOL_NAME,
     description=(
         "Run a shell command in the browser virtual filesystem. "

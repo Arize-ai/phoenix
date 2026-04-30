@@ -1,5 +1,5 @@
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts, ToolExecutionEnv
-from phoenix.server.agents.tools import EXTERNAL_TOOLS, resolve_contextual_tools
+from phoenix.server.agents.tools import resolve_contextual_tools, resolve_tools
 from phoenix.server.types import DbSessionFactory
 
 
@@ -53,8 +53,35 @@ class TestResolveContextualTools:
         assert tool.kind == "external"
 
 
-class TestExternalTools:
-    def test_external_tool_names_are_unique(self) -> None:
-        names = [tool.name for tool in EXTERNAL_TOOLS]
+class TestResolveTools:
+    def test_resolves_external_tools_without_context(self, db: DbSessionFactory) -> None:
+        defs, dispatch = resolve_tools(ResolvedContexts(), ToolExecutionEnv(user=None, db=db))
+
+        names = [tool.name for tool in defs]
+
+        assert "ask_user" in names
+        assert "bash" in names
+        assert dispatch == {}
+
+    def test_resolves_external_and_contextual_tools(self, db: DbSessionFactory) -> None:
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                span_filter="",
+            )
+        )
+        defs, dispatch = resolve_tools(resolved, ToolExecutionEnv(user=None, db=db))
+
+        names = [tool.name for tool in defs]
+
+        assert "ask_user" in names
+        assert "bash" in names
+        assert "apply_span_filter_condition" in names
+        assert dispatch == {}
+
+    def test_resolved_tool_names_are_unique(self, db: DbSessionFactory) -> None:
+        defs, _ = resolve_tools(ResolvedContexts(), ToolExecutionEnv(user=None, db=db))
+        names = [tool.name for tool in defs]
 
         assert len(names) == len(set(names))

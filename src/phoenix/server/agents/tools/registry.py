@@ -109,15 +109,23 @@ def resolve_contextual_tools(
     return defs, dispatch
 
 
+def resolve_tools(
+    resolved: ResolvedContexts,
+    env: ToolExecutionEnv,
+) -> tuple[list["ToolDefinition"], dict[str, "ToolCallable"]]:
+    contextual_defs, dispatch = resolve_contextual_tools(resolved, env)
+    return [*EXTERNAL_TOOLS, *contextual_defs], dispatch
+
+
 from phoenix.server.agents.tools.apply_span_filter_condition import (  # noqa: E402
     build_apply_span_filter_condition_tool,
 )
 from phoenix.server.agents.tools.external.ask_user import (  # noqa: E402
-    TOOL_DEFINITION as ASK_USER_TOOL,
+    ASK_USER_TOOL_DEFINITION,
 )
 from phoenix.server.agents.tools.external.bash import (  # noqa: E402
-    TOOL_DEFINITION as BASH_TOOL,
+    BASH_TOOL_DEFINITION,
 )
 
 CONTEXTUAL_TOOLS: list[ContextualTool] = [build_apply_span_filter_condition_tool()]
-EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL, BASH_TOOL]
+EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL_DEFINITION, BASH_TOOL_DEFINITION]

@@ -323,12 +323,11 @@ async def stream_text(
     *,
     body: ChatBody,
     mcp_client: MintlifyDocsClient | None = None,
-    contextual_tools: tuple[
+    tools: tuple[
         list["ToolDefinition"],
         dict[str, Callable[[dict[str, Any]], Awaitable[str]]],
     ]
     | None = None,
-    client_tool_defs: list["ToolDefinition"] | None = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
         ModelRequest,
@@ -378,7 +377,7 @@ async def stream_text(
             for t in tools
         ]
 
-    contextual_tool_defs, contextual_dispatch = contextual_tools or ([], {})
+    tool_defs, contextual_dispatch = tools or ([], {})
     mcp_tool_defs: list[ToolDefinition] = []
     mcp_tool_names: frozenset[str] = frozenset()
     if mcp_client is not None:
@@ -389,7 +388,7 @@ async def stream_text(
         except Exception:
             logger.exception("Failed to fetch backend MCP tool definitions")
 
-    backend_tool_defs = mcp_tool_defs + contextual_tool_defs
+    all_function_tools = tool_defs + mcp_tool_defs
     # Only tools with a server-side callable count as "backend": MCP tools
     # always run server-side, and contextual tools that registered an entry in
     # ``contextual_dispatch``. Contextual tools advertised without a dispatch
@@ -398,10 +397,6 @@ async def stream_text(
     backend_tool_names = mcp_tool_names | frozenset(contextual_dispatch.keys())
 
     output_tool_defs = _to_tool_defs(body.output_tools or [])
-
-    # Merge client-executed + backend tools for the model. Client tools are
-    # server-defined but still dispatched to the browser by the data stream.
-    all_function_tools = list(client_tool_defs or []) + backend_tool_defs
 
     params = ModelRequestParameters(
         function_tools=all_function_tools,
@@ -431,7 +426,7 @@ async def stream_text(
         ToolInputAvailableChunk=ToolInputAvailableChunk,
     )
 
-    # Also build raw tool dicts for tracing that include backend tools.
+    # Also build raw tool dicts for tracing that include all advertised tools.
     raw_all_tools: list[dict[str, Any]] = []
     for td in all_function_tools:
         raw_all_tools.append(

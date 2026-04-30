@@ -21,12 +21,10 @@ Package layout
     Mintlify-hosted MCP backend tool client. Lazily connected and shared
     across requests via ``app.state``.
 ``tools``
-    PXI tool registries. ``CONTEXTUAL_TOOLS`` contains UI-context-gated
-    tools; ``resolve_contextual_tools`` filters them to the current turn and
-    builds dispatch callables for server-executed contextual tools. Client-
-    executed contextual tools are forwarded through the data-stream protocol.
-    ``EXTERNAL_TOOLS`` contains always-advertised tools executed outside the
-    backend, currently by the browser.
+    PXI tool resolution. ``resolve_tools`` returns the server-defined tools
+    advertised for a turn, including always-available external tools and
+    UI-context-gated contextual tools. Server-executed contextual tools also
+    contribute dispatch callables for the data-stream protocol.
 
 The ``/chat`` router (``phoenix.server.api.routers.chat``) is the only
 intended caller; treat anything not re-exported here as internal.

@@ -86,7 +86,7 @@ _ASK_USER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-TOOL_DEFINITION = ToolDefinition(
+ASK_USER_TOOL_DEFINITION = ToolDefinition(
     name=ASK_USER_TOOL_NAME,
     description=(
         "Ask the user one or more questions to gather preferences, clarify requirements, "

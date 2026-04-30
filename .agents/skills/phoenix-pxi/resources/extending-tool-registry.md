@@ -9,7 +9,7 @@ Before writing code, decide which tool type you need; see the decision matrix in
 A PXI tool has up to four moving parts; which apply depends on the tool type:
 
 1. **Server `ToolDefinition`** — what the model sees: name, description, JSON Schema, and `kind` (`external` for browser-executed, `function` for server-executed).
-2. **Server registration** — how the definition reaches `/chat`: explicit registry entries in `EXTERNAL_TOOLS` or `CONTEXTUAL_TOOLS`.
+2. **Server registration** — how the definition reaches `/chat`: explicit registry entries in `EXTERNAL_TOOLS` or `CONTEXTUAL_TOOLS`, surfaced by `resolve_tools`.
 3. **Browser handler** — runtime that executes the call and returns output via the AI SDK `addToolOutput` callback. Required only for client-executed tools.
 4. **UI action** — for contextual client-executed tools that mutate page-local state, a React component registers a callable in `registeredClientActions` keyed by the tool name.
 
@@ -17,12 +17,12 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 
 ### Server
 
-- `src/phoenix/server/agents/tools/registry.py` — `ContextualTool` dataclass, `resolve_contextual_tools`, and the explicit `CONTEXTUAL_TOOLS` / `EXTERNAL_TOOLS` registries.
+- `src/phoenix/server/agents/tools/registry.py` — `ContextualTool` dataclass, `resolve_tools`, `resolve_contextual_tools`, and the explicit `CONTEXTUAL_TOOLS` / `EXTERNAL_TOOLS` registries.
 - `src/phoenix/server/agents/tools/external/<tool>.py` — one external tool per file.
 - `src/phoenix/server/agents/tools/<tool>.py` — one contextual tool per file; exposes a builder that returns `ContextualTool`.
 - `src/phoenix/server/agents/context.py` — `ResolvedContexts`, `ToolExecutionEnv`, the `_available_context_types` set used to gate contextual tools.
 - `src/phoenix/server/agents/capabilities.py` — `AgentCapabilities` schema and `_CAPABILITY_PROMPT_RULES`. Add a rule whenever you add a capability.
-- `src/phoenix/server/api/routers/data_stream_protocol.py` — the streaming dispatcher; receives `client_tool_defs` and contextual tools, forwards external/contextual-client calls to the browser, and runs contextual-server tools in-process.
+- `src/phoenix/server/api/routers/data_stream_protocol.py` — the streaming dispatcher; receives resolved PXI tools from `resolve_tools`, forwards external/contextual-client calls to the browser, and runs contextual-server tools in-process.
 
 ### Browser
 
@@ -36,7 +36,7 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 
 ### External (always advertised, browser-executed)
 
-1. **Server**: add `src/phoenix/server/agents/tools/external/<tool>.py` exporting a top-level `TOOL_DEFINITION = ToolDefinition(..., kind="external")`. Import it in `src/phoenix/server/agents/tools/registry.py` and append it to `EXTERNAL_TOOLS`.
+1. **Server**: add `src/phoenix/server/agents/tools/external/<tool>.py` exporting a top-level `<TOOL_NAME>_TOOL_DEFINITION = ToolDefinition(..., kind="external")`. Import it in `src/phoenix/server/agents/tools/registry.py` and append it to `EXTERNAL_TOOLS`.
 2. **Browser**: add a registry entry in `app/src/agent/extensions/toolRegistry.ts` matching the server `name`, with a `parseInput` and an `execute` that calls the runtime handler. Place runtime, types, and parser under `app/src/agent/tools/<tool-name>/`.
 3. **Capabilities** (only if the tool depends on runtime policy): add the capability key to `AgentCapabilityKey` and `AGENT_CAPABILITY_DEFINITIONS` on the frontend, mirror the field in `AgentCapabilities` on the server, and add a `_CAPABILITY_PROMPT_RULE` (use a no-op `lambda _: None` if it should not affect the model). The server enforces exhaustiveness.
 4. **System prompt** (if the model needs guidance): add a `<tool name="...">` block per the system-prompt XML conventions resource. (This will move server-side soon; until then, it is fine to update `app/src/agent/chat/systemPrompt.ts`.)
