@@ -15,6 +15,17 @@ Phoenix now supports creating session notes through `POST /v1/session_notes`. Th
 </Update>
 
 <Update label="04.24.2026">
+## [04.24.2026: Trace Notes API](/docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api)
+**Available in arize-phoenix 14.13.0+ (server), @arizeai/phoenix-client 6.8.0+ (TypeScript), @arizeai/phoenix-cli 1.3.0+ (CLI)**
+
+Add notes to traces via the REST endpoint, TypeScript client, or CLI. Notes are stored separately from annotations and support multiple entries per trace.
+
+- **TypeScript** — `addTraceNote({ traceNote: { traceId, note } })` from `@arizeai/phoenix-client/traces`
+- **CLI** — `px trace add-note <trace-id> --text "..."` and `--include-notes` flag on `px trace get` / `px trace list`
+- **Reserved name** — `note` is no longer accepted on the generic annotation endpoints; use `POST /v1/trace_notes`
+</Update>
+
+<Update label="04.24.2026">
 ## [04.24.2026: arize-phoenix-otel 0.16](/docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16)
 **Available in arize-phoenix-otel 0.16.0+**
 
