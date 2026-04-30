@@ -1,0 +1,108 @@
+---
+title: "Asqav"
+sidebarTitle: "Asqav"
+description: Sign Phoenix-traced agent actions with ML-DSA so the audit trail is independently verifiable
+---
+
+[![PyPI Version](https://img.shields.io/pypi/v/asqav.svg)](https://pypi.org/project/asqav/)
+
+[Asqav](https://asqav.com) is an AI agent governance layer that produces signed, tamper-evident records for agent actions. Each action is signed server-side with ML-DSA (FIPS 204) and chained, so an auditor can verify what an agent did, when, and against which model. Asqav is designed for EU AI Act, DORA, and ISO 42001 reporting workflows where evidence may be requested months after the fact.
+
+## Overview
+
+Asqav is **not** an OpenTelemetry exporter and does not replace Phoenix's tracer. Phoenix continues to be the primary tracing and evaluation surface; Asqav runs in parallel and signs the same actions you are tracing, so the resulting signatures can be cross-referenced with a Phoenix span by `trace_id`. Use Phoenix to debug and evaluate; use Asqav when an auditor needs cryptographic proof.
+
+## Install
+
+```bash
+pip install asqav arize-phoenix-otel
+```
+
+Set your API key:
+
+```bash
+export ASQAV_API_KEY=sk_...
+```
+
+## Setup
+
+Register Phoenix as usual, then initialize Asqav and create an agent:
+
+```python
+from phoenix.otel import register
+import asqav
+
+# Phoenix tracing
+tracer_provider = register(
+    project_name="asqav-demo",
+    auto_instrument=True,
+)
+
+# Asqav signing
+asqav.init()
+agent = asqav.Agent.create("asqav-demo")
+```
+
+Against the Asqav cloud (`*.asqav.com`), `init()` defaults to **hash-only** mode: only a SHA-256 (or HMAC-SHA-256, when `org_salt` is set) of the action payload is sent, plus a small whitelist of metadata. For self-hosted deployments, the SDK defaults to full-payload mode.
+
+## Use
+
+Sign each action alongside the Phoenix-traced LLM call. The Asqav `trace_id` can be carried in the Phoenix span attributes for cross-referencing:
+
+```python
+import openai
+from opentelemetry import trace
+from phoenix.otel import register
+import asqav
+
+register(project_name="asqav-demo", auto_instrument=True)
+asqav.init()
+agent = asqav.Agent.create("asqav-demo")
+
+tracer = trace.get_tracer(__name__)
+client = openai.OpenAI()
+
+trace_id = asqav.generate_trace_id()
+prompt = "Summarize the attached policy in three bullets."
+
+with tracer.start_as_current_span("llm.call") as span:
+    span.set_attribute("asqav.trace_id", trace_id)
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    output = response.choices[0].message.content
+
+    signature = agent.sign(
+        "llm:completion",
+        {
+            "_model_name": "gpt-4o-mini",
+            "prompt": prompt,
+            "output": output,
+        },
+        trace_id=trace_id,
+    )
+
+    span.set_attribute("asqav.signature_id", signature.signature_id)
+    span.set_attribute("asqav.verification_url", signature.verification_url)
+```
+
+Phoenix shows the latency, prompt, and response. Asqav stores a signed record of the same action. An auditor can paste `signature.verification_url` into a browser to verify the signature against the agent's public key.
+
+## Verify
+
+Anyone can verify a signature without an API key:
+
+```python
+result = asqav.verify_signature("sig_...")
+assert result.verified is True
+```
+
+## Resources
+
+- [Asqav Documentation](https://docs.asqav.com)
+- [asqav on PyPI](https://pypi.org/project/asqav/)
+- [GitHub Repository](https://github.com/jagmarques/asqav-sdk)
+
+<!-- Draft: 2026-04-28; verified against asqav 0.3.1 / @asqav/sdk 0.2.1; not yet submitted. -->
