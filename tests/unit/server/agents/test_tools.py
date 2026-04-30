@@ -1,5 +1,5 @@
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts, ToolExecutionEnv
-from phoenix.server.agents.tools import get_external_tool_definitions, resolve_contextual_tools
+from phoenix.server.agents.tools import EXTERNAL_TOOLS, resolve_contextual_tools
 from phoenix.server.types import DbSessionFactory
 
 
@@ -55,6 +55,6 @@ class TestResolveContextualTools:
 
 class TestExternalTools:
     def test_external_tool_names_are_unique(self) -> None:
-        names = [tool.name for tool in get_external_tool_definitions()]
+        names = [tool.name for tool in EXTERNAL_TOOLS]
 
         assert len(names) == len(set(names))

@@ -1,18 +1,23 @@
-"""PXI tool registries.
+"""PXI tool registry exports.
 
-Contextual tools are gated by resolved Phoenix UI context. External tools are
-server-defined tools whose execution is deferred to the browser.
+``CONTEXTUAL_TOOLS`` contains tools advertised only when resolved Phoenix UI
+context satisfies their requirements. Contextual tools may execute in the
+backend or be forwarded to the client.
+
+``EXTERNAL_TOOLS`` contains always-advertised server-defined tools whose
+execution is handled outside the backend, currently by the browser.
 """
 
-from phoenix.server.agents.tools.external import (
-    get_external_tool_definitions,
-    get_external_tool_names,
+from phoenix.server.agents.tools.registry import (
+    CONTEXTUAL_TOOLS,
+    EXTERNAL_TOOLS,
+    ContextualTool,
+    resolve_contextual_tools,
 )
-from phoenix.server.agents.tools.registry import ContextualTool, resolve_contextual_tools
 
 __all__ = [
     "ContextualTool",
-    "get_external_tool_definitions",
-    "get_external_tool_names",
+    "CONTEXTUAL_TOOLS",
+    "EXTERNAL_TOOLS",
     "resolve_contextual_tools",
 ]

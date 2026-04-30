@@ -1,26 +1,6 @@
-from __future__ import annotations
+"""External PXI tool definitions.
 
-from importlib import import_module
-from pkgutil import iter_modules
-
-from pydantic_ai.tools import ToolDefinition
-
-
-def get_external_tool_definitions() -> list[ToolDefinition]:
-    """Return server-defined tools that are executed outside the backend."""
-    definitions: list[ToolDefinition] = []
-    for module_info in sorted(iter_modules(__path__), key=lambda info: info.name):
-        if module_info.ispkg:
-            continue
-        module = import_module(f"{__name__}.{module_info.name}")
-        # A tool module opts into registration by exporting TOOL_DEFINITION;
-        # this keeps registration local to the tool file and avoids a central
-        # list that must be updated in lockstep.
-        definition = getattr(module, "TOOL_DEFINITION", None)
-        if isinstance(definition, ToolDefinition):
-            definitions.append(definition)
-    return definitions
-
-
-def get_external_tool_names() -> frozenset[str]:
-    return frozenset(tool.name for tool in get_external_tool_definitions())
+External tools are registered explicitly in
+``phoenix.server.agents.tools.registry.EXTERNAL_TOOLS`` so additions follow the
+same reviewable pattern as contextual tools.
+"""
