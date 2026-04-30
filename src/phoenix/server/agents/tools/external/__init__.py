@@ -13,6 +13,9 @@ def get_external_tool_definitions() -> list[ToolDefinition]:
         if module_info.ispkg:
             continue
         module = import_module(f"{__name__}.{module_info.name}")
+        # A tool module opts into registration by exporting TOOL_DEFINITION;
+        # this keeps registration local to the tool file and avoids a central
+        # list that must be updated in lockstep.
         definition = getattr(module, "TOOL_DEFINITION", None)
         if isinstance(definition, ToolDefinition):
             definitions.append(definition)

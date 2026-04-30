@@ -39,6 +39,9 @@ def _graphql_mutations_prompt_line(capabilities: AgentCapabilities) -> str:
 _CAPABILITY_PROMPT_RULES = (
     _CapabilityPromptRule(
         field_name="bash_retain_inactive_sessions",
+        # This capability affects browser runtime lifecycle only; it should not
+        # change model instructions, but it must be listed so new capabilities
+        # cannot bypass the prompt decision point by omission.
         build_line=lambda _: None,
     ),
     _CapabilityPromptRule(
@@ -49,6 +52,8 @@ _CAPABILITY_PROMPT_RULES = (
 
 
 def _assert_exhaustive_prompt_rules() -> None:
+    # Keep prompt-affecting behavior explicit: each capability either emits
+    # model guidance or intentionally no-ops via a rule above.
     model_fields = set(AgentCapabilities.model_fields)
     rule_fields = {rule.field_name for rule in _CAPABILITY_PROMPT_RULES}
     if model_fields != rule_fields:

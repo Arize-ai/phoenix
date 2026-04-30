@@ -3,8 +3,8 @@
  * how the UI should expose those controls. The server owns model-facing
  * capability guidance; the frontend sends the current capability state.
  *
- * For frontend tool-extension workflow guidance, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ * For tool-extension workflow guidance, see
+ * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
  */
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"

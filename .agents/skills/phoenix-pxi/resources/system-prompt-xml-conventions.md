@@ -10,8 +10,8 @@ The PXI agent system prompt follows this convention. Tool guidance, role definit
 
 ## Files To Know
 
-- `app/src/agent/chat/systemPrompt.ts` — top-level assembly; owns `<role>`, the `<tools>` wrapper, and `<link_formatting>`.
-- `app/src/agent/tools/<tool>/...ToolCapabilities.ts` — each tool module exports a `*_SYSTEM_PROMPT_LINES` constant that contributes one or more `<tool name="...">` blocks.
+- `app/src/agent/chat/systemPrompt.ts` — top-level assembly; owns `<role>`, the `<tools>` wrapper, and `<link_formatting>`. Also currently inlines the `bash` tool block.
+- `app/src/agent/tools/<tool>/...ToolCapabilities.ts` — some tool modules export a `*_SYSTEM_PROMPT_LINES` constant that contributes one or more `<tool name="...">` blocks.
 
 ## Top-Level Structure
 
