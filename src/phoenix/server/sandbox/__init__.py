@@ -181,6 +181,18 @@ class AdapterMetadata:
     # editor scoped to the appropriate package ecosystem.
     dependencies_language: Optional[Literal["PYTHON", "TYPESCRIPT"]] = None
 
+    # Distinguishes WHEN package install runs relative to the sandbox network
+    # policy. ``True`` → install runs INSIDE the created sandbox via run_code
+    # (e.g. E2B, Daytona). If the sandbox is created with internet denied, pip
+    # cannot reach PyPI and the install fails silently — so the combination
+    # ``internet_access.mode == "deny"`` + non-empty ``dependencies.packages``
+    # MUST be rejected at validate_config time. ``False`` → install runs at
+    # image-build time, before the sandbox (and any network policy) exists
+    # (e.g. Modal's ``image.pip_install``); the combo is safe. Adapters that
+    # don't support dependencies at all (``dependencies_language is None``)
+    # ignore this flag because the no-deps gate already rejects packages.
+    installs_packages_at_runtime: bool = False
+
 
 # ---------------------------------------------------------------------------
 # Static metadata — always present regardless of installed extras.
@@ -212,6 +224,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         supports_env_vars=True,
         internet_access_capability="boolean",
         dependencies_language="PYTHON",
+        installs_packages_at_runtime=True,
     ),
     "DAYTONA_PYTHON": AdapterMetadata(
         display_name="Daytona",
@@ -223,6 +236,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         supports_env_vars=True,
         internet_access_capability="boolean",
         dependencies_language="PYTHON",
+        installs_packages_at_runtime=True,
     ),
     # Vercel Python SDK checked: pyproject minimum vercel>=0.5.1; uv.lock resolves
     # vercel==0.5.7. AsyncSandbox.create() in 0.5.7 does not accept `env` or
@@ -745,14 +759,20 @@ _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
 
 
 def _build_reserved_credential_names() -> frozenset[str]:
+    """Compute the current set of reserved credential names (case-insensitive).
+
+    Resolved on every call because ``_SANDBOX_ADAPTERS`` is populated lazily
+    by ``register_sandbox_adapter`` as optional extras import. Caching the
+    result at module load would freeze a snapshot taken before any adapter
+    registers — leaving every adapter-declared key (e.g.
+    ``PHOENIX_SANDBOX_VERCEL_TOKEN``) absent from the reserved set and
+    silently accepted as a user-supplied env_var or secret_ref.
+    """
     names: set[str] = {key.lower() for key in _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS}
     for adapter in _SANDBOX_ADAPTERS.values():
         for spec in adapter.credential_specs:
             names.add(spec.key.lower())
     return frozenset(names)
-
-
-RESERVED_CREDENTIAL_NAMES: frozenset[str] = _build_reserved_credential_names()
 
 
 def is_reserved_credential_name(name: str) -> bool:
@@ -762,4 +782,4 @@ def is_reserved_credential_name(name: str) -> bool:
     `Phoenix_Sandbox_Vercel_Token`, and `phoenix_sandbox_vercel_token` are all
     reserved.
     """
-    return name.lower() in RESERVED_CREDENTIAL_NAMES
+    return name.lower() in _build_reserved_credential_names()

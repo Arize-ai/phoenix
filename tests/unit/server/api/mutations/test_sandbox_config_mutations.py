@@ -440,7 +440,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "vercel_token",
+                                    "secret_key": "phoenix_sandbox_vercel_token",
                                 }
                             ]
                         },

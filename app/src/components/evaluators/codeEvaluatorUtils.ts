@@ -86,16 +86,21 @@ export function getDefaultCodeEvaluatorSource(
         return getStaticFallbackSource(language, shape);
       }
       const label = catConfig.values[0].label;
+      // JSON.stringify wraps the label in quotes and escapes ", \, and
+      // newlines. Output is valid string-literal syntax for both Python and
+      // TypeScript, so a label like `say "hi"` produces well-formed code in
+      // either target rather than a SyntaxError.
+      const labelLiteral = JSON.stringify(label);
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# return {"label": "${label}", "score": 1, "explanation": "..."}  # also set score and explanation
-${PYTHON_INDENT}return "${label}"  # label only
+${PYTHON_INDENT}# return {"label": ${labelLiteral}, "score": 1, "explanation": "..."}  # also set score and explanation
+${PYTHON_INDENT}return ${labelLiteral}  # label only
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// return { label: "${label}", score: 1, explanation: "..." };  // also set score and explanation
-${TYPESCRIPT_INDENT}return "${label}";  // label only
+${TYPESCRIPT_INDENT}// return { label: ${labelLiteral}, score: 1, explanation: "..." };  // also set score and explanation
+${TYPESCRIPT_INDENT}return ${labelLiteral};  // label only
 }
 `;
     }

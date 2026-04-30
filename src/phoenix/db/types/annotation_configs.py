@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from typing import Annotated, Literal, Optional, Union
 
@@ -122,8 +123,13 @@ class CategoricalOutputConfig(CategoricalAnnotationConfig):
         Tuples are NOT included per D5 deferral.
         """
         example_label = self.values[0].label if self.values else "pass"
-        bare = _return_stmt(f'"{example_label}"', language)
-        dict_form = _return_stmt(f'{{"label": "{example_label}", "explanation": "..."}}', language)
+        # json.dumps wraps the label in double quotes and escapes ", \, and
+        # newlines. JSON string literals are valid in both Python and TS source,
+        # so a label like `say "hi"` produces well-formed code in either target
+        # rather than a SyntaxError.
+        label_literal = json.dumps(example_label)
+        bare = _return_stmt(label_literal, language)
+        dict_form = _return_stmt(f'{{"label": {label_literal}, "explanation": "..."}}', language)
         return [bare, dict_form]
 
 
@@ -192,7 +198,10 @@ def bare_shape_examples(language: str = _PYTHON, mode: str = "full") -> list[str
 def _config_bare_value(config: "CategoricalOutputConfig | ContinuousOutputConfig") -> str:
     if isinstance(config, CategoricalOutputConfig):
         label = config.values[0].label if config.values else "pass"
-        return f'"{label}"'
+        # json.dumps escapes ", \, and newlines so the result is valid string
+        # literal syntax for both Python and TS (see CategoricalOutputConfig
+        # .shape_examples for the same rationale).
+        return json.dumps(label)
     # ContinuousOutputConfig
     if config.lower_bound is not None and config.upper_bound is not None:
         score = (config.lower_bound + config.upper_bound) / 2

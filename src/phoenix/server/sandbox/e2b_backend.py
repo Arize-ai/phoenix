@@ -8,7 +8,6 @@ Import is deferred to avoid top-level failures when the extra is absent.
 from __future__ import annotations
 
 import logging
-import shlex
 from typing import Any, Optional
 
 from .types import (
@@ -71,14 +70,20 @@ class E2BSandboxBackend(SandboxBackend):
         return kwargs
 
     async def _install_packages(self, sandbox: Any) -> None:
-        """pip-install configured packages via run_code using argv-safe quoting."""
+        """pip-install configured packages via run_code.
+
+        ``{self._packages!r}`` serializes the list as a Python list literal
+        with each spec wrapped in correctly escaped string quotes. ``shlex.quote``
+        must NOT be used here: the generated code calls ``subprocess.run`` with
+        a list (no shell), so any shell-style quoting becomes part of the argv
+        element and pip rejects e.g. ``'numpy>=1.0'`` as an invalid name.
+        """
         if not self._packages:
             return
-        quoted = [shlex.quote(p) for p in self._packages]
         install_code = (
             "import subprocess, sys\n"
             "r = subprocess.run(\n"
-            f"    [sys.executable, '-m', 'pip', 'install', *{quoted!r}],\n"
+            f"    [sys.executable, '-m', 'pip', 'install', *{self._packages!r}],\n"
             "    capture_output=True, text=True\n"
             ")\n"
             "if r.returncode != 0:\n"
@@ -121,8 +126,14 @@ class E2BSandboxBackend(SandboxBackend):
                 execution = await sandbox.run_code(code, **run_kwargs)
             else:
                 # Ephemeral: spin up a fresh sandbox, run, then close.
+                # The evaluator path enters via execute() without ever calling
+                # start_session(), so configured dependencies.packages must be
+                # installed here too — otherwise they're silently dropped (the
+                # only other install site is start_session). Mirrors the
+                # Daytona ephemeral branch.
                 AsyncSandbox = self._get_sandbox_cls()
                 async with await AsyncSandbox.create(**self._create_kwargs()) as sb:
+                    await self._install_packages(sb)
                     execution = await sb.run_code(code, **run_kwargs)
 
             stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""

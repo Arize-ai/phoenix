@@ -146,6 +146,40 @@ def test_dependencies_none_raises_for_non_empty_packages(adapter_key: str) -> No
 
 
 # ---------------------------------------------------------------------------
+# Contract test: installs_packages_at_runtime=True adapters reject the combo
+# of internet_access.mode='deny' + non-empty dependencies.packages. pip
+# cannot reach PyPI from a network-denied sandbox when install runs inside
+# the sandbox via run_code.
+# ---------------------------------------------------------------------------
+
+_RUNTIME_INSTALL_ADAPTERS = [
+    key
+    for key, meta in SANDBOX_ADAPTER_METADATA.items()
+    if meta.installs_packages_at_runtime and meta.dependencies_language is not None
+]
+
+_DENY_PLUS_PACKAGES_CONFIG = {
+    "internet_access": {"mode": "deny"},
+    "dependencies": {"packages": ["numpy"]},
+}
+
+
+@pytest.mark.parametrize("adapter_key", _RUNTIME_INSTALL_ADAPTERS)
+def test_runtime_install_rejects_deny_plus_packages(adapter_key: str) -> None:
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(UnsupportedOperation):
+        adapter.build_backend(_DENY_PLUS_PACKAGES_CONFIG)
+
+
+@pytest.mark.parametrize("adapter_key", _RUNTIME_INSTALL_ADAPTERS)
+def test_runtime_install_validate_config_rejects_deny_plus_packages(adapter_key: str) -> None:
+    """Same combo must be rejected at write-time validation (not just runtime)."""
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(ValueError):
+        adapter.validate_config(_DENY_PLUS_PACKAGES_CONFIG)
+
+
+# ---------------------------------------------------------------------------
 # Metadata structural contract: every key in SANDBOX_ADAPTER_METADATA must
 # have a registered adapter module entry so the runtime tests above cover it.
 # ---------------------------------------------------------------------------

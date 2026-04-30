@@ -302,24 +302,28 @@ class TestUpdateSandboxProvider:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
 
-        result = await gql_client.execute(
-            _UPDATE_PROVIDER,
-            variables={
-                "input": {
-                    "id": _provider_global_id(provider.id),
-                    "enabled": False,
-                    "config": {"template": "custom-template"},
-                }
-            },
-        )
+        new_config = {
+            "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
+        }
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_PROVIDER,
+                variables={
+                    "input": {
+                        "id": _provider_global_id(provider.id),
+                        "enabled": False,
+                        "config": new_config,
+                    }
+                },
+            )
         assert result.data and not result.errors
         sandbox_provider = result.data["updateSandboxProvider"]["sandboxProvider"]
         assert sandbox_provider["enabled"] is False
-        assert sandbox_provider["config"] == {"template": "custom-template"}
+        assert sandbox_provider["config"]["env_vars"] == new_config["env_vars"]
 
     async def test_update_provider_only_enabled_leaves_config_unchanged(
         self,
@@ -356,23 +360,27 @@ class TestUpdateSandboxProvider:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
         original_enabled = provider.enabled
 
-        result = await gql_client.execute(
-            _UPDATE_PROVIDER,
-            variables={
-                "input": {
-                    "id": _provider_global_id(provider.id),
-                    "config": {"new_key": "new_value"},
-                }
-            },
-        )
+        new_config = {
+            "env_vars": [{"kind": "literal", "name": "BAZ", "value": "qux"}],
+        }
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
+            result = await gql_client.execute(
+                _UPDATE_PROVIDER,
+                variables={
+                    "input": {
+                        "id": _provider_global_id(provider.id),
+                        "config": new_config,
+                    }
+                },
+            )
         assert result.data and not result.errors
         sp = result.data["updateSandboxProvider"]["sandboxProvider"]
-        assert sp["config"] == {"new_key": "new_value"}
+        assert sp["config"]["env_vars"] == new_config["env_vars"]
         assert sp["enabled"] is original_enabled
 
     async def test_update_provider_no_fields_is_noop(
@@ -748,19 +756,27 @@ class TestConfigValidationPath:
                     "input": {
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-valid",
-                        "config": {"template": "custom-tmpl", "cwd": "/workspace"},
+                        "config": {
+                            "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
+                        },
                     }
                 },
             )
         assert result.data and not result.errors
 
-    async def test_create_preserves_unknown_keys(
+    async def test_create_rejects_unknown_keys(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """extra="allow" means unknown keys survive validation and are persisted."""
+        """extra="forbid" means unknown keys must be rejected at the mutation boundary.
+
+        Canonical config shape per adapter is the closed set declared on the
+        per-adapter pydantic model (env_vars / internet_access / dependencies).
+        Anything outside that set is a stale or attacker-supplied key and must
+        surface as a BadRequest rather than silently persisting.
+        """
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -774,22 +790,11 @@ class TestConfigValidationPath:
                     "input": {
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-extra-keys",
-                        "config": {"template": "base", "custom_key": "preserved"},
+                        "config": {"custom_key": "preserved"},
                     }
                 },
             )
-        assert result.data and not result.errors
-        cfg_id = result.data["createSandboxConfig"]["sandboxConfig"]["id"]
-
-        # Verify persisted config includes the unknown key
-        async with db() as session:
-            from strawberry.relay import GlobalID as GID
-
-            gid = GID.from_id(cfg_id)
-            row_id = int(gid.node_id)
-            row = await session.get(models.SandboxConfig, row_id)
-        assert row is not None
-        assert row.config.get("custom_key") == "preserved"
+        assert result.errors
 
     async def test_update_valid_config_succeeds(
         self,
@@ -820,7 +825,9 @@ class TestConfigValidationPath:
                 variables={
                     "input": {
                         "id": _config_global_id(config_id),
-                        "config": {"template": "new-template", "metadata": "my-label"},
+                        "config": {
+                            "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
+                        },
                     }
                 },
             )
@@ -849,13 +856,14 @@ class TestConfigValidationPath:
             await session.flush()
             config_id = config.id
 
+        new_env_vars = [{"kind": "literal", "name": "FOO", "value": "bar"}]
         with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
             result = await gql_client.execute(
                 _UPDATE,
                 variables={
                     "input": {
                         "id": _config_global_id(config_id),
-                        "config": {"template": "saved-tmpl"},
+                        "config": {"env_vars": new_env_vars},
                     }
                 },
             )
@@ -864,8 +872,8 @@ class TestConfigValidationPath:
         async with db() as session:
             row = await session.get(models.SandboxConfig, config_id)
         assert row is not None
-        # template was provided — must be persisted
-        assert row.config.get("template") == "saved-tmpl"
+        # env_vars was provided — must be persisted
+        assert row.config.get("env_vars") == new_env_vars
 
     async def test_create_env_var_round_trip(
         self,
@@ -888,7 +896,6 @@ class TestConfigValidationPath:
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-env-vars",
                         "config": {
-                            "template": "base",
                             "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
                         },
                     }

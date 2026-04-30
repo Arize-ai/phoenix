@@ -67,6 +67,15 @@ _LANGUAGE_CONFIGS: dict[str, dict[str, Any]] = {
 }
 _DEFAULT_LANGUAGE = "TYPESCRIPT"
 
+# Vercel SDK 0.5.7's get_credentials() (vercel/oidc/credentials.py) only reads
+# the OIDC token from os.environ — there is no oidc_token= kwarg on
+# AsyncSandbox.create(). When Phoenix sources VERCEL_OIDC_TOKEN from a DB
+# secret rather than the process env, we must inject it into os.environ
+# briefly around AsyncSandbox.create(). The lock serializes those env
+# mutations process-wide so concurrent creates with different resolved tokens
+# cannot leak each other's value into the env.
+_VERCEL_OIDC_ENV_LOCK = asyncio.Lock()
+
 
 class VercelSandboxBackend(SandboxBackend):
     """Sandbox backend executing code via Vercel Sandbox (vercel >= 0.5.1).
@@ -75,30 +84,30 @@ class VercelSandboxBackend(SandboxBackend):
     across multiple execute() calls, or ephemeral execution (no session) which
     spins up a fresh sandbox per call.
 
-    Credentials: either rely on ``VERCEL_OIDC_TOKEN`` in the process environment
-    (``use_oidc_env=True`` — the SDK reads this env var directly), or pass an
-    access-token triple ``token``, ``project_id``, and ``team_id`` for
-    ``AsyncSandbox.create``.
+    Credentials: pass either ``oidc_token`` (the resolved OIDC token; injected
+    into ``os.environ[VERCEL_OIDC_TOKEN]`` around ``AsyncSandbox.create`` since
+    the SDK only autodiscovers OIDC from env), or the access-token triple
+    ``token``/``project_id``/``team_id`` (forwarded directly to
+    ``AsyncSandbox.create`` as kwargs).
     """
 
     def __init__(
         self,
         *,
-        use_oidc_env: bool = False,
+        oidc_token: Optional[str] = None,
         token: Optional[str] = None,
         project_id: Optional[str] = None,
         team_id: Optional[str] = None,
         language: str = _DEFAULT_LANGUAGE,
         user_env: Optional[dict[str, str]] = None,
     ) -> None:
-        self._use_oidc_env = use_oidc_env
+        self._oidc_token = oidc_token
         self._token = token
         self._project_id = project_id
         self._team_id = team_id
-        if not use_oidc_env and not (token and project_id and team_id):
+        if not oidc_token and not (token and project_id and team_id):
             raise ValueError(
-                "VercelSandboxBackend requires use_oidc_env=True, or "
-                "token, project_id, and team_id."
+                "VercelSandboxBackend requires oidc_token, or token, project_id, and team_id."
             )
         self._language = language.upper() if language else _DEFAULT_LANGUAGE
         self._user_env: dict[str, str] = user_env or {}
@@ -113,10 +122,26 @@ class VercelSandboxBackend(SandboxBackend):
 
         runtime: str = self._lang_cfg()["runtime"]
         create_kwargs: dict[str, Any] = {"runtime": runtime}
-        if not self._use_oidc_env:
-            create_kwargs["token"] = self._token
-            create_kwargs["project_id"] = self._project_id
-            create_kwargs["team_id"] = self._team_id
+        if self._oidc_token:
+            # SDK reads VERCEL_OIDC_TOKEN from os.environ synchronously at the
+            # top of AsyncSandbox.create() (before any await), then captures
+            # the value into a Credentials object. Injecting via env is safe
+            # under that synchronous read; the lock serializes the env-mutation
+            # window across concurrent VercelSandboxBackend instances so a
+            # second backend's env-set cannot clobber the first's restore.
+            async with _VERCEL_OIDC_ENV_LOCK:
+                original = os.environ.get(ENV_VERCEL_OIDC_TOKEN)
+                os.environ[ENV_VERCEL_OIDC_TOKEN] = self._oidc_token
+                try:
+                    return await AsyncSandbox.create(**create_kwargs)
+                finally:
+                    if original is None:
+                        os.environ.pop(ENV_VERCEL_OIDC_TOKEN, None)
+                    else:
+                        os.environ[ENV_VERCEL_OIDC_TOKEN] = original
+        create_kwargs["token"] = self._token
+        create_kwargs["project_id"] = self._project_id
+        create_kwargs["team_id"] = self._team_id
         return await AsyncSandbox.create(**create_kwargs)
 
     async def start_session(self, session_key: str) -> None:
@@ -258,8 +283,9 @@ class VercelPythonAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        if _resolve_vercel_oidc_token(config):
-            return VercelSandboxBackend(use_oidc_env=True, language="PYTHON", user_env=user_env)
+        oidc_token = _resolve_vercel_oidc_token(config)
+        if oidc_token:
+            return VercelSandboxBackend(oidc_token=oidc_token, language="PYTHON", user_env=user_env)
 
         token = _resolve_vercel_access_token(config)
         project_id = _resolve_vercel_project_id(config)
@@ -294,8 +320,11 @@ class VercelTypescriptAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        if _resolve_vercel_oidc_token(config):
-            return VercelSandboxBackend(use_oidc_env=True, language="TYPESCRIPT", user_env=user_env)
+        oidc_token = _resolve_vercel_oidc_token(config)
+        if oidc_token:
+            return VercelSandboxBackend(
+                oidc_token=oidc_token, language="TYPESCRIPT", user_env=user_env
+            )
 
         token = _resolve_vercel_access_token(config)
         project_id = _resolve_vercel_project_id(config)

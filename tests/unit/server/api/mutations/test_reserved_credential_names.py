@@ -190,7 +190,7 @@ class TestReservedCredentialNamesCaseInsensitive:
                             "env_vars": [
                                 {
                                     "kind": "literal",
-                                    "name": "vercel_token",
+                                    "name": "phoenix_sandbox_vercel_token",
                                     "value": "shadow-attempt",
                                 }
                             ]

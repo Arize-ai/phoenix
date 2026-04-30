@@ -98,6 +98,7 @@ class TestDenoSandboxBackend:
         assert result.stderr == ""
         assert result.error is None
         proc.communicate.assert_awaited_once_with(b"console.log('ok')")
+        assert create_subprocess_exec.await_args is not None
         assert create_subprocess_exec.await_args.kwargs["env"] == {
             "TOKEN": "secret",
             "FOO": "bar",
@@ -174,4 +175,5 @@ class TestDenoSandboxBackend:
 
         assert result.stdout == ""
         assert "Deno executable not found" in result.stderr
+        assert result.error is not None
         assert "Deno executable not found" in result.error
