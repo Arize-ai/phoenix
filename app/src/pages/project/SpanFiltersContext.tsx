@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
+  useEffectEvent,
   useState,
 } from "react";
 
@@ -15,6 +15,7 @@ import {
 } from "@phoenix/agent/extensions/toolRegistry";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
@@ -106,23 +107,13 @@ function useRegisterSetSpansFilterClientAction({
   const agentStore = useAgentStore();
   const projectId = useTracingContext((state) => state.projectId);
 
-  const setFilterConditionRef = useRef(setFilterCondition);
-  const setRootSpansOnlyRef = useRef(setRootSpansOnly);
-  const projectIdRef = useRef(projectId);
-  setFilterConditionRef.current = setFilterCondition;
-  setRootSpansOnlyRef.current = setRootSpansOnly;
-  projectIdRef.current = projectId;
-
-  useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(SET_SPANS_FILTER_TOOL_NAME, async (input) => {
+  const handleSetSpansFilter = useEffectEvent(
+    async (input: SetSpansFilterInput): Promise<AgentClientActionResult> => {
       // Shape is already validated by parseSetSpansFilterInput in the tool
       // registry before dispatch; here we only handle business logic.
-      const { condition, rootSpansOnly } = input as SetSpansFilterInput;
+      const { condition, rootSpansOnly } = input;
 
-      const currentProjectId = projectIdRef.current;
-      if (!currentProjectId) {
+      if (!projectId) {
         return {
           ok: false,
           error: "Span filter field is not bound to a project on this page.",
@@ -130,7 +121,7 @@ function useRegisterSetSpansFilterClientAction({
       }
       const validation = await validateSpanFilterCondition(
         condition,
-        currentProjectId
+        projectId
       );
       if (!validation?.isValid) {
         return {
@@ -140,8 +131,8 @@ function useRegisterSetSpansFilterClientAction({
             "Filter condition failed validation; not applied.",
         };
       }
-      setFilterConditionRef.current(condition);
-      setRootSpansOnlyRef.current(rootSpansOnly);
+      setFilterCondition(condition);
+      setRootSpansOnly(rootSpansOnly);
 
       const conditionMessage = condition
         ? `Applied filter: ${condition}.`
@@ -153,7 +144,15 @@ function useRegisterSetSpansFilterClientAction({
         ok: true,
         output: `${conditionMessage} ${rootMessage}`,
       };
-    });
+    }
+  );
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(SET_SPANS_FILTER_TOOL_NAME, (input) =>
+      handleSetSpansFilter(input as SetSpansFilterInput)
+    );
     return () => {
       unregisterClientAction(SET_SPANS_FILTER_TOOL_NAME);
     };
