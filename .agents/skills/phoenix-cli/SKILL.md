@@ -1,6 +1,6 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, review experiments, inspect datasets, query annotation configs, and use the GraphQL API. Use when debugging AI/LLM applications, analyzing trace data, working with Phoenix observability, investigating LLM performance issues, or checking Phoenix auth status.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, structure trace review with open coding and axial coding, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user is analyzing traces or spans, investigating LLM/agent failures, deciding what to do after instrumenting an app, building failure taxonomies, choosing what evals to write, or asking "what's going wrong", "what kinds of mistakes", or "where do I focus" — even without naming a technique.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
@@ -47,6 +47,25 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
 Always use `--format raw --no-progress` when piping to `jq`.
+
+## Quick Reference
+
+| Task | Files |
+| ---- | ----- |
+| Look at sampled traces and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
+| Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
+
+## Workflows
+
+**"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
+[open-coding](references/open-coding.md) → [axial-coding](references/axial-coding.md) → build evals for the top categories.
+
+## Reference Categories
+
+| Prefix | Description |
+| ------ | ----------- |
+| `references/open-coding` | Free-form notes against sampled traces — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
+| `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth
 
