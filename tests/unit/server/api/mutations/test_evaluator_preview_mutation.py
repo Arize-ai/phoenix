@@ -319,3 +319,58 @@ class TestInlineCodeEvaluatorPreviewMutation:
         assert results[0]["evaluatorName"] == "inline_code_eval"
         assert results[0]["error"] is None
         assert results[0]["annotation"]["score"] == 1.0
+
+
+class TestCodeEvaluatorPreviewNoSandbox:
+    """BadRequest raised when a code evaluator has no sandbox configured must name the evaluator."""
+
+    _MUTATION = TestEvaluatorPreviewMutation._MUTATION
+
+    async def test_bad_request_message_contains_name_and_settings_hint(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_languages: None,
+    ) -> None:
+        from sqlalchemy import select
+
+        from phoenix.db.types.evaluators import InputMapping
+        from phoenix.db.types.identifier import Identifier
+
+        async with db() as session:
+            python_lang = await session.scalar(
+                select(models.Language).where(models.Language.name == "PYTHON")
+            )
+            assert python_lang is not None
+
+            code_eval = models.CodeEvaluator(
+                name=Identifier("no-sandbox-eval"),
+                source_code="def evaluate(output): return 1.0",
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                language_id=python_lang.id,
+                sandbox_config_id=None,
+            )
+            session.add(code_eval)
+            await session.flush()
+            code_eval_id = code_eval.id
+
+        gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
+        result = await gql_client.execute(
+            self._MUTATION,
+            {
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": gid},
+                            "context": {"output": "test"},
+                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        }
+                    ]
+                }
+            },
+        )
+
+        assert result.errors is not None
+        assert "no-sandbox-eval" in result.errors[0].message
+        assert "/settings/sandboxes" in result.errors[0].message

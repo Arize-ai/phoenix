@@ -172,22 +172,34 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
         assert "value" not in entry or entry.get("kind") != "literal"
 
 
-async def test_internet_access_advertised_as_none_for_all_adapters(
+async def test_internet_access_advertisement_matches_adapter_capability(
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
-    """All adapters advertise internetAccess=NONE — no SDK exposes a network-policy API.
+    """Each adapter's advertised internetAccess matches its declared capability.
 
-    The frontend should hide the internet-access editor for every adapter until a
-    future phase ships a verifiable deny/allow control.
+    E2B / Daytona / Modal SDKs expose a deny-network knob, so those adapters
+    advertise BOOLEAN. WASM / Vercel / Deno do not (yet) expose a verifiable
+    network-policy API, so they advertise NONE and the frontend hides the
+    internet-access editor for them. The source of truth is
+    ``AdapterMetadata.internet_access_capability`` in
+    ``phoenix.server.sandbox.SANDBOX_ADAPTER_METADATA``.
     """
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
     assert response.data is not None
-    for backend in response.data["sandboxBackends"]:
-        assert backend["internetAccess"] == "NONE", (
-            f"{backend['backendType']} unexpectedly advertises internet_access != NONE"
-        )
+    expected = {
+        backend_type: meta.internet_access_capability.upper()
+        for backend_type, meta in SANDBOX_ADAPTER_METADATA.items()
+    }
+    advertised = {
+        backend["backendType"]: backend["internetAccess"]
+        for backend in response.data["sandboxBackends"]
+    }
+    assert advertised == expected, (
+        f"Advertised internet_access does not match adapter capability metadata. "
+        f"Expected {expected}, got {advertised}"
+    )
 
 
 async def test_dependencies_language_only_set_for_daytona(

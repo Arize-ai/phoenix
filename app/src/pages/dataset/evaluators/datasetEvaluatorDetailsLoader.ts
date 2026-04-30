@@ -36,6 +36,13 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
         }
       }
     }
+    sandboxBackends {
+      backendType
+      displayName
+      supportsEnvVars
+      internetAccess
+      dependenciesLanguage
+    }
   }
 `;
 

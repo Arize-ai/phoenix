@@ -13,10 +13,10 @@ const emptyValues: SandboxConfigFormValues = {
   name: "",
   description: "",
   timeout: 600,
-  configText: "{}",
   envVars: [],
   internetAccessEnabled: false,
   dependenciesText: "",
+  dependenciesLockfile: null,
 };
 
 const noCapabilityBackend: PartialBackend = {
@@ -31,111 +31,27 @@ const fullCapabilityBackend: PartialBackend = {
   dependenciesLanguage: "PYTHON",
 };
 
-describe("formValuesToConfigPatch — preserve-on-save", () => {
-  it("(a) flag flip False→True→False: stored capability-gated key survives a round-trip through unsupported state", () => {
-    const storedConfig: Record<string, unknown> = {
-      env_vars: [{ kind: "literal", name: "X", value: "1" }],
-      some_setting: "abc",
-    };
-
-    // Flag flipped to False (supportsEnvVars=false) — env_vars should be preserved from storedConfig
+describe("formValuesToConfigPatch — capability-only output", () => {
+  it("(a) no capabilities supported: result is empty", () => {
     const result = formValuesToConfigPatch(
       emptyValues,
-      noCapabilityBackend as BackendInfo,
-      storedConfig
-    );
-
-    expect(result["env_vars"]).toEqual(storedConfig["env_vars"]);
-    expect(result["some_setting"]).toBe("abc");
-  });
-
-  it("(b) activeBackend undefined: capability-gated keys preserved from storedConfig when no backend selected", () => {
-    const storedConfig: Record<string, unknown> = {
-      env_vars: [{ kind: "literal", name: "KEY", value: "val" }],
-      internet_access: { mode: "allow" },
-      dependencies: { packages: ["numpy"] },
-      extra_key: "preserved",
-    };
-
-    const result = formValuesToConfigPatch(
-      emptyValues,
-      undefined,
-      storedConfig
-    );
-
-    expect(result["env_vars"]).toEqual(storedConfig["env_vars"]);
-    expect(result["internet_access"]).toEqual(storedConfig["internet_access"]);
-    expect(result["dependencies"]).toEqual(storedConfig["dependencies"]);
-    expect(result["extra_key"]).toBe("preserved");
-  });
-
-  it("(c) non-UI-path stored data survives a UI-side save round-trip unchanged", () => {
-    // Data written via API (not the UI) — e.g., a lockfile field not exposed in the form
-    const storedConfig: Record<string, unknown> = {
-      dependencies: { packages: ["pandas"], lockfile: "pandas==2.2.0\n" },
-      custom_field: "api-written",
-    };
-
-    // Backend does not support dependencies — stored value is preserved verbatim
-    const result = formValuesToConfigPatch(
-      emptyValues,
-      noCapabilityBackend as BackendInfo,
-      storedConfig
-    );
-
-    expect(result["dependencies"]).toEqual(storedConfig["dependencies"]);
-    expect(result["custom_field"]).toBe("api-written");
-  });
-
-  it("(d) lockfile preserved when dependenciesLanguage is set and packages edited", () => {
-    const storedConfig: Record<string, unknown> = {
-      dependencies: { packages: ["old-pkg"], lockfile: "old-pkg==1.0.0\n" },
-    };
-    const values: SandboxConfigFormValues = {
-      ...emptyValues,
-      dependenciesText: "new-pkg",
-    };
-
-    const result = formValuesToConfigPatch(
-      values,
-      fullCapabilityBackend as BackendInfo,
-      storedConfig
-    );
-
-    expect(result["dependencies"]).toEqual({
-      packages: ["new-pkg"],
-      lockfile: "old-pkg==1.0.0\n",
-    });
-  });
-
-  it("JSON editor cannot inject env_vars, internet_access, or dependencies via configText", () => {
-    const storedConfig: Record<string, unknown> = {};
-    const valuesWithInjectedKeys: SandboxConfigFormValues = {
-      ...emptyValues,
-      configText: JSON.stringify({
-        env_vars: [{ kind: "literal", name: "INJECTED", value: "bad" }],
-        internet_access: { mode: "allow" },
-        dependencies: { packages: ["malicious"] },
-        safe_key: "allowed",
-      }),
-    };
-
-    const result = formValuesToConfigPatch(
-      valuesWithInjectedKeys,
-      noCapabilityBackend as BackendInfo,
-      storedConfig
+      noCapabilityBackend as BackendInfo
     );
 
     expect(result["env_vars"]).toBeUndefined();
     expect(result["internet_access"]).toBeUndefined();
     expect(result["dependencies"]).toBeUndefined();
-    expect(result["safe_key"]).toBe("allowed");
   });
 
-  it("capability flag True: form values are authoritative for env_vars", () => {
-    const storedConfig: Record<string, unknown> = {
-      env_vars: [{ kind: "literal", name: "OLD", value: "old" }],
-    };
+  it("(b) backend undefined: result is empty", () => {
+    const result = formValuesToConfigPatch(emptyValues, undefined);
+
+    expect(result["env_vars"]).toBeUndefined();
+    expect(result["internet_access"]).toBeUndefined();
+    expect(result["dependencies"]).toBeUndefined();
+  });
+
+  it("(f) capability flag True: form values are authoritative for env_vars", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
       envVars: [{ kind: "literal", name: "NEW", value: "new" }],
@@ -143,12 +59,62 @@ describe("formValuesToConfigPatch — preserve-on-save", () => {
 
     const result = formValuesToConfigPatch(
       values,
-      fullCapabilityBackend as BackendInfo,
-      storedConfig
+      fullCapabilityBackend as BackendInfo
     );
 
     expect(result["env_vars"]).toEqual([
       { kind: "literal", name: "NEW", value: "new" },
     ]);
+  });
+
+  it("(positive) all capabilities set: result contains exactly the three capability keys", () => {
+    const values: SandboxConfigFormValues = {
+      ...emptyValues,
+      envVars: [{ kind: "literal", name: "KEY", value: "val" }],
+      internetAccessEnabled: true,
+      dependenciesText: "numpy\npandas",
+      dependenciesLockfile: "numpy==1.26.0\npandas==2.0.0",
+    };
+
+    const result = formValuesToConfigPatch(
+      values,
+      fullCapabilityBackend as BackendInfo
+    );
+
+    expect(result).toEqual({
+      env_vars: [{ kind: "literal", name: "KEY", value: "val" }],
+      internet_access: { mode: "allow" },
+      dependencies: {
+        packages: ["numpy", "pandas"],
+        lockfile: "numpy==1.26.0\npandas==2.0.0",
+      },
+    });
+  });
+
+  it("(negative) env_vars absent when supportsEnvVars but envVars is empty", () => {
+    const result = formValuesToConfigPatch(
+      emptyValues,
+      fullCapabilityBackend as BackendInfo
+    );
+
+    expect(result).not.toHaveProperty("env_vars");
+  });
+
+  it("(negative) dependencies absent when dependenciesLanguage set but dependenciesText is empty", () => {
+    const result = formValuesToConfigPatch(
+      { ...emptyValues, dependenciesText: "" },
+      fullCapabilityBackend as BackendInfo
+    );
+
+    expect(result).not.toHaveProperty("dependencies");
+  });
+
+  it("(negative) internet_access absent when internetAccess is NONE", () => {
+    const result = formValuesToConfigPatch(
+      { ...emptyValues, internetAccessEnabled: true },
+      noCapabilityBackend as BackendInfo
+    );
+
+    expect(result).not.toHaveProperty("internet_access");
   });
 });
