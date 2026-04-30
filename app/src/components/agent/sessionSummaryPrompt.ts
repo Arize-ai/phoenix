@@ -1,4 +1,13 @@
-import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
+type OutputToolDefinition = {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required: string[];
+    additionalProperties?: boolean;
+  };
+};
 
 /**
  * System prompt used to generate a short session title from the first
@@ -36,7 +45,7 @@ export const SUMMARY_SYSTEM_PROMPT = `<role>
  * regular `tool` so the server sets `allow_text_output=false` on the
  * pydantic-ai request, preventing the model from responding with free text.
  */
-export const SUMMARY_OUTPUT_TOOL: FrontendToolDefinition = {
+export const SUMMARY_OUTPUT_TOOL: OutputToolDefinition = {
   name: "summary",
   description: "Provide the conversation title",
   parameters: {

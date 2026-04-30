@@ -1,7 +1,7 @@
 /**
  * Runtime capabilities are feature flags that shape what the agent can do and
- * how the UI should expose those controls. This module is the single source of
- * truth for capability metadata, default values, and model-facing summaries.
+ * how the UI should expose those controls. The server owns model-facing
+ * capability guidance; the frontend sends the current capability state.
  *
  * For frontend tool-extension workflow guidance, see
  * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
@@ -18,10 +18,6 @@ export type AgentCapabilityDefinition = {
   defaultValue: boolean;
   scope: "global" | "session";
   controlSurface?: "experimental-settings";
-  systemPromptState?: {
-    enabled: string;
-    disabled: string;
-  };
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -51,12 +47,6 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",
-    systemPromptState: {
-      enabled:
-        "GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.",
-      disabled:
-        "GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.",
-    },
   },
 ];
 
@@ -80,22 +70,6 @@ for (const key of Object.keys(
   }
 }
 
-function getSystemPromptLine({
-  definition,
-  capabilities,
-}: {
-  definition: AgentCapabilityDefinition;
-  capabilities: AgentCapabilities;
-}) {
-  if (!definition.systemPromptState) {
-    return null;
-  }
-
-  return capabilities[definition.key]
-    ? definition.systemPromptState.enabled
-    : definition.systemPromptState.disabled;
-}
-
 /** Returns the default capability state for a fresh agent store. */
 export function createDefaultAgentCapabilities(): AgentCapabilities {
   return { ...DEFAULT_AGENT_CAPABILITIES };
@@ -115,27 +89,4 @@ export function getAgentCapabilitiesForControlSurface(
   return AGENT_CAPABILITY_DEFINITIONS.filter(
     (definition) => definition.controlSurface === controlSurface
   );
-}
-
-/**
- * Serializes runtime capability state into plain language that can be appended
- * to the base system prompt for a chat turn.
- */
-export function buildAgentCapabilitySystemPrompt({
-  capabilities,
-}: {
-  capabilities: AgentCapabilities;
-}): string {
-  const capabilityLines = AGENT_CAPABILITY_DEFINITIONS.map((definition) =>
-    getSystemPromptLine({ definition, capabilities })
-  ).filter((line): line is string => line !== null);
-
-  if (capabilityLines.length === 0) {
-    return "";
-  }
-
-  return [
-    "Runtime capability state for this conversation:",
-    ...capabilityLines.map((line) => `- ${line}`),
-  ].join("\n");
 }

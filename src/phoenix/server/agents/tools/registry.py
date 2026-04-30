@@ -94,6 +94,7 @@ def resolve_contextual_tools(
                 name=tool.name,
                 description=tool.description,
                 parameters_json_schema=tool.parameters_json_schema,
+                kind="external" if tool.executes_on == "client" else "function",
             )
         )
         if tool.executes_on == "server":

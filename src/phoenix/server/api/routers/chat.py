@@ -13,7 +13,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.mcp import get_mcp_client
 from phoenix.server.agents.model_factory import build_chat_model
-from phoenix.server.agents.tools import resolve_contextual_tools
+from phoenix.server.agents.tools import get_external_tool_definitions, resolve_contextual_tools
 from phoenix.server.api.routers.data_stream_protocol import parse_chat_body, stream_text
 from phoenix.server.bearer_auth import is_authenticated
 
@@ -55,6 +55,7 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
                     db=request.app.state.db,
                 ),
             ),
+            client_tool_defs=get_external_tool_definitions(),
         )
 
     return router
