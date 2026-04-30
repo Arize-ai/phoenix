@@ -37,7 +37,6 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -52,12 +51,8 @@ import type {
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
-import {
-  formValuesToConfigPatch,
-  languageLabel,
-  parseConfigText,
-  toPrettyJSONObject,
-} from "./utils";
+import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
+import { formValuesToConfigPatch, languageLabel } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
   | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
@@ -140,6 +135,13 @@ type SandboxConfigDialogContentProps = (
 
 const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
 
+function shouldShowLocalDenoTrustWarning() {
+  // Heuristic: managed Phoenix deployments inject managementUrl and users do
+  // not control the host runtime directly. Prefer a server-provided deployment
+  // capability flag if one becomes available.
+  return !window.Config.managementUrl;
+}
+
 function defaultConfigName(provider: ProviderRow): string {
   return `${provider.backend.displayName}`;
 }
@@ -148,6 +150,7 @@ function configToFormValues(config: SandboxConfig["config"]): {
   envVars: EnvVarFormEntry[];
   internetAccessEnabled: boolean;
   dependenciesText: string;
+  dependenciesLockfile: string | null;
 } {
   const raw = (config as Record<string, unknown>) ?? {};
   const rawEnvVars = Array.isArray(raw["env_vars"]) ? raw["env_vars"] : [];
@@ -182,8 +185,15 @@ function configToFormValues(config: SandboxConfig["config"]): {
   const packages = Array.isArray(deps?.["packages"])
     ? (deps!["packages"] as string[]).join("\n")
     : "";
+  const dependenciesLockfile =
+    typeof deps?.["lockfile"] === "string" ? deps["lockfile"] : null;
 
-  return { envVars, internetAccessEnabled, dependenciesText: packages };
+  return {
+    envVars,
+    internetAccessEnabled,
+    dependenciesText: packages,
+    dependenciesLockfile,
+  };
 }
 
 function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
@@ -199,9 +209,15 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
     envVars: initEnvVars,
     internetAccessEnabled: initInternetAccess,
     dependenciesText: initDepsText,
+    dependenciesLockfile: initDepsLockfile,
   } = existingConfig != null
     ? configToFormValues(existingConfig.config)
-    : { envVars: [], internetAccessEnabled: false, dependenciesText: "" };
+    : {
+        envVars: [],
+        internetAccessEnabled: false,
+        dependenciesText: "",
+        dependenciesLockfile: null,
+      };
 
   const form = useForm<SandboxConfigFormValues>({
     defaultValues:
@@ -211,30 +227,20 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             name: props.config.name,
             description: props.config.description ?? "",
             timeout: props.config.timeout,
-            configText: toPrettyJSONObject(
-              (() => {
-                const raw = {
-                  ...((props.config.config as Record<string, unknown>) ?? {}),
-                };
-                delete raw["env_vars"];
-                delete raw["internet_access"];
-                delete raw["dependencies"];
-                return raw;
-              })()
-            ),
             envVars: initEnvVars,
             internetAccessEnabled: initInternetAccess,
             dependenciesText: initDepsText,
+            dependenciesLockfile: initDepsLockfile,
           }
         : {
             sandboxProviderId: defaultProvider?.provider.id ?? "",
             name: defaultProvider ? defaultConfigName(defaultProvider) : "",
             description: "",
-            timeout: 30,
-            configText: toPrettyJSONObject({}),
+            timeout: DEFAULT_SANDBOX_TIMEOUT_SECONDS,
             envVars: [],
             internetAccessEnabled: false,
             dependenciesText: "",
+            dependenciesLockfile: null,
           },
   });
 
@@ -282,17 +288,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
 
   const handleSubmit = form.handleSubmit((values) => {
     setError(null);
-    const parsedConfig = parseConfigText(values.configText);
-    if (parsedConfig.error) {
-      setError(parsedConfig.error);
-      return;
-    }
-
-    const finalConfig = formValuesToConfigPatch(
-      values,
-      activeBackend,
-      (existingConfig?.config as Record<string, unknown>) ?? {}
-    );
+    const finalConfig = formValuesToConfigPatch(values, activeBackend);
 
     const onCompleted = () => {
       onClose();
@@ -352,6 +348,14 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
       <form onSubmit={handleSubmit}>
         <View padding="size-200">
           <Flex direction="column" gap="size-200">
+            {activeBackend?.backendType === "DENO" &&
+            shouldShowLocalDenoTrustWarning() ? (
+              <Alert variant="warning">
+                Deno runs locally on the Phoenix server and relies on Deno's
+                permission system for isolation. Only enable it for trusted code
+                execution.
+              </Alert>
+            ) : null}
             {mode === "create" ? (
               <Controller
                 name="sandboxProviderId"
@@ -548,26 +552,6 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 </Text>
               </Flex>
             ) : null}
-            <Controller
-              name="configText"
-              control={form.control}
-              rules={{
-                validate: (value) => parseConfigText(value).error ?? true,
-              }}
-              render={({ field, fieldState }) => (
-                <CodeEditorFieldWrapper
-                  label="Advanced Config JSON"
-                  errorMessage={fieldState.error?.message}
-                  description="Use this for backend-specific settings like templates, credentials, or runtime options."
-                >
-                  <JSONEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    optionalLint
-                  />
-                </CodeEditorFieldWrapper>
-              )}
-            />
           </Flex>
         </View>
         <DialogFooter>

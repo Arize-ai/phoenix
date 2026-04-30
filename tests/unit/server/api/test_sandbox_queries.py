@@ -1,14 +1,46 @@
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, register_sandbox_adapter
-from phoenix.server.sandbox.types import E2BConfig, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox import (
+    _BACKEND_CACHE,
+    _SANDBOX_ADAPTERS,
+    SANDBOX_ADAPTER_METADATA,
+    AdapterMetadata,
+)
+from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+_TEST_AUTH_BACKEND = "TEST_AUTH_BACKEND"
+_TEST_AUTH_KEY = "TEST_AUTH_KEY"
+
+
+class _TestAuthAdapter(SandboxAdapter):
+    key = _TEST_AUTH_BACKEND
+    display_name = "Test Auth Backend"
+    language = "PYTHON"
+    credential_specs = [ProviderCredentialSpec(key=_TEST_AUTH_KEY, display_name="Test Auth Key")]
+
+    def build_backend(
+        self,
+        config: dict,  # type: ignore[type-arg]
+        user_env: dict | None = None,  # type: ignore[type-arg]
+    ) -> SandboxBackend:
+        return MagicMock(spec=SandboxBackend)
+
+
+@pytest.fixture(autouse=True)
+def _clean_test_auth_backend() -> Any:
+    yield
+    SANDBOX_ADAPTER_METADATA.pop(_TEST_AUTH_BACKEND, None)
+    _SANDBOX_ADAPTERS.pop(_TEST_AUTH_BACKEND, None)
+    for key in [key for key in _BACKEND_CACHE if key[0] == _TEST_AUTH_BACKEND]:
+        _BACKEND_CACHE.pop(key, None)
 
 
 async def test_sandbox_providers_returns_nested_configs(
@@ -80,6 +112,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
           displayName
           supportedLanguages
           status
+          statusDetail
           dependencyHints
         }
         sandboxProviders {
@@ -102,16 +135,15 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     ]
     assert backends["E2B"]["dependencyHints"] == [
         "Install Phoenix with the `e2b` extra.",
-        "Provide `PHOENIX_SANDBOX_E2B_API_KEY` or `PHOENIX_SANDBOX_API_KEY`.",
+        "Provide `PHOENIX_SANDBOX_E2B_API_KEY`.",
     ]
     assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
-        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY` or `PHOENIX_SANDBOX_TOKEN`.",
+        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
     ]
     assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",
-        "Set `VERCEL_OIDC_TOKEN`, or all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and "
-        "`VERCEL_TEAM_ID`.",
+        "Set `VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, `PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`.",
     ]
     assert backends["DENO"]["dependencyHints"] == [
         "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
@@ -119,33 +151,42 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     assert len(response.data["sandboxProviders"]) == provider_count
 
 
-@pytest.fixture
-def register_e2b_adapter() -> Any:
-    """Register a minimal E2BAdapter so config_field_specs are derived from E2BConfig."""
+async def test_sandbox_backends_reports_missing_credentials_status(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(_TEST_AUTH_KEY, raising=False)
+    SANDBOX_ADAPTER_METADATA[_TEST_AUTH_BACKEND] = AdapterMetadata(
+        display_name="Test Auth Backend",
+        language="PYTHON",
+    )
+    _SANDBOX_ADAPTERS[_TEST_AUTH_BACKEND] = _TestAuthAdapter()
 
-    class _FakeE2BAdapter(SandboxAdapter):
-        key = "E2B"
-        display_name = "E2B"
-        language = "PYTHON"
-        config_model = E2BConfig
+    query = """
+      query {
+        sandboxBackends {
+          backendType
+          status
+          statusDetail
+        }
+      }
+    """
 
-        def build_backend(
-            self, config: dict[str, Any], user_env: dict[str, str] | None = None
-        ) -> SandboxBackend:
-            raise ValueError("fake adapter — not constructible")
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data is not None
 
-    original_specs = list(SANDBOX_ADAPTER_METADATA["E2B"].config_field_specs)
-    register_sandbox_adapter(_FakeE2BAdapter())
-    yield
-    SANDBOX_ADAPTER_METADATA["E2B"].config_field_specs = original_specs
+    backends = {backend["backendType"]: backend for backend in response.data["sandboxBackends"]}
+    assert backends[_TEST_AUTH_BACKEND]["status"] == "MISSING_CREDENTIALS"
+    assert backends[_TEST_AUTH_BACKEND]["statusDetail"] == f"Set `{_TEST_AUTH_KEY}`."
 
 
 async def test_sandbox_backends_config_field_specs(
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
-    register_e2b_adapter: Any,
 ) -> None:
-    """configFieldSpecs for E2B derives 3 fields from E2BConfig; others have none."""
+    """configFieldSpecs for all adapters: after removing non-capability scalar fields,
+    E2B/Daytona/Modal emit zero specs alongside other capability-only adapters."""
     query = """
       query {
         sandboxBackends {
@@ -167,35 +208,16 @@ async def test_sandbox_backends_config_field_specs(
     assert response.data is not None
     backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
-    # E2B derives 3 specs from E2BConfig (template, cwd, metadata)
-    e2b_specs = backends["E2B"]["configFieldSpecs"]
-    assert len(e2b_specs) == 3
-    spec_by_key = {s["key"]: s for s in e2b_specs}
-    assert spec_by_key["template"] == {
-        "key": "template",
-        "displayName": "Template",
-        "fieldType": "string",
-        "required": False,
-        "description": "E2B sandbox template ID. Defaults to 'base'.",
-        "choices": None,
-    }
-    assert spec_by_key["cwd"] == {
-        "key": "cwd",
-        "displayName": "Working Directory",
-        "fieldType": "string",
-        "required": False,
-        "description": "Working directory for code execution inside the sandbox.",
-        "choices": None,
-    }
-    assert spec_by_key["metadata"] == {
-        "key": "metadata",
-        "displayName": "Metadata",
-        "fieldType": "string",
-        "required": False,
-        "description": "Metadata string attached to the sandbox at creation time.",
-        "choices": None,
-    }
-
-    # Adapters with empty config models have no specs
-    for backend_type in ("WASM", "VERCEL_PYTHON", "VERCEL_TYPESCRIPT", "DENO"):
-        assert backends[backend_type]["configFieldSpecs"] == [], backend_type
+    # All adapters now expose only capability fields (internet_access, dependencies,
+    # env_vars) which are not surfaced as configFieldSpecs — so all emit zero scalar specs.
+    for backend_type in (
+        "E2B",
+        "DAYTONA_PYTHON",
+        "MODAL",
+        "WASM",
+        "VERCEL_PYTHON",
+        "VERCEL_TYPESCRIPT",
+        "DENO",
+    ):
+        if backend_type in backends:
+            assert backends[backend_type]["configFieldSpecs"] == [], backend_type

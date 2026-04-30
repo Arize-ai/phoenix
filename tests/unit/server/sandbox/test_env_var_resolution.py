@@ -69,9 +69,11 @@ class TestResolveUserEnvReservedSecretKey:
         """secret_ref whose `secret_key` matches a reserved provider-credential
         name raises MissingSecretError before any DB query — fail-closed
         defense-in-depth for rows persisted before the mutation-layer guard."""
-        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "VERCEL_TOKEN"}]
-        session = _make_session({"VERCEL_TOKEN": b"should-not-reach-here"})
-        with pytest.raises(MissingSecretError, match="VERCEL_TOKEN"):
+        raw = [
+            {"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "PHOENIX_SANDBOX_VERCEL_TOKEN"}
+        ]
+        session = _make_session({"PHOENIX_SANDBOX_VERCEL_TOKEN": b"should-not-reach-here"})
+        with pytest.raises(MissingSecretError, match="PHOENIX_SANDBOX_VERCEL_TOKEN"):
             await _resolve_user_env(raw, session, _identity_decrypt)
         session.scalars.assert_not_called()
 
@@ -80,17 +82,19 @@ class TestResolveUserEnvReservedSecretKey:
         """An EnvVarLiteral whose `name` matches a reserved provider-credential name
         raises MissingSecretError — pre-mutation-guard rows with reserved literal
         names must not pass resolution at runtime (asymmetry-bug closure)."""
-        raw = [{"kind": "literal", "name": "VERCEL_TOKEN", "value": "x"}]
+        raw = [{"kind": "literal", "name": "PHOENIX_SANDBOX_VERCEL_TOKEN", "value": "x"}]
         session = _make_session({})
-        with pytest.raises(MissingSecretError, match="VERCEL_TOKEN"):
+        with pytest.raises(MissingSecretError, match="PHOENIX_SANDBOX_VERCEL_TOKEN"):
             await _resolve_user_env(raw, session, _identity_decrypt)
         session.scalars.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_reserved_check_is_case_insensitive(self) -> None:
         """Reserved-name comparison is case-insensitive in both positions."""
-        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "vercel_token"}]
-        session = _make_session({"vercel_token": b"should-not-reach-here"})
+        raw = [
+            {"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "phoenix_sandbox_vercel_token"}
+        ]
+        session = _make_session({"phoenix_sandbox_vercel_token": b"should-not-reach-here"})
         with pytest.raises(MissingSecretError):
             await _resolve_user_env(raw, session, _identity_decrypt)
         session.scalars.assert_not_called()
@@ -121,9 +125,10 @@ class TestReservedCredentialNameHelper:
         assert is_reserved_credential_name(name)
 
     def test_non_modal_reserved_names_still_reserved(self) -> None:
-        assert is_reserved_credential_name("PHOENIX_SANDBOX_TOKEN")
-        assert is_reserved_credential_name("PHOENIX_SANDBOX_API_KEY")
-        assert is_reserved_credential_name("phoenix_sandbox_token")
+        assert is_reserved_credential_name("PHOENIX_SANDBOX_E2B_API_KEY")
+        assert is_reserved_credential_name("PHOENIX_SANDBOX_VERCEL_TOKEN")
+        assert is_reserved_credential_name("phoenix_sandbox_vercel_token")
+        assert is_reserved_credential_name("VERCEL_OIDC_TOKEN")
 
 
 class TestValidateConfigRejectsDuplicateEnvVarNames:
