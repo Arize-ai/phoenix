@@ -6,10 +6,12 @@ from pydantic_ai.tools import ToolDefinition
 
 BASH_TOOL_NAME = "bash"
 
+# TODO: This duplicates frontend system-prompt guidance until a follow-up PR moves
+# PXI system-prompt assembly fully server-side.
 _BASH_TOOL_CAPABILITY_LINES = [
     "Runs inside a browser-only just-bash virtual shell, not a host machine or container.",
     "Read Phoenix context from /phoenix; writes there are blocked.",
-    "Write scratch files only under /workspace; mutations elsewhere are blocked.",
+    "Write scratch files only under /home/user/workspace; mutations elsewhere are blocked.",
     "General purpose network access is disabled, so curl/wget and remote package installs "
     "should not be assumed to work.",
     "Built-in just-bash commands are available; do not assume apt, brew, pnpm, uv, git, "
