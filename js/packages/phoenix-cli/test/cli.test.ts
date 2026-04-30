@@ -242,4 +242,42 @@ describe("Phoenix CLI", () => {
       "delete"
     );
   });
+
+  it("should register auth command with status subcommand only", () => {
+    const program = createProgram();
+    const authCommand = program.commands.find(
+      (command) => command.name() === "auth"
+    );
+
+    expect(authCommand).toBeDefined();
+    const subcommandNames = authCommand?.commands.map((c) => c.name());
+    expect(subcommandNames).toContain("status");
+    expect(subcommandNames).not.toContain("profile");
+    expect(subcommandNames).not.toContain("switch");
+  });
+
+  it("should register top-level profile command with list, create, delete, use, edit, show subcommands", () => {
+    const program = createProgram();
+    const profileCommand = program.commands.find(
+      (command) => command.name() === "profile"
+    );
+
+    expect(profileCommand).toBeDefined();
+    const subcommandNames = profileCommand?.commands.map((c) => c.name());
+    expect(subcommandNames).toEqual(
+      expect.arrayContaining([
+        "list",
+        "create",
+        "delete",
+        "use",
+        "edit",
+        "show",
+      ])
+    );
+  });
+
+  it("should include auth in the top-level help output", () => {
+    const program = createProgram();
+    expect(program.helpInformation()).toContain("auth");
+  });
 });
