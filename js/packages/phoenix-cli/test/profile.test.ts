@@ -77,7 +77,6 @@ function setupProfileTestContext(prefix: string) {
     originalEnv = { ...process.env };
     delete process.env.PHOENIX_HOST;
     delete process.env.PHOENIX_API_KEY;
-    delete process.env.PHOENIX_PROFILE;
 
     ctx.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
     process.env.XDG_CONFIG_HOME = ctx.tmpDir;

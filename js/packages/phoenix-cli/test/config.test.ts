@@ -23,7 +23,6 @@ describe("Configuration", () => {
     delete process.env.PHOENIX_PROJECT;
     delete process.env.PHOENIX_API_KEY;
     delete process.env.PHOENIX_CLIENT_HEADERS;
-    delete process.env.PHOENIX_PROFILE;
 
     // Redirect XDG_CONFIG_HOME so profile resolution stays isolated from
     // the developer's real ~/.px/settings.json.

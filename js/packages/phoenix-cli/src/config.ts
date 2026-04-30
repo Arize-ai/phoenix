@@ -7,12 +7,12 @@ import {
 } from "@arizeai/phoenix-config";
 
 import {
-  getActiveProfile,
+  type ProfileEntry,
+  getProfileByName,
+  getStoredActiveProfile,
   loadSettings,
   ProfileResolutionError,
 } from "./settings";
-
-export const ENV_PHOENIX_PROFILE = "PHOENIX_PROFILE";
 
 /**
  * Default Phoenix endpoint used when PHOENIX_HOST is not set.
@@ -91,41 +91,45 @@ export function loadConfigFromEnvironment(): PhoenixConfig {
  *
  * Resolution order for the profile name:
  *   1. `profileName` argument (from --profile CLI flag)
- *   2. `PHOENIX_PROFILE` environment variable
- *   3. `activeProfile` field in the settings file
+ *   2. `activeProfile` field in the settings file
  *
  * Uses forgiving mode for the settings file itself — a missing or corrupt
  * file returns an empty config so unrelated commands are never blocked.
  *
- * When a profile is explicitly requested (via `profileName` arg or
- * `PHOENIX_PROFILE` env var) but does not resolve to an existing entry,
- * throws `ProfileResolutionError` — silently falling back to defaults could
- * point the user at the wrong Phoenix instance.
+ * When a profile is explicitly requested (via `profileName`) but does not
+ * resolve to an existing entry, throws `ProfileResolutionError` — silently
+ * falling back to defaults could point the user at the wrong Phoenix
+ * instance.
  *
  * Returns an empty config only when no profile is explicitly requested and
  * no stored `activeProfile` resolves (silent fallthrough to env / defaults).
  */
 export function loadConfigFromProfile(profileName?: string): PhoenixConfig {
   const settingsFile = loadSettings();
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const explicitName = profileName ?? envProfileName;
-  const resolvedName = explicitName ?? settingsFile.activeProfile ?? undefined;
-  const active = getActiveProfile(settingsFile, resolvedName);
 
-  if (!active) {
-    if (explicitName !== undefined) {
-      const source =
-        profileName !== undefined
-          ? "--profile"
-          : `${ENV_PHOENIX_PROFILE} env var`;
+  if (profileName !== undefined) {
+    const active = getProfileByName(settingsFile, profileName);
+    if (!active) {
       throw new ProfileResolutionError(
-        `Profile "${explicitName}" (from ${source}) does not exist. Run \`px profile list\` to see available profiles.`
+        `Profile "${profileName}" (from --profile) does not exist. Run \`px profile list\` to see available profiles.`
       );
     }
-    return {};
+    return profileEntryToConfig(active.entry);
   }
 
-  const { entry } = active;
+  const active = getStoredActiveProfile(settingsFile);
+  if (!active) {
+    return {};
+  }
+  return profileEntryToConfig(active.entry);
+}
+
+/**
+ * Project a `ProfileEntry` onto the `PhoenixConfig` shape. Skipped fields
+ * (e.g. an apiKey set on a different profile) are simply omitted so the
+ * downstream merge in `resolveConfig` can layer env vars / defaults on top.
+ */
+function profileEntryToConfig(entry: ProfileEntry): PhoenixConfig {
   const config: PhoenixConfig = {};
   if (entry.endpoint) config.endpoint = entry.endpoint;
   if (entry.apiKey) config.apiKey = entry.apiKey;
@@ -144,8 +148,8 @@ export interface ResolveConfigOptions {
    */
   cliOptions: Partial<PhoenixConfig>;
   /**
-   * Explicit profile name (from --profile flag). When provided, overrides PHOENIX_PROFILE
-   * env var and the activeProfile stored in the settings file.
+   * Explicit profile name (from --profile flag). When provided, overrides
+   * the activeProfile stored in the settings file.
    */
   profileName?: string;
 }
@@ -155,7 +159,7 @@ export interface ResolveConfigOptions {
  * Priority (highest to lowest):
  *   1. CLI flags
  *   2. Explicitly set environment variables
- *   3. Active profile (from --profile, PHOENIX_PROFILE, or settings file)
+ *   3. Active profile (from --profile or settings file)
  *   4. Built-in defaults
  */
 export function resolveConfig({

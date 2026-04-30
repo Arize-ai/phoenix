@@ -94,10 +94,9 @@ export class SettingsFileError extends Error {
 }
 
 /**
- * Typed error thrown when an explicitly requested profile (via `--profile`
- * or `PHOENIX_PROFILE`) does not resolve to an existing entry. Extends
- * `InvalidArgumentError` so `getExitCodeForError` maps it to
- * `ExitCode.INVALID_ARGUMENT` automatically.
+ * Typed error thrown when an explicitly requested profile (via `--profile`)
+ * does not resolve to an existing entry. Extends `InvalidArgumentError` so
+ * `getExitCodeForError` maps it to `ExitCode.INVALID_ARGUMENT` automatically.
  */
 export class ProfileResolutionError extends InvalidArgumentError {
   constructor(message: string) {
@@ -256,35 +255,36 @@ export function validateProfileName(name: string): boolean {
 }
 
 /**
- * Look up the active profile entry given a parsed settings file and an
- * optional profile name override.
+ * Look up a profile entry by name. Returns `undefined` (rather than
+ * throwing) when the name does not exist in the profiles record so
+ * callers can decide whether a miss is fatal (e.g. an explicit
+ * `--profile` flag) or expected (e.g. a stale `activeProfile` pointer).
  *
- * Resolution order:
- *   1. `overrideName` (from --profile flag or PHOENIX_PROFILE) if provided and found
- *   2. `file.activeProfile` if set and found
- *   3. `undefined` if no active profile resolves to an existing entry
- *
- * Returns `undefined` (rather than throwing) when the referenced name does
- * not exist in the profiles record — callers fall through to env vars / defaults.
- *
- * Returns both the name and entry together so callers never need to re-resolve
- * the name separately.
+ * Returns both the name and entry together so callers never need to
+ * re-resolve the name separately.
  */
-export function getActiveProfile(
+export function getProfileByName(
   file: SettingsFile,
-  overrideName?: string
+  name: string
 ): { name: string; entry: ProfileEntry } | undefined {
-  if (overrideName !== undefined) {
-    const entry = file.profiles[overrideName];
-    return entry !== undefined ? { name: overrideName, entry } : undefined;
+  const entry = file.profiles[name];
+  return entry !== undefined ? { name, entry } : undefined;
+}
+
+/**
+ * Look up the profile pointed at by `file.activeProfile`. Returns
+ * `undefined` when no active profile is set, or when the pointer is
+ * stale (the named profile no longer exists). Stale-pointer handling
+ * is forgiving by design — callers fall through to env vars / defaults
+ * rather than failing.
+ */
+export function getStoredActiveProfile(
+  file: SettingsFile
+): { name: string; entry: ProfileEntry } | undefined {
+  if (file.activeProfile === null) {
+    return undefined;
   }
-  if (file.activeProfile !== null) {
-    const entry = file.profiles[file.activeProfile];
-    return entry !== undefined
-      ? { name: file.activeProfile, entry }
-      : undefined;
-  }
-  return undefined;
+  return getProfileByName(file, file.activeProfile);
 }
 
 // ---------------------------------------------------------------------------

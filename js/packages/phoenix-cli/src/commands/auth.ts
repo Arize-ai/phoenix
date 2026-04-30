@@ -1,18 +1,14 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
-import { getStrFromEnvironment } from "@arizeai/phoenix-config";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
-import {
-  ENV_PHOENIX_PROFILE,
-  type PhoenixConfig,
-  resolveConfig,
-} from "../config";
+import { type PhoenixConfig, resolveConfig } from "../config";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 import {
   ProfileResolutionError,
-  getActiveProfile,
+  getProfileByName,
+  getStoredActiveProfile,
   loadSettings,
 } from "../settings";
 
@@ -175,14 +171,13 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  // Resolve the active profile name for display purposes. Safe to call
-  // after resolveConfig — any invalid explicit profile would have thrown.
+  // Resolve the profile name for display purposes. Safe to call after
+  // resolveConfig — any invalid explicit profile would have thrown.
   const settingsFile = loadSettings();
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const activeProfileName = getActiveProfile(
-    settingsFile,
-    options.profile ?? envProfileName
-  )?.name;
+  const activeProfileName =
+    options.profile !== undefined
+      ? getProfileByName(settingsFile, options.profile)?.name
+      : getStoredActiveProfile(settingsFile)?.name;
 
   const result = await fetchViewer(config);
   const output = formatAuthStatus(

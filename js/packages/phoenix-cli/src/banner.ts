@@ -55,7 +55,7 @@ export function renderBanner({ infoLines }: { infoLines: string[] }): string {
  */
 export async function printBanner(): Promise<void> {
   // The banner is informational and must never abort `px` startup. Swallow
-  // config-resolution errors (e.g. a stale PHOENIX_PROFILE) and fall back to
+  // config-resolution errors (e.g. a stale activeProfile) and fall back to
   // empty fields; the real command invocation will surface the error cleanly.
   let config: PhoenixConfig = {};
   try {

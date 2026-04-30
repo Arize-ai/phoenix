@@ -51,7 +51,6 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 | `PHOENIX_PROJECT`                        | Project name or ID                            |
 | `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
 | `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
-| `PHOENIX_PROFILE`                        | Active profile name override                  |
 | `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
@@ -72,10 +71,8 @@ px profile delete prod         # remove a profile (--yes to skip prompt)
 
 Every command reads the active profile through the standard config chain:
 **built-in defaults → active profile → env vars → CLI flags** (highest wins).
-To use a different profile for one invocation without changing the active
-one, set `PHOENIX_PROFILE=<name>` in the environment, e.g.
-`PHOENIX_PROFILE=staging px trace list`. The `auth status` command also
-accepts `--profile <name>` directly.
+The `auth status` command accepts `--profile <name>` to scope a single
+invocation to a profile other than the stored active one.
 
 API keys are stored verbatim in the settings file (mode `0600`) but are
 never echoed back through `profile create`, `profile show`, or `profile

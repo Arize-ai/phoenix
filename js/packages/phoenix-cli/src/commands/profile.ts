@@ -2,10 +2,8 @@ import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { getStrFromEnvironment } from "@arizeai/phoenix-config";
 import { Command } from "commander";
 
-import { ENV_PHOENIX_PROFILE } from "../config";
 import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -13,7 +11,7 @@ import {
   type SettingsFile,
   ProfileEntrySchema,
   SettingsFileError,
-  getActiveProfile,
+  getStoredActiveProfile,
   loadSettings,
   saveSettings,
   validateProfileName,
@@ -29,8 +27,7 @@ import {
 // ---------------------------------------------------------------------------
 
 function buildProfileListEntries(file: SettingsFile): ProfileListEntry[] {
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const activeName = getActiveProfile(file, envProfileName)?.name;
+  const activeName = getStoredActiveProfile(file)?.name;
   return Object.entries(file.profiles).map(([name, entry]) =>
     buildSingleProfileEntry(name, entry, name === activeName)
   );
@@ -128,8 +125,7 @@ async function profileShowHandler(
   if (name !== undefined) {
     resolvedName = name;
   } else {
-    const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-    resolvedName = getActiveProfile(file, envProfileName)?.name;
+    resolvedName = getStoredActiveProfile(file)?.name;
   }
 
   if (resolvedName === undefined) {
@@ -146,8 +142,7 @@ async function profileShowHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  const envProfileName = getStrFromEnvironment(ENV_PHOENIX_PROFILE);
-  const activeName = getActiveProfile(file, envProfileName)?.name;
+  const activeName = getStoredActiveProfile(file)?.name;
   const profileEntry = buildSingleProfileEntry(
     resolvedName,
     entry,
@@ -405,10 +400,9 @@ async function profileUseHandler(name: string): Promise<void> {
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  // Compute the transition message before mutating. We deliberately ignore
-  // PHOENIX_PROFILE here — `use` writes the *stored* active profile, so the
-  // before/after we report should reflect what's persisted, not what an env
-  // var override happens to point at right now.
+  // Compute the transition message before mutating. `use` writes the
+  // *stored* active profile, so the before/after we report should reflect
+  // what's persisted in the settings file.
   const previousActive = file.activeProfile;
 
   if (previousActive === name) {

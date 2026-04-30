@@ -88,7 +88,6 @@ describe("banner", () => {
       delete process.env.PHOENIX_HOST;
       delete process.env.PHOENIX_PROJECT;
       delete process.env.PHOENIX_API_KEY;
-      delete process.env.PHOENIX_PROFILE;
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-banner-test-"));
       process.env.XDG_CONFIG_HOME = tmpDir;
     });
