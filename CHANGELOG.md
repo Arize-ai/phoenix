@@ -1,5 +1,28 @@
 # Changelog
 
+## [15.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.0.0...arize-phoenix-v15.1.0) (2026-04-30)
+
+
+### Features
+
+* **api:** query annotations by identifier on GET endpoints ([#12952](https://github.com/Arize-ai/phoenix/issues/12952)) ([e2a1de9](https://github.com/Arize-ai/phoenix/commit/e2a1de9274b1434db89bb3aef1957abac3071d20))
+* **cli:** add named auth profile management ([#12529](https://github.com/Arize-ai/phoenix/issues/12529)) ([ab62d3d](https://github.com/Arize-ai/phoenix/commit/ab62d3d0a4afdc14b8a354303df61d83693ba168))
+* **cli:** add session annotations and notes ([#12925](https://github.com/Arize-ai/phoenix/issues/12925)) ([4e20267](https://github.com/Arize-ai/phoenix/commit/4e202674a4b73714badf6b2df9fc244e24c68fe3))
+* **phoenix-client:** add TS trace annotations + clarify note semantics + skills audit ([#12923](https://github.com/Arize-ai/phoenix/issues/12923)) ([2993b04](https://github.com/Arize-ai/phoenix/commit/2993b04a30554a752322b44a677721ae9ded91cc))
+
+
+### Bug Fixes
+
+* **playground:** accept unwrapped AWS Bedrock tool schemas ([#12937](https://github.com/Arize-ai/phoenix/issues/12937)) ([b450f10](https://github.com/Arize-ai/phoenix/commit/b450f107a0d6d96aba9511d5624a5c45868743ae))
+* **ui:** remove unused sticky positioning on Drawer dialog header ([#12954](https://github.com/Arize-ai/phoenix/issues/12954)) ([d6a5f90](https://github.com/Arize-ai/phoenix/commit/d6a5f90486afdccab9260ed64c804343a3cff446)), closes [#12953](https://github.com/Arize-ai/phoenix/issues/12953)
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-24-2026 through 04-28-2026 ([#12914](https://github.com/Arize-ai/phoenix/issues/12914)) ([ceeb89b](https://github.com/Arize-ai/phoenix/commit/ceeb89b1f55e13db041068a05e680deb47282153))
+* add phoenix-release-please skill and note no v15 migration ([#12932](https://github.com/Arize-ai/phoenix/issues/12932)) ([4bd2b43](https://github.com/Arize-ai/phoenix/commit/4bd2b437e88f0011ec983460a49b1dce6209d3c3))
+* **skills:** add open-coding and axial-coding references to phoenix-cli skill ([#12869](https://github.com/Arize-ai/phoenix/issues/12869)) ([0972f3d](https://github.com/Arize-ai/phoenix/commit/0972f3dd6ac042cdaca6e7924df72d88a38b167d))
+
 ## [15.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.17.0...arize-phoenix-v15.0.0) (2026-04-29)
 
 
