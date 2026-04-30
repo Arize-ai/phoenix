@@ -27,6 +27,39 @@ async def project_with_spans_and_annotations(db: DbSessionFactory) -> None:
             .returning(models.Trace.id)
         )
 
+        trace2_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-id-2",
+                project_rowid=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:02:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+
+        session1_id = await session.scalar(
+            insert(models.ProjectSession)
+            .values(
+                session_id="session1",
+                project_id=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.ProjectSession.id)
+        )
+
+        session2_id = await session.scalar(
+            insert(models.ProjectSession)
+            .values(
+                session_id="session2",
+                project_id=project_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:02:00.000+00:00"),
+            )
+            .returning(models.ProjectSession.id)
+        )
+
         span1_id = await session.scalar(
             insert(models.Span)
             .values(
@@ -124,6 +157,157 @@ async def project_with_spans_and_annotations(db: DbSessionFactory) -> None:
                 identifier="note-identifier-2",
             )
         )
+
+        # Trace annotations on the two traces.
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace_id,
+                name="correctness",
+                label="correct",
+                score=0.9,
+                explanation="Trace 1 correct",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                identifier="test-identifier-1",
+            )
+        )
+        await session.execute(
+            insert(models.TraceAnnotation).values(
+                trace_rowid=trace2_id,
+                name="relevance",
+                label="relevant",
+                score=0.8,
+                explanation="Trace 2 relevant",
+                metadata_={},
+                annotator_kind="LLM",
+                source="APP",
+                identifier="test-identifier-2",
+            )
+        )
+
+        # Session annotations on the two sessions.
+        await session.execute(
+            insert(models.ProjectSessionAnnotation).values(
+                project_session_id=session1_id,
+                name="correctness",
+                label="correct",
+                score=0.9,
+                explanation="Session 1 correct",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                identifier="test-identifier-1",
+            )
+        )
+        await session.execute(
+            insert(models.ProjectSessionAnnotation).values(
+                project_session_id=session2_id,
+                name="relevance",
+                label="relevant",
+                score=0.8,
+                explanation="Session 2 relevant",
+                metadata_={},
+                annotator_kind="LLM",
+                source="APP",
+                identifier="test-identifier-2",
+            )
+        )
+
+        await session.commit()
+
+
+@pytest.fixture
+async def two_projects_with_annotations_for_query(db: DbSessionFactory) -> None:
+    """Two projects each carrying span/trace/session annotations sharing the
+    same identifier value, used to verify that identifier filtering remains
+    project-scoped (an identifier in project-A must not surface in project-B).
+    """
+    shared_identifier = "shared-identifier"
+    async with db() as session:
+        for label in ("A", "B"):
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name=f"qproject-{label}").returning(models.Project.id)
+            )
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    trace_id=f"qtrace-{label}",
+                    project_rowid=project_rowid,
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:01:00+00:00"),
+                )
+                .returning(models.Trace.id)
+            )
+            span_rowid = await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_rowid,
+                    span_id=f"qspan-{label}",
+                    parent_id=None,
+                    name=f"qspan-{label}",
+                    span_kind="CHAIN",
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:00:30+00:00"),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+            session_rowid = await session.scalar(
+                insert(models.ProjectSession)
+                .values(
+                    session_id=f"qsession-{label}",
+                    project_id=project_rowid,
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:01:00+00:00"),
+                )
+                .returning(models.ProjectSession.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=span_rowid,
+                    name="tag",
+                    label=None,
+                    score=None,
+                    explanation=f"span-anno-{label}",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=shared_identifier,
+                )
+            )
+            await session.execute(
+                insert(models.TraceAnnotation).values(
+                    trace_rowid=trace_rowid,
+                    name="tag",
+                    label=None,
+                    score=None,
+                    explanation=f"trace-anno-{label}",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=shared_identifier,
+                )
+            )
+            await session.execute(
+                insert(models.ProjectSessionAnnotation).values(
+                    project_session_id=session_rowid,
+                    name="tag",
+                    label=None,
+                    score=None,
+                    explanation=f"session-anno-{label}",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=shared_identifier,
+                )
+            )
         await session.commit()
 
 
@@ -384,3 +568,236 @@ async def test_list_span_annotations_pagination_with_filters(
         assert annotation["name"].startswith("annotation-")
 
     assert data["next_cursor"] is not None
+
+
+# =============================================================================
+# GET .../{kind}_annotations — identifier filter mode
+# =============================================================================
+
+
+async def test_list_span_annotations_by_identifier_only(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    """Identifier-only happy path returns only the matching span annotation."""
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={"identifier": "test-identifier-1"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["identifier"] == "test-identifier-1"
+    assert data["data"][0]["name"] == "correctness"
+
+
+async def test_list_trace_annotations_by_identifier_only(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    response = await httpx_client.get(
+        "v1/projects/test-project/trace_annotations",
+        params={"identifier": "test-identifier-2"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["identifier"] == "test-identifier-2"
+    assert data["data"][0]["name"] == "relevance"
+
+
+async def test_list_session_annotations_by_identifier_only(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    response = await httpx_client.get(
+        "v1/projects/test-project/session_annotations",
+        params={"identifier": "test-identifier-1"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["identifier"] == "test-identifier-1"
+    assert data["data"][0]["name"] == "correctness"
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["span_annotations", "trace_annotations", "session_annotations"],
+)
+async def test_list_annotations_identifier_only_empty_returns_200(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+    endpoint: str,
+) -> None:
+    """D5: identifier-only mode with no matching rows returns 200 + [] (not 404)."""
+    response = await httpx_client.get(
+        f"v1/projects/test-project/{endpoint}",
+        params={"identifier": "does-not-exist"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data == {"data": [], "next_cursor": None}
+
+
+@pytest.mark.parametrize(
+    "endpoint, ids_param",
+    [
+        ("span_annotations", "span_ids"),
+        ("trace_annotations", "trace_ids"),
+        ("session_annotations", "session_ids"),
+    ],
+)
+async def test_list_annotations_no_params_returns_422(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+    endpoint: str,
+    ids_param: str,
+) -> None:
+    """D4: 422 when neither *_ids nor identifier is supplied; the message names both."""
+    response = await httpx_client.get(f"v1/projects/test-project/{endpoint}")
+    assert response.status_code == 422
+    body_text = response.text
+    assert ids_param in body_text
+    assert "identifier" in body_text
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["span_annotations", "trace_annotations", "session_annotations"],
+)
+async def test_list_annotations_empty_identifier_returns_422(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+    endpoint: str,
+) -> None:
+    """D3: per-element min_length=1 rejects an empty-string identifier value."""
+    response = await httpx_client.get(
+        f"v1/projects/test-project/{endpoint}",
+        params={"identifier": ""},
+    )
+    assert response.status_code == 422
+
+
+async def test_list_span_annotations_combined_span_ids_and_identifier(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    """Combined mode AND-intersects span_ids and identifier filters."""
+    # span1 has correctness (id-1) and note (note-id-1); span2 has relevance
+    # (id-2) and note (note-id-2). Combining span1 with identifier=id-1
+    # narrows to one row.
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["span1"], "identifier": "test-identifier-1"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["span_id"] == "span1"
+    assert data["data"][0]["identifier"] == "test-identifier-1"
+
+    # span1 + identifier=test-identifier-2 yields no rows (id-2 belongs to
+    # span2) — combined-mode empty result is 200 + [], not 404.
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["span1"], "identifier": "test-identifier-2"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"data": [], "next_cursor": None}
+
+
+async def test_list_span_annotations_note_via_identifier(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    """Note rows (name='note') are reachable via identifier filter when the
+    caller opts in via include_annotation_names."""
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={
+            "identifier": "note-identifier-1",
+            "include_annotation_names": "note",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["name"] == "note"
+    assert data["data"][0]["identifier"] == "note-identifier-1"
+
+
+async def test_list_span_annotations_default_note_inclusion_preserved(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    """When no include/exclude name filters are supplied, note rows are still
+    returned by default — preserves the existing default behavior contract.
+    """
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["span1", "span2"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    note_count = sum(1 for anno in data["data"] if anno["name"] == "note")
+    assert note_count == 2
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["span_annotations", "trace_annotations", "session_annotations"],
+)
+async def test_list_annotations_identifier_cap_returns_422(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+    endpoint: str,
+) -> None:
+    """D8: more than 1000 distinct identifier values returns 422."""
+    too_many = [f"id-{i}" for i in range(1001)]
+    response = await httpx_client.get(
+        f"v1/projects/test-project/{endpoint}",
+        params=[("identifier", v) for v in too_many],
+    )
+    assert response.status_code == 422
+    assert "Too many identifiers" in response.text
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    ["span_annotations", "trace_annotations", "session_annotations"],
+)
+async def test_list_annotations_identifier_filter_is_project_scoped(
+    httpx_client: httpx.AsyncClient,
+    two_projects_with_annotations_for_query: Any,
+    endpoint: str,
+) -> None:
+    """An identifier shared across two projects is returned only from the
+    project specified in the path — project scoping via
+    get_project_by_identifier is preserved.
+    """
+    response = await httpx_client.get(
+        f"v1/projects/qproject-A/{endpoint}",
+        params={"identifier": "shared-identifier"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["data"]) == 1
+    assert data["data"][0]["identifier"] == "shared-identifier"
+    # The matching annotation's result.explanation labels the source project
+    # so we can verify project-A's row was returned (not project-B's).
+    assert "-A" in data["data"][0]["result"]["explanation"]
+
+
+async def test_list_span_annotations_unknown_span_ids_only_still_404(
+    httpx_client: httpx.AsyncClient,
+    project_with_spans_and_annotations: Any,
+) -> None:
+    """D5: span_ids-only mode with no matching rows still 404s — preserves
+    existing typoed-IDs behavior.
+    """
+    response = await httpx_client.get(
+        "v1/projects/test-project/span_annotations",
+        params={"span_ids": ["nonexistent-span"]},
+    )
+    assert response.status_code == 404
