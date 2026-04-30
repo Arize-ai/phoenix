@@ -630,6 +630,7 @@ function LazyTraceTree({
       <ConnectedTraceTree
         trace={trace}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
+        scrollSelectedSpanIntoView={false}
         onSpanClick={(span) => onSpanClick({ traceId, spanNodeId: span.id })}
       />
     </TraceTreeProvider>

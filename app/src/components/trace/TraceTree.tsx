@@ -23,12 +23,18 @@ export type TraceTreeProps = {
   spans: ISpanItem[];
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
+  scrollSelectedSpanIntoView?: boolean;
 };
 
 export { TraceTreeProvider } from "./TraceTreeContext";
 
 export function TraceTree(props: TraceTreeProps) {
-  const { spans, onSpanClick, selectedSpanNodeId } = props;
+  const {
+    spans,
+    onSpanClick,
+    selectedSpanNodeId,
+    scrollSelectedSpanIntoView = true,
+  } = props;
   const spanTree = createSpanTree(spans);
   const rootSpan = spanTree[0].span;
   const overallTimeRange = {
@@ -62,6 +68,7 @@ export function TraceTree(props: TraceTreeProps) {
             overallTimeRange={overallTimeRange}
             onSpanClick={onSpanClick}
             selectedSpanNodeId={selectedSpanNodeId}
+            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
           />
         ))}
       </ul>
@@ -81,6 +88,7 @@ const spanNameCSS = css`
 interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
   selectedSpanNodeId: string;
+  scrollSelectedSpanIntoView: boolean;
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
   /**
@@ -96,6 +104,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   const {
     node,
     selectedSpanNodeId,
+    scrollSelectedSpanIntoView,
     onSpanClick,
     nestingLevel = 0,
     overallTimeRange,
@@ -112,13 +121,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 
   // Scroll into view when selected
   useEffect(() => {
-    if (isSelected && itemRef.current) {
+    if (scrollSelectedSpanIntoView && isSelected && itemRef.current) {
       itemRef.current.scrollIntoView({
         behavior: "smooth",
         block: "nearest",
       });
     }
-  }, [isSelected]);
+  }, [isSelected, scrollSelectedSpanIntoView]);
 
   // React to global changes to the trace tree state and change local state
   useEffect(() => {
@@ -243,6 +252,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   overallTimeRange={overallTimeRange}
                   onSpanClick={onSpanClick}
                   selectedSpanNodeId={selectedSpanNodeId}
+                  scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
                   nestingLevel={nestingLevel + 1}
                 />
               </li>
