@@ -19,7 +19,7 @@ class TestResolveContextualTools:
         assert defs == []
         assert dispatch == {}
 
-    def test_apply_span_filter_condition_advertised_when_project_carries_span_filter(
+    def test_set_spans_filter_advertised_when_project_carries_span_filter(
         self, db: DbSessionFactory
     ) -> None:
         resolved = ResolvedContexts(
@@ -32,12 +32,10 @@ class TestResolveContextualTools:
         defs, dispatch = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
 
         names = [tool.name for tool in defs]
-        assert "apply_span_filter_condition" in names
+        assert "set_spans_filter" in names
         assert dispatch == {}
 
-    def test_apply_span_filter_condition_schema_requires_condition(
-        self, db: DbSessionFactory
-    ) -> None:
+    def test_set_spans_filter_schema_requires_both_fields(self, db: DbSessionFactory) -> None:
         resolved = ResolvedContexts(
             project=ProjectContext(
                 type="project",
@@ -46,11 +44,58 @@ class TestResolveContextualTools:
             )
         )
         defs, _ = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
-        tool = next(t for t in defs if t.name == "apply_span_filter_condition")
+        tool = next(t for t in defs if t.name == "set_spans_filter")
         schema = tool.parameters_json_schema
-        assert schema.get("required") == ["condition"]
-        assert "condition" in schema.get("properties", {})
+        properties = schema.get("properties", {})
+        assert "condition" in properties
+        assert "rootSpansOnly" in properties
+        assert schema.get("required") == ["condition", "rootSpansOnly"]
+        assert "minProperties" not in schema
         assert tool.kind == "external"
+
+    def test_set_spans_filter_advertised_without_root_toggle(self, db: DbSessionFactory) -> None:
+        # Traces tab advertises only the filter field, not the root toggle.
+        # The consolidated tool is still advertised — `rootSpansOnly` simply
+        # has no visible effect on that tab.
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                span_filter="",
+            )
+        )
+        defs, _ = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
+        names = [tool.name for tool in defs]
+        assert "set_spans_filter" in names
+
+    def test_set_spans_filter_advertised_when_toggle_present(self, db: DbSessionFactory) -> None:
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                span_filter="",
+                root_spans_only=True,
+            )
+        )
+        defs, dispatch = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
+        names = [tool.name for tool in defs]
+        assert "set_spans_filter" in names
+        assert dispatch == {}
+
+    def test_root_toggle_alone_does_not_advertise_tool(self, db: DbSessionFactory) -> None:
+        # Without the filter field mounted, the tool is not advertised even
+        # when the root toggle alone is present (a state the current UI does
+        # not produce, but which the gating must still tolerate).
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                root_spans_only=True,
+            )
+        )
+        defs, _ = resolve_contextual_tools(resolved, ToolExecutionEnv(user=None, db=db))
+        names = [tool.name for tool in defs]
+        assert "set_spans_filter" not in names
 
 
 class TestResolveTools:
@@ -73,7 +118,7 @@ class TestResolveTools:
 
         assert "ask_user" in names
         assert "bash" in names
-        assert "apply_span_filter_condition" not in names
+        assert "set_spans_filter" not in names
         assert dispatch == {}
 
     def test_requires_env_when_contextual_tool_is_available(self) -> None:
@@ -106,7 +151,7 @@ class TestResolveTools:
 
         assert "ask_user" in names
         assert "bash" in names
-        assert "apply_span_filter_condition" in names
+        assert "set_spans_filter" in names
         assert dispatch == {}
 
     def test_resolved_tool_names_are_unique(self, db: DbSessionFactory) -> None:

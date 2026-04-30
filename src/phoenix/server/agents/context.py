@@ -37,11 +37,17 @@ class ProjectContext(_ChatContextBase):
     ``span_filter`` carries the project-scoped span filter expression when the
     span filter field is mounted — empty string when the field is mounted with
     no condition applied, ``None`` when the field is not present at all.
+
+    ``root_spans_only`` carries the current state of the spans-table root vs.
+    all toggle when that toggle is mounted — ``True`` when the table is
+    restricted to root spans, ``False`` when it shows every span, ``None``
+    when the toggle is not present (e.g. on the traces tab).
     """
 
     type: Literal["project"]
     project_node_id: str = Field(alias="projectNodeId")
     span_filter: str | None = Field(default=None, alias="spanFilter")
+    root_spans_only: bool | None = Field(default=None, alias="rootSpansOnly")
 
 
 class TraceContext(_ChatContextBase):
@@ -161,6 +167,15 @@ def build_phoenix_context_user_message_content(
             body_lines.append(f"  - Active span filter condition: `{sanitized}`")
         elif span_filter == "":
             body_lines.append("  - Span filter field is available; no condition currently applied")
+        root_spans_only = resolved.project.root_spans_only
+        if root_spans_only is True:
+            body_lines.append(
+                "  - Spans table is showing root spans only "
+                "(set `rootSpansOnly: false` on the next `set_spans_filter` "
+                "call to include non-root spans)"
+            )
+        elif root_spans_only is False:
+            body_lines.append("  - Spans table is showing all spans (root and non-root)")
         has_context = True
     if resolved.trace is not None:
         body_lines.append(f"- Trace (OpenTelemetry trace ID, hex): {resolved.trace.otel_trace_id}")

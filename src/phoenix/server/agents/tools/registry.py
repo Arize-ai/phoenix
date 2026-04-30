@@ -71,7 +71,12 @@ def _available_context_types(resolved: ResolvedContexts) -> frozenset[str]:
         # ``span_filter`` is a virtual context name derived from the project
         # carrying a span_filter field. The presence of the field — even when
         # the condition is an empty string — signals that the on-screen filter
-        # input is mounted and tools that drive it can be advertised.
+        # input is mounted and tools that drive it can be advertised. The
+        # ``set_spans_filter`` tool gates on this name; the ``rootSpansOnly``
+        # parameter on that tool only takes visible effect when the spans
+        # table toggle is also mounted (advertised separately on the project
+        # context), but presence of the toggle is signalled to the LLM via
+        # the context message rather than gating the tool itself.
         if resolved.project.span_filter is not None:
             names.add("span_filter")
     if resolved.trace is not None:
@@ -127,15 +132,17 @@ def resolve_tools(
     return [*EXTERNAL_TOOLS, *contextual_defs], dispatch
 
 
-from phoenix.server.agents.tools.apply_span_filter_condition import (  # noqa: E402
-    build_apply_span_filter_condition_tool,
-)
 from phoenix.server.agents.tools.external.ask_user import (  # noqa: E402
     ASK_USER_TOOL_DEFINITION,
 )
 from phoenix.server.agents.tools.external.bash import (  # noqa: E402
     BASH_TOOL_DEFINITION,
 )
+from phoenix.server.agents.tools.set_spans_filter import (  # noqa: E402
+    build_set_spans_filter_tool,
+)
 
-CONTEXTUAL_TOOLS: list[ContextualTool] = [build_apply_span_filter_condition_tool()]
+CONTEXTUAL_TOOLS: list[ContextualTool] = [
+    build_set_spans_filter_tool(),
+]
 EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL_DEFINITION, BASH_TOOL_DEFINITION]

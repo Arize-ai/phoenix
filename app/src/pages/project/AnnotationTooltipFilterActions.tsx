@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import { Token } from "@phoenix/components";
 
-import { useSpanFilterCondition } from "./SpanFilterConditionContext";
+import { useSpanFilters } from "./SpanFiltersContext";
 
 type AnnotationTooltipFilterActionsProps = {
   className?: string;
@@ -28,7 +28,7 @@ type FilterDefinition = {
 export function AnnotationTooltipFilterActions(
   props: AnnotationTooltipFilterActionsProps
 ) {
-  const { appendFilterCondition } = useSpanFilterCondition();
+  const { appendFilterCondition } = useSpanFilters();
   const { annotation, className } = props;
   const { name, label, score } = annotation;
 

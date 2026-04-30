@@ -41,9 +41,17 @@
  * `spanFilter` carries the project-scoped span filter expression when the
  * span filter field is mounted on the page — empty string when the field is
  * present with no condition applied, `undefined` when the field is not
- * mounted at all. Tools that drive the on-screen filter (e.g.
- * `apply_span_filter_condition`) are gated server-side on whether this field
- * is set.
+ * mounted at all. The consolidated `set_spans_filter` tool that drives both
+ * the filter condition and the root-vs-all-spans toggle is gated server-side
+ * on whether this field is set.
+ *
+ * `rootSpansOnly` carries the current state of the root-vs-all-spans toggle
+ * when that toggle is mounted on the page — `true` when the spans table is
+ * showing root spans only, `false` when showing all spans, `undefined` when
+ * the toggle is not present (e.g. on the traces tab). It does not gate the
+ * `set_spans_filter` tool, but its presence in the context message tells the
+ * agent that the `rootSpansOnly` parameter on that tool will take effect on
+ * the current page.
  */
 export type AgentProjectContext = {
   type: "project";
@@ -51,6 +59,8 @@ export type AgentProjectContext = {
   projectNodeId: string;
   /** Validated span filter DSL expression; empty when no condition applied. */
   spanFilter?: string;
+  /** Current state of the root-vs-all-spans toggle when mounted. */
+  rootSpansOnly?: boolean;
 };
 
 /** Trace the user is currently viewing (always nested under a project). */
