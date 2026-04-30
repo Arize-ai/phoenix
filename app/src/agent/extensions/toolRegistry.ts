@@ -109,69 +109,74 @@ const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
 });
 
 /**
- * Server-advertised, client-executed: the server owns the canonical schema and
- * description; this name routes calls to SpanFilterConditionField's action.
+ * Server-advertised, client-executed: the server owns the canonical schema
+ * and description (see agents/tools/set_spans_filter.py); this name is the
+ * single source of truth for routing the call to the matching client action
+ * registered by SpanFilterConditionField. The tool consolidates control over
+ * both the freeform filter condition and the root-vs-all-spans toggle.
  */
-export const APPLY_SPAN_FILTER_CONDITION_TOOL_NAME =
-  "apply_span_filter_condition";
+export const SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter";
 
-type ApplySpanFilterConditionInput = {
+export type SetSpansFilterInput = {
   condition: string;
+  rootSpansOnly: boolean;
 };
 
-function parseApplySpanFilterConditionInput(
-  input: unknown
-): ApplySpanFilterConditionInput | null {
+function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   if (typeof input !== "object" || input === null) return null;
-  const candidate = input as { condition?: unknown };
+  const candidate = input as {
+    condition?: unknown;
+    rootSpansOnly?: unknown;
+  };
   if (typeof candidate.condition !== "string") return null;
-  return { condition: candidate.condition };
+  if (typeof candidate.rootSpansOnly !== "boolean") return null;
+  return {
+    condition: candidate.condition,
+    rootSpansOnly: candidate.rootSpansOnly,
+  };
 }
 
-const applySpanFilterConditionAgentTool =
-  createRegisteredAgentTool<ApplySpanFilterConditionInput>({
-    name: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-    parseInput: parseApplySpanFilterConditionInput,
-    invalidInputErrorText: `Invalid ${APPLY_SPAN_FILTER_CONDITION_TOOL_NAME} input. Expected { condition: string }.`,
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
-      const action =
-        agentStore.getState().registeredClientActions[
-          APPLY_SPAN_FILTER_CONDITION_TOOL_NAME
-        ];
-      if (!action) {
-        await addToolOutput({
-          state: "output-error",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText:
-            "The span filter field is not mounted on this page; cannot apply a filter.",
-        });
-        return;
-      }
-      const result = await action(input);
-      if (result.ok) {
-        await addToolOutput({
-          state: "output-available",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          output: result.output ?? "Filter applied.",
-        });
-      } else {
-        await addToolOutput({
-          state: "output-error",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText: result.error,
-        });
-      }
-    },
-  });
+const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
+  name: SET_SPANS_FILTER_TOOL_NAME,
+  parseInput: parseSetSpansFilterInput,
+  invalidInputErrorText: `Invalid ${SET_SPANS_FILTER_TOOL_NAME} input. Expected { condition: string, rootSpansOnly: boolean }.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[SET_SPANS_FILTER_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The span filter field is not mounted on this page; cannot update the spans filter.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Spans filter updated.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
-  applySpanFilterConditionAgentTool as RegisteredAgentTool<unknown>,
+  setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

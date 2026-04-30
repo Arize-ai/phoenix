@@ -109,6 +109,38 @@ class TestBuildPhoenixContextUserMessageContent:
         assert content.count("</phoenix_ui_context>") == 1
         assert "[/phoenix_ui_context]" in content
 
+    def test_root_spans_only_true_rendered(self) -> None:
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                root_spans_only=True,
+            ),
+        )
+        content = build_phoenix_context_user_message_content(resolved)
+        assert content is not None
+        assert "Spans table is showing root spans only" in content
+
+    def test_root_spans_only_false_rendered(self) -> None:
+        resolved = ResolvedContexts(
+            project=ProjectContext(
+                type="project",
+                project_node_id="UHJvamVjdDox",
+                root_spans_only=False,
+            ),
+        )
+        content = build_phoenix_context_user_message_content(resolved)
+        assert content is not None
+        assert "Spans table is showing all spans" in content
+
+    def test_root_spans_only_omitted_when_unset(self) -> None:
+        resolved = ResolvedContexts(
+            project=ProjectContext(type="project", project_node_id="UHJvamVjdDox"),
+        )
+        content = build_phoenix_context_user_message_content(resolved)
+        assert content is not None
+        assert "Spans table" not in content
+
 
 class TestInsertContextUserMessage:
     def test_returns_messages_unchanged_when_content_is_none(self) -> None:
