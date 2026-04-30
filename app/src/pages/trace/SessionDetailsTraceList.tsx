@@ -13,7 +13,8 @@ import {
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
-import { useSearchParams } from "react-router";
+import type { To } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -38,6 +39,7 @@ import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
+  SESSION_VIEW_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -76,6 +78,27 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
   }
   const userId = userAttributes[UserAttributePostfixes.id];
   return isString(userId) || isNumber(userId) ? userId : null;
+};
+
+const getSessionTraceUrl = ({
+  pathname,
+  search,
+  traceId,
+  spanNodeId,
+}: {
+  pathname: string;
+  search: string;
+  traceId: string;
+  spanNodeId: string;
+}): To => {
+  const params = new URLSearchParams(search);
+  params.set(SESSION_VIEW_PARAM, "traces");
+  params.set(SELECTED_TRACE_ID_PARAM, traceId);
+  params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  return {
+    pathname,
+    search: params.toString(),
+  };
 };
 
 function RootSpanMessage({
@@ -119,6 +142,7 @@ function RootSpanDetails({
   rootSpan,
   index,
 }: RootSpanProps & { traceId: string; index: number }) {
+  const location = useLocation();
   const { fullTimeFormatter } = useTimeFormatters();
   const startDate = useMemo(() => {
     return new Date(rootSpan.startTime);
@@ -139,7 +163,12 @@ function RootSpanDetails({
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
-              to={`/projects/${rootSpan.project.id}/traces/${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${rootSpan.id}`}
+              to={getSessionTraceUrl({
+                pathname: location.pathname,
+                search: location.search,
+                traceId,
+                spanNodeId: rootSpan.id,
+              })}
             >
               <Flex alignItems={"center"}>
                 View Trace
