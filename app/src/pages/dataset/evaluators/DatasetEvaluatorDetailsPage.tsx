@@ -131,6 +131,7 @@ function DatasetEvaluatorDetailsPageContent({
                   <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
                     datasetId={datasetId}
+                    sandboxBackends={data.sandboxBackends}
                     isEditSlideoverOpen={isEditSlideoverOpen}
                     onEditSlideoverOpenChange={setIsEditSlideoverOpen}
                   />

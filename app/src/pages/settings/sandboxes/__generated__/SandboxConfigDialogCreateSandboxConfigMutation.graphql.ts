@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39bccf4c2aaf56ccad12535f3d0ab030>>
+ * @generated SignedSource<<13fddc04769582c60b8757f179488fdd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -184,6 +184,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "statusDetail",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "supportsEnvVars",
                     "storageKey": null
                   },
@@ -272,12 +279,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c408b5c7969a3524b94197fc3988bd01",
+    "cacheID": "b57abfb530dda8f153202bcea1e2d907",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

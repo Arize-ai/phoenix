@@ -196,11 +196,16 @@ function EditCodeDatasetEvaluatorSlideoverContent({
               id
               name
               description
+              timeout
+              config
             }
           }
           sandboxBackends {
             backendType
             status
+            supportsEnvVars
+            internetAccess
+            dependenciesLanguage
           }
         }
       `,

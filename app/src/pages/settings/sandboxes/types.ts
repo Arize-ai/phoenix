@@ -22,10 +22,6 @@ export type ConfigRow = {
   config: SandboxConfig;
 };
 
-export type ProviderSettingsFormValues = {
-  configText: string;
-};
-
 export type EnvVarFormEntry =
   | { kind: "literal"; name: string; value: string }
   | { kind: "secret_ref"; name: string; secret_key: string };
@@ -35,8 +31,13 @@ export type SandboxConfigFormValues = {
   name: string;
   description: string;
   timeout: number;
-  configText: string;
   envVars: EnvVarFormEntry[];
   internetAccessEnabled: boolean;
   dependenciesText: string;
+  dependenciesLockfile: string | null;
 };
+
+// Must stay aligned with the backend column server_default in
+// src/phoenix/db/models.py and the mutation fallback in
+// src/phoenix/server/api/mutations/sandbox_config_mutations.py.
+export const DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300;

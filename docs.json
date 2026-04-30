@@ -194,6 +194,7 @@
                     ]
                   },
                   "docs/phoenix/evaluation/how-to-evals/code-evaluators",
+                  "docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes",
                   "docs/phoenix/evaluation/how-to-evals/batch-evaluations",
                   "docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix",
                   {

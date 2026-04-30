@@ -2,13 +2,16 @@
 Local Deno sandbox backend.
 
 Stateless (BaseNoSessionBackend) — each execute() call is independent.
-Requires the ``deno_sandbox`` package (optional extra).
-Import is deferred to avoid top-level failures when the extra is absent.
+Executes code through the local ``deno`` CLI with a default-deny permission
+model, granting only exact env-var access for server-injected variables.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
+import shutil
 from typing import Any, Optional
 
 from .types import (
@@ -21,17 +24,49 @@ from .types import (
 
 logger = logging.getLogger(__name__)
 
+_ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_ESCAPE_RE.sub("", text)
+
 
 class DenoSandboxBackend(BaseNoSessionBackend):
     """Sandbox backend executing TypeScript code in a local Deno runtime."""
 
-    def __init__(self, user_env: Optional[dict[str, str]] = None) -> None:
+    def __init__(
+        self,
+        deno_executable: str,
+        user_env: Optional[dict[str, str]] = None,
+    ) -> None:
+        self._deno_executable = deno_executable
         self._user_env: dict[str, str] = user_env or {}
 
-    def _get_client(self) -> Any:
-        from deno_sandbox import DenoSandbox  # type: ignore[import-not-found]
+    def _build_command(self) -> list[str]:
+        # Deno security docs: permissions are denied by default, but config
+        # files can also supply permissions and module loading from remote/npm
+        # can still occur unless explicitly disabled.
+        # Docs:
+        # - https://docs.deno.com/runtime/fundamentals/security/
+        # - https://docs.deno.com/runtime/reference/cli/run/
+        cmd = [
+            self._deno_executable,
+            "run",
+            "--no-prompt",
+            "--no-config",
+            "--no-remote",
+            "--no-npm",
+        ]
+        if self._user_env:
+            allowed_env_names = ",".join(sorted(self._user_env))
+            cmd.append(f"--allow-env={allowed_env_names}")
+        cmd.append("-")
+        return cmd
 
-        return DenoSandbox()
+    def _build_subprocess_env(self) -> dict[str, str]:
+        # Pass only caller-resolved variables through to the child so Deno code
+        # cannot observe the Phoenix server's ambient environment.
+        return dict(self._user_env)
 
     async def execute(
         self,
@@ -39,17 +74,46 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        proc: asyncio.subprocess.Process | None = None
+        cmd = self._build_command()
+        exec_timeout = timeout if timeout is not None else 30
+
         try:
-            client = self._get_client()
-            run_kwargs: dict[str, Any] = {"env": self._user_env}
-            if timeout is not None:
-                run_kwargs["timeout"] = timeout
-            result = await client.run(code, **run_kwargs)
-            return ExecutionResult(
-                stdout=result.stdout or "",
-                stderr=result.stderr or "",
-                error=result.error or None,
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=self._build_subprocess_env(),
             )
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(code.encode("utf-8")),
+                timeout=exec_timeout,
+            )
+            stdout = _strip_ansi(stdout_bytes.decode("utf-8", errors="replace"))
+            stderr = _strip_ansi(stderr_bytes.decode("utf-8", errors="replace"))
+            if proc.returncode == 0:
+                return ExecutionResult(stdout=stdout, stderr=stderr)
+            error = stderr or f"Deno process exited with code {proc.returncode}"
+            return ExecutionResult(
+                stdout=stdout,
+                stderr=stderr,
+                error=error,
+            )
+        except asyncio.TimeoutError:
+            if proc is not None:
+                proc.kill()
+                try:
+                    await proc.wait()
+                except Exception:
+                    logger.debug("Timed-out Deno process failed to exit cleanly", exc_info=True)
+            message = f"Execution timed out after {exec_timeout}s"
+            return ExecutionResult(stdout="", stderr=message, error=message)
+        except FileNotFoundError:
+            message = (
+                "Deno executable not found. Install Deno and ensure the `deno` binary is on PATH."
+            )
+            return ExecutionResult(stdout="", stderr=message, error=message)
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
@@ -67,4 +131,9 @@ class DenoAdapter(SandboxAdapter):
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        return DenoSandboxBackend(user_env=user_env)
+        deno_executable = shutil.which("deno")
+        if deno_executable is None:
+            raise ValueError(
+                "Deno is not installed. Install Deno and ensure the `deno` binary is on PATH."
+            )
+        return DenoSandboxBackend(deno_executable=deno_executable, user_env=user_env)
