@@ -1,5 +1,5 @@
 // --- Elicit tool ---
-export { elicitToolDefinition, parseElicitToolInput } from "./elicitToolSchema";
+export { parseElicitToolInput } from "./elicitToolSchema";
 export { ELICIT_TOOL_SYSTEM_PROMPT_LINES } from "./elicitToolCapabilities";
 export {
   elicitationOptionSchema,

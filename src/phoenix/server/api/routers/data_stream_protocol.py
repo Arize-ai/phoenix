@@ -14,6 +14,10 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from phoenix.server.agents.capabilities import (
+    AgentCapabilities,
+    append_capability_system_prompt,
+)
 from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
@@ -48,8 +52,8 @@ _FINISH_REASON_MAP: dict[
 }
 
 
-class FrontendTool(BaseModel):
-    """Tool descriptor sent by the frontend alongside chat requests."""
+class ExternalTool(BaseModel):
+    """Tool descriptor supplied by the external AI SDK chat request."""
 
     name: str
     description: str
@@ -69,11 +73,11 @@ def _get_vercel_request_class() -> Any:
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
         class _VercelRequest(SubmitMessage):
-            tools: list[FrontendTool] | None = None
-            output_tools: list[FrontendTool] | None = None
+            output_tools: list[ExternalTool] | None = None
             system: str | None = None
             session_id: str | None = None
             contexts: list[ChatContext] | None = None
+            capabilities: AgentCapabilities = AgentCapabilities()
             export_remote_traces: bool = False
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
@@ -87,14 +91,13 @@ class ChatBody:
     """Parsed chat request body with all the data needed for streaming and tracing."""
 
     messages: list[ModelMessage]
-    tools: list[FrontendTool] | None = None
-    output_tools: list[FrontendTool] | None = None
+    output_tools: list[ExternalTool] | None = None
     system: str | None = None
     session_id: str | None = None
+    capabilities: AgentCapabilities = field(default_factory=AgentCapabilities)
     export_remote_traces: bool = False
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
-    raw_tools: list[dict[str, Any]] = field(default_factory=list)
     contexts: list[ChatContext] = field(default_factory=list)
     resolved: ResolvedContexts = field(default_factory=ResolvedContexts)
 
@@ -126,38 +129,27 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     cls = _get_vercel_request_class()
     body = cls.model_validate_json(_sanitize_raw_body(raw_body))
     logger.debug("system=%r", body.system)
-    logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
     logger.debug("contexts=%r", [context.type for context in (body.contexts or [])])
+    logger.debug("capabilities=%r", body.capabilities)
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
+    effective_system = append_capability_system_prompt(body.system, body.capabilities)
 
-    if body.system:
-        messages = [ModelRequest(parts=[SystemPromptPart(content=body.system)]), *messages]
-
-    # Build raw tool dicts for tracing (OpenInference tool json_schema).
-    raw_tools: list[dict[str, Any]] = []
-    for t in body.tools or []:
-        function: dict[str, Any] = {
-            "name": t.name,
-            "parameters": t.parameters,
-        }
-        if t.description is not None:
-            function["description"] = t.description
-        raw_tools.append({"type": "function", "function": function})
+    if effective_system:
+        messages = [ModelRequest(parts=[SystemPromptPart(content=effective_system)]), *messages]
 
     contexts = list(body.contexts or [])
 
     return ChatBody(
         messages=messages,
-        tools=body.tools,
         output_tools=body.output_tools,
         system=body.system,
         session_id=body.session_id,
+        capabilities=body.capabilities,
         export_remote_traces=body.export_remote_traces,
         ingest_traces=body.ingest_traces,
         trace_name_suffix=body.trace_name_suffix,
-        raw_tools=raw_tools,
         contexts=contexts,
         resolved=resolve_contexts(contexts),
     )
@@ -331,7 +323,7 @@ async def stream_text(
     *,
     body: ChatBody,
     mcp_client: MintlifyDocsClient | None = None,
-    contextual_tools: tuple[
+    tools: tuple[
         list["ToolDefinition"],
         dict[str, Callable[[dict[str, Any]], Awaitable[str]]],
     ]
@@ -375,7 +367,7 @@ async def stream_text(
 
     messages: list[Any] = list(body.messages)
 
-    def _to_tool_defs(tools: list[FrontendTool]) -> list[ToolDefinition]:
+    def _to_tool_defs(tools: list[ExternalTool]) -> list[ToolDefinition]:
         return [
             ToolDefinition(
                 name=t.name,
@@ -385,7 +377,7 @@ async def stream_text(
             for t in tools
         ]
 
-    contextual_tool_defs, contextual_dispatch = contextual_tools or ([], {})
+    tool_defs, contextual_dispatch = tools or ([], {})
     mcp_tool_defs: list[ToolDefinition] = []
     mcp_tool_names: frozenset[str] = frozenset()
     if mcp_client is not None:
@@ -396,7 +388,7 @@ async def stream_text(
         except Exception:
             logger.exception("Failed to fetch backend MCP tool definitions")
 
-    backend_tool_defs = mcp_tool_defs + contextual_tool_defs
+    all_function_tools = tool_defs + mcp_tool_defs
     # Only tools with a server-side callable count as "backend": MCP tools
     # always run server-side, and contextual tools that registered an entry in
     # ``contextual_dispatch``. Contextual tools advertised without a dispatch
@@ -404,11 +396,7 @@ async def stream_text(
     # to the browser via the standard frontend-tool path.
     backend_tool_names = mcp_tool_names | frozenset(contextual_dispatch.keys())
 
-    frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
-
-    # Merge frontend + backend tools for the model.
-    all_function_tools = frontend_tool_defs + backend_tool_defs
 
     params = ModelRequestParameters(
         function_tools=all_function_tools,
@@ -438,9 +426,9 @@ async def stream_text(
         ToolInputAvailableChunk=ToolInputAvailableChunk,
     )
 
-    # Also build raw tool dicts for tracing that include backend tools.
-    raw_all_tools: list[dict[str, Any]] = list(body.raw_tools or [])
-    for td in backend_tool_defs:
+    # Also build raw tool dicts for tracing that include all advertised tools.
+    raw_all_tools: list[dict[str, Any]] = []
+    for td in all_function_tools:
         raw_all_tools.append(
             {
                 "type": "function",
@@ -457,7 +445,7 @@ async def stream_text(
     should_trace = ingest_traces or export_remote_traces
 
     # Maximum backend tool loop iterations to prevent runaway loops.
-    _MAX_BACKEND_TOOL_LOOPS = 5
+    _MAX_BACKEND_TOOL_LOOPS = 20
 
     from phoenix.config import get_env_phoenix_agents_assistant_project_name
     from phoenix.server.api.routers.chat_tracing import (

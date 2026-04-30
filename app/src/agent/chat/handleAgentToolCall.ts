@@ -2,8 +2,8 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
 /**
- * For the workflow to add, edit, or remove a frontend tool, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ * For the workflow to add, edit, or remove a PXI tool, see
+ * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
  */
 import {
   handleRegisteredAgentToolCall,

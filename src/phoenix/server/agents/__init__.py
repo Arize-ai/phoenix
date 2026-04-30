@@ -21,9 +21,10 @@ Package layout
     Mintlify-hosted MCP backend tool client. Lazily connected and shared
     across requests via ``app.state``.
 ``tools``
-    Contextual tool registry. ``resolve_contextual_tools`` filters the
-    registry to the tools whose required UI contexts are present, and
-    builds dispatch callables for server-executed tools.
+    PXI tool resolution. ``resolve_tools`` returns the server-defined tools
+    advertised for a turn, including always-available external tools and
+    UI-context-gated contextual tools. Server-executed contextual tools also
+    contribute dispatch callables for the data-stream protocol.
 
 The ``/chat`` router (``phoenix.server.api.routers.chat``) is the only
 intended caller; treat anything not re-exported here as internal.

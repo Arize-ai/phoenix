@@ -30,7 +30,6 @@ class TestParseChatBody:
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
         assert body.system is None
-        assert body.tools is None
         assert len(body.messages) >= 1
 
     def test_parses_session_id_and_trace_destination_flags(self) -> None:
@@ -57,7 +56,7 @@ class TestParseChatBody:
         assert body.ingest_traces is False
         assert body.trace_name_suffix == "Summary"
 
-    def test_parses_tools(self) -> None:
+    def test_ignores_legacy_client_tool_definitions(self) -> None:
         raw = json.dumps(
             {
                 "trigger": "submit-message",
@@ -75,13 +74,7 @@ class TestParseChatBody:
             }
         ).encode()
         body = parse_chat_body(raw)
-        assert body.tools is not None
-        assert len(body.tools) == 1
-        assert body.tools[0].name == "search"
-        assert len(body.raw_tools) == 1
-        assert body.raw_tools[0]["type"] == "function"
-        assert body.raw_tools[0]["function"]["name"] == "search"
-        assert body.raw_tools[0]["function"]["description"] == "Search the web"
+        assert isinstance(body, ChatBody)
 
     def test_parses_system_prompt(self) -> None:
         raw = json.dumps(
@@ -106,6 +99,38 @@ class TestParseChatBody:
         first_msg = body.messages[0]
         assert isinstance(first_msg, ModelRequest)
         assert any(isinstance(p, SystemPromptPart) for p in first_msg.parts)
+
+    def test_appends_capability_guidance_to_system_prompt(self) -> None:
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "system": "You are a helpful assistant.",
+                "capabilities": {
+                    "bash.retainInactiveSessions": False,
+                    "graphql.mutations": True,
+                },
+            }
+        ).encode()
+        body = parse_chat_body(raw)
+
+        from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+        first_msg = body.messages[0]
+        assert isinstance(first_msg, ModelRequest)
+        system_part = next(p for p in first_msg.parts if isinstance(p, SystemPromptPart))
+        assert system_part.content.startswith("You are a helpful assistant.")
+        assert "Runtime capability state for this conversation:" in system_part.content
+        assert "GraphQL mutations are enabled" in system_part.content
+        assert body.system == "You are a helpful assistant."
+        assert body.capabilities.graphql_mutations is True
 
 
 class TestStreamAccumulator:

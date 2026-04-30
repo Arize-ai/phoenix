@@ -1,6 +1,17 @@
-"""Contextual tool registry. See ``registry.py`` for the public API and
-instructions for adding a new tool."""
+"""PXI tool registry exports.
 
-from phoenix.server.agents.tools.registry import ContextualTool, resolve_contextual_tools
+``resolve_tools`` returns the server-defined tools advertised for a turn,
+including always-available external tools and UI-context-gated contextual tools.
+"""
 
-__all__ = ["ContextualTool", "resolve_contextual_tools"]
+from phoenix.server.agents.tools.registry import (
+    ContextualTool,
+    resolve_contextual_tools,
+    resolve_tools,
+)
+
+__all__ = [
+    "ContextualTool",
+    "resolve_contextual_tools",
+    "resolve_tools",
+]

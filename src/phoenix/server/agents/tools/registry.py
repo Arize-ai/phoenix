@@ -1,23 +1,28 @@
-"""Contextual tool registry for the chat agent.
+"""Tool registries for the chat agent.
 
 A *contextual tool* is exposed to the model only when the user's current
 UI context provides everything the tool needs. For example, the span
 filter tool is only advertised when the user is viewing a project page
 that has a span filter field mounted.
 
-Adding a new contextual tool
-----------------------------
-1. Create ``agents/tools/<your_tool>.py`` with a builder function that
-   returns a ``ContextualTool``.
-2. Append the builder's result to ``CONTEXTUAL_TOOLS`` at the bottom of
-   this file.
-3. Set ``required_contexts`` to the names recognised by
-   ``_available_context_types`` (``project``, ``span_filter``, ``trace``,
-   ``span``); add a new name there if the UI exposes new state.
-4. For ``executes_on="server"`` tools, supply a ``build_callable`` that
-   takes ``(ToolExecutionEnv, ResolvedContexts)`` and returns an async
-   callable. For ``executes_on="client"`` tools, leave it ``None`` —
-   dispatch happens via the data-stream protocol.
+An *external tool* is always exposed to the model and executed outside the
+backend, currently by the browser.
+
+Adding a new tool
+-----------------
+1. Create ``agents/tools/external/<your_tool>.py`` with a
+   ``ToolDefinition`` for always-available external tools, or create
+   ``agents/tools/<your_tool>.py`` with a builder function that returns a
+   ``ContextualTool`` for tools gated by UI context.
+2. Import the tool at the bottom of this file and append it to
+   ``EXTERNAL_TOOLS`` or ``CONTEXTUAL_TOOLS``.
+3. For contextual tools, set ``required_contexts`` to the names recognised by
+    ``_available_context_types`` (``project``, ``span_filter``, ``trace``,
+    ``span``); add a new name there if the UI exposes new state.
+4. For contextual ``executes_on="server"`` tools, supply a ``build_callable`` that
+    takes ``(ToolExecutionEnv, ResolvedContexts)`` and returns an async
+    callable. For ``executes_on="client"`` tools, leave it ``None`` —
+    dispatch happens via the data-stream protocol.
 """
 
 from __future__ import annotations
@@ -94,6 +99,7 @@ def resolve_contextual_tools(
                 name=tool.name,
                 description=tool.description,
                 parameters_json_schema=tool.parameters_json_schema,
+                kind="external" if tool.executes_on == "client" else "function",
             )
         )
         if tool.executes_on == "server":
@@ -103,8 +109,33 @@ def resolve_contextual_tools(
     return defs, dispatch
 
 
+def resolve_tools(
+    resolved: ResolvedContexts,
+    env: ToolExecutionEnv | None = None,
+) -> tuple[list["ToolDefinition"], dict[str, "ToolCallable"]]:
+    available = _available_context_types(resolved)
+    has_contextual_tools = any(
+        tool.required_contexts.issubset(available) for tool in CONTEXTUAL_TOOLS
+    )
+    if not has_contextual_tools:
+        # Non-UI entrypoints can advertise external tools without requiring a
+        # database-backed execution environment for contextual tools.
+        return list(EXTERNAL_TOOLS), {}
+    if env is None:
+        raise ValueError("ToolExecutionEnv is required when resolving contextual tools")
+    contextual_defs, dispatch = resolve_contextual_tools(resolved, env)
+    return [*EXTERNAL_TOOLS, *contextual_defs], dispatch
+
+
 from phoenix.server.agents.tools.apply_span_filter_condition import (  # noqa: E402
     build_apply_span_filter_condition_tool,
 )
+from phoenix.server.agents.tools.external.ask_user import (  # noqa: E402
+    ASK_USER_TOOL_DEFINITION,
+)
+from phoenix.server.agents.tools.external.bash import (  # noqa: E402
+    BASH_TOOL_DEFINITION,
+)
 
 CONTEXTUAL_TOOLS: list[ContextualTool] = [build_apply_span_filter_condition_tool()]
+EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL_DEFINITION, BASH_TOOL_DEFINITION]
