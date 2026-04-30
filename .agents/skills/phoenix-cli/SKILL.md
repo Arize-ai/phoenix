@@ -5,7 +5,7 @@ license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # Phoenix CLI
@@ -27,6 +27,10 @@ px trace add-note <trace-id>
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px session list
+px session get <session-id>
+px session annotate <session-id>
+px session add-note <session-id>
 px dataset list
 px dataset get <name>
 px project list
@@ -154,8 +158,13 @@ Span
 ```bash
 px session list --limit 10 --format raw --no-progress | jq .
 px session list --order asc --format raw --no-progress | jq '.[].session_id'
+px session list --include-annotations --include-notes --format raw --no-progress | jq '.[].notes'
 px session get <session-id> --format raw | jq .
-px session get <session-id> --include-annotations --format raw | jq '.annotations'
+px session get <session-id> --include-annotations --format raw | jq '.session.annotations'
+px session get <session-id> --include-notes --format raw | jq '.session.notes'
+px session annotate <session-id> --name reviewer --label pass
+px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-progress
+px session add-note <session-id> --text "verified by agent"
 ```
 
 ### Session JSON shape
@@ -164,13 +173,12 @@ px session get <session-id> --include-annotations --format raw | jq '.annotation
 SessionData
   id, session_id, project_id
   start_time, end_time
+  annotations[] (with --include-annotations, excludes note)
+    name, result { score, label, explanation }
+  notes[] (with --include-notes)
+    name="note", result { explanation }
   traces[]
     id, trace_id, start_time, end_time
-
-SessionAnnotation (with --include-annotations)
-  id, name, annotator_kind ("LLM"|"CODE"|"HUMAN"), session_id
-  result { label, score, explanation }
-  metadata, identifier, source, created_at, updated_at
 ```
 
 ## Datasets / Experiments / Prompts

@@ -446,8 +446,14 @@ async def annotate_sessions(
             )
             inserted_ids.append(session_annotation_id)
 
+    request.state.event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSessionsResponseBody(
-        data=[InsertedSessionAnnotation(id=str(inserted_id)) for inserted_id in inserted_ids]
+        data=[
+            InsertedSessionAnnotation(
+                id=str(GlobalID(SessionAnnotationNodeType.__name__, str(inserted_id)))
+            )
+            for inserted_id in inserted_ids
+        ]
     )
 
 

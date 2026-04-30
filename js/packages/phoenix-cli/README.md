@@ -315,14 +315,17 @@ List sessions for a project.
 px session list                                            # latest 10 sessions
 px session list --limit 20 --order asc                     # oldest first
 px session list --format raw --no-progress | jq '.[].session_id'
+px session list --include-annotations --include-notes --format raw | jq '.[].notes'
 ```
 
-| Option                 | Description                 | Default  |
-| ---------------------- | --------------------------- | -------- |
-| `-n, --limit <number>` | Maximum number of sessions  | `10`     |
-| `--order <order>`      | Sort order: `asc` or `desc` | `desc`   |
-| `--format <format>`    | `pretty`, `json`, or `raw`  | `pretty` |
-| `--no-progress`        | Suppress progress output    | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `-n, --limit <number>`  | Maximum number of sessions                   | `10`     |
+| `--order <order>`       | Sort order: `asc` or `desc`                  | `desc`   |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 
@@ -333,15 +336,41 @@ View a session's conversation flow.
 ```bash
 px session get my-session-id
 px session get my-session-id --file session.json
-px session get my-session-id --include-annotations --format raw | jq '.traces'
+px session get my-session-id --include-annotations --format raw | jq '.session.annotations'
+px session get my-session-id --include-notes --format raw | jq '.session.notes'
 ```
 
-| Option                  | Description                            | Default  |
-| ----------------------- | -------------------------------------- | -------- |
-| `--file <path>`         | Save session to file instead of stdout | —        |
-| `--include-annotations` | Include session annotations            | —        |
-| `--format <format>`     | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`         | Suppress progress output               | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `--file <path>`         | Save session to file instead of stdout       | —        |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
+
+---
+
+### `px session annotate <session-id>`
+
+Create or update a human session annotation by GlobalID or user-provided `session_id`.
+
+```bash
+px session annotate my-session-id --name reviewer --label pass
+px session annotate my-session-id --name reviewer --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name evaluator --label pass --annotator-kind LLM
+px session annotate my-session-id --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px session add-note <session-id>`
+
+Add a note to a session by GlobalID or user-provided `session_id`. Requires Phoenix server `14.17.0` or newer.
+
+```bash
+px session add-note my-session-id --text "needs follow-up"
+px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
 
 ---
 

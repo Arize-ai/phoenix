@@ -1,6 +1,7 @@
 import { createClient } from "../client";
 import { ADD_TRACE_NOTE } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
@@ -63,7 +64,7 @@ export async function addTraceNote({
   });
 
   if (error) {
-    throw new Error(`Failed to add trace note: ${error}`);
+    throw new Error(`Failed to add trace note: ${formatApiError(error)}`);
   }
 
   if (!data?.data) {

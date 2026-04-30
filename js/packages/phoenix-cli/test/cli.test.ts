@@ -97,7 +97,7 @@ describe("Phoenix CLI", () => {
     ).toBeUndefined();
   });
 
-  it("should register session list and session get as the primary session commands", () => {
+  it("should register session commands", () => {
     const program = createProgram();
     const sessionCommand = program.commands.find(
       (command) => command.name() === "session"
@@ -105,8 +105,13 @@ describe("Phoenix CLI", () => {
 
     expect(sessionCommand).toBeDefined();
     expect(sessionCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get"])
+      expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
+    const listCommand = sessionCommand?.commands.find(
+      (command) => command.name() === "list"
+    );
+    expect(listCommand?.helpInformation()).toContain("--include-annotations");
+    expect(listCommand?.helpInformation()).toContain("--include-notes");
     expect(
       program.commands.find((command) => command.name() === "sessions")
     ).toBeUndefined();
