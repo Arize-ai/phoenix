@@ -38,10 +38,10 @@ function formatSpansPretty({
   includeAnnotations?: boolean;
   includeNotes?: boolean;
 }): string {
-  const hasAnnotations =
+  const shouldShowAnnotationsColumn =
     Boolean(includeAnnotations) ||
     spans.some((s) => s.annotations && s.annotations.length > 0);
-  const hasNotes =
+  const shouldShowNotesColumn =
     Boolean(includeNotes) || spans.some((s) => s.notes && s.notes.length > 0);
 
   const rows = spans.map((span) => {
@@ -57,10 +57,10 @@ function formatSpansPretty({
       time: formatTimestamp(span.start_time),
     };
 
-    if (hasAnnotations) {
+    if (shouldShowAnnotationsColumn) {
       row.annotations = formatAnnotations(span.annotations);
     }
-    if (hasNotes) {
+    if (shouldShowNotesColumn) {
       row.notes = formatNotes(span.notes);
     }
 

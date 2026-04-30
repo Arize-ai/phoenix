@@ -76,12 +76,12 @@ function formatSessionsPretty({
     return "No sessions found";
   }
 
-  const hasAnnotations =
+  const shouldShowAnnotationsColumn =
     Boolean(includeAnnotations) ||
     sessions.some(
       (session) => session.annotations && session.annotations.length > 0
     );
-  const hasNotes =
+  const shouldShowNotesColumn =
     Boolean(includeNotes) ||
     sessions.some((session) => session.notes && session.notes.length > 0);
 
@@ -92,10 +92,10 @@ function formatSessionsPretty({
     duration: formatDuration(s.start_time, s.end_time),
     started: formatDate(s.start_time),
     ended: formatDate(s.end_time),
-    ...(hasAnnotations
+    ...(shouldShowAnnotationsColumn
       ? { annotations: formatAnnotations(s.annotations) }
       : {}),
-    ...(hasNotes ? { notes: formatNotes(s.notes) } : {}),
+    ...(shouldShowNotesColumn ? { notes: formatNotes(s.notes) } : {}),
   }));
 
   return formatTable(rows);
