@@ -103,6 +103,7 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
 | Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response                               |
+| Pairwise Quality       | `createPairwiseQualityEvaluator`      | Compares two responses side by side and returns the preferred response or tie     |
 
 ```typescript
 import {
@@ -144,6 +145,43 @@ const relevanceResult = await relevanceEvaluator.evaluate({
 console.log(relevanceResult);
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
+
+### Pairwise Evaluation
+
+Use `PairwiseEvaluator` when you need to compare two model outputs side by side. It randomizes presentation order by default to reduce position bias, supports ties, and stores the A/B position mapping in `metadata`.
+
+```typescript
+import { PairwiseEvaluator, winRate } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = new PairwiseEvaluator({
+  name: "pairwise_quality",
+  model: openai("gpt-4o"),
+  promptTemplate: `
+Question: {{input}}
+
+Response A:
+{{item_1}}
+
+Response B:
+{{item_2}}
+
+Which response is better? Choose A, B, or tie.
+`,
+  groups: ["candidate", "baseline"],
+  ordering: "random", // "random" | "both" | "fixed"
+});
+
+const result = await evaluator.evaluate({
+  candidate: "Paris is the capital of France.",
+  baseline: "The capital is Paris, located on the Seine.",
+  input: "What is the capital of France?",
+});
+
+const rate = winRate({ scores: [result], group: "candidate" });
+```
+
+For a generic starting point, use `createPairwiseQualityEvaluator` from `@arizeai/phoenix-evals/llm`. Validate the prompt against your domain before production use.
 
 ### Data Mapping
 

@@ -72,6 +72,7 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
 | Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
 | Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+| Pairwise Quality | `PairwiseQualityEvaluator` | Compares two responses side by side and returns the preferred response or tie |
 | Exact Match | `exact_match` | Checks for exact string equality between output and expected |
 | Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
 | Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |
@@ -100,6 +101,46 @@ regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({
     "output": "2024-03-15"
 })
 ```
+
+## Pairwise Evaluation
+
+Use `PairwiseEvaluator` when you need to compare two model outputs side by side. The evaluator randomizes presentation order by default to reduce position bias, supports ties, and records the position mapping in `Score.metadata`.
+
+```python
+from phoenix.evals import LLM, PairwiseEvaluator
+from phoenix.evals.aggregation import win_rate
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+pairwise = PairwiseEvaluator(
+    name="pairwise_quality",
+    llm=llm,
+    prompt_template="""
+Question: {{input}}
+
+Response A:
+{{item_1}}
+
+Response B:
+{{item_2}}
+
+Which response is better? Choose A, B, or tie.
+""",
+    groups=("candidate", "baseline"),
+    ordering="random",  # "random" | "both" | "fixed"
+)
+
+scores = pairwise.evaluate({
+    "candidate": "Paris is the capital of France.",
+    "baseline": "The capital is Paris, located on the Seine.",
+    "input": "What is the capital of France?",
+})
+scores[0].pretty_print()
+
+rate = win_rate(scores, group="candidate")
+```
+
+For a generic starting point, use `PairwiseQualityEvaluator` from `phoenix.evals.metrics`. It is intended as an example prompt and should be validated against your domain before production use.
 
 ## LLM Providers
 
