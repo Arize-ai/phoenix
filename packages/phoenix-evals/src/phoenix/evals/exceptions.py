@@ -10,6 +10,10 @@ class PhoenixTemplateMappingError(PhoenixException):
     pass
 
 
+class InvalidPromptTemplateError(PhoenixException):
+    pass
+
+
 class PhoenixUnsupportedAudioFormat(PhoenixException):
     pass
 

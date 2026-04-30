@@ -1,8 +1,10 @@
 import asyncio
 import copy
+import hashlib
 import inspect
 import itertools
 import json
+import random
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -26,6 +28,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
+from phoenix.evals.exceptions import InvalidPromptTemplateError
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
 from .legacy.evaluators import (
@@ -52,6 +55,7 @@ EvalInput = Dict[str, Any]
 ToolSchema = Optional[Dict[str, Any]]
 KindType = Literal["human", "llm", "heuristic", "code"]
 DirectionType = Literal["maximize", "minimize", "neutral"]
+PairwiseOrdering = Literal["random", "both", "fixed"]
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
 
@@ -831,6 +835,353 @@ class ClassificationEvaluator(LLMEvaluator):
                 direction=self.direction,
             )
         ]
+
+
+_PAIRWISE_RESERVED_GROUPS = {"tie", "item_1", "item_2", "response_1", "response_2"}
+_PAIRWISE_FORBIDDEN_TEMPLATE_VARS = {"response_a", "response_b", "item_a", "item_b"}
+
+
+@dataclass(frozen=True)
+class _PairwisePassResult:
+    choice: str
+    winner: Optional[str]
+    rationale: Optional[str]
+    presented_first: str
+    presented_second: str
+
+
+class PairwiseEvaluator(LLMEvaluator):
+    """LLM-based evaluator for side-by-side comparison of two outputs."""
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        llm: LLM,
+        prompt_template: Union[PromptLike, PromptTemplate, Template],
+        groups: Tuple[str, str] = ("a", "b"),
+        ordering: PairwiseOrdering = "random",
+        allow_ties: bool = True,
+        include_explanation: bool = True,
+        seed: Optional[int] = 0,
+        direction: DirectionType = "maximize",
+        **kwargs: Any,
+    ):
+        if isinstance(prompt_template, PromptTemplate):
+            pairwise_prompt_template = prompt_template
+        else:
+            pairwise_prompt_template = PromptTemplate(template=prompt_template)
+        groups = self._validate_groups(groups)
+        self._validate_prompt_template(pairwise_prompt_template, groups)
+        if ordering not in ("random", "both", "fixed"):
+            raise ValueError("PairwiseEvaluator ordering must be 'random', 'both', or 'fixed'.")
+        if ordering == "both" and not allow_ties:
+            warnings.warn(
+                "PairwiseEvaluator with ordering='both' can still produce structural ties "
+                "when the judge disagrees across swapped positions.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        prompt_variables = pairwise_prompt_template.variables
+        input_fields = (set(prompt_variables) - {"item_1", "item_2"}) | set(groups)
+        var_types = pairwise_prompt_template.variable_types
+        field_defs: Dict[str, Tuple[Any, Any]] = {}
+        for field_name in input_fields:
+            if field_name in groups or var_types.get(field_name) == "section":
+                field_defs[field_name] = (Any, ...)
+            else:
+                field_defs[field_name] = (SmartString, ...)
+        input_schema = create_model(f"{name.capitalize()}Input", **cast(Any, field_defs))
+
+        super().__init__(
+            name=name,
+            llm=llm,
+            prompt_template=pairwise_prompt_template,
+            input_schema=input_schema,
+            direction=direction,
+            **kwargs,
+        )
+        self.groups = groups
+        self.ordering = ordering
+        self.allow_ties = allow_ties
+        self.include_explanation = include_explanation
+        self.seed = seed
+
+    @staticmethod
+    def _validate_groups(groups: Tuple[str, str]) -> Tuple[str, str]:
+        if not isinstance(groups, tuple) or len(groups) != 2:
+            raise ValueError("PairwiseEvaluator groups must be a 2-tuple of strings.")
+        group_1, group_2 = groups
+        if not isinstance(group_1, str) or not isinstance(group_2, str):
+            raise ValueError("PairwiseEvaluator groups must be strings.")
+        if not group_1 or not group_2:
+            raise ValueError("PairwiseEvaluator groups must be non-empty strings.")
+        if group_1 == group_2:
+            raise ValueError("PairwiseEvaluator groups must be distinct.")
+        reserved = _PAIRWISE_RESERVED_GROUPS & {group_1, group_2}
+        if reserved:
+            raise ValueError(
+                "PairwiseEvaluator group names are reserved and cannot be used: "
+                f"{sorted(reserved)}."
+            )
+        return groups
+
+    @staticmethod
+    def _validate_prompt_template(
+        prompt_template: PromptTemplate, groups: Tuple[str, str]
+    ) -> None:
+        variables = set(prompt_template.variables)
+        missing = {"item_1", "item_2"} - variables
+        if missing:
+            raise InvalidPromptTemplateError(
+                "PairwiseEvaluator prompt_template must reference both "
+                "{{item_1}} and {{item_2}}."
+            )
+        forbidden = (set(groups) | _PAIRWISE_FORBIDDEN_TEMPLATE_VARS) & variables
+        if forbidden:
+            raise InvalidPromptTemplateError(
+                "PairwiseEvaluator prompt_template cannot reference compared group names "
+                f"or reserved variables directly: {sorted(forbidden)}."
+            )
+
+    def _rng_for_input(self, eval_input: EvalInput) -> random.Random:
+        if self.seed is None:
+            return random.Random()
+        row_payload = json.dumps(eval_input, sort_keys=True, default=str)
+        row_hash = int(hashlib.sha256(row_payload.encode("utf-8")).hexdigest()[:16], 16)
+        return random.Random(self.seed ^ row_hash)
+
+    def _ordered_groups(self, eval_input: EvalInput) -> Tuple[str, str]:
+        group_1, group_2 = self.groups
+        if self.ordering == "fixed":
+            return group_1, group_2
+        rng = self._rng_for_input(eval_input)
+        return (group_1, group_2) if rng.random() < 0.5 else (group_2, group_1)
+
+    def _render_pairwise_prompt(
+        self, eval_input: EvalInput, presented_first: str, presented_second: str
+    ) -> PromptLike:
+        prompt_variables = {
+            **eval_input,
+            "item_1": eval_input[presented_first],
+            "item_2": eval_input[presented_second],
+        }
+        prompt = self._prompt_template.render(variables=prompt_variables)
+        tie_instruction = ', or "tie" if the responses are equivalent' if self.allow_ties else ""
+        structured_instruction = (
+            '\n\nRespond with a JSON object containing "label": "A" if Response A '
+            f'(item_1) is better, "B" if Response B (item_2) is better{tie_instruction}'
+        )
+        if self.include_explanation:
+            structured_instruction += ', and "explanation": a brief rationale.'
+        else:
+            structured_instruction += "."
+        if isinstance(prompt, str):
+            return f"{prompt}{structured_instruction}"
+        rendered_messages = copy.deepcopy(prompt)
+        if rendered_messages:
+            rendered_messages[-1]["content"] = (
+                f"{rendered_messages[-1]['content']}{structured_instruction}"
+            )
+        return rendered_messages
+
+    def _valid_choices(self) -> List[str]:
+        return ["A", "B", "tie"] if self.allow_ties else ["A", "B"]
+
+    def _map_choice_to_winner(
+        self, choice: str, presented_first: str, presented_second: str
+    ) -> Optional[str]:
+        if choice == "tie":
+            return "tie"
+        if choice == "A":
+            return presented_first
+        if choice == "B":
+            return presented_second
+        return None
+
+    def _error_score(self, eval_input: EvalInput, error: str) -> List[Score]:
+        group_1, group_2 = self.groups
+        return [
+            Score(
+                name=self.name,
+                score=None,
+                label=None,
+                explanation=f"invalid judge output: {error}",
+                metadata={
+                    group_1: eval_input[group_1],
+                    group_2: eval_input[group_2],
+                    "presented_first": None,
+                    "ordering": self.ordering,
+                    "seed": self.seed,
+                    "judge_choice_pass_1": None,
+                    "judge_choice_pass_2": None,
+                    "tie_reason": None,
+                    "model": self.llm.model,
+                    "error": error,
+                },
+                kind=self.kind,
+                direction=self.direction,
+            )
+        ]
+
+    def _judge_once(
+        self, eval_input: EvalInput, presented_first: str, presented_second: str
+    ) -> _PairwisePassResult:
+        prompt_filled = self._render_pairwise_prompt(eval_input, presented_first, presented_second)
+        response = self.llm.generate_classification(
+            prompt=prompt_filled,
+            labels=self._valid_choices(),
+            include_explanation=self.include_explanation,
+            **self.invocation_parameters,
+        )
+        choice = str(response.get("label"))
+        return _PairwisePassResult(
+            choice=choice,
+            winner=self._map_choice_to_winner(choice, presented_first, presented_second),
+            rationale=response.get("explanation"),
+            presented_first=presented_first,
+            presented_second=presented_second,
+        )
+
+    async def _async_judge_once(
+        self, eval_input: EvalInput, presented_first: str, presented_second: str
+    ) -> _PairwisePassResult:
+        prompt_filled = self._render_pairwise_prompt(eval_input, presented_first, presented_second)
+        response = await self.llm.async_generate_classification(
+            prompt=prompt_filled,
+            labels=self._valid_choices(),
+            include_explanation=self.include_explanation,
+            **self.invocation_parameters,
+        )
+        choice = str(response.get("label"))
+        return _PairwisePassResult(
+            choice=choice,
+            winner=self._map_choice_to_winner(choice, presented_first, presented_second),
+            rationale=response.get("explanation"),
+            presented_first=presented_first,
+            presented_second=presented_second,
+        )
+
+    def _score_value(self, label: str) -> float:
+        if label == self.groups[0]:
+            return 1.0
+        if label == self.groups[1]:
+            return 0.0
+        return 0.5
+
+    def _format_explanation(
+        self,
+        pass_1: _PairwisePassResult,
+        pass_2: Optional[_PairwisePassResult],
+        label: str,
+        tie_reason: Optional[str],
+    ) -> Optional[str]:
+        if not self.include_explanation:
+            return None
+        lines = [
+            f"[Pass 1: A={pass_1.presented_first}, B={pass_1.presented_second}]",
+            pass_1.rationale or "",
+        ]
+        if pass_2 is not None:
+            lines.extend(
+                [
+                    "",
+                    f"[Pass 2: A={pass_2.presented_first}, B={pass_2.presented_second}]",
+                    pass_2.rationale or "",
+                    "",
+                    f"[Consensus: {self._consensus_text(label, tie_reason)}]",
+                ]
+            )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _consensus_text(label: str, tie_reason: Optional[str]) -> str:
+        if tie_reason == "disagreement":
+            return "disagreed -> tie"
+        if tie_reason == "judge_chose_tie":
+            return "judge chose tie"
+        return f"agreed -> winner={label}"
+
+    def _build_score(
+        self,
+        eval_input: EvalInput,
+        pass_1: _PairwisePassResult,
+        label: str,
+        tie_reason: Optional[str],
+        pass_2: Optional[_PairwisePassResult] = None,
+    ) -> List[Score]:
+        group_1, group_2 = self.groups
+        return [
+            Score(
+                name=self.name,
+                score=self._score_value(label),
+                label=label,
+                explanation=self._format_explanation(pass_1, pass_2, label, tie_reason),
+                metadata={
+                    group_1: eval_input[group_1],
+                    group_2: eval_input[group_2],
+                    "presented_first": pass_1.presented_first,
+                    "ordering": self.ordering,
+                    "seed": self.seed,
+                    "judge_choice_pass_1": pass_1.choice,
+                    "judge_choice_pass_2": pass_2.choice if pass_2 else None,
+                    "judge_rationale_pass_1": pass_1.rationale,
+                    "judge_rationale_pass_2": pass_2.rationale if pass_2 else None,
+                    "tie_reason": tie_reason,
+                    "model": self.llm.model,
+                },
+                kind=self.kind,
+                direction=self.direction,
+            )
+        ]
+
+    def _resolve_passes(
+        self, pass_1: _PairwisePassResult, pass_2: Optional[_PairwisePassResult] = None
+    ) -> Tuple[str, Optional[str]]:
+        if pass_1.winner is None or pass_1.choice not in self._valid_choices():
+            raise ValueError(f"invalid judge choice: {pass_1.choice}")
+        if pass_2 is None:
+            if pass_1.winner == "tie":
+                return "tie", "judge_chose_tie"
+            return pass_1.winner, None
+        if pass_2.winner is None or pass_2.choice not in self._valid_choices():
+            raise ValueError(f"invalid judge choice: {pass_2.choice}")
+        if pass_1.winner == "tie" or pass_2.winner == "tie":
+            return "tie", "judge_chose_tie"
+        if pass_1.winner == pass_2.winner:
+            return pass_1.winner, None
+        return "tie", "disagreement"
+
+    def _evaluate(self, eval_input: EvalInput) -> List[Score]:
+        try:
+            if self.ordering == "both":
+                group_1, group_2 = self.groups
+                pass_1 = self._judge_once(eval_input, group_1, group_2)
+                pass_2 = self._judge_once(eval_input, group_2, group_1)
+                label, tie_reason = self._resolve_passes(pass_1, pass_2)
+                return self._build_score(eval_input, pass_1, label, tie_reason, pass_2)
+            presented_first, presented_second = self._ordered_groups(eval_input)
+            pass_1 = self._judge_once(eval_input, presented_first, presented_second)
+            label, tie_reason = self._resolve_passes(pass_1)
+            return self._build_score(eval_input, pass_1, label, tie_reason)
+        except ValueError as error:
+            return self._error_score(eval_input, str(error))
+
+    async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
+        try:
+            if self.ordering == "both":
+                group_1, group_2 = self.groups
+                pass_1 = await self._async_judge_once(eval_input, group_1, group_2)
+                pass_2 = await self._async_judge_once(eval_input, group_2, group_1)
+                label, tie_reason = self._resolve_passes(pass_1, pass_2)
+                return self._build_score(eval_input, pass_1, label, tie_reason, pass_2)
+            presented_first, presented_second = self._ordered_groups(eval_input)
+            pass_1 = await self._async_judge_once(eval_input, presented_first, presented_second)
+            label, tie_reason = self._resolve_passes(pass_1)
+            return self._build_score(eval_input, pass_1, label, tie_reason)
+        except ValueError as error:
+            return self._error_score(eval_input, str(error))
 
 
 def create_evaluator(
@@ -1757,6 +2108,7 @@ __all__ = [
     "Evaluator",
     "LLMEvaluator",
     "ClassificationEvaluator",
+    "PairwiseEvaluator",
     "create_evaluator",
     "create_classifier",
     "bind_evaluator",
