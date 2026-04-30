@@ -40,6 +40,10 @@ export interface EvaluationResult {
    * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
+  /**
+   * Additional structured metadata about the evaluation.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -116,6 +120,20 @@ export interface CreateClassificationEvaluatorArgs<
    * The prompt template to use for classification
    */
   promptTemplate: PromptTemplate;
+}
+
+export type PairwiseOrdering = "random" | "both" | "fixed";
+
+export interface CreatePairwiseEvaluatorArgs<
+  RecordType extends Record<string, unknown>,
+> extends CreateLLMEvaluatorArgs<RecordType>,
+    WithLLM {
+  promptTemplate: PromptTemplate;
+  groups?: readonly [string, string];
+  ordering?: PairwiseOrdering;
+  allowTies?: boolean;
+  includeExplanation?: boolean;
+  seed?: number | null;
 }
 
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (

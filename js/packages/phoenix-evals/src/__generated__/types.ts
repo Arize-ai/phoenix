@@ -9,3 +9,10 @@ export type ClassificationEvaluatorConfig = {
   template: PromptTemplate;
   choices: Record<string, number>;
 };
+
+export type PairwiseEvaluatorConfig = {
+  name: string;
+  description: string;
+  optimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NEUTRAL";
+  template: PromptTemplate;
+};
