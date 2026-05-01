@@ -233,14 +233,37 @@ sessions[sessions["error_count"] > 0]
 
 ### Gotchas
 
-- **Null `session_id` on some root spans.** A small fraction of traces lack
-  `attributes.session.id`. Those traces don't appear in `sessions.parquet`
-  at all; their spans still appear in `spans.parquet` with
-  `session_id == None`. To find them: `spans[spans.session_id.isna()]`.
+- **Not every span is an Alyx user interaction.** The `copilot-prod`
+  project receives spans from sources beyond the Alyx agent — observed in
+  the 2-day probe:
+  - GraphQL query spans (`name LIKE 'GQL query %'`) emitted by Phoenix
+    frontend code under the same OTel context.
+  - `copilot.persist_message_internal` infrastructure spans with empty
+    `kind` (no OpenInference span.kind set).
+
+  These spans do not have `attributes.session.id` and don't appear in
+  `sessions.parquet`. They still land in `spans.parquet` for
+  completeness. **In the 2-day probe ~22% of raw spans had null
+  `session_id` for this reason**; the 90-day distribution is similar.
+  To get only Alyx interaction spans:
+  `spans.loc[spans.session_id.notna() & (spans.kind != "")]`.
+
+- **Null `session_id` on Alyx root spans.** Beyond the non-Alyx noise
+  above, a small fraction of legitimate Alyx traces also lack
+  `attributes.session.id` (the predecessor noted this). Those degrade
+  gracefully to per-trace rows: their spans appear in `spans.parquet`
+  but the trace doesn't roll up to a session row.
+
 - **Truncation.** `input_value` / `output_value` / `raw_attrs_json` are
   truncated. The truncation marker is the literal substring
   `"... [truncated N chars]"`. For full text, join back to Layer 0 by
   `(trace_id, span_id)`.
+
 - **`raw_attrs_json` is for emergencies.** It's a stringified dict. Don't
   parse it as a hot path; if a particular attribute matters, lift it to a
   first-class column in `_row_to_span` and rebuild Layer 2.
+
+- **`error_count == 0` on the 2-day probe.** Either Alyx had a clean 2-day
+  window or our error detection (looking for OTel `exception` events) is
+  too narrow. The 90-day run is the better signal — re-validate
+  `has_error` distributions against it before relying on the column.
