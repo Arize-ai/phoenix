@@ -168,17 +168,18 @@ Response B:
 
 Which response is better? Choose A, B, or tie.
 `,
-  groups: ["candidate", "baseline"],
+  groups: ["output", "reference"],
   ordering: "random", // "random" | "both" | "fixed"
 });
 
 const result = await evaluator.evaluate({
-  candidate: "Paris is the capital of France.",
-  baseline: "The capital is Paris, located on the Seine.",
+  output: "Paris is the capital of France.",
+  reference: "The capital is Paris, located on the Seine.",
   input: "What is the capital of France?",
 });
 
-const rate = winRate({ scores: [result], group: "candidate" });
+const rate = winRate({ scores: [result], group: "output" });
+console.log(rate.win_rate, rate.wins, rate.losses, rate.ties, rate.n);
 ```
 
 For a generic starting point, use `createPairwiseQualityEvaluator` from `@arizeai/phoenix-evals/llm`. Validate the prompt against your domain before production use.

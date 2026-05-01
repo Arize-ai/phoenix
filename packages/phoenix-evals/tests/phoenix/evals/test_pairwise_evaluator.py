@@ -45,17 +45,24 @@ def test_pairwise_fixed_maps_position_choice_to_group_label() -> None:
         ordering="fixed",
     )
 
-    score = evaluator.evaluate({"a": "short", "b": "better", "input": "question"})[0]
+    score = evaluator.evaluate(
+        {"output": "short", "reference": "better", "input": "question"}
+    )[0]
 
-    assert score.label == "b"
+    assert score.label == "reference"
     assert score.score == 0.0
-    assert score.metadata["presented_first"] == "a"
-    assert score.metadata["judge_choice_pass_1"] == "B"
-    assert score.metadata["tie_reason"] is None
+    assert score.metadata["groups"] == ["output", "reference"]
+    assert score.metadata["ordering"] == "fixed"
+    assert score.metadata["passes"][0]["position_mapping"] == {
+        "A": "output",
+        "B": "reference",
+    }
+    assert score.metadata["passes"][0]["choice"] == "B"
+    assert score.metadata.get("tie_reason") is None
 
 
 def test_pairwise_random_is_deterministic_per_row() -> None:
-    eval_input = {"a": "first", "b": "second", "input": "question"}
+    eval_input = {"output": "first", "reference": "second", "input": "question"}
     evaluator_1 = PairwiseEvaluator(
         name="pairwise",
         llm=PairwiseMockLLM(["A"]),
@@ -74,7 +81,9 @@ def test_pairwise_random_is_deterministic_per_row() -> None:
     score_1 = evaluator_1.evaluate(eval_input)[0]
     score_2 = evaluator_2.evaluate(eval_input)[0]
 
-    assert score_1.metadata["presented_first"] == score_2.metadata["presented_first"]
+    assert score_1.metadata["passes"][0]["position_mapping"] == score_2.metadata["passes"][0][
+        "position_mapping"
+    ]
     assert score_1.label == score_2.label
 
 
@@ -86,13 +95,15 @@ def test_pairwise_both_requires_semantic_agreement() -> None:
         ordering="both",
     )
 
-    score = evaluator.evaluate({"a": "better", "b": "worse", "input": "question"})[0]
+    score = evaluator.evaluate(
+        {"output": "better", "reference": "worse", "input": "question"}
+    )[0]
 
-    assert score.label == "a"
+    assert score.label == "output"
     assert score.score == 1.0
-    assert score.metadata["judge_choice_pass_1"] == "A"
-    assert score.metadata["judge_choice_pass_2"] == "B"
-    assert "[Consensus: agreed -> winner=a]" in (score.explanation or "")
+    assert score.metadata["passes"][0]["choice"] == "A"
+    assert score.metadata["passes"][1]["choice"] == "B"
+    assert score.explanation == "Pass 1 (A=output, B=reference): picked A\nPass 2 (A=reference, B=output): picked B"
 
 
 def test_pairwise_both_disagreement_returns_structural_tie() -> None:
@@ -104,7 +115,9 @@ def test_pairwise_both_disagreement_returns_structural_tie() -> None:
         allow_ties=False,
     )
 
-    score = evaluator.evaluate({"a": "first", "b": "second", "input": "question"})[0]
+    score = evaluator.evaluate(
+        {"output": "first", "reference": "second", "input": "question"}
+    )[0]
 
     assert score.label == "tie"
     assert score.score == 0.5
@@ -123,8 +136,8 @@ def test_pairwise_custom_groups() -> None:
     score = evaluator.evaluate({"claude": "better", "gpt": "worse", "input": "question"})[0]
 
     assert score.label == "claude"
-    assert score.metadata["claude"] == "better"
-    assert score.metadata["gpt"] == "worse"
+    assert score.metadata["groups"] == ["claude", "gpt"]
+    assert score.metadata["passes"][0]["position_mapping"] == {"A": "claude", "B": "gpt"}
 
 
 def test_pairwise_invalid_prompt_template_rejected() -> None:
@@ -132,7 +145,7 @@ def test_pairwise_invalid_prompt_template_rejected() -> None:
         PairwiseEvaluator(
             name="pairwise",
             llm=PairwiseMockLLM(["A"]),
-            prompt_template="Compare {{a}} and {{item_1}}",
+            prompt_template="Compare {{item_1}} and {{item_2}}.",
         )
 
 
@@ -144,21 +157,25 @@ def test_pairwise_invalid_judge_output_returns_error_score() -> None:
         ordering="fixed",
     )
 
-    score = evaluator.evaluate({"a": "first", "b": "second", "input": "question"})[0]
-
-    assert score.label is None
-    assert score.score is None
-    assert score.metadata["error"] == "invalid judge choice: invalid"
+    with pytest.raises(ValueError, match="invalid judge choice"):
+        evaluator.evaluate({"output": "first", "reference": "second", "input": "question"})
 
 
 def test_win_rate_counts_ties() -> None:
     scores = [
-        Score(label="a", metadata={"a": "one", "b": "two"}),
-        Score(label="b", metadata={"a": "one", "b": "two"}),
-        Score(label="tie", metadata={"a": "one", "b": "two"}),
+        Score(label="output", metadata={"groups": ["output", "reference"], "passes": []}),
+        Score(label="reference", metadata={"groups": ["output", "reference"], "passes": []}),
+        Score(label="tie", metadata={"groups": ["output", "reference"], "passes": []}),
     ]
 
-    assert win_rate(scores, group="a") == pytest.approx(0.5)
+    summary = win_rate(scores, group="output")
+
+    assert summary.group == "output"
+    assert summary.win_rate == pytest.approx(0.5)
+    assert summary.wins == 1
+    assert summary.losses == 1
+    assert summary.ties == 1
+    assert summary.n == 3
 
 
 def test_pairwise_evaluator_dataframe_smoke() -> None:
@@ -170,21 +187,21 @@ def test_pairwise_evaluator_dataframe_smoke() -> None:
     )
     dataframe = pd.DataFrame(
         [
-            {"a": "good", "b": "bad", "input": "question 1"},
-            {"a": "bad", "b": "good", "input": "question 2"},
+            {"output": "good", "reference": "bad", "input": "question 1"},
+            {"output": "bad", "reference": "good", "input": "question 2"},
         ]
     )
 
     result = evaluate_dataframe(dataframe=dataframe, evaluators=[evaluator])
 
-    assert result["pairwise_score"].iloc[0]["label"] == "a"
-    assert result["pairwise_score"].iloc[1]["label"] == "b"
+    assert result["pairwise_score"].iloc[0]["label"] == "output"
+    assert result["pairwise_score"].iloc[1]["label"] == "reference"
 
 
 def test_pairwise_quality_evaluator_instantiates() -> None:
     evaluator = PairwiseQualityEvaluator(llm=PairwiseMockLLM(["tie"]), ordering="fixed")
 
-    score = evaluator.evaluate({"a": "one", "b": "two", "input": "question"})[0]
+    score = evaluator.evaluate({"output": "one", "reference": "two", "input": "question"})[0]
 
     assert score.name == "pairwise_quality"
     assert score.label == "tie"

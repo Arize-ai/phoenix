@@ -19,14 +19,14 @@ class PairwiseQualityEvaluator(PairwiseEvaluator):
 
     class PairwiseQualityInputSchema(BaseModel):
         input: str = Field(description="The input query, question, or task.")
-        a: Any = Field(description="The first response to compare.")
-        b: Any = Field(description="The second response to compare.")
+        output: Any = Field(description="The first response to compare.")
+        reference: Any = Field(description="The second response to compare.")
 
     def __init__(
         self,
         llm: LLM,
         *,
-        groups: Tuple[str, str] = ("a", "b"),
+        groups: Tuple[str, str] = ("output", "reference"),
         ordering: PairwiseOrdering = "random",
         allow_ties: bool = True,
         include_explanation: bool = True,

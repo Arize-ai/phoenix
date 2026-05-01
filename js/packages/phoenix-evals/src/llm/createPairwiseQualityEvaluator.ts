@@ -4,8 +4,8 @@ import { PairwiseEvaluator } from "./PairwiseEvaluator";
 
 export type PairwiseQualityEvaluationRecord = {
   input: string;
-  a: unknown;
-  b: unknown;
+  output: unknown;
+  reference: unknown;
 };
 
 export interface PairwiseQualityEvaluatorArgs<

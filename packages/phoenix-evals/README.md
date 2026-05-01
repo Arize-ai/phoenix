@@ -126,18 +126,19 @@ Response B:
 
 Which response is better? Choose A, B, or tie.
 """,
-    groups=("candidate", "baseline"),
+    groups=("output", "reference"),
     ordering="random",  # "random" | "both" | "fixed"
 )
 
 scores = pairwise.evaluate({
-    "candidate": "Paris is the capital of France.",
-    "baseline": "The capital is Paris, located on the Seine.",
+    "output": "Paris is the capital of France.",
+    "reference": "The capital is Paris, located on the Seine.",
     "input": "What is the capital of France?",
 })
 scores[0].pretty_print()
 
-rate = win_rate(scores, group="candidate")
+summary = win_rate(scores, group="output")
+print(summary.win_rate, summary.wins, summary.losses, summary.ties, summary.n)
 ```
 
 For a generic starting point, use `PairwiseQualityEvaluator` from `phoenix.evals.metrics`. It is intended as an example prompt and should be validated against your domain before production use.
