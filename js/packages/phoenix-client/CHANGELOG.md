@@ -1,5 +1,16 @@
 # @arizeai/phoenix-client
 
+## 6.9.0
+
+### Minor Changes
+
+- 2993b04: Add `addTraceAnnotation` and `logTraceAnnotations` to the `traces` subpath. Brings the TypeScript client to parity with the Python client by exposing the existing `/v1/trace_annotations` REST endpoint for structured (label/score/explanation) feedback on traces.
+
+### Patch Changes
+
+- 2993b04: Clarify TSDoc and regenerated OpenAPI descriptions for `addSpanNote` and `addTraceNote`. Previous wording implied structured annotations were "unique by name", which is incorrect — annotations are keyed by `(name, target_id, identifier)`, so multiple annotations with the same name can coexist on the same span/trace/session by supplying distinct identifiers. Notes remain append-only via auto-generated UUIDv4 identifiers.
+- 4e20267: Add session annotation and note commands to the Phoenix CLI, and add a session note helper to the TypeScript client. Session note creation requires Phoenix server 14.17.0 or newer.
+
 ## 6.8.1
 
 ### Patch Changes

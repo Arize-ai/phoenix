@@ -1,5 +1,21 @@
 # @arizeai/phoenix-cli
 
+## 1.4.0
+
+### Minor Changes
+
+- ab62d3d: Add named profiles to the Phoenix CLI: `px profile list|show|create|edit|use|delete`. Profiles persist to `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`) and feed into config resolution as a new tier between built-in defaults and environment variables. `px auth status` displays the active profile and accepts `--profile <name>` to scope the call. Other commands honour the stored active profile.
+
+  The settings file is JSON-Schema validated; the schema is committed to `schemas/phoenix-cli-settings.json` and can be referenced via the `$schema` field on `settings.json` for editor autocomplete.
+
+### Patch Changes
+
+- 4e20267: Add session annotation and note commands to the Phoenix CLI, and add a session note helper to the TypeScript client. Session note creation requires Phoenix server 14.17.0 or newer.
+- Updated dependencies [2993b04]
+- Updated dependencies [4e20267]
+- Updated dependencies [2993b04]
+  - @arizeai/phoenix-client@6.9.0
+
 ## 1.3.1
 
 ### Patch Changes
