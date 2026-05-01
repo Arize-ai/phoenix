@@ -61,7 +61,13 @@ _ROLE_ALIASES: Dict[str, "MessageRole"] = {
 
 
 _OPENAI_NATIVE_MESSAGE_ROLES = {"tool", "function"}
-_OPENAI_NATIVE_MESSAGE_KEYS = {"function_call", "name", "tool_call_id", "tool_calls"}
+# Keys that are unambiguously provider-native — they only appear on tool/
+# function transcript messages and never on plain user/system prompts.
+_OPENAI_NATIVE_UNAMBIGUOUS_KEYS = {"function_call", "tool_call_id", "tool_calls"}
+# ``name`` is provider-native on tool/function/assistant messages but is also
+# a legitimate label on user/system messages, so it only triggers pass-through
+# in combination with one of these roles.
+_OPENAI_NAME_NATIVE_ROLES = {"assistant", "function", "tool"}
 
 
 def is_openai_native_message_dict(msg: Mapping[str, Any]) -> bool:
@@ -70,13 +76,61 @@ def is_openai_native_message_dict(msg: Mapping[str, Any]) -> bool:
     Prompt-shaped message dicts are normalized by the adapters. OpenAI-style
     transcript dicts need to keep provider-native roles and correlation fields
     intact for legacy callers replaying tool-call conversations.
+
+    The heuristic is intentionally conservative: ``user`` / ``system`` dicts
+    are *not* treated as native even when they carry a ``name`` field, so they
+    still flow through the shared ``validate_message_dict`` and
+    ``normalize_role`` helpers.
     """
     role = msg.get("role")
-    if isinstance(role, str) and role.strip().lower() in _OPENAI_NATIVE_MESSAGE_ROLES:
+    role_lower = role.strip().lower() if isinstance(role, str) else None
+
+    # Roles that only appear on provider-native transcript messages.
+    if role_lower in _OPENAI_NATIVE_MESSAGE_ROLES:
         return True
-    if isinstance(role, str) and role.strip().lower() == "assistant" and msg.get("content") is None:
+    # Legacy OpenAI tool-call shape: assistant with no textual content.
+    if role_lower == "assistant" and msg.get("content") is None:
         return True
-    return any(key in msg for key in _OPENAI_NATIVE_MESSAGE_KEYS)
+    # Unambiguous correlation/structure fields imply a native transcript dict.
+    if any(key in msg for key in _OPENAI_NATIVE_UNAMBIGUOUS_KEYS):
+        return True
+    # ``name`` is native only when paired with a role that legitimately uses
+    # it as a provider-native field. On user/system messages it's just a
+    # label, so we leave those for the validating dict path.
+    if "name" in msg and role_lower in _OPENAI_NAME_NATIVE_ROLES:
+        return True
+    return False
+
+
+def classify_message_list_kind(prompt: Sequence[Any]) -> str:
+    """Classify a non-empty message list as ``"typed"`` or ``"dict"``.
+
+    A ``"typed"`` list has a :class:`MessageRole` enum on every element's
+    ``role`` field; a ``"dict"`` list has plain (string or otherwise non-enum)
+    role values. Lists that mix the two shapes raise :class:`ValueError` so
+    adapters reject ambiguous inputs up front rather than silently mis-routing
+    based on the first element alone.
+
+    Args:
+        prompt: A non-empty sequence of message-shaped values.
+
+    Raises:
+        ValueError: If ``prompt`` mixes typed ``Message`` entries with raw
+            dict entries.
+    """
+    typed_flags = [
+        isinstance(msg.get("role"), MessageRole) if isinstance(msg, Mapping) else False
+        for msg in prompt
+    ]
+    if all(typed_flags):
+        return "typed"
+    if not any(typed_flags):
+        return "dict"
+    raise ValueError(
+        "Prompt message list mixes typed Message entries (role is a MessageRole "
+        "enum) with raw dict entries (role is a string). Use one shape "
+        "consistently for the whole list."
+    )
 
 
 def normalize_role(role: Any) -> "MessageRole":
