@@ -1,0 +1,219 @@
+---
+title: "Network Security"
+description: Understanding outbound network requests and how to secure your self-hosted Phoenix deployment
+---
+
+## Overview
+
+Phoenix's Playground and evaluation features make outbound HTTP requests to AI provider APIs (OpenAI, Anthropic, Azure OpenAI, etc.) to run prompts and evaluations. When self-hosting Phoenix, it's important to understand that these requests originate from the Phoenix server and may access resources outside your VPC or deployment environment.
+
+<Warning>
+When users configure custom base URLs in the Playground (e.g., for Ollama, DeepSeek, or other OpenAI-compatible providers), Phoenix will make HTTP requests to those URLs. This could potentially be used to access internal services if not properly restricted.
+</Warning>
+
+## Security Considerations
+
+### Server-Side Request Forgery (SSRF)
+
+The Playground allows users to configure custom base URLs for AI providers. Without proper network controls, this could allow requests to:
+
+- Internal services within your network
+- Cloud provider metadata endpoints (e.g., `169.254.169.254`)
+- Private IP ranges (`10.x.x.x`, `172.16.x.x`, `192.168.x.x`)
+
+To mitigate SSRF risks, implement one or more of the following controls.
+
+## Restricting Outbound Access
+
+### Option 1: Network Policies (Recommended)
+
+The most robust approach is to restrict outbound network access at the infrastructure level.
+
+**Kubernetes Network Policies**
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: phoenix-egress
+  namespace: phoenix
+spec:
+  podSelector:
+    matchLabels:
+      app: phoenix
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS to kube-system namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow HTTPS to approved endpoints, block private IPs and metadata
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # Block private networks
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              # Block link-local and metadata endpoints
+              - 169.254.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+```
+
+<Note>
+Network policies require a CNI plugin that supports them (e.g., Calico, Cilium, Weave Net). On GKE with Workload Identity enabled, you may also need to block `169.254.169.252/32` in addition to the `169.254.0.0/16` range.
+</Note>
+
+**AWS Security Groups**
+
+Configure outbound rules to allow only HTTPS traffic to known AI provider IP ranges, or route traffic through a NAT gateway with restricted routing.
+
+**Cloud Provider Firewalls**
+
+Most cloud providers offer firewall rules or network ACLs that can restrict egress traffic. Configure these to allow only the specific endpoints your organization uses.
+
+### Option 2: HTTP Proxy
+
+Phoenix respects standard HTTP proxy environment variables. You can route all outbound HTTP requests through a proxy server that enforces URL allowlists.
+
+```bash
+# Set proxy environment variables
+export HTTP_PROXY=http://proxy.internal:8080
+export HTTPS_PROXY=http://proxy.internal:8080
+export NO_PROXY=localhost,127.0.0.1,.internal.domain
+```
+
+Configure your proxy server to:
+1. Allow requests only to approved AI provider domains
+2. Block requests to private IP ranges
+3. Log all outbound requests for auditing
+
+**Example: Squid Proxy Allowlist**
+
+```
+# /etc/squid/allowed_domains.txt
+.openai.com
+.anthropic.com
+.azure.com
+.googleapis.com
+.aws.amazon.com
+```
+
+### Option 3: Restrict Available Providers
+
+Use the `PHOENIX_ALLOWED_PROVIDERS` environment variable to limit which AI providers appear in the Playground UI. This prevents users from selecting providers your organization hasn't approved.
+
+```bash
+# Only allow OpenAI and Anthropic
+export PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
+
+# Disable all providers (evaluation/playground features won't work)
+export PHOENIX_ALLOWED_PROVIDERS=NONE
+```
+
+Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `PERPLEXITY`, `TOGETHER`.
+
+<Info>
+`PHOENIX_ALLOWED_PROVIDERS` controls which providers are shown in the UI but does not prevent API-level access. Combine this with network policies for defense in depth.
+</Info>
+
+### Option 4: Custom Providers with Fixed Endpoints
+
+Instead of allowing users to enter arbitrary URLs, configure [Custom Providers](/docs/phoenix/settings/custom-ai-providers) with pre-approved endpoints. This centralizes control over which URLs Phoenix can access.
+
+1. Create custom providers with your approved endpoints
+2. Store credentials securely in the database
+3. Users select from pre-configured providers rather than entering URLs
+
+## CSRF Protection
+
+Phoenix supports Cross-Site Request Forgery (CSRF) protection for deployments accessible over the web.
+
+```bash
+# Enable CSRF protection with trusted origins
+export PHOENIX_CSRF_TRUSTED_ORIGINS=https://phoenix.example.com,https://app.example.com
+```
+
+When `PHOENIX_CSRF_TRUSTED_ORIGINS` is set:
+- Requests must include valid `Origin` or `Referer` headers matching the trusted origins
+- This prevents malicious websites from making authenticated requests on behalf of users
+
+<Warning>
+If `PHOENIX_CSRF_TRUSTED_ORIGINS` is unset or empty, CSRF protection is not enabled. Set this variable when deploying Phoenix behind a public-facing domain, especially when using OAuth2 or password-based authentication.
+</Warning>
+
+## Air-Gapped Deployments
+
+For environments with no external network access:
+
+```bash
+# Disable external resource loading
+export PHOENIX_ALLOW_EXTERNAL_RESOURCES=false
+
+# Disable telemetry
+export PHOENIX_TELEMETRY_ENABLED=false
+
+# Disable all AI providers (if not using Playground/evals)
+export PHOENIX_ALLOWED_PROVIDERS=NONE
+```
+
+In air-gapped environments, you can still use the Playground by:
+1. Deploying a local LLM (e.g., Ollama) within your network
+2. Configuring a custom provider pointing to the local endpoint
+3. Ensuring network policies allow internal traffic to the LLM service
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Can users access internal services through the Playground?">
+    Without network controls, yes. The Playground allows configuring custom base URLs, which could be pointed at internal services. Implement network policies or proxy rules to prevent this.
+  </Accordion>
+
+  <Accordion title="Does Phoenix validate URLs before making requests?">
+    Phoenix does not currently validate or restrict URLs at the application level. URL restrictions should be implemented at the network layer using firewalls, network policies, or proxy servers.
+  </Accordion>
+
+  <Accordion title="How do I allow only specific AI providers?">
+    Set `PHOENIX_ALLOWED_PROVIDERS` to a comma-separated list of approved providers (e.g., `OPENAI,ANTHROPIC`). This hides other providers from the UI but should be combined with network controls for complete protection.
+  </Accordion>
+
+  <Accordion title="What if I'm running Phoenix on a developer laptop?">
+    For local development, the security risk is lower since requests originate from the developer's machine. In production or shared environments, implement the network controls described above.
+  </Accordion>
+
+  <Accordion title="Do HTTP_PROXY settings apply to all providers?">
+    Yes, Phoenix's HTTP clients respect standard proxy environment variables. All outbound requests to AI providers will route through the configured proxy.
+  </Accordion>
+
+  <Accordion title="How do I protect against CSRF attacks?">
+    Set `PHOENIX_CSRF_TRUSTED_ORIGINS` to a comma-separated list of your Phoenix deployment's origins (e.g., `https://phoenix.example.com`). This enables origin validation for incoming requests.
+  </Accordion>
+
+  <Accordion title="What's the difference between PHOENIX_ALLOWED_PROVIDERS and network policies?">
+    `PHOENIX_ALLOWED_PROVIDERS` controls the UI—which providers users can select. Network policies control actual network access—which endpoints Phoenix can reach. Use both for defense in depth: restrict the UI to approved providers AND block unauthorized network traffic.
+  </Accordion>
+
+  <Accordion title="Can I audit which external URLs Phoenix accesses?">
+    Yes, by routing traffic through a proxy server that logs requests. For comprehensive auditing of outbound HTTP requests, use a network proxy or service mesh with logging enabled. This will capture all requests to AI provider APIs and custom URLs configured in the Playground.
+  </Accordion>
+</AccordionGroup>
+
+## Summary
+
+| Control | Purpose | Implementation |
+| :------ | :------ | :------------- |
+| Network Policies | Block unauthorized outbound traffic | Kubernetes NetworkPolicy, security groups, firewalls |
+| HTTP Proxy | Route and filter outbound requests | `HTTP_PROXY`, `HTTPS_PROXY` environment variables |
+| Provider Restrictions | Limit available providers in UI | `PHOENIX_ALLOWED_PROVIDERS` environment variable |
+| Custom Providers | Pre-configure approved endpoints | Phoenix Settings → AI Providers |
+| CSRF Protection | Prevent cross-site request forgery | `PHOENIX_CSRF_TRUSTED_ORIGINS` environment variable |
+
+For production deployments, we recommend combining multiple controls: restrict providers in the UI, implement network policies at the infrastructure level, and enable CSRF protection for web-facing deployments.
