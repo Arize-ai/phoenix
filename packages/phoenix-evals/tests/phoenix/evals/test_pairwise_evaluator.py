@@ -205,3 +205,71 @@ def test_pairwise_quality_evaluator_instantiates() -> None:
 
     assert score.name == "pairwise_quality"
     assert score.label == "tie"
+
+
+# Async path coverage. `asyncio_mode = "auto"` is set in pyproject.toml, so
+# `async def test_*` functions are auto-collected — no decorator needed. These
+# mirror the corresponding sync tests so any divergence between
+# `_async_judge_once` / `_async_evaluate` and their sync counterparts surfaces.
+
+
+async def test_pairwise_async_fixed_maps_position_choice_to_group_label() -> None:
+    evaluator = PairwiseEvaluator(
+        name="pairwise",
+        llm=PairwiseMockLLM(["B"]),
+        prompt_template=PROMPT_TEMPLATE,
+        ordering="fixed",
+    )
+
+    scores = await evaluator.async_evaluate(
+        {"output": "short", "reference": "better", "input": "question"}
+    )
+    score = scores[0]
+
+    assert score.label == "reference"
+    assert score.score == 0.0
+    assert score.metadata["groups"] == ["output", "reference"]
+    assert score.metadata["ordering"] == "fixed"
+    assert score.metadata["passes"][0]["position_mapping"] == {
+        "A": "output",
+        "B": "reference",
+    }
+    assert score.metadata["passes"][0]["choice"] == "B"
+
+
+async def test_pairwise_async_both_requires_semantic_agreement() -> None:
+    evaluator = PairwiseEvaluator(
+        name="pairwise",
+        llm=PairwiseMockLLM(["A", "B"]),
+        prompt_template=PROMPT_TEMPLATE,
+        ordering="both",
+    )
+
+    scores = await evaluator.async_evaluate(
+        {"output": "better", "reference": "worse", "input": "question"}
+    )
+    score = scores[0]
+
+    assert score.label == "output"
+    assert score.score == 1.0
+    assert score.metadata["passes"][0]["choice"] == "A"
+    assert score.metadata["passes"][1]["choice"] == "B"
+
+
+async def test_pairwise_async_both_disagreement_returns_structural_tie() -> None:
+    evaluator = PairwiseEvaluator(
+        name="pairwise",
+        llm=PairwiseMockLLM(["A", "A"]),
+        prompt_template=PROMPT_TEMPLATE,
+        ordering="both",
+        allow_ties=False,
+    )
+
+    scores = await evaluator.async_evaluate(
+        {"output": "first", "reference": "second", "input": "question"}
+    )
+    score = scores[0]
+
+    assert score.label == "tie"
+    assert score.score == 0.5
+    assert score.metadata["tie_reason"] == "disagreement"
