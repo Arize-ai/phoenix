@@ -5,7 +5,7 @@ import { graphql, useFragment } from "react-relay";
 import { Flex, IDBadge, Text } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -54,12 +54,7 @@ export function SpanHeader(props: SpanHeaderProps) {
         <Flex direction="row" gap="size-100" alignItems="center">
           <SpanKindToken spanKind={span.spanKind} />
           <Text size="L">{span.name}</Text>
-          <SpanStatusCodeIcon
-            statusCode={span.code}
-            css={css`
-              font-size: var(--global-font-size-m);
-            `}
-          />
+          <SpanStatusBadge statusCode={span.code} labelVariant="full" />
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           <IDBadge id={span.spanId} />

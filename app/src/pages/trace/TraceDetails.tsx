@@ -25,10 +25,10 @@ import {
 import { TraceAgentChatPanel } from "@phoenix/components/agent/TraceAgentChatPanel";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -196,10 +196,7 @@ function TraceHeader({
   sessionId?: string | null;
   projectId: string;
 }) {
-  const { statusCode } = rootSpan ?? {
-    statusCode: "UNSET",
-  };
-  const statusColor = useSpanStatusCodeColor(statusCode);
+  const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
   return (
     <View
       paddingTop="size-100"
@@ -211,23 +208,30 @@ function TraceHeader({
       <Flex
         direction="row"
         gap="size-400"
-        alignItems="center"
+        alignItems="start"
         css={css`
           box-sizing: content-box;
         `}
       >
-        <Flex direction="column">
+        <Flex
+          direction="column"
+          alignItems="start"
+          css={css`
+            align-self: stretch;
+          `}
+        >
           <Text elementType="h3" size="S" color="text-700">
-            Trace Status
+            Status
           </Text>
-          <Text size="XL">
-            <Flex direction="row" gap="size-50" alignItems="center">
-              <SpanStatusCodeIcon statusCode={statusCode} />
-              <Text size="L" color={statusColor}>
-                {statusCode}
-              </Text>
-            </Flex>
-          </Text>
+          <div
+            css={css`
+              flex: 1 1 auto;
+              display: flex;
+              align-items: center;
+            `}
+          >
+            <SpanStatusBadge statusCode={statusCode} labelVariant="full" />
+          </div>
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" size="S" color="text-700">
@@ -267,13 +271,11 @@ function TraceHeader({
           <Text elementType="h3" size="S" color="text-700">
             Latency
           </Text>
-          <Text size="XL">
-            {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} size="L" />
-            ) : (
-              "--"
-            )}
-          </Text>
+          {typeof latencyMs === "number" ? (
+            <LatencyText latencyMs={latencyMs} size="L" />
+          ) : (
+            <Text size="L">--</Text>
+          )}
         </Flex>
         {rootSpan ? (
           <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
@@ -281,6 +283,7 @@ function TraceHeader({
         {sessionId && (
           <span
             css={css`
+              align-self: center;
               margin-left: auto;
             `}
           >
