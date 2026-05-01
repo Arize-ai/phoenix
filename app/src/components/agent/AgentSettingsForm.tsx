@@ -86,7 +86,7 @@ export function AgentSettingsForm() {
             <Label>Custom Instructions</Label>
             <TextArea
               rows={10}
-              placeholder="Optional instructions inserted into PXI's server-owned system prompt"
+              placeholder="Optional instructions inserted into PXI's system prompt"
             />
           </TextField>
         )}
