@@ -853,7 +853,62 @@ class _PairwisePassResult:
 
 
 class PairwiseEvaluator(LLMEvaluator):
-    """LLM-based evaluator for side-by-side comparison of two outputs."""
+    """LLM-based evaluator for side-by-side comparison of two outputs.
+
+    **Input shape.** ``evaluate(eval_input)`` expects a dict with keys matching
+    ``groups[0]`` and ``groups[1]`` (defaults to ``"output"`` and
+    ``"reference"``), plus any additional variables your prompt template
+    references (e.g. ``"input"``).
+
+    **Prompt template contract.** The template MUST:
+
+    - Use ``{{item_1}}`` / ``{{item_2}}`` to refer to the (randomized)
+      compared items. Do NOT reference your group keys directly.
+    - Contain the letters ``A`` and ``B`` somewhere as separate words (the
+      convention is "Response A" / "Response B").
+
+    Reserved/forbidden template variables (will raise on validation):
+
+    - Reserved group names: ``tie``, ``item_1``, ``item_2``, ``response_1``,
+      ``response_2``
+    - Forbidden template variables: ``response_a``, ``response_b``,
+      ``item_a``, ``item_b``, plus the literal group names you chose
+
+    **Output.** Each ``Score.label`` is one of ``groups[0]``, ``groups[1]``,
+    or ``"tie"`` — never the raw ``"A"`` / ``"B"`` from the judge.
+    ``Score.score`` is ``1.0`` if ``groups[0]`` won, ``0.0`` if ``groups[1]``
+    won, ``0.5`` for ties.
+
+    **Ordering modes:**
+
+    - ``"random"`` (default): one judge call per row, position randomized via
+      seeded RNG. 1× cost.
+    - ``"both"``: two judge calls per row, requires agreement across swapped
+      positions (otherwise structural tie). 2× cost.
+    - ``"fixed"``: one judge call, ``groups[0]`` always shown as A. Use only
+      when you've already accounted for position bias upstream.
+
+    **Seed.** ``seed=0`` (default) is deterministic across runs for the same
+    row. ``seed=None`` uses the system RNG and omits ``seed`` from result
+    metadata.
+
+    Example::
+
+        evaluator = PairwiseEvaluator(
+            name="quality",
+            llm=LLM(provider="openai", model="gpt-4o"),
+            prompt_template=(
+                "Question: {{input}}\\n\\n"
+                "Response A:\\n{{item_1}}\\n\\n"
+                "Response B:\\n{{item_2}}\\n\\n"
+                "Which is better?"
+            ),
+            ordering="random",
+        )
+        scores = evaluator.evaluate(
+            {"input": "What is 2+2?", "output": "4", "reference": "Four"}
+        )
+    """
 
     def __init__(
         self,

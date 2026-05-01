@@ -184,7 +184,54 @@ function appendStructuredInstruction({
 }
 
 /**
- * An LLM evaluator that compares two records side-by-side and returns the preferred group.
+ * An LLM evaluator that compares two records side-by-side and returns the
+ * preferred group.
+ *
+ * **Input shape.** `evaluate` expects an object with keys matching `groups[0]`
+ * and `groups[1]` (defaults to `output` and `reference`), plus any additional
+ * variables your prompt template references (e.g. `input`).
+ *
+ * **Prompt template contract.** The template MUST:
+ * - Use `{{item_1}}` / `{{item_2}}` to refer to the (randomized) compared
+ *   items. Do NOT reference your group keys directly.
+ * - Contain the letters `A` and `B` somewhere as separate words (the
+ *   convention is "Response A" / "Response B").
+ *
+ * Reserved/forbidden template variables (will throw on validation):
+ * - Reserved group names: `tie`, `item_1`, `item_2`, `response_1`, `response_2`
+ * - Forbidden template variables: `response_a`, `response_b`, `item_a`,
+ *   `item_b`, plus the literal group names you chose
+ *
+ * **Output.** Each `EvaluationResult.label` is one of `groups[0]`,
+ * `groups[1]`, or `"tie"` — never the raw `"A"` / `"B"` from the judge.
+ * `score` is `1.0` if `groups[0]` won, `0.0` if `groups[1]` won, `0.5` for
+ * ties.
+ *
+ * **Ordering modes.**
+ * - `"random"` (default): one judge call per row, position randomized via
+ *   seeded RNG. 1× cost.
+ * - `"both"`: two judge calls per row, requires agreement across swapped
+ *   positions (otherwise structural tie). 2× cost.
+ * - `"fixed"`: one judge call, `groups[0]` always shown as A. Use only when
+ *   you've already accounted for position bias upstream.
+ *
+ * **Seed.** `seed: 0` (default) is deterministic across runs for the same row.
+ * `seed: null` uses the system RNG and omits `seed` from result metadata.
+ *
+ * @example
+ * ```ts
+ * const evaluator = new PairwiseEvaluator({
+ *   name: "quality",
+ *   model,
+ *   promptTemplate: `Question: {{input}}\n\nResponse A:\n{{item_1}}\n\nResponse B:\n{{item_2}}\n\nWhich is better?`,
+ *   ordering: "random",
+ * });
+ * const result = await evaluator.evaluate({
+ *   input: "What is 2+2?",
+ *   output: "4",
+ *   reference: "Four",
+ * });
+ * ```
  */
 export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
   extends LLMEvaluator<RecordType>
