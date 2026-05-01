@@ -1,0 +1,11 @@
+# All trace data is local-only
+data/
+.env
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.jupyter/
+.mypy_cache/
+.ruff_cache/
+uv.lock

@@ -1,0 +1,56 @@
+[project]
+name = "alyx-data"
+version = "0.1.0"
+description = "Reproducible data pipeline that pulls 90 days of copilot-prod (Alyx) spans from Arize and produces three layered artifacts: raw spans, user queries with scope flags, and full session/trace trajectories."
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    # Arize trace export
+    "arize>=7.19",
+    "pandas>=2.2",
+    "pyarrow>=15",
+    # env / config
+    "python-dotenv>=1.0",
+    # misc
+    "tqdm>=4.66",
+    "tenacity>=8.2",
+]
+
+[project.optional-dependencies]
+notebook = [
+    "jupyterlab>=4.2",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pipeline"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+explicit_package_bases = true
+# Parent Phoenix pyproject.toml loads mypy plugins (strawberry) we don't need here.
+plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+    "arize.*",
+    "pyarrow",
+    "pyarrow.*",
+]
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.20.1",
+    "pandas-stubs>=3.0.0.260204",
+    "types-tqdm>=4.67.3.20260408",
+]
