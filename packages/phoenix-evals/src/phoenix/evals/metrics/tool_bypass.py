@@ -63,17 +63,22 @@ class ToolBypassEvaluator(ClassificationEvaluator):
         # score.score  == 0.0
     """
 
+    NAME = TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG.name
+    PROMPT = PromptTemplate(
+        template=[
+            msg.model_dump() for msg in TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG.messages
+        ]
+    )
+    CHOICES = TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG.choices
+    DIRECTION = TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG.optimization_direction
+
     def __init__(self, llm: LLM, **kwargs: Any) -> None:
-        config = TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG
-        prompt_template = PromptTemplate(
-            template=[msg.model_dump() for msg in config.messages]
-        )
         super().__init__(
             llm=llm,
-            name=config.name,
-            prompt_template=prompt_template,
-            choices=config.choices,
-            direction=config.optimization_direction,
+            name=self.NAME,
+            prompt_template=self.PROMPT,
+            choices=self.CHOICES,
+            direction=self.DIRECTION,
             **kwargs,
         )
 

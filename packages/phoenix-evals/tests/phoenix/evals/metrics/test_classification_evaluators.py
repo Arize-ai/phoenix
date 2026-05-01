@@ -19,6 +19,7 @@ from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
 from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
 from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
+from phoenix.evals.metrics.tool_bypass import ToolBypassEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
@@ -88,6 +89,16 @@ ALL_EVALUATORS = [
         ToolResponseHandlingEvaluator,
         {"input": "Q", "tool_call": "C", "tool_result": "R", "output": "A"},
         id="ToolResponseHandlingEvaluator",
+    ),
+    pytest.param(
+        ToolBypassEvaluator,
+        {
+            "input": "did u get my water from earlier",
+            "assistant_response_text": "16/16 already from earlier backfill",
+            "observed_tool_call_summary": "[no tool calls in trace]",
+            "available_tools_list": "log_water: log water consumption.\nfix_water: correct existing.",
+        },
+        id="ToolBypassEvaluator",
     ),
     pytest.param(
         HallucinationEvaluator,
