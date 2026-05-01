@@ -161,12 +161,24 @@ function appendStructuredInstruction({
     return `${prompt}${structuredInstruction}`;
   }
   return prompt.map((message, index) => {
-    if (index !== prompt.length - 1 || typeof message.content !== "string") {
+    if (index !== prompt.length - 1) {
       return message;
     }
+    if (typeof message.content === "string") {
+      return {
+        ...message,
+        content: `${message.content}${structuredInstruction}`,
+      } as ModelMessage;
+    }
+    // Multimodal content: append a new text part rather than dropping the
+    // structured-output instruction. Without this, the prompt that explains
+    // what A and B mean is silently absent for multimodal templates.
     return {
       ...message,
-      content: `${message.content}${structuredInstruction}`,
+      content: [
+        ...message.content,
+        { type: "text", text: structuredInstruction },
+      ],
     } as ModelMessage;
   });
 }
