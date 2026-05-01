@@ -44,10 +44,10 @@ Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`
 
 ## Pairwise Quality
 
-`PairwiseQualityEvaluator` compares two responses with default groups `a` and `b`.
-It returns one score where `label` is `"a"`, `"b"`, or `"tie"` and `score` is
-`1.0`, `0.0`, or `0.5`. Treat it as an example prompt until validated on the
-target domain.
+`PairwiseQualityEvaluator` compares two responses with default groups `output`
+and `reference`. It returns one score where `label` is `"output"`,
+`"reference"`, or `"tie"` and `score` is `1.0`, `0.0`, or `0.5`. Treat it as
+an example prompt until validated on the target domain.
 
 ```python
 from phoenix.evals import LLM
@@ -56,8 +56,8 @@ from phoenix.evals.metrics import PairwiseQualityEvaluator
 evaluator = PairwiseQualityEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
 score = evaluator.evaluate({
     "input": "What is the capital of France?",
-    "a": "Paris is the capital of France.",
-    "b": "The capital is Paris, located on the Seine.",
+    "output": "Paris is the capital of France.",
+    "reference": "The capital is Paris, located on the Seine.",
 })[0]
 ```
 
