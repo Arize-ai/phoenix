@@ -149,7 +149,7 @@ def test_pairwise_invalid_prompt_template_rejected() -> None:
         )
 
 
-def test_pairwise_invalid_judge_output_returns_error_score() -> None:
+def test_pairwise_invalid_judge_output_raises() -> None:
     evaluator = PairwiseEvaluator(
         name="pairwise",
         llm=PairwiseMockLLM(["invalid"]),

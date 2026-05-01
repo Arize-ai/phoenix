@@ -930,9 +930,7 @@ class PairwiseEvaluator(LLMEvaluator):
         return groups
 
     @staticmethod
-    def _validate_prompt_template(
-        prompt_template: PromptTemplate, groups: Tuple[str, str]
-    ) -> None:
+    def _validate_prompt_template(prompt_template: PromptTemplate, groups: Tuple[str, str]) -> None:
         prompt_text = PairwiseEvaluator._prompt_template_text(prompt_template.template)
         if not _PAIRWISE_AB_PATTERN.search(prompt_text):
             raise InvalidPromptTemplateError(
@@ -1017,9 +1015,6 @@ class PairwiseEvaluator(LLMEvaluator):
         if choice == "B":
             return presented_second
         return None
-
-    def _error_score(self, eval_input: EvalInput, error: str) -> List[Score]:
-        raise ValueError(f"invalid judge output: {error}")
 
     def _judge_once(
         self, eval_input: EvalInput, presented_first: str, presented_second: str
