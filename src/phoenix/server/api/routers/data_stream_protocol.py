@@ -50,6 +50,9 @@ _FINISH_REASON_MAP: dict[
     "error": "error",
 }
 
+_LEGACY_DEFAULT_SYSTEM_PROMPT_LENGTH = 3970
+_LEGACY_DEFAULT_SYSTEM_PROMPT_PREFIX = "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
+
 
 def _anthropic_model_settings_for_cache(model: "Model") -> Any | None:
     """Return Anthropic cache settings when the selected model is Anthropic-backed."""
@@ -76,6 +79,42 @@ def _latest_nonzero_cache_tokens(
         usage.cache_read_tokens or current_read,
         usage.cache_write_tokens or current_write,
     )
+
+
+def _is_legacy_default_system_prompt(value: str | None) -> bool:
+    return (
+        value is not None
+        and len(value) == _LEGACY_DEFAULT_SYSTEM_PROMPT_LENGTH
+        and value.startswith(_LEGACY_DEFAULT_SYSTEM_PROMPT_PREFIX)
+    )
+
+
+def _resolve_user_instructions(
+    *,
+    user_instructions: str | None,
+    legacy_system: str | None,
+) -> str | None:
+    if user_instructions is not None:
+        return user_instructions
+    if _is_legacy_default_system_prompt(legacy_system):
+        return None
+    return legacy_system
+
+
+def _build_trace_messages(
+    *,
+    instruction_parts: list["InstructionPart"],
+    messages: list["ModelMessage"],
+) -> list[Any]:
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+    return [
+        *[
+            ModelRequest(parts=[SystemPromptPart(content=part.content)])
+            for part in instruction_parts
+        ],
+        *messages,
+    ]
 
 
 class ExternalTool(BaseModel):
@@ -162,8 +201,9 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     logger.debug("capabilities=%r", body.capabilities)
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
-    user_instructions = (
-        body.user_instructions if body.user_instructions is not None else body.system
+    user_instructions = _resolve_user_instructions(
+        user_instructions=body.user_instructions,
+        legacy_system=body.system,
     )
     system_prompts = build_agent_system_prompts(
         user_instructions=user_instructions,
@@ -375,7 +415,6 @@ async def stream_text(
         PartDeltaEvent,
         PartEndEvent,
         PartStartEvent,
-        SystemPromptPart,
         TextPart,
         TextPartDelta,
         ThinkingPart,
@@ -407,13 +446,6 @@ async def stream_text(
     )
 
     messages: list[Any] = list(body.messages)
-    trace_messages: list[Any] = [
-        *[
-            ModelRequest(parts=[SystemPromptPart(content=part.content)])
-            for part in body.instruction_parts
-        ],
-        *messages,
-    ]
 
     def _to_tool_defs(tools: list[ExternalTool]) -> list[ToolDefinition]:
         return [
@@ -531,6 +563,10 @@ async def stream_text(
                 )
                 if ingest_traces:
                     project_id = await ensure_project_exists(request.app.state.db)
+                trace_messages = _build_trace_messages(
+                    instruction_parts=body.instruction_parts,
+                    messages=messages,
+                )
                 agent_span = create_agent_span(
                     tracer,
                     input_messages=trace_messages,
@@ -576,6 +612,10 @@ async def stream_text(
                 llm_span: Any = None
                 if tracer is not None and agent_span is not None:
                     llm_call_count += 1
+                    trace_messages = _build_trace_messages(
+                        instruction_parts=body.instruction_parts,
+                        messages=messages,
+                    )
                     llm_span = create_llm_span(
                         tracer,
                         parent_span=agent_span,

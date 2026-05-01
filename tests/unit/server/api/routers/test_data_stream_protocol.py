@@ -1,19 +1,20 @@
 import json
 
+from pydantic_ai.usage import RequestUsage
+
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
     _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
+    _build_trace_messages,
+    _is_legacy_default_system_prompt,
     _latest_nonzero_cache_tokens,
     parse_chat_body,
 )
 
-
-class _FakeUsage:
-    def __init__(self, *, cache_read_tokens: int = 0, cache_write_tokens: int = 0) -> None:
-        self.cache_read_tokens = cache_read_tokens
-        self.cache_write_tokens = cache_write_tokens
+_LEGACY_PROMPT_PREFIX = "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
+_LEGACY_DEFAULT_SYSTEM_PROMPT = _LEGACY_PROMPT_PREFIX + ("x" * (3970 - len(_LEGACY_PROMPT_PREFIX)))
 
 
 class TestParseChatBody:
@@ -108,6 +109,55 @@ class TestParseChatBody:
         assert dynamic_part.dynamic is True
         assert "<user_custom_instructions>\nPrefer concise answers." in dynamic_part.content
 
+    def test_drops_legacy_default_system_prompt_fallback(self) -> None:
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "system": _LEGACY_DEFAULT_SYSTEM_PROMPT,
+            }
+        ).encode()
+
+        body = parse_chat_body(raw)
+
+        assert _is_legacy_default_system_prompt(_LEGACY_DEFAULT_SYSTEM_PROMPT) is True
+        assert body.user_instructions is None
+        assert "<user_custom_instructions>" not in "\n\n".join(
+            part.content for part in body.instruction_parts
+        )
+
+    def test_preserves_custom_legacy_system_prompt_fallback(self) -> None:
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "system": "Prefer concise answers.",
+            }
+        ).encode()
+
+        body = parse_chat_body(raw)
+
+        assert body.user_instructions == "Prefer concise answers."
+        assert len(body.instruction_parts) == 2
+        assert (
+            "<user_custom_instructions>\nPrefer concise answers."
+            in body.instruction_parts[1].content
+        )
+
     def test_appends_capability_guidance_to_system_prompt(self) -> None:
         raw = json.dumps(
             {
@@ -163,13 +213,13 @@ class TestLatestNonzeroCacheTokens:
         cache_read, cache_write = _latest_nonzero_cache_tokens(
             current_read=0,
             current_write=0,
-            usage=_FakeUsage(cache_read_tokens=123, cache_write_tokens=456),
+            usage=RequestUsage(cache_read_tokens=123, cache_write_tokens=456),
         )
 
         cache_read, cache_write = _latest_nonzero_cache_tokens(
             current_read=cache_read,
             current_write=cache_write,
-            usage=_FakeUsage(cache_read_tokens=0, cache_write_tokens=0),
+            usage=RequestUsage(cache_read_tokens=0, cache_write_tokens=0),
         )
 
         assert cache_read == 123
@@ -179,11 +229,47 @@ class TestLatestNonzeroCacheTokens:
         cache_read, cache_write = _latest_nonzero_cache_tokens(
             current_read=123,
             current_write=456,
-            usage=_FakeUsage(cache_read_tokens=789, cache_write_tokens=101),
+            usage=RequestUsage(cache_read_tokens=789, cache_write_tokens=101),
         )
 
         assert cache_read == 789
         assert cache_write == 101
+
+
+class TestBuildTraceMessages:
+    def test_rebuilds_from_current_messages(self) -> None:
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+                "userInstructions": "Prefer concise answers.",
+            }
+        ).encode()
+        body = parse_chat_body(raw)
+        messages = list(body.messages)
+        initial_trace_messages = _build_trace_messages(
+            instruction_parts=body.instruction_parts,
+            messages=messages,
+        )
+
+        appended_message = ModelRequest(parts=[UserPromptPart(content="Tool result")])
+        messages.append(appended_message)
+        updated_trace_messages = _build_trace_messages(
+            instruction_parts=body.instruction_parts,
+            messages=messages,
+        )
+
+        assert len(updated_trace_messages) == len(initial_trace_messages) + 1
+        assert updated_trace_messages[-1] is appended_message
 
 
 class TestStreamAccumulator:
