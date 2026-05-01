@@ -6,7 +6,7 @@ import pytest
 from phoenix.evals import PairwiseEvaluator, evaluate_dataframe
 from phoenix.evals.aggregation import win_rate
 from phoenix.evals.evaluators import Score
-from phoenix.evals.exceptions import InvalidPromptTemplateError
+from phoenix.evals.exceptions import PhoenixInvalidPromptTemplateError
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import PairwiseQualityEvaluator
 
@@ -141,7 +141,7 @@ def test_pairwise_custom_groups() -> None:
 
 
 def test_pairwise_invalid_prompt_template_rejected() -> None:
-    with pytest.raises(InvalidPromptTemplateError):
+    with pytest.raises(PhoenixInvalidPromptTemplateError):
         PairwiseEvaluator(
             name="pairwise",
             llm=PairwiseMockLLM(["A"]),

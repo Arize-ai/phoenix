@@ -29,7 +29,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
 from typing_extensions import Annotated, Mapping
 
-from phoenix.evals.exceptions import InvalidPromptTemplateError
+from phoenix.evals.exceptions import PhoenixInvalidPromptTemplateError
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
 from .legacy.evaluators import (
@@ -933,13 +933,13 @@ class PairwiseEvaluator(LLMEvaluator):
     def _validate_prompt_template(prompt_template: PromptTemplate, groups: Tuple[str, str]) -> None:
         prompt_text = PairwiseEvaluator._prompt_template_text(prompt_template.template)
         if not _PAIRWISE_AB_PATTERN.search(prompt_text):
-            raise InvalidPromptTemplateError(
+            raise PhoenixInvalidPromptTemplateError(
                 "PairwiseEvaluator prompt_template must reference the compared items as A and B."
             )
         variables = set(prompt_template.variables)
         forbidden = (set(groups) | _PAIRWISE_FORBIDDEN_TEMPLATE_VARS) & variables
         if forbidden:
-            raise InvalidPromptTemplateError(
+            raise PhoenixInvalidPromptTemplateError(
                 "PairwiseEvaluator prompt_template cannot reference compared group names "
                 f"or reserved variables directly: {sorted(forbidden)}."
             )
