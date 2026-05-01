@@ -334,6 +334,18 @@ describe("Output Formatting", () => {
   });
 
   describe("span output - pretty", () => {
+    it("should include requested empty annotation and note columns", () => {
+      const output = formatSpansOutput({
+        spans: [mockSpan1],
+        format: "pretty",
+        includeAnnotations: true,
+        includeNotes: true,
+      });
+
+      expect(output).toContain("annotations");
+      expect(output).toContain("notes");
+    });
+
     it("should include a notes column when notes are present", () => {
       const output = formatSpansOutput({
         spans: mockTraceWithNotes.spans,

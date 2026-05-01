@@ -67,7 +67,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get span annotations for a list of span_ids. */
+        /**
+         * Get span annotations filtered by span_ids and/or identifier.
+         * @description Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSpanAnnotationsBySpanIds"];
         put?: never;
         post?: never;
@@ -84,7 +87,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get trace annotations for a list of trace_ids. */
+        /**
+         * Get trace annotations filtered by trace_ids and/or identifier.
+         * @description Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listTraceAnnotationsByTraceIds"];
         put?: never;
         post?: never;
@@ -101,7 +107,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get session annotations for a list of session_ids. */
+        /**
+         * Get session annotations filtered by session_ids and/or identifier.
+         * @description Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSessionAnnotationsBySessionIds"];
         put?: never;
         post?: never;
@@ -206,6 +215,23 @@ export interface paths {
         };
         /** Download dataset examples as CSV file */
         get: operations["getDatasetCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{id}/jsonl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download dataset examples as JSONL file */
+        get: operations["getDatasetJSONL"];
         put?: never;
         post?: never;
         delete?: never;
@@ -469,7 +495,7 @@ export interface paths {
         put?: never;
         /**
          * Create a trace note
-         * @description Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.
          */
         post: operations["createTraceNote"];
         delete?: never;
@@ -574,7 +600,7 @@ export interface paths {
         put?: never;
         /**
          * Create a span note
-         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.
          */
         post: operations["createSpanNote"];
         delete?: never;
@@ -925,7 +951,7 @@ export interface paths {
         put?: never;
         /**
          * Create a session note
-         * @description Add a note annotation to a session. Notes are special annotations that allow multiple entries per session (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.
+         * @description Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.
          */
         post: operations["createSessionNote"];
         delete?: never;
@@ -1391,6 +1417,8 @@ export interface components {
         DatasetExample: {
             /** Id */
             id: string;
+            /** Node Id */
+            node_id: string;
             /** Input */
             input: {
                 [key: string]: unknown;
@@ -3633,6 +3661,12 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
+            /** Num Created Examples */
+            num_created_examples: number;
+            /** Num Updated Examples */
+            num_updated_examples: number;
+            /** Num Deleted Examples */
+            num_deleted_examples: number;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
@@ -3954,9 +3988,11 @@ export interface operations {
     };
     listSpanAnnotationsBySpanIds: {
         parameters: {
-            query: {
-                /** @description One or more span id to fetch annotations for */
-                span_ids: string[];
+            query?: {
+                /** @description Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                span_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4015,9 +4051,11 @@ export interface operations {
     };
     listTraceAnnotationsByTraceIds: {
         parameters: {
-            query: {
-                /** @description One or more trace id to fetch annotations for */
-                trace_ids: string[];
+            query?: {
+                /** @description Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                trace_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4076,9 +4114,11 @@ export interface operations {
     };
     listSessionAnnotationsBySessionIds: {
         parameters: {
-            query: {
-                /** @description One or more session id to fetch annotations for */
-                session_ids: string[];
+            query?: {
+                /** @description Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                session_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4338,7 +4378,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     inputs: Record<string, unknown>[];
@@ -4348,21 +4388,27 @@ export interface operations {
                     splits?: (string | string[] | null)[];
                     /** @description Span IDs to link examples back to spans */
                     span_ids?: (string | null)[];
+                    /** @description Optional example ID per example. If provided, it is used as the example's stable public ID. */
+                    example_ids?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];
-                    /** @description Column names for auto-assigning examples to splits */
+                    /** @description Deprecated: use split_key instead. Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Single column name containing split names (plain string or JSON list) per row */
+                    split_key?: string;
                     /** @description Column names whose object values should be flattened into their selected bucket */
                     "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */
                     span_id_key?: string;
+                    /** @description Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes. */
+                    example_id_key?: string;
                     /** Format: binary */
                     file: string;
                 };
@@ -4387,7 +4433,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Dataset of the same name already exists */
+            /** @description Dataset with the given name already exists (action=create). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4496,6 +4542,50 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetJSONL: {
+        parameters: {
+            query?: {
+                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+                version_id?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset or version ID */
             422: {
                 headers: {
                     [name: string]: unknown;

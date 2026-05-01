@@ -9,9 +9,11 @@ import { agentContextKey, type AgentContext } from "./agentContextTypes";
  * Route contexts come first (they establish the page-level frame), then any
  * feature-level mounted contexts. Duplicates are collapsed by
  * {@link agentContextKey}. Project entries are *merged* rather than dropped
- * so a route-derived project (no spanFilter) and a mounted project entry
- * (carrying the active span filter) collapse into a single project context
- * with the spanFilter attached.
+ * so a route-derived project entry collapses with mounted project entries
+ * that contribute spans-page state — the freeform `spanFilter` DSL
+ * expression from SpanFilterConditionField and the `rootSpansOnly` boolean
+ * toggle from SpansTable — into a single project context with both fields
+ * attached when present.
  */
 export function selectActiveContexts(state: AgentState): AgentContext[] {
   const byKey = new Map<string, AgentContext>();
@@ -26,13 +28,17 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
       return;
     }
     if (existing.type === "project" && context.type === "project") {
-      // Layer mounted spanFilter onto the route-derived entry. The route
-      // version usually has no spanFilter; the mounted version is the only
-      // source of the on-screen filter expression.
+      // Layer the mounted spans-page state onto the route-derived entry.
+      // The route version usually carries neither field; mounted components
+      // are the only source: SpanFilterConditionField advertises the
+      // freeform `spanFilter` DSL expression, and SpansTable advertises the
+      // `rootSpansOnly` toggle (a boolean for the root-vs-all-spans switch,
+      // distinct from any condition in `spanFilter`).
       byKey.set(key, {
         ...existing,
         ...context,
         spanFilter: context.spanFilter ?? existing.spanFilter,
+        rootSpansOnly: context.rootSpansOnly ?? existing.rootSpansOnly,
       });
     }
   };

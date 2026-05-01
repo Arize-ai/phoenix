@@ -188,9 +188,32 @@ describe("toolSchemas", () => {
       };
       const result = awsToolDefinitionSchema.safeParse(tool);
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && "toolSpec" in result.data) {
         expect(result.data.toolSpec.inputSchema.json).toEqual({
           type: "object",
+        });
+      }
+    });
+
+    it("should parse an unwrapped AWS tool definition (without toolSpec)", () => {
+      const tool = {
+        name: "get_weather",
+        description: "Get weather",
+        inputSchema: {
+          json: {
+            type: "object",
+            properties: { city: { type: "string" } },
+            required: ["city"],
+          },
+        },
+      };
+      const result = awsToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(true);
+      if (result.success && !("toolSpec" in result.data)) {
+        expect(result.data.inputSchema.json).toEqual({
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
         });
       }
     });

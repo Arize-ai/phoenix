@@ -368,6 +368,69 @@ do {
 
 > **Note:** Requires Phoenix server >= 13.15.0.
 
+### Trace Annotations
+
+Add structured feedback (label/score by name) to entire traces. Use `addTraceAnnotation` for one trace or `logTraceAnnotations` for batches.
+
+```ts
+import {
+  addTraceAnnotation,
+  logTraceAnnotations,
+} from "@arizeai/phoenix-client/traces";
+
+// Single annotation
+const result = await addTraceAnnotation({
+  traceAnnotation: {
+    traceId: "abc123",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    annotatorKind: "HUMAN",
+  },
+  sync: true, // returns { id: "..." } when sync, null when async
+});
+
+// Batch
+await logTraceAnnotations({
+  traceAnnotations: [
+    {
+      traceId: "abc123",
+      name: "correctness",
+      label: "correct",
+      score: 1.0,
+      annotatorKind: "HUMAN",
+    },
+    {
+      traceId: "def456",
+      name: "faithfulness",
+      label: "faithful",
+      score: 0.9,
+      annotatorKind: "LLM",
+    },
+  ],
+  sync: true,
+});
+```
+
+The reserved name `note` is rejected — use `addTraceNote` instead for free-form notes (see below).
+
+### Trace Notes
+
+Notes are a special type of annotation for free-form text — useful for open coding, where reviewers leave qualitative observations on a trace before any rubric exists. Multiple notes can coexist on the same trace.
+
+```ts
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
+
+await addTraceNote({
+  traceNote: {
+    traceId: "abc123",
+    note: "Needs follow-up — unexpected tool call sequence",
+  },
+});
+```
+
+> **Note:** `addTraceNote` requires Phoenix server >= 14.13.0.
+
 ## Spans
 
 The `@arizeai/phoenix-client` package provides a `spans` export for querying spans with powerful filtering.
@@ -505,6 +568,7 @@ import {
   listSessions,
   getSession,
   addSessionAnnotation,
+  addSessionNote,
 } from "@arizeai/phoenix-client/sessions";
 
 // List all sessions for a project
@@ -533,6 +597,19 @@ await addSessionAnnotation({
     label: "satisfied",
     score: 0.9,
     annotatorKind: "HUMAN",
+  },
+});
+```
+
+### Adding Session Notes
+
+Session notes require Phoenix server `14.17.0` or newer.
+
+```ts
+await addSessionNote({
+  sessionNote: {
+    sessionId: "my-session-id",
+    note: "Needs review",
   },
 });
 ```

@@ -1899,12 +1899,14 @@ export function toCanonicalToolDefinition(
     };
   }
   // AWS: { toolSpec: { name, description, inputSchema: { json } } }
+  // Some Bedrock spans store the unwrapped inner shape; the schema accepts both.
   const aws = awsToolDefinitionSchema.safeParse(raw);
   if (aws.success) {
+    const spec = "toolSpec" in aws.data ? aws.data.toolSpec : aws.data;
     return {
-      name: aws.data.toolSpec.name,
-      description: aws.data.toolSpec.description ?? null,
-      parameters: canonicalParameters(aws.data.toolSpec.inputSchema.json),
+      name: spec.name,
+      description: spec.description ?? null,
+      parameters: canonicalParameters(spec.inputSchema.json),
       strict: null,
     };
   }

@@ -1,6 +1,10 @@
 import * as fs from "fs";
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
-import { deleteSession } from "@arizeai/phoenix-client/sessions";
+import {
+  addSessionAnnotation,
+  addSessionNote,
+  deleteSession,
+} from "@arizeai/phoenix-client/sessions";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -13,41 +17,92 @@ import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
+  buildAnnotationMutationResult,
+  getAnnotationMutationHelpText,
+  normalizeAnnotationInput,
+} from "./annotationMutationUtils";
+import { chunkArray } from "./chunkArray";
+import {
+  formatAnnotationMutationOutput,
+  type OutputFormat as AnnotationMutationOutputFormat,
+} from "./formatAnnotationMutation";
+import {
+  formatNoteMutationOutput,
+  type OutputFormat as NoteMutationOutputFormat,
+} from "./formatNoteMutation";
+import {
   formatSessionOutput,
   formatSessionsOutput,
-  type OutputFormat,
+  type OutputFormat as SessionOutputFormat,
+  type SessionNote,
+  type SessionWithAnnotations,
 } from "./formatSessions";
+import {
+  buildNoteMutationResult,
+  NOTE_ANNOTATION_NAME,
+  normalizeNoteText,
+} from "./noteMutationUtils";
 
 type SessionData = componentsV1["schemas"]["SessionData"];
 type SessionAnnotation = componentsV1["schemas"]["SessionAnnotation"];
+
+const DEFAULT_PAGE_LIMIT = 1000;
+const DEFAULT_SESSION_IDS_CHUNK_SIZE = 100;
+const DEFAULT_MAX_CONCURRENT = 5;
 
 interface SessionGetOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
-  format?: OutputFormat;
+  format?: SessionOutputFormat;
   progress?: boolean;
   file?: string;
   includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 interface SessionListOptions {
   endpoint?: string;
   project?: string;
   apiKey?: string;
-  format?: OutputFormat;
+  format?: SessionOutputFormat;
   progress?: boolean;
   limit?: number;
   order?: "asc" | "desc";
+  includeAnnotations?: boolean;
+  includeNotes?: boolean;
+}
+
+interface SessionAnnotateOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: AnnotationMutationOutputFormat;
+  progress?: boolean;
+  name?: string;
+  label?: string;
+  score?: string;
+  explanation?: string;
+  annotatorKind?: string;
+}
+
+interface SessionAddNoteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: NoteMutationOutputFormat;
+  progress?: boolean;
+  text?: string;
 }
 
 /**
  * Fetch a single session by identifier
  */
-async function fetchSession(
-  client: PhoenixClient,
-  sessionIdentifier: string
-): Promise<SessionData> {
+async function fetchSession({
+  client,
+  sessionIdentifier,
+}: {
+  client: PhoenixClient;
+  sessionIdentifier: string;
+}): Promise<SessionData> {
   const response = await client.GET("/v1/sessions/{session_identifier}", {
     params: {
       path: {
@@ -66,11 +121,72 @@ async function fetchSession(
 /**
  * Fetch annotations for a session
  */
-async function fetchSessionAnnotations(
-  client: PhoenixClient,
-  projectIdentifier: string,
-  sessionId: string
-): Promise<SessionAnnotation[]> {
+async function fetchSessionAnnotations({
+  client,
+  projectIdentifier,
+  sessionIds,
+  includeAnnotationNames,
+  excludeAnnotationNames,
+  pageLimit = DEFAULT_PAGE_LIMIT,
+  maxConcurrent = DEFAULT_MAX_CONCURRENT,
+}: {
+  client: PhoenixClient;
+  projectIdentifier: string;
+  sessionIds: string[];
+  includeAnnotationNames?: string[];
+  excludeAnnotationNames?: string[];
+  pageLimit?: number;
+  maxConcurrent?: number;
+}): Promise<SessionAnnotation[]> {
+  if (sessionIds.length === 0) {
+    return [];
+  }
+
+  const uniqueSessionIds = Array.from(new Set(sessionIds));
+  const chunks = chunkArray({
+    items: uniqueSessionIds,
+    size: DEFAULT_SESSION_IDS_CHUNK_SIZE,
+  });
+  const allAnnotations: SessionAnnotation[] = [];
+
+  for (let index = 0; index < chunks.length; index += maxConcurrent) {
+    const batch = chunks.slice(index, index + maxConcurrent);
+    const batchResults = await Promise.all(
+      batch.map((sessionIdsChunk) =>
+        fetchSessionAnnotationsForChunk({
+          client,
+          projectIdentifier,
+          sessionIds: sessionIdsChunk,
+          includeAnnotationNames,
+          excludeAnnotationNames,
+          pageLimit,
+        })
+      )
+    );
+
+    for (const result of batchResults) {
+      allAnnotations.push(...result);
+    }
+  }
+
+  return allAnnotations;
+}
+
+async function fetchSessionAnnotationsForChunk({
+  client,
+  projectIdentifier,
+  sessionIds,
+  includeAnnotationNames,
+  excludeAnnotationNames,
+  pageLimit,
+}: {
+  client: PhoenixClient;
+  projectIdentifier: string;
+  sessionIds: string[];
+  includeAnnotationNames?: string[];
+  excludeAnnotationNames?: string[];
+  pageLimit: number;
+}): Promise<SessionAnnotation[]> {
   const allAnnotations: SessionAnnotation[] = [];
   let cursor: string | undefined;
 
@@ -83,9 +199,11 @@ async function fetchSessionAnnotations(
             project_identifier: projectIdentifier,
           },
           query: {
-            session_ids: [sessionId],
+            session_ids: sessionIds,
+            include_annotation_names: includeAnnotationNames,
+            exclude_annotation_names: excludeAnnotationNames,
             cursor,
-            limit: 100,
+            limit: pageLimit,
           },
         },
       }
@@ -100,6 +218,65 @@ async function fetchSessionAnnotations(
   } while (cursor);
 
   return allAnnotations;
+}
+
+function buildSessionNote(annotation: SessionAnnotation): SessionNote {
+  return {
+    ...annotation,
+    name: NOTE_ANNOTATION_NAME,
+    result:
+      annotation.result == null
+        ? annotation.result
+        : { explanation: annotation.result.explanation ?? null },
+  };
+}
+
+function attachSessionAnnotations({
+  sessions,
+  annotations,
+}: {
+  sessions: SessionWithAnnotations[];
+  annotations: SessionAnnotation[];
+}): void {
+  const annotationsBySessionId = new Map<string, SessionAnnotation[]>();
+  for (const annotation of annotations) {
+    const annotationSessionId = annotation.session_id;
+    if (!annotationsBySessionId.has(annotationSessionId)) {
+      annotationsBySessionId.set(annotationSessionId, []);
+    }
+    annotationsBySessionId.get(annotationSessionId)!.push(annotation);
+  }
+
+  for (const session of sessions) {
+    const sessionAnnotations = annotationsBySessionId.get(session.session_id);
+    if (sessionAnnotations) {
+      session.annotations = sessionAnnotations;
+    }
+  }
+}
+
+function attachSessionNotes({
+  sessions,
+  notes,
+}: {
+  sessions: SessionWithAnnotations[];
+  notes: SessionAnnotation[];
+}): void {
+  const notesBySessionId = new Map<string, SessionNote[]>();
+  for (const note of notes) {
+    const noteSessionId = note.session_id;
+    if (!notesBySessionId.has(noteSessionId)) {
+      notesBySessionId.set(noteSessionId, []);
+    }
+    notesBySessionId.get(noteSessionId)!.push(buildSessionNote(note));
+  }
+
+  for (const session of sessions) {
+    const sessionNotes = notesBySessionId.get(session.session_id);
+    if (sessionNotes) {
+      session.notes = sessionNotes;
+    }
+  }
 }
 
 /**
@@ -185,7 +362,10 @@ async function sessionGetHandler(
     });
 
     // Fetch session
-    const session = await fetchSession(client, sessionId);
+    const session = await fetchSession({
+      client,
+      sessionIdentifier: sessionId,
+    });
 
     writeProgress({
       message: `Fetched session with ${session.traces.length} trace(s)`,
@@ -200,11 +380,12 @@ async function sessionGetHandler(
         noProgress: !options.progress,
       });
 
-      annotations = await fetchSessionAnnotations(
+      annotations = await fetchSessionAnnotations({
         client,
-        session.project_id,
-        session.session_id
-      );
+        projectIdentifier: session.project_id,
+        sessionIds: [session.session_id],
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
 
       writeProgress({
         message: `Found ${annotations.length} annotation(s)`,
@@ -212,8 +393,29 @@ async function sessionGetHandler(
       });
     }
 
+    let notes: SessionNote[] | undefined;
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching session notes...",
+        noProgress: !options.progress,
+      });
+
+      const noteAnnotations = await fetchSessionAnnotations({
+        client,
+        projectIdentifier: session.project_id,
+        sessionIds: [session.session_id],
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+      notes = noteAnnotations.map(buildSessionNote);
+
+      writeProgress({
+        message: `Found ${notes.length} note(s)`,
+        noProgress: !options.progress,
+      });
+    }
+
     // Determine output format
-    const outputFormat: OutputFormat = options.file
+    const outputFormat: SessionOutputFormat = options.file
       ? "json"
       : options.format || "pretty";
 
@@ -223,10 +425,15 @@ async function sessionGetHandler(
       });
     }
 
+    const sessionWithAnnotations: SessionWithAnnotations = {
+      ...session,
+      ...(annotations ? { annotations } : {}),
+      ...(notes ? { notes } : {}),
+    };
+
     // Format output
     const output = formatSessionOutput({
-      session,
-      annotations,
+      session: sessionWithAnnotations,
       format: outputFormat,
     });
 
@@ -293,10 +500,14 @@ async function sessionListHandler(options: SessionListOptions): Promise<void> {
       noProgress: !options.progress,
     });
 
-    const sessions = await fetchSessions(client, projectId, {
-      limit,
-      order: options.order,
-    });
+    const sessions: SessionWithAnnotations[] = await fetchSessions(
+      client,
+      projectId,
+      {
+        limit,
+        order: options.order,
+      }
+    );
 
     if (sessions.length === 0) {
       writeProgress({
@@ -311,9 +522,42 @@ async function sessionListHandler(options: SessionListOptions): Promise<void> {
       noProgress: !options.progress,
     });
 
+    const sessionIds = sessions.map((session) => session.session_id);
+    if (options.includeAnnotations) {
+      writeProgress({
+        message: "Fetching session annotations...",
+        noProgress: !options.progress,
+      });
+
+      const annotations = await fetchSessionAnnotations({
+        client,
+        projectIdentifier: projectId,
+        sessionIds,
+        excludeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+      attachSessionAnnotations({ sessions, annotations });
+    }
+
+    if (options.includeNotes) {
+      writeProgress({
+        message: "Fetching session notes...",
+        noProgress: !options.progress,
+      });
+
+      const notes = await fetchSessionAnnotations({
+        client,
+        projectIdentifier: projectId,
+        sessionIds,
+        includeAnnotationNames: [NOTE_ANNOTATION_NAME],
+      });
+      attachSessionNotes({ sessions, notes });
+    }
+
     const output = formatSessionsOutput({
       sessions,
       format: options.format,
+      includeAnnotations: options.includeAnnotations,
+      includeNotes: options.includeNotes,
     });
     writeOutput({ message: output });
   } catch (error) {
@@ -342,6 +586,7 @@ export function createSessionGetCommand(): Command {
     .option("--no-progress", "Disable progress indicators")
     .option("--file <path>", "Save session to file instead of stdout")
     .option("--include-annotations", "Include session annotations")
+    .option("--include-notes", "Include session notes")
     .action(sessionGetHandler);
 }
 
@@ -357,6 +602,8 @@ export function createSessionListCommand(): Command {
       "pretty"
     )
     .option("--no-progress", "Disable progress indicators")
+    .option("--include-annotations", "Include session annotations")
+    .option("--include-notes", "Include session notes")
     .option(
       "-n, --limit <number>",
       "Maximum number of sessions to return",
@@ -365,6 +612,206 @@ export function createSessionListCommand(): Command {
     )
     .option("--order <order>", "Sort order: asc or desc", "desc")
     .action(sessionListHandler);
+}
+
+async function sessionAnnotateHandler(
+  sessionId: string,
+  options: SessionAnnotateOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const annotationInput = normalizeAnnotationInput({
+      targetType: "session",
+      name: options.name,
+      label: options.label,
+      score: options.score,
+      explanation: options.explanation,
+      annotatorKind: options.annotatorKind,
+    });
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving session ${sessionId}...`,
+      noProgress: !options.progress,
+    });
+
+    const session = await fetchSession({
+      client,
+      sessionIdentifier: sessionId,
+    });
+
+    writeProgress({
+      message: `Annotating session ${session.session_id}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await addSessionAnnotation({
+      client,
+      sync: true,
+      sessionAnnotation: {
+        sessionId: session.session_id,
+        name: annotationInput.name,
+        label: annotationInput.label ?? undefined,
+        score: annotationInput.score ?? undefined,
+        explanation: annotationInput.explanation ?? undefined,
+        annotatorKind: annotationInput.annotatorKind,
+        identifier: "",
+      },
+    });
+
+    if (!result?.id) {
+      throw new Error("Failed to add session annotation: no data returned");
+    }
+
+    const output = formatAnnotationMutationOutput({
+      annotation: buildAnnotationMutationResult({
+        id: result.id,
+        targetType: "session",
+        targetId: session.session_id,
+        annotationInput,
+      }),
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error annotating session: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSessionAnnotateCommand(): Command {
+  return new Command("annotate")
+    .description("Add or update an annotation on a session")
+    .argument(
+      "<session-id>",
+      "Session identifier (GlobalID or user-provided session_id)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--name <name>", "Annotation name")
+    .option("--label <label>", "Annotation label")
+    .option("--score <number>", "Annotation score")
+    .option("--explanation <text>", "Annotation explanation")
+    .option(
+      "--annotator-kind <kind>",
+      "Annotator kind: HUMAN, LLM, or CODE",
+      "HUMAN"
+    )
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      getAnnotationMutationHelpText({ targetType: "session" })
+    )
+    .action(sessionAnnotateHandler);
+}
+
+async function sessionAddNoteHandler(
+  sessionId: string,
+  options: SessionAddNoteOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const text = normalizeNoteText({
+      targetType: "session",
+      text: options.text,
+    });
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving session ${sessionId}...`,
+      noProgress: !options.progress,
+    });
+
+    const session = await fetchSession({
+      client,
+      sessionIdentifier: sessionId,
+    });
+
+    writeProgress({
+      message: `Adding note to session ${session.session_id}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await addSessionNote({
+      client,
+      sessionNote: {
+        sessionId: session.session_id,
+        note: text,
+      },
+    });
+
+    const output = formatNoteMutationOutput({
+      note: buildNoteMutationResult({
+        id: result.id,
+        targetType: "session",
+        targetId: session.session_id,
+        text,
+      }),
+      format: options.format,
+    });
+    writeOutput({ message: output });
+  } catch (error) {
+    writeError({
+      message: `Error adding session note: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSessionAddNoteCommand(): Command {
+  return new Command("add-note")
+    .description("Add a note to a session")
+    .argument(
+      "<session-id>",
+      "Session identifier (GlobalID or user-provided session_id)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--text <text>", "Note text")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .action(sessionAddNoteHandler);
 }
 
 interface SessionDeleteOptions {
@@ -442,6 +889,8 @@ export function createSessionCommand(): Command {
   command.description("Manage Phoenix sessions");
   command.addCommand(createSessionListCommand());
   command.addCommand(createSessionGetCommand());
+  command.addCommand(createSessionAnnotateCommand());
+  command.addCommand(createSessionAddNoteCommand());
   command.addCommand(createSessionDeleteCommand());
   return command;
 }

@@ -1,6 +1,7 @@
 import { createClient } from "../client";
 import { ADD_TRACE_NOTE } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
+import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
@@ -27,8 +28,11 @@ export interface AddTraceNoteParams extends ClientFn {
 /**
  * Add a note to a trace.
  *
- * Notes are a special type of annotation that allow multiple entries per trace.
- * Each note gets a unique timestamp-based identifier.
+ * Notes are append-only: each call creates a new note with an auto-generated
+ * UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured
+ * annotations, by contrast, are keyed by `(name, traceId, identifier)` — to keep
+ * multiple structured annotations with the same name on a trace, supply distinct
+ * identifiers; otherwise re-writing the same name overwrites the existing one.
  *
  * @param params - The parameters to add a trace note.
  * @returns The ID of the created note annotation.
@@ -60,7 +64,7 @@ export async function addTraceNote({
   });
 
   if (error) {
-    throw new Error(`Failed to add trace note: ${error}`);
+    throw new Error(`Failed to add trace note: ${formatApiError(error)}`);
   }
 
   if (!data?.data) {

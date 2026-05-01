@@ -1834,8 +1834,10 @@ class TestClientForSpanNotes:
     ) -> None:
         """Test multiple notes can be added to a span and verify content via GraphQL.
 
-        Notes are a special type of annotation that allow multiple entries per span
-        (unlike regular annotations which are unique by name and identifier).
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations are keyed by (name, span_id, identifier) — distinct identifiers
+        let you keep multiple same-named annotations on one span.
         """
         assert _existing_spans, "At least one existing span is required for this test"
         existing_span = choice(_existing_spans)

@@ -34,6 +34,7 @@ jobs:
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
       migrations: ${{ steps.filter.outputs.migrations }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
@@ -63,6 +64,8 @@ jobs:
               - "tox.ini"
             migrations:
               - "src/phoenix/db/migrations/versions/**"
+            json_canonicalization_schema:
+              - "src/phoenix/vendor/json_canonicalization_scheme/**/*.py"
             uv_lock:
               - "**/pyproject.toml"
               - "uv.lock"
@@ -77,6 +80,7 @@ jobs:
           echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
           echo "migrations: ${{ steps.filter.outputs.migrations }}"
           echo "uv_lock: ${{ steps.filter.outputs.uv_lock }}"
+          echo "json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}"
 
   phoenix-client:
     name: Phoenix Client
@@ -98,7 +102,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - run: uvx tox run -e phoenix_client -- -ra -x
 
   phoenix-evals:
@@ -121,7 +125,7 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - run: uvx tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -143,8 +147,53 @@ jobs:
           python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - run: uvx tox run -e phoenix_otel -- -ra -x
+
+  test-json-canonicalization-schema:
+    name: JSON Canonicalization Schema (${{ matrix.py }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.json_canonicalization_schema == 'true' }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - py: "3.10"
+            os: ubuntu-latest
+          - py: "3.11"
+            os: macos-latest
+          - py: "3.12"
+            os: ubuntu-latest
+          - py: "3.13"
+            os: windows-latest
+          - py: "3.14"
+            os: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            Makefile
+            scripts/ci/json-canonicalization-schema/
+            src/phoenix/
+            packages/
+            .jcs-test-data/
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.8"
+      - name: Install make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make --no-progress -y
+      - name: Cache test data
+        uses: actions/cache@v4
+        with:
+          path: .jcs-test-data
+          key: jcs-test-data
+      - name: Run JSON canonicalization schema tests
+        shell: bash
+        run: make test-jcs
 
   clean-jupyter-notebooks:
     name: Clean Jupyter Notebooks
@@ -165,7 +214,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -189,7 +238,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -213,7 +262,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -237,7 +286,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -263,7 +312,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -285,7 +334,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Run formatter and linter
         run: |
           make format-python
@@ -320,7 +369,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -357,7 +406,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Install PostgreSQL
         if: matrix.db == 'postgresql'
         run: sudo apt-get -yqq install postgresql
@@ -422,7 +471,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Run integration tests
         timeout-minutes: 30
         run: uvx tox run -e integration_tests -- -ra --reruns 5 -n 16
@@ -461,7 +510,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -531,7 +580,7 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
-          version: "0.10.9"
+          version: "0.11.8"
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
 
@@ -552,6 +601,7 @@ jobs:
       - unit-tests
       - integration-tests
       - test-migrations
+      - test-json-canonicalization-schema
       - phoenix-client-canary-tests-sdk
     if: always()
     runs-on: ubuntu-latest

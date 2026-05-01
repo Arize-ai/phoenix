@@ -68,6 +68,7 @@ class Dataset(TypedDict):
 
 class DatasetExample(TypedDict):
     id: str
+    node_id: str
     input: Mapping[str, Any]
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
@@ -669,6 +670,9 @@ class UpdateProjectResponseBody(TypedDict):
 class UploadDatasetData(TypedDict):
     dataset_id: str
     version_id: str
+    num_created_examples: int
+    num_updated_examples: int
+    num_deleted_examples: int
 
 
 class UploadDatasetResponseBody(TypedDict):

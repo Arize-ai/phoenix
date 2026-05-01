@@ -283,9 +283,7 @@ exclude = [
   "packages/",
   "scripts/",
   "sdist/",
-  "src/phoenix/client/",
-  "src/phoenix/evals/",
-  "src/phoenix/otel/",
+  "src/phoenix/vendor/json_canonicalization_scheme/",
   "tutorials/",
   "js/",
 ]
@@ -332,6 +330,7 @@ exclude = [
   "*.pyi",
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
+  "src/phoenix/vendor/json_canonicalization_scheme",
 ]
 line-length = 100
 target-version = "py310"
@@ -354,7 +353,7 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.10.9"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+required-version = "==0.11.8"  # When updating this version, also update the `backend-builder` image in the Dockerfile
 exclude-newer = "3 days"
 
 [tool.uv.workspace]

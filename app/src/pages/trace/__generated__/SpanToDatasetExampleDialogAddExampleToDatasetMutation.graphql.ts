@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ae2b473b296435cc921c53c4b11a098>>
+ * @generated SignedSource<<6694e7ebb9356a610a190b2b8a3d79db>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type AddExamplesToDatasetInput = {
   examples: ReadonlyArray<DatasetExampleInput>;
 };
 export type DatasetExampleInput = {
+  externalId?: string | null;
   input: any;
   metadata: any;
   output: any;

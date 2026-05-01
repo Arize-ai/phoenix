@@ -6,11 +6,15 @@ export type OutputFormat = "pretty" | "json" | "raw";
 export interface FormatSpansOutputOptions {
   spans: SpanWithAnnotations[];
   format?: OutputFormat;
+  includeAnnotations?: boolean;
+  includeNotes?: boolean;
 }
 
 export function formatSpansOutput({
   spans,
   format,
+  includeAnnotations,
+  includeNotes,
 }: FormatSpansOutputOptions): string {
   const selected = format || "pretty";
   if (selected === "raw") {
@@ -22,14 +26,23 @@ export function formatSpansOutput({
   if (spans.length === 0) {
     return "No spans found";
   }
-  return formatSpansPretty(spans);
+  return formatSpansPretty({ spans, includeAnnotations, includeNotes });
 }
 
-function formatSpansPretty(spans: SpanWithAnnotations[]): string {
-  const hasAnnotations = spans.some(
-    (s) => s.annotations && s.annotations.length > 0
-  );
-  const hasNotes = spans.some((s) => s.notes && s.notes.length > 0);
+function formatSpansPretty({
+  spans,
+  includeAnnotations,
+  includeNotes,
+}: {
+  spans: SpanWithAnnotations[];
+  includeAnnotations?: boolean;
+  includeNotes?: boolean;
+}): string {
+  const shouldShowAnnotationsColumn =
+    Boolean(includeAnnotations) ||
+    spans.some((s) => s.annotations && s.annotations.length > 0);
+  const shouldShowNotesColumn =
+    Boolean(includeNotes) || spans.some((s) => s.notes && s.notes.length > 0);
 
   const rows = spans.map((span) => {
     const statusCode = span.status_code || "UNSET";
@@ -44,10 +57,10 @@ function formatSpansPretty(spans: SpanWithAnnotations[]): string {
       time: formatTimestamp(span.start_time),
     };
 
-    if (hasAnnotations) {
+    if (shouldShowAnnotationsColumn) {
       row.annotations = formatAnnotations(span.annotations);
     }
-    if (hasNotes) {
+    if (shouldShowNotesColumn) {
       row.notes = formatNotes(span.notes);
     }
 

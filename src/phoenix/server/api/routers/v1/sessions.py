@@ -446,8 +446,14 @@ async def annotate_sessions(
             )
             inserted_ids.append(session_annotation_id)
 
+    request.state.event_queue.put(ProjectSessionAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSessionsResponseBody(
-        data=[InsertedSessionAnnotation(id=str(inserted_id)) for inserted_id in inserted_ids]
+        data=[
+            InsertedSessionAnnotation(
+                id=str(GlobalID(SessionAnnotationNodeType.__name__, str(inserted_id)))
+            )
+            for inserted_id in inserted_ids
+        ]
     )
 
 
@@ -461,9 +467,12 @@ async def annotate_sessions(
     operation_id="createSessionNote",
     summary="Create a session note",
     description=(
-        "Add a note annotation to a session. Notes are special annotations that allow "
-        "multiple entries per session (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique UUIDv4 identifier."
+        "Add a note annotation to a session. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "session. Structured annotations, by contrast, are keyed by (name, session_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a session "
+        "you must supply distinct identifiers."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Session not found"}]),
     response_description="Session note created successfully",

@@ -1,5 +1,56 @@
 # Changelog
 
+## [15.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.0.0...arize-phoenix-v15.1.0) (2026-04-30)
+
+
+### Features
+
+* **api:** query annotations by identifier on GET endpoints ([#12952](https://github.com/Arize-ai/phoenix/issues/12952)) ([e2a1de9](https://github.com/Arize-ai/phoenix/commit/e2a1de9274b1434db89bb3aef1957abac3071d20))
+* **cli:** add named auth profile management ([#12529](https://github.com/Arize-ai/phoenix/issues/12529)) ([ab62d3d](https://github.com/Arize-ai/phoenix/commit/ab62d3d0a4afdc14b8a354303df61d83693ba168))
+* **cli:** add session annotations and notes ([#12925](https://github.com/Arize-ai/phoenix/issues/12925)) ([4e20267](https://github.com/Arize-ai/phoenix/commit/4e202674a4b73714badf6b2df9fc244e24c68fe3))
+* **phoenix-client:** add TS trace annotations + clarify note semantics + skills audit ([#12923](https://github.com/Arize-ai/phoenix/issues/12923)) ([2993b04](https://github.com/Arize-ai/phoenix/commit/2993b04a30554a752322b44a677721ae9ded91cc))
+
+
+### Bug Fixes
+
+* **playground:** accept unwrapped AWS Bedrock tool schemas ([#12937](https://github.com/Arize-ai/phoenix/issues/12937)) ([b450f10](https://github.com/Arize-ai/phoenix/commit/b450f107a0d6d96aba9511d5624a5c45868743ae))
+* **ui:** remove unused sticky positioning on Drawer dialog header ([#12954](https://github.com/Arize-ai/phoenix/issues/12954)) ([d6a5f90](https://github.com/Arize-ai/phoenix/commit/d6a5f90486afdccab9260ed64c804343a3cff446)), closes [#12953](https://github.com/Arize-ai/phoenix/issues/12953)
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-24-2026 through 04-28-2026 ([#12914](https://github.com/Arize-ai/phoenix/issues/12914)) ([ceeb89b](https://github.com/Arize-ai/phoenix/commit/ceeb89b1f55e13db041068a05e680deb47282153))
+* add phoenix-release-please skill and note no v15 migration ([#12932](https://github.com/Arize-ai/phoenix/issues/12932)) ([4bd2b43](https://github.com/Arize-ai/phoenix/commit/4bd2b437e88f0011ec983460a49b1dce6209d3c3))
+* **skills:** add open-coding and axial-coding references to phoenix-cli skill ([#12869](https://github.com/Arize-ai/phoenix/issues/12869)) ([0972f3d](https://github.com/Arize-ai/phoenix/commit/0972f3dd6ac042cdaca6e7924df72d88a38b167d))
+
+## [15.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.17.0...arize-phoenix-v15.0.0) (2026-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860))
+
+### Features
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860)) ([9575738](https://github.com/Arize-ai/phoenix/commit/957573865202d2ee49c21eb1c73265760e07f2f9))
+* extend db prompt types for invocation paramaters ([#12855](https://github.com/Arize-ai/phoenix/issues/12855)) ([1499ca9](https://github.com/Arize-ai/phoenix/commit/1499ca956de972ba523d57e7af49b84e693f895a))
+
+## [14.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.16.0...arize-phoenix-v14.17.0) (2026-04-29)
+
+
+### Features
+
+* **agents:** support custom providers and secret store values ([#12901](https://github.com/Arize-ai/phoenix/issues/12901)) ([3f09c7b](https://github.com/Arize-ai/phoenix/commit/3f09c7b4fa079533dfe684e30e0829b7f9e0e57e))
+* **api:** add session notes endpoint ([#12902](https://github.com/Arize-ai/phoenix/issues/12902)) ([187df7e](https://github.com/Arize-ai/phoenix/commit/187df7e8abf20b3a6c3e851bcde373229d0e7f05))
+* **cli:** add JSON schema for settings config ([#12817](https://github.com/Arize-ai/phoenix/issues/12817)) ([47bf011](https://github.com/Arize-ai/phoenix/commit/47bf011914315b9af271f29974ca0eb016728fab))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#12912](https://github.com/Arize-ai/phoenix/issues/12912)) ([a38e57b](https://github.com/Arize-ai/phoenix/commit/a38e57bc0c5ca212b1ed2b544adb4c6ee3d46112))
+* **playground:** prevent OTel context leak in single chat completion subscription ([#12922](https://github.com/Arize-ai/phoenix/issues/12922)) ([966e595](https://github.com/Arize-ai/phoenix/commit/966e595b5af8b198edbd859e3abfe697f412184e))
+* show label-only annotations in summary cells ([#12898](https://github.com/Arize-ai/phoenix/issues/12898)) ([b971061](https://github.com/Arize-ai/phoenix/commit/b9710617958ec85121cd594bc1915b6b2f817868))
+
 ## [14.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v14.15.0...arize-phoenix-v14.16.0) (2026-04-28)
 
 

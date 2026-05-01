@@ -305,7 +305,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get span annotations for a list of span_ids.",
+        "summary": "Get span annotations filtered by span_ids and/or identifier.",
+        "description": "Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
@@ -322,17 +323,45 @@
           {
             "name": "span_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more span id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Span Ids"
             },
-            "description": "One or more span id to fetch annotations for"
+            "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -458,7 +487,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get trace annotations for a list of trace_ids.",
+        "summary": "Get trace annotations filtered by trace_ids and/or identifier.",
+        "description": "Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listTraceAnnotationsByTraceIds",
         "parameters": [
           {
@@ -475,17 +505,45 @@
           {
             "name": "trace_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more trace id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Trace Ids"
             },
-            "description": "One or more trace id to fetch annotations for"
+            "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -611,7 +669,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get session annotations for a list of session_ids.",
+        "summary": "Get session annotations filtered by session_ids and/or identifier.",
+        "description": "Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSessionAnnotationsBySessionIds",
         "parameters": [
           {
@@ -628,17 +687,45 @@
           {
             "name": "session_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more session id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Session Ids"
             },
-            "description": "One or more session id to fetch annotations for"
+            "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -1113,7 +1200,7 @@
                 }
               }
             },
-            "description": "Dataset of the same name already exists"
+            "description": "Dataset with the given name already exists (action=create)."
           },
           "422": {
             "content": {
@@ -1140,7 +1227,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1200,6 +1288,20 @@
                       ]
                     },
                     "description": "Span IDs to link examples back to spans"
+                  },
+                  "example_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Optional example ID per example. If provided, it is used as the example's stable public ID."
                   }
                 }
               }
@@ -1218,7 +1320,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1254,7 +1357,11 @@
                       "type": "string"
                     },
                     "uniqueItems": true,
-                    "description": "Column names for auto-assigning examples to splits"
+                    "description": "Deprecated: use split_key instead. Column names for auto-assigning examples to splits"
+                  },
+                  "split_key": {
+                    "type": "string",
+                    "description": "Single column name containing split names (plain string or JSON list) per row"
                   },
                   "flatten_keys[]": {
                     "type": "array",
@@ -1267,6 +1374,10 @@
                   "span_id_key": {
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
+                  },
+                  "example_id_key": {
+                    "type": "string",
+                    "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes."
                   },
                   "file": {
                     "type": "string",
@@ -1451,6 +1562,78 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{id}/jsonl": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Download dataset examples as JSONL file",
+        "operationId": "getDatasetJSONL",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
+              "title": "Version Id"
+            },
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -2732,7 +2915,7 @@
           "traces"
         ],
         "summary": "Create a trace note",
-        "description": "Add a note annotation to a trace. Notes are special annotations that allow multiple entries per trace (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
+        "description": "Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.",
         "operationId": "createTraceNote",
         "requestBody": {
           "content": {
@@ -3505,7 +3688,7 @@
           "spans"
         ],
         "summary": "Create a span note",
-        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
+        "description": "Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.",
         "operationId": "createSpanNote",
         "requestBody": {
           "content": {
@@ -5035,7 +5218,7 @@
           "sessions"
         ],
         "summary": "Create a session note",
-        "description": "Add a note annotation to a session. Notes are special annotations that allow multiple entries per session (unlike regular annotations which are unique by name and identifier). Each note gets a unique UUIDv4 identifier.",
+        "description": "Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.",
         "operationId": "createSessionNote",
         "requestBody": {
           "content": {
@@ -6415,6 +6598,10 @@
             "type": "string",
             "title": "Id"
           },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
           "input": {
             "additionalProperties": true,
             "type": "object",
@@ -6439,6 +6626,7 @@
         "type": "object",
         "required": [
           "id",
+          "node_id",
           "input",
           "output",
           "metadata",
@@ -11727,12 +11915,27 @@
           "version_id": {
             "type": "string",
             "title": "Version Id"
+          },
+          "num_created_examples": {
+            "type": "integer",
+            "title": "Num Created Examples"
+          },
+          "num_updated_examples": {
+            "type": "integer",
+            "title": "Num Updated Examples"
+          },
+          "num_deleted_examples": {
+            "type": "integer",
+            "title": "Num Deleted Examples"
           }
         },
         "type": "object",
         "required": [
           "dataset_id",
-          "version_id"
+          "version_id",
+          "num_created_examples",
+          "num_updated_examples",
+          "num_deleted_examples"
         ],
         "title": "UploadDatasetData"
       },

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
@@ -31,6 +31,7 @@ MAX_TRACE_IDS = 1_000
 USER_NODE_NAME = UserNodeType.__name__
 MAX_SPAN_IDS = 1_000
 MAX_SESSION_IDS = 1_000
+MAX_ANNOTATION_IDENTIFIERS = 1_000
 
 router = APIRouter(tags=["annotations"])
 
@@ -196,7 +197,12 @@ class SessionAnnotationsResponseBody(PaginatedResponseBody[SessionAnnotation]):
 @router.get(
     "/projects/{project_identifier}/span_annotations",
     operation_id="listSpanAnnotationsBySpanIds",
-    summary="Get span annotations for a list of span_ids.",
+    summary="Get span annotations filtered by span_ids and/or identifier.",
+    description=(
+        "Return span annotations for a project, filtered by `span_ids`, `identifier`, "
+        "or both. At least one of `span_ids` or `identifier` must be supplied. When "
+        "both are supplied, results are the AND-intersection of the two filters."
+    ),
     status_code=200,
     responses=add_errors_to_responses(
         [
@@ -214,8 +220,20 @@ async def list_span_annotations(
             "characters."
         )
     ),
-    span_ids: list[str] = Query(
-        ..., min_length=1, description="One or more span id to fetch annotations for"
+    span_ids: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Optional list of span ids to fetch annotations for. If omitted, "
+            "`identifier` must be supplied."
+        ),
+    ),
+    identifier: Optional[list[Annotated[str, Field(min_length=1)]]] = Query(
+        default=None,
+        description=(
+            "Optional list of annotation identifiers to filter by. Each value must be "
+            "non-empty. If omitted, `span_ids` must be supplied. When combined with "
+            "`span_ids`, results are the AND-intersection of both filters."
+        ),
     ),
     include_annotation_names: Optional[list[str]] = Query(
         default=None,
@@ -236,11 +254,27 @@ async def list_span_annotations(
         description="The maximum number of annotations to return in a single request",
     ),
 ) -> SpanAnnotationsResponseBody:
-    span_ids = list({*span_ids})
+    span_ids = list({*span_ids}) if span_ids else []
     if len(span_ids) > MAX_SPAN_IDS:
         raise HTTPException(
             status_code=422,
             detail=f"Too many span_ids supplied: {len(span_ids)} (max {MAX_SPAN_IDS})",
+        )
+
+    identifier = list({*identifier}) if identifier else []
+    if len(identifier) > MAX_ANNOTATION_IDENTIFIERS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Too many identifiers supplied: {len(identifier)} "
+                f"(max {MAX_ANNOTATION_IDENTIFIERS})"
+            ),
+        )
+
+    if not span_ids and not identifier:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one of span_ids or identifier must be supplied",
         )
 
     async with request.app.state.db() as session:
@@ -252,10 +286,11 @@ async def list_span_annotations(
             )
 
         # Build the base query
-        where_conditions = [
-            models.Project.id == project.id,
-            models.Span.span_id.in_(span_ids),
-        ]
+        where_conditions = [models.Project.id == project.id]
+        if span_ids:
+            where_conditions.append(models.Span.span_id.in_(span_ids))
+        if identifier:
+            where_conditions.append(models.SpanAnnotation.identifier.in_(identifier))
 
         # Add annotation name filtering
         if include_annotation_names:
@@ -294,23 +329,24 @@ async def list_span_annotations(
             next_cursor = str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(extra[1].id)))
 
         if not rows:
-            spans_exist = await session.scalar(
-                select(
-                    exists().where(
-                        models.Span.span_id.in_(span_ids),
-                        models.Span.trace_rowid.in_(
-                            select(models.Trace.id)
-                            .join(models.Project)
-                            .where(models.Project.id == project.id)
-                        ),
+            if span_ids and not identifier:
+                spans_exist = await session.scalar(
+                    select(
+                        exists().where(
+                            models.Span.span_id.in_(span_ids),
+                            models.Span.trace_rowid.in_(
+                                select(models.Trace.id)
+                                .join(models.Project)
+                                .where(models.Project.id == project.id)
+                            ),
+                        )
                     )
                 )
-            )
-            if not spans_exist:
-                raise HTTPException(
-                    detail="None of the supplied span_ids exist in this project",
-                    status_code=404,
-                )
+                if not spans_exist:
+                    raise HTTPException(
+                        detail="None of the supplied span_ids exist in this project",
+                        status_code=404,
+                    )
 
             return SpanAnnotationsResponseBody(data=[], next_cursor=None)
 
@@ -341,7 +377,12 @@ async def list_span_annotations(
 @router.get(
     "/projects/{project_identifier}/trace_annotations",
     operation_id="listTraceAnnotationsByTraceIds",
-    summary="Get trace annotations for a list of trace_ids.",
+    summary="Get trace annotations filtered by trace_ids and/or identifier.",
+    description=(
+        "Return trace annotations for a project, filtered by `trace_ids`, `identifier`, "
+        "or both. At least one of `trace_ids` or `identifier` must be supplied. When "
+        "both are supplied, results are the AND-intersection of the two filters."
+    ),
     status_code=200,
     responses=add_errors_to_responses(
         [
@@ -359,8 +400,20 @@ async def list_trace_annotations(
             "characters."
         )
     ),
-    trace_ids: list[str] = Query(
-        ..., min_length=1, description="One or more trace id to fetch annotations for"
+    trace_ids: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Optional list of trace ids to fetch annotations for. If omitted, "
+            "`identifier` must be supplied."
+        ),
+    ),
+    identifier: Optional[list[Annotated[str, Field(min_length=1)]]] = Query(
+        default=None,
+        description=(
+            "Optional list of annotation identifiers to filter by. Each value must be "
+            "non-empty. If omitted, `trace_ids` must be supplied. When combined with "
+            "`trace_ids`, results are the AND-intersection of both filters."
+        ),
     ),
     include_annotation_names: Optional[list[str]] = Query(
         default=None,
@@ -381,11 +434,27 @@ async def list_trace_annotations(
         description="The maximum number of annotations to return in a single request",
     ),
 ) -> TraceAnnotationsResponseBody:
-    trace_ids = list({*trace_ids})
+    trace_ids = list({*trace_ids}) if trace_ids else []
     if len(trace_ids) > MAX_TRACE_IDS:
         raise HTTPException(
             status_code=422,
             detail=f"Too many trace_ids supplied: {len(trace_ids)} (max {MAX_TRACE_IDS})",
+        )
+
+    identifier = list({*identifier}) if identifier else []
+    if len(identifier) > MAX_ANNOTATION_IDENTIFIERS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Too many identifiers supplied: {len(identifier)} "
+                f"(max {MAX_ANNOTATION_IDENTIFIERS})"
+            ),
+        )
+
+    if not trace_ids and not identifier:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one of trace_ids or identifier must be supplied",
         )
 
     async with request.app.state.db() as session:
@@ -397,10 +466,11 @@ async def list_trace_annotations(
             )
 
         # Build the base query
-        where_conditions = [
-            models.Project.id == project.id,
-            models.Trace.trace_id.in_(trace_ids),
-        ]
+        where_conditions = [models.Project.id == project.id]
+        if trace_ids:
+            where_conditions.append(models.Trace.trace_id.in_(trace_ids))
+        if identifier:
+            where_conditions.append(models.TraceAnnotation.identifier.in_(identifier))
 
         # Add annotation name filtering
         if include_annotation_names:
@@ -438,19 +508,20 @@ async def list_trace_annotations(
             next_cursor = str(GlobalID(TRACE_ANNOTATION_NODE_NAME, str(extra[1].id)))
 
         if not rows:
-            traces_exist = await session.scalar(
-                select(
-                    exists().where(
-                        models.Trace.trace_id.in_(trace_ids),
-                        models.Trace.project_rowid == project.id,
+            if trace_ids and not identifier:
+                traces_exist = await session.scalar(
+                    select(
+                        exists().where(
+                            models.Trace.trace_id.in_(trace_ids),
+                            models.Trace.project_rowid == project.id,
+                        )
                     )
                 )
-            )
-            if not traces_exist:
-                raise HTTPException(
-                    detail="None of the supplied trace_ids exist in this project",
-                    status_code=404,
-                )
+                if not traces_exist:
+                    raise HTTPException(
+                        detail="None of the supplied trace_ids exist in this project",
+                        status_code=404,
+                    )
 
             return TraceAnnotationsResponseBody(data=[], next_cursor=None)
 
@@ -481,7 +552,13 @@ async def list_trace_annotations(
 @router.get(
     "/projects/{project_identifier}/session_annotations",
     operation_id="listSessionAnnotationsBySessionIds",
-    summary="Get session annotations for a list of session_ids.",
+    summary="Get session annotations filtered by session_ids and/or identifier.",
+    description=(
+        "Return session annotations for a project, filtered by `session_ids`, "
+        "`identifier`, or both. At least one of `session_ids` or `identifier` must be "
+        "supplied. When both are supplied, results are the AND-intersection of the two "
+        "filters."
+    ),
     status_code=200,
     responses=add_errors_to_responses(
         [
@@ -499,8 +576,20 @@ async def list_session_annotations(
             "characters."
         )
     ),
-    session_ids: list[str] = Query(
-        ..., min_length=1, description="One or more session id to fetch annotations for"
+    session_ids: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "Optional list of session ids to fetch annotations for. If omitted, "
+            "`identifier` must be supplied."
+        ),
+    ),
+    identifier: Optional[list[Annotated[str, Field(min_length=1)]]] = Query(
+        default=None,
+        description=(
+            "Optional list of annotation identifiers to filter by. Each value must be "
+            "non-empty. If omitted, `session_ids` must be supplied. When combined with "
+            "`session_ids`, results are the AND-intersection of both filters."
+        ),
     ),
     include_annotation_names: Optional[list[str]] = Query(
         default=None,
@@ -521,11 +610,27 @@ async def list_session_annotations(
         description="The maximum number of annotations to return in a single request",
     ),
 ) -> SessionAnnotationsResponseBody:
-    session_ids = list({*session_ids})
+    session_ids = list({*session_ids}) if session_ids else []
     if len(session_ids) > MAX_SESSION_IDS:
         raise HTTPException(
             status_code=422,
             detail=f"Too many session_ids supplied: {len(session_ids)} (max {MAX_SESSION_IDS})",
+        )
+
+    identifier = list({*identifier}) if identifier else []
+    if len(identifier) > MAX_ANNOTATION_IDENTIFIERS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Too many identifiers supplied: {len(identifier)} "
+                f"(max {MAX_ANNOTATION_IDENTIFIERS})"
+            ),
+        )
+
+    if not session_ids and not identifier:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one of session_ids or identifier must be supplied",
         )
 
     async with request.app.state.db() as session:
@@ -537,10 +642,11 @@ async def list_session_annotations(
             )
 
         # Build the base query
-        where_conditions = [
-            models.Project.id == project.id,
-            models.ProjectSession.session_id.in_(session_ids),
-        ]
+        where_conditions = [models.Project.id == project.id]
+        if session_ids:
+            where_conditions.append(models.ProjectSession.session_id.in_(session_ids))
+        if identifier:
+            where_conditions.append(models.ProjectSessionAnnotation.identifier.in_(identifier))
 
         # Add annotation name filtering
         if include_annotation_names:
@@ -585,19 +691,20 @@ async def list_session_annotations(
             next_cursor = str(GlobalID(SESSION_ANNOTATION_NODE_NAME, str(extra[1].id)))
 
         if not rows:
-            sessions_exist = await session.scalar(
-                select(
-                    exists().where(
-                        models.ProjectSession.session_id.in_(session_ids),
-                        models.ProjectSession.project_id == project.id,
+            if session_ids and not identifier:
+                sessions_exist = await session.scalar(
+                    select(
+                        exists().where(
+                            models.ProjectSession.session_id.in_(session_ids),
+                            models.ProjectSession.project_id == project.id,
+                        )
                     )
                 )
-            )
-            if not sessions_exist:
-                raise HTTPException(
-                    detail="None of the supplied session_ids exist in this project",
-                    status_code=404,
-                )
+                if not sessions_exist:
+                    raise HTTPException(
+                        detail="None of the supplied session_ids exist in this project",
+                        status_code=404,
+                    )
 
             return SessionAnnotationsResponseBody(data=[], next_cursor=None)
 

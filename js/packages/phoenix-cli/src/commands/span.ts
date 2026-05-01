@@ -328,7 +328,12 @@ async function spanListHandler(
         noProgress: !options.progress,
       });
     } else {
-      const output = formatSpansOutput({ spans, format: options.format });
+      const output = formatSpansOutput({
+        spans,
+        format: options.format,
+        includeAnnotations: options.includeAnnotations,
+        includeNotes: options.includeNotes,
+      });
       writeOutput({ message: output });
     }
   } catch (error) {

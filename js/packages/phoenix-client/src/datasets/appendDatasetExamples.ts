@@ -1,8 +1,10 @@
 import invariant from "tiny-invariant";
 
 import { createClient } from "../client";
+import { DATASET_UPLOAD_EXAMPLE_IDS } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { DatasetSelector, Example } from "../types/datasets";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 import { getDatasetInfo } from "./getDatasetInfo";
 
 export type AppendDatasetExamplesParams = ClientFn & {
@@ -18,8 +20,7 @@ export type AppendDatasetExamplesParams = ClientFn & {
 
 export type AppendDatasetExamplesResponse = {
   datasetId: string;
-  // TODO: respond with the versionId
-  // versionId: string;
+  versionId: string;
 };
 
 /**
@@ -36,19 +37,24 @@ export type AppendDatasetExamplesResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *   - `id`: Optional stable ID for the example, used to reference or update it later
  *
- * @returns A promise that resolves to the dataset ID
+ * @returns A promise that resolves to the dataset ID and version ID
  *
  * @example
  * ```ts
- * // Append examples with span links to an existing dataset
- * const { datasetId } = await appendDatasetExamples({
+ * const { datasetId, versionId } = await appendDatasetExamples({
  *   dataset: { datasetName: "qa-dataset" },
  *   examples: [
  *     {
  *       input: { question: "What is deep learning?" },
  *       output: { answer: "Deep learning is..." },
  *       spanId: "span123abc" // Links to the source span
+ *     },
+ *     {
+ *       id: "my-stable-id", // Stable ID for referencing this example later
+ *       input: { question: "What is a transformer?" },
+ *       output: { answer: "A transformer is..." },
  *     }
  *   ]
  * });
@@ -73,6 +79,12 @@ export async function appendDatasetExamples({
   // Only include span_ids in the request if at least one example has a span ID
   const hasSpanIds = spanIds.some((id) => id !== null);
 
+  // Extract example IDs from examples, preserving null/undefined as null
+  const exampleIds = examples.map((example) => example?.id ?? null);
+
+  // Only include example_ids in the request if at least one example has an ID
+  const hasExampleIds = exampleIds.some((id) => id !== null);
+
   let datasetName: string;
   if ("datasetName" in dataset) {
     datasetName = dataset.datasetName;
@@ -82,6 +94,12 @@ export async function appendDatasetExamples({
       dataset,
     });
     datasetName = datasetInfo.name;
+  }
+  if (hasExampleIds) {
+    await ensureServerCapability({
+      client,
+      requirement: DATASET_UPLOAD_EXAMPLE_IDS,
+    });
   }
   const appendResponse = await client.POST("/v1/datasets/upload", {
     params: {
@@ -97,11 +115,14 @@ export async function appendDatasetExamples({
       metadata,
       splits,
       ...(hasSpanIds ? { span_ids: spanIds } : {}),
+      ...(hasExampleIds ? { example_ids: exampleIds } : {}),
     },
   });
   invariant(appendResponse.data?.data, "Failed to append dataset examples");
   const datasetId = appendResponse.data.data.dataset_id;
+  const versionId = appendResponse.data.data.version_id;
   return {
     datasetId,
+    versionId,
   };
 }
