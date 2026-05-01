@@ -158,7 +158,10 @@ def _events_error(events: Any) -> tuple[bool, str | None]:
     """Return (has_error, error_summary) extracted from OTel ``events`` array.
 
     OTel error events have ``name == "exception"`` and carry attributes like
-    ``exception.type`` / ``exception.message``.
+    ``exception.type`` / ``exception.message``. As emitted by the Alyx Python
+    instrumentation the ``attributes`` field is a JSON-encoded string, NOT a
+    dict — so we json.loads it before key lookup. The events array itself is
+    a numpy ndarray (not a Python list) when read from parquet.
     """
     if events is None:
         return False, None
@@ -171,12 +174,23 @@ def _events_error(events: Any) -> tuple[bool, str | None]:
     for ev in iterable:
         if not isinstance(ev, dict):
             continue
-        if ev.get("name") == "exception":
-            attrs = ev.get("attributes") or {}
-            etype = attrs.get("exception.type")
-            emsg = attrs.get("exception.message")
-            summary = ": ".join(str(p) for p in (etype, emsg) if p)
-            return True, summary or "exception"
+        if ev.get("name") != "exception":
+            continue
+        attrs_raw = ev.get("attributes")
+        attrs: dict[str, Any] = {}
+        if isinstance(attrs_raw, dict):
+            attrs = attrs_raw
+        elif isinstance(attrs_raw, str):
+            try:
+                parsed = json.loads(attrs_raw)
+                if isinstance(parsed, dict):
+                    attrs = parsed
+            except (json.JSONDecodeError, TypeError):
+                attrs = {}
+        etype = attrs.get("exception.type")
+        emsg = attrs.get("exception.message")
+        summary = ": ".join(str(p) for p in (etype, emsg) if p)
+        return True, summary or "exception"
     return False, None
 
 
@@ -184,6 +198,16 @@ def _row_to_span(row: "pd.Series[Any]", *, trunc: int) -> dict[str, Any]:
     md = row.get("attributes.metadata")
     kind = row.get("attributes.openinference.span.kind")
     has_err, err_summary = _events_error(row.get("events"))
+    # Fallback: any span whose OTel ``status_code == "ERROR"`` is also an
+    # error, even if it didn't record an exception event. The Alyx
+    # instrumentation puts a useful message in ``status_message``.
+    status_code = row.get("status_code")
+    if not has_err and isinstance(status_code, str) and status_code.upper() == "ERROR":
+        has_err = True
+        smsg = row.get("status_message")
+        err_summary = (
+            str(smsg) if smsg and not (isinstance(smsg, float) and pd.isna(smsg)) else "ERROR"
+        )
 
     # For TOOL spans, surface the tool I/O distinctly. Otherwise fall back to
     # the generic span input.value / output.value strings.

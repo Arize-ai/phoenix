@@ -28,20 +28,30 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 
 def _latest_window_dir() -> Path:
+    """Pick the largest window directory (longest date range), not the most recent.
+
+    Lexicographic sort would prefer a 2-day probe directory (later start
+    date) over a 90-day directory (earlier start date). Use longest range
+    by file count instead.
+    """
     raw_root = DATA_DIR / "raw"
-    candidates = sorted(raw_root.glob("copilot-prod-spans-*"))
+    candidates = list(raw_root.glob("copilot-prod-spans-*"))
     if not candidates:
         sys.exit("No raw export directory found under data/raw/")
-    return candidates[-1]
+    return max(candidates, key=lambda p: len(list(p.glob("chunk_*.parquet"))))
 
 
 def _layer0(window_dir: Path) -> tuple[int, int]:
+    import pyarrow.parquet as pq
+
     chunks = sorted(window_dir.glob("chunk_*.parquet"))
     if not chunks:
         sys.exit(f"No chunks in {window_dir}")
     total = 0
     for c in chunks:
-        total += int(pd.read_parquet(c, columns=[]).shape[0])
+        # ``pd.read_parquet(c, columns=[])`` returns 0 rows; use parquet
+        # metadata directly to count rows without materializing data.
+        total += int(pq.ParquetFile(c).metadata.num_rows)  # type: ignore[no-untyped-call]
     return len(chunks), total
 
 
