@@ -178,7 +178,7 @@ const result = await evaluator.evaluate({
   input: "What is the capital of France?",
 });
 
-const rate = winRate({ scores: [result], group: "output" });
+const rate = winRate({ scores: [result] });
 console.log(rate.win_rate, rate.wins, rate.losses, rate.ties, rate.n);
 ```
 

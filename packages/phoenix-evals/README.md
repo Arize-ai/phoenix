@@ -137,7 +137,7 @@ scores = pairwise.evaluate({
 })
 scores[0].pretty_print()
 
-summary = win_rate(scores, group="output")
+summary = win_rate(scores)
 print(summary.win_rate, summary.wins, summary.losses, summary.ties, summary.n)
 ```
 

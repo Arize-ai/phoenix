@@ -232,7 +232,6 @@ describe("PairwiseEvaluator", () => {
   it("calculates win rates with ties", () => {
     expect(
       winRate({
-        group: "output",
         scores: [
           { label: "output", metadata: { groups: ["output", "reference"], passes: [] } },
           {

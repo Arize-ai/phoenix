@@ -33,7 +33,9 @@ class PairwiseMockLLM(LLM):
         choice = self.choices[min(len(self.prompts) - 1, len(self.choices) - 1)]
         return {"label": choice, "explanation": f"picked {choice}"}
 
-    async def async_generate_classification(self, prompt, labels, include_explanation: bool, **kwargs):
+    async def async_generate_classification(
+        self, prompt, labels, include_explanation: bool, **kwargs
+    ):
         return self.generate_classification(prompt, labels, include_explanation, **kwargs)
 
 
@@ -45,9 +47,7 @@ def test_pairwise_fixed_maps_position_choice_to_group_label() -> None:
         ordering="fixed",
     )
 
-    score = evaluator.evaluate(
-        {"output": "short", "reference": "better", "input": "question"}
-    )[0]
+    score = evaluator.evaluate({"output": "short", "reference": "better", "input": "question"})[0]
 
     assert score.label == "reference"
     assert score.score == 0.0
@@ -81,9 +81,10 @@ def test_pairwise_random_is_deterministic_per_row() -> None:
     score_1 = evaluator_1.evaluate(eval_input)[0]
     score_2 = evaluator_2.evaluate(eval_input)[0]
 
-    assert score_1.metadata["passes"][0]["position_mapping"] == score_2.metadata["passes"][0][
-        "position_mapping"
-    ]
+    assert (
+        score_1.metadata["passes"][0]["position_mapping"]
+        == score_2.metadata["passes"][0]["position_mapping"]
+    )
     assert score_1.label == score_2.label
 
 
@@ -95,15 +96,16 @@ def test_pairwise_both_requires_semantic_agreement() -> None:
         ordering="both",
     )
 
-    score = evaluator.evaluate(
-        {"output": "better", "reference": "worse", "input": "question"}
-    )[0]
+    score = evaluator.evaluate({"output": "better", "reference": "worse", "input": "question"})[0]
 
     assert score.label == "output"
     assert score.score == 1.0
     assert score.metadata["passes"][0]["choice"] == "A"
     assert score.metadata["passes"][1]["choice"] == "B"
-    assert score.explanation == "Pass 1 (A=output, B=reference): picked A\nPass 2 (A=reference, B=output): picked B"
+    assert (
+        score.explanation
+        == "Pass 1 (A=output, B=reference): picked A\nPass 2 (A=reference, B=output): picked B"
+    )
 
 
 def test_pairwise_both_disagreement_returns_structural_tie() -> None:
@@ -115,9 +117,7 @@ def test_pairwise_both_disagreement_returns_structural_tie() -> None:
         allow_ties=False,
     )
 
-    score = evaluator.evaluate(
-        {"output": "first", "reference": "second", "input": "question"}
-    )[0]
+    score = evaluator.evaluate({"output": "first", "reference": "second", "input": "question"})[0]
 
     assert score.label == "tie"
     assert score.score == 0.5
@@ -168,7 +168,7 @@ def test_win_rate_counts_ties() -> None:
         Score(label="tie", metadata={"groups": ["output", "reference"], "passes": []}),
     ]
 
-    summary = win_rate(scores, group="output")
+    summary = win_rate(scores)
 
     assert summary.group == "output"
     assert summary.win_rate == pytest.approx(0.5)

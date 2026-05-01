@@ -25,26 +25,48 @@ function getPairwiseGroups(score: EvaluationResult): string[] | null {
   return comparatorKeys.length === 2 ? comparatorKeys : null;
 }
 
+/**
+ * Return pairwise win-rate summary for the first group in each score's
+ * `metadata.groups`.
+ *
+ * Win rate is always computed for `groups[0]` — the group that receives
+ * `score = 1.0` when it wins. All scores must share the same comparator pair;
+ * mixing comparisons across different group pairs throws.
+ *
+ * Ties contribute `tieValue` to the win rate.
+ */
 export function winRate({
   scores,
-  group = "output",
   tieValue = 0.5,
 }: {
   scores: Iterable<EvaluationResult>;
-  group?: string;
   tieValue?: number;
 }): PairwiseWinRate {
   let total = 0;
   let wins = 0;
   let losses = 0;
   let ties = 0;
+  let referenceGroups: string[] | null = null;
   for (const score of scores) {
     const groups = getPairwiseGroups(score);
-    if (!groups || !groups.includes(group)) {
-      throw new Error(`Score does not identify group '${group}' as a pairwise comparator.`);
+    if (!groups || groups.length !== 2) {
+      throw new Error(
+        "Score metadata must identify exactly two comparator groups (set metadata.groups = [groupA, groupB])."
+      );
+    }
+    if (referenceGroups === null) {
+      referenceGroups = groups;
+    } else if (
+      groups[0] !== referenceGroups[0] ||
+      groups[1] !== referenceGroups[1]
+    ) {
+      throw new Error(
+        `Scores must share the same comparator groups; saw [${referenceGroups.join(", ")}] and [${groups.join(", ")}].`
+      );
     }
     total += 1;
-    if (score.label === group) {
+    const targetGroup = groups[0];
+    if (score.label === targetGroup) {
       wins += 1;
     } else if (score.label === "tie") {
       ties += 1;
@@ -52,11 +74,11 @@ export function winRate({
       losses += 1;
     }
   }
-  if (total === 0) {
+  if (total === 0 || referenceGroups === null) {
     throw new Error("winRate requires at least one score.");
   }
   return {
-    group,
+    group: referenceGroups[0],
     win_rate: (wins + ties * tieValue) / total,
     wins,
     losses,

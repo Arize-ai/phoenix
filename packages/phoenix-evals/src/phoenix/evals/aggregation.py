@@ -42,10 +42,13 @@ def _pairwise_groups(score: Score) -> Optional[list[str]]:
     return None
 
 
-def win_rate(
-    scores: Iterable[Score], group: str = "output", tie_value: float = 0.5
-) -> PairwiseWinRate:
-    """Return pairwise win-rate summary for a group.
+def win_rate(scores: Iterable[Score], tie_value: float = 0.5) -> PairwiseWinRate:
+    """Return pairwise win-rate summary for the first group in each Score's
+    ``metadata["groups"]``.
+
+    Win rate is always computed for ``groups[0]`` — the group that receives
+    ``score=1.0`` when it wins. All scores must share the same comparator
+    pair; mixing comparisons across different group pairs raises ``ValueError``.
 
     Ties contribute ``tie_value`` to the win rate.
     """
@@ -53,26 +56,36 @@ def win_rate(
     wins = 0
     losses = 0
     ties = 0
+    reference_groups: Optional[list[str]] = None
 
     for score in scores:
         groups = _pairwise_groups(score)
-        if groups is None or group not in groups:
+        if groups is None or len(groups) != 2:
             raise ValueError(
-                f"Score does not identify group '{group}' as a pairwise comparator."
+                "Score metadata must identify exactly two comparator groups "
+                "(set metadata['groups'] = [group_a, group_b])."
+            )
+        if reference_groups is None:
+            reference_groups = groups
+        elif groups != reference_groups:
+            raise ValueError(
+                f"Scores must share the same comparator groups; saw "
+                f"{reference_groups} and {groups}."
             )
         total += 1
-        if score.label == group:
+        target_group = groups[0]
+        if score.label == target_group:
             wins += 1
         elif score.label == "tie":
             ties += 1
         else:
             losses += 1
 
-    if total == 0:
+    if total == 0 or reference_groups is None:
         raise ValueError("win_rate requires at least one score.")
 
     return PairwiseWinRate(
-        group=group,
+        group=reference_groups[0],
         win_rate=(wins + ties * tie_value) / total,
         wins=wins,
         losses=losses,
