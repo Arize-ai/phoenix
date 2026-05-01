@@ -18,6 +18,15 @@ import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
 
+function isLegacyDefaultSystemPrompt(value: string | undefined): boolean {
+  return (
+    value?.length === 3970 &&
+    value?.startsWith(
+      "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
+    ) === true
+  );
+}
+
 /**
  * Layout position of the agent panel.
  * - "detached": floating overlay window
@@ -137,7 +146,7 @@ export interface AgentProps {
   defaultModelConfig: ModelConfig;
   /**
    * System instructions sent with PXI agent chat requests (editable in Settings).
-   * Defaults to the built-in {@link AGENT_SYSTEM_PROMPT}.
+   * User-editable instructions inserted into the server-owned PXI prompt.
    */
   systemPrompt: string;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
@@ -631,7 +640,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
@@ -673,7 +682,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          systemPrompt: state.systemPrompt ?? AGENT_SYSTEM_PROMPT,
+          systemPrompt:
+            state.systemPrompt === undefined ||
+            isLegacyDefaultSystemPrompt(state.systemPrompt)
+              ? AGENT_SYSTEM_PROMPT
+              : state.systemPrompt,
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),

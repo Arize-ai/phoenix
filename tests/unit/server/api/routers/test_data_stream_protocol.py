@@ -3,6 +3,7 @@ import json
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
+    _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
     parse_chat_body,
 )
@@ -29,7 +30,7 @@ class TestParseChatBody:
         assert body.export_remote_traces is False
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
-        assert body.system is None
+        assert body.user_instructions is None
         assert len(body.messages) >= 1
 
     def test_parses_session_id_and_trace_destination_flags(self) -> None:
@@ -76,7 +77,7 @@ class TestParseChatBody:
         body = parse_chat_body(raw)
         assert isinstance(body, ChatBody)
 
-    def test_parses_system_prompt(self) -> None:
+    def test_parses_user_instructions(self) -> None:
         raw = json.dumps(
             {
                 "trigger": "submit-message",
@@ -88,17 +89,17 @@ class TestParseChatBody:
                         "parts": [{"type": "text", "text": "Hello"}],
                     }
                 ],
-                "system": "You are a helpful assistant.",
+                "userInstructions": "Prefer concise answers.",
             }
         ).encode()
         body = parse_chat_body(raw)
-        assert body.system == "You are a helpful assistant."
-        # System prompt should be prepended to messages as a ModelRequest.
-        from pydantic_ai.messages import ModelRequest, SystemPromptPart
+        assert body.user_instructions == "Prefer concise answers."
 
-        first_msg = body.messages[0]
-        assert isinstance(first_msg, ModelRequest)
-        assert any(isinstance(p, SystemPromptPart) for p in first_msg.parts)
+        static_part, dynamic_part = body.instruction_parts
+        assert static_part.content.startswith("<role>")
+        assert static_part.dynamic is False
+        assert dynamic_part.dynamic is True
+        assert "<user_custom_instructions>\nPrefer concise answers." in dynamic_part.content
 
     def test_appends_capability_guidance_to_system_prompt(self) -> None:
         raw = json.dumps(
@@ -112,7 +113,7 @@ class TestParseChatBody:
                         "parts": [{"type": "text", "text": "Hello"}],
                     }
                 ],
-                "system": "You are a helpful assistant.",
+                "userInstructions": "Prefer concise answers.",
                 "capabilities": {
                     "bash.retainInactiveSessions": False,
                     "graphql.mutations": True,
@@ -121,16 +122,33 @@ class TestParseChatBody:
         ).encode()
         body = parse_chat_body(raw)
 
-        from pydantic_ai.messages import ModelRequest, SystemPromptPart
-
-        first_msg = body.messages[0]
-        assert isinstance(first_msg, ModelRequest)
-        system_part = next(p for p in first_msg.parts if isinstance(p, SystemPromptPart))
-        assert system_part.content.startswith("You are a helpful assistant.")
-        assert "Runtime capability state for this conversation:" in system_part.content
+        system_part = body.instruction_parts[1]
+        assert system_part.content.startswith("Runtime capability state for this conversation:")
         assert "GraphQL mutations are enabled" in system_part.content
-        assert body.system == "You are a helpful assistant."
+        assert "<user_custom_instructions>\nPrefer concise answers." in system_part.content
+        assert body.user_instructions == "Prefer concise answers."
         assert body.capabilities.graphql_mutations is True
+
+
+class TestAnthropicModelSettingsForCache:
+    def test_returns_cache_settings_for_anthropic_model(self) -> None:
+        AnthropicModel = type(
+            "AnthropicModel",
+            (),
+            {"__module__": "pydantic_ai.models.anthropic"},
+        )
+
+        settings = _anthropic_model_settings_for_cache(AnthropicModel())
+
+        assert settings is not None
+        assert settings["anthropic_cache"] is True
+        assert settings["anthropic_cache_instructions"] is True
+        assert settings["anthropic_cache_tool_definitions"] is True
+
+    def test_returns_none_for_non_anthropic_model(self) -> None:
+        OtherModel = type("OtherModel", (), {"__module__": "pydantic_ai.models.openai"})
+
+        assert _anthropic_model_settings_for_cache(OtherModel()) is None
 
 
 class TestStreamAccumulator:

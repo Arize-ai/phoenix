@@ -92,10 +92,10 @@ export function AgentSettingsForm() {
         control={control}
         render={({ field }) => (
           <TextField {...field} value={field.value ?? undefined}>
-            <Label>System Prompt</Label>
+            <Label>Custom Instructions</Label>
             <TextArea
-              rows={50}
-              placeholder="The system instructions to the assistant"
+              rows={10}
+              placeholder="Optional instructions inserted into PXI's server-owned system prompt"
             />
           </TextField>
         )}
