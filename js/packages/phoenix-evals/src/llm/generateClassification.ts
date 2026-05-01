@@ -48,14 +48,19 @@ export async function generateClassification(
     tracer: telemetry?.tracer ?? tracer,
   };
 
-  const baseSchema = z.object({
-    label: z.enum(labels),
-  });
+  // Field order matters: when explanations are included, `explanation` must
+  // come before `label` so the LLM generates its rationale first and uses it
+  // to inform the label (chain-of-thought). Vercel AI SDK propagates Zod
+  // field-insertion order into the JSON schema and into the structured-output
+  // token order for OpenAI / Anthropic. Do not reorder.
   const schema = includeExplanation
-    ? baseSchema.extend({
+    ? z.object({
         explanation: z.string(),
+        label: z.enum(labels),
       })
-    : baseSchema;
+    : z.object({
+        label: z.enum(labels),
+      });
 
   const result = await generateObject({
     model,
