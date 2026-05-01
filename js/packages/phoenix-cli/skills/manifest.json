@@ -1,0 +1,23 @@
+[
+  {
+    "name": "phoenix-cli",
+    "version": "3.2.0",
+    "description": "Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, review experiments, inspect datasets, query annotation configs, and use the GraphQL API. Use when debugging AI/LLM applications, analyzing trace data, working with Phoenix observability, investigating LLM performance issues, or checking Phoenix auth status.",
+    "audience": "user",
+    "sourceDir": "phoenix-cli"
+  },
+  {
+    "name": "phoenix-evals",
+    "version": "1.0.0",
+    "description": "Build and run evaluators for AI/LLM applications using Phoenix.",
+    "audience": "user",
+    "sourceDir": "phoenix-evals"
+  },
+  {
+    "name": "phoenix-tracing",
+    "version": "1.0.0",
+    "description": "OpenInference semantic conventions and instrumentation for Phoenix AI observability. Use when implementing LLM tracing, creating custom spans, or deploying to production.",
+    "audience": "user",
+    "sourceDir": "phoenix-tracing"
+  }
+]

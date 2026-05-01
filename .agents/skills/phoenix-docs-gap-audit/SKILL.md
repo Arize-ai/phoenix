@@ -1,5 +1,6 @@
 ---
 name: phoenix-docs-gap-audit
+audience: maintainer
 description: >
   Audit documentation gaps across the Phoenix repo by analyzing recent commits to main
   (default: last 7 days). Use this skill whenever the user asks to find undocumented features,

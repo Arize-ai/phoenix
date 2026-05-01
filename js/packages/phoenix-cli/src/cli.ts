@@ -14,6 +14,7 @@ import {
   createPromptCommand,
   createSessionCommand,
   createSelfCommand,
+  createSkillCommand,
   createSpanCommand,
   createTraceCommand,
 } from "./commands";
@@ -39,6 +40,7 @@ export function createProgram(): Command {
   program.addCommand(createApiCommand());
   program.addCommand(createDocsCommand());
   program.addCommand(createSelfCommand());
+  program.addCommand(createSkillCommand());
 
   return program;
 }

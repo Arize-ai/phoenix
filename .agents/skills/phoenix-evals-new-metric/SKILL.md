@@ -1,5 +1,6 @@
 ---
 name: phoenix-evals-new-metric
+audience: maintainer
 description: >-
   Create a new built-in classification evaluator for Phoenix evals. Use this skill whenever the user asks to
   create a new eval, build a new metric, add a new builtin evaluator, create an LLM-as-a-judge

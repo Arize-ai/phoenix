@@ -1,5 +1,6 @@
 ---
 name: phoenix-release-please
+audience: maintainer
 description: >
   Bump the next release-please version for a Phoenix Python package (arize-phoenix,
   arize-phoenix-client, arize-phoenix-evals, arize-phoenix-otel) by opening a PR with a

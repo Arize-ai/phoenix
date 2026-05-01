@@ -24,6 +24,7 @@
   },
   "files": [
     "build",
+    "skills",
     "package.json"
   ],
   "type": "module",
@@ -34,7 +35,8 @@
     "build:schema": "tsx scripts/build-schema.ts && cd ../../.. && oxfmt --config .oxfmtrc.jsonc schemas/phoenix-cli-settings.json",
     "clean": "rimraf build",
     "dev": "tsx src/index.ts",
-    "prebuild": "pnpm run clean",
+    "bundle-skills": "tsx scripts/bundle-skills.ts",
+    "prebuild": "pnpm run clean && pnpm run bundle-skills",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

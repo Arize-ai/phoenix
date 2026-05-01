@@ -1,5 +1,6 @@
 ---
 name: phoenix-rest-api
+audience: maintainer
 user-invocable: false
 description: >
   REST API development for Phoenix. Use when adding, modifying, or reviewing

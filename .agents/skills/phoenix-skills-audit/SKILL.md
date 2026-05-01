@@ -1,5 +1,6 @@
 ---
 name: phoenix-skills-audit
+audience: maintainer
 description: >
   Audit recent changes to Phoenix's user-facing surfaces (Python clients, TypeScript
   clients, CLI, REST/GraphQL APIs) and patch the three external-facing agent skills —

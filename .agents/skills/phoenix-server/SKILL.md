@@ -1,5 +1,6 @@
 ---
 name: phoenix-server
+audience: maintainer
 user-invocable: false
 description: >
   Backend development guide for the Phoenix AI observability platform (Strawberry GraphQL,

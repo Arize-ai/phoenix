@@ -1,5 +1,6 @@
 ---
 name: phoenix-llms-txt
+audience: maintainer
 description: >
   Maintain the Phoenix llms.txt documentation index at docs/phoenix/llms.txt — the
   machine-readable docs map used by AI agents and the `px docs fetch` CLI. Use this

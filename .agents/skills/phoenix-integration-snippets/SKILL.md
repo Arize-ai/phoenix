@@ -1,5 +1,6 @@
 ---
 name: phoenix-integration-snippets
+audience: maintainer
 description: >
   Generates onboarding code snippets for Phoenix tracing integrations and wires
   them into the project onboarding UI. Produces install dependencies and

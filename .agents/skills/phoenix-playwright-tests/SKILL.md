@@ -1,5 +1,6 @@
 ---
 name: phoenix-playwright-tests
+audience: maintainer
 description: Write Playwright E2E tests for the Phoenix AI observability platform. Use when creating, updating, or debugging Playwright tests, or when the user asks about testing UI features, writing E2E tests, or automating browser interactions for Phoenix.
 metadata:
   internal: true

@@ -1,5 +1,6 @@
 ---
 name: phoenix-typescript
+audience: maintainer
 description: TypeScript conventions and patterns for any TypeScript code in the Phoenix monorepo — including js/packages/, app/, and any other TS directories. Use this skill whenever writing, reviewing, or modifying TypeScript code — new functions, types, exports, tests, or refactors. Also trigger when the user asks about TS patterns, naming conventions, or best practices for this project.
 metadata:
   internal: true

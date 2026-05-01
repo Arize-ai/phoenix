@@ -1,5 +1,6 @@
 ---
 name: phoenix-github
+audience: maintainer
 description: Manage GitHub issues, labels, and project boards for the Arize-ai/phoenix repository. Use when filing roadmap issues, triaging bugs, applying labels, managing the Phoenix roadmap project board, or querying issue/project state via the GitHub CLI.
 license: Apache-2.0
 metadata:

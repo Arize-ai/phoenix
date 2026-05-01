@@ -1,5 +1,6 @@
 ---
 name: phoenix-release-notes
+audience: maintainer
 description: >
   Create Phoenix release documentation grounded in actual code changes. Use this skill whenever the
   user asks to write release notes, document a release, update release documentation, or mentions

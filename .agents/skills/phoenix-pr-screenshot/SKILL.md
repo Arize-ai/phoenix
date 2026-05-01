@@ -1,5 +1,6 @@
 ---
 name: phoenix-pr-screenshot
+audience: maintainer
 description: Screenshot a running Phoenix feature and attach images to a GitHub PR. Builds the frontend, starts Phoenix with env vars, uses agent-browser to capture screenshots, uploads to GCS, and updates the PR body.
 user-invocable: true
 metadata:

@@ -1,5 +1,6 @@
 ---
 name: phoenix-typescript-package-docs
+audience: maintainer
 description: >
   Maintain the bundled TypeScript package docs that ship inside Phoenix npm packages.
   Use this skill whenever adding or updating docs for `@arizeai/phoenix-client`,

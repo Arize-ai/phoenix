@@ -1,5 +1,6 @@
 ---
 name: phoenix-cli
+audience: user
 description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, review experiments, inspect datasets, query annotation configs, and use the GraphQL API. Use when debugging AI/LLM applications, analyzing trace data, working with Phoenix observability, investigating LLM performance issues, or checking Phoenix auth status.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
@@ -223,3 +224,32 @@ px docs fetch --output-dir ./my-docs         # custom output directory
 ```
 
 Key options: `--workflow` (repeatable, values: `tracing`, `evaluation`, `datasets`, `prompts`, `integrations`, `sdk`, `self-hosting`, `all`), `--dry-run`, `--refresh`, `--output-dir` (default `.px/docs`), `--workers` (default 10).
+
+## Skill management
+
+Discover and install first-party Phoenix skills bundled with the CLI.
+
+```bash
+px skill list                                          # installed skills only (table view)
+px skill list --all                                    # all bundled skills with status
+px skill list --format raw --no-progress               # JSON array for agent consumption
+px skill show phoenix-tracing                          # advisory view of SKILL.md content
+px skill show phoenix-tracing --format raw             # compact JSON with advisory:true
+px skill install phoenix-tracing                       # install with confirmation prompt
+px skill install phoenix-tracing --no-input --format raw  # install non-interactively
+```
+
+Default install target is `.agents/skills/<name>/` (broadest harness coverage). Use `--target claude|cursor|codex` to install into a harness-specific directory.
+
+`show` output is always advisory — prefixed with `<!-- advisory: ... -->`. Only `install` makes a skill active for the harness.
+
+### Skill list JSON shape
+
+```
+SkillRecord
+  name, version, description
+  status ("installed" | "available" | "missing-source")
+  installedPath  — absolute path to installed SKILL.md, or null
+  bundledPath    — absolute path to bundled SKILL.md, or null
+  installCommand — suggested install command string
+```

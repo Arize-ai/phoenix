@@ -1,5 +1,6 @@
 ---
 name: phoenix-pxi
+audience: maintainer
 description: Development guide for the Phoenix PXI agent. Use when modifying PXI-specific frontend or backend behavior, extending PXI tool wiring, updating PXI runtime capabilities, or changing the PXI agent request/dispatch flow. Start here for PXI-specific workflows, then read the relevant resource file for the layer you are changing.
 metadata:
   internal: true
