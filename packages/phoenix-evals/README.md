@@ -138,7 +138,7 @@ scores = pairwise.evaluate({
 scores[0].pretty_print()
 
 summary = win_rate(scores)
-print(summary.win_rate, summary.wins, summary.losses, summary.ties, summary.n)
+print(summary.rate, summary.wins, summary.losses, summary.ties, summary.n)
 ```
 
 For a generic starting point, use `PairwiseQualityEvaluator` from `phoenix.evals.metrics`. It is intended as an example prompt and should be validated against your domain before production use.

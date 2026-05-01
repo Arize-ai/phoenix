@@ -2,7 +2,7 @@ import type { EvaluationResult } from "./types";
 
 export type PairwiseWinRate = {
   group: string;
-  win_rate: number;
+  rate: number;
   wins: number;
   losses: number;
   ties: number;
@@ -87,7 +87,7 @@ export function winRate({
   }
   return {
     group: referenceGroups[0],
-    win_rate: (wins + ties * tieValue) / total,
+    rate: (wins + ties * tieValue) / total,
     wins,
     losses,
     ties,

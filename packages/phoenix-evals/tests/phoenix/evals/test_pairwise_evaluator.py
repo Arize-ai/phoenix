@@ -172,7 +172,7 @@ def test_win_rate_counts_ties() -> None:
     summary = win_rate(scores)
 
     assert summary.group == "output"
-    assert summary.win_rate == pytest.approx(0.5)
+    assert summary.rate == pytest.approx(0.5)
     assert summary.wins == 1
     assert summary.losses == 1
     assert summary.ties == 1

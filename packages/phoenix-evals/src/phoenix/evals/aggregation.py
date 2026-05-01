@@ -7,7 +7,7 @@ from .evaluators import Score
 @dataclass(frozen=True)
 class PairwiseWinRate:
     group: str
-    win_rate: float
+    rate: float
     wins: int
     losses: int
     ties: int
@@ -86,7 +86,7 @@ def win_rate(scores: Iterable[Score], tie_value: float = 0.5) -> PairwiseWinRate
 
     return PairwiseWinRate(
         group=reference_groups[0],
-        win_rate=(wins + ties * tie_value) / total,
+        rate=(wins + ties * tie_value) / total,
         wins=wins,
         losses=losses,
         ties=ties,

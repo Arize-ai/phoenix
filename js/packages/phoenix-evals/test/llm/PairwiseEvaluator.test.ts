@@ -243,7 +243,7 @@ describe("PairwiseEvaluator", () => {
       })
     ).toEqual({
       group: "output",
-      win_rate: 0.5,
+      rate: 0.5,
       wins: 1,
       losses: 1,
       ties: 1,

@@ -178,8 +178,8 @@ const result = await evaluator.evaluate({
   input: "What is the capital of France?",
 });
 
-const rate = winRate({ scores: [result] });
-console.log(rate.win_rate, rate.wins, rate.losses, rate.ties, rate.n);
+const summary = winRate({ scores: [result] });
+console.log(summary.rate, summary.wins, summary.losses, summary.ties, summary.n);
 ```
 
 For a generic starting point, use `createPairwiseQualityEvaluator` from `@arizeai/phoenix-evals/llm`. Validate the prompt against your domain before production use.
