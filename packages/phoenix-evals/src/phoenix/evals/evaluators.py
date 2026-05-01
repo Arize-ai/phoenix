@@ -893,6 +893,20 @@ class PairwiseEvaluator(LLMEvaluator):
     row. ``seed=None`` uses the system RNG and omits ``seed`` from result
     metadata.
 
+    **Additional keyword arguments.** Any extra ``**kwargs`` are forwarded
+    to ``LLMEvaluator``. The ones to know:
+
+    - ``schema``: an optional ``ToolSchema`` for the structured-output call.
+      The default is fine for most use cases; override only if you need to
+      customize the tool spec.
+    - Any other kwarg becomes part of the LLM's ``invocation_parameters``
+      (e.g. ``temperature``, ``max_tokens``, ``top_p``) and is passed through
+      to the model on every judge call.
+
+    ``input_schema`` is **not** forwardable — it is built dynamically from
+    the prompt template variables and ``groups``; passing it via ``**kwargs``
+    raises a ``TypeError``.
+
     Example::
 
         evaluator = PairwiseEvaluator(
