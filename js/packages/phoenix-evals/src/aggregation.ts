@@ -9,8 +9,15 @@ export type PairwiseWinRate = {
   n: number;
 };
 
-const PAIRWISE_METADATA_KEYS = new Set(["groups", "ordering", "seed", "passes", "tie_reason", "model", "trace_id"]);
-
+/**
+ * Return the comparator groups declared in score metadata.
+ *
+ * A Score is considered pairwise iff it carries an explicit
+ * `metadata.groups = [groupA, groupB]` array of strings. Hand-rolled Scores
+ * must populate this key — there is no inference fallback. Locking the
+ * contract avoids ambiguity if Score metadata is later loaded from a
+ * serialization boundary (DB, user upload).
+ */
 function getPairwiseGroups(score: EvaluationResult): string[] | null {
   const metadataGroups = score.metadata?.groups;
   if (
@@ -19,18 +26,7 @@ function getPairwiseGroups(score: EvaluationResult): string[] | null {
   ) {
     return metadataGroups;
   }
-  // Mirror Python's filter: exclude reserved keys AND any key whose value is a
-  // non-null object/array. Without this, a downstream caller adding an extra
-  // metadata key with a structured value (e.g. an annotation list) would have
-  // it treated as a comparator group and break aggregation.
-  const comparatorKeys = Object.keys(score.metadata ?? {}).filter((key) => {
-    if (PAIRWISE_METADATA_KEYS.has(key)) {
-      return false;
-    }
-    const value = score.metadata?.[key];
-    return !(typeof value === "object" && value !== null);
-  });
-  return comparatorKeys.length === 2 ? comparatorKeys : null;
+  return null;
 }
 
 /**

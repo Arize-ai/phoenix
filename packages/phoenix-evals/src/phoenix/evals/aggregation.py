@@ -14,31 +14,20 @@ class PairwiseWinRate:
     n: int
 
 
-_PAIRWISE_METADATA_KEYS = {
-    "groups",
-    "ordering",
-    "seed",
-    "passes",
-    "tie_reason",
-    "model",
-    "trace_id",
-}
-
-
 def _pairwise_groups(score: Score) -> Optional[list[str]]:
+    """Return the comparator groups declared in score metadata.
+
+    A Score is considered pairwise iff it carries an explicit
+    ``metadata["groups"] = [group_a, group_b]`` list of strings. Hand-rolled
+    Scores must populate this key — there is no inference fallback. Locking
+    the contract avoids ambiguity if Score metadata is later loaded from a
+    serialization boundary (DB, user upload).
+    """
     metadata_groups = score.metadata.get("groups")
     if isinstance(metadata_groups, list) and all(
         isinstance(group, str) for group in metadata_groups
     ):
         return metadata_groups
-    comparators = [
-        key
-        for key in score.metadata
-        if key not in _PAIRWISE_METADATA_KEYS
-        and not isinstance(score.metadata.get(key), (dict, list))
-    ]
-    if len(comparators) == 2:
-        return comparators
     return None
 
 
