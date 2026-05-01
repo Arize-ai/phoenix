@@ -191,6 +191,10 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "OpenAI returns 404 from actions, but is valid"];
   }
 
+  if (href.startsWith("https://join.slack.com")) {
+    return [true, "Slack link"];
+  }
+
   const headers = {
     "User-Agent": "Mozilla/5.0 (compatible; LinkChecker/1.0; +https://github.com/)",
     Accept: "*/*",
