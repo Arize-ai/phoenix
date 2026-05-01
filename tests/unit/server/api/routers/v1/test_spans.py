@@ -15,7 +15,6 @@ from phoenix.server.api.routers.v1.spans import (
     OtlpSpan,
     OtlpStatus,
     Span,
-    SpanResponse,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -2345,13 +2344,13 @@ async def test_attribute_filter_dict_value_returns_422_on_otlp(
 
 
 # ---------------------------------------------------------------------------
-# Token count fields on SpanResponse
+# Token counts on /spans flow through `attributes` (the OTel passthrough)
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 async def project_with_llm_span(db: DbSessionFactory) -> None:
-    """Project containing a single LLM span with non-zero token counts."""
+    """Project containing a single LLM span with token-count OTel attributes."""
     async with db() as session:
         project_row_id = await session.scalar(
             insert(models.Project).values(name="llm-token-project").returning(models.Project.id)
@@ -2375,7 +2374,14 @@ async def project_with_llm_span(db: DbSessionFactory) -> None:
                 span_kind="LLM",
                 start_time=datetime.fromisoformat("2024-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2024-01-01T00:00:01.000+00:00"),
-                attributes={},
+                attributes={
+                    "llm": {
+                        "token_count": {
+                            "prompt": 100,
+                            "completion": 50,
+                        },
+                    },
+                },
                 events=[],
                 status_code="OK",
                 status_message="",
@@ -2388,16 +2394,24 @@ async def project_with_llm_span(db: DbSessionFactory) -> None:
         )
 
 
-async def test_span_response_token_counts_llm_span(
+async def test_span_response_token_counts_in_attributes(
     httpx_client: httpx.AsyncClient,
     project_with_llm_span: None,
 ) -> None:
-    """LLM span returns non-null token count fields populated from DB columns."""
+    """Token counts surface via flattened OTel keys in `attributes`, not as top-level fields.
+
+    The /spans endpoint relies on the existing OTel attribute passthrough — adding
+    typed top-level fields would calcify the schema, while the OpenInference
+    `llm.token_count.*` keys are already an established extension point.
+    """
     resp = await httpx_client.get("v1/projects/llm-token-project/spans")
     assert resp.is_success
     data = resp.json()["data"]
     assert len(data) == 1
-    span = SpanResponse.model_validate(data[0])
-    assert span.token_count_prompt == 100
-    assert span.token_count_completion == 50
-    assert span.token_count_total == 150
+    span = Span.model_validate(data[0])
+    assert span.attributes["llm.token_count.prompt"] == 100
+    assert span.attributes["llm.token_count.completion"] == 50
+    # No typed top-level token fields — clients read from attributes.
+    assert "token_count_prompt" not in data[0]
+    assert "token_count_completion" not in data[0]
+    assert "token_count_total" not in data[0]

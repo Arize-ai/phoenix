@@ -1,3 +1,16 @@
+"""Batched aggregation queries for cumulative token counts.
+
+Both helpers sum `cumulative_llm_token_count_{prompt,completion}` from root
+spans (`Span.parent_id IS NULL`) and group by the requested key. SUM-and-GROUP-BY
+is required because a single trace may have multiple root spans, and a single
+session may have multiple traces — direct single-row reads would silently
+under-report. NULL columns coalesce to 0 so traces/sessions without any LLM
+descendants return totals of 0 rather than NULL.
+
+Each helper returns a Select with three columns: `id_` (the grouping key),
+`prompt`, and `completion`.
+"""
+
 from typing import Any, Collection
 
 from sqlalchemy import Select, func, select
@@ -9,11 +22,9 @@ from phoenix.db import models
 def cumulative_token_counts_by_session(
     keys: Collection[int],
 ) -> "Select[Any]":
-    """
-    Returns a Select that SUMs cumulative token counts over root spans grouped by
-    project_session_rowid for the given session rowid keys.
+    """Sum cumulative token counts on root spans, grouped by session rowid.
 
-    Columns: id_ (project_session_rowid), prompt, completion
+    Columns: `id_` (project_session_rowid), `prompt`, `completion`.
     """
     return (
         select(
@@ -33,14 +44,9 @@ def cumulative_token_counts_by_session(
 def cumulative_token_counts_by_trace(
     keys: Collection[int],
 ) -> "Select[Any]":
-    """
-    Returns a Select that SUMs cumulative token counts over root spans grouped by
-    trace_rowid for the given trace rowid keys.
+    """Sum cumulative token counts on root spans, grouped by trace rowid.
 
-    A valid trace can have multiple root spans, so direct single-root reads are
-    unsafe — SUM-and-GROUP-BY is required here too.
-
-    Columns: id_ (trace_rowid), prompt, completion
+    Columns: `id_` (trace_rowid), `prompt`, `completion`.
     """
     return (
         select(

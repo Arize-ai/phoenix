@@ -76,23 +76,16 @@ class TraceData(V1RoutesBaseModel):
     end_time: datetime
     token_count_prompt: int = Field(
         default=0,
-        description=(
-            "Cumulative prompt token count across all descendant spans. "
-            "0 when no descendant span has an LLM call."
-        ),
+        description="Cumulative prompt token count across all spans in the trace.",
     )
     token_count_completion: int = Field(
         default=0,
-        description=(
-            "Cumulative completion token count across all descendant spans. "
-            "0 when no descendant span has an LLM call."
-        ),
+        description="Cumulative completion token count across all spans in the trace.",
     )
     token_count_total: int = Field(
         default=0,
         description=(
-            "Cumulative total token count across all descendant spans "
-            "(token_count_prompt + token_count_completion)."
+            "Cumulative total token count across all spans in the trace (prompt + completion)."
         ),
     )
     spans: Optional[list[TraceSpanData]] = None

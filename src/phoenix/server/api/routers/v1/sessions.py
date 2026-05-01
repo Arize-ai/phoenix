@@ -105,23 +105,16 @@ class SessionData(V1RoutesBaseModel):
     traces: list[SessionTraceData]
     token_count_prompt: int = Field(
         default=0,
-        description=(
-            "Cumulative prompt token count across all descendant spans "
-            "of all traces in this session."
-        ),
+        description="Cumulative prompt token count across all spans in the session.",
     )
     token_count_completion: int = Field(
         default=0,
-        description=(
-            "Cumulative completion token count across all descendant spans "
-            "of all traces in this session."
-        ),
+        description="Cumulative completion token count across all spans in the session.",
     )
     token_count_total: int = Field(
         default=0,
         description=(
-            "Cumulative total token count across all descendant spans "
-            "of all traces in this session (prompt + completion)."
+            "Cumulative total token count across all spans in the session (prompt + completion)."
         ),
     )
 

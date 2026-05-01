@@ -579,81 +579,7 @@ class Span(V1RoutesBaseModel):
         return self
 
 
-class SpanResponse(Span):
-    token_count_prompt: Optional[int] = Field(
-        default=None,
-        description=(
-            "Number of prompt tokens used by this span's LLM call. "
-            "null indicates the column is unset (legacy/backfilled rows). "
-            "0 may indicate either no LLM call or zero tokens consumed — "
-            "use span_kind to disambiguate."
-        ),
-    )
-    token_count_completion: Optional[int] = Field(
-        default=None,
-        description=(
-            "Number of completion tokens used by this span's LLM call. "
-            "null indicates the column is unset (legacy/backfilled rows). "
-            "0 may indicate either no LLM call or zero tokens consumed — "
-            "use span_kind to disambiguate."
-        ),
-    )
-    token_count_total: Optional[int] = Field(
-        default=None,
-        description=(
-            "Total tokens used by this span's LLM call "
-            "(coalesce(prompt, 0) + coalesce(completion, 0)). "
-            "null only when both prompt and completion are null."
-        ),
-    )
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "name": "llm_call",
-                    "context": {
-                        "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
-                        "span_id": "1a2b3c4d5e6f7a8b",
-                    },
-                    "span_kind": "LLM",
-                    "start_time": "2024-01-01T12:00:00Z",
-                    "end_time": "2024-01-01T12:00:01Z",
-                    "status_code": "OK",
-                    "status_message": "",
-                    "attributes": {
-                        "llm.model_name": "gpt-4",
-                        "llm.token_count.prompt": 100,
-                        "llm.token_count.completion": 50,
-                    },
-                    "events": [],
-                    "token_count_prompt": 100,
-                    "token_count_completion": 50,
-                    "token_count_total": 150,
-                },
-                {
-                    "name": "retrieval_call",
-                    "context": {
-                        "trace_id": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
-                        "span_id": "2b3c4d5e6f7a8b9c",
-                    },
-                    "span_kind": "RETRIEVER",
-                    "start_time": "2024-01-01T12:00:00Z",
-                    "end_time": "2024-01-01T12:00:00.5Z",
-                    "status_code": "OK",
-                    "status_message": "",
-                    "attributes": {},
-                    "events": [],
-                    "token_count_prompt": None,
-                    "token_count_completion": None,
-                    "token_count_total": None,
-                },
-            ]
-        }
-    )
-
-
-class SpansResponseBody(PaginatedResponseBody[SpanResponse]):
+class SpansResponseBody(PaginatedResponseBody[Span]):
     pass
 
 
@@ -1086,7 +1012,7 @@ async def span_search(
         next_cursor = str(GlobalID("Span", str(span_extra.id)))
 
     # Convert ORM rows -> Phoenix spans
-    result_spans: list[SpanResponse] = []
+    result_spans: list[Span] = []
     for span_orm, span_trace_id in rows:
         # Convert events to Phoenix Event list
         events: list[SpanEvent] = []
@@ -1134,15 +1060,8 @@ async def span_search(
         }
         openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
 
-        prompt = span_orm.llm_token_count_prompt
-        completion = span_orm.llm_token_count_completion
-        if prompt is None and completion is None:
-            total = None
-        else:
-            total = (prompt or 0) + (completion or 0)
-
         result_spans.append(
-            SpanResponse(
+            Span(
                 id=str(GlobalID("Span", str(span_orm.id))),
                 name=span_orm.name or "",
                 context=SpanContext(
@@ -1157,9 +1076,6 @@ async def span_search(
                 status_message=span_orm.status_message or "",
                 attributes=attributes,
                 events=events,
-                token_count_prompt=prompt,
-                token_count_completion=completion,
-                token_count_total=total,
             )
         )
 

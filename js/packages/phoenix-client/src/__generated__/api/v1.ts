@@ -2976,19 +2976,19 @@ export interface components {
             traces: components["schemas"]["SessionTraceData"][];
             /**
              * Token Count Prompt
-             * @description Cumulative prompt token count across all descendant spans of all traces in this session.
+             * @description Cumulative prompt token count across all spans in the session.
              * @default 0
              */
             token_count_prompt?: number;
             /**
              * Token Count Completion
-             * @description Cumulative completion token count across all descendant spans of all traces in this session.
+             * @description Cumulative completion token count across all spans in the session.
              * @default 0
              */
             token_count_completion?: number;
             /**
              * Token Count Total
-             * @description Cumulative total token count across all descendant spans of all traces in this session (prompt + completion).
+             * @description Cumulative total token count across all spans in the session (prompt + completion).
              * @default 0
              */
             token_count_total?: number;
@@ -3299,123 +3299,10 @@ export interface components {
              */
             note: string;
         };
-        /**
-         * SpanResponse
-         * @example {
-         *       "attributes": {
-         *         "llm.model_name": "gpt-4",
-         *         "llm.token_count.completion": 50,
-         *         "llm.token_count.prompt": 100
-         *       },
-         *       "context": {
-         *         "span_id": "1a2b3c4d5e6f7a8b",
-         *         "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-         *       },
-         *       "end_time": "2024-01-01T12:00:01Z",
-         *       "events": [],
-         *       "name": "llm_call",
-         *       "span_kind": "LLM",
-         *       "start_time": "2024-01-01T12:00:00Z",
-         *       "status_code": "OK",
-         *       "status_message": "",
-         *       "token_count_completion": 50,
-         *       "token_count_prompt": 100,
-         *       "token_count_total": 150
-         *     }
-         * @example {
-         *       "attributes": {},
-         *       "context": {
-         *         "span_id": "2b3c4d5e6f7a8b9c",
-         *         "trace_id": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
-         *       },
-         *       "end_time": "2024-01-01T12:00:00.5Z",
-         *       "events": [],
-         *       "name": "retrieval_call",
-         *       "span_kind": "RETRIEVER",
-         *       "start_time": "2024-01-01T12:00:00Z",
-         *       "status_code": "OK",
-         *       "status_message": ""
-         *     }
-         */
-        SpanResponse: {
-            /**
-             * Id
-             * @description Span Global ID, distinct from the OpenTelemetry span ID
-             * @default
-             */
-            id?: string;
-            /**
-             * Name
-             * @description Name of the span operation
-             */
-            name: string;
-            /** @description Span context containing trace_id and span_id */
-            context: components["schemas"]["SpanContext"];
-            /**
-             * Span Kind
-             * @description Type of work that the span encapsulates
-             */
-            span_kind: string;
-            /**
-             * Parent Id
-             * @description OpenTelemetry span ID of the parent span
-             */
-            parent_id?: string | null;
-            /**
-             * Start Time
-             * Format: date-time
-             * @description Start time of the span (must be timezone-aware)
-             */
-            start_time: string;
-            /**
-             * End Time
-             * Format: date-time
-             * @description End time of the span (must be timezone-aware)
-             */
-            end_time: string;
-            /**
-             * Status Code
-             * @description Status code of the span
-             */
-            status_code: string;
-            /**
-             * Status Message
-             * @description Status message
-             * @default
-             */
-            status_message?: string;
-            /**
-             * Attributes
-             * @description Span attributes
-             */
-            attributes?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Events
-             * @description Span events
-             */
-            events?: components["schemas"]["SpanEvent"][];
-            /**
-             * Token Count Prompt
-             * @description Number of prompt tokens used by this span's LLM call. null indicates the column is unset (legacy/backfilled rows). 0 may indicate either no LLM call or zero tokens consumed — use span_kind to disambiguate.
-             */
-            token_count_prompt?: number | null;
-            /**
-             * Token Count Completion
-             * @description Number of completion tokens used by this span's LLM call. null indicates the column is unset (legacy/backfilled rows). 0 may indicate either no LLM call or zero tokens consumed — use span_kind to disambiguate.
-             */
-            token_count_completion?: number | null;
-            /**
-             * Token Count Total
-             * @description Total tokens used by this span's LLM call (coalesce(prompt, 0) + coalesce(completion, 0)). null only when both prompt and completion are null.
-             */
-            token_count_total?: number | null;
-        };
         /** SpansResponseBody */
         SpansResponseBody: {
             /** Data */
-            data: components["schemas"]["SpanResponse"][];
+            data: components["schemas"]["Span"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -3581,19 +3468,19 @@ export interface components {
             end_time: string;
             /**
              * Token Count Prompt
-             * @description Cumulative prompt token count across all descendant spans. 0 when no descendant span has an LLM call.
+             * @description Cumulative prompt token count across all spans in the trace.
              * @default 0
              */
             token_count_prompt?: number;
             /**
              * Token Count Completion
-             * @description Cumulative completion token count across all descendant spans. 0 when no descendant span has an LLM call.
+             * @description Cumulative completion token count across all spans in the trace.
              * @default 0
              */
             token_count_completion?: number;
             /**
              * Token Count Total
-             * @description Cumulative total token count across all descendant spans (token_count_prompt + token_count_completion).
+             * @description Cumulative total token count across all spans in the trace (prompt + completion).
              * @default 0
              */
             token_count_total?: number;

@@ -563,28 +563,6 @@ class SpanNoteData(TypedDict):
     note: str
 
 
-class SpanResponse(TypedDict):
-    name: str
-    context: SpanContext
-    span_kind: str
-    start_time: str
-    end_time: str
-    status_code: str
-    id: NotRequired[str]
-    parent_id: NotRequired[str]
-    status_message: NotRequired[str]
-    attributes: NotRequired[Mapping[str, Any]]
-    events: NotRequired[Sequence[SpanEvent]]
-    token_count_prompt: NotRequired[int]
-    token_count_completion: NotRequired[int]
-    token_count_total: NotRequired[int]
-
-
-class SpansResponseBody(TypedDict):
-    data: Sequence[SpanResponse]
-    next_cursor: Optional[str]
-
-
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -997,6 +975,11 @@ class Span(TypedDict):
     status_message: NotRequired[str]
     attributes: NotRequired[Mapping[str, Any]]
     events: NotRequired[Sequence[SpanEvent]]
+
+
+class SpansResponseBody(TypedDict):
+    data: Sequence[Span]
+    next_cursor: Optional[str]
 
 
 class ToolCallContentPart(TypedDict):
