@@ -485,9 +485,9 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every span annotation in a project that matches the given identifier (and optionally name) selector.",
-        "description": "Hard-delete span annotations within the named project that match the\n        supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          span annotation in the project matching `identifier` is deleted\n          regardless of name (including span notes, which use the reserved\n          name `\"note\"`) \u2014 useful for callers that tag a batch of\n          annotations with a single rollback identifier and want to clear\n          the whole batch in one call.\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
-        "operationId": "deleteSpanAnnotationsByIdentifier",
+        "summary": "Delete span annotations in a project that match the supplied filter.",
+        "description": "Hard-delete span annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSpanAnnotations",
         "parameters": [
           {
             "name": "project_identifier",
@@ -499,18 +499,6 @@
               "title": "Project Identifier"
             },
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
-          {
-            "name": "identifier",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
-              "title": "Identifier"
-            },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
           },
           {
             "name": "name",
@@ -526,10 +514,90 @@
                   "type": "null"
                 }
               ],
-              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
               "title": "Name"
             },
-            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Created After"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "Created Before"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
           }
         ],
         "responses": {
@@ -754,9 +822,9 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every trace annotation in a project that matches the given identifier (and optionally name) selector.",
-        "description": "Hard-delete trace annotations within the named project that match the\n        supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          trace annotation in the project matching `identifier` is deleted\n          regardless of name (including trace notes, which use the reserved\n          name `\"note\"`).\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
-        "operationId": "deleteTraceAnnotationsByIdentifier",
+        "summary": "Delete trace annotations in a project that match the supplied filter.",
+        "description": "Hard-delete trace annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteTraceAnnotations",
         "parameters": [
           {
             "name": "project_identifier",
@@ -768,18 +836,6 @@
               "title": "Project Identifier"
             },
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
-          {
-            "name": "identifier",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
-              "title": "Identifier"
-            },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
           },
           {
             "name": "name",
@@ -795,10 +851,90 @@
                   "type": "null"
                 }
               ],
-              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
               "title": "Name"
             },
-            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Created After"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "Created Before"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
           }
         ],
         "responses": {
@@ -1023,9 +1159,9 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Delete every session annotation in a project that matches the given identifier (and optionally name) selector.",
-        "description": "Hard-delete session annotations within the named project that match\n        the supplied selector.\n\n        - `identifier` is **required** and must be non-empty. Empty\n          identifiers are rejected to prevent accidental mass-delete of the\n          pre-identifier / default-identifier bucket.\n        - `name` is **optional**. When present it must be non-empty and the\n          delete narrows to annotations of that name. When omitted, every\n          session annotation in the project matching `identifier` is deleted\n          regardless of name (including session notes, which use the\n          reserved name `\"note\"`).\n        - The endpoint is idempotent: a request that matches no rows still\n          returns 204.\n        - When authentication is enabled, non-admin callers can only delete\n          rows they own (`user_id == current_user.id`); admins delete all\n          matching rows.",
-        "operationId": "deleteSessionAnnotationsByIdentifier",
+        "summary": "Delete session annotations in a project that match the supplied filter.",
+        "description": "Hard-delete session annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSessionAnnotations",
         "parameters": [
           {
             "name": "project_identifier",
@@ -1037,18 +1173,6 @@
               "title": "Project Identifier"
             },
             "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
-          },
-          {
-            "name": "identifier",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket.",
-              "title": "Identifier"
-            },
-            "description": "The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
           },
           {
             "name": "name",
@@ -1064,10 +1188,90 @@
                   "type": "null"
                 }
               ],
-              "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name.",
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
               "title": "Name"
             },
-            "description": "The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name."
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "created_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Created After"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "created_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "Created Before"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
           }
         ],
         "responses": {

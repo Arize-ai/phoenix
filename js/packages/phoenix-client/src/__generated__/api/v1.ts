@@ -75,27 +75,26 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete every span annotation in a project that matches the given identifier (and optionally name) selector.
+         * Delete span annotations in a project that match the supplied filter.
          * @description Hard-delete span annotations within the named project that match the
-         *             supplied selector.
+         *     supplied filter.
          *
-         *             - `identifier` is **required** and must be non-empty. Empty
-         *               identifiers are rejected to prevent accidental mass-delete of the
-         *               pre-identifier / default-identifier bucket.
-         *             - `name` is **optional**. When present it must be non-empty and the
-         *               delete narrows to annotations of that name. When omitted, every
-         *               span annotation in the project matching `identifier` is deleted
-         *               regardless of name (including span notes, which use the reserved
-         *               name `"note"`) — useful for callers that tag a batch of
-         *               annotations with a single rollback identifier and want to clear
-         *               the whole batch in one call.
-         *             - The endpoint is idempotent: a request that matches no rows still
-         *               returns 204.
-         *             - When authentication is enabled, non-admin callers can only delete
-         *               rows they own (`user_id == current_user.id`); admins delete all
-         *               matching rows.
+         *     - At least one of `name`, `identifier`, `annotator_kind`, `created_after`,
+         *       or `created_before` must be supplied. Requests with no filter are
+         *       rejected with 422 — the v1 API does not support a "delete all" path.
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `created_after` is inclusive (`>=`); `created_before` is exclusive
+         *       (`<`). When both are supplied, `created_after` must be strictly earlier
+         *       than `created_before` (else 422). Naive datetimes are interpreted as
+         *       UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
          */
-        delete: operations["deleteSpanAnnotationsByIdentifier"];
+        delete: operations["deleteSpanAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -116,25 +115,26 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete every trace annotation in a project that matches the given identifier (and optionally name) selector.
+         * Delete trace annotations in a project that match the supplied filter.
          * @description Hard-delete trace annotations within the named project that match the
-         *             supplied selector.
+         *     supplied filter.
          *
-         *             - `identifier` is **required** and must be non-empty. Empty
-         *               identifiers are rejected to prevent accidental mass-delete of the
-         *               pre-identifier / default-identifier bucket.
-         *             - `name` is **optional**. When present it must be non-empty and the
-         *               delete narrows to annotations of that name. When omitted, every
-         *               trace annotation in the project matching `identifier` is deleted
-         *               regardless of name (including trace notes, which use the reserved
-         *               name `"note"`).
-         *             - The endpoint is idempotent: a request that matches no rows still
-         *               returns 204.
-         *             - When authentication is enabled, non-admin callers can only delete
-         *               rows they own (`user_id == current_user.id`); admins delete all
-         *               matching rows.
+         *     - At least one of `name`, `identifier`, `annotator_kind`, `created_after`,
+         *       or `created_before` must be supplied. Requests with no filter are
+         *       rejected with 422 — the v1 API does not support a "delete all" path.
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `created_after` is inclusive (`>=`); `created_before` is exclusive
+         *       (`<`). When both are supplied, `created_after` must be strictly earlier
+         *       than `created_before` (else 422). Naive datetimes are interpreted as
+         *       UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
          */
-        delete: operations["deleteTraceAnnotationsByIdentifier"];
+        delete: operations["deleteTraceAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -155,25 +155,26 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete every session annotation in a project that matches the given identifier (and optionally name) selector.
-         * @description Hard-delete session annotations within the named project that match
-         *             the supplied selector.
+         * Delete session annotations in a project that match the supplied filter.
+         * @description Hard-delete session annotations within the named project that match the
+         *     supplied filter.
          *
-         *             - `identifier` is **required** and must be non-empty. Empty
-         *               identifiers are rejected to prevent accidental mass-delete of the
-         *               pre-identifier / default-identifier bucket.
-         *             - `name` is **optional**. When present it must be non-empty and the
-         *               delete narrows to annotations of that name. When omitted, every
-         *               session annotation in the project matching `identifier` is deleted
-         *               regardless of name (including session notes, which use the
-         *               reserved name `"note"`).
-         *             - The endpoint is idempotent: a request that matches no rows still
-         *               returns 204.
-         *             - When authentication is enabled, non-admin callers can only delete
-         *               rows they own (`user_id == current_user.id`); admins delete all
-         *               matching rows.
+         *     - At least one of `name`, `identifier`, `annotator_kind`, `created_after`,
+         *       or `created_before` must be supplied. Requests with no filter are
+         *       rejected with 422 — the v1 API does not support a "delete all" path.
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `created_after` is inclusive (`>=`); `created_before` is exclusive
+         *       (`<`). When both are supplied, `created_after` must be strictly earlier
+         *       than `created_before` (else 422). Naive datetimes are interpreted as
+         *       UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
          */
-        delete: operations["deleteSessionAnnotationsByIdentifier"];
+        delete: operations["deleteSessionAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4096,13 +4097,19 @@ export interface operations {
             };
         };
     };
-    deleteSpanAnnotationsByIdentifier: {
+    deleteSpanAnnotations: {
         parameters: {
-            query: {
-                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket. */
-                identifier: string;
-                /** @description The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name. */
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
                 name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                created_after?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                created_before?: string | null;
             };
             header?: never;
             path: {
@@ -4212,13 +4219,19 @@ export interface operations {
             };
         };
     };
-    deleteTraceAnnotationsByIdentifier: {
+    deleteTraceAnnotations: {
         parameters: {
-            query: {
-                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket. */
-                identifier: string;
-                /** @description The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name. */
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
                 name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                created_after?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                created_before?: string | null;
             };
             header?: never;
             path: {
@@ -4328,13 +4341,19 @@ export interface operations {
             };
         };
     };
-    deleteSessionAnnotationsByIdentifier: {
+    deleteSessionAnnotations: {
         parameters: {
-            query: {
-                /** @description The annotation identifier. Required and non-empty. Empty identifiers are rejected to prevent accidental mass-delete of the pre-identifier / default-identifier bucket. */
-                identifier: string;
-                /** @description The annotation name. Optional. When omitted, every annotation matching `identifier` in the project is deleted regardless of name (including notes). When present, must be non-empty and narrows the delete to annotations of that name. */
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
                 name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                created_after?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                created_before?: string | null;
             };
             header?: never;
             path: {

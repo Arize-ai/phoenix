@@ -6,10 +6,11 @@ from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import delete, exists, select
+from sqlalchemy import ColumnElement, delete, exists, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
@@ -756,35 +757,125 @@ def _resolve_non_admin_user_id(request: Request) -> Optional[int]:
     return int(user.identity)
 
 
+_DELETE_FILTER_DESCRIPTIONS: dict[str, str] = {
+    "name": (
+        "Optional annotation name. When provided, must be non-empty and narrows the delete to "
+        "annotations of that name."
+    ),
+    "identifier": (
+        "Optional annotation identifier. When provided, must be non-empty and narrows the "
+        "delete to annotations with that identifier."
+    ),
+    "annotator_kind": (
+        "Optional annotator kind. When provided, narrows the delete to annotations produced by "
+        "this annotator kind."
+    ),
+    "created_after": (
+        "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted "
+        "as UTC."
+    ),
+    "created_before": (
+        "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted "
+        "as UTC."
+    ),
+}
+
+_DELETE_DESCRIPTION_TEMPLATE = """
+Hard-delete {kind} annotations within the named project that match the
+supplied filter.
+
+- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,
+  or `created_before` must be supplied. Requests with no filter are
+  rejected with 422 — the v1 API does not support a "delete all" path.
+- All supplied filters are combined with AND. `name` and `identifier`,
+  when present, must be non-empty.
+- `created_after` is inclusive (`>=`); `created_before` is exclusive
+  (`<`). When both are supplied, `created_after` must be strictly earlier
+  than `created_before` (else 422). Naive datetimes are interpreted as
+  UTC.
+- The endpoint is idempotent: a request that matches no rows still
+  returns 204.
+- When authentication is enabled, non-admin callers can only delete rows
+  they own (`user_id == current_user.id`); admins delete all matching
+  rows.
+"""
+
+
+def _validate_delete_filters(
+    *,
+    name: Optional[str],
+    identifier: Optional[str],
+    annotator_kind: Optional[str],
+    created_after: Optional[datetime],
+    created_before: Optional[datetime],
+) -> tuple[Optional[datetime], Optional[datetime]]:
+    """Enforce the ≥1-filter rule and the `created_after < created_before`
+    invariant. Normalize tz-naive datetimes to UTC for SQL comparison.
+    Returns the normalized (created_after, created_before) pair.
+    """
+    if (
+        name is None
+        and identifier is None
+        and annotator_kind is None
+        and created_after is None
+        and created_before is None
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "At least one of `name`, `identifier`, `annotator_kind`, "
+                "`created_after`, or `created_before` must be supplied."
+            ),
+        )
+    normalized_after = normalize_datetime(created_after, timezone.utc)
+    normalized_before = normalize_datetime(created_before, timezone.utc)
+    if (
+        normalized_after is not None
+        and normalized_before is not None
+        and normalized_after >= normalized_before
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="`created_after` must be strictly earlier than `created_before`.",
+        )
+    return normalized_after, normalized_before
+
+
+def _build_annotation_filter_predicates(
+    annotation_model: Any,
+    *,
+    name: Optional[str],
+    identifier: Optional[str],
+    annotator_kind: Optional[str],
+    created_after: Optional[datetime],
+    created_before: Optional[datetime],
+    user_id_for_filter: Optional[int],
+) -> list[ColumnElement[bool]]:
+    """Build the per-annotation-table predicate list shared across the three
+    DELETE handlers. Project-scoping and parent-FK subquery predicates are
+    appended by the caller (they differ per kind).
+    """
+    predicates: list[ColumnElement[bool]] = []
+    if name is not None:
+        predicates.append(annotation_model.name == name)
+    if identifier is not None:
+        predicates.append(annotation_model.identifier == identifier)
+    if annotator_kind is not None:
+        predicates.append(annotation_model.annotator_kind == annotator_kind)
+    if created_after is not None:
+        predicates.append(annotation_model.created_at >= created_after)
+    if created_before is not None:
+        predicates.append(annotation_model.created_at < created_before)
+    if user_id_for_filter is not None:
+        predicates.append(annotation_model.user_id == user_id_for_filter)
+    return predicates
+
+
 @router.delete(
     "/projects/{project_identifier}/span_annotations",
-    operation_id="deleteSpanAnnotationsByIdentifier",
-    summary=(
-        "Delete every span annotation in a project that matches the given "
-        "identifier (and optionally name) selector."
-    ),
-    description=(
-        """
-        Hard-delete span annotations within the named project that match the
-        supplied selector.
-
-        - `identifier` is **required** and must be non-empty. Empty
-          identifiers are rejected to prevent accidental mass-delete of the
-          pre-identifier / default-identifier bucket.
-        - `name` is **optional**. When present it must be non-empty and the
-          delete narrows to annotations of that name. When omitted, every
-          span annotation in the project matching `identifier` is deleted
-          regardless of name (including span notes, which use the reserved
-          name `"note"`) — useful for callers that tag a batch of
-          annotations with a single rollback identifier and want to clear
-          the whole batch in one call.
-        - The endpoint is idempotent: a request that matches no rows still
-          returns 204.
-        - When authentication is enabled, non-admin callers can only delete
-          rows they own (`user_id == current_user.id`); admins delete all
-          matching rows.
-        """
-    ),
+    operation_id="deleteSpanAnnotations",
+    summary="Delete span annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="span"),
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Project not found"},
@@ -793,33 +884,46 @@ def _resolve_non_admin_user_id(request: Request) -> Optional[int]:
     ),
     status_code=204,
 )
-async def delete_span_annotations_by_identifier(
+async def delete_span_annotations(
     request: Request,
-    project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name as "
-            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
-            "characters."
-        )
-    ),
-    identifier: str = Query(
-        ...,
-        min_length=1,
-        description=(
-            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
         ),
-    ),
-    name: Optional[str] = Query(
-        default=None,
-        min_length=1,
-        description=(
-            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
-            "in the project is deleted regardless of name (including notes). When present, must "
-            "be non-empty and narrows the delete to annotations of that name."
-        ),
-    ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    created_after: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+    ] = None,
+    created_before: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+    ] = None,
 ) -> None:
+    created_after, created_before = _validate_delete_filters(
+        name=name,
+        identifier=identifier,
+        annotator_kind=annotator_kind,
+        created_after=created_after,
+        created_before=created_before,
+    )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -834,14 +938,16 @@ async def delete_span_annotations_by_identifier(
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Trace.project_rowid == project.id)
         )
-        predicate = [
-            models.SpanAnnotation.identifier == identifier,
-            models.SpanAnnotation.span_rowid.in_(span_rowids_in_project),
-        ]
-        if name is not None:
-            predicate.append(models.SpanAnnotation.name == name)
-        if user_id_for_filter is not None:
-            predicate.append(models.SpanAnnotation.user_id == user_id_for_filter)
+        predicate = _build_annotation_filter_predicates(
+            models.SpanAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=created_after,
+            created_before=created_before,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(models.SpanAnnotation.span_rowid.in_(span_rowids_in_project))
 
         stmt = delete(models.SpanAnnotation).where(*predicate).returning(models.SpanAnnotation.id)
         deleted_ids = list((await session.scalars(stmt)).all())
@@ -852,31 +958,9 @@ async def delete_span_annotations_by_identifier(
 
 @router.delete(
     "/projects/{project_identifier}/trace_annotations",
-    operation_id="deleteTraceAnnotationsByIdentifier",
-    summary=(
-        "Delete every trace annotation in a project that matches the given "
-        "identifier (and optionally name) selector."
-    ),
-    description=(
-        """
-        Hard-delete trace annotations within the named project that match the
-        supplied selector.
-
-        - `identifier` is **required** and must be non-empty. Empty
-          identifiers are rejected to prevent accidental mass-delete of the
-          pre-identifier / default-identifier bucket.
-        - `name` is **optional**. When present it must be non-empty and the
-          delete narrows to annotations of that name. When omitted, every
-          trace annotation in the project matching `identifier` is deleted
-          regardless of name (including trace notes, which use the reserved
-          name `"note"`).
-        - The endpoint is idempotent: a request that matches no rows still
-          returns 204.
-        - When authentication is enabled, non-admin callers can only delete
-          rows they own (`user_id == current_user.id`); admins delete all
-          matching rows.
-        """
-    ),
+    operation_id="deleteTraceAnnotations",
+    summary="Delete trace annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="trace"),
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Project not found"},
@@ -885,33 +969,46 @@ async def delete_span_annotations_by_identifier(
     ),
     status_code=204,
 )
-async def delete_trace_annotations_by_identifier(
+async def delete_trace_annotations(
     request: Request,
-    project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name as "
-            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
-            "characters."
-        )
-    ),
-    identifier: str = Query(
-        ...,
-        min_length=1,
-        description=(
-            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
         ),
-    ),
-    name: Optional[str] = Query(
-        default=None,
-        min_length=1,
-        description=(
-            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
-            "in the project is deleted regardless of name (including notes). When present, must "
-            "be non-empty and narrows the delete to annotations of that name."
-        ),
-    ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    created_after: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+    ] = None,
+    created_before: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+    ] = None,
 ) -> None:
+    created_after, created_before = _validate_delete_filters(
+        name=name,
+        identifier=identifier,
+        annotator_kind=annotator_kind,
+        created_after=created_after,
+        created_before=created_before,
+    )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -924,14 +1021,16 @@ async def delete_trace_annotations_by_identifier(
         trace_rowids_in_project = select(models.Trace.id).where(
             models.Trace.project_rowid == project.id
         )
-        predicate = [
-            models.TraceAnnotation.identifier == identifier,
-            models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project),
-        ]
-        if name is not None:
-            predicate.append(models.TraceAnnotation.name == name)
-        if user_id_for_filter is not None:
-            predicate.append(models.TraceAnnotation.user_id == user_id_for_filter)
+        predicate = _build_annotation_filter_predicates(
+            models.TraceAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=created_after,
+            created_before=created_before,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project))
 
         stmt = delete(models.TraceAnnotation).where(*predicate).returning(models.TraceAnnotation.id)
         deleted_ids = list((await session.scalars(stmt)).all())
@@ -942,31 +1041,9 @@ async def delete_trace_annotations_by_identifier(
 
 @router.delete(
     "/projects/{project_identifier}/session_annotations",
-    operation_id="deleteSessionAnnotationsByIdentifier",
-    summary=(
-        "Delete every session annotation in a project that matches the given "
-        "identifier (and optionally name) selector."
-    ),
-    description=(
-        """
-        Hard-delete session annotations within the named project that match
-        the supplied selector.
-
-        - `identifier` is **required** and must be non-empty. Empty
-          identifiers are rejected to prevent accidental mass-delete of the
-          pre-identifier / default-identifier bucket.
-        - `name` is **optional**. When present it must be non-empty and the
-          delete narrows to annotations of that name. When omitted, every
-          session annotation in the project matching `identifier` is deleted
-          regardless of name (including session notes, which use the
-          reserved name `"note"`).
-        - The endpoint is idempotent: a request that matches no rows still
-          returns 204.
-        - When authentication is enabled, non-admin callers can only delete
-          rows they own (`user_id == current_user.id`); admins delete all
-          matching rows.
-        """
-    ),
+    operation_id="deleteSessionAnnotations",
+    summary="Delete session annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="session"),
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Project not found"},
@@ -975,33 +1052,46 @@ async def delete_trace_annotations_by_identifier(
     ),
     status_code=204,
 )
-async def delete_session_annotations_by_identifier(
+async def delete_session_annotations(
     request: Request,
-    project_identifier: str = Path(
-        description=(
-            "The project identifier: either project ID or project name. If using a project name as "
-            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
-            "characters."
-        )
-    ),
-    identifier: str = Query(
-        ...,
-        min_length=1,
-        description=(
-            "The annotation identifier. Required and non-empty. Empty identifiers are rejected to "
-            "prevent accidental mass-delete of the pre-identifier / default-identifier bucket."
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
         ),
-    ),
-    name: Optional[str] = Query(
-        default=None,
-        min_length=1,
-        description=(
-            "The annotation name. Optional. When omitted, every annotation matching `identifier` "
-            "in the project is deleted regardless of name (including notes). When present, must "
-            "be non-empty and narrows the delete to annotations of that name."
-        ),
-    ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    created_after: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+    ] = None,
+    created_before: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+    ] = None,
 ) -> None:
+    created_after, created_before = _validate_delete_filters(
+        name=name,
+        identifier=identifier,
+        annotator_kind=annotator_kind,
+        created_after=created_after,
+        created_before=created_before,
+    )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
@@ -1014,14 +1104,18 @@ async def delete_session_annotations_by_identifier(
         session_rowids_in_project = select(models.ProjectSession.id).where(
             models.ProjectSession.project_id == project.id
         )
-        predicate = [
-            models.ProjectSessionAnnotation.identifier == identifier,
-            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project),
-        ]
-        if name is not None:
-            predicate.append(models.ProjectSessionAnnotation.name == name)
-        if user_id_for_filter is not None:
-            predicate.append(models.ProjectSessionAnnotation.user_id == user_id_for_filter)
+        predicate = _build_annotation_filter_predicates(
+            models.ProjectSessionAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=created_after,
+            created_before=created_before,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project)
+        )
 
         stmt = (
             delete(models.ProjectSessionAnnotation)

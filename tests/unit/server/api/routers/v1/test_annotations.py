@@ -1,10 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from phoenix.db import models
 from phoenix.server.api.routers.v1.annotations import _resolve_non_admin_user_id
@@ -801,7 +801,7 @@ async def _count(db: DbSessionFactory, model: Any, **filters: Any) -> int:
         return len(list(rows))
 
 
-async def test_delete_span_annotations_by_identifier_happy_path(
+async def test_delete_span_annotations_happy_path(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
@@ -823,7 +823,7 @@ async def test_delete_span_annotations_by_identifier_happy_path(
     assert remaining == 1, "project-B's matching row must be preserved"
 
 
-async def test_delete_trace_annotations_by_identifier_happy_path(
+async def test_delete_trace_annotations_happy_path(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
@@ -842,7 +842,7 @@ async def test_delete_trace_annotations_by_identifier_happy_path(
     assert remaining == 1
 
 
-async def test_delete_session_annotations_by_identifier_happy_path(
+async def test_delete_session_annotations_happy_path(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     two_projects_with_annotations: dict[str, Any],
@@ -898,21 +898,38 @@ async def test_delete_annotations_unknown_project_404(
 @pytest.mark.parametrize(
     "params",
     [
-        pytest.param({"name": "x"}, id="missing-identifier"),
+        pytest.param({}, id="no-filter-rejected"),
+        pytest.param({"name": ""}, id="empty-name-rejected"),
+        pytest.param({"identifier": ""}, id="empty-identifier-rejected"),
+        pytest.param({"annotator_kind": "ROBOT"}, id="unknown-annotator-kind-rejected"),
+        pytest.param({"created_after": "not-a-date"}, id="malformed-datetime-rejected"),
         pytest.param(
-            {"name": "x", "identifier": ""},
-            id="empty-identifier-prevents-mass-delete-of-default-bucket",
+            {
+                "created_after": "2024-01-02T00:00:00+00:00",
+                "created_before": "2024-01-01T00:00:00+00:00",
+            },
+            id="created-after-not-strictly-earlier-than-before",
         ),
-        pytest.param({"name": "", "identifier": "x"}, id="empty-name-still-rejected"),
+        pytest.param(
+            {
+                "created_after": "2024-01-01T00:00:00+00:00",
+                "created_before": "2024-01-01T00:00:00+00:00",
+            },
+            id="created-after-equal-to-before",
+        ),
     ],
 )
-async def test_delete_annotations_rejects_invalid_selectors_422(
+async def test_delete_annotations_rejects_invalid_filters_422(
     httpx_client: httpx.AsyncClient,
     params: dict[str, str],
 ) -> None:
-    """`identifier` is required and non-empty (empty rejected to prevent
-    accidental mass-delete of the pre-identifier / default-identifier
-    bucket). `name` is optional, but if present must be non-empty."""
+    """All filters are optional individually, but at least one must be
+    supplied (no "delete all" path). When supplied, `name` and `identifier`
+    must be non-empty, `annotator_kind` must be a known value,
+    `created_after`/`created_before` must parse as ISO-8601, and
+    `created_after` must be strictly earlier than `created_before` when
+    both are provided.
+    """
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-X/span_annotations",
@@ -928,14 +945,11 @@ async def test_delete_annotations_emits_dml_event(
 ) -> None:
     """Emit *AnnotationDeleteEvent with deleted-row IDs on non-empty delete;
     do NOT emit when zero rows match. We verify the no-emit branch by issuing
-    a delete that matches no rows and asserting the test app's in-process
-    event_queue records nothing for span annotations.
-
-    The on-emit branch is verified indirectly via the happy-path tests
-    (DB rows physically removed implies the DELETE...RETURNING path ran)
-    and explicitly here by issuing a real delete and asserting the
-    SpanAnnotationDeleteEvent class is the one used by the handler — the
-    import of SpanAnnotationDeleteEvent is checked at module load time.
+    a delete that matches no rows and asserting the fixture rows are
+    untouched. The on-emit branch is verified indirectly via the happy-path
+    tests (DB rows physically removed implies the DELETE...RETURNING path
+    ran) and the canonical DML event class names are asserted here as a
+    guard against accidental rebinding.
     """
     # No-emit-on-zero-rows branch.
     response = await httpx_client.request(
@@ -944,8 +958,6 @@ async def test_delete_annotations_emits_dml_event(
         params={"name": "no-such-name", "identifier": "no-such-identifier"},
     )
     assert response.status_code == 204
-    # The two_projects_with_annotations fixture's span annotation rows are
-    # untouched.
     remaining = await _count(
         db,
         models.SpanAnnotation,
@@ -954,9 +966,6 @@ async def test_delete_annotations_emits_dml_event(
     )
     assert remaining == 2
 
-    # Confirm that the three event classes the handlers emit are the
-    # canonical DML event classes — guards against accidental re-binding
-    # (e.g. someone introducing a parallel selector-based event).
     assert SpanAnnotationDeleteEvent.__name__ == "SpanAnnotationDeleteEvent"
     assert TraceAnnotationDeleteEvent.__name__ == "TraceAnnotationDeleteEvent"
     assert ProjectSessionAnnotationDeleteEvent.__name__ == "ProjectSessionAnnotationDeleteEvent"
@@ -1014,62 +1023,206 @@ def test_resolve_non_admin_user_id_non_phoenix_user_returns_none() -> None:
     assert _resolve_non_admin_user_id(request) is None
 
 
-async def test_delete_annotations_omitting_name_deletes_across_names_and_notes(
+# -----------------------------------------------------------------------------
+# Filter-combinator tests (Phase 2 — D7): per-filter narrowing, multi-filter
+# AND, datetime-bound semantics, UTC normalization. One project, multiple
+# span annotations engineered so each filter dimension picks out a known
+# subset.
+# -----------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def project_with_filter_dimensions(db: DbSessionFactory) -> dict[str, Any]:
+    """Build a single project with five span annotations engineered so each
+    filter dimension picks out a known subset.
+
+    Annotations (all under the same span in `project-F`):
+      - row "a": name="alpha",   identifier="id-A", annotator_kind="HUMAN", created_at=2026-01-01T12:00Z
+      - row "b": name="alpha",   identifier="id-B", annotator_kind="LLM",   created_at=2026-01-02T12:00Z
+      - row "c": name="beta",    identifier="id-A", annotator_kind="LLM",   created_at=2026-01-03T12:00Z
+      - row "d": name="gamma",   identifier="id-C", annotator_kind="CODE",  created_at=2026-01-04T12:00Z
+      - row "e": name="note",    identifier="id-A", annotator_kind="HUMAN", created_at=2026-01-05T12:00Z
+
+    Filter expectations (each a single-dimension query):
+      - name="alpha"            → {a, b}
+      - identifier="id-A"       → {a, c, e}
+      - annotator_kind="LLM"    → {b, c}
+      - created_after=2026-01-03T12:00Z (inclusive) → {c, d, e}
+      - created_before=2026-01-03T12:00Z (exclusive) → {a, b}
+    """
+    rows: dict[str, dict[str, Any]] = {
+        "a": {
+            "name": "alpha",
+            "identifier": "id-A",
+            "annotator_kind": "HUMAN",
+            "created_at": datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc),
+        },
+        "b": {
+            "name": "alpha",
+            "identifier": "id-B",
+            "annotator_kind": "LLM",
+            "created_at": datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+        },
+        "c": {
+            "name": "beta",
+            "identifier": "id-A",
+            "annotator_kind": "LLM",
+            "created_at": datetime(2026, 1, 3, 12, 0, tzinfo=timezone.utc),
+        },
+        "d": {
+            "name": "gamma",
+            "identifier": "id-C",
+            "annotator_kind": "CODE",
+            "created_at": datetime(2026, 1, 4, 12, 0, tzinfo=timezone.utc),
+        },
+        "e": {
+            "name": "note",
+            "identifier": "id-A",
+            "annotator_kind": "HUMAN",
+            "created_at": datetime(2026, 1, 5, 12, 0, tzinfo=timezone.utc),
+        },
+    }
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name="project-F").returning(models.Project.id)
+        )
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace-F",
+                project_rowid=project_rowid,
+                start_time=datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 5, 23, 59, tzinfo=timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+        span_rowid = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="span-F",
+                parent_id=None,
+                name="span-F",
+                span_kind="CHAIN",
+                start_time=datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 1, 0, 30, tzinfo=timezone.utc),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        for key, fields in rows.items():
+            anno_id = await session.scalar(
+                insert(models.SpanAnnotation)
+                .values(
+                    span_rowid=span_rowid,
+                    name=fields["name"],
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind=fields["annotator_kind"],
+                    source="API",
+                    identifier=fields["identifier"],
+                )
+                .returning(models.SpanAnnotation.id)
+            )
+            # Force created_at to a deterministic value (the column is
+            # populated server-side at insert; override it after the row
+            # exists so each row has a known timestamp).
+            await session.execute(
+                update(models.SpanAnnotation)
+                .where(models.SpanAnnotation.id == anno_id)
+                .values(created_at=fields["created_at"])
+            )
+            rows[key]["id"] = anno_id
+        await session.commit()
+    return {"rows": rows, "project": "project-F"}
+
+
+async def _surviving_keys(db: DbSessionFactory, rows: dict[str, dict[str, Any]]) -> set[str]:
+    async with db() as session:
+        ids = (await session.scalars(select(models.SpanAnnotation.id))).all()
+    surviving = set(ids)
+    return {key for key, fields in rows.items() if fields["id"] in surviving}
+
+
+@pytest.mark.parametrize(
+    "params, expected_deleted",
+    [
+        pytest.param({"name": "alpha"}, {"a", "b"}, id="name-alone"),
+        pytest.param({"identifier": "id-A"}, {"a", "c", "e"}, id="identifier-alone"),
+        pytest.param({"annotator_kind": "LLM"}, {"b", "c"}, id="annotator-kind-alone"),
+        pytest.param(
+            {"created_after": "2026-01-03T12:00:00+00:00"},
+            {"c", "d", "e"},
+            id="created-after-inclusive",
+        ),
+        pytest.param(
+            {"created_before": "2026-01-03T12:00:00+00:00"},
+            {"a", "b"},
+            id="created-before-exclusive",
+        ),
+        pytest.param(
+            {"name": "alpha", "annotator_kind": "LLM"},
+            {"b"},
+            id="multi-filter-and-narrowing",
+        ),
+        pytest.param(
+            {
+                "created_after": "2026-01-02T00:00:00+00:00",
+                "created_before": "2026-01-04T00:00:00+00:00",
+            },
+            {"b", "c"},
+            id="created-after-and-before-bound-window",
+        ),
+        pytest.param(
+            {"name": "no-such-name"},
+            set(),
+            id="no-match-still-204-and-no-rows-deleted",
+        ),
+    ],
+)
+async def test_delete_span_annotations_filter_combinators(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
-    two_projects_with_annotations: dict[str, Any],
+    project_with_filter_dimensions: dict[str, Any],
+    params: dict[str, str],
+    expected_deleted: set[str],
 ) -> None:
-    """When `name` is omitted, every annotation matching `identifier` in the
-    project is deleted regardless of name — including notes (which use the
-    reserved `name="note"`). This is the agent-rollback flow: a single tag
-    on creation can roll back every annotation the agent created under it
-    in one call. Project-scope isolation must still hold: project-B's
-    matching row must remain.
-    """
-    identifier = two_projects_with_annotations["identifier"]
-
-    # Add a span note in project-A with the same `identifier` as the
-    # rollback-tag span annotation, so the project-A side carries two rows
-    # under different names.
-    async with db() as session:
-        proj_a = await session.scalar(
-            select(models.Project).where(models.Project.name == "project-A")
-        )
-        assert proj_a is not None
-        span_a = await session.scalar(
-            select(models.Span)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == proj_a.id)
-        )
-        assert span_a is not None
-        await session.execute(
-            insert(models.SpanAnnotation).values(
-                span_rowid=span_a.id,
-                name="note",
-                label=None,
-                score=None,
-                explanation="Agent run note",
-                metadata_={},
-                annotator_kind="HUMAN",
-                source="API",
-                identifier=identifier,
-            )
-        )
-        await session.commit()
-
-    # Pre: 3 rows total under this identifier (2 in project-A: rollback-tag
-    # + note, 1 in project-B: rollback-tag).
-    pre = await _count(db, models.SpanAnnotation, identifier=identifier)
-    assert pre == 3
-
-    # DELETE without name — should remove both project-A rows regardless of
-    # name and leave project-B untouched.
+    rows = project_with_filter_dimensions["rows"]
     response = await httpx_client.request(
         "DELETE",
-        "v1/projects/project-A/span_annotations",
-        params={"identifier": identifier},
+        f"v1/projects/{project_with_filter_dimensions['project']}/span_annotations",
+        params=params,
     )
     assert response.status_code == 204
+    surviving = await _surviving_keys(db, rows)
+    assert surviving == set(rows) - expected_deleted
 
-    post = await _count(db, models.SpanAnnotation, identifier=identifier)
-    assert post == 1, "project-B's matching row must be preserved (project-scope isolation)"
+
+async def test_delete_span_annotations_utc_normalization_for_naive_datetime(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    project_with_filter_dimensions: dict[str, Any],
+) -> None:
+    """A naive datetime in the query string is interpreted as UTC. Row "c"
+    has `created_at = 2026-01-03T12:00:00Z`. A `created_after=2026-01-03T12:00:00`
+    query (no offset) must match it (inclusive lower bound, normalized to
+    UTC).
+    """
+    rows = project_with_filter_dimensions["rows"]
+    response = await httpx_client.request(
+        "DELETE",
+        f"v1/projects/{project_with_filter_dimensions['project']}/span_annotations",
+        params={"created_after": "2026-01-03T12:00:00"},
+    )
+    assert response.status_code == 204
+    surviving = await _surviving_keys(db, rows)
+    # Same as the explicit-UTC bound case: rows {c, d, e} deleted.
+    assert surviving == {"a", "b"}
