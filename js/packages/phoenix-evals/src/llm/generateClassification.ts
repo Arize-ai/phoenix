@@ -20,6 +20,11 @@ export type ClassifyArgs = WithLLM &
      * The description of the schema for generating the label and explanation.
      */
     schemaDescription?: string;
+    /**
+     * Whether to ask for and parse an explanation in addition to the label.
+     * Defaults to true for backwards-compatible classification behavior.
+     */
+    includeExplanation?: boolean;
   };
 /**
  * A function that leverages an llm to perform a classification
@@ -27,8 +32,15 @@ export type ClassifyArgs = WithLLM &
 export async function generateClassification(
   args: ClassifyArgs
 ): Promise<ClassificationResult> {
-  const { labels, model, schemaName, schemaDescription, telemetry, ...prompt } =
-    args;
+  const {
+    labels,
+    model,
+    schemaName,
+    schemaDescription,
+    telemetry,
+    includeExplanation = true,
+    ...prompt
+  } = args;
 
   const experimental_telemetry = {
     isEnabled: telemetry?.isEnabled ?? true,
@@ -36,19 +48,26 @@ export async function generateClassification(
     tracer: telemetry?.tracer ?? tracer,
   };
 
+  const baseSchema = z.object({
+    label: z.enum(labels),
+  });
+  const schema = includeExplanation
+    ? baseSchema.extend({
+        explanation: z.string(),
+      })
+    : baseSchema;
+
   const result = await generateObject({
     model,
     schemaName,
     schemaDescription,
-    schema: z.object({
-      explanation: z.string(), // We place the explanation in hopes it uses reasoning to explain the label.
-      label: z.enum(labels),
-    }),
+    schema,
     experimental_telemetry,
     ...prompt,
   });
+  const resultObject = result.object as ClassificationResult;
   return {
-    label: result.object.label,
-    explanation: result.object.explanation,
+    label: resultObject.label,
+    explanation: resultObject.explanation,
   };
 }

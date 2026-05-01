@@ -61,19 +61,26 @@ describe("PairwiseEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      a: "short",
-      b: "better",
+      output: "short",
+      reference: "better",
       input: "question",
     });
 
-    expect(result.label).toBe("b");
+    expect(result.label).toBe("reference");
     expect(result.score).toBe(0);
-    expect(result.metadata?.presented_first).toBe("a");
-    expect(result.metadata?.judge_choice_pass_1).toBe("B");
+    expect(result.metadata?.groups).toEqual(["output", "reference"]);
+    expect(result.metadata?.ordering).toBe("fixed");
+    expect(result.metadata?.passes).toEqual([
+      {
+        position_mapping: { A: "output", B: "reference" },
+        choice: "B",
+        explanation: "picked B",
+      },
+    ]);
   });
 
   it("uses deterministic random ordering for the same row and seed", async () => {
-    const row = { a: "first", b: "second", input: "question" };
+    const row = { output: "first", reference: "second", input: "question" };
     const evaluatorOne = new PairwiseEvaluator({
       name: "pairwise",
       model: createMockModel(["A"]).model,
@@ -92,7 +99,7 @@ describe("PairwiseEvaluator", () => {
     const resultOne = await evaluatorOne.evaluate(row);
     const resultTwo = await evaluatorTwo.evaluate(row);
 
-    expect(resultOne.metadata?.presented_first).toBe(resultTwo.metadata?.presented_first);
+    expect(resultOne.metadata?.passes).toEqual(resultTwo.metadata?.passes);
     expect(resultOne.label).toBe(resultTwo.label);
   });
 
@@ -105,16 +112,28 @@ describe("PairwiseEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      a: "better",
-      b: "worse",
+      output: "better",
+      reference: "worse",
       input: "question",
     });
 
-    expect(result.label).toBe("a");
+    expect(result.label).toBe("output");
     expect(result.score).toBe(1);
-    expect(result.metadata?.judge_choice_pass_1).toBe("A");
-    expect(result.metadata?.judge_choice_pass_2).toBe("B");
-    expect(result.explanation).toContain("[Consensus: agreed -> winner=a]");
+    expect(result.metadata?.passes).toEqual([
+      {
+        position_mapping: { A: "output", B: "reference" },
+        choice: "A",
+        explanation: "picked A",
+      },
+      {
+        position_mapping: { A: "reference", B: "output" },
+        choice: "B",
+        explanation: "picked B",
+      },
+    ]);
+    expect(result.explanation).toBe(
+      "Pass 1 (A=output, B=reference): picked A\nPass 2 (A=reference, B=output): picked B"
+    );
   });
 
   it("returns structural ties when swapped passes disagree", async () => {
@@ -127,8 +146,8 @@ describe("PairwiseEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      a: "first",
-      b: "second",
+      output: "first",
+      reference: "second",
       input: "question",
     });
 
@@ -153,8 +172,14 @@ describe("PairwiseEvaluator", () => {
     });
 
     expect(result.label).toBe("claude");
-    expect(result.metadata?.claude).toBe("better");
-    expect(result.metadata?.gpt).toBe("worse");
+    expect(result.metadata?.groups).toEqual(["claude", "gpt"]);
+    expect(result.metadata?.passes).toEqual([
+      {
+        position_mapping: { A: "claude", B: "gpt" },
+        choice: "A",
+        explanation: "picked A",
+      },
+    ]);
   });
 
   it("rejects invalid prompt templates", () => {
@@ -163,22 +188,85 @@ describe("PairwiseEvaluator", () => {
         new PairwiseEvaluator({
           name: "pairwise",
           model: createMockModel(["A"]).model,
-          promptTemplate: "Compare {{a}} and {{item_1}}",
+          promptTemplate: "Compare {{item_1}} and {{item_2}}.",
         })
-    ).toThrow("must reference both");
+    ).toThrow("must reference the compared items as A and B");
+  });
+
+  it("rejects dotted semantic group references in prompt templates", () => {
+    expect(
+      () =>
+        new PairwiseEvaluator({
+          name: "pairwise",
+          model: createMockModel(["A"]).model,
+          promptTemplate: "Response A: {{output.answer}}\nResponse B: {{item_2.answer}}",
+        })
+    ).toThrow("cannot reference compared group names");
+  });
+
+  it("omits explanations when includeExplanation is false", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["A"]).model,
+      promptTemplate,
+      ordering: "fixed",
+      includeExplanation: false,
+    });
+
+    const result = await evaluator.evaluate({
+      output: "one",
+      reference: "two",
+      input: "question",
+    });
+
+    expect(result.explanation).toBeUndefined();
+    expect(result.metadata?.passes).toEqual([
+      {
+        position_mapping: { A: "output", B: "reference" },
+        choice: "A",
+        explanation: null,
+      },
+    ]);
   });
 
   it("calculates win rates with ties", () => {
     expect(
       winRate({
-        group: "a",
+        group: "output",
         scores: [
-          { label: "a", metadata: { a: "one", b: "two" } },
-          { label: "b", metadata: { a: "one", b: "two" } },
-          { label: "tie", metadata: { a: "one", b: "two" } },
+          { label: "output", metadata: { groups: ["output", "reference"], passes: [] } },
+          {
+            label: "reference",
+            metadata: { groups: ["output", "reference"], passes: [] },
+          },
+          { label: "tie", metadata: { groups: ["output", "reference"], passes: [] } },
         ],
       })
-    ).toBe(0.5);
+    ).toEqual({
+      group: "output",
+      win_rate: 0.5,
+      wins: 1,
+      losses: 1,
+      ties: 1,
+      n: 3,
+    });
+  });
+
+  it("throws on invalid judge output", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["invalid"]).model,
+      promptTemplate,
+      ordering: "fixed",
+    });
+
+    await expect(
+      evaluator.evaluate({
+        output: "one",
+        reference: "two",
+        input: "question",
+      })
+    ).rejects.toThrow();
   });
 
   it("creates the pairwise quality evaluator", async () => {
@@ -188,8 +276,8 @@ describe("PairwiseEvaluator", () => {
     });
 
     const result = await evaluator.evaluate({
-      a: "one",
-      b: "two",
+      output: "one",
+      reference: "two",
       input: "question",
     });
 

@@ -26,7 +26,8 @@ Response A:
 Response B:
 {{item_2}}
 
-Choose the response with better overall quality. If both responses are similarly good or similarly flawed, choose tie.""",
+Choose the response with better overall quality. If both responses are similarly good or
+similarly flawed, choose tie.""",
         )
     ],
 )

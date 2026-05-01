@@ -16,6 +16,7 @@ import { LLMEvaluator } from "./LLMEvaluator";
 
 const RESERVED_GROUPS = new Set(["tie", "item_1", "item_2", "response_1", "response_2"]);
 const FORBIDDEN_TEMPLATE_VARIABLES = new Set(["response_a", "response_b", "item_a", "item_b"]);
+const AB_PATTERN = /\bA\b[\s\S]*\bB\b|\bB\b[\s\S]*\bA\b/;
 
 type PairwiseChoice = "A" | "B" | "tie";
 
@@ -29,10 +30,13 @@ type PairwisePassResult = {
 
 type PairwiseOutcome = {
   label: string | "tie";
-  tieReason: "judge_chose_tie" | "disagreement" | null;
+  tieReason: "explicit_tie" | "disagreement" | null;
 };
 
 function validateGroups(groups: readonly [string, string]): readonly [string, string] {
+  if (groups.length !== 2) {
+    throw new Error("PairwiseEvaluator groups must contain exactly two strings.");
+  }
   const [firstGroup, secondGroup] = groups;
   if (!firstGroup || !secondGroup) {
     throw new Error("PairwiseEvaluator groups must be non-empty strings.");
@@ -56,18 +60,49 @@ function validatePromptTemplate({
   promptTemplate: PromptTemplate;
   groups: readonly [string, string];
 }) {
-  const variables = new Set(getTemplateVariables({ template: promptTemplate }));
-  if (!variables.has("item_1") || !variables.has("item_2")) {
-    throw new Error("PairwiseEvaluator promptTemplate must reference both {{item_1}} and {{item_2}}.");
+  const promptText = getPromptText(promptTemplate);
+  if (!AB_PATTERN.test(promptText)) {
+    throw new Error(
+      "PairwiseEvaluator promptTemplate must reference the compared items as A and B."
+    );
   }
-  const forbiddenVariables = [...variables].filter(
-    (variable) => groups.includes(variable) || FORBIDDEN_TEMPLATE_VARIABLES.has(variable)
-  );
+  const variables = new Set(getTemplateVariables({ template: promptTemplate }));
+  const forbiddenVariables = [...variables].filter((variable) => {
+    const rootVariable = variable.split(".")[0] ?? variable;
+    return (
+      groups.includes(rootVariable) || FORBIDDEN_TEMPLATE_VARIABLES.has(rootVariable)
+    );
+  });
   if (forbiddenVariables.length > 0) {
     throw new Error(
       `PairwiseEvaluator promptTemplate cannot reference compared group names or reserved variables directly: ${forbiddenVariables.join(", ")}.`
     );
   }
+}
+
+function getPromptText(promptTemplate: PromptTemplate): string {
+  if (typeof promptTemplate === "string") {
+    return promptTemplate;
+  }
+  return promptTemplate
+    .map((message) => {
+      const { content } = message;
+      if (typeof content === "string") {
+        return content;
+      }
+      if (Array.isArray(content)) {
+        return content
+          .map((part) => {
+            if (part && typeof part === "object" && "text" in part) {
+              return String((part as { text?: unknown }).text ?? "");
+            }
+            return "";
+          })
+          .join("\n");
+      }
+      return "";
+    })
+    .join("\n");
 }
 
 function stableStringify(value: unknown): string {
@@ -157,7 +192,7 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
     super(args);
     this.promptTemplate = args.promptTemplate;
     this.model = args.model;
-    this.groups = validateGroups(args.groups ?? ["a", "b"]);
+    this.groups = validateGroups(args.groups ?? ["output", "reference"]);
     this.ordering = args.ordering ?? "random";
     if (!["random", "both", "fixed"].includes(this.ordering)) {
       throw new Error("PairwiseEvaluator ordering must be 'random', 'both', or 'fixed'.");
@@ -194,28 +229,24 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
   private evaluatePairwise = async (example: RecordType): Promise<EvaluationResult> => {
     const [firstGroup, secondGroup] = this.groups;
     this.validateExampleGroups(example);
-    try {
-      if (this.ordering === "both") {
-        const passOne = await this.judgeOnce({
-          example,
-          presentedFirst: firstGroup,
-          presentedSecond: secondGroup,
-        });
-        const passTwo = await this.judgeOnce({
-          example,
-          presentedFirst: secondGroup,
-          presentedSecond: firstGroup,
-        });
-        const outcome = this.resolvePasses(passOne, passTwo);
-        return this.buildResult({ example, passOne, passTwo, outcome });
-      }
-      const [presentedFirst, presentedSecond] = this.getOrderedGroups(example);
-      const passOne = await this.judgeOnce({ example, presentedFirst, presentedSecond });
-      const outcome = this.resolvePasses(passOne);
-      return this.buildResult({ example, passOne, outcome });
-    } catch (error) {
-      return this.buildErrorResult({ example, error });
+    if (this.ordering === "both") {
+      const passOne = await this.judgeOnce({
+        example,
+        presentedFirst: firstGroup,
+        presentedSecond: secondGroup,
+      });
+      const passTwo = await this.judgeOnce({
+        example,
+        presentedFirst: secondGroup,
+        presentedSecond: firstGroup,
+      });
+      const outcome = this.resolvePasses(passOne, passTwo);
+      return this.buildResult({ passOne, passTwo, outcome });
     }
+    const [presentedFirst, presentedSecond] = this.getOrderedGroups(example);
+    const passOne = await this.judgeOnce({ example, presentedFirst, presentedSecond });
+    const outcome = this.resolvePasses(passOne);
+    return this.buildResult({ passOne, outcome });
   };
 
   private validateExampleGroups(example: RecordType) {
@@ -270,6 +301,7 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
       prompt,
       model: this.model,
       labels: this.getValidChoices(),
+      includeExplanation: this.includeExplanation,
       telemetry: this.telemetry,
     });
     return {
@@ -313,14 +345,14 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
     }
     if (!passTwo) {
       return passOne.winner === "tie"
-        ? { label: "tie", tieReason: "judge_chose_tie" }
+        ? { label: "tie", tieReason: null }
         : { label: passOne.winner, tieReason: null };
     }
     if (passTwo.winner === null || !validChoices.includes(passTwo.choice as PairwiseChoice)) {
       throw new Error(`invalid judge choice: ${passTwo.choice}`);
     }
     if (passOne.winner === "tie" || passTwo.winner === "tie") {
-      return { label: "tie", tieReason: "judge_chose_tie" };
+      return { label: "tie", tieReason: "explicit_tie" };
     }
     if (passOne.winner === passTwo.winner) {
       return { label: passOne.winner, tieReason: null };
@@ -339,53 +371,45 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
   }
 
   private buildResult({
-    example,
     passOne,
     passTwo,
     outcome,
   }: {
-    example: RecordType;
     passOne: PairwisePassResult;
     passTwo?: PairwisePassResult;
     outcome: PairwiseOutcome;
   }): EvaluationResult {
-    const [firstGroup, secondGroup] = this.groups;
+    const passes = [
+      {
+        position_mapping: {
+          A: passOne.presentedFirst,
+          B: passOne.presentedSecond,
+        },
+        choice: passOne.choice,
+        explanation: this.includeExplanation ? passOne.rationale ?? null : null,
+      },
+    ];
+    if (passTwo) {
+      passes.push({
+        position_mapping: {
+          A: passTwo.presentedFirst,
+          B: passTwo.presentedSecond,
+        },
+        choice: passTwo.choice,
+        explanation: this.includeExplanation ? passTwo.rationale ?? null : null,
+      });
+    }
     return {
       label: outcome.label,
       score: this.scoreForLabel(outcome.label),
-      explanation: this.formatExplanation({ passOne, passTwo, outcome }),
+      explanation: this.formatExplanation({ passOne, passTwo }),
       metadata: {
-        [firstGroup]: example[firstGroup],
-        [secondGroup]: example[secondGroup],
-        presented_first: passOne.presentedFirst,
+        groups: [...this.groups],
         ordering: this.ordering,
-        seed: this.seed,
-        judge_choice_pass_1: passOne.choice,
-        judge_choice_pass_2: passTwo?.choice ?? null,
-        judge_rationale_pass_1: passOne.rationale,
-        judge_rationale_pass_2: passTwo?.rationale ?? null,
-        tie_reason: outcome.tieReason,
         model: getModelIdentifier(this.model),
-      },
-    };
-  }
-
-  private buildErrorResult({ example, error }: { example: RecordType; error: unknown }) {
-    const [firstGroup, secondGroup] = this.groups;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return {
-      explanation: `invalid judge output: ${errorMessage}`,
-      metadata: {
-        [firstGroup]: example[firstGroup],
-        [secondGroup]: example[secondGroup],
-        presented_first: null,
-        ordering: this.ordering,
-        seed: this.seed,
-        judge_choice_pass_1: null,
-        judge_choice_pass_2: null,
-        tie_reason: null,
-        model: getModelIdentifier(this.model),
-        error: errorMessage,
+        passes,
+        ...(this.seed === null ? {} : { seed: this.seed }),
+        ...(outcome.tieReason ? { tie_reason: outcome.tieReason } : {}),
       },
     };
   }
@@ -393,38 +417,19 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
   private formatExplanation({
     passOne,
     passTwo,
-    outcome,
   }: {
     passOne: PairwisePassResult;
     passTwo?: PairwisePassResult;
-    outcome: PairwiseOutcome;
   }): string | undefined {
     if (!this.includeExplanation) {
       return undefined;
     }
-    const lines = [
-      `[Pass 1: A=${passOne.presentedFirst}, B=${passOne.presentedSecond}]`,
-      passOne.rationale ?? "",
-    ];
-    if (passTwo) {
-      lines.push(
-        "",
-        `[Pass 2: A=${passTwo.presentedFirst}, B=${passTwo.presentedSecond}]`,
-        passTwo.rationale ?? "",
-        "",
-        `[Consensus: ${this.getConsensusText(outcome)}]`
-      );
+    if (!passTwo) {
+      return passOne.rationale;
     }
-    return lines.join("\n");
-  }
-
-  private getConsensusText(outcome: PairwiseOutcome): string {
-    if (outcome.tieReason === "disagreement") {
-      return "disagreed -> tie";
-    }
-    if (outcome.tieReason === "judge_chose_tie") {
-      return "judge chose tie";
-    }
-    return `agreed -> winner=${outcome.label}`;
+    return [
+      `Pass 1 (A=${passOne.presentedFirst}, B=${passOne.presentedSecond}): ${passOne.rationale ?? ""}`,
+      `Pass 2 (A=${passTwo.presentedFirst}, B=${passTwo.presentedSecond}): ${passTwo.rationale ?? ""}`,
+    ].join("\n");
   }
 }
