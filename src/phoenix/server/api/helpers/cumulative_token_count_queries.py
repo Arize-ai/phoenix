@@ -4,11 +4,16 @@ Both helpers sum `cumulative_llm_token_count_{prompt,completion}` from root
 spans (`Span.parent_id IS NULL`) and group by the requested key. SUM-and-GROUP-BY
 is required because a single trace may have multiple root spans, and a single
 session may have multiple traces — direct single-row reads would silently
-under-report. NULL columns coalesce to 0 so traces/sessions without any LLM
-descendants return totals of 0 rather than NULL.
+under-report. NULL columns coalesce to 0 so traces/sessions whose root spans
+have no LLM descendants return totals of 0 rather than NULL.
 
 Each helper returns a Select with three columns: `id_` (the grouping key),
 `prompt`, and `completion`.
+
+Callers must default missing keys to (0, 0). The GROUP BY emits no row for a
+key whose set of root spans is empty (e.g., a trace with no spans yet, or a
+session whose traces have no `parent_id IS NULL` spans), so a key being absent
+from the result set means "zero", not "unknown".
 """
 
 from typing import Any, Collection
