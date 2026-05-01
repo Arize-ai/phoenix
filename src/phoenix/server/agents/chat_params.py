@@ -40,20 +40,15 @@ class CustomProviderChatSearchParams(BaseModel):
 class BuiltInProviderChatSearchParams(BaseModel):
     """Chat against a Phoenix built-in provider.
 
-    Credentials are resolved from the secret store first, then from the
-    environment. ``base_url``, ``endpoint``, ``region``, and
-    ``custom_headers`` override the defaults baked into ``model_factory``.
-    ``openai_api_type`` is honoured by the OpenAI and Azure OpenAI
-    branches; other providers ignore it.
+    Credentials and connection details (base URL, Azure endpoint, AWS
+    region) are resolved from the secret store first and the process
+    environment second. ``openai_api_type`` is honoured by the OpenAI and
+    Azure OpenAI branches; other providers ignore it.
     """
 
     provider_type: Literal["builtin"]
     provider: ModelProvider
     model_name: str
-    base_url: str | None = None
-    endpoint: str | None = None
-    region: str | None = None
-    custom_headers: dict[str, str] | None = None
     openai_api_type: Literal["chat_completions", "responses"] = "responses"
 
 

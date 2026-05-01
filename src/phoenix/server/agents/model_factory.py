@@ -356,7 +356,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
 
     if params.provider == ModelProvider.OPENAI:
         api_key = await _resolve_secret_or_env(session, decrypt, "OPENAI_API_KEY")
-        base_url = params.base_url or getenv("OPENAI_BASE_URL")
+        base_url = getenv("OPENAI_BASE_URL")
         api_key = _placeholder_or_error_for_openai_compatible_provider(
             api_key=api_key,
             base_url=base_url,
@@ -367,11 +367,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             ),
         )
         openai_provider = OpenAIProvider(
-            openai_client=AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=params.custom_headers,
-            )
+            openai_client=AsyncOpenAI(api_key=api_key, base_url=base_url)
         )
         return _build_openai_model(
             model_name=params.model_name,
@@ -380,7 +376,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         )
     if params.provider == ModelProvider.AZURE_OPENAI:
         api_key = await _resolve_secret_or_env(session, decrypt, "AZURE_OPENAI_API_KEY")
-        azure_endpoint = params.endpoint or getenv("AZURE_OPENAI_ENDPOINT")
+        azure_endpoint = getenv("AZURE_OPENAI_ENDPOINT")
         if not azure_endpoint:
             raise ProviderCredentialsError(
                 "An Azure endpoint is required for Azure OpenAI models. "
@@ -389,11 +385,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         base_url = azure_endpoint_to_base_url(azure_endpoint)
         if api_key:
             openai_provider = OpenAIProvider(
-                openai_client=AsyncOpenAI(
-                    api_key=api_key,
-                    base_url=base_url,
-                    default_headers=params.custom_headers,
-                )
+                openai_client=AsyncOpenAI(api_key=api_key, base_url=base_url)
             )
         else:
             try:
@@ -408,11 +400,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "https://cognitiveservices.azure.com/.default",
             )
             openai_provider = OpenAIProvider(
-                openai_client=AsyncOpenAI(
-                    api_key=token_provider,
-                    base_url=base_url,
-                    default_headers=params.custom_headers,
-                )
+                openai_client=AsyncOpenAI(api_key=token_provider, base_url=base_url)
             )
         return _build_openai_model(
             model_name=params.model_name,
@@ -428,13 +416,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "An API key is required for Anthropic models. "
                 "Set the ANTHROPIC_API_KEY environment variable or store it in Phoenix secrets."
             )
-        anthropic_provider = AnthropicProvider(
-            anthropic_client=AsyncAnthropic(
-                api_key=api_key,
-                base_url=params.base_url,
-                default_headers=params.custom_headers,
-            )
-        )
+        anthropic_provider = AnthropicProvider(anthropic_client=AsyncAnthropic(api_key=api_key))
         return AnthropicModel(params.model_name, provider=anthropic_provider)
     if params.provider == ModelProvider.GOOGLE:
         api_key = await _resolve_secret_or_env(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
@@ -443,7 +425,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "An API key is required for Google GenAI models. "
                 "Set GEMINI_API_KEY or GOOGLE_API_KEY in the environment or Phoenix secrets."
             )
-        google_provider = GoogleProvider(api_key=api_key, base_url=params.base_url)
+        google_provider = GoogleProvider(api_key=api_key)
         return GoogleModel(params.model_name, provider=google_provider)
     if params.provider == ModelProvider.AWS:
         aws_creds = await _resolve_secrets_or_env(
@@ -457,8 +439,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
             aws_access_key_id=aws_creds["AWS_ACCESS_KEY_ID"],
             aws_secret_access_key=aws_creds["AWS_SECRET_ACCESS_KEY"],
             aws_session_token=aws_creds["AWS_SESSION_TOKEN"],
-            region_name=params.region or getenv("AWS_REGION") or "us-east-1",
-            base_url=params.base_url,
+            region_name=getenv("AWS_REGION") or "us-east-1",
         )
         return BedrockConverseModel(params.model_name, provider=bedrock_provider)
     if params.provider in {
@@ -478,64 +459,62 @@ async def _get_pydantic_ai_model_from_builtin_provider(
         ] = {
             ModelProvider.DEEPSEEK: (
                 "DEEPSEEK_API_KEY",
-                params.base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com",
+                getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com",
                 "https://api.deepseek.com",
                 "An API key is required for DeepSeek models. "
                 "Set DEEPSEEK_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.XAI: (
                 "XAI_API_KEY",
-                params.base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1",
+                getenv("XAI_BASE_URL") or "https://api.x.ai/v1",
                 "https://api.x.ai/v1",
                 "An API key is required for xAI models. "
                 "Set XAI_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.OLLAMA: (
                 None,
-                params.base_url or getenv("OLLAMA_BASE_URL"),
+                getenv("OLLAMA_BASE_URL"),
                 None,
                 "A base URL is required for Ollama models. Set OLLAMA_BASE_URL (for example http://localhost:11434/v1).",
             ),
             ModelProvider.CEREBRAS: (
                 "CEREBRAS_API_KEY",
-                params.base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1",
+                getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1",
                 "https://api.cerebras.ai/v1",
                 "An API key is required for Cerebras models. "
                 "Set CEREBRAS_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.FIREWORKS: (
                 "FIREWORKS_API_KEY",
-                params.base_url
-                or getenv("FIREWORKS_BASE_URL")
-                or "https://api.fireworks.ai/inference/v1",
+                getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1",
                 "https://api.fireworks.ai/inference/v1",
                 "An API key is required for Fireworks models. "
                 "Set FIREWORKS_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.GROQ: (
                 "GROQ_API_KEY",
-                params.base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1",
+                getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1",
                 "https://api.groq.com/openai/v1",
                 "An API key is required for Groq models. "
                 "Set GROQ_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.MOONSHOT: (
                 "MOONSHOT_API_KEY",
-                params.base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1",
+                getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1",
                 "https://api.moonshot.ai/v1",
                 "An API key is required for Moonshot models. "
                 "Set MOONSHOT_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.PERPLEXITY: (
                 "PERPLEXITY_API_KEY",
-                params.base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai",
+                getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai",
                 "https://api.perplexity.ai",
                 "An API key is required for Perplexity models. "
                 "Set PERPLEXITY_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.TOGETHER: (
                 "TOGETHER_API_KEY",
-                params.base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1",
+                getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1",
                 "https://api.together.xyz/v1",
                 "An API key is required for Together AI models. "
                 "Set TOGETHER_API_KEY in the environment or Phoenix secrets.",
@@ -561,11 +540,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 missing_credential_message=missing_credential_message,
             )
         openai_provider = OpenAIProvider(
-            openai_client=AsyncOpenAI(
-                api_key=api_key,
-                base_url=base_url,
-                default_headers=params.custom_headers,
-            )
+            openai_client=AsyncOpenAI(api_key=api_key, base_url=base_url)
         )
         return _build_openai_model(
             model_name=params.model_name,
