@@ -322,6 +322,24 @@ describe("PairwiseEvaluator", () => {
     expect(unswapped).toBe(true);
   });
 
+  it("omits seed metadata in ordering='both' since both orderings run unconditionally", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["A", "B"]).model,
+      promptTemplate,
+      ordering: "both",
+      seed: 42,
+    });
+
+    const result = await evaluator.evaluate({
+      output: "x",
+      reference: "y",
+      input: "q",
+    });
+
+    expect(result.metadata?.seed).toBeUndefined();
+  });
+
   it("omits seed metadata when seed is null (system RNG)", async () => {
     const evaluator = new PairwiseEvaluator({
       name: "pairwise",

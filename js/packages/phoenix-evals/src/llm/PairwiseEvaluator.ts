@@ -217,7 +217,10 @@ function appendStructuredInstruction({
  *   you've already accounted for position bias upstream.
  *
  * **Seed.** `seed: 0` (default) is deterministic across runs for the same row.
- * `seed: null` uses the system RNG and omits `seed` from result metadata.
+ * `seed: null` uses the system RNG. The `seed` is recorded in result metadata
+ * only when it actually influenced the result — i.e., not when `seed: null`
+ * (system RNG) and not when `ordering: "both"` (both orderings run
+ * unconditionally, so seed is not consumed).
  *
  * Use the {@link createPairwiseEvaluator} factory to instantiate (consistent
  * with the rest of the package's evaluator surface).
@@ -473,7 +476,12 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
         ordering: this.ordering,
         model: getModelIdentifier(this.model),
         passes,
-        ...(this.seed === null ? {} : { seed: this.seed }),
+        // Only emit seed when it actually influenced the result. In ordering
+        // "both" both orderings run unconditionally, so the seed is not
+        // consumed; advertising it would mislead replay tools.
+        ...(this.seed === null || this.ordering === "both"
+          ? {}
+          : { seed: this.seed }),
         ...(outcome.tieReason ? { tie_reason: outcome.tieReason } : {}),
       },
     };

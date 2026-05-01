@@ -890,8 +890,10 @@ class PairwiseEvaluator(LLMEvaluator):
       when you've already accounted for position bias upstream.
 
     **Seed.** ``seed=0`` (default) is deterministic across runs for the same
-    row. ``seed=None`` uses the system RNG and omits ``seed`` from result
-    metadata.
+    row. ``seed=None`` uses the system RNG. The ``seed`` is recorded in
+    ``Score.metadata`` only when it actually influenced the result — i.e.,
+    not when ``seed=None`` (system RNG) and not when ``ordering="both"``
+    (both orderings run unconditionally, so seed is not consumed).
 
     **Additional keyword arguments.** Any extra ``**kwargs`` are forwarded
     to ``LLMEvaluator``. The ones to know:
@@ -1225,7 +1227,10 @@ class PairwiseEvaluator(LLMEvaluator):
             "passes": [self._pass_metadata(pass_1)],
             "model": self.llm.model,
         }
-        if self.seed is not None:
+        # Only emit seed when it actually influenced the result. In ordering
+        # "both" both orderings run unconditionally, so the seed is not
+        # consumed; advertising it would mislead replay/reproducibility tools.
+        if self.seed is not None and self.ordering != "both":
             metadata["seed"] = self.seed
         if pass_2 is not None:
             metadata["passes"].append(self._pass_metadata(pass_2))

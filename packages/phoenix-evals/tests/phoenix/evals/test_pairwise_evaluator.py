@@ -301,6 +301,22 @@ def test_pairwise_random_actually_swaps_order_across_inputs() -> None:
     assert any(m == unswapped for m in mappings), "seeded RNG never preserved order"
 
 
+def test_pairwise_both_mode_omits_seed_metadata() -> None:
+    # In ordering="both", both orderings are run unconditionally — seed
+    # doesn't influence the result, so we don't advertise it.
+    evaluator = PairwiseEvaluator(
+        name="pairwise",
+        llm=PairwiseMockLLM(["A", "B"]),
+        prompt_template=PROMPT_TEMPLATE,
+        ordering="both",
+        seed=42,
+    )
+
+    score = evaluator.evaluate({"output": "x", "reference": "y", "input": "q"})[0]
+
+    assert "seed" not in score.metadata
+
+
 def test_pairwise_seed_none_omits_seed_metadata() -> None:
     evaluator = PairwiseEvaluator(
         name="pairwise",
