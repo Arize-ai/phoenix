@@ -6,6 +6,7 @@ from ...prompts import (
     Message,
     MessageRole,
     PromptLike,
+    classify_message_list_kind,
     is_openai_native_message_dict,
     normalize_role,
     validate_message_dict,
@@ -339,22 +340,32 @@ class LangChainModelAdapter(BaseLLMAdapter):
         elif isinstance(prompt, list):
             if not prompt:
                 raise ValueError("Prompt message list cannot be empty.")
-            # Check if this is List[Message] with MessageRole enum
-            if isinstance(prompt[0].get("role"), MessageRole):
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to LangChain format
                 # Type narrowing: prompt is List[Message] here
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
 
             native_prompt = cast(List[Dict[str, Any]], prompt)
             if any(is_openai_native_message_dict(msg) for msg in native_prompt):
+                # Native transcripts (tool/function/assistant-with-tool_calls)
+                # cannot be reconstructed without ``langchain_community`` —
+                # the canonical-dict fallback below would fail validation
+                # on ``content=None`` or the ``tool``/``function`` role and
+                # mask the real cause, so raise a targeted error instead.
                 try:
                     from langchain_community.adapters.openai import (
                         convert_openai_messages,
                     )
-
-                    return convert_openai_messages(native_prompt)  # type: ignore[no-any-return]
-                except ImportError:
-                    pass
+                except ImportError as exc:
+                    raise ImportError(
+                        "Provider-native tool/function transcripts require "
+                        "`langchain_community` to convert. Install it with "
+                        "`pip install langchain-community`, or convert your "
+                        "messages to typed `phoenix.evals.llm.prompts.Message` "
+                        "objects before calling the adapter."
+                    ) from exc
+                return convert_openai_messages(native_prompt)  # type: ignore[no-any-return]
 
             # OpenAI-style dict messages — validate, canonicalize roles, and
             # then emit LangChain ``BaseMessage`` subclasses.  We canonicalize

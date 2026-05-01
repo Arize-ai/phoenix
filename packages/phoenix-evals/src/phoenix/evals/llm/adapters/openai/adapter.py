@@ -9,6 +9,7 @@ from ...prompts import (
     Message,
     MessageRole,
     PromptLike,
+    classify_message_list_kind,
     is_openai_native_message_dict,
     normalize_role,
     validate_message_dict,
@@ -474,8 +475,8 @@ class OpenAIAdapter(BaseLLMAdapter):
         if isinstance(prompt, list):
             if not prompt:
                 raise ValueError("Prompt message list cannot be empty.")
-            # Check if this is List[Message] with MessageRole enum
-            if isinstance(prompt[0].get("role"), MessageRole):
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
             if any(

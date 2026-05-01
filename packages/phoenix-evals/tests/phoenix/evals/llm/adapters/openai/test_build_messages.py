@@ -189,6 +189,26 @@ def test_unknown_prompt_role_raises() -> None:
         adapter._build_messages([{"role": "narrator", "content": "x"}])
 
 
+def test_mixed_typed_and_dict_list_raises() -> None:
+    adapter = _make_adapter()
+    prompt = [
+        Message(role=MessageRole.USER, content="q"),
+        {"role": "assistant", "content": "a"},
+    ]
+    with pytest.raises(ValueError, match="mixes typed Message"):
+        adapter._build_messages(prompt)
+
+
+def test_user_message_with_name_field_is_validated_and_normalized() -> None:
+    """``name`` on user/system messages is a label, not a transcript marker —
+    the dict should still flow through validation and role normalization, not
+    bypass it via the native pass-through path."""
+    adapter = _make_adapter()
+    # Empty content should still be rejected even though ``name`` is present.
+    with pytest.raises(ValueError, match="empty string content"):
+        adapter._build_messages([{"role": "user", "name": "alice", "content": ""}])
+
+
 # --------------------------------------------------------------------------- #
 # _system_role() integration
 # --------------------------------------------------------------------------- #

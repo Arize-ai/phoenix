@@ -226,3 +226,62 @@ def test_empty_list_prompt_raises() -> None:
 def test_unknown_prompt_role_raises() -> None:
     with pytest.raises(ValueError, match="Unknown message role"):
         _make_adapter()._build_prompt([{"role": "narrator", "content": "x"}])
+
+
+def test_mixed_typed_and_dict_list_raises() -> None:
+    prompt = [
+        Message(role=MessageRole.USER, content="q"),
+        {"role": "assistant", "content": "a"},
+    ]
+    with pytest.raises(ValueError, match="mixes typed Message"):
+        _make_adapter()._build_prompt(prompt)
+
+
+def test_user_message_with_name_field_is_validated() -> None:
+    """``name`` on user/system is a label, not a transcript marker — so the
+    dict path should still validate content rather than passing through."""
+    with pytest.raises(ValueError, match="empty string content"):
+        _make_adapter()._build_prompt([{"role": "user", "name": "alice", "content": ""}])
+
+
+def test_native_transcript_without_langchain_community_raises_clear_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If ``langchain_community`` is unavailable, native tool transcripts
+    should raise a targeted ``ImportError`` pointing the user at the missing
+    dependency rather than falling through to a misleading content-validation
+    error."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(
+        name: str,
+        globals=None,
+        locals=None,
+        fromlist=(),
+        level: int = 0,
+    ):
+        if name.startswith("langchain_community"):
+            raise ImportError(f"mocked: {name} not available")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    adapter = _make_adapter()
+    prompt = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "result"},
+    ]
+    with pytest.raises(ImportError, match="langchain.community"):
+        adapter._build_prompt(prompt)

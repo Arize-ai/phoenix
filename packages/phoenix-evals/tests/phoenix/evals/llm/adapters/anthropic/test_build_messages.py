@@ -174,3 +174,17 @@ def test_empty_list_prompt_raises() -> None:
 def test_unknown_role_raises() -> None:
     with pytest.raises(ValueError, match="Unknown message role"):
         _make_adapter()._build_messages([{"role": "tool", "content": "x"}])
+
+
+def test_mixed_typed_and_dict_list_raises() -> None:
+    prompt = [
+        Message(role=MessageRole.USER, content="q"),
+        {"role": "assistant", "content": "a"},
+    ]
+    with pytest.raises(ValueError, match="mixes typed Message"):
+        _make_adapter()._build_messages(prompt)
+
+
+def test_user_message_with_name_field_is_validated() -> None:
+    with pytest.raises(ValueError, match="empty string content"):
+        _make_adapter()._build_messages([{"role": "user", "name": "alice", "content": ""}])
