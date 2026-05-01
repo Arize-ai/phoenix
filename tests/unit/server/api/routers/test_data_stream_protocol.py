@@ -8,13 +8,9 @@ from phoenix.server.api.routers.data_stream_protocol import (
     _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
     _build_trace_messages,
-    _is_legacy_default_system_prompt,
     _latest_nonzero_cache_tokens,
     parse_chat_body,
 )
-
-_LEGACY_PROMPT_PREFIX = "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
-_LEGACY_DEFAULT_SYSTEM_PROMPT = _LEGACY_PROMPT_PREFIX + ("x" * (3970 - len(_LEGACY_PROMPT_PREFIX)))
 
 
 class TestParseChatBody:
@@ -108,55 +104,6 @@ class TestParseChatBody:
         assert static_part.dynamic is False
         assert dynamic_part.dynamic is True
         assert "<user_custom_instructions>\nPrefer concise answers." in dynamic_part.content
-
-    def test_drops_legacy_default_system_prompt_fallback(self) -> None:
-        raw = json.dumps(
-            {
-                "trigger": "submit-message",
-                "id": "test-1",
-                "messages": [
-                    {
-                        "id": "msg-1",
-                        "role": "user",
-                        "parts": [{"type": "text", "text": "Hello"}],
-                    }
-                ],
-                "system": _LEGACY_DEFAULT_SYSTEM_PROMPT,
-            }
-        ).encode()
-
-        body = parse_chat_body(raw)
-
-        assert _is_legacy_default_system_prompt(_LEGACY_DEFAULT_SYSTEM_PROMPT) is True
-        assert body.user_instructions is None
-        assert "<user_custom_instructions>" not in "\n\n".join(
-            part.content for part in body.instruction_parts
-        )
-
-    def test_preserves_custom_legacy_system_prompt_fallback(self) -> None:
-        raw = json.dumps(
-            {
-                "trigger": "submit-message",
-                "id": "test-1",
-                "messages": [
-                    {
-                        "id": "msg-1",
-                        "role": "user",
-                        "parts": [{"type": "text", "text": "Hello"}],
-                    }
-                ],
-                "system": "Prefer concise answers.",
-            }
-        ).encode()
-
-        body = parse_chat_body(raw)
-
-        assert body.user_instructions == "Prefer concise answers."
-        assert len(body.instruction_parts) == 2
-        assert (
-            "<user_custom_instructions>\nPrefer concise answers."
-            in body.instruction_parts[1].content
-        )
 
     def test_appends_capability_guidance_to_system_prompt(self) -> None:
         raw = json.dumps(

@@ -50,9 +50,6 @@ _FINISH_REASON_MAP: dict[
     "error": "error",
 }
 
-_LEGACY_DEFAULT_SYSTEM_PROMPT_LENGTH = 3970
-_LEGACY_DEFAULT_SYSTEM_PROMPT_PREFIX = "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
-
 
 def _anthropic_model_settings_for_cache(model: "Model") -> Any | None:
     """Return Anthropic cache settings when the selected model is Anthropic-backed."""
@@ -79,26 +76,6 @@ def _latest_nonzero_cache_tokens(
         usage.cache_read_tokens or current_read,
         usage.cache_write_tokens or current_write,
     )
-
-
-def _is_legacy_default_system_prompt(value: str | None) -> bool:
-    return (
-        value is not None
-        and len(value) == _LEGACY_DEFAULT_SYSTEM_PROMPT_LENGTH
-        and value.startswith(_LEGACY_DEFAULT_SYSTEM_PROMPT_PREFIX)
-    )
-
-
-def _resolve_user_instructions(
-    *,
-    user_instructions: str | None,
-    legacy_system: str | None,
-) -> str | None:
-    if user_instructions is not None:
-        return user_instructions
-    if _is_legacy_default_system_prompt(legacy_system):
-        return None
-    return legacy_system
 
 
 def _build_trace_messages(
@@ -201,12 +178,8 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     logger.debug("capabilities=%r", body.capabilities)
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
-    user_instructions = _resolve_user_instructions(
-        user_instructions=body.user_instructions,
-        legacy_system=body.system,
-    )
     system_prompts = build_agent_system_prompts(
-        user_instructions=user_instructions,
+        user_instructions=body.user_instructions,
         capabilities=body.capabilities,
     )
 
@@ -224,7 +197,7 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
         messages=messages,
         instruction_parts=instruction_parts,
         output_tools=body.output_tools,
-        user_instructions=user_instructions,
+        user_instructions=body.user_instructions,
         session_id=body.session_id,
         capabilities=body.capabilities,
         export_remote_traces=body.export_remote_traces,
