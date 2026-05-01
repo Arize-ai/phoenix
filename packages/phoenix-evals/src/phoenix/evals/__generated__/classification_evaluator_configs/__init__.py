@@ -17,6 +17,9 @@ from ._hallucination_classification_evaluator_config import (
 )
 from ._models import ClassificationEvaluatorConfig, PromptMessage
 from ._refusal_classification_evaluator_config import REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG
+from ._tool_bypass_classification_evaluator_config import (
+    TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG,
+)
 from ._tool_invocation_classification_evaluator_config import (
     TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG,
 )
@@ -36,6 +39,7 @@ __all__ = [
     "FAITHFULNESS_CLASSIFICATION_EVALUATOR_CONFIG",
     "HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG",
     "REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG",
+    "TOOL_BYPASS_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG",
     "TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG",

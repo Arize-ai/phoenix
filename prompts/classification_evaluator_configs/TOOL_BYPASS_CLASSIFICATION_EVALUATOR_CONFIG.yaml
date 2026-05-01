@@ -1,0 +1,64 @@
+name: tool_bypass
+description: Detects assistant content that asserts an entity-affecting outcome with no matching tool span in the trace.
+labels:
+  - promoted_dataset_evaluator
+optimization_direction: maximize
+messages:
+  - role: user
+    content: |-
+      You are an impartial judge evaluating an LLM agent's claim of having performed an action, specifically whether the assistant asserted an entity-affecting outcome (a state change, a created record, an updated value) without firing a corresponding tool.
+
+      Your task: Determine whether the assistant's content represents a "tool bypass" failure based on:
+      - The assistant's output (what was claimed)
+      - The set of tool calls observed in the same trace
+      - The available tools the agent could have called
+
+      Definition of tool bypass:
+      The assistant content asserts an entity-affecting outcome AND no tool call in the same trace references the same entity within the trace window.
+
+      Return "grounded" only when ALL of the following are true:
+      - The assistant's claim of an action is supported by a tool call in the trace.
+      - The tool call references the same entity claimed in the assertion (same user, same record, same field).
+      - The tool call is consistent in direction with the claim (an "added" claim has an additive tool call, not a query).
+
+      Return "phantom" if ANY of the following are true:
+      - The assistant claims an action was performed and no tool span exists in the trace.
+      - A tool call exists but references a different entity than the one claimed.
+      - The assistant claims an outcome (e.g. "logged 16/16") without a matching tool span confirming that outcome.
+
+      Important boundary cases to handle correctly:
+      - Quoted historical claims: if the assistant is summarizing or correcting a prior phantom (e.g. "you said 16/16 but nothing got logged"), that is NOT a fresh phantom. Return "grounded".
+      - Date or numeric collisions: "4/16" as a date in a calendar context is NOT a water-cup count and NOT a phantom claim of action.
+      - Reading vs. asserting: "you're at 48g" as a recall of a prior tool result is grounded if a prior tool call set that state.
+
+      Before providing your final judgment, consider:
+      - What entity does the assertion reference (user, record, field, value)?
+      - Does any tool call in the trace touch that entity?
+      - Is the assertion a fresh action claim or a reading of prior state?
+
+      <data>
+      <input>
+      {{input}}
+      </input>
+
+      <assistant_output>
+      {{assistant_output}}
+      </assistant_output>
+
+      <tool_spans>
+      {{tool_spans}}
+      </tool_spans>
+
+      <available_tools>
+      {{available_tools}}
+      </available_tools>
+      </data>
+
+      Given the above data, is the assistant's outcome claim grounded or a phantom?
+choices:
+  grounded: 1.0
+  phantom: 0.0
+substitutions:
+  assistant_output: assistant_response_text
+  tool_spans: observed_tool_call_summary
+  available_tools: available_tools_list
