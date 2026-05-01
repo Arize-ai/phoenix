@@ -78,6 +78,10 @@ export type AgentSessionUsage = {
     prompt: number;
     completion: number;
     total: number;
+    promptDetails?: {
+      cacheRead: number;
+      cacheWrite: number;
+    };
   };
   // this can be extended with cost in the future
 };
@@ -203,7 +207,12 @@ export interface AgentState extends AgentProps {
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
   setSessionUsage: (
     sessionId: string,
-    newUsage: { prompt: number; completion: number }
+    newUsage: {
+      prompt: number;
+      completion: number;
+      total?: number;
+      promptDetails?: { cacheRead: number; cacheWrite: number };
+    }
   ) => void;
 
   // -- Page and mounted contexts advertised with /chat (ephemeral) --
@@ -544,7 +553,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
                   tokenCount: {
                     prompt: newUsage.prompt,
                     completion: newUsage.completion,
-                    total: newUsage.prompt + newUsage.completion,
+                    total:
+                      newUsage.total ?? newUsage.prompt + newUsage.completion,
+                    ...(newUsage.promptDetails
+                      ? { promptDetails: newUsage.promptDetails }
+                      : {}),
                   } satisfies AgentSessionUsage["tokenCount"],
                 },
               },

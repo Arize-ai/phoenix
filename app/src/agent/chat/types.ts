@@ -18,6 +18,12 @@ export const assistantMessageMetadataSchema = z.object({
         completion: z.number().min(0),
         total: z.number().min(0),
       }),
+      promptDetails: z
+        .object({
+          cacheRead: z.number().min(0),
+          cacheWrite: z.number().min(0),
+        })
+        .optional(),
     })
     .optional(),
 });

@@ -5,8 +5,15 @@ from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
     _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
+    _latest_nonzero_cache_tokens,
     parse_chat_body,
 )
+
+
+class _FakeUsage:
+    def __init__(self, *, cache_read_tokens: int = 0, cache_write_tokens: int = 0) -> None:
+        self.cache_read_tokens = cache_read_tokens
+        self.cache_write_tokens = cache_write_tokens
 
 
 class TestParseChatBody:
@@ -149,6 +156,34 @@ class TestAnthropicModelSettingsForCache:
         OtherModel = type("OtherModel", (), {"__module__": "pydantic_ai.models.openai"})
 
         assert _anthropic_model_settings_for_cache(OtherModel()) is None
+
+
+class TestLatestNonzeroCacheTokens:
+    def test_keeps_prior_cache_tokens_when_latest_usage_has_zeroes(self) -> None:
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=0,
+            current_write=0,
+            usage=_FakeUsage(cache_read_tokens=123, cache_write_tokens=456),
+        )
+
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=cache_read,
+            current_write=cache_write,
+            usage=_FakeUsage(cache_read_tokens=0, cache_write_tokens=0),
+        )
+
+        assert cache_read == 123
+        assert cache_write == 456
+
+    def test_updates_cache_tokens_when_later_usage_has_nonzeroes(self) -> None:
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=123,
+            current_write=456,
+            usage=_FakeUsage(cache_read_tokens=789, cache_write_tokens=101),
+        )
+
+        assert cache_read == 789
+        assert cache_write == 101
 
 
 class TestStreamAccumulator:

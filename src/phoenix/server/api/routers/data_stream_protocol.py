@@ -24,6 +24,7 @@ from phoenix.server.agents.prompts import build_agent_system_prompts
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
+    AgentMessageMetadataUsageTokenDetails,
     AgentMessageMetadataUsageTokens,
     StreamAccumulator,
 )
@@ -62,6 +63,18 @@ def _anthropic_model_settings_for_cache(model: "Model") -> Any | None:
         anthropic_cache=True,
         anthropic_cache_instructions=True,
         anthropic_cache_tool_definitions=True,
+    )
+
+
+def _latest_nonzero_cache_tokens(
+    *,
+    current_read: int,
+    current_write: int,
+    usage: "RequestUsage",
+) -> tuple[int, int]:
+    return (
+        usage.cache_read_tokens or current_read,
+        usage.cache_write_tokens or current_write,
     )
 
 
@@ -552,6 +565,8 @@ async def stream_text(
         loop_count = 0
         final_output_text: str | None = None
         usage: RequestUsage | None = None
+        turn_cache_read_tokens = 0
+        turn_cache_write_tokens = 0
         try:
             while loop_count < _MAX_BACKEND_TOOL_LOOPS:
                 loop_count += 1
@@ -594,6 +609,13 @@ async def stream_text(
                         if iter_text:
                             final_output_text = iter_text
                         usage = stream.usage()
+                        turn_cache_read_tokens, turn_cache_write_tokens = (
+                            _latest_nonzero_cache_tokens(
+                                current_read=turn_cache_read_tokens,
+                                current_write=turn_cache_write_tokens,
+                                usage=usage,
+                            )
+                        )
                         if llm_span is not None:
                             finalize_llm_span(
                                 llm_span,
@@ -758,15 +780,18 @@ async def stream_text(
         additional_metadata = None
         if usage:
             logger.debug(usage)
-            # Guard against None (pydantic-ai's RequestUsage fields are Optional[int])
-            # to avoid JSON nulls that would fail frontend Zod validation.
+            prompt_details = AgentMessageMetadataUsageTokenDetails(
+                cacheRead=turn_cache_read_tokens,
+                cacheWrite=turn_cache_write_tokens,
+            )
             additional_metadata = AgentMessageMetadata(
                 usage=AgentMessageMetadataUsage(
                     tokens=AgentMessageMetadataUsageTokens(
                         prompt=usage.input_tokens or 0,
                         completion=usage.output_tokens or 0,
                         total=usage.total_tokens or 0,
-                    )
+                    ),
+                    promptDetails=prompt_details,
                 )
             )
 
