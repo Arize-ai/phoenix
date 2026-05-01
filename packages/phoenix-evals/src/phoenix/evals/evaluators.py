@@ -993,13 +993,20 @@ class PairwiseEvaluator(LLMEvaluator):
             structured_instruction += ', and "explanation": a brief rationale.'
         else:
             structured_instruction += "."
-        if isinstance(prompt, str):
-            return f"{prompt}{structured_instruction}"
         rendered_messages = copy.deepcopy(prompt)
-        if rendered_messages:
-            rendered_messages[-1]["content"] = (
-                f"{rendered_messages[-1]['content']}{structured_instruction}"
-            )
+        if not rendered_messages:
+            return rendered_messages
+        last = rendered_messages[-1]
+        last_content = last["content"]
+        if isinstance(last_content, str):
+            last["content"] = f"{last_content}{structured_instruction}"
+        else:
+            # Multimodal content: append a new text part rather than
+            # stringifying the list of ContentParts.
+            last["content"] = [
+                *last_content,
+                {"type": "text", "text": structured_instruction},
+            ]
         return rendered_messages
 
     def _valid_choices(self) -> List[str]:
