@@ -283,4 +283,180 @@ describe("PairwiseEvaluator", () => {
     expect(evaluator.name).toBe("pairwise_quality");
     expect(result.label).toBe("tie");
   });
+
+  it("hits the swap branch on at least one row when seeded", async () => {
+    // Strengthens determinism coverage: with a single row, seeded equality
+    // can pass even if the swap path is broken. Across a fixture, the
+    // seeded RNG must produce both swapped and unswapped orderings.
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      output: `o-${i}`,
+      reference: `r-${i}`,
+      input: `q-${i}`,
+    }));
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(rows.map(() => "A")).model,
+      promptTemplate,
+      ordering: "random",
+      seed: 0,
+    });
+
+    const mappings: Array<Record<string, string>> = [];
+    for (const row of rows) {
+      const result = await evaluator.evaluate(row);
+      const passes = result.metadata?.passes as
+        | Array<{ position_mapping: Record<string, string> }>
+        | undefined;
+      if (passes?.[0]) {
+        mappings.push(passes[0].position_mapping);
+      }
+    }
+
+    const swapped = mappings.some(
+      (m) => m.A === "reference" && m.B === "output"
+    );
+    const unswapped = mappings.some(
+      (m) => m.A === "output" && m.B === "reference"
+    );
+    expect(swapped).toBe(true);
+    expect(unswapped).toBe(true);
+  });
+
+  it("omits seed metadata when seed is null (system RNG)", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["A"]).model,
+      promptTemplate,
+      ordering: "fixed",
+      seed: null,
+    });
+
+    const result = await evaluator.evaluate({
+      output: "x",
+      reference: "y",
+      input: "q",
+    });
+
+    expect(result.metadata?.seed).toBeUndefined();
+  });
+
+  it.each([
+    ["a", "a"],
+    ["tie", "b"],
+    ["item_1", "x"],
+    ["response_1", "x"],
+    ["", "b"],
+  ] as const)("rejects invalid groups [%s, %s]", (a, b) => {
+    expect(
+      () =>
+        new PairwiseEvaluator({
+          name: "pairwise",
+          model: createMockModel(["A"]).model,
+          promptTemplate,
+          groups: [a, b],
+        })
+    ).toThrow();
+  });
+
+  it("rejects prompt templates that reference default group keys", () => {
+    expect(
+      () =>
+        new PairwiseEvaluator({
+          name: "pairwise",
+          model: createMockModel(["A"]).model,
+          promptTemplate: `Question: {{input}}\n\nResponse A: {{output}}\nResponse B: {{item_2}}`,
+        })
+    ).toThrow();
+  });
+
+  it("rejects prompt templates that reference reserved {{response_a}}", () => {
+    expect(
+      () =>
+        new PairwiseEvaluator({
+          name: "pairwise",
+          model: createMockModel(["A"]).model,
+          promptTemplate: `Question: {{input}}\n\nResponse A: {{response_a}}\nResponse B: {{item_2}}`,
+        })
+    ).toThrow();
+  });
+
+  it("returns an explicit tie on a single pass when allowTies is true", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["tie"]).model,
+      promptTemplate,
+      ordering: "fixed",
+      allowTies: true,
+    });
+
+    const result = await evaluator.evaluate({
+      output: "x",
+      reference: "y",
+      input: "q",
+    });
+
+    expect(result.label).toBe("tie");
+    expect(result.score).toBe(0.5);
+    expect(result.metadata?.tie_reason).toBeUndefined();
+  });
+
+  it("flags explicit_tie when one pass returns tie in both mode", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["A", "tie"]).model,
+      promptTemplate,
+      ordering: "both",
+      allowTies: true,
+    });
+
+    const result = await evaluator.evaluate({
+      output: "x",
+      reference: "y",
+      input: "q",
+    });
+
+    expect(result.label).toBe("tie");
+    expect(result.metadata?.tie_reason).toBe("explicit_tie");
+  });
+
+  it("rejects eval input missing one of the group keys", async () => {
+    const evaluator = new PairwiseEvaluator({
+      name: "pairwise",
+      model: createMockModel(["A"]).model,
+      promptTemplate,
+      ordering: "fixed",
+    });
+
+    await expect(
+      // @ts-expect-error - intentionally missing 'reference'
+      evaluator.evaluate({ output: "x", input: "q" })
+    ).rejects.toThrow(/requires both/);
+  });
+
+  it("winRate throws on empty input", () => {
+    expect(() => winRate({ scores: [] })).toThrow(/at least one/);
+  });
+
+  it("winRate throws on score without comparator-groups metadata", () => {
+    expect(() =>
+      winRate({ scores: [{ label: "output", metadata: {} }] })
+    ).toThrow(/comparator groups/);
+  });
+
+  it("winRate throws on heterogeneous comparator groups", () => {
+    expect(() =>
+      winRate({
+        scores: [
+          {
+            label: "output",
+            metadata: { groups: ["output", "reference"], passes: [] },
+          },
+          {
+            label: "claude",
+            metadata: { groups: ["claude", "gpt"], passes: [] },
+          },
+        ],
+      })
+    ).toThrow(/share the same/);
+  });
 });
