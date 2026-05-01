@@ -318,6 +318,22 @@ def test_pairwise_seed_none_omits_seed_metadata() -> None:
 # --- Group / template validation ------------------------------------------
 
 
+def test_pairwise_groups_accepts_list_literal() -> None:
+    # 2-element list is the natural literal for callers coming from JSON;
+    # validator coerces to tuple internally.
+    evaluator = PairwiseEvaluator(
+        name="pairwise",
+        llm=PairwiseMockLLM(["A"]),
+        prompt_template=PROMPT_TEMPLATE,
+        groups=["claude", "gpt"],  # type: ignore[arg-type]
+        ordering="fixed",
+    )
+
+    score = evaluator.evaluate({"claude": "x", "gpt": "y", "input": "q"})[0]
+
+    assert score.metadata["groups"] == ["claude", "gpt"]
+
+
 @pytest.mark.parametrize(
     "groups",
     [

@@ -982,8 +982,14 @@ class PairwiseEvaluator(LLMEvaluator):
 
     @staticmethod
     def _validate_groups(groups: Tuple[str, str]) -> Tuple[str, str]:
+        # Accept either a 2-tuple or a 2-element list (the natural literal for
+        # users coming from JSON-y data). Coerce to tuple internally.
+        if isinstance(groups, list) and len(groups) == 2:
+            groups = tuple(groups)  # type: ignore[assignment]
         if not isinstance(groups, tuple) or len(groups) != 2:
-            raise ValueError("PairwiseEvaluator groups must be a 2-tuple of strings.")
+            raise ValueError(
+                "PairwiseEvaluator groups must be a 2-tuple (or 2-element list) of strings."
+            )
         group_1, group_2 = groups
         if not isinstance(group_1, str) or not isinstance(group_2, str):
             raise ValueError("PairwiseEvaluator groups must be strings.")
