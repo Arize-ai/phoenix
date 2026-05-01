@@ -492,6 +492,9 @@ class LiteLLMAdapter(BaseLLMAdapter):
             # reasoning models internally, so we preserve OpenAI-compatible
             # SYSTEM role strings ("system" / "developer") verbatim rather than
             # normalizing both to "system" via the MessageRole round-trip.
+            # Caller-supplied keys other than ``role``/``content`` (e.g. the
+            # documented ``name`` field) are preserved so the validating dict
+            # path matches the native pass-through's compatibility guarantee.
             output: list[dict[str, Any]] = []
             for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
                 validate_message_dict(msg, index=i)
@@ -505,14 +508,17 @@ class LiteLLMAdapter(BaseLLMAdapter):
                     role_str = canonical.value  # "user" or "assistant"
                 content = msg["content"]
                 if isinstance(content, str):
-                    output.append({"role": role_str, "content": content})
+                    body: dict[str, Any] = {"role": role_str, "content": content}
                 else:
                     # Content-part list: join text parts (non-text parts dropped,
                     # matching _transform_messages_to_openai behaviour).
                     text_parts = [
                         p["text"] for p in content if p.get("type") == "text" and "text" in p
                     ]
-                    output.append({"role": role_str, "content": "\n".join(text_parts)})
+                    body = {"role": role_str, "content": "\n".join(text_parts)}
+                extras = {k: v for k, v in msg.items() if k not in ("role", "content")}
+                # Canonical role/content win over any conflicting caller keys.
+                output.append({**extras, **body})
             return output
 
         # If we get here, prompt is an unexpected type

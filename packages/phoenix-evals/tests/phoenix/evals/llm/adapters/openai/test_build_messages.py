@@ -209,6 +209,38 @@ def test_user_message_with_name_field_is_validated_and_normalized() -> None:
         adapter._build_messages([{"role": "user", "name": "alice", "content": ""}])
 
 
+def test_user_message_with_name_field_round_trips() -> None:
+    """OpenAI's Chat Completions schema documents ``name`` on user/system
+    messages for participant disambiguation and few-shot exemplar labeling.
+    The validating dict path must preserve it on the wire so callers don't
+    silently lose few-shot labels or trace-correlation identifiers."""
+    adapter = _make_adapter()
+    result = adapter._build_messages(
+        [
+            {"role": "system", "name": "policy", "content": "be concise"},
+            {"role": "user", "name": "alice", "content": "hi"},
+            {"role": "user", "name": "bob", "content": "hello"},
+        ]
+    )
+    assert result == [
+        {"role": "system", "name": "policy", "content": "be concise"},
+        {"role": "user", "name": "alice", "content": "hi"},
+        {"role": "user", "name": "bob", "content": "hello"},
+    ]
+
+
+def test_unknown_extra_keys_are_preserved_on_dict_path() -> None:
+    """Beyond ``name``, any other caller-supplied keys flow through unchanged.
+    Canonical ``role`` and ``content`` from the transform always win."""
+    adapter = _make_adapter()
+    result = adapter._build_messages(
+        [{"role": "user", "name": "alice", "content": "hi", "metadata": {"trace_id": "abc"}}]
+    )
+    assert result == [
+        {"role": "user", "name": "alice", "content": "hi", "metadata": {"trace_id": "abc"}}
+    ]
+
+
 # --------------------------------------------------------------------------- #
 # _system_role() integration
 # --------------------------------------------------------------------------- #

@@ -80,7 +80,10 @@ def is_openai_native_message_dict(msg: Mapping[str, Any]) -> bool:
     The heuristic is intentionally conservative: ``user`` / ``system`` dicts
     are *not* treated as native even when they carry a ``name`` field, so they
     still flow through the shared ``validate_message_dict`` and
-    ``normalize_role`` helpers.
+    ``normalize_role`` helpers.  The validating dict path preserves any
+    caller-supplied keys other than ``role`` / ``content`` (including ``name``)
+    on the resulting message, so this routing choice does not strip extras —
+    it just runs them through prompt-shape validation first.
     """
     role = msg.get("role")
     role_lower = role.strip().lower() if isinstance(role, str) else None

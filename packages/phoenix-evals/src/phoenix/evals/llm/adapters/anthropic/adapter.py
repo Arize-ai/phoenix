@@ -321,8 +321,16 @@ class AnthropicAdapter(BaseLLMAdapter):
             if not prompt:
                 raise ValueError("Prompt message list cannot be empty.")
             # Reject mixed lists (typed Message + raw dict) up front.
+            #
+            # ``extras_per_msg`` mirrors ``messages_typed`` index-for-index and
+            # captures any caller-supplied keys other than ``role``/``content``
+            # on the dict path (e.g. the documented OpenAI ``name`` field).
+            # The typed-input branch can't carry extras, so we pad with empty
+            # dicts to keep the indexing parallel.
+            extras_per_msg: List[Dict[str, Any]] = []
             if classify_message_list_kind(prompt) == "typed":
                 messages_typed = cast(List[Message], prompt)
+                extras_per_msg = [{} for _ in messages_typed]
             else:
                 # OpenAI-style dict messages — validate and canonicalize before
                 # routing through the typed transform.  Normalizing here means
@@ -333,6 +341,9 @@ class AnthropicAdapter(BaseLLMAdapter):
                     validate_message_dict(msg, index=i)
                     role = normalize_role(msg["role"])
                     messages_typed.append(Message(role=role, content=msg["content"]))
+                    extras_per_msg.append(
+                        {k: v for k, v in msg.items() if k not in ("role", "content")}
+                    )
 
             # Extract system messages first
             system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
@@ -340,6 +351,18 @@ class AnthropicAdapter(BaseLLMAdapter):
                 self._extract_text_from_content(msg["content"]) for msg in system_messages
             )
             anthropic_messages = self._transform_messages_to_anthropic(messages_typed)
+            # Re-attach extras for non-system messages (system extras are
+            # discarded since they fold into the ``system`` string).  The
+            # transform preserves the order of non-system messages, so we walk
+            # both lists together.
+            non_system_extras = [
+                extras
+                for extras, msg in zip(extras_per_msg, messages_typed)
+                if msg["role"] != MessageRole.SYSTEM
+            ]
+            anthropic_messages = [
+                {**extras, **out} for extras, out in zip(non_system_extras, anthropic_messages)
+            ]
             return anthropic_messages, system_content
 
         # If we get here, prompt is an unexpected type

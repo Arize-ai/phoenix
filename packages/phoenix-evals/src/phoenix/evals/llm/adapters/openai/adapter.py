@@ -484,13 +484,24 @@ class OpenAIAdapter(BaseLLMAdapter):
             ):
                 return cast(list[dict[str, Any]], prompt)
             # Otherwise: OpenAI-style dict messages. Validate and canonicalize
-            # roles, then route through the same typed transform.
+            # roles, then route through the same typed transform.  Preserve any
+            # caller-supplied keys other than ``role``/``content`` (e.g. the
+            # documented ``name`` field used to label few-shot exemplars or
+            # multi-participant turns) so the validating dict path matches the
+            # native pass-through's compatibility guarantee.
             typed_messages: List[Message] = []
+            extras_per_msg: List[Dict[str, Any]] = []
             for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
                 validate_message_dict(msg, index=i)
                 role = normalize_role(msg["role"])
                 typed_messages.append(Message(role=role, content=msg["content"]))
-            return self._transform_messages_to_openai(typed_messages)
+                extras_per_msg.append(
+                    {k: v for k, v in msg.items() if k not in ("role", "content")}
+                )
+            transformed = self._transform_messages_to_openai(typed_messages)
+            # Canonical role/content from the transform always win over caller
+            # extras with conflicting keys.
+            return [{**extras, **out} for extras, out in zip(extras_per_msg, transformed)]
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")

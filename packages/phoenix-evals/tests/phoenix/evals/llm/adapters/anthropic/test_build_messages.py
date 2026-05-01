@@ -188,3 +188,34 @@ def test_mixed_typed_and_dict_list_raises() -> None:
 def test_user_message_with_name_field_is_validated() -> None:
     with pytest.raises(ValueError, match="empty string content"):
         _make_adapter()._build_messages([{"role": "user", "name": "alice", "content": ""}])
+
+
+def test_user_message_with_name_field_round_trips_on_non_system_messages() -> None:
+    """Non-system messages are forwarded as Anthropic message dicts; any
+    caller-supplied extras (e.g. ``name``) ride along on those dicts.
+    System-role extras are intentionally discarded because the system text
+    folds into the separate ``system`` string parameter."""
+    messages, system = _make_adapter()._build_messages(
+        [
+            {"role": "system", "name": "policy", "content": "be concise"},
+            {"role": "user", "name": "alice", "content": "hi"},
+            {"role": "assistant", "name": "bot", "content": "hello"},
+        ]
+    )
+    assert system == "be concise"
+    assert messages == [
+        {"role": "user", "name": "alice", "content": "hi"},
+        {"role": "assistant", "name": "bot", "content": "hello"},
+    ]
+
+
+def test_unknown_extra_keys_are_preserved_on_dict_path() -> None:
+    """Caller-supplied keys other than ``role``/``content`` flow through
+    unchanged on non-system messages; canonical role/content from the
+    transform always win."""
+    messages, _ = _make_adapter()._build_messages(
+        [{"role": "user", "name": "alice", "content": "hi", "metadata": {"trace_id": "abc"}}]
+    )
+    assert messages == [
+        {"role": "user", "name": "alice", "content": "hi", "metadata": {"trace_id": "abc"}}
+    ]
