@@ -44,13 +44,15 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # Allow DNS
+    # Allow DNS to kube-system namespace
     - to:
-        - namespaceSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
       ports:
         - protocol: UDP
           port: 53
-    # Allow only specific AI provider endpoints
+    # Allow HTTPS to approved endpoints, block private IPs and metadata
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -59,12 +61,16 @@ spec:
               - 10.0.0.0/8
               - 172.16.0.0/12
               - 192.168.0.0/16
-              # Block link-local and metadata
+              # Block link-local and metadata endpoints
               - 169.254.0.0/16
       ports:
         - protocol: TCP
           port: 443
 ```
+
+<Note>
+Network policies require a CNI plugin that supports them (e.g., Calico, Cilium, Weave Net). On GKE with Workload Identity enabled, you may also need to block `169.254.169.252/32` in addition to the `169.254.0.0/16` range.
+</Note>
 
 **AWS Security Groups**
 
@@ -196,7 +202,7 @@ In air-gapped environments, you can still use the Playground by:
   </Accordion>
 
   <Accordion title="Can I audit which external URLs Phoenix accesses?">
-    Yes, by routing traffic through a proxy server that logs requests. You can also enable `PHOENIX_LOG_SQL=true` to log database queries, but this doesn't capture outbound HTTP requests. For comprehensive auditing, use a network proxy or service mesh with logging enabled.
+    Yes, by routing traffic through a proxy server that logs requests. For comprehensive auditing of outbound HTTP requests, use a network proxy or service mesh with logging enabled. This will capture all requests to AI provider APIs and custom URLs configured in the Playground.
   </Accordion>
 </AccordionGroup>
 
