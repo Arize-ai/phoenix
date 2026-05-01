@@ -151,10 +151,10 @@ console.log(relevanceResult);
 Use `PairwiseEvaluator` when you need to compare two model outputs side by side. It randomizes presentation order by default to reduce position bias, supports ties, and stores the A/B position mapping in `metadata`.
 
 ```typescript
-import { PairwiseEvaluator, winRate } from "@arizeai/phoenix-evals";
+import { createPairwiseEvaluator, winRate } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
-const evaluator = new PairwiseEvaluator({
+const evaluator = createPairwiseEvaluator({
   name: "pairwise_quality",
   model: openai("gpt-4o"),
   promptTemplate: `

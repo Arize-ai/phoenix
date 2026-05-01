@@ -219,9 +219,14 @@ function appendStructuredInstruction({
  * **Seed.** `seed: 0` (default) is deterministic across runs for the same row.
  * `seed: null` uses the system RNG and omits `seed` from result metadata.
  *
+ * Use the {@link createPairwiseEvaluator} factory to instantiate (consistent
+ * with the rest of the package's evaluator surface).
+ *
  * @example
  * ```ts
- * const evaluator = new PairwiseEvaluator({
+ * import { createPairwiseEvaluator } from "@arizeai/phoenix-evals";
+ *
+ * const evaluator = createPairwiseEvaluator({
  *   name: "quality",
  *   model,
  *   promptTemplate: `Question: {{input}}\n\nResponse A:\n{{item_1}}\n\nResponse B:\n{{item_2}}\n\nWhich is better?`,
