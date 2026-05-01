@@ -1,4 +1,3 @@
-import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import { createAgentStore } from "../agentStore";
@@ -75,12 +74,12 @@ describe("agentStore", () => {
     });
   });
 
-  describe("setSystemPrompt", () => {
-    it("updates systemPrompt", () => {
+  describe("setUserInstructions", () => {
+    it("updates userInstructions", () => {
       const store = createAgentStore();
-      expect(store.getState().systemPrompt).toBe(AGENT_SYSTEM_PROMPT);
-      store.getState().setSystemPrompt("custom");
-      expect(store.getState().systemPrompt).toBe("custom");
+      expect(store.getState().userInstructions).toBe("");
+      store.getState().setUserInstructions("custom");
+      expect(store.getState().userInstructions).toBe("custom");
     });
   });
 

@@ -3,7 +3,6 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
@@ -17,15 +16,6 @@ import {
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
-
-function isLegacyDefaultSystemPrompt(value: string | undefined): boolean {
-  return (
-    value?.length === 3970 &&
-    value?.startsWith(
-      "<role>\nYou are PXI, Arize AI's Phoenix in-product agent."
-    ) === true
-  );
-}
 
 /**
  * Layout position of the agent panel.
@@ -149,10 +139,9 @@ export interface AgentProps {
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
   /**
-   * System instructions sent with PXI agent chat requests (editable in Settings).
    * User-editable instructions inserted into the server-owned PXI prompt.
    */
-  systemPrompt: string;
+  userInstructions: string;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -182,7 +171,7 @@ export interface AgentState extends AgentProps {
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
-  setSystemPrompt: (systemPrompt: string) => void;
+  setUserInstructions: (userInstructions: string) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
@@ -280,7 +269,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
-    systemPrompt: AGENT_SYSTEM_PROMPT,
+    userInstructions: "",
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
@@ -452,8 +441,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
-    setSystemPrompt: (systemPrompt) => {
-      set({ systemPrompt }, false, { type: "setSystemPrompt" });
+    setUserInstructions: (userInstructions) => {
+      set({ userInstructions }, false, { type: "setUserInstructions" });
     },
     setObservability: (patch) => {
       set(
@@ -658,7 +647,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
           observability?: Partial<AgentObservabilitySettings>;
-          systemPrompt?: string;
           debug?: {
             retainInactiveBashSessions?: boolean;
             dangerouslyEnableMutations?: boolean;
@@ -695,11 +683,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          systemPrompt:
-            state.systemPrompt === undefined ||
-            isLegacyDefaultSystemPrompt(state.systemPrompt)
-              ? AGENT_SYSTEM_PROMPT
-              : state.systemPrompt,
+          userInstructions: state.userInstructions ?? "",
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
@@ -714,7 +698,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
-        systemPrompt: state.systemPrompt,
+        userInstructions: state.userInstructions,
         observability: state.observability,
         capabilities: state.capabilities,
       }),

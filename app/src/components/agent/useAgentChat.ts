@@ -88,7 +88,7 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    systemPrompt: store.getState().systemPrompt,
+                    userInstructions: store.getState().userInstructions,
                     sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,

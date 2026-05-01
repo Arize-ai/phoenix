@@ -16,7 +16,7 @@ type BuildAgentChatRequestBodyOptions = {
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
   /** User-editable instructions from agent settings (persisted in the agent store). */
-  systemPrompt: string;
+  userInstructions: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
   /** Runtime capability snapshot to expose to the model for this turn. */
@@ -69,7 +69,7 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  systemPrompt,
+  userInstructions,
   sessionId,
   capabilities,
   observability,
@@ -82,7 +82,7 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    userInstructions: systemPrompt,
+    userInstructions,
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,

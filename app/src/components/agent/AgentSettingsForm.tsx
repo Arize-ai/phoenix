@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import { Controller, useForm } from "react-hook-form";
 
-import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import { Button, Flex, Label, TextArea, TextField } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
@@ -22,7 +21,7 @@ function defaultModelConfigToMenuValue(config: ModelConfig): ModelMenuValue {
 
 export type AgentSettingsFormValues = {
   model: ModelMenuValue;
-  systemPrompt: string;
+  userInstructions: string;
 };
 
 export function AgentSettingsForm() {
@@ -33,14 +32,18 @@ export function AgentSettingsForm() {
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
-  const systemPromptFromStore = useAgentContext((state) => state.systemPrompt);
-  const setSystemPrompt = useAgentContext((state) => state.setSystemPrompt);
+  const userInstructionsFromStore = useAgentContext(
+    (state) => state.userInstructions
+  );
+  const setUserInstructions = useAgentContext(
+    (state) => state.setUserInstructions
+  );
 
   const { control, handleSubmit, formState, reset } =
     useForm<AgentSettingsFormValues>({
       defaultValues: {
         model: defaultModelConfigToMenuValue(defaultModelConfig),
-        systemPrompt: systemPromptFromStore,
+        userInstructions: userInstructionsFromStore,
       },
     });
 
@@ -52,21 +55,9 @@ export function AgentSettingsForm() {
       modelName: data.model.modelName,
       customProvider: data.model.customProvider ?? null,
     });
-    setSystemPrompt(data.systemPrompt);
+    setUserInstructions(data.userInstructions);
     reset(data);
   };
-
-  const handleReset = () => {
-    const { defaultModelConfig: modelConfig } = store.getState();
-    setSystemPrompt(AGENT_SYSTEM_PROMPT);
-    reset({
-      model: defaultModelConfigToMenuValue(modelConfig),
-      systemPrompt: AGENT_SYSTEM_PROMPT,
-    });
-  };
-
-  const resetDisabled =
-    !formState.isDirty && systemPromptFromStore === AGENT_SYSTEM_PROMPT;
 
   return (
     <form
@@ -88,7 +79,7 @@ export function AgentSettingsForm() {
         />
       </div>
       <Controller
-        name="systemPrompt"
+        name="userInstructions"
         control={control}
         render={({ field }) => (
           <TextField {...field} value={field.value ?? undefined}>
@@ -101,14 +92,6 @@ export function AgentSettingsForm() {
         )}
       />
       <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
-        <Button
-          type="button"
-          variant="default"
-          isDisabled={resetDisabled}
-          onPress={handleReset}
-        >
-          Reset
-        </Button>
         <Button type="submit" variant="primary" isDisabled={!formState.isDirty}>
           Save
         </Button>

@@ -174,8 +174,3 @@ def build_agent_system_prompts(
     ):
         prompts.append(dynamic_prompt)
     return prompts
-
-
-def get_agent_static_system_prompt_lines() -> list[str]:
-    """Return the server-owned static PXI prompt lines for tests/debugging."""
-    return list(_STATIC_SYSTEM_PROMPT_LINES)

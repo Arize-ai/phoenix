@@ -13,7 +13,7 @@ describe("buildAgentChatRequestBody", () => {
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
-      systemPrompt: "Prefer concise answers.",
+      userInstructions: "Prefer concise answers.",
       sessionId: "session-1",
       capabilities: createDefaultAgentCapabilities(),
       observability: {
