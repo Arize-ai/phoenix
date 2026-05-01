@@ -58,6 +58,8 @@ import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
 
+const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
+
 export const sessionDetailsTracesViewQuery = graphql`
   query SessionDetailsTracesViewQuery($id: ID!, $first: Int!) {
     session: node(id: $id) {
@@ -168,6 +170,7 @@ export function SessionDetailsTracesView({
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const initialSelectedTraceIdRef = useRef(selectedTraceId);
   const hasScrolledInitialSelectionRef = useRef(false);
+  const initialSelectedTracePagesLoadedRef = useRef(0);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -196,8 +199,8 @@ export function SessionDetailsTracesView({
     handleTraceSelect({ traceId, spanNodeId });
   };
 
-  // The URL can preselect a trace before its paginated row is loaded. Page until
-  // that row exists, expand it once, then scroll it into view.
+  // The URL can preselect a trace before its paginated row is loaded. Page a
+  // bounded amount until that row exists, then expand it once and scroll it into view.
   useEffect(() => {
     const initialSelectedTraceId = initialSelectedTraceIdRef.current;
     if (
@@ -210,9 +213,19 @@ export function SessionDetailsTracesView({
       (trace) => trace.traceId === initialSelectedTraceId
     );
     if (initialSelectedTrace == null) {
-      if (hasNext && !isLoadingNext) {
-        loadNext(SESSION_DETAILS_PAGE_SIZE);
+      if (isLoadingNext) {
+        return;
       }
+      if (
+        hasNext &&
+        initialSelectedTracePagesLoadedRef.current <
+          INITIAL_SELECTED_TRACE_MAX_PAGES
+      ) {
+        initialSelectedTracePagesLoadedRef.current += 1;
+        loadNext(SESSION_DETAILS_PAGE_SIZE);
+        return;
+      }
+      hasScrolledInitialSelectionRef.current = true;
       return;
     }
     const el = rowRefs.current.get(initialSelectedTraceId);
