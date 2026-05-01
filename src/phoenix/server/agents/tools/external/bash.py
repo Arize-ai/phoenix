@@ -6,8 +6,8 @@ from pydantic_ai.tools import ToolDefinition
 
 BASH_TOOL_NAME = "bash"
 
-# TODO: This duplicates frontend system-prompt guidance until a follow-up PR moves
-# PXI system-prompt assembly fully server-side.
+# Keep the public tool description aligned with the server-owned system-prompt
+# guidance in ``phoenix.server.agents.prompts``.
 _BASH_TOOL_CAPABILITY_LINES = [
     "Runs inside a browser-only just-bash virtual shell, not a host machine or container.",
     "Read Phoenix context from /phoenix; writes there are blocked.",

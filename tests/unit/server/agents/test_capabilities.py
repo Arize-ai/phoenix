@@ -1,7 +1,6 @@
 from phoenix.server.agents.capabilities import (
     _CAPABILITY_PROMPT_RULES,
     AgentCapabilities,
-    append_capability_system_prompt,
     build_capability_system_prompt,
 )
 
@@ -39,12 +38,3 @@ class TestAgentCapabilities:
         )
 
         assert enabled == disabled
-
-    def test_appends_to_user_configured_system_prompt(self) -> None:
-        system_prompt = append_capability_system_prompt(
-            "You are PXI.",
-            AgentCapabilities(graphql_mutations=False),
-        )
-
-        assert system_prompt is not None
-        assert system_prompt.startswith("You are PXI.\n\nRuntime capability state")

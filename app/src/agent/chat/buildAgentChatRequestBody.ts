@@ -15,8 +15,8 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** System prompt from agent settings (persisted in the agent store). */
-  systemPrompt: string;
+  /** User-editable instructions from agent settings (persisted in the agent store). */
+  userInstructions: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
   /** Runtime capability snapshot to expose to the model for this turn. */
@@ -39,8 +39,8 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** System prompt applied to PXI agent chat requests. */
-  system: string;
+  /** User-editable instructions inserted into the server-owned PXI system prompt. */
+  userInstructions: string;
   /** Distinguishes normal chat turns from other PXI chat request types. */
   traceNameSuffix: "Turn";
   /** Optional PXI session id used to associate traces across turns. */
@@ -60,8 +60,8 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
  * are intentionally omitted because the server is the model-facing authority.
  *
  * The exported request body includes three agent-specific additions beyond the
- * raw AI SDK payload: the base system prompt, runtime capabilities, and typed
- * UI contexts. Tool definitions and capability prompt text are owned by the server.
+ * raw AI SDK payload: custom user instructions, runtime capabilities, and typed
+ * UI contexts. Tool definitions and prompt assembly are owned by the server.
  */
 export function buildAgentChatRequestBody({
   body,
@@ -69,7 +69,7 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  systemPrompt,
+  userInstructions,
   sessionId,
   capabilities,
   observability,
@@ -82,7 +82,7 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    system: systemPrompt,
+    userInstructions,
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,

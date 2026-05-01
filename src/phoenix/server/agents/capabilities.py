@@ -83,16 +83,3 @@ def build_capability_system_prompt(capabilities: AgentCapabilities) -> str:
             *[f"- {line}" for line in capability_lines],
         ]
     )
-
-
-def append_capability_system_prompt(
-    system_prompt: str | None,
-    capabilities: AgentCapabilities,
-) -> str | None:
-    """Append server-owned capability guidance to the user-configured prompt."""
-    capability_prompt = build_capability_system_prompt(capabilities)
-    if not capability_prompt:
-        return system_prompt
-    if not system_prompt:
-        return capability_prompt
-    return f"{system_prompt}\n\n{capability_prompt}"
