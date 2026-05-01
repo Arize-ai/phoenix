@@ -21,8 +21,8 @@ export type ClassifyArgs = WithLLM &
      */
     schemaDescription?: string;
     /**
-     * Whether to ask for and parse an explanation in addition to the label.
-     * Defaults to true for backwards-compatible classification behavior.
+     * If false, the LLM is asked only for a label, not an explanation.
+     * Defaults to true.
      */
     includeExplanation?: boolean;
   };
