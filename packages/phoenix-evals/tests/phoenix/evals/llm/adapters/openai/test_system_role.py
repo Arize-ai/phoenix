@@ -74,8 +74,10 @@ def test_azure_prefix_stripped_for_gpt_model() -> None:
 
 def test_empty_model_defaults_to_developer() -> None:
     adapter = _make_adapter("")
-    # Force model_name to empty string to exercise the fallback branch.
-    # _make_adapter passes "" — the adapter may still compute an empty name.
+    # Sanity-check the fixture: ``_make_adapter("")`` sets ``client.model = ""``,
+    # so ``OpenAIAdapter.model_name`` resolves to ``""`` and ``_system_role``
+    # exercises its empty-string fallback.
+    assert adapter.model_name == ""
     assert adapter._system_role() == "developer"
 
 
@@ -84,12 +86,14 @@ def test_unknown_model_defaults_to_developer() -> None:
     assert adapter._system_role() == "developer"
 
 
-def test_none_model_name_defaults_to_developer() -> None:
-    """Exercise the ``None``-safe path via a client that lacks ``model`` attrs."""
+def test_fallback_model_name_defaults_to_developer() -> None:
+    """When the client exposes no ``model`` attr, ``model_name`` falls back to
+    ``"openai-model"`` — which doesn't match ``gpt-*`` or ``o\\d`` and so still
+    routes to ``"developer"``."""
     client = MagicMock(spec=["chat", "__module__", "__class__"])
     client.__module__ = "openai"
     client.__class__.__name__ = "OpenAI"
     client.chat.completions.create = MagicMock()
     adapter = OpenAIAdapter(client=client, model="")
-    # model_name falls back to "openai-model" in this case which is not gpt/o\d.
+    assert adapter.model_name == "openai-model"
     assert adapter._system_role() == "developer"
