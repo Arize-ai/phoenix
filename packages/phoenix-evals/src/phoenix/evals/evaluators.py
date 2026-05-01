@@ -840,7 +840,7 @@ class ClassificationEvaluator(LLMEvaluator):
 
 _PAIRWISE_RESERVED_GROUPS = {"tie", "item_1", "item_2", "response_1", "response_2"}
 _PAIRWISE_FORBIDDEN_TEMPLATE_VARS = {"response_a", "response_b", "item_a", "item_b"}
-_PAIRWISE_AB_PATTERN = re.compile(r"\bA\b.*\bB\b|\bB\b.*\bA\b", re.DOTALL)
+_PAIRWISE_AB_PATTERN = re.compile(r"Response\s+A\b.*Response\s+B\b", re.DOTALL | re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -864,8 +864,9 @@ class PairwiseEvaluator(LLMEvaluator):
 
     - Use ``{{item_1}}`` / ``{{item_2}}`` to refer to the (randomized)
       compared items. Do NOT reference your group keys directly.
-    - Contain the letters ``A`` and ``B`` somewhere as separate words (the
-      convention is "Response A" / "Response B").
+    - Label the items as ``Response A`` and ``Response B`` (case-insensitive)
+      somewhere in the prompt. The judge replies with the position letter
+      (``A`` or ``B``), which is then mapped back to your group keys.
 
     Reserved/forbidden template variables (will raise on validation):
 
@@ -989,7 +990,9 @@ class PairwiseEvaluator(LLMEvaluator):
         prompt_text = PairwiseEvaluator._prompt_template_text(prompt_template.template)
         if not _PAIRWISE_AB_PATTERN.search(prompt_text):
             raise PhoenixInvalidPromptTemplateError(
-                "PairwiseEvaluator prompt_template must reference the compared items as A and B."
+                "PairwiseEvaluator prompt_template must label the compared items as "
+                "'Response A' and 'Response B' (case-insensitive). The judge replies "
+                "with 'A' or 'B' positionally and that label maps back to your groups."
             )
         variables = set(prompt_template.variables)
         forbidden = (set(groups) | _PAIRWISE_FORBIDDEN_TEMPLATE_VARS) & variables

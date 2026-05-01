@@ -190,7 +190,7 @@ describe("PairwiseEvaluator", () => {
           model: createMockModel(["A"]).model,
           promptTemplate: "Compare {{item_1}} and {{item_2}}.",
         })
-    ).toThrow("must reference the compared items as A and B");
+    ).toThrow(/must label the compared items as 'Response A' and 'Response B'/);
   });
 
   it("rejects dotted semantic group references in prompt templates", () => {

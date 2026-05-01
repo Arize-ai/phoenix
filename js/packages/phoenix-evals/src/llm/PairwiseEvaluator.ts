@@ -16,7 +16,7 @@ import { LLMEvaluator } from "./LLMEvaluator";
 
 const RESERVED_GROUPS = new Set(["tie", "item_1", "item_2", "response_1", "response_2"]);
 const FORBIDDEN_TEMPLATE_VARIABLES = new Set(["response_a", "response_b", "item_a", "item_b"]);
-const AB_PATTERN = /\bA\b[\s\S]*\bB\b|\bB\b[\s\S]*\bA\b/;
+const AB_PATTERN = /Response\s+A\b[\s\S]*Response\s+B\b/i;
 
 type PairwiseChoice = "A" | "B" | "tie";
 
@@ -63,7 +63,7 @@ function validatePromptTemplate({
   const promptText = getPromptText(promptTemplate);
   if (!AB_PATTERN.test(promptText)) {
     throw new Error(
-      "PairwiseEvaluator promptTemplate must reference the compared items as A and B."
+      "PairwiseEvaluator promptTemplate must label the compared items as 'Response A' and 'Response B' (case-insensitive). The judge replies with 'A' or 'B' positionally and that label maps back to your groups."
     );
   }
   const variables = new Set(getTemplateVariables({ template: promptTemplate }));
@@ -194,8 +194,9 @@ function appendStructuredInstruction({
  * **Prompt template contract.** The template MUST:
  * - Use `{{item_1}}` / `{{item_2}}` to refer to the (randomized) compared
  *   items. Do NOT reference your group keys directly.
- * - Contain the letters `A` and `B` somewhere as separate words (the
- *   convention is "Response A" / "Response B").
+ * - Label the items as `Response A` and `Response B` (case-insensitive)
+ *   somewhere in the prompt. The judge replies with the position letter
+ *   (`A` or `B`), which is then mapped back to your group keys.
  *
  * Reserved/forbidden template variables (will throw on validation):
  * - Reserved group names: `tie`, `item_1`, `item_2`, `response_1`, `response_2`

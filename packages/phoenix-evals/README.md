@@ -143,6 +143,15 @@ print(summary.win_rate, summary.wins, summary.losses, summary.ties, summary.n)
 
 For a generic starting point, use `PairwiseQualityEvaluator` from `phoenix.evals.metrics`. It is intended as an example prompt and should be validated against your domain before production use.
 
+### Prompt template requirements
+
+`PairwiseEvaluator` validates prompt templates at construction. A template must:
+
+- Use `{{item_1}}` and `{{item_2}}` for the (randomized) compared items — never reference your group keys (e.g. `{{output}}`) directly.
+- Label the items as `Response A` and `Response B` (case-insensitive). The judge replies with `A` / `B` positionally; that letter is mapped back to your group keys after the call.
+
+Reserved group names that cannot be used in `groups=`: `tie`, `item_1`, `item_2`, `response_1`, `response_2`. Forbidden template variables: `response_a`, `response_b`, `item_a`, `item_b`, plus the literal group names you chose.
+
 ## LLM Providers
 
 The `LLM` class supports multiple AI providers:

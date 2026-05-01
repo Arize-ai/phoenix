@@ -184,6 +184,15 @@ console.log(rate.win_rate, rate.wins, rate.losses, rate.ties, rate.n);
 
 For a generic starting point, use `createPairwiseQualityEvaluator` from `@arizeai/phoenix-evals/llm`. Validate the prompt against your domain before production use.
 
+#### Prompt template requirements
+
+`PairwiseEvaluator` validates prompt templates at construction. A template must:
+
+- Use `{{item_1}}` and `{{item_2}}` for the (randomized) compared items — never reference your group keys (e.g. `{{output}}`) directly.
+- Label the items as `Response A` and `Response B` (case-insensitive). The judge replies with `A` / `B` positionally; that letter is mapped back to your group keys after the call.
+
+Reserved group names that cannot be used in `groups`: `tie`, `item_1`, `item_2`, `response_1`, `response_2`. Forbidden template variables: `response_a`, `response_b`, `item_a`, `item_b`, plus the literal group names you chose.
+
 ### Data Mapping
 
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:
