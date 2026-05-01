@@ -9,8 +9,10 @@ pytest.importorskip("langchain_core")
 
 from langchain_core.messages import (  # noqa: E402
     AIMessage,
+    FunctionMessage,
     HumanMessage,
     SystemMessage,
+    ToolMessage,
 )
 
 from phoenix.evals.llm.adapters.langchain.adapter import LangChainModelAdapter  # noqa: E402
@@ -117,6 +119,37 @@ def test_non_text_content_parts_silently_dropped_on_typed_path() -> None:
     assert result[0].content == "keep"
 
 
+def test_provider_native_tool_transcript_dicts_use_langchain_converter() -> None:
+    adapter = _make_adapter()
+    prompt = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "result"},
+    ]
+    result = adapter._build_prompt(prompt)
+    assert isinstance(result, list)
+    assert isinstance(result[0], AIMessage)
+    assert isinstance(result[1], ToolMessage)
+    assert result[1].tool_call_id == "call_1"
+
+
+def test_provider_native_function_dict_uses_langchain_converter() -> None:
+    adapter = _make_adapter()
+    result = adapter._build_prompt([{"role": "function", "name": "lookup", "content": "result"}])
+    assert isinstance(result, list)
+    assert isinstance(result[0], FunctionMessage)
+    assert result[0].name == "lookup"
+
+
 def test_fallback_path_without_langchain_community(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the ImportError fallback path by hiding ``langchain_community``."""
     import builtins
@@ -167,7 +200,7 @@ def test_missing_content_raises() -> None:
 
 def test_none_content_raises() -> None:
     with pytest.raises(ValueError, match="None content"):
-        _make_adapter()._build_prompt([{"role": "assistant", "content": None}])
+        _make_adapter()._build_prompt([{"role": "user", "content": None}])
 
 
 def test_empty_string_content_raises() -> None:
@@ -190,6 +223,6 @@ def test_empty_list_prompt_raises() -> None:
         _make_adapter()._build_prompt([])
 
 
-def test_unknown_role_raises() -> None:
+def test_unknown_prompt_role_raises() -> None:
     with pytest.raises(ValueError, match="Unknown message role"):
-        _make_adapter()._build_prompt([{"role": "tool", "content": "x"}])
+        _make_adapter()._build_prompt([{"role": "narrator", "content": "x"}])

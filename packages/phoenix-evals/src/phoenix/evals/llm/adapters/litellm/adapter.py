@@ -8,6 +8,7 @@ from ...prompts import (
     Message,
     MessageRole,
     PromptLike,
+    is_openai_native_message_dict,
     normalize_role,
     validate_message_dict,
 )
@@ -481,6 +482,10 @@ class LiteLLMAdapter(BaseLLMAdapter):
             if isinstance(prompt[0].get("role"), MessageRole):
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
+            if any(
+                is_openai_native_message_dict(msg) for msg in cast(List[Dict[str, Any]], prompt)
+            ):
+                return cast(list[dict[str, Any]], prompt)
             # OpenAI-style dict messages — validate and canonicalize aliases.
             # LiteLLM is a provider-routing layer that handles "developer" for
             # reasoning models internally, so we preserve OpenAI-compatible

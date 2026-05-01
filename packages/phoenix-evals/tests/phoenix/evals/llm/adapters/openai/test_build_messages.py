@@ -111,6 +111,31 @@ def test_non_text_content_parts_silently_dropped() -> None:
     ]
 
 
+def test_provider_native_transcript_dicts_pass_through() -> None:
+    adapter = _make_adapter()
+    prompt = [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "lookup", "arguments": "{}"},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "result"},
+    ]
+    assert adapter._build_messages(prompt) == prompt
+
+
+def test_provider_native_extra_keys_are_preserved() -> None:
+    adapter = _make_adapter()
+    prompt = [{"role": "function", "name": "lookup", "content": "result"}]
+    assert adapter._build_messages(prompt) == prompt
+
+
 # --------------------------------------------------------------------------- #
 # Failure modes
 # --------------------------------------------------------------------------- #
@@ -158,10 +183,10 @@ def test_empty_list_prompt_raises() -> None:
         adapter._build_messages([])
 
 
-def test_unknown_role_raises() -> None:
+def test_unknown_prompt_role_raises() -> None:
     adapter = _make_adapter()
     with pytest.raises(ValueError, match="Unknown message role"):
-        adapter._build_messages([{"role": "tool", "content": "x"}])
+        adapter._build_messages([{"role": "narrator", "content": "x"}])
 
 
 # --------------------------------------------------------------------------- #

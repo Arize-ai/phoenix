@@ -746,6 +746,7 @@ class TestNormalizeRole:
         with pytest.raises(ValueError, match="must be a string or MessageRole"):
             normalize_role(None)
 
+
 # ---------------------------------------------------------------------------
 # validate_message_dict
 # ---------------------------------------------------------------------------

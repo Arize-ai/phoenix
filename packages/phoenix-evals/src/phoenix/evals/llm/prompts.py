@@ -59,6 +59,26 @@ _ROLE_ALIASES: Dict[str, "MessageRole"] = {
     "developer": MessageRole.SYSTEM,
 }
 
+
+_OPENAI_NATIVE_MESSAGE_ROLES = {"tool", "function"}
+_OPENAI_NATIVE_MESSAGE_KEYS = {"function_call", "name", "tool_call_id", "tool_calls"}
+
+
+def is_openai_native_message_dict(msg: Mapping[str, Any]) -> bool:
+    """Return whether a dict uses provider-native OpenAI transcript fields.
+
+    Prompt-shaped message dicts are normalized by the adapters. OpenAI-style
+    transcript dicts need to keep provider-native roles and correlation fields
+    intact for legacy callers replaying tool-call conversations.
+    """
+    role = msg.get("role")
+    if isinstance(role, str) and role.strip().lower() in _OPENAI_NATIVE_MESSAGE_ROLES:
+        return True
+    if isinstance(role, str) and role.strip().lower() == "assistant" and msg.get("content") is None:
+        return True
+    return any(key in msg for key in _OPENAI_NATIVE_MESSAGE_KEYS)
+
+
 def normalize_role(role: Any) -> "MessageRole":
     """Normalize a role value to a :class:`MessageRole`.
 

@@ -6,6 +6,7 @@ from ...prompts import (
     Message,
     MessageRole,
     PromptLike,
+    is_openai_native_message_dict,
     normalize_role,
     validate_message_dict,
 )
@@ -343,6 +344,17 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 # Transform List[Message] to LangChain format
                 # Type narrowing: prompt is List[Message] here
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
+
+            native_prompt = cast(List[Dict[str, Any]], prompt)
+            if any(is_openai_native_message_dict(msg) for msg in native_prompt):
+                try:
+                    from langchain_community.adapters.openai import (
+                        convert_openai_messages,
+                    )
+
+                    return convert_openai_messages(native_prompt)  # type: ignore[no-any-return]
+                except ImportError:
+                    pass
 
             # OpenAI-style dict messages — validate, canonicalize roles, and
             # then emit LangChain ``BaseMessage`` subclasses.  We canonicalize
