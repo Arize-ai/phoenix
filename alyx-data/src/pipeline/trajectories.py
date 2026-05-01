@@ -222,8 +222,10 @@ def _row_to_span(row: "pd.Series[Any]", *, trunc: int) -> dict[str, Any]:
         "user_email": _md_get(md, "arize_user_email"),
         "org_id": _md_get(md, "arize_org_id"),
         "org_name": _md_get(md, "arize_org_name"),
-        "start_time": start.to_pydatetime() if not pd.isna(start) else None,
-        "end_time": end.to_pydatetime() if not pd.isna(end) else None,
+        # Floor to microseconds before pydatetime conversion so we don't get
+        # the "discarding nonzero nanoseconds" warning from pandas.
+        "start_time": (start.floor("us").to_pydatetime() if not pd.isna(start) else None),
+        "end_time": (end.floor("us").to_pydatetime() if not pd.isna(end) else None),
         "duration_ms": duration_ms,
         "status_code": _serialize(row.get("status_code")),
         "status_message": _serialize(row.get("status_message")),
@@ -317,7 +319,7 @@ def _discover_chunks(raw_path: Path) -> list[Path]:
 
 def _read_chunk(path: Path) -> pd.DataFrame:
     """Read a Layer 0 chunk, projecting only the columns we need for Layer 2."""
-    available = pq.ParquetFile(path).schema_arrow.names
+    available = pq.ParquetFile(path).schema_arrow.names  # type: ignore[no-untyped-call]
     cols = [c for c in SPAN_READ_COLUMNS if c in available]
     return pd.read_parquet(path, columns=cols)
 
@@ -341,13 +343,15 @@ def _build_spans(cfg: PipelineConfig, chunks: list[Path], out_path: Path) -> int
                 continue
             table = pa.Table.from_pylist(records, schema=schema)
             if writer is None:
-                writer = pq.ParquetWriter(out_path, schema, compression="snappy")
-            writer.write_table(table)
+                writer = pq.ParquetWriter(  # type: ignore[no-untyped-call]
+                    out_path, schema, compression="snappy"
+                )
+            writer.write_table(table)  # type: ignore[no-untyped-call]
             total += table.num_rows
             del records, table
     finally:
         if writer is not None:
-            writer.close()
+            writer.close()  # type: ignore[no-untyped-call]
     return total
 
 

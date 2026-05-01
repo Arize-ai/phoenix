@@ -48,6 +48,7 @@ module = [
 ]
 ignore_missing_imports = true
 
+
 [dependency-groups]
 dev = [
     "mypy>=1.20.1",
