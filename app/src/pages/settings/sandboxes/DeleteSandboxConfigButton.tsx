@@ -35,8 +35,10 @@ export function DeleteSandboxConfigButton({
   const [isOpen, setIsOpen] = useState(false);
   const [commitDelete, isDeleting] =
     useMutation<DeleteSandboxConfigButtonDeleteSandboxConfigMutation>(graphql`
-      mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation($id: ID!) {
-        deleteSandboxConfig(id: $id) {
+      mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(
+        $input: DeleteSandboxConfigInput!
+      ) {
+        deleteSandboxConfig(input: $input) {
           deletedId
           query {
             ...SettingsSandboxesPageFragment
@@ -48,7 +50,7 @@ export function DeleteSandboxConfigButton({
   const handleDelete = useCallback(() => {
     setError(null);
     commitDelete({
-      variables: { id: config.id },
+      variables: { input: { id: config.id } },
       onCompleted: () => {
         setIsOpen(false);
         notifySuccess({

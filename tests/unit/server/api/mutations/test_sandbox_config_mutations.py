@@ -660,3 +660,270 @@ class TestUpdateSandboxProviderNonCapabilityKeyRejected:
                 },
             )
         assert result.errors
+
+
+class TestPhase1AdminGates:
+    """Structural permission tests for the two newly-gated mutations."""
+
+    def test_delete_sandbox_config_has_admin_gate(self) -> None:
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.sandbox_config_mutations import (
+            SandboxConfigMutationMixin,
+        )
+
+        defn = SandboxConfigMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "delete_sandbox_config")
+        assert IsAdminIfAuthEnabled in field.permission_classes
+
+    def test_update_sandbox_provider_has_admin_gate(self) -> None:
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.sandbox_config_mutations import (
+            SandboxConfigMutationMixin,
+        )
+
+        defn = SandboxConfigMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "update_sandbox_provider")
+        assert IsAdminIfAuthEnabled in field.permission_classes
+
+
+class TestPhase1ValidationErrors:
+    """Integration tests for create/update SandboxConfig validation paths."""
+
+    async def test_create_duplicate_name_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        first = await gql_client.execute(
+            _CREATE,
+            variables={
+                "input": {
+                    "sandboxProviderId": _provider_global_id(provider.id),
+                    "name": "duplicate-cfg",
+                }
+            },
+        )
+        assert first.data and not first.errors
+
+        dup = await gql_client.execute(
+            _CREATE,
+            variables={
+                "input": {
+                    "sandboxProviderId": _provider_global_id(provider.id),
+                    "name": "duplicate-cfg",
+                }
+            },
+        )
+        assert dup.errors
+
+    async def test_update_rename_collision_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        async with db() as session:
+            existing = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="existing-cfg",
+                config={},
+                timeout=30,
+            )
+            target = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                name="target-cfg",
+                config={},
+                timeout=30,
+            )
+            session.add(existing)
+            session.add(target)
+            await session.flush()
+            target_id = target.id
+
+        result = await gql_client.execute(
+            _UPDATE,
+            variables={
+                "input": {
+                    "id": _config_global_id(target_id),
+                    "name": "existing-cfg",
+                }
+            },
+        )
+        assert result.errors
+
+    async def test_create_invalid_identifier_name_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        result = await gql_client.execute(
+            _CREATE,
+            variables={
+                "input": {
+                    "sandboxProviderId": _provider_global_id(provider.id),
+                    "name": "Has Spaces And Caps",
+                }
+            },
+        )
+        assert result.errors
+
+    async def test_create_zero_timeout_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        result = await gql_client.execute(
+            _CREATE_WITH_TIMEOUT,
+            variables={
+                "input": {
+                    "sandboxProviderId": _provider_global_id(provider.id),
+                    "name": "zero-timeout",
+                    "timeout": 0,
+                }
+            },
+        )
+        assert result.errors
+
+    async def test_update_negative_timeout_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        config = await _create_config_for_provider(db, provider)
+
+        result = await gql_client.execute(
+            _UPDATE_WITH_TIMEOUT,
+            variables={
+                "input": {
+                    "id": _config_global_id(config.id),
+                    "timeout": -5,
+                }
+            },
+        )
+        assert result.errors
+
+    async def test_update_rename_to_fresh_name_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        config = await _create_config_for_provider(db, provider)
+        original_id = config.id
+
+        result = await gql_client.execute(
+            """
+            mutation RenameSandboxConfig($input: UpdateSandboxConfigInput!) {
+                updateSandboxConfig(input: $input) {
+                    sandboxConfig { id name }
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": _config_global_id(config.id),
+                    "name": "renamed-cfg",
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["name"] == "renamed-cfg"
+        async with db() as session:
+            row = await session.get(models.SandboxConfig, original_id)
+        assert row is not None
+        assert row.name == "renamed-cfg"
+
+    async def test_update_name_null_is_noop(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+        db: DbSessionFactory,
+    ) -> None:
+        provider = await _get_provider(db, "WASM")
+        config = await _create_config_for_provider(db, provider)
+        original_name = config.name
+
+        result = await gql_client.execute(
+            """
+            mutation NullRenameSandboxConfig($input: UpdateSandboxConfigInput!) {
+                updateSandboxConfig(input: $input) {
+                    sandboxConfig { id name }
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": _config_global_id(config.id),
+                    "name": None,
+                }
+            },
+        )
+        assert result.data and not result.errors
+        cfg = result.data["updateSandboxConfig"]["sandboxConfig"]
+        assert cfg["name"] == original_name
+
+
+class TestPhase1WrapperInputShape:
+    """Confirm the new wrapper input types route through the GraphQL parser."""
+
+    async def test_set_sandbox_credential_accepts_input_wrapper(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        from unittest.mock import MagicMock
+
+        from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
+        from phoenix.server.sandbox.types import (
+            ProviderCredentialSpec,
+            SandboxAdapter,
+            SandboxBackend,
+        )
+
+        backend_type = "WRAPPER_INPUT_TEST_BACKEND"
+        cred_key = "WRAPPER_INPUT_TEST_KEY"
+
+        class _Adapter(SandboxAdapter):
+            key = backend_type
+            display_name = "Wrapper Input Test Backend"
+            language = "PYTHON"
+            credential_specs = [
+                ProviderCredentialSpec(key=cred_key, display_name="Wrapper Test Cred")
+            ]
+
+            def build_backend(self, config, user_env=None):  # type: ignore[no-untyped-def]
+                return MagicMock(spec=SandboxBackend)
+
+        _SANDBOX_ADAPTERS[backend_type] = _Adapter()
+        try:
+            result = await gql_client.execute(
+                """
+                mutation SetCred($input: SetSandboxCredentialInput!) {
+                    setSandboxCredential(input: $input) { backendType key }
+                }
+                """,
+                variables={
+                    "input": {
+                        "backendType": backend_type,
+                        "key": cred_key,
+                        "value": "wrapped-secret",
+                    }
+                },
+            )
+            assert result.data and not result.errors
+            assert result.data["setSandboxCredential"]["backendType"] == backend_type
+        finally:
+            _SANDBOX_ADAPTERS.pop(backend_type, None)
+            for k in [k for k in list(_BACKEND_CACHE) if k[0] == backend_type]:
+                _BACKEND_CACHE.pop(k, None)

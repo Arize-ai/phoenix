@@ -15,12 +15,8 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 _SET_MUTATION = """
-  mutation SetSandboxCredential(
-    $backendType: String!
-    $key: String!
-    $value: String!
-  ) {
-    setSandboxCredential(backendType: $backendType, key: $key, value: $value) {
+  mutation SetSandboxCredential($input: SetSandboxCredentialInput!) {
+    setSandboxCredential(input: $input) {
       backendType
       key
     }
@@ -28,8 +24,8 @@ _SET_MUTATION = """
 """
 
 _DELETE_MUTATION = """
-  mutation DeleteSandboxCredential($backendType: String!, $key: String!) {
-    deleteSandboxCredential(backendType: $backendType, key: $key) {
+  mutation DeleteSandboxCredential($input: DeleteSandboxCredentialInput!) {
+    deleteSandboxCredential(input: $input) {
       backendType
       key
     }
@@ -71,7 +67,13 @@ class TestSetSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": "my-secret"},
+            variables={
+                "input": {
+                    "backendType": _TEST_BACKEND,
+                    "key": _TEST_KEY,
+                    "value": "my-secret",
+                }
+            },
             operation_name="SetSandboxCredential",
         )
         assert not result.errors
@@ -93,7 +95,13 @@ class TestSetSandboxCredential:
         for value in ("first-value", "second-value"):
             result = await gql_client.execute(
                 query=_SET_MUTATION,
-                variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": value},
+                variables={
+                    "input": {
+                        "backendType": _TEST_BACKEND,
+                        "key": _TEST_KEY,
+                        "value": value,
+                    }
+                },
                 operation_name="SetSandboxCredential",
             )
             assert not result.errors
@@ -112,7 +120,7 @@ class TestSetSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": "NONEXISTENT", "key": _TEST_KEY, "value": "v"},
+            variables={"input": {"backendType": "NONEXISTENT", "key": _TEST_KEY, "value": "v"}},
             operation_name="SetSandboxCredential",
         )
         assert result.errors
@@ -123,7 +131,7 @@ class TestSetSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": "WRONG_KEY", "value": "v"},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": "WRONG_KEY", "value": "v"}},
             operation_name="SetSandboxCredential",
         )
         assert result.errors
@@ -134,7 +142,7 @@ class TestSetSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": "   "},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": "   "}},
             operation_name="SetSandboxCredential",
         )
         assert result.errors
@@ -149,7 +157,13 @@ class TestSetSandboxCredential:
 
         await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": "new-val"},
+            variables={
+                "input": {
+                    "backendType": _TEST_BACKEND,
+                    "key": _TEST_KEY,
+                    "value": "new-val",
+                }
+            },
             operation_name="SetSandboxCredential",
         )
 
@@ -164,13 +178,19 @@ class TestDeleteSandboxCredential:
     ) -> None:
         await gql_client.execute(
             query=_SET_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY, "value": "to-delete"},
+            variables={
+                "input": {
+                    "backendType": _TEST_BACKEND,
+                    "key": _TEST_KEY,
+                    "value": "to-delete",
+                }
+            },
             operation_name="SetSandboxCredential",
         )
 
         result = await gql_client.execute(
             query=_DELETE_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": _TEST_KEY}},
             operation_name="DeleteSandboxCredential",
         )
         assert not result.errors
@@ -189,7 +209,7 @@ class TestDeleteSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_DELETE_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": _TEST_KEY}},
             operation_name="DeleteSandboxCredential",
         )
         assert not result.errors
@@ -204,7 +224,7 @@ class TestDeleteSandboxCredential:
 
         await gql_client.execute(
             query=_DELETE_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": _TEST_KEY},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": _TEST_KEY}},
             operation_name="DeleteSandboxCredential",
         )
 
@@ -216,7 +236,7 @@ class TestDeleteSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_DELETE_MUTATION,
-            variables={"backendType": "NONEXISTENT", "key": _TEST_KEY},
+            variables={"input": {"backendType": "NONEXISTENT", "key": _TEST_KEY}},
             operation_name="DeleteSandboxCredential",
         )
         assert result.errors
@@ -227,7 +247,7 @@ class TestDeleteSandboxCredential:
     ) -> None:
         result = await gql_client.execute(
             query=_DELETE_MUTATION,
-            variables={"backendType": _TEST_BACKEND, "key": "WRONG_KEY"},
+            variables={"input": {"backendType": _TEST_BACKEND, "key": "WRONG_KEY"}},
             operation_name="DeleteSandboxCredential",
         )
         assert result.errors
