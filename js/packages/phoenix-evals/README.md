@@ -188,7 +188,13 @@ const result = await evaluator.evaluate({
 });
 
 const summary = winRate({ scores: [result] });
-console.log(summary.rate, summary.wins, summary.losses, summary.ties, summary.n);
+console.log(
+  summary.rate,
+  summary.wins,
+  summary.losses,
+  summary.ties,
+  summary.n
+);
 ```
 
 #### Prompt template requirements

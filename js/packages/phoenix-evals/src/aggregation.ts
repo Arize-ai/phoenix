@@ -18,9 +18,7 @@ export type PairwiseWinRate = {
  * contract avoids ambiguity if Score metadata is later loaded from a
  * serialization boundary (DB, user upload).
  */
-function getPairwiseGroups(
-  score: EvaluationResult
-): [string, string] | null {
+function getPairwiseGroups(score: EvaluationResult): [string, string] | null {
   const metadataGroups = score.metadata?.groups;
   if (
     Array.isArray(metadataGroups) &&

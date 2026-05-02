@@ -1,12 +1,13 @@
+import type * as AiModule from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { z, ZodObject } from "zod";
+import type { z, ZodObject } from "zod";
 
 import { generateClassification } from "../../src/llm/generateClassification";
 
 // Capture the schema passed to generateObject so we can assert field ordering.
 const generateObjectMock = vi.fn();
 vi.mock("ai", async () => {
-  const actual = await vi.importActual<typeof import("ai")>("ai");
+  const actual = await vi.importActual<typeof AiModule>("ai");
   return {
     ...actual,
     generateObject: (args: unknown) => generateObjectMock(args),

@@ -14,8 +14,19 @@ import { remapObject } from "../utils/objectMappingUtils";
 import { generateClassification } from "./generateClassification";
 import { LLMEvaluator } from "./LLMEvaluator";
 
-const RESERVED_GROUPS = new Set(["tie", "item_1", "item_2", "response_1", "response_2"]);
-const FORBIDDEN_TEMPLATE_VARIABLES = new Set(["response_a", "response_b", "item_a", "item_b"]);
+const RESERVED_GROUPS = new Set([
+  "tie",
+  "item_1",
+  "item_2",
+  "response_1",
+  "response_2",
+]);
+const FORBIDDEN_TEMPLATE_VARIABLES = new Set([
+  "response_a",
+  "response_b",
+  "item_a",
+  "item_b",
+]);
 const AB_PATTERN = /Response\s+A\b[\s\S]*Response\s+B\b/i;
 
 type PairwiseChoice = "A" | "B" | "tie";
@@ -33,9 +44,13 @@ type PairwiseOutcome = {
   tieReason: "explicit_tie" | "disagreement" | null;
 };
 
-function validateGroups(groups: readonly [string, string]): readonly [string, string] {
+function validateGroups(
+  groups: readonly [string, string]
+): readonly [string, string] {
   if (groups.length !== 2) {
-    throw new Error("PairwiseEvaluator groups must contain exactly two strings.");
+    throw new Error(
+      "PairwiseEvaluator groups must contain exactly two strings."
+    );
   }
   const [firstGroup, secondGroup] = groups;
   if (!firstGroup || !secondGroup) {
@@ -70,7 +85,8 @@ function validatePromptTemplate({
   const forbiddenVariables = [...variables].filter((variable) => {
     const rootVariable = variable.split(".")[0] ?? variable;
     return (
-      groups.includes(rootVariable) || FORBIDDEN_TEMPLATE_VARIABLES.has(rootVariable)
+      groups.includes(rootVariable) ||
+      FORBIDDEN_TEMPLATE_VARIABLES.has(rootVariable)
     );
   });
   if (forbiddenVariables.length > 0) {
@@ -152,7 +168,9 @@ function appendStructuredInstruction({
   allowTies: boolean;
   includeExplanation: boolean;
 }) {
-  const tieInstruction = allowTies ? ', or "tie" if the responses are equivalent' : "";
+  const tieInstruction = allowTies
+    ? ', or "tie" if the responses are equivalent'
+    : "";
   let structuredInstruction = `\n\nRespond with a JSON object containing "label": "A" if Response A (item_1) is better, "B" if Response B (item_2) is better${tieInstruction}`;
   structuredInstruction += includeExplanation
     ? ', and "explanation": a brief rationale.'
@@ -263,18 +281,25 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
     this.groups = validateGroups(args.groups ?? ["output", "reference"]);
     this.ordering = args.ordering ?? "random";
     if (!["random", "both", "fixed"].includes(this.ordering)) {
-      throw new Error("PairwiseEvaluator ordering must be 'random', 'both', or 'fixed'.");
+      throw new Error(
+        "PairwiseEvaluator ordering must be 'random', 'both', or 'fixed'."
+      );
     }
     this.allowTies = args.allowTies ?? true;
     this.includeExplanation = args.includeExplanation ?? true;
     this.seed = args.seed === undefined ? 0 : args.seed;
-    validatePromptTemplate({ promptTemplate: this.promptTemplate, groups: this.groups });
+    validatePromptTemplate({
+      promptTemplate: this.promptTemplate,
+      groups: this.groups,
+    });
     this.evaluatorFn = this.evaluatePairwise;
   }
 
   evaluate = (example: RecordType) => {
     return this.evaluatorFn(
-      this.inputMapping ? remapObject<RecordType>(example, this.inputMapping) : example
+      this.inputMapping
+        ? remapObject<RecordType>(example, this.inputMapping)
+        : example
     );
   };
 
@@ -287,14 +312,18 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
     return [...this._promptTemplateVariables];
   }
 
-  bindInputMapping(inputMapping: ObjectMapping<RecordType>): PairwiseEvaluator<RecordType> {
+  bindInputMapping(
+    inputMapping: ObjectMapping<RecordType>
+  ): PairwiseEvaluator<RecordType> {
     return new PairwiseEvaluator({
       ...this,
       inputMapping,
     });
   }
 
-  private evaluatePairwise = async (example: RecordType): Promise<EvaluationResult> => {
+  private evaluatePairwise = async (
+    example: RecordType
+  ): Promise<EvaluationResult> => {
     const [firstGroup, secondGroup] = this.groups;
     this.validateExampleGroups(example);
     if (this.ordering === "both") {
@@ -312,7 +341,11 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
       return this.buildResult({ passOne, passTwo, outcome });
     }
     const [presentedFirst, presentedSecond] = this.getOrderedGroups(example);
-    const passOne = await this.judgeOnce({ example, presentedFirst, presentedSecond });
+    const passOne = await this.judgeOnce({
+      example,
+      presentedFirst,
+      presentedSecond,
+    });
     const outcome = this.resolvePasses(passOne);
     return this.buildResult({ passOne, outcome });
   };
@@ -332,7 +365,9 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
       return [firstGroup, secondGroup];
     }
     if (this.seed === null) {
-      return Math.random() < 0.5 ? [firstGroup, secondGroup] : [secondGroup, firstGroup];
+      return Math.random() < 0.5
+        ? [firstGroup, secondGroup]
+        : [secondGroup, firstGroup];
     }
     const rowHash = hashString(stableStringify(example));
     return seededRandom((this.seed ^ rowHash) >>> 0) < 0.5
@@ -406,9 +441,15 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
     return null;
   }
 
-  private resolvePasses(passOne: PairwisePassResult, passTwo?: PairwisePassResult): PairwiseOutcome {
+  private resolvePasses(
+    passOne: PairwisePassResult,
+    passTwo?: PairwisePassResult
+  ): PairwiseOutcome {
     const validChoices = this.getValidChoices();
-    if (passOne.winner === null || !validChoices.includes(passOne.choice as PairwiseChoice)) {
+    if (
+      passOne.winner === null ||
+      !validChoices.includes(passOne.choice as PairwiseChoice)
+    ) {
       throw new Error(`invalid judge choice: ${passOne.choice}`);
     }
     if (!passTwo) {
@@ -416,7 +457,10 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
         ? { label: "tie", tieReason: null }
         : { label: passOne.winner, tieReason: null };
     }
-    if (passTwo.winner === null || !validChoices.includes(passTwo.choice as PairwiseChoice)) {
+    if (
+      passTwo.winner === null ||
+      !validChoices.includes(passTwo.choice as PairwiseChoice)
+    ) {
       throw new Error(`invalid judge choice: ${passTwo.choice}`);
     }
     if (passOne.winner === "tie" || passTwo.winner === "tie") {
@@ -454,7 +498,9 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
           B: passOne.presentedSecond,
         },
         choice: passOne.choice,
-        explanation: this.includeExplanation ? passOne.rationale ?? null : null,
+        explanation: this.includeExplanation
+          ? (passOne.rationale ?? null)
+          : null,
       },
     ];
     if (passTwo) {
@@ -464,7 +510,9 @@ export class PairwiseEvaluator<RecordType extends Record<string, unknown>>
           B: passTwo.presentedSecond,
         },
         choice: passTwo.choice,
-        explanation: this.includeExplanation ? passTwo.rationale ?? null : null,
+        explanation: this.includeExplanation
+          ? (passTwo.rationale ?? null)
+          : null,
       });
     }
     return {

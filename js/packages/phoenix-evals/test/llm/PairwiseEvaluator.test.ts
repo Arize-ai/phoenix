@@ -199,7 +199,8 @@ describe("PairwiseEvaluator", () => {
         new PairwiseEvaluator({
           name: "pairwise",
           model: createMockModel(["A"]).model,
-          promptTemplate: "Response A: {{output.answer}}\nResponse B: {{item_2.answer}}",
+          promptTemplate:
+            "Response A: {{output.answer}}\nResponse B: {{item_2.answer}}",
         })
     ).toThrow("cannot reference compared group names");
   });
@@ -233,12 +234,18 @@ describe("PairwiseEvaluator", () => {
     expect(
       winRate({
         scores: [
-          { label: "output", metadata: { groups: ["output", "reference"], passes: [] } },
+          {
+            label: "output",
+            metadata: { groups: ["output", "reference"], passes: [] },
+          },
           {
             label: "reference",
             metadata: { groups: ["output", "reference"], passes: [] },
           },
-          { label: "tie", metadata: { groups: ["output", "reference"], passes: [] } },
+          {
+            label: "tie",
+            metadata: { groups: ["output", "reference"], passes: [] },
+          },
         ],
       })
     ).toEqual({

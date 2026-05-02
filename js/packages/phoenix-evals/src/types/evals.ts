@@ -126,8 +126,8 @@ export type PairwiseOrdering = "random" | "both" | "fixed";
 
 export interface CreatePairwiseEvaluatorArgs<
   RecordType extends Record<string, unknown>,
-> extends CreateLLMEvaluatorArgs<RecordType>,
-    WithLLM {
+>
+  extends CreateLLMEvaluatorArgs<RecordType>, WithLLM {
   promptTemplate: PromptTemplate;
   groups?: readonly [string, string];
   ordering?: PairwiseOrdering;

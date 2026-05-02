@@ -3,6 +3,8 @@ import { PairwiseEvaluator } from "./PairwiseEvaluator";
 
 export function createPairwiseEvaluator<
   RecordType extends Record<string, unknown>,
->(args: CreatePairwiseEvaluatorArgs<RecordType>): PairwiseEvaluator<RecordType> {
+>(
+  args: CreatePairwiseEvaluatorArgs<RecordType>
+): PairwiseEvaluator<RecordType> {
   return new PairwiseEvaluator<RecordType>(args);
 }
