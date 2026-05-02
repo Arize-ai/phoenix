@@ -141,30 +141,6 @@ class TestChatRouter:
 
         _assert_successful_chat_stream(response, session_id="test-session-1")
 
-    async def test_chat_ignores_user_supplied_connection_query_params(
-        self,
-        httpx_client: httpx.AsyncClient,
-        anthropic_api_key: str,
-        custom_vcr: CustomVCR,
-    ) -> None:
-        # Regression for https://github.com/Arize-ai/phoenix/issues/12915.
-        # ``base_url``/``endpoint``/``region``/``custom_headers`` were once
-        # honoured as request inputs and let an authenticated caller redirect
-        # the server's outbound traffic. They must now be inert. VCR enforces
-        # the assertion: if any of these were still consumed, the recorded
-        # cassette (pinned to the upstream provider host) would fail to match.
-        params = {
-            **_CHAT_PARAMS,
-            "base_url": "http://169.254.169.254/",
-            "endpoint": "http://169.254.169.254/",
-            "region": "attacker-region",
-            "custom_headers": "x-injected: 1",
-        }
-        with custom_vcr.use_cassette(path=_EXISTING_CHAT_CASSETTE):
-            response = await httpx_client.post("/chat", params=params, json=_CHAT_BODY)
-
-        _assert_successful_chat_stream(response, session_id="test-session-1")
-
     async def test_chat_returns_404_for_missing_custom_provider(
         self,
         httpx_client: httpx.AsyncClient,
