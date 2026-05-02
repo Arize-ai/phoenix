@@ -213,6 +213,159 @@ describe("getSpans", () => {
     });
   });
 
+  describe("attributes parameter", () => {
+    it("should serialize a single attribute filter", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: { "llm.model_name": "gpt-4" },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ["llm.model_name:gpt-4"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should serialize multiple attribute filters", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          "llm.model_name": "gpt-4",
+          "llm.provider": "openai",
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ["llm.model_name:gpt-4", "llm.provider:openai"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should serialize numeric and boolean values without quotes", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          count: 42,
+          cached: true,
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ["count:42", "cached:true"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should quote string values that look like non-string JSON", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          cached: "true",
+          count: "42",
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ['cached:"true"', 'count:"42"'],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should quote empty string values", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {
+          model: "",
+        },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              attribute: ['model:""'],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should not send attribute when attributes is undefined", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("attribute");
+    });
+
+    it("should omit attribute when attributes is an empty object", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        attributes: {},
+      });
+
+      const callArgs = mockGet.mock.calls[0]?.[1];
+      expect(callArgs.params.query).not.toHaveProperty("attribute");
+    });
+
+    it("should send attributes combined with other filters", async () => {
+      await getSpans({
+        project: { projectName: "test-project" },
+        spanKind: "LLM",
+        attributes: { "llm.model_name": "gpt-4" },
+      });
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/v1/projects/{project_identifier}/spans",
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.objectContaining({
+              span_kind: ["LLM"],
+              attribute: ["llm.model_name:gpt-4"],
+            }),
+          }),
+        })
+      );
+    });
+
+    it("should reject non-finite numeric values", async () => {
+      await expect(
+        getSpans({
+          project: { projectName: "test-project" },
+          attributes: {
+            score: Number.NaN,
+          },
+        })
+      ).rejects.toThrow(RangeError);
+    });
+  });
+
   describe("parentId parameter", () => {
     it('should send parent_id="null" to get root spans only', async () => {
       await getSpans({

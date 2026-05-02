@@ -142,6 +142,11 @@ export interface PreferencesProps {
    * @see https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
    */
   awsBedrockModelPrefix: AwsBedrockModelPrefix;
+  /**
+   * Whether or not the assistant agent is enabled
+   * @default true
+   */
+  isAssistantAgentEnabled: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -220,6 +225,10 @@ export interface PreferencesState extends PreferencesProps {
   setAwsBedrockModelPrefix: (
     awsBedrockModelPrefix: AwsBedrockModelPrefix
   ) => void;
+  /**
+   * Setter for enabling/disabling the assistant agent
+   */
+  setIsAssistantAgentEnabled: (isAssistantAgentEnabled: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -326,6 +335,12 @@ export const createPreferencesStore = (
     setAwsBedrockModelPrefix: (awsBedrockModelPrefix) => {
       set({ awsBedrockModelPrefix }, false, {
         type: "setAwsBedrockModelPrefix",
+      });
+    },
+    isAssistantAgentEnabled: true,
+    setIsAssistantAgentEnabled: (isAssistantAgentEnabled) => {
+      set({ isAssistantAgentEnabled }, false, {
+        type: "setIsAssistantAgentEnabled",
       });
     },
     ...initialProps,

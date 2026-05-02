@@ -49,7 +49,7 @@ async function addDatasetExample(
   await setCodeMirrorValue(page, inputJson);
   await Promise.all([
     page.waitForResponse((resp) =>
-      isGraphQLMutationResponse(resp, "AddDatasetExampleDialogMutation")
+      isGraphQLMutationResponse(resp, "AddExampleFromScratchFormMutation")
     ),
     addBtn.click(),
   ]);
@@ -104,11 +104,11 @@ test.describe("Playground", () => {
     const datasetId = datasetMatch ? datasetMatch[1] : "";
     expect(datasetId).toBeTruthy();
 
-    await page
-      .getByRole("button", { name: "Add Dataset Example" })
-      .or(page.getByRole("button", { name: "Example" }))
-      .click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    // The Examples button opens a menu with options to add an example manually
+    // or upload from a file. Choose the manual option to open the dialog.
+    await page.getByRole("button", { name: "Add Dataset Example" }).click();
+    await page.getByRole("menuitem", { name: "Add Example Manually" }).click();
+    await expect(page.getByTestId("dialog")).toBeVisible();
 
     const longContent = `${"lorem-ipsum-".repeat(45)}`;
 

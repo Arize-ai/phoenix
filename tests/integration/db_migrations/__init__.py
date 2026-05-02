@@ -1,43 +1,66 @@
 from __future__ import annotations
 
 import re
-from typing import Literal, Optional, TypedDict
+from typing import Callable, Literal, Optional, TypedDict, TypeVar, Union
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Connection, Engine, Row, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import TypeAlias, assert_never
 
 _DBBackend: TypeAlias = Literal["sqlite", "postgresql"]
+_AnyEngine: TypeAlias = Union[Engine, AsyncEngine]
+
+T = TypeVar("T")
 
 
-def _up(engine: Engine, alembic_config: Config, revision: str, schema: str) -> None:
-    with engine.connect() as conn:
+async def _run_async(engine: _AnyEngine, fn: Callable[[Connection], T]) -> T:
+    """Run a sync function against either a sync or async engine."""
+    if isinstance(engine, AsyncEngine):
+        async with engine.connect() as conn:
+            return await conn.run_sync(fn)
+    else:
+        with engine.connect() as conn:
+            return fn(conn)
+
+
+async def _up(engine: _AnyEngine, alembic_config: Config, revision: str, schema: str) -> None:
+    def _do(conn: Connection) -> None:
         alembic_config.attributes["connection"] = conn
         command.upgrade(alembic_config, revision)
-    engine.dispose()
+
+    await _run_async(engine, _do)
+    if isinstance(engine, Engine):
+        engine.dispose()
     if revision == "head":
         return
-    actual = _version_num(engine, schema)
+    actual = await _version_num(engine, schema)
     assert actual == (revision,)
 
 
-def _down(engine: Engine, alembic_config: Config, revision: str, schema: str) -> None:
-    with engine.connect() as conn:
+async def _down(engine: _AnyEngine, alembic_config: Config, revision: str, schema: str) -> None:
+    def _do(conn: Connection) -> None:
         alembic_config.attributes["connection"] = conn
         command.downgrade(alembic_config, revision)
-    engine.dispose()
-    assert _version_num(engine, schema) == (None if revision == "base" else (revision,))
+
+    await _run_async(engine, _do)
+    if isinstance(engine, Engine):
+        engine.dispose()
+    assert (await _version_num(engine, schema)) == (None if revision == "base" else (revision,))
 
 
-def _version_num(engine: Engine, schema: str) -> Optional[Row[tuple[str]]]:
+async def _version_num(engine: _AnyEngine, schema: str) -> Optional[Row[tuple[str]]]:
     table, column = "alembic_version", "version_num"
     if schema:
         table = f"{schema}.{table}"
     stmt = text(f"SELECT {column} FROM {table}")
-    with engine.connect() as conn:
+
+    def _do(conn: Connection) -> Optional[Row[tuple[str]]]:
         return conn.execute(stmt).first()
+
+    return await _run_async(engine, _do)
 
 
 class _TableSchemaInfo(TypedDict):
@@ -244,7 +267,7 @@ def _get_table_schema_info(
     )
 
 
-def _verify_clean_state(engine: Engine, schema: str) -> None:
+async def _verify_clean_state(engine: AsyncEngine, schema: str) -> None:
     """Verify that the database is in a clean state before running migrations.
 
     This function checks that the alembic_version table does not exist, indicating
@@ -259,4 +282,4 @@ def _verify_clean_state(engine: Engine, schema: str) -> None:
             alembic_version table exists)
     """
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(engine, schema)
+        await _version_num(engine, schema)

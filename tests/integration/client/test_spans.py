@@ -19,6 +19,8 @@ from .._helpers import (
     _ExistingProject,
     _ExistingSpan,
     _gql,
+    _grpc_span_exporter,  # pyright: ignore[reportPrivateUsage]
+    _start_span,  # pyright: ignore[reportPrivateUsage]
     _until_spans_exist,
 )
 
@@ -1673,7 +1675,7 @@ class TestClientForSpanCreation:
             node(id: $projectId) {
                 ... on Project {
                     trace(traceId: $traceId) {
-                        spans {
+                        spans(first: 1000) {
                             edges {
                                 node {
                                     id
@@ -1832,8 +1834,10 @@ class TestClientForSpanNotes:
     ) -> None:
         """Test multiple notes can be added to a span and verify content via GraphQL.
 
-        Notes are a special type of annotation that allow multiple entries per span
-        (unlike regular annotations which are unique by name and identifier).
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations are keyed by (name, span_id, identifier) — distinct identifiers
+        let you keep multiple same-named annotations on one span.
         """
         assert _existing_spans, "At least one existing span is required for this test"
         existing_span = choice(_existing_spans)
@@ -2255,3 +2259,217 @@ class TestClientForSpanDeletion:
         )
         span_ids_after = {s["context"]["span_id"] for s in spans_after}
         assert span_id not in span_ids_after, "Test span should be deleted"
+
+
+class TestClientGetSpansAttributeFilters:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_attribute_filter_returns_matching_spans(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that the ``attributes`` filter returns only spans with matching attributes."""
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        unique_val = token_hex(8)
+        trace_id = f"trace_attr_{token_hex(16)}"
+
+        matching_span = v1.Span(
+            name="matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_match_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": unique_val, "other.attr": "foo"},
+        )
+        non_matching_span = v1.Span(
+            name="non_matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_nomatch_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": token_hex(8), "other.attr": "bar"},
+        )
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[matching_span, non_matching_span],
+            )
+        )
+        assert create_result["total_queued"] == 2
+
+        await _until_spans_exist(
+            _app,
+            [matching_span["context"]["span_id"], non_matching_span["context"]["span_id"]],
+        )
+
+        filtered_spans = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                attributes={"session.id": unique_val},
+                limit=100,
+            )
+        )
+        filtered_span_ids = {s["context"]["span_id"] for s in filtered_spans}
+        assert matching_span["context"]["span_id"] in filtered_span_ids
+        assert non_matching_span["context"]["span_id"] not in filtered_span_ids
+
+    async def test_otlp_exported_span_is_filterable_by_attribute_across_endpoints(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """OTLP → REST smoke test: seed via real gRPC OTLP export, then filter by attribute.
+
+        Seeds a single span via the same exporter path used in production (OTLP gRPC
+        ``OTLPSpanExporter``), then issues ``GET /v1/projects/{id}/spans`` and
+        ``GET /v1/projects/{id}/spans/otlpv1`` with the same ``attribute`` filter.
+        The value contains colons (``sess:abc:123``) to exercise ``split(':', 1)``
+        end-to-end. Parity check: both routers return the same span (both invoke
+        ``_parse_attribute`` — spans.py:731-732 and spans.py:925-926).
+        """
+        import httpx
+        from opentelemetry.sdk.trace.export import SpanExportResult
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        project_name = f"otlp-attr-smoke-{token_hex(8)}"
+        session_id_value = "sess:abc:123"
+
+        memory = InMemorySpanExporter()
+        _start_span(
+            project_name=project_name,
+            attributes={"session.id": session_id_value},
+            exporter=memory,
+        ).end()
+        sdk_spans = memory.get_finished_spans()
+        assert len(sdk_spans) == 1
+        sdk_span = sdk_spans[0]
+        assert (sdk_ctx := sdk_span.get_span_context())  # type: ignore[no-untyped-call]
+        from opentelemetry.trace import format_span_id
+
+        span_id = format_span_id(sdk_ctx.span_id)
+
+        headers = {"authorization": f"Bearer {_app.admin_secret}"}
+        assert (
+            _grpc_span_exporter(_app, headers=headers).export(sdk_spans) is SpanExportResult.SUCCESS
+        )
+
+        await _until_spans_exist(_app, [span_id])
+
+        filter_value = f'session.id:"{session_id_value}"'
+
+        async with httpx.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+            resp_rest = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": filter_value},
+            )
+            assert resp_rest.status_code == 200, resp_rest.text
+            rest_data = resp_rest.json()["data"]
+            assert len(rest_data) >= 1
+            rest_span_ids = {s["context"]["span_id"] for s in rest_data}
+            assert span_id in rest_span_ids
+            for s in rest_data:
+                assert s["attributes"].get("session.id") == session_id_value
+
+            resp_otlp = await client.get(
+                f"v1/projects/{project_name}/spans/otlpv1",
+                params={"attribute": filter_value},
+            )
+            assert resp_otlp.status_code == 200, resp_otlp.text
+            otlp_data = resp_otlp.json()["data"]
+            assert len(otlp_data) >= 1
+            otlp_span_ids = {s["span_id"] for s in otlp_data}
+            assert rest_span_ids == otlp_span_ids
+
+    async def test_otlp_metadata_jsonstring_is_filterable_via_dotted_path(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """SDK-style metadata round-trip: OpenInference SDKs emit `metadata` as a
+        single JSON-stringified attribute (see `setMetadata` in
+        @arizeai/openinference-core/contextAttributes.ts). Phoenix's ingestion
+        pipeline (`load_json_strings` in src/phoenix/trace/attributes.py) parses
+        these back to nested objects before storage, so dotted-path attribute
+        filters must match regardless of which wire shape the SDK used.
+
+        This pins the contract end-to-end: OTLP gRPC export of a JSON-string
+        `metadata` attribute → ingestion → REST attribute filter by nested key.
+        """
+        import httpx
+        from opentelemetry.sdk.trace.export import SpanExportResult
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        project_name = f"otlp-metadata-blob-{token_hex(8)}"
+        blob = json.dumps({"tier": "premium", "count": 5, "flag": True, "customer_id": "7890"})
+
+        memory = InMemorySpanExporter()
+        _start_span(
+            project_name=project_name,
+            attributes={"metadata": blob},
+            exporter=memory,
+        ).end()
+        sdk_spans = memory.get_finished_spans()
+        assert len(sdk_spans) == 1
+        from opentelemetry.trace import format_span_id
+
+        sdk_ctx = sdk_spans[0].get_span_context()  # type: ignore[no-untyped-call]
+        assert sdk_ctx
+        span_id = format_span_id(sdk_ctx.span_id)
+
+        headers = {"authorization": f"Bearer {_app.admin_secret}"}
+        assert (
+            _grpc_span_exporter(_app, headers=headers).export(sdk_spans) is SpanExportResult.SUCCESS
+        )
+        await _until_spans_exist(_app, [span_id])
+
+        async with httpx.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+            # String-valued nested key — the common case.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.tier:premium"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Int-valued nested key — bare numeric dispatches as int, matches.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.count:5"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Bool-valued nested key — bool dispatch precedes int dispatch.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.flag:true"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Numeric-looking-string footgun applies inside metadata too:
+            # bare `customer_id:7890` dispatches as int and does NOT match the
+            # stored string "7890".
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.customer_id:7890"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id not in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Forced-string quoting escape hatch works inside metadata.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": 'metadata.customer_id:"7890"'},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}

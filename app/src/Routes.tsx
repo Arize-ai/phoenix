@@ -3,6 +3,7 @@ import {
   createRoutesFromElements,
   Navigate,
   Route,
+  type ShouldRevalidateFunction,
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
@@ -19,6 +20,8 @@ import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
 import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
 import { RootLayout } from "@phoenix/pages/RootLayout";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
+import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
+import { settingsSecretsPageLoader } from "@phoenix/pages/settings/secrets/settingsSecretsPageLoader";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
@@ -47,6 +50,7 @@ import {
   examplesLoader,
   ExamplesPage,
   ExperimentComparePage,
+  ExperimentDetailPage,
   ExperimentsPage,
   ForgotPasswordPage,
   homeLoader,
@@ -76,6 +80,7 @@ import {
   settingsGeneralPageLoader,
   SettingsPage,
   SettingsPromptsPage,
+  SettingsAgentsPage,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -94,12 +99,28 @@ import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPag
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
 import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
+import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
+import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
 import { promptTagRedirectLoader } from "./pages/redirects/promptTagRedirectLoader";
 import { sessionRedirectLoader } from "./pages/redirects/sessionRedirectLoader";
 import { spanRedirectLoader } from "./pages/redirects/spanRedirectLoader";
 import { traceRedirectLoader } from "./pages/redirects/traceRedirectLoader";
 import { settingsDataPageLoader } from "./pages/settings/settingsDataPageLoader";
 import { sessionLoader } from "./pages/trace/sessionLoader";
+
+// Skip loader revalidation when only the URL search params or hash change.
+// Why: some pages persist view state (e.g. a selected row) via setSearchParams,
+// and react-router's default behavior is to re-run every matched loader on any
+// navigation — including search-param-only updates — which causes avoidable
+// network fetches on trivial UI interactions.
+const revalidateOnPathChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.pathname === nextUrl.pathname) return false;
+  return defaultShouldRevalidate;
+};
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -124,8 +145,16 @@ const router = createBrowserRouter(
         element={<ResetPasswordWithTokenPage />}
       />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route element={<AuthenticatedRoot />} loader={authenticatedRootLoader}>
-        <Route element={<Layout />} loader={layoutLoader}>
+      <Route
+        element={<AuthenticatedRoot />}
+        loader={authenticatedRootLoader}
+        shouldRevalidate={revalidateOnPathChange}
+      >
+        <Route
+          element={<Layout />}
+          loader={layoutLoader}
+          shouldRevalidate={revalidateOnPathChange}
+        >
           <Route
             path="/profile"
             handle={{ crumb: () => "profile" }}
@@ -141,6 +170,7 @@ const router = createBrowserRouter(
             <Route
               path=":projectId"
               loader={projectLoader}
+              shouldRevalidate={revalidateOnPathChange}
               handle={{
                 crumb: (data: ProjectLoaderData) => data?.project?.name,
                 copy: (data: ProjectLoaderData) => [
@@ -171,6 +201,7 @@ const router = createBrowserRouter(
                     path=":sessionId"
                     element={<SessionPage />}
                     loader={sessionLoader}
+                    shouldRevalidate={revalidateOnPathChange}
                   />
                 </Route>
                 <Route path="config" element={<ProjectConfigPage />} />
@@ -201,7 +232,12 @@ const router = createBrowserRouter(
             >
               <Route element={<DatasetPage />} loader={datasetLoader}>
                 <Route index element={<ExperimentsPage />} />
-                <Route path="experiments" element={<ExperimentsPage />} />
+                <Route path="experiments" element={<ExperimentsPage />}>
+                  <Route
+                    path=":experimentId"
+                    element={<ExperimentDetailPage />}
+                  />
+                </Route>
                 <Route
                   path="examples"
                   element={<ExamplesPage />}
@@ -371,6 +407,14 @@ const router = createBrowserRouter(
               }}
             />
             <Route
+              path="secrets"
+              loader={settingsSecretsPageLoader}
+              element={<SettingsSecretsPage />}
+              handle={{
+                crumb: () => "Secrets",
+              }}
+            />
+            <Route
               path="providers"
               loader={settingsAIProvidersPageLoader}
               element={<SettingsAIProvidersPage />}
@@ -417,6 +461,13 @@ const router = createBrowserRouter(
                 crumb: () => "Prompts",
               }}
             />
+            <Route
+              path="agents"
+              element={<SettingsAgentsPage />}
+              handle={{
+                crumb: () => "Agents",
+              }}
+            />
           </Route>
           <Route
             path="/redirects/spans/:span_otel_id"
@@ -434,8 +485,18 @@ const router = createBrowserRouter(
             errorElement={<ErrorElement />}
           />
           <Route
+            path="/redirects/projects/:project_name"
+            loader={projectRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
             path="/redirects/prompts/:promptId/tags/:tagName"
             loader={promptTagRedirectLoader}
+            errorElement={<ErrorElement />}
+          />
+          <Route
+            path="/redirects/datasets/:datasetId/examples/:externalId"
+            loader={exampleRedirectLoader}
             errorElement={<ErrorElement />}
           />
         </Route>

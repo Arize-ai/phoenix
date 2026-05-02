@@ -112,7 +112,7 @@ class SpanAnnotation(Node, Annotation):
             val = await info.context.data_loaders.span_annotation_fields.load(
                 (self.id, models.SpanAnnotation.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field(description="The source of the annotation.")  # type: ignore
     async def source(

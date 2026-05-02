@@ -12,7 +12,9 @@ export function getEnvCollectorURL(): string | undefined {
 }
 
 /**
- * A utility function that gets the configured API key for the given phoenix.
+ * Reads the Phoenix API key from the `PHOENIX_API_KEY` environment variable.
+ *
+ * @returns The API key if the environment variable is set, otherwise `undefined`.
  */
 export function getEnvApiKey(): string | undefined {
   const phoenixEnvApiKey = process.env[ENV_PHOENIX_API_KEY];

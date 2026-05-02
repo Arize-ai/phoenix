@@ -159,24 +159,27 @@ Now that we have our baseline prompt, we need to set up two key components:
 Finally, we run our experiment. With this setup, we can measure how well our prompt initially performs.
 
 ```python expandable
-import pandas as pd
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
-from phoenix.evals import (
-    OpenAIModel,
-    llm_classify,
+llm = LLM(provider="openai", model="gpt-4")
+empathy_evaluator = bind_evaluator(
+    evaluator=ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
+    ),
+    input_mapping={
+        "AI_Response": "AI_Response",
+    },
 )
 
 
 def initial_prompt(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    result = empathy_evaluator.evaluate(
+        eval_input=input,
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    return int(result[0].label)
 
 
 def evaluate_response(input, output):
@@ -188,12 +191,10 @@ def evaluate_response(input, output):
 ```py
 import nest_asyncio
 
-from phoenix.client.experiments import run_experiment
-
 nest_asyncio.apply()
 
-initial_experiment = run_experiment(
-    dataset, task=initial_prompt, evaluators=[evaluate_response], experiment_name="initial_prompt"
+initial_experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=initial_prompt, evaluators=[evaluate_response], experiment_name="initial_prompt"
 )
 ```
 
@@ -233,19 +234,20 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    evaluator = ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
+    )
+    return int(result[0].label)
 
 
-experiment = run_experiment(
-    dataset,
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset,
     task=llm_as_a_judge,
     evaluators=[evaluate_response],
     experiment_name="few_shot_examples",
@@ -299,19 +301,20 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    evaluator = ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
+    )
+    return int(result[0].label)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="style_invariant"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="style_invariant"
 )
 ```
 
@@ -373,19 +376,20 @@ print(EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED)
 
 ```python expandable
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    evaluator = ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_CONDENSED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
+    )
+    return int(result[0].label)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="condensed_prompt"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="condensed_prompt"
 )
 ```
 
@@ -421,19 +425,20 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = EMPATHY_EVALUATION_PROMPT_TEMPLATE
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    evaluator = ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
+    )
+    return int(result[0].label)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="self_refinement"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="self_refinement"
 )
 ```
 
@@ -451,19 +456,20 @@ EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED = (
 
 ```python
 def llm_as_a_judge(input):
-    response_classifications = llm_classify(
-        data=pd.DataFrame([{"AI_Response": input["AI_Response"]}]),
-        template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
-        model=OpenAIModel(model="gpt-4"),
-        rails=list(map(str, range(1, 11))),
-        provide_explanation=True,
+    evaluator = ClassificationEvaluator(
+        name="empathy",
+        prompt_template=EMPATHY_EVALUATION_PROMPT_TEMPLATE_IMPROVED,
+        llm=llm,
+        choices=list(map(str, range(1, 11))),
     )
-    score = response_classifications.iloc[0]["label"]
-    return int(score)
+    result = evaluator.evaluate(
+        eval_input={"AI_Response": input["AI_Response"]}
+    )
+    return int(result[0].label)
 
 
-experiment = run_experiment(
-    dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="combined"
+experiment = px_client.experiments.run_experiment(
+    dataset=dataset, task=llm_as_a_judge, evaluators=[evaluate_response], experiment_name="combined"
 )
 ```
 
@@ -481,5 +487,4 @@ By systematically testing and combining these approaches, you can refine your ev
 <Frame caption="Final Results">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d87fdfbc-image.jpeg" />
 </Frame>
-
 

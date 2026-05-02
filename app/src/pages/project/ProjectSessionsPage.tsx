@@ -10,7 +10,8 @@ import {
 } from "@phoenix/pages/project/ProjectPageQueries";
 import { SessionSearchProvider } from "@phoenix/pages/project/SessionSearchContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
-import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
+import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
+import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -38,14 +39,16 @@ export const ProjectSessionsPage = () => {
   }
   return (
     <TracingRoot>
-      <SpanFilterConditionProvider>
-        <Suspense fallback={<Loading />}>
-          <SessionsTabContent queryReference={sessionsQueryReference} />
+      <SessionPaginationProvider>
+        <SpanFiltersProvider>
+          <Suspense fallback={<Loading />}>
+            <SessionsTabContent queryReference={sessionsQueryReference} />
+          </Suspense>
+        </SpanFiltersProvider>
+        <Suspense>
+          <Outlet />
         </Suspense>
-      </SpanFilterConditionProvider>
-      <Suspense>
-        <Outlet />
-      </Suspense>
+      </SessionPaginationProvider>
     </TracingRoot>
   );
 };

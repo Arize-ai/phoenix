@@ -243,6 +243,11 @@ class Precursors(ABC):
             )
 
 
+AnnotationPrecursor = (
+    Precursors.SpanAnnotation | Precursors.TraceAnnotation | Precursors.DocumentAnnotation
+)
+
+
 class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):

@@ -108,9 +108,9 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     Now we want to define our Classification Evaluator
 
     ```python
-    from phoenix.evals import create_classifier
+    from phoenix.evals import ClassificationEvaluator
 
-    correctness_evaluator = create_classifier(
+    correctness_evaluator = ClassificationEvaluator(
         name="correctness",
         prompt_template=CORRECTNESS_TEMPLATE,
         llm=llm,
@@ -123,11 +123,12 @@ Now that you have Phoenix up and running, and sent traces to your first project,
     Now that we have defined our evaluator, we're ready to evaluate our traces.
 
     ```python
-    from phoenix.evals import evaluate_dataframe
+    from phoenix.evals import async_evaluate_dataframe
 
-    results_df = evaluate_dataframe(
+    results_df = await async_evaluate_dataframe(
         dataframe=primary_df,
-        evaluators=[correctness_evaluator]
+        evaluators=[correctness_evaluator],
+        concurrency=10,
     )
     ```
   </Step>

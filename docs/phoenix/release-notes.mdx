@@ -7,7 +7,200 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="04.28.2026">
+## [04.28.2026: Session Notes API](/docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api)
+**Available in arize-phoenix 14.16.0+**
 
+Phoenix now supports creating session notes through `POST /v1/session_notes`. The generic session annotation endpoint now reserves `name="note"` for note-specific APIs, so use `POST /v1/session_notes` for session notes and `POST /v1/session_annotations` for regular annotations.
+</Update>
+
+<Update label="04.24.2026">
+## [04.24.2026: Trace Notes API](/docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api)
+**Available in arize-phoenix 14.13.0+ (server), @arizeai/phoenix-client 6.8.0+ (TypeScript), @arizeai/phoenix-cli 1.3.0+ (CLI)**
+
+Add notes to traces via the REST endpoint, TypeScript client, or CLI. Notes are stored separately from annotations and support multiple entries per trace.
+
+- **TypeScript** — `addTraceNote({ traceNote: { traceId, note } })` from `@arizeai/phoenix-client/traces`
+- **CLI** — `px trace add-note <trace-id> --text "..."` and `--include-notes` flag on `px trace get` / `px trace list`
+- **Reserved name** — `note` is no longer accepted on the generic annotation endpoints; use `POST /v1/trace_notes`
+</Update>
+
+<Update label="04.24.2026">
+## [04.24.2026: arize-phoenix-otel 0.16](/docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16)
+**Available in arize-phoenix-otel 0.16.0+**
+
+`arize-phoenix-otel` now re-exports the most common OpenInference context managers and semantic conventions, so manual instrumentation no longer requires installing `openinference-instrumentation` or `openinference-semantic-conventions` as separate dependencies.
+
+- **Context managers** — `using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing` (usable as `with` blocks or decorators)
+- **Semantic conventions** — `SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`
+- **Single install** — `pip install "arize-phoenix-otel>=0.16.0"` is enough for `register()` + context propagation
+</Update>
+
+<Update label="04.22.2026">
+## [04.22.2026: Secrets Settings Page](/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id)
+**Available in arize-phoenix 14.11.0+**
+
+A new **Settings → Secrets** page lets admins add, replace, and delete encrypted LLM provider credentials (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) directly in the Phoenix UI — no REST API calls required.
+
+- **Add / Replace / Delete** secrets from the browser
+- **Search and filter** the secrets list by key name or owner
+- **Admin-only** — all mutations require admin access
+</Update>
+
+<Update label="04.22.2026">
+## [04.22.2026: `trace_id` in Experiment Evaluators](/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id)
+**Available in arize-phoenix-client 2.4.0+**
+
+Evaluator functions now receive the originating trace ID for each experiment run. Add a `trace_id` keyword argument to any evaluator function or `Evaluator` class method to access it.
+
+- **Optional** — evaluators without `trace_id` are unaffected
+- **Works sync and async** — supported on both function-based and protocol-based evaluators
+</Update>
+
+<Update label="04.20.2026">
+## [04.20.2026: Span Attribute Filtering](/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7)
+**Available in arize-phoenix 14.9.0+ (server), arize-phoenix-client 2.4.0+ (Python), @arizeai/phoenix-client 6.7.0+ (TypeScript)**
+
+Filter spans by stored attribute values using the Python client, TypeScript client, REST API, or CLI. Multiple filters are AND-ed together; the value's JS/Python type selects which storage type is matched.
+
+- **Python** — `client.spans.get_spans(..., attributes={"llm.model_name": "gpt-4o"})`
+- **TypeScript** — `getSpans({ ..., attributes: { "llm.model_name": "gpt-4o" } })`
+- **CLI** — `px span list --attribute "llm.model_name:gpt-4o"`
+- **Type-aware** — `int`, `float`, `bool`, and `str` values each match their corresponding stored type
+</Update>
+
+<Update label="04.20.2026">
+## [04.20.2026: CLI Span Notes](/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7)
+**Available in @arizeai/phoenix-cli 1.1.0+**
+
+`px span add-note <span-id> --text "..."` attaches a free-text note to any span. Pass `--include-notes` to `px span list` or `px trace get` to read notes back alongside span data.
+</Update>
+
+<Update label="04.20.2026">
+## [04.20.2026: Claude Opus 4.7 in the Playground](/docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7)
+**Available in arize-phoenix 14.9.0+**
+
+Claude Opus 4.7 is now available as a model option in the Phoenix Playground. Select it from the model picker to compare outputs against other Anthropic and cross-provider models.
+</Update>
+
+<Update label="04.16.2026">
+## [04.16.2026: Azure Managed Identity for PostgreSQL](/docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres)
+**Available in arize-phoenix 14.8.0+**
+
+Connect Phoenix to Azure Database for PostgreSQL using Microsoft Entra managed identity — no static database password required. Install the `azure` extra and set `PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true`.
+
+- **Zero-credential setup** — tokens are fetched and refreshed automatically on each connection
+- **New `[azure]` extra** — `pip install 'arize-phoenix[azure]'` pulls in `azure-identity` and `aiohttp`
+- **`PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS` deprecated** — silently ignored with a startup warning
+</Update>
+
+<Update label="04.14.2026">
+## [04.14.2026: CLI Annotation Commands](/docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands)
+**Available in @arizeai/phoenix-cli 1.0.4+**
+
+`px span annotate` and `px trace annotate` write labels, scores, and explanations to spans and traces from the terminal. Pass `--include-annotations` to `px trace get` or `px span list` to read annotations back alongside the data.
+
+- **`px span annotate <span-id>`** — attach a label, score, or explanation to any span by OTel span ID
+- **`px trace annotate <trace-id>`** — annotate a full trace by OTel trace ID
+- **Annotator kinds** — `HUMAN`, `LLM`, or `CODE`; submitting again with the same name updates the existing entry
+</Update>
+
+<Update label="04.13.2026">
+## [04.13.2026: @arizeai/phoenix-otel 1.0](/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0)
+**Available in @arizeai/phoenix-otel 1.0.0+**
+
+`@arizeai/phoenix-otel` now re-exports the full `@arizeai/openinference-core` and `@arizeai/openinference-semantic-conventions` surface from a single import.
+
+- **Tracing helpers** — `withSpan`, `traceChain`, `traceAgent`, `traceTool` wrap functions with OpenInference spans and follow global provider changes
+- **`observe` decorator** — trace class methods with TypeScript 5+ standard decorators while preserving `this`
+- **Context setters** — `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`, `setPromptTemplate` propagate attributes to child spans
+- **Attribute builders** — `getLLMAttributes`, `getRetrieverAttributes`, `getEmbeddingAttributes`, `getToolAttributes`, and more for raw OTel spans
+- **Semantic conventions** — `SemanticConventions` and `OpenInferenceSpanKind` re-exported; no second dependency needed
+- **Redaction** — `OITracer` + `traceConfig` or `OPENINFERENCE_HIDE_*` env vars strip sensitive attributes before export
+</Update>
+
+<Update label="04.10.2026">
+## [04.10.2026: Shareable Project URLs](/docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects)
+**Available in arize-phoenix 14.2.0+**
+
+Navigate to `/redirects/projects/{project_name}` and Phoenix resolves the name and redirects to the project page — no internal ID required. Construct stable, bookmarkable links using the project name you already set in `PHOENIX_PROJECT_NAME`.
+
+- **Project by name** — `/redirects/projects/default` resolves and redirects to the project page
+- **Other patterns** — traces, spans, sessions, and prompt tags are also supported via `/redirects/...`
+</Update>
+
+<Update label="04.07.2026">
+## [04.07.2026: PostgreSQL Read Replica Routing](/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica)
+**Available in arize-phoenix 14.0.0+**
+
+Route read-only queries (GraphQL resolvers, REST reads, dataloaders) to an optional PostgreSQL read replica via `PHOENIX_SQL_DATABASE_READ_REPLICA_URL`, reducing load on the primary under high span ingestion.
+
+- **Set and go** — point the env var at your replica; writes always go to the primary
+- **No config change needed** when a replica is not configured — falls back to primary
+</Update>
+
+<Update label="04.07.2026">
+## [04.07.2026: Breaking Changes — Phoenix v14](/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes)
+**Breaking changes in arize-phoenix 14.0.0, arize-phoenix-evals 3.0.0, arize-phoenix-client 2.3.1+**
+
+Phoenix v14 removes several legacy APIs. See the [migration guide](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md) for step-by-step instructions.
+
+- **CLI is now subcommand-first** — `phoenix serve --dev` replaces `phoenix --dev serve`
+- **`px.Client()` removed** — use `from phoenix.client import Client` with `base_url=` instead of `endpoint=`
+- **`/v1/evaluations` removed** — use `/v1/span_annotations`, `/v1/trace_annotations`, or `/v1/document_annotations`
+- **Evals 1.0 removed** — `arize-phoenix-evals` 3.0.0 drops the `legacy/` subpackage; `phoenix.experiments` is replaced by `phoenix.client.experiments`
+- **GraphQL pagination requires `first`** — `Project.spans`, `Trace.spans`, and `ProjectSession.traces` now require an explicit `first` argument (max 1000)
+- **Resume interrupted SDK experiments** — continue missing or failed runs with `resume_experiment` and `async_resume_experiment`
+</Update>
+
+<Update label="04.03.2026">
+## [04.03.2026: ATIF Trajectory Upload](/docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload)
+**Available in arize-phoenix-client 2.3.0+ (Python)**
+
+`upload_atif_trajectories_as_spans` converts [ATIF](https://github.com/harbor-ai/agent-trajectory-format) (Agent Trajectory Interchange Format) trajectory JSON files into OpenTelemetry span trees and uploads them to Phoenix. Visualize offline Harbor agent runs alongside live instrumented traces.
+
+- **Supports ATIF v1.0–v1.6** including multimodal content (images) in v1.6+
+- **Subagent linking** — upload parent and child trajectories together to link them into one trace
+- **Idempotent** — trace/span IDs are derived from `session_id` via SHA-256; re-uploading the same file is safe
+</Update>
+
+<Update label="04.01.2026">
+## [04.01.2026: Python 3.14 Support](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.21.0+, arize-phoenix-client 2.2.0+, arize-phoenix-evals 2.13.0+**
+
+Phoenix server, Python client SDK, and evals library now support Python 3.14 on Linux and macOS.
+</Update>
+
+<Update label="04.01.2026">
+## [04.01.2026: Secrets Management REST API](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.21.0+**
+
+Admin users can store encrypted LLM provider API keys in Phoenix via `PUT /v1/secrets`. Atomically upsert or delete multiple secrets in one request; values are AES-encrypted at rest and never returned in responses.
+
+- **`PUT /v1/secrets`** — batch upsert/delete with `value: null` to remove a key
+- **Admin-only**, atomic, silent no-op for deleting non-existent keys
+</Update>
+
+<Update label="04.01.2026">
+## [04.01.2026: `get_traces` — Retrieve Traces via Python SDK](/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314)
+**Available in arize-phoenix 13.15.0+ (server), arize-phoenix-client 2.2.0+ (Python)**
+
+`client.traces.get_traces()` fetches traces for a project with time range filtering, session filtering, sort control, and automatic cursor-based pagination.
+
+- **`include_spans=True`** to embed full span detail in each trace
+- **`session_id`** to filter to one or more sessions
+- Async variant available on `AsyncClient`
+</Update>
+
+<Update label="03.30.2026">
+## [03.30.2026: Delete Prompts and Prompt Version Tags](/docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api)
+**Available in arize-phoenix 13.20.0+**
+
+Two new REST endpoints let you delete prompts and remove tags from prompt versions programmatically.
+
+- **`DELETE /v1/prompts/{prompt_identifier}`** — permanently deletes a prompt and all its versions, tags, and labels
+- **`DELETE /v1/prompt_versions/{id}/tags/{tag_name}`** — removes a single tag from a specific prompt version
+</Update>
 
 
 <Update label="03.24.2026">
@@ -900,8 +1093,4 @@ We’ve added paging functionality to the Experiment Compare details slide-over 
 
 <Card href="/docs/phoenix/release-notes/2026" horizontal arrow="true">
   2026
-</Card>
-
-<Card href="/docs/phoenix/release-notes/2025" horizontal arrow="true">
-  2025
 </Card>

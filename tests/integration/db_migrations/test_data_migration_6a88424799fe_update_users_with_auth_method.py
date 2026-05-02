@@ -3,13 +3,14 @@ from typing import Literal
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import Connection, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 
-def test_user_auth_method_migration(
-    _engine: Engine,
+async def test_user_auth_method_migration(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
     _schema: str,
@@ -51,13 +52,13 @@ def test_user_auth_method_migration(
     """
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
     # apply migrations up to right before auth method migration
-    _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
+    await _up(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Create test users
-    with _engine.connect() as conn:
+    def _create_test_users(conn: Connection) -> tuple[int, int, int]:
         # Create a user role
         role_id = conn.execute(
             text(
@@ -120,12 +121,15 @@ def test_user_auth_method_migration(
         ).scalar()
         assert isinstance(oauth_user_id, int)
         conn.commit()
+        return role_id, local_user_id, oauth_user_id
+
+    role_id, local_user_id, oauth_user_id = await _run_async(_engine, _create_test_users)
 
     # Run the auth method migration
-    _up(_engine, _alembic_config, "6a88424799fe", _schema)
+    await _up(_engine, _alembic_config, "6a88424799fe", _schema)
 
     # Test post-migration constraints
-    with _engine.connect() as conn:
+    def _test_invalid_auth_method(conn: Connection) -> None:
         # Test invalid auth_method value
         with pytest.raises(Exception) as exc_info:
             conn.execute(
@@ -150,7 +154,9 @@ def test_user_auth_method_migration(
             "Expected valid_auth_method constraint violation"
         )
 
-    with _engine.connect() as conn:
+    await _run_async(_engine, _test_invalid_auth_method)
+
+    def _test_local_with_oauth(conn: Connection) -> None:
         # Test LOCAL auth with OAuth2 credentials
         with pytest.raises(Exception) as exc_info:
             conn.execute(
@@ -183,7 +189,9 @@ def test_user_auth_method_migration(
             "Expected local_auth_has_password_no_oauth constraint violation"
         )
 
-    with _engine.connect() as conn:
+    await _run_async(_engine, _test_local_with_oauth)
+
+    def _test_oauth_with_password(conn: Connection) -> None:
         # Test OAUTH2 auth with password credentials
         with pytest.raises(Exception) as exc_info:
             conn.execute(
@@ -216,11 +224,13 @@ def test_user_auth_method_migration(
             "Expected non_local_auth_has_no_password constraint violation"
         )
 
+    await _run_async(_engine, _test_oauth_with_password)
+
     # Test downgrade
-    _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
+    await _down(_engine, _alembic_config, "8a3764fe7f1a", _schema)
 
     # Verify downgrade state
-    with _engine.connect() as conn:
+    def _verify_local_user(conn: Connection) -> None:
         # Verify users still exist and have correct data
         local_user = conn.execute(
             text(
@@ -241,7 +251,9 @@ def test_user_auth_method_migration(
         assert not bool(local_user[2]), "Local user should still not have oauth2_client_id"
         assert not bool(local_user[3]), "Local user should still not have oauth2_user_id"
 
-    with _engine.connect() as conn:
+    await _run_async(_engine, _verify_local_user)
+
+    def _verify_oauth_user(conn: Connection) -> None:
         oauth_user = conn.execute(
             text(
                 """
@@ -260,6 +272,8 @@ def test_user_auth_method_migration(
         assert not bool(oauth_user[1]), "OAuth2 user should still not have password_salt"
         assert bool(oauth_user[2]), "OAuth2 user should still have oauth2_client_id"
         assert bool(oauth_user[3]), "OAuth2 user should still have oauth2_user_id"
+
+    await _run_async(_engine, _verify_oauth_user)
 
 
 def _create_local_user(

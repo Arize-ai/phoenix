@@ -281,6 +281,8 @@ EOF`
     const spillResult = await runtime.executeCommand(
       `printf '{ projects { edges { node { name } } } }' | phoenix-gql --output /home/user/workspace/result.json`
     );
+    const authFetchCallCountBeforeBlockedMutation =
+      mockedAuthFetch.mock.calls.length;
     const blockedMutation = await runtime.executeCommand(
       `phoenix-gql 'mutation { __typename }'`
     );
@@ -292,8 +294,19 @@ EOF`
     expect(fileResult.stdout).toContain("Dataset A");
     expect(spillResult.stdout).toContain("/home/user/workspace/result.json");
     expect(blockedMutation.exitCode).toBe(1);
-    expect(blockedMutation.stderr).toContain(
-      "Only GraphQL queries are permitted"
+    expect(blockedMutation.stderr.length).toBeGreaterThan(0);
+    expect(mockedAuthFetch.mock.calls.length).toBe(
+      authFetchCallCountBeforeBlockedMutation
+    );
+
+    const bypassAttempt = await runtime.executeCommand(
+      `export PHOENIX_MUTATIONS_ENABLED=1
+phoenix-gql 'mutation { __typename }'`
+    );
+
+    expect(bypassAttempt.exitCode).toBe(1);
+    expect(mockedAuthFetch.mock.calls.length).toBe(
+      authFetchCallCountBeforeBlockedMutation
     );
   });
 

@@ -60,19 +60,31 @@ export function PromptInputTextarea({
     const textarea = internalRef.current;
     if (!textarea) return;
 
-    textarea.style.height = "auto";
-    let newHeight = textarea.scrollHeight;
+    const resizeTextarea = () => {
+      textarea.style.height = "auto";
+      let newHeight = textarea.scrollHeight;
 
-    if (maxRows) {
-      const lineHeight = parseInt(
-        getComputedStyle(textarea).lineHeight || "20",
-        10
-      );
-      const maxHeight = lineHeight * maxRows;
-      newHeight = Math.min(newHeight, maxHeight);
-    }
+      if (maxRows) {
+        const lineHeight = parseInt(
+          getComputedStyle(textarea).lineHeight || "20",
+          10
+        );
+        const maxHeight = lineHeight * maxRows;
+        newHeight = Math.min(newHeight, maxHeight);
+      }
 
-    textarea.style.height = `${newHeight}px`;
+      textarea.style.height = `${newHeight}px`;
+    };
+
+    resizeTextarea();
+    // Some chat surfaces finish their flex/layout sizing on the next frame.
+    // Re-running once after paint keeps the initial textarea height in sync
+    // without affecting steady-state typing behavior.
+    const animationFrameId = requestAnimationFrame(resizeTextarea);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
   }, [textareaValue, maxRows]);
 
   const { onSubmit } = context;

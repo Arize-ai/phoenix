@@ -1,6 +1,5 @@
 import { css, keyframes } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { PopoverProps } from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
 
@@ -111,7 +110,10 @@ const popoverCSS = css`
   }
 `;
 
-function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
+function Popover({
+  ref,
+  ...props
+}: PopoverProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaPopover
       {...props}
@@ -122,6 +124,5 @@ function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _Popover = forwardRef(Popover);
-export { _Popover as Popover };
+export { Popover };
 export type { PopoverProps };

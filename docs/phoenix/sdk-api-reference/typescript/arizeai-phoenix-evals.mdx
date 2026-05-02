@@ -2,7 +2,7 @@
 title: "@arizeai/phoenix-evals"
 ---
 
-<a href="https://www.npmjs.com/package/@arizeai/phoenix-evals"><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/41b96bc0-40arizeai2Fphoenix-evals.svg" className='inline'/></a>
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals)
 
 TypeScript evaluation library for LLM applications. This package is vendor agnostic and can be used independently of any framework or platform.
 
@@ -16,157 +16,32 @@ TypeScript evaluation library for LLM applications. This package is vendor agnos
 npm install @arizeai/phoenix-evals
 ```
 
-## Usage
+<Note>
+`@arizeai/phoenix-evals` ships local docs and source code inside `node_modules/@arizeai/phoenix-evals/`.
 
-### Creating Custom Classifiers
+Browse the website version under [@arizeai/phoenix-evals Docs](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview).
+</Note>
 
-Create custom evaluators for tasks like faithfulness detection, relevance scoring, or any binary/multi-class classification:
+## Start Here
 
-```javascript 
-import { createClassifierFn } from "@arizeai/phoenix-evals/llm";
-import { openai } from "@ai-sdk/openai";
+- [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview) for installation requirements, package layout, and module map
+- [Create evaluator](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator) for custom and code-based evaluators
+- [LLM evaluators](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators) for built-in model-backed evaluation
+- [Classification](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification)
+- [Templates](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates)
+- [Phoenix integration](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration)
 
-const model = openai("gpt-4o-mini");
+## Local Install Pattern
 
-const promptTemplate = `
-In this task, you will be presented with a query, some context and a response. The response is
-generated to the question based on the context. The response may contain false information. You
-must use the context to determine if the response to the question contains false information,
-if the response is unfaithful to the facts. Your objective is to determine whether the response text
-contains factual information and is faithful to the context. An 'unfaithful' response refers to
-a response that is not based on the context or assumes information that is not available in
-the context. Your response should be a single word: either "faithful" or "unfaithful", and
-it should not include any other text or characters.
+After install, a coding agent can inspect:
 
-    [BEGIN DATA]
-    ************
-    [Query]: {{input}}
-    ************
-    [Context]: {{context}}
-    ************
-    [Response]: {{output}}
-    ************
-    [END DATA]
-
-Is the response above faithful or unfaithful based on the query and context?
-`;
-
-// Create the classifier
-const evaluator = createClassifierFn({
-  model,
-  choices: { faithful: 1, unfaithful: 0 },
-  promptTemplate: promptTemplate,
-});
-
-// Use the classifier
-const result = await evaluator({
-  output: "Arize is not open source.",
-  input: "Is Arize Phoenix Open Source?",
-  context: "Arize Phoenix is a platform for building and deploying AI applications. It is open source.",
-});
-
-console.log(result);
-// Output: { label: "unfaithful", score: 0 }
+```text
+node_modules/@arizeai/phoenix-evals/docs/
+node_modules/@arizeai/phoenix-evals/src/
 ```
 
-### Pre-Built Evaluators
+That gives the agent version-matched prose plus the exact implementation and types that shipped with your project.
 
-The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
+## API Reference
 
-```javascript 
-import {
-  createFaithfulnessEvaluator,
-} from "@arizeai/phoenix-evals/llm";
-import { openai } from "@ai-sdk/openai";
-import { anthropic } from "@ai-sdk/anthropic";
-
-const model = openai("gpt-4o-mini");
-// or use any other AI SDK provider
-// const model = anthropic("claude-3-haiku-20240307");
-
-// Faithfulness Detection
-const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model,
-});
-
-
-// Use the evaluators
-const result = await faithfulnessEvaluator({
-  input: "What is the capital of France?",
-  context: "France is a country in Europe. Paris is its capital city.",
-  output: "The capital of France is London.",
-});
-
-console.log(result);
-// Output: { label: "unfaithful", score: 0, explanation: "..." }
-```
-
-## Experimentation with Phoenix
-
-This package works seamlessly with [`@arizeai/phoenix-client`](https://www.npmjs.com/package/@arizeai/phoenix-client) to enable experimentation workflows. You can create datasets, run experiments, and trace evaluation calls for analysis and debugging.
-
-### Running Experiments
-
-```bash
-npm install @arizeai/phoenix-client
-```
-
-```javascript 
-import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals/llm";
-import { openai } from "@ai-sdk/openai";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import { asEvaluator, runExperiment } from "@arizeai/phoenix-client/experiments";
-
-// Create your evaluator
-const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model: openai("gpt-4o-mini"),
-});
-
-// Create a dataset for your experiment
-const dataset = await createDataset({
-  name: "faithfulness-eval",
-  description: "Evaluate the faithfulness of the model",
-  examples: [
-    {
-      input: {
-        question: "Is Phoenix Open-Source?",
-        context: "Phoenix is Open-Source.",
-      },
-    },
-    // ... more examples
-  ],
-});
-
-// Define your experimental task
-const task = async (example) => {
-  // Your AI system's response to the question
-  return "Phoenix is not Open-Source";
-};
-
-// Create a custom evaluator to validate results
-const faithfulnessCheck = asEvaluator({
-  name: "faithfulness",
-  kind: "LLM",
-  evaluate: async ({ input, output }) => {
-    // Use the faithfulness evaluator from phoenix-evals
-    const result = await faithfulnessEvaluator({
-      input: input.question,
-      context: input.context,
-      output: output,
-    });
-
-    return result; // Return the evaluation result
-  },
-});
-
-// Run the experiment with automatic tracing
-await runExperiment({
-  experimentName: "faithfulness-eval",
-  experimentDescription: "Evaluate the faithfulness of the model",
-  dataset: dataset,
-  task,
-  evaluators: [faithfulnessCheck],
-});
-```
-
-
+- [TypeScript API docs](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.html)

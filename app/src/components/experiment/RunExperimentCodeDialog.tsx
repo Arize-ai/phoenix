@@ -48,8 +48,11 @@ const EVALUATOR_PYTHON =
 
 const RUN_EXPERIMENT_PYTHON =
   `# Run an experiment\n` +
-  `from phoenix.client.experiments import run_experiment\n\n` +
-  `experiment = run_experiment(dataset, my_task, evaluators=evaluators)`;
+  `experiment = client.experiments.run_experiment(\n` +
+  `    dataset=dataset,\n` +
+  `    task=my_task,\n` +
+  `    evaluators=evaluators,\n` +
+  `)`;
 
 function getDatasetTypeScriptCode(datasetId: string, experimentName: string) {
   return `import { createClient } from "@arizeai/phoenix-client";

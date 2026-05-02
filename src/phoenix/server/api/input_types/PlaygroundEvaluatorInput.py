@@ -1,10 +1,10 @@
-from typing import Mapping, Optional
+from typing import Any, Mapping, Optional, cast
 
 import strawberry
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.db.types.evaluators import InputMapping, validate_jsonpath
+from phoenix.db.types.evaluators import InputMapping, JSONPath, validate_jsonpath
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
@@ -14,15 +14,15 @@ from phoenix.server.api.types.Identifier import Identifier
 
 @strawberry.input
 class EvaluatorInputMappingInput:
-    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    literal_mapping: JSON
     """Direct key-value mappings to evaluator inputs."""
-    path_mapping: JSON = strawberry.field(default_factory=dict)
+    path_mapping: JSON
     """JSONPath expressions to extract values from the evaluation context."""
 
     def __post_init__(self) -> None:
         if not isinstance(self.path_mapping, Mapping):
             raise BadRequest("path_mapping must be a dictionary")
-        for key, path in self.path_mapping.items():
+        for key, path in cast(Mapping[str, Any], self.path_mapping).items():
             if not isinstance(path, str):
                 raise BadRequest(
                     f"Invalid JSONPath expression for key '{key}': {path} is not a string"
@@ -35,8 +35,8 @@ class EvaluatorInputMappingInput:
     def to_orm(self) -> InputMapping:
         """Convert to database InputMapping type."""
         return InputMapping(
-            literal_mapping=self.literal_mapping,
-            path_mapping=self.path_mapping,
+            literal_mapping=cast(dict[str, Any], self.literal_mapping),
+            path_mapping=cast(dict[str, JSONPath], self.path_mapping),
         )
 
 
@@ -45,7 +45,5 @@ class PlaygroundEvaluatorInput:
     id: GlobalID
     name: Identifier
     description: Optional[str] = None
-    input_mapping: EvaluatorInputMappingInput = strawberry.field(
-        default_factory=EvaluatorInputMappingInput
-    )
+    input_mapping: EvaluatorInputMappingInput
     output_configs: Optional[list[AnnotationConfigInput]] = None

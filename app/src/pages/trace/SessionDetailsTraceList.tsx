@@ -4,35 +4,66 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
-import { useCallback, useMemo } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
+import { useSearchParams } from "react-router";
 
 import {
   Flex,
   Icon,
   Icons,
   Link,
+  ListBox,
+  ListBoxItem,
   Loading,
   Text,
+  Truncate,
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
+import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
+import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
+import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
+import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { SessionViewTabs } from "./SessionViewTabs";
+import type { SessionView } from "./SessionViewTabs";
+
+export const sessionDetailsTraceListQuery = graphql`
+  query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
+    session: node(id: $id) {
+      ... on ProjectSession {
+        ...SessionDetailsTraceList_traces @arguments(first: $first)
+      }
+    }
+  }
+`;
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
@@ -177,12 +208,158 @@ function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
   );
 }
 
-export function SessionDetailsTraceList({
-  tracesRef,
+type SessionTurnRow = {
+  traceId: string;
+  rootSpan: SessionTraceRootSpan;
+};
+
+type IndexedSessionTurnRow = SessionTurnRow & { index: number };
+
+const turnListCSS = css`
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+
+  .react-aria-ListBoxItem {
+    margin: 0;
+    padding: var(--global-dimension-static-size-200);
+    border-radius: 0;
+    border-left: 4px solid transparent;
+    border-bottom: 1px solid var(--global-border-color-default);
+    box-sizing: border-box;
+    cursor: pointer;
+
+    &[data-hovered],
+    &[data-focused] {
+      background: var(--global-list-item-hover-background-color);
+    }
+
+    &[data-selected] {
+      background: var(--global-list-item-selected-background-color);
+      color: var(--global-text-color-900);
+      border-left-color: var(--global-list-item-selected-border-color);
+    }
+  }
+`;
+
+function SessionTurnList({
+  rows,
+  selectedTraceId,
+  onTurnClick,
 }: {
-  tracesRef: SessionDetailsTraceList_traces$key;
+  rows: ReadonlyArray<SessionTurnRow>;
+  selectedTraceId: string | null;
+  onTurnClick: (traceId: string) => void;
 }) {
-  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
+  const { fullTimeFormatter } = useTimeFormatters();
+  const indexedRows: IndexedSessionTurnRow[] = rows.map((row, index) => ({
+    ...row,
+    index,
+  }));
+  return (
+    <ListBox
+      aria-label="Session turns"
+      items={indexedRows}
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={selectedTraceId ? [selectedTraceId] : []}
+      onSelectionChange={(selection) => {
+        if (selection === "all") return;
+        const key = selection.keys().next().value;
+        if (typeof key === "string") {
+          onTurnClick(key);
+        }
+      }}
+      css={turnListCSS}
+    >
+      {(row) => {
+        const paddedIndex = String(row.index + 1).padStart(2, "0");
+        const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
+        return (
+          <ListBoxItem id={row.traceId} textValue={turnLabel}>
+            <Flex direction="column" gap="size-100">
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-100"
+              >
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  alignItems="center"
+                  flex={1}
+                  minWidth={0}
+                >
+                  <Text fontFamily="mono" color="text-500">
+                    {paddedIndex}
+                  </Text>
+                  <Flex flex={1} minWidth={0}>
+                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                      <Text weight="heavy">{row.rootSpan.name}</Text>
+                    </Truncate>
+                  </Flex>
+                </Flex>
+                <Text color="text-700" size="XS">
+                  {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+                </Text>
+              </Flex>
+              <Flex direction="row" gap="size-100" alignItems="center" wrap>
+                <TokenCount size="S">
+                  {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+                </TokenCount>
+                {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                  <TokenCosts size="S">
+                    {row.rootSpan.trace.costSummary.total.cost}
+                  </TokenCosts>
+                ) : null}
+                {row.rootSpan.latencyMs != null ? (
+                  <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
+                ) : null}
+              </Flex>
+            </Flex>
+          </ListBoxItem>
+        );
+      }}
+    </ListBox>
+  );
+}
+
+const turnDetailRowCSS = css`
+  &[data-selected] {
+    background-color: var(--global-list-detail-selected-background-color);
+  }
+`;
+
+const panelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
+export function SessionDetailsTraceList({
+  queryRef,
+  sessionView,
+  onSessionViewChange,
+  traceCount,
+}: {
+  queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
+  sessionView: SessionView;
+  onSessionViewChange: (view: SessionView) => void;
+  traceCount: number;
+}) {
+  const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
+    sessionDetailsTraceListQuery,
+    queryRef
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment<
+    SessionDetailsTraceListRefetchQuery,
+    SessionDetailsTraceList_traces$key
+  >(
     graphql`
       fragment SessionDetailsTraceList_traces on ProjectSession
       @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
@@ -190,6 +367,7 @@ export function SessionDetailsTraceList({
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
       ) {
+        numTraces
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
           edges {
@@ -206,6 +384,7 @@ export function SessionDetailsTraceList({
                   }
                 }
                 id
+                name
                 attributes
                 project {
                   id
@@ -229,7 +408,7 @@ export function SessionDetailsTraceList({
         }
       }
     `,
-    tracesRef
+    queryData.session
   );
 
   const sessionRootSpans = useMemo(() => {
@@ -262,51 +441,138 @@ export function SessionDetailsTraceList({
     [fetchMoreOnBottomReached]
   );
 
-  return (
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "session-details-layout",
+    storage: localStorage,
+  });
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+
+  const handleTurnClick = (traceId: string) => {
+    setSearchParams(
+      (params) => {
+        params.set(SELECTED_TRACE_ID_PARAM, traceId);
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  // Scroll the selected turn into view on mount and when the selection
+  // changes. The effect also re-runs when more turns are paginated in
+  // (initial mount may have a selection whose row is not yet mounted),
+  // so we dedupe via a ref to avoid snapping the scroll back to the
+  // selected turn when the user has manually scrolled elsewhere and a
+  // later page loads.
+  const lastScrolledTraceIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedTraceId == null) {
+      lastScrolledTraceIdRef.current = null;
+      return;
+    }
+    if (lastScrolledTraceIdRef.current === selectedTraceId) return;
+    const el = rowRefs.current.get(selectedTraceId);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      lastScrolledTraceIdRef.current = selectedTraceId;
+    }
+  }, [selectedTraceId, sessionRootSpans]);
+
+  const turnListPanel = (
     <div
       css={css`
-        height: 100%;
         flex: 1 1 auto;
-        overflow: auto;
+        min-height: 0;
+        overflow: hidden;
       `}
-      onScroll={(e) =>
-        debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-      }
     >
-      {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
-        <View
-          borderBottomColor="default"
-          borderBottomWidth={"thin"}
-          key={rootSpan.spanId}
-        >
-          <Flex direction={"row"}>
-            <View
-              borderRightWidth={"thin"}
-              borderEndColor="default"
-              padding="size-200"
-              flex={"1 1 auto"}
-            >
-              <RootSpanInputOutput rootSpan={rootSpan} />
-            </View>
-            <View width={350} padding="size-200" flex="none">
-              <RootSpanDetails
-                traceId={traceId}
-                rootSpan={rootSpan}
-                index={index}
-              />
-            </View>
-          </Flex>
-        </View>
-      ))}
-      {isLoadingNext && (
-        <View
-          borderBottomColor="default"
-          borderBottomWidth={"thin"}
-          padding="size-200"
-        >
-          <Loading />
-        </View>
-      )}
+      <SessionTurnList
+        rows={sessionRootSpans}
+        selectedTraceId={selectedTraceId}
+        onTurnClick={handleTurnClick}
+      />
     </div>
+  );
+
+  return (
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+      css={css`
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
+      <Panel id="session-turns" defaultSize="20%" minSize="10%">
+        <div css={panelContentCSS}>
+          <SessionViewTabs
+            sessionView={sessionView}
+            onSessionViewChange={onSessionViewChange}
+            traceCount={traceCount}
+          >
+            {turnListPanel}
+          </SessionViewTabs>
+        </div>
+      </Panel>
+      <Separator css={compactResizeHandleCSS} />
+      <Panel id="session-turn-details">
+        <div
+          css={css`
+            height: 100%;
+            overflow: auto;
+          `}
+          onScroll={(e) =>
+            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+          }
+        >
+          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
+            <div
+              key={rootSpan.spanId}
+              css={turnDetailRowCSS}
+              data-selected={traceId === selectedTraceId || undefined}
+              ref={(el) => {
+                if (el) {
+                  rowRefs.current.set(traceId, el);
+                } else {
+                  rowRefs.current.delete(traceId);
+                }
+              }}
+            >
+              <View borderBottomColor="default" borderBottomWidth={"thin"}>
+                <Flex direction={"row"}>
+                  <View
+                    borderRightWidth={"thin"}
+                    borderEndColor="default"
+                    padding="size-200"
+                    flex={"1 1 auto"}
+                  >
+                    <RootSpanInputOutput rootSpan={rootSpan} />
+                  </View>
+                  <View width={350} padding="size-200" flex="none">
+                    <RootSpanDetails
+                      traceId={traceId}
+                      rootSpan={rootSpan}
+                      index={index}
+                    />
+                  </View>
+                </Flex>
+              </View>
+            </div>
+          ))}
+          {isLoadingNext && (
+            <View
+              borderBottomColor="default"
+              borderBottomWidth={"thin"}
+              padding="size-200"
+            >
+              <Loading />
+            </View>
+          )}
+        </div>
+      </Panel>
+    </Group>
   );
 }

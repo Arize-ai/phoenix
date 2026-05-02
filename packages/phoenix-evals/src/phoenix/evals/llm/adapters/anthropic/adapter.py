@@ -1,9 +1,14 @@
 import logging
-from typing import Any, Dict, List, Type, Union, cast
+from typing import Any, Dict, List, Type, cast
 
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
-
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    classify_message_list_kind,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import AnthropicClientWrapper, create_anthropic_client
@@ -72,7 +77,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return inspect.iscoroutinefunction(create_method)
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if self._is_async:
             raise ValueError("Cannot call sync method generate_text() on async Anthropic client.")
         messages, system = self._build_messages(prompt)
@@ -95,9 +100,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             logger.error(f"Anthropic completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         if not self._is_async:
             raise ValueError(
                 "Cannot call async method async_generate_text() on sync Anthropic client."
@@ -124,7 +127,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -155,7 +158,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -180,7 +183,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -207,7 +210,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -305,9 +308,7 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         return anthropic_messages
 
-    def _build_messages(
-        self, prompt: Union[PromptLike, MultimodalPrompt]
-    ) -> tuple[list[dict[str, Any]], str]:
+    def _build_messages(self, prompt: PromptLike) -> tuple[list[dict[str, Any]], str]:
         """Build messages for Anthropic API.
 
         Returns:
@@ -317,47 +318,55 @@ class AnthropicAdapter(BaseLLMAdapter):
             return [{"role": "user", "content": prompt}], ""
 
         if isinstance(prompt, list):
-            # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
-                # Extract system messages first
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
+            # Reject mixed lists (typed Message + raw dict) up front.
+            #
+            # ``extras_per_msg`` mirrors ``messages_typed`` index-for-index and
+            # captures any caller-supplied keys other than ``role``/``content``
+            # on the dict path (e.g. the documented OpenAI ``name`` field).
+            # The typed-input branch can't carry extras, so we pad with empty
+            # dicts to keep the indexing parallel.
+            extras_per_msg: List[Dict[str, Any]] = []
+            if classify_message_list_kind(prompt) == "typed":
                 messages_typed = cast(List[Message], prompt)
-                system_messages = [
-                    msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM
-                ]
-                system_content = "\n".join(
-                    self._extract_text_from_content(msg["content"]) for msg in system_messages
-                )
-                # Transform List[Message] to Anthropic format (excludes system messages)
-                anthropic_messages = self._transform_messages_to_anthropic(messages_typed)
-                return anthropic_messages, system_content
+                extras_per_msg = [{} for _ in messages_typed]
+            else:
+                # OpenAI-style dict messages — validate and canonicalize before
+                # routing through the typed transform.  Normalizing here means
+                # ``developer`` aliases are treated as system and get
+                # correctly extracted into the Anthropic ``system`` string.
+                messages_typed = []
+                for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                    validate_message_dict(msg, index=i)
+                    role = normalize_role(msg["role"])
+                    messages_typed.append(Message(role=role, content=msg["content"]))
+                    extras_per_msg.append(
+                        {k: v for k, v in msg.items() if k not in ("role", "content")}
+                    )
 
-            # Otherwise, plain dict format - extract system messages
-            system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") == "system"
-            ]
-            non_system_messages_dicts: List[Dict[str, Any]] = [
-                msg for msg in cast(List[Dict[str, Any]], prompt) if msg.get("role") != "system"
-            ]
+            # Extract system messages first
+            system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
             system_content = "\n".join(
-                self._extract_text_from_content(msg.get("content", ""))
-                for msg in system_messages_dicts
+                self._extract_text_from_content(msg["content"]) for msg in system_messages
             )
-            return non_system_messages_dicts, system_content
-
-        # Handle legacy MultimodalPrompt
-        if isinstance(prompt, MultimodalPrompt):
-            text_parts = []
-            for part in prompt.parts:
-                if part.content_type == PromptPartContentType.TEXT:
-                    text_parts.append(part.content)
-
-            combined_text = "\n".join(text_parts)
-            return [{"role": "user", "content": combined_text}], ""
+            anthropic_messages = self._transform_messages_to_anthropic(messages_typed)
+            # Re-attach extras for non-system messages (system extras are
+            # discarded since they fold into the ``system`` string).  The
+            # transform preserves the order of non-system messages, so we walk
+            # both lists together.
+            non_system_extras = [
+                extras
+                for extras, msg in zip(extras_per_msg, messages_typed)
+                if msg["role"] != MessageRole.SYSTEM
+            ]
+            anthropic_messages = [
+                {**extras, **out} for extras, out in zip(non_system_extras, anthropic_messages)
+            ]
+            return anthropic_messages, system_content
 
         # If we get here, prompt is an unexpected type
-        raise ValueError(
-            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-        )
+        raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         if not schema:

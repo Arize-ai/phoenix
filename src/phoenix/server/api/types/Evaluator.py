@@ -18,6 +18,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
 )
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
@@ -50,9 +51,9 @@ class EvaluatorKind(Enum):
 
 @strawberry.type
 class EvaluatorInputMapping:
-    literal_mapping: JSON = strawberry.field(default_factory=dict)
+    literal_mapping: JSON
     """Direct key-value mappings to evaluator inputs."""
-    path_mapping: JSON = strawberry.field(default_factory=dict)
+    path_mapping: JSON
     """JSONPath expressions to extract values from the evaluation context."""
 
 
@@ -143,7 +144,7 @@ class CodeEvaluator(Evaluator, Node):
             val = await info.context.data_loaders.code_evaluator_fields.load(
                 (self.id, models.CodeEvaluator.name),
             )
-        return val.root if val else ""
+        return Identifier(val.root if val else "")
 
     @strawberry.field
     async def description(
@@ -169,7 +170,7 @@ class CodeEvaluator(Evaluator, Node):
             val = await info.context.data_loaders.code_evaluator_fields.load(
                 (self.id, models.CodeEvaluator.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def kind(
@@ -247,7 +248,7 @@ class LLMEvaluator(Evaluator, Node):
             val = await info.context.data_loaders.llm_evaluator_fields.load(
                 (self.id, models.LLMEvaluator.name),
             )
-        return val.root if val else ""
+        return Identifier(val.root if val else "")
 
     @strawberry.field
     async def description(
@@ -273,7 +274,7 @@ class LLMEvaluator(Evaluator, Node):
             val = await info.context.data_loaders.llm_evaluator_fields.load(
                 (self.id, models.LLMEvaluator.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def kind(
@@ -420,7 +421,7 @@ class LLMEvaluator(Evaluator, Node):
                 .order_by(models.PromptVersion.id.desc())
                 .limit(1)
             )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             prompt_version = await session.scalar(stmt)
             if prompt_version is None:
                 raise NotFound(f"Prompt version not found for prompt {prompt_id}")
@@ -442,13 +443,13 @@ class BuiltInEvaluator(Evaluator, Node):
         """Helper to fetch the builtin evaluator record from DB, with caching."""
         if self.db_record is not None:
             return self.db_record
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             builtin = await session.get(models.BuiltinEvaluator, self.id)
             if builtin is None:
                 raise NotFound(f"Built-in evaluator not found: {self.id}")
             return builtin
 
-    async def _get_evaluator_class(self, info: Info[Context, None]) -> object:
+    async def _get_evaluator_class(self, info: Info[Context, None]) -> type[BuiltInEvaluatorClass]:
         """Helper to fetch builtin evaluator class from DB key."""
         from phoenix.server.api.evaluators import (
             get_builtin_evaluator_by_key,
@@ -462,7 +463,7 @@ class BuiltInEvaluator(Evaluator, Node):
                 raise NotFound(f"Built-in evaluator class not found for key: {self.db_record.key}")
             return evaluator_class
         # Fall back to helper that fetches from DB
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return await get_builtin_evaluator_from_orm(session, self.id)
 
     @strawberry.field
@@ -471,7 +472,7 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> Identifier:
         evaluator_class = await self._get_evaluator_class(info)
-        return evaluator_class.name  # type: ignore[attr-defined]
+        return Identifier(evaluator_class.name)
 
     @strawberry.field
     async def description(
@@ -479,7 +480,7 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> Optional[str]:
         evaluator_class = await self._get_evaluator_class(info)
-        return str(evaluator_class.description) if evaluator_class.description else None  # type: ignore[attr-defined]
+        return evaluator_class.description
 
     @strawberry.field
     async def metadata(
@@ -487,7 +488,7 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> JSON:
         evaluator_class = await self._get_evaluator_class(info)
-        return evaluator_class.metadata  # type: ignore[attr-defined]
+        return JSON(evaluator_class.metadata)
 
     @strawberry.field
     async def kind(
@@ -518,7 +519,7 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> Optional[JSON]:
         evaluator_class = await self._get_evaluator_class(info)
-        return evaluator_class().input_schema  # type: ignore[operator]
+        return JSON(evaluator_class().input_schema)
 
     @strawberry.field
     async def user(
@@ -532,7 +533,7 @@ class BuiltInEvaluator(Evaluator, Node):
         info: Info[Context, None],
     ) -> list["BuiltInEvaluatorOutputConfig"]:
         evaluator_class = await self._get_evaluator_class(info)
-        base_configs = evaluator_class().output_configs  # type: ignore[operator]
+        base_configs = evaluator_class().output_configs
         return [
             _to_gql_output_config(
                 config,
@@ -627,7 +628,7 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Identifier:
         record = await self._get_record(info)
-        return record.name.root
+        return Identifier(record.name.root)
 
     @strawberry.field
     async def updated_at(
@@ -658,7 +659,7 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             evaluator = await session.get(models.Evaluator, record.evaluator_id)
             if evaluator is None:
                 raise NotFound(f"Evaluator not found: {record.evaluator_id}")
@@ -686,7 +687,7 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             evaluator = await session.get(models.Evaluator, record.evaluator_id)
             if evaluator is None:
                 return None
@@ -714,7 +715,7 @@ class DatasetEvaluator(Node):
         configs = record.output_configs
         if configs is None:
             # Fall back to the base evaluator's stored configs
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 evaluator = await session.get(models.Evaluator, record.evaluator_id)
                 if evaluator is None:
                     return []
@@ -747,8 +748,8 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         input_mapping = record.input_mapping
         return EvaluatorInputMapping(
-            literal_mapping=input_mapping.literal_mapping,
-            path_mapping=input_mapping.path_mapping,
+            literal_mapping=JSON(input_mapping.literal_mapping),
+            path_mapping=JSON(input_mapping.path_mapping),
         )
 
     @strawberry.field

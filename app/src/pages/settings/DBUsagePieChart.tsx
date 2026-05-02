@@ -65,7 +65,7 @@ export function DBUsagePieChart({
     return chartData;
   }, [data.dbTableStats, remainingBytes]);
   return (
-    <ResponsiveContainer width="100%" height={245}>
+    <ResponsiveContainer width="100%" height={200}>
       <PieChart>
         <Pie
           data={chartData}
@@ -73,8 +73,8 @@ export function DBUsagePieChart({
           nameKey="tableName"
           cx="50%"
           cy="50%"
-          innerRadius={70}
-          outerRadius={110}
+          innerRadius={55}
+          outerRadius={85}
           strokeWidth={0}
           stroke="transparent"
         >

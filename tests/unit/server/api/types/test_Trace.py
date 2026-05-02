@@ -102,7 +102,7 @@ async def test_trace_spans_pagination(
     trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
 
     query = """
-        query ($traceId: ID!, $first: Int, $after: String) {
+        query ($traceId: ID!, $first: Int!, $after: String) {
             node(id: $traceId) {
                 ... on Trace {
                     spans(first: $first, after: $after) {
@@ -208,6 +208,76 @@ async def test_trace_spans_pagination(
     assert page_info["hasPreviousPage"] is False
 
 
+async def test_trace_spans_require_first(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+
+    trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
+    query = """
+        query ($traceId: ID!) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(query=query, variables={"traceId": trace_gid})
+    assert response.errors
+    assert len(response.errors) == 1
+    assert (
+        response.errors[0].message
+        == "Field 'spans' argument 'first' of type 'Int!' is required, but it was not provided."
+    )
+
+
+async def test_trace_spans_limit_first_page_size(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+
+    trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
+    query = """
+        query ($traceId: ID!, $first: Int!) {
+            node(id: $traceId) {
+                ... on Trace {
+                    spans(first: $first) {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"traceId": trace_gid, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"
+
+
 @pytest.mark.parametrize(
     "variables, start_cursor, end_cursor, has_next_page",
     [
@@ -264,7 +334,7 @@ async def test_trace_spans_pagination_parametrized(
         variables["after"] = str(cursor)
 
     query = """
-        query ($traceId: ID!, $first: Int, $after: String) {
+        query ($traceId: ID!, $first: Int!, $after: String) {
             node(id: $traceId) {
                 ... on Trace {
                     spans(first: $first, after: $after) {
@@ -353,7 +423,7 @@ async def test_trace_spans_root_spans_only(
     trace_gid = str(GlobalID(Trace.__name__, str(trace.id)))
 
     query = """
-        query ($traceId: ID!, $first: Int, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
+        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
             node(id: $traceId) {
                 ... on Trace {
                     spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {
@@ -452,7 +522,7 @@ async def test_trace_spans_root_spans_only_cross_trace_parent(
     trace_2_gid = str(GlobalID(Trace.__name__, str(trace_2.id)))
 
     query = """
-        query ($traceId: ID!, $first: Int, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
+        query ($traceId: ID!, $first: Int!, $rootSpansOnly: Boolean, $orphanSpanAsRootSpan: Boolean) {
             node(id: $traceId) {
                 ... on Trace {
                     spans(first: $first, rootSpansOnly: $rootSpansOnly, orphanSpanAsRootSpan: $orphanSpanAsRootSpan) {

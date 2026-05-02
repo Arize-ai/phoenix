@@ -1,4 +1,9 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import React, {
+  startTransition,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+} from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -35,8 +40,16 @@ import type { AnnotationSummaryValueFragment$key } from "./__generated__/Annotat
 
 type AnnotationSummaryProps = {
   annotationName: string;
+  /**
+   * Optional span filter condition. When set, the annotation summary is
+   * restricted to spans matching the condition.
+   */
+  filterCondition?: string | null;
 };
-export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
+export function AnnotationSummary({
+  annotationName,
+  filterCondition,
+}: AnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
@@ -45,10 +58,15 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
         $id: ID!
         $annotationName: String!
         $timeRange: TimeRange!
+        $filterCondition: String
       ) {
         project: node(id: $id) {
           ...AnnotationSummaryValueFragment
-            @arguments(annotationName: $annotationName, timeRange: $timeRange)
+            @arguments(
+              annotationName: $annotationName
+              timeRange: $timeRange
+              filterCondition: $filterCondition
+            )
         }
       }
     `,
@@ -59,12 +77,14 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
         start: timeRange?.start?.toISOString(),
         end: timeRange?.end?.toISOString(),
       },
+      filterCondition: filterCondition || null,
     }
   );
   return (
     <Summary name={annotationName}>
       <AnnotationSummaryValue
         annotationName={annotationName}
+        filterCondition={filterCondition || null}
         project={data.project}
       />
     </Summary>
@@ -73,9 +93,10 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
 
 function AnnotationSummaryValue(props: {
   annotationName: string;
+  filterCondition: string | null;
   project: AnnotationSummaryValueFragment$key;
 }) {
-  const { project, annotationName } = props;
+  const { project, annotationName, filterCondition } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     AnnotationSummaryQuery,
@@ -87,6 +108,7 @@ function AnnotationSummaryValue(props: {
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
+        filterCondition: { type: "String", defaultValue: null }
       ) {
         annotationConfigs {
           edges {
@@ -110,6 +132,7 @@ function AnnotationSummaryValue(props: {
         spanAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
+          filterCondition: $filterCondition
         ) {
           name
           labelFractions {
@@ -123,12 +146,16 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  // Refetch the annotation summary if the fetchKey changes
-  useEffect(() => {
+  const refetchAnnotationSummary = useEffectEvent(() => {
     startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
+      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  });
+
+  // Refetch the annotation summary when streaming data advances.
+  useEffect(() => {
+    refetchAnnotationSummary();
+  }, [fetchKey]);
 
   return (
     <SummaryValue
@@ -381,6 +408,37 @@ export function SummaryValuePreview({
   );
 }
 
+export function SummaryValueLabelPreview({
+  labelFractions,
+}: {
+  labelFractions: readonly { label: string; fraction: number }[];
+}) {
+  const largestFraction = labelFractions.reduce((max, current) => {
+    return Math.max(max, current.fraction);
+  }, 0);
+  const largestFractionLabel = labelFractions.find(
+    (fraction) => fraction.fraction === largestFraction
+  )?.label;
+  const totalCount = labelFractions.length - 1;
+  const hasMoreThanOneLabel = totalCount > 0;
+  if (!largestFractionLabel) {
+    return null;
+  }
+  return (
+    <Flex
+      direction="row"
+      alignItems="center"
+      gap="size-50"
+      maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+    >
+      <Token style={{ maxWidth: "100%" }}>
+        <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
+      </Token>
+      {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+    </Flex>
+  );
+}
+
 export function SummaryValueBreakdown({
   annotationName,
   labelFractions,
@@ -443,34 +501,13 @@ export function SummaryValueLabels({
   labelFractions: readonly { label: string; fraction: number }[];
   annotationConfig?: AnnotationConfig;
 }) {
-  const largestFraction = labelFractions.reduce((max, current) => {
-    return Math.max(max, current.fraction);
-  }, 0);
-  const largestFractionLabel = labelFractions.find(
-    (fraction) => fraction.fraction === largestFraction
-  )?.label;
-  const totalCount = labelFractions.length - 1;
-  const hasMoreThanOneLabel = totalCount > 0;
-  if (!largestFractionLabel) {
+  if (labelFractions.length === 0) {
     return null;
   }
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
-        <Flex
-          direction="row"
-          alignItems="center"
-          gap="size-50"
-          // Shrinks the container of tokens to allow for the + count to be visible
-          // while still truncating the biggest label
-          // otherwise, just shrink the container slightly for padding
-          maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
-        >
-          <Token style={{ maxWidth: "100%" }}>
-            <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
-          </Token>
-          {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
-        </Flex>
+        <SummaryValueLabelPreview labelFractions={labelFractions} />
       </TriggerWrap>
       <RichTooltip placement="bottom">
         <SummaryValueBreakdown

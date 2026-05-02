@@ -48,6 +48,4 @@ class EvaluatorPreviewItemInput:
 
     evaluator: EvaluatorPreviewInput
     context: JSON
-    input_mapping: EvaluatorInputMappingInput = strawberry.field(
-        default_factory=EvaluatorInputMappingInput
-    )
+    input_mapping: EvaluatorInputMappingInput

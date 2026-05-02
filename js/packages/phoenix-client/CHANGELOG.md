@@ -1,5 +1,63 @@
 # @arizeai/phoenix-client
 
+## 6.9.0
+
+### Minor Changes
+
+- 2993b04: Add `addTraceAnnotation` and `logTraceAnnotations` to the `traces` subpath. Brings the TypeScript client to parity with the Python client by exposing the existing `/v1/trace_annotations` REST endpoint for structured (label/score/explanation) feedback on traces.
+
+### Patch Changes
+
+- 2993b04: Clarify TSDoc and regenerated OpenAPI descriptions for `addSpanNote` and `addTraceNote`. Previous wording implied structured annotations were "unique by name", which is incorrect — annotations are keyed by `(name, target_id, identifier)`, so multiple annotations with the same name can coexist on the same span/trace/session by supplying distinct identifiers. Notes remain append-only via auto-generated UUIDv4 identifiers.
+- 4e20267: Add session annotation and note commands to the Phoenix CLI, and add a session note helper to the TypeScript client. Session note creation requires Phoenix server 14.17.0 or newer.
+
+## 6.8.1
+
+### Patch Changes
+
+- e381885: Gate `example_ids` on dataset upload (`createDataset`, `appendDatasetExamples`) by server version, so callers see a clear capability error when targeting a Phoenix server older than 15.0.0 instead of a confusing server-side failure.
+- 187df7e: Regenerate REST API types for the session notes endpoint.
+
+## 6.8.0
+
+### Minor Changes
+
+- a4dad8b: Add `addTraceNote()` helper for creating trace notes via `POST /v1/trace_notes`. The call performs a preflight server-version check and throws a descriptive error when the connected Phoenix server is too old. Requires Phoenix server >= 14.13.0.
+
+## 6.7.0
+
+### Minor Changes
+
+- e19a038: Add `attributes` filter to `getSpans()` for type-aware attribute matching. Pass a `Record<string, string | number | boolean>` to filter spans by attribute key/value pairs with AND semantics — the JS value type selects how the stored attribute is matched (e.g., `{ "user.id": 12345 }` matches a stored integer, `{ "user.id": "12345" }` matches a stored string). Requires Phoenix server >= 14.9.0.
+
+## 6.6.2
+
+### Patch Changes
+
+- 8444575: Move `@anthropic-ai/sdk`, `openai`, and `ai` from `optionalDependencies` to optional `peerDependencies`. Consumers no longer get these provider SDKs installed automatically — they are only installed if the consumer already depends on them.
+
+## 6.6.1
+
+### Patch Changes
+
+- 1449f3d: Re-export openinference semantic conventions from phoenix-otel and update phoenix-client to import them from phoenix-otel instead of depending on @arizeai/openinference-semantic-conventions directly.
+- Updated dependencies [1449f3d]
+  - @arizeai/phoenix-otel@1.0.0
+
+## 6.6.0
+
+### Minor Changes
+
+- c70eca6: Add optional `traceId` to evaluator params so evaluators can fetch and analyze task traces for trajectory evaluation
+
+## 6.5.5
+
+### Patch Changes
+
+- 1028be5: Bundle curated package docs and examples into npm packages under `docs/`.
+- Updated dependencies [1028be5]
+  - @arizeai/phoenix-otel@0.4.3
+
 ## 6.5.4
 
 ### Patch Changes

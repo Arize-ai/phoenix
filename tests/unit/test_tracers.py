@@ -1,9 +1,11 @@
 import re
-from collections.abc import Sequence
 from datetime import datetime, timezone
+from typing import Sequence
 
 import pytest
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Status, StatusCode
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -12,7 +14,7 @@ from phoenix.db import models
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import Tracer
+from phoenix.tracers import Tracer, _build_remote_http_span_exporter
 
 
 class TestTracer:
@@ -294,6 +296,104 @@ class TestTracer:
         tracer.clear()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 0
+
+    def test_remote_exporter_uses_env_endpoint_only_when_enabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        captured_endpoint: str | None = None
+
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[object]) -> SpanExportResult:
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+            def force_flush(self, timeout_millis: int = 30_000) -> bool:
+                return True
+
+        def make_remote_exporter(endpoint: str) -> SpanExporter:
+            nonlocal captured_endpoint
+            captured_endpoint = endpoint
+            return FakeRemoteExporter()
+
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
+
+        Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_span_exporter_factory=make_remote_exporter,
+        )
+
+        assert captured_endpoint == "https://env-collector.example"
+
+    def test_remote_exporter_does_not_use_env_endpoint_when_not_enabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        captured_endpoint: str | None = None
+
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[object]) -> SpanExportResult:
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+            def force_flush(self, timeout_millis: int = 30_000) -> bool:
+                return True
+
+        def make_remote_exporter(endpoint: str) -> SpanExporter:
+            nonlocal captured_endpoint
+            captured_endpoint = endpoint
+            return FakeRemoteExporter()
+
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
+
+        Tracer(
+            span_cost_calculator=span_cost_calculator,
+            remote_span_exporter_factory=make_remote_exporter,
+        )
+
+        assert captured_endpoint is None
+
+    def test_remote_http_exporter_uses_explicit_api_key_env(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        captured_endpoint: str | None = None
+        captured_headers: dict[str, str] | None = None
+
+        class FakeOTLPSpanExporter:
+            def __init__(self, endpoint: str, headers: dict[str, str]) -> None:
+                nonlocal captured_endpoint, captured_headers
+                captured_endpoint = endpoint
+                captured_headers = headers
+
+        monkeypatch.setattr(otlp_http_trace_exporter, "OTLPSpanExporter", FakeOTLPSpanExporter)
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_API_KEY", "test-api-key")
+
+        _build_remote_http_span_exporter("collector.example")
+
+        assert captured_endpoint == "http://collector.example/v1/traces"
+        assert captured_headers == {"Authorization": "Bearer test-api-key"}
+
+    def test_tracer_sets_resource_project_name_when_provided(
+        self,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            project_name="assistant_agent",
+        )
+
+        assert (
+            tracer._self_provider.resource.attributes["openinference.project.name"]
+            == "assistant_agent"
+        )
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_events_and_exceptions(

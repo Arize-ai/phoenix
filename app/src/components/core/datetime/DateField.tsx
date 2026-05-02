@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type {
   DateFieldProps as AriaDateFieldProps,
   DateValue,
@@ -78,10 +77,10 @@ const dateFieldCSS = css`
 /**
  * A date field, can be used to input just a date as well as a date and time.
  */
-function DateField<T extends DateValue>(
-  props: DateFieldProps<T>,
-  ref: Ref<HTMLDivElement>
-) {
+function DateField<T extends DateValue>({
+  ref,
+  ...props
+}: DateFieldProps<T> & { ref?: Ref<HTMLDivElement> }) {
   const { css: propsCSS, ...restProps } = props;
   return (
     <AriaDateField
@@ -93,5 +92,4 @@ function DateField<T extends DateValue>(
   );
 }
 
-const _DateField = forwardRef(DateField);
-export { _DateField as DateField };
+export { DateField };

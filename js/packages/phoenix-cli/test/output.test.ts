@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { formatProjectsOutput } from "../src/commands/formatProjects";
+import { formatSpansOutput } from "../src/commands/formatSpans";
 import {
   formatTraceOutput,
   formatTracesOutput,
@@ -79,6 +80,103 @@ const mockTraceWithError: Trace = {
   spans: [mockErrorSpan],
 };
 
+const mockTraceWithAnnotations: Trace = {
+  traceId: "annotated123",
+  annotations: [
+    {
+      id: "trace-annotation-1",
+      created_at: "2026-01-13T10:00:00.500Z",
+      updated_at: "2026-01-13T10:00:00.500Z",
+      source: "API",
+      user_id: null,
+      name: "trace-reviewer",
+      annotator_kind: "LLM",
+      identifier: "",
+      metadata: null,
+      trace_id: "annotated123",
+      result: {
+        label: "pass",
+        explanation: "Top level trace annotation",
+      },
+    },
+  ],
+  spans: [
+    {
+      ...mockSpan1,
+      context: {
+        ...mockSpan1.context,
+        trace_id: "annotated123",
+      },
+      annotations: [
+        {
+          id: "annotation-1",
+          created_at: "2026-01-13T10:00:01.000Z",
+          updated_at: "2026-01-13T10:00:01.000Z",
+          source: "API",
+          user_id: null,
+          name: "reviewer",
+          annotator_kind: "HUMAN",
+          identifier: "",
+          metadata: null,
+          span_id: "span1",
+          result: {
+            label: "pass",
+            score: 0.9,
+            explanation: "Looks good",
+          },
+        },
+      ],
+    } as unknown as MockSpan,
+  ],
+};
+
+const mockTraceWithNotes: Trace = {
+  traceId: "noted123",
+  notes: [
+    {
+      id: "trace-note-1",
+      created_at: "2026-01-13T10:00:00.500Z",
+      updated_at: "2026-01-13T10:00:00.500Z",
+      source: "API",
+      user_id: null,
+      name: "note",
+      annotator_kind: "HUMAN",
+      identifier: "px-trace-note:1",
+      metadata: null,
+      trace_id: "noted123",
+      result: {
+        explanation: "Trace note line 1\nTrace note line 2",
+      },
+    },
+  ],
+  spans: [
+    {
+      ...mockSpan1,
+      context: {
+        ...mockSpan1.context,
+        trace_id: "noted123",
+      },
+      notes: [
+        {
+          id: "span-note-1",
+          created_at: "2026-01-13T10:00:01.000Z",
+          updated_at: "2026-01-13T10:00:01.000Z",
+          source: "API",
+          user_id: null,
+          name: "note",
+          annotator_kind: "HUMAN",
+          identifier: "px-span-note:1",
+          metadata: null,
+          span_id: "span1",
+          result: {
+            explanation: "Span note line 1\nSpan note line 2",
+          },
+        },
+      ],
+    } as unknown as MockSpan,
+  ],
+};
+
 describe("Output Formatting", () => {
   describe("trace output - raw", () => {
     it("should format as compact JSON", () => {
@@ -150,6 +248,36 @@ describe("Output Formatting", () => {
       expect(output).toContain("✗ failed_operation (UNKNOWN) - 100ms");
     });
 
+    it("should render span annotations when present", () => {
+      const output = formatTraceOutput({
+        trace: mockTraceWithAnnotations,
+        format: "pretty",
+      });
+
+      expect(output).toContain("Trace Annotations:");
+      expect(output).toContain(
+        '- trace-reviewer [LLM] label="pass" explanation="Top level trace annotation"'
+      );
+      expect(output).toContain("annotations:");
+      expect(output).toContain(
+        '- reviewer [HUMAN] label="pass" score=0.9 explanation="Looks good"'
+      );
+    });
+
+    it("should render trace and span notes when present", () => {
+      const output = formatTraceOutput({
+        trace: mockTraceWithNotes,
+        format: "pretty",
+      });
+
+      expect(output).toContain("Trace Notes:");
+      expect(output).toContain("│  - Trace note line 1");
+      expect(output).toContain("│    Trace note line 2");
+      expect(output).toContain("notes:");
+      expect(output).toContain("- Span note line 1");
+      expect(output).toContain("  Span note line 2");
+    });
+
     it("should format array of traces", () => {
       const output = formatTracesOutput({
         traces: [mockTraceReflection, mockTraceWithError],
@@ -202,6 +330,30 @@ describe("Output Formatting", () => {
       expect(output).toContain("SESSIONS-DEMO");
       expect(output).toContain("UHJvamVjdDo1");
       expect(output).not.toContain("{");
+    });
+  });
+
+  describe("span output - pretty", () => {
+    it("should include requested empty annotation and note columns", () => {
+      const output = formatSpansOutput({
+        spans: [mockSpan1],
+        format: "pretty",
+        includeAnnotations: true,
+        includeNotes: true,
+      });
+
+      expect(output).toContain("annotations");
+      expect(output).toContain("notes");
+    });
+
+    it("should include a notes column when notes are present", () => {
+      const output = formatSpansOutput({
+        spans: mockTraceWithNotes.spans,
+        format: "pretty",
+      });
+
+      expect(output).toContain("notes");
+      expect(output).toContain("Span note line 1 Span note line 2");
     });
   });
 });

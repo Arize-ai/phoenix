@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi codegen-python-client codegen-ts-client \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
-	test test-python test-frontend test-ts test-helm typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions \
@@ -209,7 +209,7 @@ dev: ## Full dev environment (backend + frontend with hot reload)
 
 dev-backend: ## Backend only (FastAPI server)
 	@echo -e "$(CYAN)Starting backend server...$(NC)"
-	$(UV) run phoenix serve
+	$(UV) run phoenix serve --debug
 dev-frontend: ## Frontend only (React dev server)
 	@echo -e "$(CYAN)Starting frontend dev server...$(NC)"
 	cd $(APP_DIR) && $(PNPM) run dev:ui
@@ -346,7 +346,6 @@ codegen-prompts: ## Generate prompts code from YAML files
 
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
-	@$(UV) pip install pydantic
 	@$(UV) run python .github/.scripts/sync_models.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
@@ -359,6 +358,16 @@ schema-ddl: ## Compile DDL schema from PostgreSQL database (use ARGS= to pass ar
 check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-jcs: ## Test JSON canonicalization schema implementation
+	@if [ ! -f .jcs-test-data/es6testfile100m.txt ]; then \
+		echo -e "$(CYAN)Downloading ES6 numbers test file...$(NC)"; \
+		curl -fL https://github.com/cyberphone/json-canonicalization/releases/download/es6testfile/es6testfile100m.txt.gz | gunzip > .jcs-test-data/es6testfile100m.txt; \
+	fi
+	@echo -e "$(CYAN)Running JSON canonicalization tests...$(NC)"
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-canonicalization.py
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-numbers.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 test-helm: ## Run comprehensive Helm chart tests

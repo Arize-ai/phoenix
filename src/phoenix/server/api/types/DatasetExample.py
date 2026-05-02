@@ -39,6 +39,16 @@ class DatasetExample(Node):
             raise ValueError("DatasetExample ID mismatch")
 
     @strawberry.field
+    async def external_id(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.external_id
+        else:
+            val = await info.context.data_loaders.dataset_example_fields.load(
+                (self.id, models.DatasetExample.external_id),
+            )
+        return val
+
+    @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:
         if self.db_record:
             val = self.db_record.created_at
@@ -110,7 +120,7 @@ class DatasetExample(Node):
                 for experiment_id in experiment_ids or []
             ]
             query = query.where(models.ExperimentRun.experiment_id.in_(experiment_db_ids))
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             runs = (await session.scalars(query)).all()
         return connection_from_list([ExperimentRun(id=run.id, db_record=run) for run in runs], args)
 

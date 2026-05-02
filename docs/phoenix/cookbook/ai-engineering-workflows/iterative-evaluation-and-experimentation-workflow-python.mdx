@@ -284,12 +284,12 @@ Your final output must be only one word: "correct" or "incorrect".
 After defining the evaluator prompt, we use the Phoenix Evals library to construct an evaluator instance. Notice that the evaluator LLM is separate from the model powering the agent itself.
 
 ```python
-from phoenix.evals import create_classifier
+from phoenix.evals import ClassificationEvaluator
 from phoenix.evals.llm import LLM
 
 llm = LLM(provider="openai", model="gpt-4o")
 
-relevancy_evaluator = create_classifier(
+relevancy_evaluator = ClassificationEvaluator(
     name="ANSWER RELEVANCE",
     llm=llm,
     prompt_template=ANSWER_RELEVANCE_PROMPT_TEMPLATE,
@@ -329,7 +329,7 @@ Your final output must be only one word: "correct" or "incorrect".
 ```python
 llm = LLM(provider="openai", model="gpt-4o")
 
-budget_evaluator = create_classifier(
+budget_evaluator = ClassificationEvaluator(
     name="BUDGET CONSISTENCY",
     llm=llm,
     prompt_template=BUDGET_CONSISTENCY_PROMPT_TEMPLATE,

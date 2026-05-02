@@ -110,42 +110,42 @@ print(result)
 Next, we create our evaluator.
 
 ```python expandable
-import pandas as pd
+from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 
-from phoenix.evals import OpenAIModel, llm_classify
+# Template for evaluating math problem solutions
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-def correctness_eval(input, output):
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+# Run the evaluation
+llm = LLM(provider="openai", model="gpt-4.1")
+correctness_evaluator = ClassificationEvaluator(
+    name="math_correctness",
+    prompt_template=MATH_EVAL_TEMPLATE,
+    llm=llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
-
-    # Run the evaluation
-    rails = ["correct", "incorrect"]
-    eval_df = llm_classify(
-        data=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        template=MATH_EVAL_TEMPLATE,
-        model=OpenAIModel(model="gpt-4.1"),
-        rails=rails,
-        provide_explanation=True,
-    )
-    label = eval_df["label"][0]
-    score = 1 if label == "correct" else 0
-    return score
+correctness_eval = bind_evaluator(
+    correctness_evaluator,
+    input_mapping={
+        "question": "input.question",
+        "response": "output.final_output",
+    },
+)
 ```
 
 ## Create synthetic dataset of questions
@@ -176,14 +176,16 @@ Generate 25 diverse math problems. Ensure there are no duplicate problems.
 ```python
 import nest_asyncio
 
+from phoenix.evals import LLM
+
 nest_asyncio.apply()
 pd.set_option("display.max_colwidth", 500)
 
 # Initialize the model
-model = OpenAIModel(model="gpt-4o", max_tokens=1300)
+llm = LLM(provider="openai", model="gpt-4o")
 
 # Generate math problems
-resp = model(MATH_GEN_TEMPLATE)
+resp = llm.generate_text(prompt=MATH_GEN_TEMPLATE)
 
 # Create DataFrame
 split_response = resp.strip().split("\n")
@@ -206,13 +208,14 @@ Let's create this dataset and upload it into the platform.
 ```python
 import uuid
 
-from phoenix.client import Client
+from phoenix.client import AsyncClient
 
 unique_id = uuid.uuid4()
 
 # Upload the dataset to Phoenix
-px_client = Client()
-dataset = px_client.datasets.create_dataset(
+# Use AsyncClient here because the agent task is asynchronous.
+px_client = AsyncClient()
+dataset = await px_client.datasets.create_dataset(
     dataframe=math_problems_df,
     input_keys=["question"],
     name=f"math-questions-{unique_id}",
@@ -221,10 +224,8 @@ print(dataset)
 ```
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = await px_client.experiments.run_experiment(
+    dataset=dataset,
     task=solve_math_problem,
     evaluators=[correctness_eval],
     experiment_description="Solve Math Problems",
@@ -252,8 +253,6 @@ Another option is to pull traces from completed production runs and batch proces
 
 ```py
 from opentelemetry.trace import StatusCode, format_span_id
-
-from phoenix.trace import SpanEvaluations
 ```
 
 After importing the necessary libraries, we set up a tracer object to enable span creation for tracing our task function.
@@ -262,42 +261,39 @@ After importing the necessary libraries, we set up a tracer object to enable spa
 tracer = tracer_provider.get_tracer(__name__)
 ```
 
-Next, we update our correctness evaluator to return both a label and an explanation, enabling metadata to be captured during tracing.
+Next, we define our correctness evaluator. In the task function below, we call `evaluator.evaluate()` directly to get both a label and an explanation, enabling metadata to be captured during tracing.
 
 We also revise the task function to include `with` clauses that generate structured spans in Phoenix. These spans capture key details such as input values, output values, and the results of the evaluation.
 
 ```python expandable
-# This is our modified correctness evaluator.
-def correctness_eval(input, output):
-    # Template for evaluating math problem solutions
-    MATH_EVAL_TEMPLATE = """
-    You are evaluating whether a math problem was solved correctly.
+from phoenix.evals import LLM, ClassificationEvaluator
 
-    [BEGIN DATA]
-    ************
-    [Question]: {question}
-    ************
-    [Response]: {response}
-    [END DATA]
+# Template for evaluating math problem solutions
+MATH_EVAL_TEMPLATE = """
+You are evaluating whether a math problem was solved correctly.
 
-    Assess if the answer to the math problem is correct. First work out the correct answer yourself,
-    then compare with the provided response. Consider that there may be different ways to express the same answer
-    (e.g., "43" vs "The answer is 43" or "5.0" vs "5").
+[BEGIN DATA]
+************
+[Question]: {question}
+************
+[Response]: {response}
+[END DATA]
 
-    Your answer must be a single word, either "correct" or "incorrect"
-    """
+Assess if the answer to the math problem is correct. First work out the correct answer yourself,
+then compare with the provided response. Consider that there may be different ways to express the same answer
+(e.g., "43" vs "The answer is 43" or "5.0" vs "5").
 
-    # Run the evaluation
-    rails = ["correct", "incorrect"]
-    eval_df = llm_classify(
-        data=pd.DataFrame([{"question": input["question"], "response": output["final_output"]}]),
-        template=MATH_EVAL_TEMPLATE,
-        model=OpenAIModel(model="gpt-4.1"),
-        rails=rails,
-        provide_explanation=True,
-    )
+Your answer must be a single word, either "correct" or "incorrect"
+"""
 
-    return eval_df
+# Run the evaluation
+llm = LLM(provider="openai", model="gpt-4.1")
+correctness_evaluator = ClassificationEvaluator(
+    name="math_correctness",
+    prompt_template=MATH_EVAL_TEMPLATE,
+    llm=llm,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
 ```
 
 ```python expandable
@@ -316,24 +312,27 @@ async def solve_math_problem(dataset_row: dict):
             "messages": result.to_input_list(),
         }
 
-        # Evaluation span for correctness
+        # Evaluation span for correctness — use direct single-record eval
         with tracer.start_as_current_span(
             "correctness-evaluator",
             openinference_span_kind="evaluator",
         ) as eval_span:
-            evaluation_result = correctness_eval(dataset_row, task_result)
-            eval_span.set_attribute("eval.label", evaluation_result["label"][0])
-            eval_span.set_attribute("eval.explanation", evaluation_result["explanation"][0])
+            evaluation_result = correctness_evaluator.evaluate(
+                eval_input={"question": question, "response": result.final_output}
+            )
+            eval_span.set_attribute("eval.label", evaluation_result[0].label)
+            if evaluation_result[0].explanation:
+                eval_span.set_attribute("eval.explanation", evaluation_result[0].explanation)
 
         # Logging our evaluation
         span_id = format_span_id(eval_span.get_span_context().span_id)
-        score = 1 if evaluation_result["label"][0] == "correct" else 0
         eval_data = {
             "span_id": span_id,
-            "label": evaluation_result["label"][0],
-            "score": score,
-            "explanation": evaluation_result["explanation"][0],
+            "label": evaluation_result[0].label,
+            "score": evaluation_result[0].score,
         }
+        if evaluation_result[0].explanation:
+            eval_data["explanation"] = evaluation_result[0].explanation
         df = pd.DataFrame([eval_data])
 
         from phoenix.client import AsyncClient
@@ -357,10 +356,8 @@ print(result)
 Finally, we run an experiment to simulate traces in production.
 
 ```python
-from phoenix.client.experiments import run_experiment
-
-initial_experiment = run_experiment(
-    dataset,
+initial_experiment = await px_client.experiments.run_experiment(
+    dataset=dataset,
     task=solve_math_problem,
     experiment_description="Solve Math Problems",
     experiment_name=f"solve-math-questions-{str(uuid.uuid4())[:5]}",
@@ -372,5 +369,3 @@ initial_experiment = run_experiment(
 <Frame caption="">
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evaluating_openai_agents.gif" />
 </Frame>
-
-

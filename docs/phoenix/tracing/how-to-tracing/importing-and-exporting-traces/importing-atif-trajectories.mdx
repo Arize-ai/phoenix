@@ -1,0 +1,121 @@
+---
+title: "Import ATIF Trajectories"
+description: "Upload agent trajectories in ATIF (Agent Trajectory Interchange Format) to Phoenix and visualize them as traces."
+---
+
+[ATIF (Agent Trajectory Interchange Format)](https://www.harborframework.com/docs/agents/trajectory-format) is an open schema for recording agent execution traces. Agent frameworks like **Claude Code**, **OpenHands**, **Gemini CLI**, and **Codex** export ATIF via [Harbor](https://www.harborframework.com/docs), a benchmark harness for evaluating coding agents.
+
+The `phoenix-client` package includes a utility that converts ATIF trajectory JSON into OpenTelemetry-compatible span trees and uploads them to Phoenix, so you can visualize and evaluate agent runs using Phoenix's tracing UI.
+
+### Quick start
+
+```python
+import json
+from phoenix.client import Client
+from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+
+# Load one or more ATIF trajectory dicts
+with open("trajectory.json") as f:
+    trajectory = json.load(f)
+
+client = Client()
+result = upload_atif_trajectories_as_spans(
+    client, [trajectory], project_name="my-agent-eval"
+)
+print(result)  # {"total_received": 5, "total_queued": 5}
+```
+
+<Info>
+If you're using Phoenix Cloud, set `PHOENIX_CLIENT_HEADERS` and `PHOENIX_COLLECTOR_ENDPOINT` before creating the client. See [Connect to Phoenix](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces#connect-to-phoenix).
+</Info>
+
+### Trace hierarchy
+
+ATIF stores agent steps as a flat list. The converter builds a hierarchical span tree that matches what real-time instrumentors produce:
+
+**Single-turn conversations** (one user message):
+
+```
+AGENT (root - input=user message, output=final agent reply)
+  LLM
+  TOOL
+  LLM
+```
+
+LLM and TOOL spans are siblings under the root AGENT span. The agent runtime executes tools, not the LLM, so tool spans are peers of LLM spans rather than children.
+
+**Multi-turn conversations** (multiple user messages):
+
+```
+AGENT (root - input=first user message, output=final agent reply)
+  AGENT turn_1 (input=user msg 1, output=agent reply 1)
+    LLM
+    TOOL
+  AGENT turn_2 (input=user msg 2, output=agent reply 2)
+    LLM
+```
+
+Each follow-up user message starts a new turn, represented as a nested AGENT span under the root.
+
+### Batch uploads and subagent linking
+
+When an agent delegates work to a subagent, the ATIF trajectories reference each other via `subagent_trajectory_ref`. Upload the parent and child trajectories together in one call and the converter automatically nests the child's spans under the parent's tool span:
+
+```python
+with open("parent_trajectory.json") as f:
+    parent = json.load(f)
+with open("child_trajectory.json") as f:
+    child = json.load(f)
+
+# Upload together so cross-references resolve
+upload_atif_trajectories_as_spans(
+    client, [parent, child], project_name="my-agent-eval"
+)
+```
+
+The resulting trace looks like:
+
+```
+AGENT (parent)
+  LLM
+  TOOL (delegate_task)
+    AGENT (child agent)
+      LLM
+      TOOL
+```
+
+### Continuation merging
+
+When an agent's context window fills up, Harbor splits the session across multiple trajectory files. The continuation file gets a `session_id` ending in `-cont-N`. The converter automatically detects these and merges them into a single trace, so the full agent session is visible as one trace in Phoenix.
+
+Continuation root spans are annotated with `metadata.is_continuation = True`.
+
+### Attribute mapping
+
+The converter maps ATIF fields to standard [OpenInference](/docs/phoenix/references/openinference) attributes:
+
+| ATIF field | OpenInference attribute |
+|---|---|
+| `metrics.prompt_tokens` | `llm.token_count.prompt` |
+| `metrics.completion_tokens` | `llm.token_count.completion` |
+| `metrics.cached_tokens` | `llm.token_count.prompt_details.cache_read` |
+| `metrics.cost_usd` | `llm.cost.total` |
+| `agent.model_name` / step `model_name` | `llm.model_name` |
+| `agent.tool_definitions` | `llm.tools.{i}.tool.json_schema` |
+| `reasoning_content` | `metadata.reasoning_content` |
+| `session_id` | `session.id` |
+| Step messages | `llm.input_messages` / `llm.output_messages` |
+| Tool calls | `llm.output_messages.{i}.message.tool_calls` |
+| Observations | Tool span `output.value` |
+
+### Deterministic IDs
+
+Trace and span IDs are derived from the trajectory's `session_id` via SHA-256, so uploading the same trajectory twice produces the same trace. This makes uploads idempotent — you can safely re-run without creating duplicates.
+
+### Known limitations
+
+Each LLM span includes the full conversation history up to that point as `llm.input_messages`. For very long sessions (roughly 16+ turns with dense tool calls), this can exceed OpenTelemetry attribute size limits, causing span data to be truncated. This matches the behavior of real-time instrumentors and is a known platform-wide limitation.
+
+### API reference
+
+For full parameter documentation, see the [API reference](https://arize-phoenix.readthedocs.io/en/latest/api/helpers.html#module-client.helpers.atif).

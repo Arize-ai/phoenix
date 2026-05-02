@@ -1,0 +1,26 @@
+{
+  "skill_name": "phoenix-skills-audit",
+  "evals": [
+    {
+      "id": 0,
+      "name": "standard-weekly-audit",
+      "prompt": "Audit the three external-facing Phoenix skills (phoenix-tracing, phoenix-cli, phoenix-evals) against the last 7 days of changes on origin/main and patch anything stale or missing. Apply the edits in place — don't just produce a report.",
+      "expected_output": "Edits applied only inside .agents/skills/phoenix-tracing/, phoenix-cli/, or phoenix-evals/. A run summary covering edits, skipped commits, and out-of-scope findings. No invented APIs.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "casual-up-to-date-check",
+      "prompt": "Are the phoenix skills (tracing, cli, evals) up to date with what we shipped recently? If not, fix them.",
+      "expected_output": "Same as above — agent should produce a working audit even from a casual phrasing. Should not require the user to spell out every step.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "targeted-cli-audit",
+      "prompt": "I want to make sure phoenix-cli reflects any new commands or flags we shipped recently. Audit the last 7 days and patch the skill.",
+      "expected_output": "Agent focuses on phoenix-cli but still scans relevant CLI/client/API changes. Doesn't waste time editing phoenix-tracing or phoenix-evals unless there's overlap. Notes overlap if any.",
+      "files": []
+    }
+  ]
+}

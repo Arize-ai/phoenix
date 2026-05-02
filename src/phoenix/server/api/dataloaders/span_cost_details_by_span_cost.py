@@ -21,7 +21,7 @@ class SpanCostDetailsBySpanCostDataLoader(DataLoader[Key, Result]):
         entity = models.SpanCostDetail
         stmt = select(entity).where(entity.span_cost_id.in_(keys))
         result: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for obj in await session.stream_scalars(stmt):
                 result[obj.span_cost_id].append(obj)
         return list(map(result.__getitem__, keys))

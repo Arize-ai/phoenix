@@ -39,6 +39,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
@@ -74,22 +75,25 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
-import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
+import {
+  DEFAULT_SORT,
+  getGqlSort,
+  makeAnnotationColumnId,
+  TRACE_ANNOTATIONS_COLUMN_ID,
+} from "./tableUtils";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
-// The number of descendants that's loaded from the server
-// NB: this number is hard coded in the query below but should be kept in sync
 const NUM_DESCENDANTS = 50;
 
 interface IAdditionalSpansIndicator {
   /**
    * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
    */
-  isAdditionalSpansRow?: true;
+  __additionalRow?: true;
 }
 /**
  * An indicator that this row is an additional row, not a span
@@ -213,9 +217,11 @@ export function TracesTable(props: TracesTableProps) {
           first: { type: "Int", defaultValue: 30 }
           sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
           filterCondition: { type: "String", defaultValue: null }
+          numDescendants: { type: "Int", defaultValue: 50 }
         ) {
           name
           ...SpanColumnSelector_annotations
+          ...SpanColumnSelector_traceAnnotations
           rootSpans: spans(
             first: $first
             after: $after
@@ -252,6 +258,15 @@ export function TracesTable(props: TracesTableProps) {
                       cost
                     }
                   }
+                  traceAnnotationSummaries {
+                    labelFractions {
+                      fraction
+                      label
+                    }
+                    meanScore
+                    name
+                  }
+                  ...TraceAnnotationSummaryGroup
                 }
                 spanAnnotations {
                   id
@@ -276,7 +291,7 @@ export function TracesTable(props: TracesTableProps) {
                   precision
                   hit
                 }
-                descendants(first: 50) {
+                descendants(first: $numDescendants) {
                   edges {
                     node {
                       id
@@ -334,6 +349,14 @@ export function TracesTable(props: TracesTableProps) {
       (name) => annotationColumnVisibility[name]
     );
   }, [annotationColumnVisibility]);
+  const traceAnnotationColumnVisibility = useTracingContext(
+    (state) => state.traceAnnotationColumnVisibility
+  );
+  const visibleTraceAnnotationColumnNames = useMemo(() => {
+    return Object.keys(traceAnnotationColumnVisibility).filter(
+      (name) => traceAnnotationColumnVisibility[name]
+    );
+  }, [traceAnnotationColumnVisibility]);
   const tableData = useMemo(() => {
     return data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
@@ -420,6 +443,65 @@ export function TracesTable(props: TracesTableProps) {
     [visibleAnnotationColumnNames]
   );
 
+  const dynamicTraceAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
+    () =>
+      visibleTraceAnnotationColumnNames.map((name) => {
+        return {
+          header: name,
+          columns: [
+            {
+              header: `labels`,
+              accessorKey: makeAnnotationColumnId(name, "label", "trace"),
+              enableSorting: false,
+              cell: ({ row }) => {
+                if (row.depth !== 0 || row.original.__additionalRow) {
+                  return null;
+                }
+                const annotation = (
+                  row.original
+                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
+                )?.traceAnnotationSummaries?.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return (
+                  <SummaryValueLabels
+                    name={name}
+                    labelFractions={annotation.labelFractions}
+                  />
+                );
+              },
+            } as ColumnDef<TableRow>,
+            {
+              header: `mean score`,
+              accessorKey: makeAnnotationColumnId(name, "score", "trace"),
+              enableSorting: false,
+              cell: ({ row }) => {
+                if (row.depth !== 0 || row.original.__additionalRow) {
+                  return null;
+                }
+                const annotation = (
+                  row.original
+                    .trace as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["trace"]
+                )?.traceAnnotationSummaries?.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return (
+                  <MeanScore value={annotation.meanScore} fallback={null} />
+                );
+              },
+            } as ColumnDef<TableRow>,
+          ],
+        };
+      }),
+    [visibleTraceAnnotationColumnNames]
+  );
+
   const annotationColumns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
@@ -482,9 +564,43 @@ export function TracesTable(props: TracesTableProps) {
           );
         },
       },
+      {
+        header: () => (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <span>Trace annotations</span>
+            <ContextualHelp>
+              <Heading level={3} weight="heavy">
+                Trace annotations
+              </Heading>
+              <Text>
+                Annotations attached to the parent trace of this span.
+              </Text>
+            </ContextualHelp>
+          </Flex>
+        ),
+        id: TRACE_ANNOTATIONS_COLUMN_ID,
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.depth !== 0 || row.original.__additionalRow) {
+            return null;
+          }
+          return (
+            <Flex direction="row" gap="size-50" wrap="wrap">
+              <TraceAnnotationSummaryGroupTokens
+                trace={
+                  row.original.trace as Parameters<
+                    typeof TraceAnnotationSummaryGroupTokens
+                  >[0]["trace"]
+                }
+              />
+            </Flex>
+          );
+        },
+      },
       ...dynamicAnnotationColumns,
+      ...dynamicTraceAnnotationColumns,
     ],
-    [dynamicAnnotationColumns]
+    [dynamicAnnotationColumns, dynamicTraceAnnotationColumns]
   );
 
   const columns: ColumnDef<TableRow>[] = useMemo(
@@ -594,9 +710,7 @@ export function TracesTable(props: TracesTableProps) {
         enableSorting: false,
         cell: ({ getValue, row }) => {
           const { traceId } = row.original.trace;
-          const spanId = row.original.isAdditionalSpansRow
-            ? null
-            : row.original.id;
+          const spanId = row.original.__additionalRow ? null : row.original.id;
           return (
             <Link
               to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
@@ -748,6 +862,7 @@ export function TracesTable(props: TracesTableProps) {
           after: null,
           first: PAGE_SIZE,
           filterCondition: filterCondition,
+          numDescendants: NUM_DESCENDANTS,
         },
         {
           fetchPolicy: "store-and-network",

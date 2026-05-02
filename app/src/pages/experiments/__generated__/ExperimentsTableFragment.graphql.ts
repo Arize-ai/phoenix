@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<538e5664123c54d17bc25bb4eeab5feb>>
+ * @generated SignedSource<<9eb9a209d799798dd9fb30d414409f7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentsTableFragment$data = {
   readonly experimentAnnotationSummaries: ReadonlyArray<{
@@ -54,6 +55,9 @@ export type ExperimentsTableFragment$data = {
         readonly errorRate: number | null;
         readonly expectedRunCount: number;
         readonly id: string;
+        readonly job: {
+          readonly status: ExperimentJobStatus;
+        } | null;
         readonly metadata: any;
         readonly name: string;
         readonly project: {
@@ -432,6 +436,24 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "ExperimentJob",
+                  "kind": "LinkedField",
+                  "name": "job",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "status",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -498,6 +520,6 @@ return {
 };
 })();
 
-(node as any).hash = "abc1e770a13dc312089a3c1276f1c99c";
+(node as any).hash = "f030ce18df72171c2246907cda544324";
 
 export default node;

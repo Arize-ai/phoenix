@@ -11,9 +11,18 @@ Here's how to fix it:
     Increase `max_tokens`: Update the model configuration as follows:
 
     ```python
-    llm_judge_model = OpenAIModel(
-        api_key=getpass("Enter your OpenAI API key..."),
+    from phoenix.evals import LLM
+    from phoenix.evals import ClassificationEvaluator
+
+    llm = LLM(
+        provider="openai",
         model="gpt-4o-2024-08-06",
+        api_key=getpass("Enter your OpenAI API key..."),
+    )
+    # Pass max_tokens and temperature when creating the evaluator
+    evaluator = ClassificationEvaluator(
+        ...,
+        llm=llm,
         temperature=0.2,
         max_tokens=1000,  # Increase token limit
     )
@@ -26,6 +35,6 @@ Here's how to fix it:
     Check Logs: Look for `finish_reason="length"` to confirm token limits caused the issue.
     </Step>
     <Step>
-    If the above doesn't work, it's possible the llm-as-a-judge output might not fit into the defined rails for that particular custom Phoenix eval. Double check the prompt output matches the rail expectations.
+    If the above doesn't work, it's possible the llm-as-a-judge output might not fit into the defined choices for that particular custom Phoenix eval. Double check the prompt output matches the expected choices.
     </Step>
 </Steps>

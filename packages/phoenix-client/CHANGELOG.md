@@ -1,5 +1,85 @@
 # Changelog
 
+## [2.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.5.0...arize-phoenix-client-v2.6.0) (2026-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860))
+
+### Features
+
+* **api:** add session notes endpoint ([#12902](https://github.com/Arize-ai/phoenix/issues/12902)) ([187df7e](https://github.com/Arize-ai/phoenix/commit/187df7e8abf20b3a6c3e851bcde373229d0e7f05))
+* **client:** gate v15 dataset upload params by server version ([#12934](https://github.com/Arize-ai/phoenix/issues/12934)) ([e381885](https://github.com/Arize-ai/phoenix/commit/e3818859ee858f5e67d32968633a5d0467801026))
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860)) ([9575738](https://github.com/Arize-ai/phoenix/commit/957573865202d2ee49c21eb1c73265760e07f2f9))
+* extend db prompt types for invocation paramaters ([#12855](https://github.com/Arize-ai/phoenix/issues/12855)) ([1499ca9](https://github.com/Arize-ai/phoenix/commit/1499ca956de972ba523d57e7af49b84e693f895a))
+
+
+### Miscellaneous Chores
+
+* **client:** set release-please version to 2.6.0 ([#12930](https://github.com/Arize-ai/phoenix/issues/12930)) ([883a4eb](https://github.com/Arize-ai/phoenix/commit/883a4eb9a9b9df88576473092f80eaaff66a9bdb))
+
+## [2.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.4.0...arize-phoenix-client-v2.5.0) (2026-04-25)
+
+
+### Features
+
+* add trace note REST endpoint for Phoenix CLI ([#12710](https://github.com/Arize-ai/phoenix/issues/12710)) ([ed66c02](https://github.com/Arize-ai/phoenix/commit/ed66c02805ef17d9dcd812f998a62d66cb611f83))
+
+## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.1...arize-phoenix-client-v2.4.0) (2026-04-22)
+
+
+### Features
+
+* **client:** pass through trace_id to experiment evaluators ([#12692](https://github.com/Arize-ai/phoenix/issues/12692)) ([648b6e1](https://github.com/Arize-ai/phoenix/commit/648b6e19e18fbb2a74e89424d3331ea79ce42e4d))
+* **rest-api:** add type-aware attribute filter to GET /v1/spans ([#12524](https://github.com/Arize-ai/phoenix/issues/12524)) ([c0badfa](https://github.com/Arize-ai/phoenix/commit/c0badfaa0a5f71a7415f339459d5977df77fb619))
+
+
+### Documentation
+
+* add ATIF trajectory import docs ([#12631](https://github.com/Arize-ai/phoenix/issues/12631)) ([ef9e6cc](https://github.com/Arize-ai/phoenix/commit/ef9e6cc12dfe54136f2f90b83718f7b98bb2597c))
+* fix phoenix.client.experiments docs/tutorials ([#12645](https://github.com/Arize-ai/phoenix/issues/12645)) ([9ce9e18](https://github.com/Arize-ai/phoenix/commit/9ce9e1859d5712f992bdae830385f11ccca022be))
+
+## [2.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.0...arize-phoenix-client-v2.3.1) (2026-04-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239))
+
+### Features
+
+* **evals:** deprecate evals 1.0 and remove legacy experiments module ([#12239](https://github.com/Arize-ai/phoenix/issues/12239)) ([15e6415](https://github.com/Arize-ai/phoenix/commit/15e6415105ce4757de905172cbd0e07215d38990))
+
+
+### Miscellaneous Chores
+
+* release 2.3.1 ([#12572](https://github.com/Arize-ai/phoenix/issues/12572)) ([a33630d](https://github.com/Arize-ai/phoenix/commit/a33630d1913c2c43a6d2f3c39056ea11a2de8bee))
+
+## [2.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.2.0...arize-phoenix-client-v2.3.0) (2026-04-03)
+
+
+### Features
+
+* atif to trace trajectory conversion utility ([#12414](https://github.com/Arize-ai/phoenix/issues/12414)) ([28ecfe0](https://github.com/Arize-ai/phoenix/commit/28ecfe023f3d94f97afa36b7161f80e1d316cc39))
+
+## [2.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.1.0...arize-phoenix-client-v2.2.0) (2026-04-01)
+
+
+### Features
+
+* add GET /v1/user endpoint and phoenix-rest-api skill ([#12274](https://github.com/Arize-ai/phoenix/issues/12274)) ([b5188ea](https://github.com/Arize-ai/phoenix/commit/b5188ea92eeb76ed0155e999b8fa0fc00519f32c))
+* add Python 3.14 support (except Windows) ([#12475](https://github.com/Arize-ai/phoenix/issues/12475)) ([50c08e3](https://github.com/Arize-ai/phoenix/commit/50c08e3ff4e41c0693e92b7d3de7dbc41384fad1))
+* **client:** add get_traces method to Python and TypeScript clients ([#12245](https://github.com/Arize-ai/phoenix/issues/12245)) ([7d3f4ac](https://github.com/Arize-ai/phoenix/commit/7d3f4aca8d5bc3e6df3e5a4f69332fa8ffcc274d))
+* **server:** REST endpoint for secrets management ([#12429](https://github.com/Arize-ai/phoenix/issues/12429)) ([39f68cf](https://github.com/Arize-ai/phoenix/commit/39f68cf5449a5df04e4b8901975c01bbf76e93fc))
+
+
+### Documentation
+
+* **evals:** deprecate evals 1.0 docs ([#12123](https://github.com/Arize-ai/phoenix/issues/12123)) ([b0dc90f](https://github.com/Arize-ai/phoenix/commit/b0dc90f445a25ba74ddc86e0cc8bcdf721260344))
+* update all package READMEs with latest capabilities ([#12315](https://github.com/Arize-ai/phoenix/issues/12315)) ([b4ded15](https://github.com/Arize-ai/phoenix/commit/b4ded157987e0ce6fcbf749bf48225d9408313c2))
+* update package READMEs for recent features ([#12259](https://github.com/Arize-ai/phoenix/issues/12259)) ([d204898](https://github.com/Arize-ai/phoenix/commit/d204898cf63b48604e82403c1c6056fbb72fb860))
+
 ## [2.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.0.1...arize-phoenix-client-v2.1.0) (2026-03-18)
 
 

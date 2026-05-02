@@ -1,3 +1,5 @@
+import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
+
 import { createAgentStore } from "../agentStore";
 
 describe("agentStore", () => {
@@ -69,6 +71,116 @@ describe("agentStore", () => {
       expect(store.getState().isOpen).toBe(!initial);
       store.getState().toggleOpen();
       expect(store.getState().isOpen).toBe(initial);
+    });
+  });
+
+  describe("setUserInstructions", () => {
+    it("updates userInstructions", () => {
+      const store = createAgentStore();
+      expect(store.getState().userInstructions).toBe("");
+      store.getState().setUserInstructions("custom");
+      expect(store.getState().userInstructions).toBe("custom");
+    });
+  });
+
+  describe("observability", () => {
+    it("updates observability settings without clobbering other fields", () => {
+      const store = createAgentStore();
+
+      store.getState().setObservability({
+        exportRemoteTraces: false,
+      });
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: true,
+        exportRemoteTraces: false,
+        hasAcknowledgedConsent: false,
+      });
+    });
+
+    it("acknowledges consent without changing trace toggles", () => {
+      const store = createAgentStore();
+
+      store.getState().setObservability({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+      });
+      store.getState().acknowledgeConsent();
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+        hasAcknowledgedConsent: true,
+      });
+    });
+  });
+
+  describe("setCapability", () => {
+    it("updates one capability without clobbering the others", () => {
+      const store = createAgentStore();
+      const defaultCapabilities = createDefaultAgentCapabilities();
+      const [capabilityToToggle] = Object.keys(defaultCapabilities) as Array<
+        keyof typeof defaultCapabilities
+      >;
+
+      store.getState().setCapability({
+        key: capabilityToToggle,
+        enabled: true,
+      });
+
+      expect(store.getState().capabilities[capabilityToToggle]).toBe(true);
+
+      for (const [capabilityKey, enabled] of Object.entries(
+        defaultCapabilities
+      ) as Array<[keyof typeof defaultCapabilities, boolean]>) {
+        if (capabilityKey === capabilityToToggle) {
+          continue;
+        }
+
+        expect(store.getState().capabilities[capabilityKey]).toBe(enabled);
+      }
+    });
+  });
+
+  describe("persist migration", () => {
+    it("migrates legacy debug flags into capabilities", async () => {
+      localStorage.setItem(
+        "arize-phoenix-agent",
+        JSON.stringify({
+          state: {
+            isOpen: false,
+            position: "detached",
+            sessions: [],
+            activeSessionId: null,
+            sessionMap: {},
+            defaultModelConfig: {
+              provider: "ANTHROPIC",
+              modelName: "claude-opus-4-6",
+              invocationParameters: [],
+              supportedInvocationParameters: [],
+            },
+            debug: {
+              retainInactiveBashSessions: true,
+              dangerouslyEnableMutations: true,
+            },
+          },
+          version: 1,
+        })
+      );
+
+      const store = createAgentStore();
+      await store.persist.rehydrate();
+
+      expect(store.getState().capabilities).toEqual({
+        ...createDefaultAgentCapabilities(),
+        "bash.retainInactiveSessions": true,
+        "graphql.mutations": true,
+      });
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: true,
+        exportRemoteTraces: false,
+        hasAcknowledgedConsent: false,
+      });
     });
   });
 });

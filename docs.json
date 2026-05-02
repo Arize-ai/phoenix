@@ -22,9 +22,6 @@
     }
   },
   "integrations": {
-    "ga4": {
-      "measurementId": "G-V9Z9MCPE84"
-    },
     "gtm": {
       "tagId": "GTM-W96XM35"
     }
@@ -34,6 +31,10 @@
     "metatags": {
       "canonical": "https://arize.com"
     }
+  },
+  "banner": {
+      "content": "[**Registration is open for Arize:Observe 2026**](https://arize.com/observe)",
+      "dismissible": true
   },
   "navigation": {
     "tabs": [
@@ -145,6 +146,7 @@
                     "pages": [
                       "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces",
                       "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-existing-traces",
+                      "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories",
                       "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans",
                       "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/exporting-annotated-spans",
                       "docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli"
@@ -286,6 +288,7 @@
                 "pages": [
                   "docs/phoenix/datasets-and-experiments/how-to-experiments",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
@@ -339,6 +342,7 @@
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/settings/api-keys",
+              "docs/phoenix/settings/secrets",
               "docs/phoenix/settings/data-retention",
               "docs/phoenix/settings/custom-ai-providers"
             ]
@@ -679,6 +683,20 @@
                   "docs/phoenix/integrations/python/pydantic/pydantic-tracing",
                   "docs/phoenix/integrations/python/pydantic/pydantic-evals"
                 ]
+              },
+              {
+                "group": "Restate",
+                "pages": [
+                  "docs/phoenix/integrations/python/restate",
+                  "docs/phoenix/integrations/python/restate/restate-tracing"
+                ]
+              },
+              {
+                "group": "Strands Agents",
+                "pages": [
+                  "docs/phoenix/integrations/python/strands-agents",
+                  "docs/phoenix/integrations/python/strands-agents/strands-agents-tracing"
+                ]
               }
             ]
           },
@@ -787,9 +805,45 @@
             "icon": "js",
             "pages": [
               "docs/phoenix/sdk-api-reference/typescript/overview",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
-              "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+              {
+                "group": "@arizeai/phoenix-client",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-client",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/traces",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/spans",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/span-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/document-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/session-annotations",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                ]
+              },
+              {
+                "group": "@arizeai/phoenix-evals",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"
+                ]
+              },
+              {
+                "group": "@arizeai/phoenix-otel",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
+                ]
+              },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
               "docs/phoenix/sdk-api-reference/typescript/mcp-server",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
@@ -816,7 +870,8 @@
                   {
                     "group": "Annotations",
                     "pages": [
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids"
                     ]
                   },
                   {
@@ -850,8 +905,7 @@
                     "group": "Traces",
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/get-span-trace-or-document-evaluations-from-a-project",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/add-span-trace-or-document-evaluations"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations"
                     ]
                   },
                   {
@@ -861,6 +915,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
                     ]
                   },
@@ -894,6 +949,12 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/get-session-by-id",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-session-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-session-annotations"
+                    ]
+                  },
+                  {
+                    "group": "Secrets",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/secrets/upsert-or-delete-secrets"
                     ]
                   },
                   {
@@ -933,7 +994,8 @@
                 "group": "Configuration",
                 "pages": [
                   "docs/phoenix/self-hosting/configuration",
-                  "docs/phoenix/self-hosting/configuration/using-amazon-aurora"
+                  "docs/phoenix/self-hosting/configuration/using-amazon-aurora",
+                  "docs/phoenix/self-hosting/configuration/using-azure-managed-identity"
                 ]
               }
             ]
@@ -971,7 +1033,8 @@
             "icon": "user-shield",
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
-              "docs/phoenix/self-hosting/security/privacy"
+              "docs/phoenix/self-hosting/security/privacy",
+              "docs/phoenix/self-hosting/security/network-security"
             ]
           },
           {
@@ -1097,8 +1160,27 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "04.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api",
+                  "docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api",
+                  "docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16",
+                  "docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id",
+                  "docs/phoenix/release-notes/04-2026/04-20-2026-span-attribute-filter-cli-notes-and-opus-4-7",
+                  "docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres",
+                  "docs/phoenix/release-notes/04-2026/04-14-2026-cli-annotation-commands",
+                  "docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0",
+                  "docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects",
+                  "docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica",
+                  "docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes",
+                  "docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload",
+                  "docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314"
+                ]
+              },
+              {
                 "group": "03.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api",
                   "docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates",
                   "docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api",
                   "docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements",
@@ -1471,7 +1553,7 @@
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/trace-a-deployed-app",
-      "destination": "/docs/phoenix/tracing/llm-traces-1"
+      "destination": "/docs/phoenix/get-started/get-started-tracing"
     },
     {
       "source": "/docs/phoenix/tracing/how-to-tracing/filtering-spans",

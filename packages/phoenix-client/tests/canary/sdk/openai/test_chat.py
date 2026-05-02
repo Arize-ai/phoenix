@@ -302,7 +302,7 @@ class TestResponseFormatJSONSchemaConversion:
     @pytest.mark.parametrize(
         "type_",
         [
-            create_model("Response", ui=(_UI, ...)),
+            create_model("Response", ui=_UI),
         ],
     )
     def test_round_trip(self, type_: type[BaseModel]) -> None:
@@ -403,7 +403,7 @@ class TestCompletionCreateParamsBase:
                 "response_format": cast(
                     "ResponseFormat",
                     type_to_response_format_param(
-                        create_model("Response", ui=(_UI, ...)),
+                        create_model("Response", ui=_UI),
                     ),
                 ),
                 "temperature": random(),
@@ -439,7 +439,7 @@ class TestCompletionCreateParamsBase:
                 "response_format": cast(
                     "ResponseFormat",
                     type_to_response_format_param(
-                        create_model("Response", ui=(_UI, ...)),
+                        create_model("Response", ui=_UI),
                     ),
                 ),
                 "temperature": random(),

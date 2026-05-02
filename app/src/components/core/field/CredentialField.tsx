@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, Ref } from "react";
-import { forwardRef, useState } from "react";
+import { useState } from "react";
 import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components";
 import { TextField as AriaTextField } from "react-aria-components";
 
@@ -16,10 +16,10 @@ export interface CredentialFieldProps
   children: ReactNode;
 }
 
-function CredentialField(
-  props: CredentialFieldProps,
-  ref: Ref<HTMLDivElement>
-) {
+function CredentialField({
+  ref,
+  ...props
+}: CredentialFieldProps & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", children, ...otherProps } = props;
   const [isVisible, setIsVisible] = useState(false);
 
@@ -41,6 +41,4 @@ function CredentialField(
   );
 }
 
-const _CredentialField = forwardRef(CredentialField);
-
-export { _CredentialField as CredentialField };
+export { CredentialField };

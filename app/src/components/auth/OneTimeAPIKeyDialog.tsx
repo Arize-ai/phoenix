@@ -1,21 +1,18 @@
-import { css } from "@emotion/react";
-
 import {
   Alert,
   Button,
+  CopyField,
+  CopyInput,
   Dialog,
   ExternalLink,
   Flex,
   Heading,
-  Input,
   Label,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { BashBlockWithCopy } from "@phoenix/components/code/BashBlockWithCopy";
-import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import {
   DialogCloseButton,
   DialogContent,
@@ -42,75 +39,56 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
           You have successfully created a new API key. The API key will only be
           displayed once below. Please copy and save it in a secure location.
         </Alert>
-        <div
-          css={css`
-            .field {
-              width: 100%;
-            }
-          `}
-        >
-          <View padding="size-200">
-            <Flex direction="row" gap="size-100" alignItems="end">
-              <TextField isReadOnly value={jwt}>
-                <Label>API Key</Label>
-                <Input />
-              </TextField>
-              <CopyToClipboardButton text={jwt} size="M" />
-            </Flex>
+        <View padding="size-200">
+          <CopyField value={jwt}>
+            <Label>API Key</Label>
+            <CopyInput />
+          </CopyField>
+        </View>
+        <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
+          <Heading level={2} weight="heavy">
+            How to Use the API Key
+          </Heading>
+          <View paddingBottom="size-100" paddingTop="size-100">
+            <Text>
+              When interacting with Phoenix clients and OTEL SDKs, set the
+              environment variable
+            </Text>
           </View>
-          <View
-            padding="size-200"
-            borderTopColor="default"
-            borderTopWidth="thin"
-          >
-            <Heading level={2} weight="heavy">
-              How to Use the API Key
-            </Heading>
-            <View paddingBottom="size-100" paddingTop="size-100">
-              <Text>
-                When interacting with Phoenix clients and OTEL SDKs, set the
-                environment variable
-              </Text>
-            </View>
-            <CodeWrap>
-              <BashBlockWithCopy value={`PHOENIX_API_KEY=${jwt}`} />
-            </CodeWrap>
-            <View paddingBottom="size-100" paddingTop="size-100">
-              <Text>
-                When using OpenTelemetry SDKs pass the API key in the headers
-              </Text>
-            </View>
-            <CodeWrap>
-              <BashBlockWithCopy
-                value={`OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer ${jwt}'`}
-              />
-            </CodeWrap>
-            <View paddingBottom="size-100" paddingTop="size-100">
-              <Text>
-                When using the Phoenix REST and GraphQL APIs, pass the API key
-                as a{" "}
-                <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
-                  bearer token
-                </ExternalLink>
-                .
-              </Text>
-            </View>
-            <CodeWrap>
-              <PythonBlockWithCopy value={`Authorization: Bearer ${jwt}`} />
-            </CodeWrap>
+          <CodeWrap>
+            <BashBlockWithCopy value={`PHOENIX_API_KEY=${jwt}`} />
+          </CodeWrap>
+          <View paddingBottom="size-100" paddingTop="size-100">
+            <Text>
+              When using OpenTelemetry SDKs pass the API key in the headers
+            </Text>
           </View>
-          <View
-            padding="size-200"
-            borderTopColor="default"
-            borderTopWidth="thin"
-          >
-            <Flex direction="row" justifyContent="end">
-              <Button variant="primary" aria-label="dismiss" slot="close">
-                Close
-              </Button>
-            </Flex>
+          <CodeWrap>
+            <BashBlockWithCopy
+              value={`OTEL_EXPORTER_OTLP_HEADERS='Authorization=Bearer ${jwt}'`}
+            />
+          </CodeWrap>
+          <View paddingBottom="size-100" paddingTop="size-100">
+            <Text>
+              When using the Phoenix REST and GraphQL APIs, pass the API key as
+              a{" "}
+              <ExternalLink href="https://swagger.io/docs/specification/authentication/bearer-authentication/">
+                bearer token
+              </ExternalLink>
+              .
+            </Text>
           </View>
-        </div>
+          <CodeWrap>
+            <PythonBlockWithCopy value={`Authorization: Bearer ${jwt}`} />
+          </CodeWrap>
+        </View>
+        <View padding="size-200" borderTopColor="default" borderTopWidth="thin">
+          <Flex direction="row" justifyContent="end">
+            <Button variant="primary" aria-label="dismiss" slot="close">
+              Close
+            </Button>
+          </Flex>
+        </View>
       </DialogContent>
     </Dialog>
   );

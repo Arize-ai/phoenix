@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { TextFieldProps as AriaTextFieldProps } from "react-aria-components";
 import { TextField as AriaTextField } from "react-aria-components";
 
@@ -11,7 +10,10 @@ import { textFieldCSS } from "./styles";
 
 export interface TextFieldProps extends AriaTextFieldProps, SizingProps {}
 
-function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
+function TextField({
+  ref,
+  ...props
+}: TextFieldProps & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", ...otherProps } = props;
   return (
     <AriaTextField
@@ -24,6 +26,4 @@ function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _TextField = forwardRef(TextField);
-
-export { _TextField as TextField };
+export { TextField };

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy import delete, insert, select
@@ -35,6 +35,11 @@ class TraceAnnotationMutationMixin:
     ) -> TraceAnnotationMutationPayload:
         if not input:
             raise BadRequest("No trace annotations provided.")
+        if any(annotation_input.name == "note" for annotation_input in input):
+            raise BadRequest(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/trace_notes instead."
+            )
 
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
@@ -85,14 +90,14 @@ class TraceAnnotationMutationMixin:
 
                 if existing_annotation:
                     # Update existing annotation
-                    existing_annotation.name = values["name"]
-                    existing_annotation.label = values["label"]
-                    existing_annotation.score = values["score"]
-                    existing_annotation.explanation = values["explanation"]
-                    existing_annotation.metadata_ = values["metadata_"]
-                    existing_annotation.annotator_kind = values["annotator_kind"]
-                    existing_annotation.source = values["source"]
-                    existing_annotation.user_id = values["user_id"]
+                    existing_annotation.name = annotation_input.name
+                    existing_annotation.label = annotation_input.label
+                    existing_annotation.score = annotation_input.score
+                    existing_annotation.explanation = annotation_input.explanation
+                    existing_annotation.metadata_ = cast(dict[str, Any], annotation_input.metadata)
+                    existing_annotation.annotator_kind = annotation_input.annotator_kind.value
+                    existing_annotation.source = annotation_input.source.value
+                    existing_annotation.user_id = user_id
                     session.add(existing_annotation)
                     processed_annotation = existing_annotation
 

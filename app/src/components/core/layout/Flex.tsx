@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import { filterDOMProps } from "@react-aria/utils";
 import type { ElementType, ReactNode, Ref } from "react";
-import { forwardRef } from "react";
 
 import type { DOMProps, FlexStyleProps } from "@phoenix/components/core/types";
 import type { StyleHandlers } from "@phoenix/components/core/utils";
@@ -31,7 +30,7 @@ const flexStyleProps: StyleHandlers = {
   alignContent: ["alignContent", flexAlignValue],
 };
 
-function Flex(props: FlexProps, ref: Ref<HTMLElement>) {
+function Flex({ ref, ...props }: FlexProps & { ref?: Ref<HTMLElement> }) {
   const {
     children,
     className,
@@ -109,5 +108,4 @@ function flexWrapValue(value: boolean | "wrap" | "nowrap") {
  * A layout container using flexbox. Provides dimension values, and supports the gap
  * property to define consistent spacing between items.
  */
-const _Flex = forwardRef(Flex);
-export { _Flex as Flex };
+export { Flex };

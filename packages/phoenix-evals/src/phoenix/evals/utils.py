@@ -1,30 +1,55 @@
 import functools
 import inspect
 import json
+import os
 import warnings
+from io import BytesIO
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
+from urllib.error import HTTPError
+from urllib.request import urlopen
+from zipfile import ZipFile
 
 import pandas as pd
 from jsonpath_ng import parse  # type: ignore
 from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
 
-from phoenix.evals.legacy.utils import (
-    _EXPLANATION,  # pyright: ignore[reportPrivateUsage]
-    _FUNCTION_NAME,  # pyright: ignore[reportPrivateUsage]
-    _RESPONSE,  # pyright: ignore[reportPrivateUsage]
-    NOT_PARSABLE,
-    SUPPORTED_AUDIO_FORMATS,
-    SUPPORTED_IMAGE_FORMATS,
-    download_benchmark_dataset,
-    emoji_guard,
-    get_audio_format_from_base64,
-    get_image_format_from_base64,
-    get_tqdm_progress_bar_formatter,
-    openai_function_call_kwargs,
-    parse_openai_function_call,
-    printif,
-    snap_to_rail,
-)
+
+def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
+    """Downloads an Arize evals benchmark dataset as a pandas dataframe.
+
+    Args:
+        task (str): Task to be performed.
+        dataset_name (str): Name of the dataset.
+
+    Returns:
+        pandas.DataFrame: A pandas dataframe containing the data.
+    """
+    jsonl_file_name = f"{dataset_name}.jsonl"
+    url = f"http://storage.googleapis.com/arize-phoenix-assets/evals/{task}/{jsonl_file_name}.zip"
+    try:
+        with urlopen(url) as response:
+            zip_byte_stream = BytesIO(response.read())
+            with ZipFile(zip_byte_stream) as zip_file:
+                with zip_file.open(jsonl_file_name) as jsonl_file:
+                    return pd.DataFrame(map(json.loads, jsonl_file.readlines()))
+    except HTTPError:
+        raise ValueError(f'Dataset "{dataset_name}" for "{task}" task does not exist.')
+
+
+def emoji_guard(emoji: str, fallback: str = "") -> str:
+    """Return emoji on non-Windows systems, fallback on Windows.
+
+    Args:
+        emoji (str): The emoji string to display.
+        fallback (str, optional): The fallback string for Windows. Defaults to "".
+
+    Returns:
+        str: The emoji or fallback string depending on the operating system.
+    """
+    if os.name == "nt":
+        return fallback
+    return emoji
+
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
 
@@ -482,22 +507,8 @@ def default_tqdm_progress_bar_formatter(title: str) -> str:
 
 
 __all__ = [
-    # evals 1.0
-    "NOT_PARSABLE",
-    "SUPPORTED_IMAGE_FORMATS",
-    "SUPPORTED_AUDIO_FORMATS",
-    "snap_to_rail",
-    "printif",
-    "parse_openai_function_call",
-    "openai_function_call_kwargs",
-    "get_tqdm_progress_bar_formatter",
-    "get_image_format_from_base64",
-    "get_audio_format_from_base64",
     "emoji_guard",
     "download_benchmark_dataset",
-    "_EXPLANATION",
-    "_RESPONSE",
-    "_FUNCTION_NAME",
     # evals 2.0
     "InputMappingType",
     "remap_eval_input",

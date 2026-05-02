@@ -1350,8 +1350,7 @@ class TestAnnotationConfigTypeDecorators:
             assert isinstance(config_1, CategoricalAnnotationConfig)
             assert config_1.name == "quality"
             assert config_1.description == "Quality assessment"
-            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(config_1.optimization_direction) == OptimizationDirection.MAXIMIZE.value
+            assert config_1.optimization_direction == OptimizationDirection.MAXIMIZE
             assert len(config_1.values) == 2
             assert config_1.values[0].label == "high"
             assert config_1.values[0].score == 1.0
@@ -1523,8 +1522,7 @@ class TestAnnotationConfigTypeDecorators:
             config = loaded.output_configs[0]
             assert isinstance(config, CategoricalOutputConfig)
             assert config.name == "quality"
-            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config.optimization_direction == OptimizationDirection.MINIMIZE
             assert config.values is not None
             assert len(config.values) == 2
             assert config.values[0].label == "excellent"
@@ -1668,8 +1666,7 @@ class TestBuiltinEvaluatorMultiOutput:
             config_1 = loaded.output_configs[0]
             assert isinstance(config_1, CategoricalOutputConfig)
             assert config_1.name == "hallucination"
-            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(config_1.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config_1.optimization_direction == OptimizationDirection.MINIMIZE
 
             # Verify second config
             config_2 = loaded.output_configs[1]
@@ -1745,5 +1742,68 @@ class TestBuiltinEvaluatorMultiOutput:
             config = loaded.output_configs[0]
             assert isinstance(config, CategoricalOutputConfig)
             assert config.name == "quality"
-            # Note: DBBaseModel uses use_enum_values=True, so enums are stored as values
-            assert str(config.optimization_direction) == OptimizationDirection.MINIMIZE.value
+            assert config.optimization_direction == OptimizationDirection.MINIMIZE
+
+
+class TestExperimentJobPolymorphism:
+    """Test polymorphic dispatch for ExperimentJob subclasses."""
+
+    async def test_polymorphic_dispatch(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+            session.add(version)
+            await session.flush()
+
+            exp1 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"prompt-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            exp2 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"eval-only-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add_all([exp1, exp2])
+            await session.flush()
+
+            session.add(
+                models.ExperimentPromptTask(
+                    id=exp1.id,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    template_type=PromptTemplateType.STRING,
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptStringTemplate(type="string", template="t: {input}"),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                )
+            )
+            session.add(models.ExperimentEvalOnlyConfig(id=exp2.id))
+            await session.flush()
+            exp1_id, exp2_id = exp1.id, exp2.id
+
+        # Query base class returns correct subclass types
+        async with db() as session:
+            configs = (await session.scalars(select(models.ExperimentJob))).all()
+            assert len(configs) == 2
+            by_id = {c.id: c for c in configs}
+
+            prompt_config = by_id[exp1_id]
+            assert isinstance(prompt_config, models.ExperimentPromptTask)
+            assert prompt_config.type == "PROMPT"
+            await session.refresh(prompt_config)
+            assert prompt_config.model_name == "gpt-4"
+
+            eval_config = by_id[exp2_id]
+            assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
+            assert not isinstance(eval_config, models.ExperimentPromptTask)
+            assert eval_config.type == "EVAL_ONLY"

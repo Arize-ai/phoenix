@@ -1,5 +1,4 @@
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import { OverlayArrow } from "react-aria-components";
 
 import { classNames } from "@phoenix/utils/classNames";
@@ -8,7 +7,10 @@ import type { StylableProps } from "../types";
 
 export interface TooltipArrowProps extends StylableProps {}
 
-function TooltipArrow(props: TooltipArrowProps, ref: Ref<HTMLDivElement>) {
+function TooltipArrow({
+  ref,
+  ...props
+}: TooltipArrowProps & { ref?: Ref<HTMLDivElement> }) {
   const { css: propCSS } = props;
 
   return (
@@ -24,5 +26,4 @@ function TooltipArrow(props: TooltipArrowProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _TooltipArrow = forwardRef(TooltipArrow);
-export { _TooltipArrow as TooltipArrow };
+export { TooltipArrow };

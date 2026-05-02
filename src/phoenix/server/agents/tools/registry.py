@@ -1,0 +1,148 @@
+"""Tool registries for the chat agent.
+
+A *contextual tool* is exposed to the model only when the user's current
+UI context provides everything the tool needs. For example, the span
+filter tool is only advertised when the user is viewing a project page
+that has a span filter field mounted.
+
+An *external tool* is always exposed to the model and executed outside the
+backend, currently by the browser.
+
+Adding a new tool
+-----------------
+1. Create ``agents/tools/external/<your_tool>.py`` with a
+   ``ToolDefinition`` for always-available external tools, or create
+   ``agents/tools/<your_tool>.py`` with a builder function that returns a
+   ``ContextualTool`` for tools gated by UI context.
+2. Import the tool at the bottom of this file and append it to
+   ``EXTERNAL_TOOLS`` or ``CONTEXTUAL_TOOLS``.
+3. For contextual tools, set ``required_contexts`` to the names recognised by
+    ``_available_context_types`` (``project``, ``span_filter``, ``trace``,
+    ``span``); add a new name there if the UI exposes new state.
+4. For contextual ``executes_on="server"`` tools, supply a ``build_callable`` that
+    takes ``(ToolExecutionEnv, ResolvedContexts)`` and returns an async
+    callable. For ``executes_on="client"`` tools, leave it ``None`` —
+    dispatch happens via the data-stream protocol.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, Optional
+
+from phoenix.server.agents.context import ResolvedContexts, ToolCallable, ToolExecutionEnv
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pydantic_ai.tools import ToolDefinition
+
+
+@dataclass(frozen=True)
+class ContextualTool:
+    name: str
+    description: str
+    parameters_json_schema: dict[str, Any]
+    required_contexts: frozenset[str]
+    # Where the tool runs. ``"server"`` tools are executed in-process via
+    # ``build_callable``; ``"client"`` tools advertise a ``ToolDefinition`` to
+    # the model but are dispatched to the browser by the data-stream protocol
+    # (the same path frontend tool calls take).
+    executes_on: Literal["server", "client"] = "server"
+    # Required when ``executes_on == "server"``; must be ``None`` for client
+    # tools (asserted in ``__post_init__``).
+    build_callable: Optional["Callable[[ToolExecutionEnv, ResolvedContexts], ToolCallable]"] = None
+
+    def __post_init__(self) -> None:
+        if self.executes_on == "server" and self.build_callable is None:
+            raise ValueError(
+                f"Server-executed contextual tool {self.name!r} requires build_callable"
+            )
+        if self.executes_on == "client" and self.build_callable is not None:
+            raise ValueError(
+                f"Client-executed contextual tool {self.name!r} must not define build_callable"
+            )
+
+
+def _available_context_types(resolved: ResolvedContexts) -> frozenset[str]:
+    names: set[str] = set()
+    if resolved.project is not None:
+        names.add("project")
+        # ``span_filter`` is a virtual context name derived from the project
+        # carrying a span_filter field. The presence of the field — even when
+        # the condition is an empty string — signals that the on-screen filter
+        # input is mounted and tools that drive it can be advertised. The
+        # ``set_spans_filter`` tool gates on this name; the ``rootSpansOnly``
+        # parameter on that tool only takes visible effect when the spans
+        # table toggle is also mounted (advertised separately on the project
+        # context), but presence of the toggle is signalled to the LLM via
+        # the context message rather than gating the tool itself.
+        if resolved.project.span_filter is not None:
+            names.add("span_filter")
+    if resolved.trace is not None:
+        names.add("trace")
+    if resolved.span is not None:
+        names.add("span")
+    return frozenset(names)
+
+
+def resolve_contextual_tools(
+    resolved: ResolvedContexts,
+    env: ToolExecutionEnv,
+) -> tuple[list["ToolDefinition"], dict[str, "ToolCallable"]]:
+    from pydantic_ai.tools import ToolDefinition
+
+    available = _available_context_types(resolved)
+    defs: list[ToolDefinition] = []
+    dispatch: dict[str, ToolCallable] = {}
+
+    for tool in CONTEXTUAL_TOOLS:
+        if not tool.required_contexts.issubset(available):
+            continue
+        defs.append(
+            ToolDefinition(
+                name=tool.name,
+                description=tool.description,
+                parameters_json_schema=tool.parameters_json_schema,
+                kind="external" if tool.executes_on == "client" else "function",
+            )
+        )
+        if tool.executes_on == "server":
+            assert tool.build_callable is not None  # noqa: S101
+            dispatch[tool.name] = tool.build_callable(env, resolved)
+
+    return defs, dispatch
+
+
+def resolve_tools(
+    resolved: ResolvedContexts,
+    env: ToolExecutionEnv | None = None,
+) -> tuple[list["ToolDefinition"], dict[str, "ToolCallable"]]:
+    available = _available_context_types(resolved)
+    has_contextual_tools = any(
+        tool.required_contexts.issubset(available) for tool in CONTEXTUAL_TOOLS
+    )
+    if not has_contextual_tools:
+        # Non-UI entrypoints can advertise external tools without requiring a
+        # database-backed execution environment for contextual tools.
+        return list(EXTERNAL_TOOLS), {}
+    if env is None:
+        raise ValueError("ToolExecutionEnv is required when resolving contextual tools")
+    contextual_defs, dispatch = resolve_contextual_tools(resolved, env)
+    return [*EXTERNAL_TOOLS, *contextual_defs], dispatch
+
+
+from phoenix.server.agents.tools.external.ask_user import (  # noqa: E402
+    ASK_USER_TOOL_DEFINITION,
+)
+from phoenix.server.agents.tools.external.bash import (  # noqa: E402
+    BASH_TOOL_DEFINITION,
+)
+from phoenix.server.agents.tools.set_spans_filter import (  # noqa: E402
+    build_set_spans_filter_tool,
+)
+
+CONTEXTUAL_TOOLS: list[ContextualTool] = [
+    build_set_spans_filter_tool(),
+]
+EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL_DEFINITION, BASH_TOOL_DEFINITION]

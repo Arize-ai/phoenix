@@ -50,7 +50,7 @@ def _tool_use() -> ToolUseBlockParam:
     return {
         "type": "tool_use",
         "id": _str(),
-        "input": json.dumps(_dict()),
+        "input": _dict(),
         "name": _str(),
     }
 

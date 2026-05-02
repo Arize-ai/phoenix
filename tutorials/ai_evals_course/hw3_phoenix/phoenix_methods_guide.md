@@ -78,14 +78,14 @@ def my_function(input_text: str) -> str:
 ### [Basic Span Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
 
 ```python
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 
 # Get all spans
-all_spans = px.Client().get_spans_dataframe()
+all_spans = Client().spans.get_spans_dataframe()
 
 # Query specific spans
 query = SpanQuery().where("span_kind == 'CHAIN'")
-chain_spans = px.Client().query_spans(query, project_name='recipe-agent')
+chain_spans = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 ```
 
 ### [Advanced Querying](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#running-span-queries)
@@ -114,15 +114,19 @@ query = SpanQuery().where(
 ```python
 # Select input and output values
 query = SpanQuery().where("span_kind == 'LLM'").select(
-    input="input.value",
-    output="output.value"
+    "input.value",
+    "output.value"
 )
+# Then rename after querying:
+# df = client.spans.get_spans_dataframe(query=query)
+# df = df.rename(columns={"input.value": "input", "output.value": "output"})
 
-# Rename columns
+# Rename columns to custom names
 query = SpanQuery().select(
-    user_query="input.value",
-    bot_response="output.value"
+    "input.value",
+    "output.value"
 )
+# df = df.rename(columns={"input.value": "user_query", "output.value": "bot_response"})
 ```
 
 ## [Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/quickstart-datasets)
@@ -137,12 +141,12 @@ Phoenix datasets are the foundation for running experiments. You upload your dat
 from phoenix.client import Client
 
 # Set up Phoenix client
-phoenix_client = px.Client()
+phoenix_client = Client()
 
 # Upload dataset with key mappings
-dataset = phoenix_client.upload_dataset(
+dataset = phoenix_client.datasets.create_dataset(
     dataframe=your_dataframe, #CSV or Pandas Dataframe
-    dataset_name="my_dataset",
+    name="my_dataset",
     input_keys=["query"],  # Columns that serve as inputs
     output_keys=[],        # Columns that serve as outputs (empty for evaluation)
     metadata_keys=["ground_truth", "explanation", "category"],  # Additional metadata
@@ -161,9 +165,9 @@ dataset = phoenix_client.upload_dataset(
 
 ```python
 # Upload training data
-train_dataset = phoenix_client.upload_dataset(
+train_dataset = phoenix_client.datasets.create_dataset(
     dataframe=train_df,
-    dataset_name="train_set",
+    name="train_set",
     input_keys=["attributes.query"],
     output_keys=[],
     metadata_keys=[
@@ -176,9 +180,9 @@ train_dataset = phoenix_client.upload_dataset(
 )
 
 # Upload test data
-test_dataset = phoenix_client.upload_dataset(
+test_dataset = phoenix_client.datasets.create_dataset(
     dataframe=test_df,
-    dataset_name="test_set",
+    name="test_set",
     input_keys=["attributes.query"],
     output_keys=[],
     metadata_keys=[
@@ -200,7 +204,7 @@ Phoenix experiments allow you to evaluate your models systematically with custom
 #### Basic Experiment Setup
 
 ```python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 # Create task function
 def task(input, metadata):
@@ -481,13 +485,13 @@ px_client.spans.log_span_annotations_dataframe(
 ```python
 import phoenix as px
 from phoenix.evals import llm_generate, OpenAIModel
-from phoenix.trace.dsl import SpanQuery
+from phoenix.client.types.spans import SpanQuery
 import pandas as pd
 import os
 
 # 1. Load traces from Phoenix
 query = SpanQuery().where("span_kind == 'CHAIN'")
-traces_df = px.Client().query_spans(query, project_name='recipe-agent')
+traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent')
 
 # 2. Define evaluation template
 template = """

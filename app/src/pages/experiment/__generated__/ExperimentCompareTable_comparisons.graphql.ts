@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5193d429bf31df087ce019de54494579>>
+ * @generated SignedSource<<523bde92b62f2b8ef7833e55fea56d6f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -100,7 +100,9 @@ export type ExperimentCompareTable_comparisons$data = {
               readonly tokens: number | null;
             };
           };
-          readonly datasetVersionId: string;
+          readonly datasetVersion: {
+            readonly id: string;
+          };
           readonly id: string;
           readonly metadata: any;
           readonly name: string;
@@ -218,7 +220,10 @@ v9 = {
   "name": "metadata",
   "storageKey": null
 },
-v10 = {
+v10 = [
+  (v1/*: any*/)
+],
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -600,6 +605,11 @@ return {
                   "kind": "Variable",
                   "name": "filterIds",
                   "variableName": "experimentIds"
+                },
+                {
+                  "kind": "Literal",
+                  "name": "includeEphemeral",
+                  "value": true
                 }
               ],
               "concreteType": "ExperimentConnection",
@@ -636,8 +646,11 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "datasetVersionId",
+                          "concreteType": "DatasetVersion",
+                          "kind": "LinkedField",
+                          "name": "datasetVersion",
+                          "plural": false,
+                          "selections": (v10/*: any*/),
                           "storageKey": null
                         },
                         {
@@ -647,9 +660,7 @@ return {
                           "kind": "LinkedField",
                           "name": "project",
                           "plural": false,
-                          "selections": [
-                            (v1/*: any*/)
-                          ],
+                          "selections": (v10/*: any*/),
                           "storageKey": null
                         },
                         {
@@ -759,7 +770,7 @@ return {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v6/*: any*/),
-                                (v10/*: any*/),
+                                (v11/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -781,7 +792,7 @@ return {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v6/*: any*/),
-                                (v10/*: any*/),
+                                (v11/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -825,6 +836,6 @@ return {
 };
 })();
 
-(node as any).hash = "13b7742b787f2aaf62db96b1119750e3";
+(node as any).hash = "bf8a6a23c11a199c8bd4da62f57014be";
 
 export default node;

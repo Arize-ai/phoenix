@@ -1,6 +1,7 @@
+# type: ignore
 import os
 
-import phoenix as px
+from phoenix.client import Client
 
 
 # This function saves traces of the agent in the project to a local directory.
@@ -10,9 +11,10 @@ def save_agent_traces(project_name: str):
     directory = "examples/agent_framework_comparison/utils/saved_traces"
     os.makedirs(directory, exist_ok=True)
 
-    # Save the Trace Dataset
-    traces = px.Client().get_trace_dataset(project_name=project_name)
-    traces.save(directory=directory)
+    # Save the trace DataFrame
+    client = Client()
+    df = client.spans.get_spans_dataframe(project_name=project_name)
+    df.to_parquet(os.path.join(directory, f"{project_name}.parquet"))
 
 
 if __name__ == "__main__":

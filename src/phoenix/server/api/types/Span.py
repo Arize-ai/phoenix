@@ -743,9 +743,9 @@ class Span(Node):
         }
 
         return SpanAsExampleRevision(
-            input=get_dataset_example_input(span),
-            output=get_dataset_example_output(span),
-            metadata=metadata,
+            input=JSON(get_dataset_example_input(span)),
+            output=JSON(get_dataset_example_output(span)),
+            metadata=JSON(metadata),
         )
 
     @strawberry.field(description="The project that this span belongs to.")  # type: ignore

@@ -1,9 +1,16 @@
 import logging
 from typing import Any, Dict, List, Type, Union, cast
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
-
-from ...prompts import ContentPart, Message, MessageRole, PromptLike
+from ...prompts import (
+    ContentPart,
+    Message,
+    MessageRole,
+    PromptLike,
+    classify_message_list_kind,
+    is_openai_native_message_dict,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import (
@@ -69,7 +76,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 f"'predict' method, got {type(self.client)}"
             )
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "invoke"):
@@ -86,9 +93,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
         else:
             return str(response)
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         prompt_input = self._build_prompt(prompt)
 
         if hasattr(self.client, "ainvoke"):
@@ -107,7 +112,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -187,7 +192,7 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -329,24 +334,63 @@ class LangChainModelAdapter(BaseLLMAdapter):
 
         return lc_messages
 
-    def _build_prompt(self, prompt: Union[PromptLike, MultimodalPrompt]) -> Union[str, List[Any]]:
+    def _build_prompt(self, prompt: PromptLike) -> Union[str, List[Any]]:
         if isinstance(prompt, str):
             return prompt
         elif isinstance(prompt, list):
-            # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to LangChain format
                 # Type narrowing: prompt is List[Message] here
                 return self._transform_messages_to_langchain(cast(List[Message], prompt))
-            # Convert OpenAI-style messages to LangChain messages (backward compatibility)
+
+            native_prompt = cast(List[Dict[str, Any]], prompt)
+            if any(is_openai_native_message_dict(msg) for msg in native_prompt):
+                # Native transcripts (tool/function/assistant-with-tool_calls)
+                # cannot be reconstructed without ``langchain_community`` —
+                # the canonical-dict fallback below would fail validation
+                # on ``content=None`` or the ``tool``/``function`` role and
+                # mask the real cause, so raise a targeted error instead.
+                try:
+                    from langchain_community.adapters.openai import (
+                        convert_openai_messages,
+                    )
+                except ImportError as exc:
+                    raise ImportError(
+                        "Provider-native tool/function transcripts require "
+                        "`langchain_community` to convert. Install it with "
+                        "`pip install langchain-community`, or convert your "
+                        "messages to typed `phoenix.evals.llm.prompts.Message` "
+                        "objects before calling the adapter."
+                    ) from exc
+                return convert_openai_messages(native_prompt)  # type: ignore[no-any-return]
+
+            # OpenAI-style dict messages — validate, canonicalize roles, and
+            # then emit LangChain ``BaseMessage`` subclasses.  We canonicalize
+            # *before* calling ``convert_openai_messages`` so aliases like
+            # ``ai`` / ``developer`` / ``human`` route to the right subclass.
+            canonical_dicts: List[Dict[str, Any]] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                role = normalize_role(msg["role"])
+                if role == MessageRole.USER:
+                    role_str = "user"
+                elif role == MessageRole.AI:
+                    role_str = "assistant"
+                else:
+                    role_str = "system"
+                canonical_dicts.append({"role": role_str, "content": msg["content"]})
+
             try:
                 from langchain_community.adapters.openai import (
                     convert_openai_messages,
                 )
 
-                return convert_openai_messages(prompt)  # type: ignore[no-any-return]
+                return convert_openai_messages(canonical_dicts)  # type: ignore[no-any-return]
             except ImportError:
-                # Fallback: manual conversion if langchain_community not available
+                # Fallback: manual conversion if langchain_community not available.
                 from langchain_core.messages import (
                     AIMessage,
                     HumanMessage,
@@ -354,40 +398,30 @@ class LangChainModelAdapter(BaseLLMAdapter):
                 )
 
                 lc_messages: List[Any] = []
-                for msg in prompt:
-                    role = msg["role"]
+                for msg in canonical_dicts:
+                    role_str = cast(str, msg["role"])
                     content = msg["content"]
 
-                    # Extract text content (matching logic from _transform_messages_to_langchain)
+                    # Extract text content (mirrors _transform_messages_to_langchain)
                     if isinstance(content, str):
                         text_content = content
                     else:
-                        # Extract text from TextContentPart items only
                         text_parts = []
                         for part in content:
                             if self._is_text_content_part(part):
                                 text_parts.append(part["text"])
                         text_content = "\n".join(text_parts)
 
-                    if role == "user":
+                    if role_str == "user":
                         lc_messages.append(HumanMessage(content=text_content))
-                    elif role == "assistant":
+                    elif role_str == "assistant":
                         lc_messages.append(AIMessage(content=text_content))
-                    elif role == "system":
-                        lc_messages.append(SystemMessage(content=text_content))
                     else:
-                        # Default to HumanMessage for unknown roles
-                        lc_messages.append(HumanMessage(content=text_content))
+                        lc_messages.append(SystemMessage(content=text_content))
                 return lc_messages
-        elif isinstance(prompt, MultimodalPrompt):
-            # Handle legacy MultimodalPrompt
-            return prompt.to_text_only_prompt()
         else:
             # If we get here, prompt is an unexpected type
-            # This should never happen given the type hints, but we raise an error to be explicit
-            raise ValueError(
-                f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-            )
+            raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get(

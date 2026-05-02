@@ -1,5 +1,19 @@
 import { randomUUID } from "crypto";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+function datasetRow(page: Page, datasetName: string) {
+  return page.getByTestId("datasets-table").getByRole("row").filter({
+    hasText: datasetName,
+  });
+}
+
+function datasetNameLink(page: Page, datasetName: string) {
+  return datasetRow(page, datasetName)
+    .locator("a")
+    .filter({
+      hasText: new RegExp(`^${datasetName}$`),
+    });
+}
 
 test.describe.serial("Server Evaluators", () => {
   const datasetName = `test-dataset-${randomUUID()}`;
@@ -34,10 +48,10 @@ test.describe.serial("Server Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Wait for the dataset to appear in the table
-    await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
+    await expect(datasetRow(page, datasetName)).toBeVisible();
 
     // Navigate to the dataset to verify it was created
-    await page.getByRole("link", { name: datasetName }).click();
+    await datasetNameLink(page, datasetName).click({ force: true });
     await page.waitForURL("**/datasets/**/examples");
 
     // Verify dataset was created
@@ -45,19 +59,19 @@ test.describe.serial("Server Evaluators", () => {
       page.getByRole("heading", { name: datasetName })
     ).toBeVisible();
 
-    // Add an example to the dataset (required for playground to work)
-    await page
-      .getByRole("button", { name: "Add Dataset Example" })
-      .or(page.getByRole("button", { name: "Example" }))
-      .click();
+    // Add an example to the dataset (required for playground to work).
+    // The Examples button opens a menu with options to add an example manually
+    // or upload from a file. Choose the manual option to open the dialog.
+    await page.getByRole("button", { name: "Add Dataset Example" }).click();
+    await page.getByRole("menuitem", { name: "Add Example Manually" }).click();
 
     // Wait for the Add Example dialog to open
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByTestId("dialog")).toBeVisible();
 
     // Fill in the input field with valid JSON
     // JSONEditor renders a CodeMirror editor with .cm-content
     // Scope to the dialog to avoid picking up background editors
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     const inputTextArea = dialog.locator(".cm-content").first();
     await expect(inputTextArea).toBeVisible();
     await inputTextArea.click();
@@ -78,7 +92,7 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("button", { name: "Add Example" }).click();
 
     // Wait for dialog to close
-    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     // Verify the example appears in the table (or at least the table is no longer empty)
     await expect(page.getByRole("row")).toHaveCount(2); // header + 1 example

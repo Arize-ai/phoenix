@@ -3,6 +3,7 @@ import os
 import platform
 import queue
 import signal
+import sys
 import threading
 import time
 from unittest.mock import AsyncMock, Mock
@@ -459,6 +460,10 @@ async def test_executor_factory_returns_sync_in_async_context():
     assert isinstance(executor, SyncExecutor)
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_async_in_patched_async_context():
     nest_asyncio.apply()
 
@@ -535,6 +540,10 @@ def test_executor_factory_returns_sync_in_threads():
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_sync_in_threads_even_if_async_context():
     def sync_fn():
         pass
@@ -569,6 +578,10 @@ async def test_executor_factory_returns_sync_in_threads_even_if_async_context():
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 def test_executor_factory_returns_async_not_in_thread_if_async_context():
     def sync_fn():
         pass

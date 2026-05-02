@@ -50,10 +50,8 @@ from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
-from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias, override
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
@@ -80,6 +78,7 @@ from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -104,12 +103,14 @@ from phoenix.server.api.dataloaders import (
     ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
     ExperimentExpectedRunCountsDataLoader,
+    ExperimentJobsDataLoader,
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
     ExperimentRepeatedRunGroupsDataLoader,
     ExperimentRunAnnotations,
     ExperimentRunCountsDataLoader,
     ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
+    LastExperimentErrorsDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
     LatestPromptVersionIdDataLoader,
@@ -117,7 +118,9 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectHasTracesDataLoader,
     ProjectIdsByTraceRetentionPolicyIdDataLoader,
+    PromptVersionDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SecretsDataLoader,
@@ -150,8 +153,11 @@ from phoenix.server.api.dataloaders import (
     TokenPricesByModelDataLoader,
     TraceAnnotationsByTraceDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceErrorCountDataLoader,
+    TraceErrorsByTypeDataLoader,
     TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
+    TraceSpanCountsByKindDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
@@ -166,6 +172,8 @@ from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.experiment_runner import ExperimentRunner
+from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import DmlEvent
@@ -177,6 +185,7 @@ from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -191,15 +200,17 @@ from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
+    get_annotation_precursors_from_fixture,
     get_dataset_fixtures,
-    get_evals_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
+    remap_precursor_ids,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.tracers import Tracer
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
 
@@ -390,6 +401,21 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RedactorMiddleware(BaseHTTPMiddleware):
+    """Binds the per-app Redactor to the `current_redactor` ContextVar."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        token = current_redactor.set(request.app.state.redactor)
+        try:
+            return await call_next(request)
+        finally:
+            current_redactor.reset(token)
+
+
 def user_fastapi_middlewares() -> list[Middleware]:
     paths = get_env_fastapi_middleware_paths()
     middlewares = []
@@ -414,7 +440,7 @@ def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]
 
 def user_grpc_interceptors() -> list[ServerInterceptor]:
     paths = get_env_grpc_interceptor_paths()
-    interceptors = []
+    interceptors: list[ServerInterceptor] = []
     for file_path, object_name in paths:
         interceptor_class = import_object_from_file(file_path, object_name)
         if not issubclass(interceptor_class, ServerInterceptor):
@@ -460,12 +486,12 @@ class Scaffolder(DaemonTask):
         self,
         config: ScaffolderConfig,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
-        enqueue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        enqueue_annotations: Callable[..., Awaitable[None]],
     ) -> None:
         super().__init__()
         self._db = config.db
         self._enqueue_span = enqueue_span
-        self._enqueue_evaluation = enqueue_evaluation
+        self._enqueue_annotations = enqueue_annotations
         self._tracing_fixtures = [
             get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
         ]
@@ -517,16 +543,15 @@ class Scaffolder(DaemonTask):
             try:
                 trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-                fixture_spans, fixture_evals = await loop.run_in_executor(
+                fixture_spans, trace_id_mapping, span_id_mapping = await loop.run_in_executor(
                     None,
                     reset_fixture_span_ids_and_timestamps,
-                    (
+                    [
                         # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                         # `encode` removes the hyphens in the UUIDs.
                         decode_otlp_span(encode_span_to_otlp(span))
                         for span in trace_ds.to_spans()
-                    ),
-                    get_evals_from_fixture(fixture.name),
+                    ],
                 )
 
                 # Ingest dataset fixtures
@@ -537,8 +562,25 @@ class Scaffolder(DaemonTask):
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
                     await self._enqueue_span(span, project_name)
-                for evaluation in fixture_evals:
-                    await self._enqueue_evaluation(evaluation)
+
+                for eval_name, precursors_batch in get_annotation_precursors_from_fixture(
+                    fixture.name
+                ):
+                    remapped = [
+                        remap_precursor_ids(
+                            p,
+                            trace_id_mapping=trace_id_mapping,
+                            span_id_mapping=span_id_mapping,
+                        )
+                        for p in precursors_batch
+                    ]
+                    for precursor in remapped:
+                        await self._enqueue_annotations(precursor)
+                    logger.info(
+                        "Enqueued %s eval annotations for '%s'",
+                        len(remapped),
+                        eval_name,
+                    )
 
             except FileNotFoundError:
                 logger.warning(f"Fixture file not found for '{fixture.name}'")
@@ -567,7 +609,7 @@ class _CapacityIndicator(Protocol):
 
 
 class CapacityInterceptor(AsyncServerInterceptor):
-    def __init__(self, indicator: _CapacityIndicator):
+    def __init__(self, indicator: _CapacityIndicator) -> None:
         self._indicator = indicator
 
     @override
@@ -593,9 +635,11 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
+    experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    experiment_runner: ExperimentRunner,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -603,8 +647,10 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
-    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
+    grpc_interceptors: Iterable[ServerInterceptor] = (),
+    welcome_message: str | None = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -617,7 +663,6 @@ def _lifespan(
             (
                 enqueue_annotations,
                 enqueue_span,
-                enqueue_evaluation,
                 enqueue_operation,
             ) = await stack.enter_async_context(bulk_inserter)
             interceptors = [
@@ -636,27 +681,33 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            for precursor in initial_annotation_precursors:
+                await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
+            await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(experiment_runner)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
                     enqueue_span=enqueue_span,
-                    enqueue_evaluation=enqueue_evaluation,
+                    enqueue_annotations=enqueue_annotations,
                 )
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
             _warn_if_missing_aioboto3()
+            if welcome_message:
+                print(welcome_message, flush=True)
             yield {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
-                "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
+                "experiment_runner": experiment_runner,
             }
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -688,6 +739,7 @@ def create_graphql_router(
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -769,7 +821,10 @@ def create_graphql_router(
                 experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
                 experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
                 experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+                experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),
+                experiment_jobs=ExperimentJobsDataLoader(db),
                 experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
+                last_experiment_errors=LastExperimentErrorsDataLoader(db),
                 experiment_fields=TableFieldsDataLoader(db, models.Experiment),
                 experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
                     db
@@ -815,6 +870,7 @@ def create_graphql_router(
                 ),
                 prompt_fields=TableFieldsDataLoader(db, models.Prompt),
                 prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
+                prompt_versions=PromptVersionDataLoader(db),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
                 latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
@@ -880,7 +936,10 @@ def create_graphql_router(
                 trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
                 trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+                trace_error_count=TraceErrorCountDataLoader(db),
+                trace_errors_by_type=TraceErrorsByTypeDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_span_counts_by_kind=TraceSpanCountsByKindDataLoader(db),
                 trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
                     db
                 ),
@@ -889,6 +948,7 @@ def create_graphql_router(
                 ),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
+                project_has_traces=ProjectHasTracesDataLoader(db),
                 users=UsersDataLoader(db),
                 user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
                 user_fields=TableFieldsDataLoader(db, models.User),
@@ -901,6 +961,7 @@ def create_graphql_router(
             token_store=token_store,
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
             encrypt=encrypt,
             decrypt=decrypt,
         )
@@ -912,7 +973,7 @@ def create_graphql_router(
         include_in_schema=False,
         prefix="/graphql",
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
-        subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
+        subscription_protocols=[],
     )
 
 
@@ -983,7 +1044,7 @@ def create_app(
     grpc_port: Optional[int] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
@@ -999,6 +1060,7 @@ def create_app(
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
+    welcome_message: str | None = None,
 ) -> FastAPI:
     verify_server_environment_variables()
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -1013,12 +1075,17 @@ def create_app(
             for item in initial_spans
         )
     )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    startup_annotation_precursors = (
+        () if initial_annotation_precursors is None else initial_annotation_precursors
+    )
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [
+        Middleware(HeadersMiddleware),
+        Middleware(RedactorMiddleware),
+    ]
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
@@ -1054,6 +1121,7 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
@@ -1061,7 +1129,6 @@ def create_app(
         span_cost_calculator=span_cost_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
-        initial_batch_of_evaluations=initial_batch_of_evaluations,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
@@ -1087,6 +1154,12 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
+    redactor = Redactor(secret=secret or Secret(""))
+    experiment_runner = ExperimentRunner(
+        db,
+        decrypt=encryption_service.decrypt,
+        tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+    )
     graphql_router = create_graphql_router(
         db=db,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
@@ -1099,6 +1172,7 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1106,7 +1180,7 @@ def create_app(
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
-    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     app = FastAPI(
         title="Arize-Phoenix REST API",
@@ -1115,12 +1189,15 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
+            initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
+            experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            experiment_runner=experiment_runner,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1128,6 +1205,7 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
+            welcome_message=welcome_message,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1214,6 +1292,7 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
+    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)

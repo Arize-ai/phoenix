@@ -88,4 +88,4 @@ Utilities
 
 .. automodule:: phoenix.evals.utils
    :members:
-   :exclude-members: InputMappingType, download_benchmark_dataset, emoji_guard,  openai_function_call_kwargs, parse_openai_function_call, printif
+   :exclude-members: InputMappingType, download_benchmark_dataset, emoji_guard

@@ -1,3 +1,4 @@
+import type * as PhoenixOtel from "@arizeai/phoenix-otel";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createClient, type PhoenixClient } from "../../src/client";
@@ -7,7 +8,11 @@ import { resumeEvaluation } from "../../src/experiments/resumeEvaluation";
 import type { EvaluatorParams } from "../../src/types/experiments";
 
 vi.mock("../../src/client");
-vi.mock("@arizeai/phoenix-otel", () => ({
+vi.mock("@arizeai/phoenix-otel", async (importOriginal) => ({
+  ...(await importOriginal<typeof PhoenixOtel>()),
+  attachGlobalTracerProvider: vi.fn(() => ({
+    detach: vi.fn(),
+  })),
   register: vi.fn(() => ({
     getTracer: vi.fn(() => ({
       startSpan: vi.fn(() => ({
@@ -32,6 +37,7 @@ vi.mock("@arizeai/phoenix-otel", () => ({
       }),
     })),
     forceFlush: vi.fn(() => Promise.resolve()),
+    shutdown: vi.fn(() => Promise.resolve()),
   })),
   trace: {
     getTracer: vi.fn(() => ({
@@ -87,7 +93,7 @@ const mockIncompleteEvaluations = [
       start_time: new Date().toISOString(),
       end_time: new Date().toISOString(),
       error: null,
-      trace_id: null,
+      trace_id: "task-trace-id-1",
     },
     dataset_example: {
       id: "ex-1",
@@ -202,6 +208,14 @@ describe("resumeEvaluation", () => {
     // relevance: 1 time (only run-1 needs it)
     expect(correctnessFn).toHaveBeenCalledTimes(2);
     expect(relevanceFn).toHaveBeenCalledTimes(1);
+
+    // Verify traceId is passed through to evaluators
+    expect(correctnessFn).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: "task-trace-id-1" })
+    );
+    expect(relevanceFn).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: "task-trace-id-1" })
+    );
 
     // Should fetch experiment info
     expect(getExperimentInfoModule.getExperimentInfo).toHaveBeenCalledWith({

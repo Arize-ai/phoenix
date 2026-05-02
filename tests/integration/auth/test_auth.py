@@ -1669,7 +1669,7 @@ class TestSecretsCRUDAndValueVisibility:
         logged_in_viewer = viewer.log_in(_app)
 
         # Create a secret (admin-only operation)
-        secret_key = f"test-secret-{token_hex(8)}"
+        secret_key = f"test_secret_{token_hex(8)}"
         secret_value = f"super-secret-value-{token_hex(8)}"
 
         # Member and Viewer should not be able to upsert the secret
@@ -1703,7 +1703,14 @@ class TestSecretsCRUDAndValueVisibility:
         secret = response["data"]["node"]
         assert secret["key"] == secret_key
         assert secret["value"]["__typename"] == "DecryptedSecret"
-        assert secret["value"]["value"] == secret_value
+        # Server emits the value as a RedactedString token — un-redact before
+        # comparing against the original plaintext.
+        from starlette.datastructures import Secret
+
+        from phoenix.server.redaction import Redactor
+
+        _redactor = Redactor(secret=Secret(_app.env["PHOENIX_SECRET"]))
+        assert _redactor.unredact(secret["value"]["value"]) == secret_value
 
         # Member and Viewer should get Unauthorized when accessing secret value field
         for logged_in_user in [logged_in_member, logged_in_viewer]:

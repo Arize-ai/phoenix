@@ -11,7 +11,7 @@ langchain-text-splitters>=1.0.0
 langgraph>=1.0.0
 loguru==0.7.2
 pandas==2.2.3
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 tqdm==4.66.6
 gradio
 openinference-instrumentation-openai

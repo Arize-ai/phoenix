@@ -1,10 +1,20 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy import Connection
+from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import assert_never
 
-from . import _DBBackend, _down, _get_table_schema_info, _TableSchemaInfo, _up, _verify_clean_state
+from . import (
+    _DBBackend,
+    _down,
+    _get_table_schema_info,
+    _run_async,
+    _TableSchemaInfo,
+    _up,
+    _verify_clean_state,
+)
 
 _DOWN = "8a3764fe7f1a"
 _UP = "6a88424799fe"
@@ -27,38 +37,44 @@ class DBSchemaComparisonTest(ABC):
         db_backend: _DBBackend,
     ) -> _TableSchemaInfo: ...
 
-    def _test_db_schema(
+    async def _test_db_schema(
         self,
-        _engine: Engine,
+        _engine: AsyncEngine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
         _schema: str,
     ) -> None:
-        _verify_clean_state(_engine, _schema)
+        await _verify_clean_state(_engine, _schema)
 
-        _up(_engine, _alembic_config, _DOWN, _schema)
+        await _up(_engine, _alembic_config, _DOWN, _schema)
 
         current_info = self._get_current_schema_info(_db_backend)
         upgraded_info = self._get_upgraded_schema_info(_db_backend)
 
-        with _engine.connect() as conn:
-            initial_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+        def _get_initial(conn: Connection) -> Optional[_TableSchemaInfo]:
+            return _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+
+        initial_info = await _run_async(_engine, _get_initial)
         assert initial_info == current_info, (
             "Initial schema info does not match expected current schema info"
         )
 
-        _up(_engine, _alembic_config, _UP, _schema)
+        await _up(_engine, _alembic_config, _UP, _schema)
 
-        with _engine.connect() as conn:
-            final_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+        def _get_final(conn: Connection) -> Optional[_TableSchemaInfo]:
+            return _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+
+        final_info = await _run_async(_engine, _get_final)
         assert final_info == upgraded_info, (
             "Final schema info does not match expected upgraded schema info"
         )
 
-        _down(_engine, _alembic_config, _DOWN, _schema)
+        await _down(_engine, _alembic_config, _DOWN, _schema)
 
-        with _engine.connect() as conn:
-            downgraded_info = _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+        def _get_downgraded(conn: Connection) -> Optional[_TableSchemaInfo]:
+            return _get_table_schema_info(conn, self.table_name, _db_backend, _schema)
+
+        downgraded_info = await _run_async(_engine, _get_downgraded)
         assert downgraded_info == current_info, (
             "Downgraded schema info does not match expected current schema info"
         )
@@ -196,11 +212,11 @@ class TestUsers(DBSchemaComparisonTest):
             ),  # These columns are nullable
         )
 
-    def test_db_schema(
+    async def test_db_schema(
         self,
-        _engine: Engine,
+        _engine: AsyncEngine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
         _schema: str,
     ) -> None:
-        self._test_db_schema(_engine, _alembic_config, _db_backend, _schema)
+        await self._test_db_schema(_engine, _alembic_config, _db_backend, _schema)

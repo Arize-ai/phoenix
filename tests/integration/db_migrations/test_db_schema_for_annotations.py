@@ -17,14 +17,15 @@ Supported annotation tables:
 - document_annotations: Annotations for document positions (includes additional document_position column)
 """
 
-from typing import Literal, Sequence
+from typing import Literal, Optional, Sequence
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy import Connection
+from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import assert_never
 
-from . import _DBBackend, _get_table_schema_info, _TableSchemaInfo, _up
+from . import _DBBackend, _get_table_schema_info, _run_async, _TableSchemaInfo, _up
 
 # Define the supported annotation table names as a Literal type for type safety
 AnnotationTableName = Literal[
@@ -351,13 +352,13 @@ class TestDBSchema:
             ),
         ],
     )
-    def test_annotation_table_schema(
+    async def test_annotation_table_schema(
         self,
         table_name: AnnotationTableName,
         foreign_key_column: str,
         additional_columns: list[str],
         additional_nullable_columns: list[str],
-        _engine: Engine,
+        _engine: AsyncEngine,
         _alembic_config: Config,
         _db_backend: _DBBackend,
         _schema: str,
@@ -381,7 +382,7 @@ class TestDBSchema:
             _schema: Database schema name (pytest fixture)
         """
         # Apply all migrations to get the final schema
-        _up(_engine, _alembic_config, "head", _schema)
+        await _up(_engine, _alembic_config, "head", _schema)
 
         # Build expected schema using helper functions
         expected = _get_expected_schema_info(
@@ -393,8 +394,10 @@ class TestDBSchema:
         )
 
         # Get actual schema from database
-        with _engine.connect() as conn:
-            actual = _get_table_schema_info(conn, table_name, _db_backend, _schema)
+        def _do(conn: Connection) -> Optional[_TableSchemaInfo]:
+            return _get_table_schema_info(conn, table_name, _db_backend, _schema)
+
+        actual = await _run_async(_engine, _do)
 
         # Verify schemas match exactly
         assert actual == expected

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<47da9ad05318801a4df2822b077123e3>>
+ * @generated SignedSource<<edff6cccfedde97d36129678c1dc0881>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,9 +15,10 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
-  clientOptions?: ModelClientOptionsInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   evaluators?: ReadonlyArray<PlaygroundEvaluatorInput>;
+  headers?: any | null;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
   repetitions: number;
@@ -27,7 +28,7 @@ export type ChatCompletionInput = {
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  invocationParameters?: any;
+  invocationParameters: any;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
@@ -93,19 +94,14 @@ export type PromptResponseFormatJSONSchemaDefinitionInput = {
   schema?: any | null;
   strict?: boolean | null;
 };
-export type ModelClientOptionsInput = {
-  builtin?: BuiltinClientOptionsInput | null;
-  custom?: CustomClientOptionsInput | null;
-};
-export type BuiltinClientOptionsInput = {
+export type ConnectionConfigInput = {
+  azureEndpoint?: string | null;
   baseUrl?: string | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
+  endpointUrl?: string | null;
   openaiApiType?: OpenAIApiType | null;
-  region?: string | null;
-};
-export type CustomClientOptionsInput = {
-  extraHeaders?: any | null;
+  organization?: string | null;
+  project?: string | null;
+  regionName?: string | null;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
@@ -118,13 +114,13 @@ export type PromptTemplateOptions = {
 export type PlaygroundEvaluatorInput = {
   description?: string | null;
   id: string;
-  inputMapping?: EvaluatorInputMappingInput;
+  inputMapping: EvaluatorInputMappingInput;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
-  literalMapping?: any;
-  pathMapping?: any;
+  literalMapping: any;
+  pathMapping: any;
 };
 export type AnnotationConfigInput = {
   categorical?: CategoricalAnnotationConfigInput | null;

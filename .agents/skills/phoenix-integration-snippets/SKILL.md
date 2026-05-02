@@ -10,7 +10,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "2.0.0"
+  version: "2.0.1"
   languages: Python, TypeScript
   internal: true
 ---
@@ -46,6 +46,8 @@ Each snippet has two parts:
 
 **Packages:** Array of package names. Order: phoenix-otel first, then instrumentation package, then SDK.
 
+Do not assume the framework package bundles its model provider SDK. In a clean env, verify the exact imports used by the snippet; if the framework's OpenAI/Gemini/etc. adapter requires a separate SDK package, include it explicitly in `packages`.
+
 **Implementation:** Working, copy-pasteable code that produces at least one trace. 10-20 lines, meaningful example prompt, no print/log statements.
 
 ## Adding to the Onboarding UI
@@ -57,6 +59,8 @@ Each snippet has two parts:
 Do NOT pass `endpoint`/`url` in snippet code — the onboarding UI displays env vars (including `PHOENIX_COLLECTOR_ENDPOINT`) separately, and both `register` functions read it automatically.
 
 **Python:** Use `auto_instrument=True` — no manual instrumentor calls. SDK imports must come _after_ `register()`.
+
+Exception: if the framework emits native OpenTelemetry spans and uses a mutating span processor, start with `register(...)` so Phoenix becomes the global provider the framework will use. Then add the mutating processor so it replaces Phoenix's default processor, and add the Phoenix exporter back after it.
 
 **TypeScript:** ESM imports are hoisted so import ordering doesn't matter. `await provider.forceFlush()` is required in short-lived scripts.
 
@@ -75,6 +79,8 @@ Test snippets **as written** — the exact code the user will see in the onboard
 Create a **fresh environment per integration** with only the packages from that snippet's `packages` array. This prevents false positives from cross-contamination (e.g., an installed `openinference-instrumentation-openai` producing extra traces when testing a LangChain snippet).
 
 Set `PHOENIX_COLLECTOR_ENDPOINT` and run the snippet code verbatim.
+
+Use a **fresh Phoenix project name per test run**. Reusing an existing project can mask failures by making old traces look like the new snippet worked.
 
 ### Validation checklist
 

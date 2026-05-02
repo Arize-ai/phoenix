@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b5730e5c817f3e968d4071f79eaea65>>
+ * @generated SignedSource<<e302c7e5bba57171d950e9188f11c44e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,8 @@ export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   appendedMessagesPath?: string | null;
-  clientOptions?: ModelClientOptionsInput | null;
+  connectionConfig?: ConnectionConfigInput | null;
+  createEphemeralExperiment?: boolean | null;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetId: string;
   datasetVersionId?: string | null;
@@ -25,8 +26,11 @@ export type ChatCompletionOverDatasetInput = {
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
+  headers?: any | null;
+  maxConcurrency?: number;
   promptName?: string | null;
   promptVersion: ChatPromptVersionInput;
+  promptVersionId?: string | null;
   repetitions: number;
   splitIds?: ReadonlyArray<string> | null;
   streamModelOutput?: boolean;
@@ -36,7 +40,7 @@ export type ChatCompletionOverDatasetInput = {
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  invocationParameters?: any;
+  invocationParameters: any;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
@@ -102,19 +106,14 @@ export type PromptResponseFormatJSONSchemaDefinitionInput = {
   schema?: any | null;
   strict?: boolean | null;
 };
-export type ModelClientOptionsInput = {
-  builtin?: BuiltinClientOptionsInput | null;
-  custom?: CustomClientOptionsInput | null;
-};
-export type BuiltinClientOptionsInput = {
+export type ConnectionConfigInput = {
+  azureEndpoint?: string | null;
   baseUrl?: string | null;
-  customHeaders?: any | null;
-  endpoint?: string | null;
+  endpointUrl?: string | null;
   openaiApiType?: OpenAIApiType | null;
-  region?: string | null;
-};
-export type CustomClientOptionsInput = {
-  extraHeaders?: any | null;
+  organization?: string | null;
+  project?: string | null;
+  regionName?: string | null;
 };
 export type GenerativeCredentialInput = {
   envVarName: string;
@@ -123,13 +122,13 @@ export type GenerativeCredentialInput = {
 export type PlaygroundEvaluatorInput = {
   description?: string | null;
   id: string;
-  inputMapping?: EvaluatorInputMappingInput;
+  inputMapping: EvaluatorInputMappingInput;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
 };
 export type EvaluatorInputMappingInput = {
-  literalMapping?: any;
-  pathMapping?: any;
+  literalMapping: any;
+  pathMapping: any;
 };
 export type AnnotationConfigInput = {
   categorical?: CategoricalAnnotationConfigInput | null;
@@ -164,8 +163,27 @@ export type PlaygroundDatasetExamplesTableSubscription$data = {
   readonly chatCompletionOverDataset: {
     readonly __typename: "ChatCompletionSubscriptionError";
     readonly datasetExampleId: string | null;
+    readonly experimentRun: {
+      readonly id: string;
+    } | null;
     readonly message: string;
     readonly repetitionNumber: number | null;
+    readonly span: {
+      readonly context: {
+        readonly traceId: string;
+      };
+      readonly costSummary: {
+        readonly total: {
+          readonly cost: number | null;
+        };
+      } | null;
+      readonly id: string;
+      readonly latencyMs: number | null;
+      readonly project: {
+        readonly id: string;
+      };
+      readonly tokenCountTotal: number | null;
+    } | null;
   } | {
     readonly __typename: "ChatCompletionSubscriptionExperiment";
     readonly experiment: {
@@ -362,81 +380,44 @@ v11 = {
   "storageKey": null
 },
 v12 = {
-  "kind": "InlineFragment",
+  "alias": null,
+  "args": null,
+  "concreteType": "Span",
+  "kind": "LinkedField",
+  "name": "span",
+  "plural": false,
   "selections": [
-    (v3/*: any*/),
-    (v4/*: any*/),
+    (v6/*: any*/),
     {
       "alias": null,
       "args": null,
-      "concreteType": "Span",
+      "kind": "ScalarField",
+      "name": "tokenCountTotal",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanCostSummary",
       "kind": "LinkedField",
-      "name": "span",
+      "name": "costSummary",
       "plural": false,
       "selections": [
-        (v6/*: any*/),
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "tokenCountTotal",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "SpanCostSummary",
+          "concreteType": "CostBreakdown",
           "kind": "LinkedField",
-          "name": "costSummary",
+          "name": "total",
           "plural": false,
           "selections": [
             {
               "alias": null,
               "args": null,
-              "concreteType": "CostBreakdown",
-              "kind": "LinkedField",
-              "name": "total",
-              "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "cost",
-                  "storageKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "cost",
               "storageKey": null
             }
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "latencyMs",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "Project",
-          "kind": "LinkedField",
-          "name": "project",
-          "plural": false,
-          "selections": (v9/*: any*/),
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "SpanContext",
-          "kind": "LinkedField",
-          "name": "context",
-          "plural": false,
-          "selections": [
-            (v11/*: any*/)
           ],
           "storageKey": null
         }
@@ -446,18 +427,57 @@ v12 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "ExperimentRun",
+      "kind": "ScalarField",
+      "name": "latencyMs",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
       "kind": "LinkedField",
-      "name": "experimentRun",
+      "name": "project",
       "plural": false,
       "selections": (v9/*: any*/),
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanContext",
+      "kind": "LinkedField",
+      "name": "context",
+      "plural": false,
+      "selections": [
+        (v11/*: any*/)
+      ],
+      "storageKey": null
     }
+  ],
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "ExperimentRun",
+  "kind": "LinkedField",
+  "name": "experimentRun",
+  "plural": false,
+  "selections": (v9/*: any*/),
+  "storageKey": null
+},
+v14 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/),
+    (v12/*: any*/),
+    (v13/*: any*/)
   ],
   "type": "ChatCompletionSubscriptionResult",
   "abstractKey": null
 },
-v13 = {
+v15 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*: any*/),
@@ -468,19 +488,21 @@ v13 = {
       "kind": "ScalarField",
       "name": "message",
       "storageKey": null
-    }
+    },
+    (v12/*: any*/),
+    (v13/*: any*/)
   ],
   "type": "ChatCompletionSubscriptionError",
   "abstractKey": null
 },
-v14 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "evaluatorName",
   "storageKey": null
 },
-v15 = {
+v17 = {
   "alias": null,
   "args": null,
   "concreteType": "ExperimentRunAnnotation",
@@ -535,14 +557,14 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "projectId",
   "storageKey": null
 },
-v17 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -568,15 +590,15 @@ return {
           (v5/*: any*/),
           (v8/*: any*/),
           (v10/*: any*/),
-          (v12/*: any*/),
-          (v13/*: any*/),
+          (v14/*: any*/),
+          (v15/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v14/*: any*/),
-              (v15/*: any*/),
+              (v16/*: any*/),
+              (v17/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -586,11 +608,11 @@ return {
                 "plural": false,
                 "selections": [
                   (v11/*: any*/),
-                  (v16/*: any*/)
+                  (v18/*: any*/)
                 ],
                 "storageKey": null
               },
-              (v17/*: any*/)
+              (v19/*: any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -620,15 +642,15 @@ return {
           (v5/*: any*/),
           (v8/*: any*/),
           (v10/*: any*/),
-          (v12/*: any*/),
-          (v13/*: any*/),
+          (v14/*: any*/),
+          (v15/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v14/*: any*/),
-              (v15/*: any*/),
+              (v16/*: any*/),
+              (v17/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -638,12 +660,12 @@ return {
                 "plural": false,
                 "selections": [
                   (v11/*: any*/),
-                  (v16/*: any*/),
+                  (v18/*: any*/),
                   (v6/*: any*/)
                 ],
                 "storageKey": null
               },
-              (v17/*: any*/)
+              (v19/*: any*/)
             ],
             "type": "EvaluationChunk",
             "abstractKey": null
@@ -654,16 +676,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "59848e300014c13cbfa3a75b4db687ac",
+    "cacheID": "05cb4d6b7ab41e566e27ca08e220c0c0",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundDatasetExamplesTableSubscription(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    ... on TextChunk {\n      content\n      datasetExampleId\n      repetitionNumber\n    }\n    ... on ToolCallChunk {\n      id\n      datasetExampleId\n      repetitionNumber\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionExperiment {\n      experiment {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      datasetExampleId\n      repetitionNumber\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      datasetExampleId\n      repetitionNumber\n      message\n      span {\n        id\n        tokenCountTotal\n        costSummary {\n          total {\n            cost\n          }\n        }\n        latencyMs\n        project {\n          id\n        }\n        context {\n          traceId\n        }\n      }\n      experimentRun {\n        id\n      }\n    }\n    ... on EvaluationChunk {\n      datasetExampleId\n      repetitionNumber\n      evaluatorName\n      experimentRunEvaluation {\n        id\n        name\n        label\n        score\n        annotatorKind\n        explanation\n        metadata\n        startTime\n      }\n      trace {\n        traceId\n        projectId\n        id\n      }\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "33535629bd23d07817368b2581abca97";
+(node as any).hash = "e035a08659fb9434a83d35b0b5de6b13";
 
 export default node;

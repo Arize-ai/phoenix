@@ -23,9 +23,10 @@ Specifically, this tutorial will walk through:
 2. Download Trace Dataset
 
 ```python
-import phoenix as px
+from phoenix.client import Client
 
-spans_df = px.Client().get_spans_dataframe(project_name=[your_project_name])
+client = Client()
+spans_df = client.spans.get_spans_dataframe(project_name=[your_project_name])
 spans_df.head()
 ```
 
@@ -80,12 +81,17 @@ eval_df["explanation"] = explanations
 5. Upload Evals to Phoenix
 
 ```python
-from phoenix.trace import SpanEvaluations
+from phoenix.client import Client
 
 eval_df["score"] = eval_df["score"].astype(float)
 eval_df["explanation"] = eval_df["explanation"].astype(str)
 
-px.Client().log_evaluations(SpanEvaluations(eval_name="Trustworthiness", dataframe=eval_df))
+client = Client()
+client.spans.log_span_annotations_dataframe(
+    dataframe=eval_df,
+    annotation_name="Trustworthiness",
+    annotator_kind="LLM",
+)
 ```
 
 Check out the full tutorial here:

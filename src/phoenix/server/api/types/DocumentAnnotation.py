@@ -112,7 +112,7 @@ class DocumentAnnotation(Node, Annotation):
             val = await info.context.data_loaders.document_annotation_fields.load(
                 (self.id, models.DocumentAnnotation.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field(description="The position of the annotation in the document.")  # type: ignore
     async def document_position(

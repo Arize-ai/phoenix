@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52b23c8379666f0712da3b8cee95d0e4>>
+ * @generated SignedSource<<4bb0931f58e66ace642bae010a1a9984>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type CreateDocumentAnnotationInput = {
   explanation?: string | null;
   identifier?: string | null;
   label?: string | null;
-  metadata?: any;
+  metadata: any;
   name: string;
   score?: number | null;
   source: AnnotationSource;

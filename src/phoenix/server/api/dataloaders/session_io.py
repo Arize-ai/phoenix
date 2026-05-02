@@ -64,7 +64,7 @@ class SessionIODataLoader(DataLoader[Key, Result]):
         )
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        async with self._db() as session:
+        async with self._db.read() as session:
             result: dict[Key, SpanIOValue] = {
                 id_: SpanIOValue(value=value, mime_type=MimeType(mime_type))
                 async for id_, value, mime_type in await session.stream(self._stmt(*keys))

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from pydantic import ValidationError
@@ -26,11 +26,6 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
-)
-from phoenix.server.api.input_types.ModelClientOptionsInput import (
-    BuiltinClientOptionsInput,
-    ModelClientOptionsInput,
-    OpenAIApiType,
 )
 from phoenix.server.api.mutations.evaluator_mutations import (
     _convert_output_config_inputs_to_pydantic,
@@ -104,7 +99,7 @@ class ChatCompletionMutationMixin:
 
         for preview_item in input.previews:
             evaluator_input = preview_item.evaluator
-            context = preview_item.context
+            context = cast(dict[str, Any], preview_item.context)
             input_mapping = preview_item.input_mapping
 
             if evaluator_id := evaluator_input.built_in_evaluator_id:
@@ -135,24 +130,14 @@ class ChatCompletionMutationMixin:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
             elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
                 prompt_version = inline_llm_evaluator.prompt_version
-                evaluator_preview_client_options = (
-                    None
-                    if prompt_version.custom_provider_id is not None
-                    else ModelClientOptionsInput(
-                        builtin=BuiltinClientOptionsInput(
-                            openai_api_type=OpenAIApiType.RESPONSES,
-                        )
-                    )
-                )
                 async with info.context.db() as session:
                     llm_client = await get_playground_client(
                         model_provider=prompt_version.model_provider.to_model_provider(),
                         model_name=prompt_version.model_name,
-                        custom_provider_id=prompt_version.resolved_custom_provider_id(),
                         session=session,
                         decrypt=info.context.decrypt,
                         credentials=input.credentials,
-                        client_options=evaluator_preview_client_options,
+                        connection=prompt_version.resolved_custom_provider_id,
                     )
                 try:
                     prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(

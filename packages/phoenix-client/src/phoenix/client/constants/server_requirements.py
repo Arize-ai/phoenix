@@ -50,8 +50,36 @@ GET_SPANS_FILTERS = ParameterRequirement(
     min_server_version=Version(13, 15, 0),
 )
 
+GET_SPANS_BY_ATTRIBUTE = ParameterRequirement(
+    parameter_name="attribute",
+    parameter_location="query",
+    route="GET /v1/projects/{id}/spans",
+    min_server_version=Version(14, 9, 0),
+)
+
 LIST_PROJECT_TRACES = RouteRequirement(
     method="GET",
     path="/v1/projects/{project_identifier}/traces",
     min_server_version=Version(13, 15, 0),
+)
+
+DATASET_UPLOAD_EXAMPLE_IDS = ParameterRequirement(
+    parameter_name="example_ids",
+    parameter_location="body",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(15, 0, 0),
+)
+
+DATASET_UPLOAD_EXAMPLE_ID_KEY = ParameterRequirement(
+    parameter_name="example_id_key",
+    parameter_location="form",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(15, 0, 0),
+)
+
+DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
+    parameter_name="split_key",
+    parameter_location="form",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(15, 0, 0),
 )

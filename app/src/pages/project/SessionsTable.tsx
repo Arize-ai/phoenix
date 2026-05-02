@@ -20,7 +20,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -43,6 +43,7 @@ import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
+import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
 
 import {
   CellWithControlsWrap,
@@ -79,12 +80,15 @@ const TableBody = <T extends { id: string }>({
 }) => {
   "use no memo";
   const navigate = useNavigate();
+  const { sessionId } = useParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected = row.original.id === sessionId;
         return (
           <tr
             key={row.id}
+            data-selected={isSelected}
             onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
           >
             {row.getVisibleCells().map((cell) => {
@@ -228,6 +232,21 @@ export function SessionsTable(props: SessionsTableProps) {
     }));
   }, [data.sessions]);
   type TableRow = (typeof tableData)[number];
+
+  const setSessionSequence = useSessionPagination()?.setSessionSequence;
+  useEffect(() => {
+    if (!setSessionSequence) {
+      return;
+    }
+    setSessionSequence(
+      data.sessions.edges.map(({ session }) => ({
+        sessionId: session.id,
+      }))
+    );
+    return () => {
+      setSessionSequence([]);
+    };
+  }, [data.sessions.edges, setSessionSequence]);
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility

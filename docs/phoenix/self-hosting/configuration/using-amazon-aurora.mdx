@@ -3,6 +3,10 @@ title: "Using Amazon Aurora"
 description: "Phoenix supports IAM database authentication for PostgreSQL connections to Amazon Aurora/RDS."
 ---
 
+<Info>
+IAM database authentication for PostgreSQL (Aurora/RDS) is available since Phoenix **12.9.0**. Use that version or newer before following this guide.
+</Info>
+
 First, ensure that Phoenix runs with valid AWS credentials, either by using an IAM role attached to the instance (EC2/ECS/EKS), or by configuring `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. Configuring `AWS_DEFAULT_REGION` is required.
 
 The IAM role will need a `rds-db:connect` policy associated with it.
@@ -16,12 +20,11 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 # OR use IAM role (EC2/ECS/EKS)
 ```
 
-Then, configure Phoenix to use the Amazon Aurora/RDS instance with IAM-based authentication. Importantly, be sure to configure the token refresh lifetime to be safely under the expiration time of the token (e.g. 720 seconds < 15 minutes).
+Then, configure Phoenix to use the Amazon Aurora/RDS instance with IAM-based authentication. No token-lifetime tuning is required; Phoenix generates a fresh IAM token for each new database connection.
 
 ```bash
-# Enable IAM authentication and set refresh time
+# Enable IAM authentication
 export PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true
-export PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS=720
 
 # Database connection
 export PHOENIX_POSTGRES_HOST=mydb.us-east-2.rds.amazonaws.com

@@ -188,22 +188,24 @@ async def test_add_span_to_dataset(
                         {
                             "example": {
                                 "revision": {
-                                    "input": {
-                                        "messages": [
-                                            {"content": "user-message-content", "role": "user"}
-                                        ]
-                                    },
+                                    "input": {"input": "chain-span-input-value"},
+                                    "output": {"output": "chain-span-output-value"},
                                     "metadata": {
-                                        "span_kind": "LLM",
-                                        "annotations": {},
-                                    },
-                                    "output": {
-                                        "messages": [
-                                            {
-                                                "content": "assistant-message-content",
-                                                "role": "assistant",
-                                            }
-                                        ]
+                                        "span_kind": "CHAIN",
+                                        "annotations": {
+                                            "test annotation": [
+                                                {
+                                                    "label": "ambiguous",
+                                                    "score": 0.5,
+                                                    "explanation": "meaningful words",
+                                                    "metadata": {},
+                                                    "annotator_kind": "HUMAN",
+                                                    "user_id": None,
+                                                    "username": None,
+                                                    "email": None,
+                                                }
+                                            ]
+                                        },
                                     },
                                 }
                             }
@@ -230,24 +232,22 @@ async def test_add_span_to_dataset(
                         {
                             "example": {
                                 "revision": {
-                                    "input": {"input": "chain-span-input-value"},
-                                    "output": {"output": "chain-span-output-value"},
+                                    "input": {
+                                        "messages": [
+                                            {"content": "user-message-content", "role": "user"}
+                                        ]
+                                    },
                                     "metadata": {
-                                        "span_kind": "CHAIN",
-                                        "annotations": {
-                                            "test annotation": [
-                                                {
-                                                    "label": "ambiguous",
-                                                    "score": 0.5,
-                                                    "explanation": "meaningful words",
-                                                    "metadata": {},
-                                                    "annotator_kind": "HUMAN",
-                                                    "user_id": None,
-                                                    "username": None,
-                                                    "email": None,
-                                                }
-                                            ]
-                                        },
+                                        "span_kind": "LLM",
+                                        "annotations": {},
+                                    },
+                                    "output": {
+                                        "messages": [
+                                            {
+                                                "content": "assistant-message-content",
+                                                "role": "assistant",
+                                            }
+                                        ]
                                     },
                                 }
                             }
@@ -306,22 +306,22 @@ class TestPatchDatasetExamples:
         expected_examples = [
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
                     "revision": {
-                        "input": {"input": "patched-example-2-input"},
-                        "output": {"output": "patched-example-2-output"},
-                        "metadata": {"metadata": "patched-example-2-metadata"},
+                        "input": {"input": "patched-example-1-input"},
+                        "output": {"output": "original-example-1-version-1-output"},
+                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }
             },
             {
                 "example": {
-                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1))),
+                    "id": str(GlobalID(type_name=DatasetExample.__name__, node_id=str(2))),
                     "revision": {
-                        "input": {"input": "patched-example-1-input"},
-                        "output": {"output": "original-example-1-version-1-output"},
-                        "metadata": {"metadata": "original-example-1-version-1-metadata"},
+                        "input": {"input": "patched-example-2-input"},
+                        "output": {"output": "patched-example-2-output"},
+                        "metadata": {"metadata": "patched-example-2-metadata"},
                         "revisionKind": "PATCH",
                     },
                 }
@@ -508,6 +508,89 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     assert (errors := response.errors)
     assert len(errors) == 1
     assert f"Unknown dataset: {dataset_id}" in errors[0].message
+
+
+async def test_add_examples_with_intra_batch_duplicate_external_id_returns_conflict_error(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
+    mutation = """
+      mutation ($input: AddExamplesToDatasetInput!) {
+        addExamplesToDataset(input: $input) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "dup"},
+                    {"input": {"x": 2}, "output": {"y": 2}, "metadata": {}, "externalId": "dup"},
+                ],
+            }
+        },
+    )
+    assert (errors := response.errors)
+    assert len(errors) == 1
+    assert errors[0].message == "Custom ID 'dup' appears more than once in the input."
+
+
+async def test_add_examples_reports_all_conflicting_external_ids(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+) -> None:
+    dataset_id = str(GlobalID(type_name="Dataset", node_id=str(1)))
+    mutation = """
+      mutation ($input: AddExamplesToDatasetInput!) {
+        addExamplesToDataset(input: $input) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    seed = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 1}, "output": {"y": 1}, "metadata": {}, "externalId": "a"},
+                    {"input": {"x": 2}, "output": {"y": 2}, "metadata": {}, "externalId": "b"},
+                    {"input": {"x": 3}, "output": {"y": 3}, "metadata": {}, "externalId": "c"},
+                ],
+            }
+        },
+    )
+    assert not seed.errors
+    response = await gql_client.execute(
+        query=mutation,
+        variables={
+            "input": {
+                "datasetId": dataset_id,
+                "examples": [
+                    {"input": {"x": 4}, "output": {"y": 4}, "metadata": {}, "externalId": "a"},
+                    {"input": {"x": 5}, "output": {"y": 5}, "metadata": {}, "externalId": "b"},
+                    {"input": {"x": 6}, "output": {"y": 6}, "metadata": {}, "externalId": "novel"},
+                    {"input": {"x": 7}, "output": {"y": 7}, "metadata": {}, "externalId": "c"},
+                ],
+            }
+        },
+    )
+    assert (errors := response.errors)
+    assert len(errors) == 1
+    message = errors[0].message
+    assert message.startswith("Examples with custom IDs [")
+    assert message.endswith("] already exist in this dataset.")
+    for conflicting_id in ("a", "b", "c"):
+        assert repr(conflicting_id) in message
+    assert repr("novel") not in message
 
 
 @pytest.fixture

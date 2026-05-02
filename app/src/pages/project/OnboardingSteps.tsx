@@ -9,6 +9,7 @@ import { PackageManagerCommandBlock } from "@phoenix/components/code/PackageMana
 import { Separator } from "@phoenix/components/core/toolbar";
 import { IS_HOSTED_DEPLOYMENT } from "@phoenix/components/project/hosting";
 import { getEnvironmentVariables } from "@phoenix/components/project/integrationSnippets";
+import type { EnvVar } from "@phoenix/pages/project/integrationDefinitions";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 
 import { ImplementationCodeBlock } from "./ImplementationCodeBlock";
@@ -27,11 +28,13 @@ export function DocsOnlyOnboardingView({
   githubHref,
   generatedApiKey,
   onApiKeyGenerated,
+  extraEnvVars,
 }: {
   docsHref: string;
   githubHref?: string;
   generatedApiKey: string | null;
   onApiKeyGenerated: (key: string) => void;
+  extraEnvVars?: readonly EnvVar[];
 }) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
   const isAuthEnabled = window.Config.authenticationEnabled;
@@ -39,6 +42,7 @@ export function DocsOnlyOnboardingView({
     isAuthEnabled,
     isHosted,
     apiKey: generatedApiKey ?? undefined,
+    extraEnvVars,
   });
 
   return (
@@ -95,6 +99,7 @@ export function OnboardingSteps({
   githubHref,
   generatedApiKey,
   onApiKeyGenerated,
+  extraEnvVars,
 }: {
   language: ProgrammingLanguage;
   packages: readonly string[];
@@ -103,6 +108,7 @@ export function OnboardingSteps({
   githubHref?: string;
   generatedApiKey: string | null;
   onApiKeyGenerated: (key: string) => void;
+  extraEnvVars?: readonly EnvVar[];
 }) {
   const isHosted = IS_HOSTED_DEPLOYMENT;
   const isAuthEnabled = window.Config.authenticationEnabled;
@@ -110,6 +116,7 @@ export function OnboardingSteps({
     isAuthEnabled,
     isHosted,
     apiKey: generatedApiKey ?? undefined,
+    extraEnvVars,
   });
 
   return (

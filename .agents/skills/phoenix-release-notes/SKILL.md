@@ -5,7 +5,8 @@ description: >
   user asks to write release notes, document a release, update release documentation, or mentions
   undocumented releases. Also trigger when the user wants to update GitHub release descriptions,
   add entries to the release notes page, or asks what changed in a recent Phoenix version.
-internal: true
+metadata:
+  internal: true
 ---
 
 # Release Notes
@@ -106,6 +107,18 @@ feature actually does. Commit messages are often terse — the code tells the re
 - Code style or formatting changes
 - Internal tooling, skills, or dev workflows
 - Reverts that cancel out a feature within the same release
+
+**EXCLUDE — beta features (hard rule):**
+- **PXI agent** — anything under the `phoenix-pxi` namespace, the PXI runtime, or PXI tool
+  wiring. PXI is still in beta and is not announced in release notes.
+- **Phoenix AI Assistant** — the in-app assistant widget, its settings page
+  (`Settings → Agents`), system prompt customization, enable/disable toggle, and response
+  feedback (thumbs up/down, copy, open-trace). The assistant is still in beta.
+
+If a commit, PR, or feature touches PXI or the assistant, skip it entirely — do not mention it
+in individual MDX files, the aggregate `release-notes.mdx`, the year overview, or `docs.json`
+navigation. This exclusion stands even if the change is user-visible. Revisit only when the
+user explicitly says these features are GA.
 
 If a release contains only excluded changes, skip it — no release note needed.
 

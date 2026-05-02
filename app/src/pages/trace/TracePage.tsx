@@ -3,18 +3,20 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   Dialog,
+  Drawer,
   Flex,
   Loading,
-  Modal,
-  ModalOverlay,
   TitleWithID,
 } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
   DialogHeader,
+  DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -31,49 +33,51 @@ export function TracePage() {
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "trace-details",
+  });
 
   // if we are focused on a particular span, use that as the subjectId
   // otherwise, use the traceId
   const paginationSubjectId = selectedSpanNodeId || traceId;
 
   return (
-    <ModalOverlay
+    <Drawer
       isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          navigate(`${rootPath}/${tab}`);
-        }
-      }}
+      onClose={() => navigate(`${rootPath}/${tab}`)}
+      defaultSize={defaultSize}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
+      onResize={onSizeChange}
     >
-      <Modal variant="slideover" size="fullscreen">
-        <Dialog>
-          {({ close }) => (
-            <DialogContent>
-              <DialogHeader>
-                <Flex direction="row" gap="size-200" justifyContent="center">
-                  <TraceDetailsPaginator currentId={paginationSubjectId} />
+      <Dialog>
+        {({ close }) => (
+          <DialogContent>
+            <DialogHeader>
+              <Flex direction="row" gap="size-200" alignItems="center">
+                <DialogCloseButton close={close} />
+                <TraceDetailsPaginator currentId={paginationSubjectId} />
+                <DialogTitle>
                   <TitleWithID title="Trace" id={traceId as string} />
-                </Flex>
-                <DialogTitleExtra>
-                  <ShareLinkButton
-                    preserveSearchParams
-                    buttonText="Share"
-                    tooltipText="Copy trace link to clipboard"
-                    successText="Trace link copied to clipboard"
-                  />
-                  <DialogCloseButton close={close} />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <Suspense fallback={<Loading />}>
-                <TraceDetails
-                  traceId={traceId as string}
-                  projectId={projectId as string}
+                </DialogTitle>
+              </Flex>
+              <DialogTitleExtra>
+                <ShareLinkButton
+                  preserveSearchParams
+                  buttonText="Share"
+                  tooltipText="Copy trace link to clipboard"
+                  successText="Trace link copied to clipboard"
                 />
-              </Suspense>
-            </DialogContent>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+              </DialogTitleExtra>
+            </DialogHeader>
+            <Suspense fallback={<Loading />}>
+              <TraceDetails
+                traceId={traceId as string}
+                projectId={projectId as string}
+              />
+            </Suspense>
+          </DialogContent>
+        )}
+      </Dialog>
+    </Drawer>
   );
 }

@@ -36,7 +36,7 @@ class LatestPromptVersionIdDataLoader(DataLoader[Key, Result]):
 
         stmt = select(subq.c.prompt_id, subq.c.latest_version_id)
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             result = {
                 prompt_id: latest_version_id
                 async for prompt_id, latest_version_id in await session.stream(stmt)

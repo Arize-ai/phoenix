@@ -1,7 +1,8 @@
 ---
 name: phoenix-frontend
 description: Frontend development guidelines for the Phoenix AI observability platform. Use when writing, reviewing, or modifying React components, TypeScript code, styles, or UI features in the app/ directory. Triggers on any frontend task — new components, UI changes, styling, accessibility fixes, form handling, or component refactoring. Also use when the user asks about frontend conventions or component patterns for this project. For design system rules (error display, layout, dialogs, tokens), use the phoenix-design skill.
-internal: true
+metadata:
+  internal: true
 ---
 
 # Phoenix Frontend Development
@@ -17,7 +18,12 @@ Read the relevant file(s) based on the task:
 | `rules/components.md` | Creating, composing, or refactoring components |
 | `rules/relay.md` | Using Relay |
 | `rules/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
+| `rules/resize-svg-logo-assets.md` | Adding or updating provider/integration logo icons |
 
 ## Verification
 
 After visual changes, use `agent-browser` to verify the UI looks correct. When modifying a shared component, check its usages across the app.
+
+## URL State
+
+Significant view state must be recreatable from the URL. If a user can select a tab, sub-view, or detail state that should survive reloads, sharing, or adjacent-record pagination, encode it in route params or search params and preserve the relevant URL state during navigation.

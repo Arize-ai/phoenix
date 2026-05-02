@@ -1432,14 +1432,15 @@ const getBaseChatCompletionInput = ({
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
       ? {
-          endpoint: instance.model.endpoint,
+          azureEndpoint: instance.model.endpoint ?? null,
         }
       : {};
 
   const awsModelParams =
     instance.model.provider === "AWS"
       ? {
-          region: instance.model.region,
+          regionName: instance.model.region ?? null,
+          endpointUrl: instance.model.endpoint ?? null,
         }
       : {};
 
@@ -1455,24 +1456,20 @@ const getBaseChatCompletionInput = ({
         }
       : {};
 
-  const clientOptions = customProvider
-    ? {
-        custom: {
-          extraHeaders: instance.model.customHeaders,
-        },
-      }
+  const connectionConfig = customProvider
+    ? null
     : {
-        builtin: {
-          baseUrl: instance.model.baseUrl,
-          customHeaders: instance.model.customHeaders,
-          ...openaiApiTypeParams,
-          ...azureModelParams,
-          ...awsModelParams,
-        },
+        baseUrl: instance.model.baseUrl ?? null,
+        ...openaiApiTypeParams,
+        ...azureModelParams,
+        ...awsModelParams,
       };
 
+  const headers = instance.model.customHeaders ?? null;
+
   return {
-    clientOptions,
+    connectionConfig,
+    headers,
     credentials: toGqlCredentials(credentials),
     invocationParameters: applyProviderInvocationParameterConstraints(
       invocationParameters,
@@ -1801,12 +1798,14 @@ export function toCanonicalToolDefinition(
     };
   }
   // AWS: { toolSpec: { name, description, inputSchema: { json } } }
+  // Some Bedrock spans store the unwrapped inner shape; the schema accepts both.
   const aws = awsToolDefinitionSchema.safeParse(raw);
   if (aws.success) {
+    const spec = "toolSpec" in aws.data ? aws.data.toolSpec : aws.data;
     return {
-      name: aws.data.toolSpec.name,
-      description: aws.data.toolSpec.description ?? null,
-      parameters: canonicalParameters(aws.data.toolSpec.inputSchema.json),
+      name: spec.name,
+      description: spec.description ?? null,
+      parameters: canonicalParameters(spec.inputSchema.json),
       strict: null,
     };
   }
@@ -2054,7 +2053,8 @@ export const getChatCompletionInput = ({
 
   return {
     promptVersion,
-    clientOptions: baseChatCompletionVariables.clientOptions,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
+    headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     template: {
       variables: variablesMap,
@@ -2063,7 +2063,7 @@ export const getChatCompletionInput = ({
     promptName: instance.prompt?.name,
     repetitions,
     streamModelOutput: streaming,
-  } satisfies ChatCompletionInput;
+  } as unknown as ChatCompletionInput;
 };
 
 /**
@@ -2107,6 +2107,7 @@ export const getChatCompletionOverDatasetInput = ({
     repetitions,
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
+    recordExperiments,
     streaming,
   } = playgroundStore.getState();
 
@@ -2155,12 +2156,13 @@ export const getChatCompletionOverDatasetInput = ({
   };
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
-  const { appendedMessagesPath, templateVariablesPath } =
+  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
     playgroundDatasetState ?? {};
 
   return {
     promptVersion,
-    clientOptions: baseChatCompletionVariables.clientOptions,
+    connectionConfig: baseChatCompletionVariables.connectionConfig,
+    headers: baseChatCompletionVariables.headers,
     credentials: baseChatCompletionVariables.credentials,
     repetitions,
     datasetId,
@@ -2175,7 +2177,10 @@ export const getChatCompletionOverDatasetInput = ({
     appendedMessagesPath,
     templateVariablesPath: templateVariablesPath ?? "",
     promptName: instance.prompt?.name,
+    promptVersionId: instance.prompt?.version ?? null,
+    createEphemeralExperiment: !recordExperiments,
     streamModelOutput: streaming,
+    maxConcurrency: maxConcurrency ?? 10,
   };
 };
 

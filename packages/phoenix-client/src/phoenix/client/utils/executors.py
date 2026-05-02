@@ -32,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 EvalsRateLimitError: type[BaseException]
 try:
-    # TODO: update import path after evals 2.0 is released
-    from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
+    from phoenix.evals.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
 
     class _EvalsRateLimitErrorFallback(Exception):

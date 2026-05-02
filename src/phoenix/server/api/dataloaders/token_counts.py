@@ -80,7 +80,7 @@ class TokenCountDataLoader(DataLoader[Key, Result]):
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
-        async with self._db() as session:
+        async with self._db.read() as session:
             for segment, params in arguments.items():
                 stmt = _get_stmt(segment, *params.keys())
                 data = await session.stream(stmt)

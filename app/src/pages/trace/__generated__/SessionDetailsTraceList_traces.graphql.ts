@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6a24145cb81285e517caf0b79641b2d>>
+ * @generated SignedSource<<14ef3a15ef3943ee204ad28dc999ced8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type MimeType = "json" | "text";
 import { FragmentRefs } from "relay-runtime";
 export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
+  readonly numTraces: number;
   readonly traces: {
     readonly edges: ReadonlyArray<{
       readonly trace: {
@@ -26,6 +27,7 @@ export type SessionDetailsTraceList_traces$data = {
             readonly value: string;
           } | null;
           readonly latencyMs: number | null;
+          readonly name: string;
           readonly output: {
             readonly mimeType: MimeType;
             readonly value: string;
@@ -130,6 +132,13 @@ return {
   "name": "SessionDetailsTraceList_traces",
   "selections": [
     {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "numTraces",
+      "storageKey": null
+    },
+    {
       "alias": "traces",
       "args": null,
       "concreteType": "TraceConnection",
@@ -211,6 +220,13 @@ return {
                       "storageKey": null
                     },
                     (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "name",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -352,6 +368,6 @@ return {
 };
 })();
 
-(node as any).hash = "d93b35659e600ca4438d4c1da87a24d5";
+(node as any).hash = "a8c766a3e99780c2b1c0d17747eb5bfb";
 
 export default node;

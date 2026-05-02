@@ -1,10 +1,10 @@
 import type { HTMLProps, Ref } from "react";
-import { forwardRef } from "react";
 
-function ListItem(
-  { children, ...props }: HTMLProps<HTMLLIElement>,
-  ref: Ref<HTMLLIElement>
-) {
+function ListItem({
+  ref,
+  children,
+  ...props
+}: HTMLProps<HTMLLIElement> & { ref?: Ref<HTMLLIElement> }) {
   return (
     <li ref={ref} {...props}>
       {children}
@@ -12,5 +12,4 @@ function ListItem(
   );
 }
 
-const _ListItem = forwardRef(ListItem);
-export { _ListItem as ListItem };
+export { ListItem };

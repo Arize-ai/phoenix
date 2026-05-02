@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b6c0327bdc6c275d1608e4d3b07c81b4>>
+ * @generated SignedSource<<372288a543a42d26af84a58b5d065487>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -49,7 +49,9 @@ export type ExperimentCompareListPage_aggregateData$data = {
               readonly tokens: number | null;
             };
           };
-          readonly datasetVersionId: string;
+          readonly datasetVersion: {
+            readonly id: string;
+          };
           readonly id: string;
           readonly repetitions: number;
           readonly runCount: number;
@@ -162,6 +164,11 @@ return {
                   "kind": "Variable",
                   "name": "filterIds",
                   "variableName": "experimentIds"
+                },
+                {
+                  "kind": "Literal",
+                  "name": "includeEphemeral",
+                  "value": true
                 }
               ],
               "concreteType": "ExperimentConnection",
@@ -196,8 +203,13 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "datasetVersionId",
+                          "concreteType": "DatasetVersion",
+                          "kind": "LinkedField",
+                          "name": "datasetVersion",
+                          "plural": false,
+                          "selections": [
+                            (v0/*: any*/)
+                          ],
                           "storageKey": null
                         },
                         {
@@ -399,6 +411,6 @@ return {
 };
 })();
 
-(node as any).hash = "606a036b714fb5743999f3b76cf0eaee";
+(node as any).hash = "773c76b5569a6b9500fd6c5066e75503";
 
 export default node;

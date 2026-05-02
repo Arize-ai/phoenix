@@ -5,11 +5,17 @@ import pytest
 from phoenix.evals.llm.prompts import (
     FormatterFactory,
     FStringFormatter,
+    Message,
+    MessageRole,
     MustacheFormatter,
     PromptTemplate,
     Template,
     TemplateFormat,
+    classify_message_list_kind,
     detect_template_format,
+    is_openai_native_message_dict,
+    normalize_role,
+    validate_message_dict,
 )
 
 # ---------------------------------------------------------------------------
@@ -695,3 +701,176 @@ Consider the previous conversation context if available.
         assert isinstance(result, list)
         assert result[0]["content"] == "Config: REPLACED"
         assert result[1]["content"] == "Analyze data in prod"
+
+
+# ---------------------------------------------------------------------------
+# normalize_role
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeRole:
+    @pytest.mark.parametrize(
+        "alias,expected",
+        [
+            ("user", MessageRole.USER),
+            ("human", MessageRole.USER),
+            ("User", MessageRole.USER),
+            ("  HUMAN ", MessageRole.USER),
+            ("assistant", MessageRole.AI),
+            ("ai", MessageRole.AI),
+            ("AI", MessageRole.AI),
+            ("model", MessageRole.AI),
+            ("Model", MessageRole.AI),
+            ("system", MessageRole.SYSTEM),
+            ("developer", MessageRole.SYSTEM),
+            ("Developer", MessageRole.SYSTEM),
+        ],
+    )
+    def test_string_aliases_map_to_canonical_role(self, alias: str, expected: MessageRole) -> None:
+        assert normalize_role(alias) == expected
+
+    def test_message_role_enum_passthrough(self) -> None:
+        for role in MessageRole:
+            assert normalize_role(role) is role
+
+    def test_unknown_string_raises_with_alias_list(self) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            normalize_role("tool")
+        msg = str(exc_info.value)
+        assert "tool" in msg
+        assert "developer" in msg  # error should list valid aliases
+        assert "user" in msg
+
+    def test_non_string_raises(self) -> None:
+        with pytest.raises(ValueError, match="must be a string or MessageRole"):
+            normalize_role(42)
+
+    def test_none_raises(self) -> None:
+        with pytest.raises(ValueError, match="must be a string or MessageRole"):
+            normalize_role(None)
+
+
+# ---------------------------------------------------------------------------
+# validate_message_dict
+# ---------------------------------------------------------------------------
+
+
+class TestValidateMessageDict:
+    def test_happy_path_noop(self) -> None:
+        # A valid message should not raise.
+        validate_message_dict({"role": "user", "content": "hi"}, index=0)
+
+    def test_happy_path_content_list(self) -> None:
+        validate_message_dict(
+            {"role": "user", "content": [{"type": "text", "text": "hi"}]}, index=0
+        )
+
+    def test_non_mapping_raises(self) -> None:
+        with pytest.raises(ValueError, match="must be a mapping"):
+            validate_message_dict("not a dict", index=3)
+
+    def test_missing_role_raises(self) -> None:
+        with pytest.raises(ValueError, match="index 2.*'role'"):
+            validate_message_dict({"content": "x"}, index=2)
+
+    def test_missing_content_raises(self) -> None:
+        with pytest.raises(ValueError, match="index 1.*'content'"):
+            validate_message_dict({"role": "user"}, index=1)
+
+    def test_none_content_raises(self) -> None:
+        with pytest.raises(ValueError, match="index 0.*None content"):
+            validate_message_dict({"role": "user", "content": None}, index=0)
+
+    def test_empty_string_content_raises(self) -> None:
+        with pytest.raises(ValueError, match="empty string content"):
+            validate_message_dict({"role": "user", "content": ""}, index=0)
+
+    def test_empty_list_content_raises(self) -> None:
+        with pytest.raises(ValueError, match="empty list content"):
+            validate_message_dict({"role": "user", "content": []}, index=0)
+
+
+# ---------------------------------------------------------------------------
+# is_openai_native_message_dict
+# ---------------------------------------------------------------------------
+
+
+class TestIsOpenAINativeMessageDict:
+    @pytest.mark.parametrize("role", ["tool", "function", "TOOL", " function "])
+    def test_native_role_triggers_pass_through(self, role: str) -> None:
+        assert is_openai_native_message_dict({"role": role, "content": "x"})
+
+    def test_assistant_with_none_content_triggers_pass_through(self) -> None:
+        assert is_openai_native_message_dict({"role": "assistant", "content": None})
+
+    def test_unambiguous_keys_trigger_pass_through(self) -> None:
+        for key in ("function_call", "tool_call_id", "tool_calls"):
+            assert is_openai_native_message_dict({"role": "assistant", key: "x"}), key
+
+    @pytest.mark.parametrize("role", ["assistant", "function", "tool"])
+    def test_name_triggers_pass_through_only_on_native_roles(self, role: str) -> None:
+        assert is_openai_native_message_dict({"role": role, "name": "fn", "content": "x"})
+
+    @pytest.mark.parametrize("role", ["user", "system", "developer", "human", "ai", "model"])
+    def test_name_alone_does_not_trigger_for_non_native_roles(self, role: str) -> None:
+        # ``name`` on user/system/etc. is a label, not a transcript marker —
+        # the dict should still flow through validate_message_dict + normalize_role.
+        assert not is_openai_native_message_dict({"role": role, "name": "alice", "content": "hi"})
+
+    def test_plain_user_message_is_not_native(self) -> None:
+        assert not is_openai_native_message_dict({"role": "user", "content": "hi"})
+
+    def test_plain_system_message_is_not_native(self) -> None:
+        assert not is_openai_native_message_dict({"role": "system", "content": "be concise"})
+
+    def test_assistant_with_string_content_is_not_native(self) -> None:
+        assert not is_openai_native_message_dict({"role": "assistant", "content": "ok"})
+
+    def test_non_string_role_falls_through_to_key_check(self) -> None:
+        # MessageRole enums are objects, not strings — they shouldn't match the
+        # role-based native-checks; only the unambiguous key set still applies.
+        assert not is_openai_native_message_dict({"role": MessageRole.USER, "content": "hi"})
+        assert is_openai_native_message_dict({"role": MessageRole.AI, "tool_calls": [{"id": "x"}]})
+
+
+# ---------------------------------------------------------------------------
+# classify_message_list_kind
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyMessageListKind:
+    def test_all_typed_returns_typed(self) -> None:
+        prompt = [
+            Message(role=MessageRole.SYSTEM, content="sys"),
+            Message(role=MessageRole.USER, content="q"),
+            Message(role=MessageRole.AI, content="a"),
+        ]
+        assert classify_message_list_kind(prompt) == "typed"
+
+    def test_all_dicts_returns_dict(self) -> None:
+        prompt = [
+            {"role": "user", "content": "q"},
+            {"role": "assistant", "content": "a"},
+        ]
+        assert classify_message_list_kind(prompt) == "dict"
+
+    def test_mixed_typed_first_raises(self) -> None:
+        prompt = [
+            Message(role=MessageRole.USER, content="q"),
+            {"role": "assistant", "content": "a"},
+        ]
+        with pytest.raises(ValueError, match="mixes typed Message"):
+            classify_message_list_kind(prompt)
+
+    def test_mixed_dict_first_raises(self) -> None:
+        prompt = [
+            {"role": "user", "content": "q"},
+            Message(role=MessageRole.AI, content="a"),
+        ]
+        with pytest.raises(ValueError, match="mixes typed Message"):
+            classify_message_list_kind(prompt)
+
+    def test_non_mapping_entry_classified_as_dict(self) -> None:
+        # Non-Mapping entries can't carry a MessageRole — they should fall on
+        # the dict side and be rejected later by validate_message_dict.
+        assert classify_message_list_kind([42]) == "dict"

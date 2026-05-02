@@ -56,7 +56,7 @@ class DatasetSplit(Node):
             val = await info.context.data_loaders.dataset_split_fields.load(
                 (self.id, models.DatasetSplit.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def color(

@@ -1,5 +1,107 @@
 # @arizeai/phoenix-cli
 
+## 1.4.0
+
+### Minor Changes
+
+- ab62d3d: Add named profiles to the Phoenix CLI: `px profile list|show|create|edit|use|delete`. Profiles persist to `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`) and feed into config resolution as a new tier between built-in defaults and environment variables. `px auth status` displays the active profile and accepts `--profile <name>` to scope the call. Other commands honour the stored active profile.
+
+  The settings file is JSON-Schema validated; the schema is committed to `schemas/phoenix-cli-settings.json` and can be referenced via the `$schema` field on `settings.json` for editor autocomplete.
+
+### Patch Changes
+
+- 4e20267: Add session annotation and note commands to the Phoenix CLI, and add a session note helper to the TypeScript client. Session note creation requires Phoenix server 14.17.0 or newer.
+- Updated dependencies [2993b04]
+- Updated dependencies [4e20267]
+- Updated dependencies [2993b04]
+  - @arizeai/phoenix-client@6.9.0
+
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [e381885]
+- Updated dependencies [187df7e]
+  - @arizeai/phoenix-client@6.8.1
+
+## 1.3.0
+
+### Minor Changes
+
+- a4dad8b: Add trace note support to `px`. New `px trace add-note <trace-id> --text <text>` command creates a trace note, and `--include-notes` is now supported on `px trace get` and `px trace list` to fetch and render trace notes and span notes separately from annotations. Requires Phoenix server >= 14.13.0.
+
+### Patch Changes
+
+- Updated dependencies [a4dad8b]
+  - @arizeai/phoenix-client@6.8.0
+
+## 1.2.0
+
+### Minor Changes
+
+- e19a038: Add `--attribute` filter to `px span list` for filtering by attribute key/value pairs (e.g., `--attribute "llm.model_name:gpt-4"`). Split is on the first `:` only, so values may contain colons. Repeat the flag to AND multiple filters. JSON-quote a value to force string matching when it looks like a number or boolean (e.g., `'user.id:"12345"'`). Requires Phoenix server >= 14.9.0.
+
+### Patch Changes
+
+- Updated dependencies [e19a038]
+  - @arizeai/phoenix-client@6.7.0
+
+## 1.1.0
+
+### Minor Changes
+
+- 7944fe7: Add span note support to `px`. New `px span add-note <span-id>` command creates notes on spans, and `--include-notes` is now supported on `px span list`, `px trace get`, and `px trace list` to fetch and render notes alongside spans.
+
+## 1.0.5
+
+### Patch Changes
+
+- Updated dependencies [8444575]
+  - @arizeai/phoenix-client@6.6.2
+
+## 1.0.4
+
+### Patch Changes
+
+- Updated dependencies [1449f3d]
+  - @arizeai/phoenix-client@6.6.1
+
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [c70eca6]
+  - @arizeai/phoenix-client@6.6.0
+
+## 1.0.2
+
+### Patch Changes
+
+- Updated dependencies [1028be5]
+  - @arizeai/phoenix-client@6.5.5
+
+## 1.0.1
+
+### Patch Changes
+
+- f8d5871: Use explicit radix in parseInt for Commander.js option parsers
+
+## 1.0.0
+
+### Major Changes
+
+- 4b5dd70: Refactor the Phoenix CLI resource commands to a noun-verb format.
+
+  This is a breaking change for CLI consumers. Flat commands like `px projects`,
+  `px traces`, `px spans`, `px datasets`, `px sessions`, `px experiments`, and
+  `px prompts` have been replaced with singular resource commands and verb
+  subcommands such as `px project list`, `px trace list`, `px trace get`,
+  `px span list`, `px dataset list`, `px dataset get`, `px session list`,
+  `px session get`, `px experiment list`, `px experiment get`, `px prompt list`,
+  and `px prompt get`.
+
+  Help text and documentation were updated to reflect the new command structure.
+
 ## 0.12.1
 
 ### Patch Changes

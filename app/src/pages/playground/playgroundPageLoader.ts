@@ -4,8 +4,14 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { parsePromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import type { PlaygroundInstance, PlaygroundProps } from "@phoenix/store";
+import type {
+  PlaygroundInstance,
+  PlaygroundProps,
+  PlaygroundStateByDatasetId,
+} from "@phoenix/store";
 import { createNormalizedPlaygroundInstance } from "@phoenix/store";
+
+import { fetchExperimentPlaygroundProps } from "./experimentRehydration";
 
 /**
  * A playground instance as returned by the fetch layer, before a
@@ -15,13 +21,23 @@ type PlaygroundInstanceWithoutId = Omit<PlaygroundInstance, "id">;
 
 /**
  * The data returned by the playground page loader.
- * `null` when no prompt params are present in the URL.
+ * `null` when no params are present in the URL.
  */
-export type PlaygroundPageLoaderData = {
-  promptParams: PromptParam[];
-  instances: PlaygroundInstanceWithoutId[];
-  templateFormat: TemplateFormat;
-} | null;
+export type PlaygroundPageLoaderData =
+  | {
+      source: "prompt";
+      promptParams: PromptParam[];
+      instances: PlaygroundInstanceWithoutId[];
+      templateFormat: TemplateFormat;
+    }
+  | {
+      source: "experiment";
+      playgroundProps: Partial<PlaygroundProps>;
+      datasetId: string | null;
+      stateByDatasetId: PlaygroundStateByDatasetId;
+      selectedDatasetEvaluatorIds: string[];
+    }
+  | null;
 
 /**
  * Produces a stable cache key for a prompt param triple.
@@ -46,7 +62,11 @@ function promptParamKey(
 function buildPlaygroundInstancesFromLoaderData(
   loaderData: PlaygroundPageLoaderData
 ): PlaygroundInstance[] | undefined {
-  if (!loaderData || loaderData.instances.length === 0) {
+  if (
+    !loaderData ||
+    loaderData.source !== "prompt" ||
+    loaderData.instances.length === 0
+  ) {
     return undefined;
   }
   return loaderData.instances.map((instanceWithPrompt) => {
@@ -67,9 +87,26 @@ function buildPlaygroundInstancesFromLoaderData(
  */
 export function buildPlaygroundPropsFromLoaderData(
   loaderData: PlaygroundPageLoaderData
-): Partial<PlaygroundProps> {
+): Partial<PlaygroundProps> & {
+  datasetId?: string | null;
+  stateByDatasetId?: PlaygroundStateByDatasetId;
+  selectedDatasetEvaluatorIds?: string[];
+} {
+  if (!loaderData) {
+    return {};
+  }
+
+  if (loaderData.source === "experiment") {
+    return {
+      ...loaderData.playgroundProps,
+      datasetId: loaderData.datasetId,
+      stateByDatasetId: loaderData.stateByDatasetId,
+      selectedDatasetEvaluatorIds: loaderData.selectedDatasetEvaluatorIds,
+    };
+  }
+
   const instances = buildPlaygroundInstancesFromLoaderData(loaderData);
-  if (!instances || !loaderData) {
+  if (!instances) {
     return {};
   }
   return {
@@ -81,17 +118,34 @@ export function buildPlaygroundPropsFromLoaderData(
 /**
  * Loader for the /playground route.
  *
- * Reads promptId, promptVersionId, and promptTagName from URL search params
- * and fetches the corresponding prompt instances so they are available before
- * the page renders.
+ * Supports two sources:
+ * - promptId/promptVersionId/promptTagName URL params → load from prompt version
+ * - experimentId URL param → load from experiment task config
  *
- * Returns `null` when no prompt params are present (the default playground
- * with no prompts loaded).
+ * Returns `null` when no params are present (default playground).
  */
 export const playgroundPageLoader = async ({
   request,
 }: LoaderFunctionArgs): Promise<PlaygroundPageLoaderData> => {
   const url = new URL(request.url);
+
+  // Check for experiment rehydration first
+  const experimentId = url.searchParams.get("experimentId");
+  if (experimentId) {
+    const result = await fetchExperimentPlaygroundProps(experimentId);
+    if (result) {
+      return {
+        source: "experiment",
+        playgroundProps: result.playgroundProps,
+        datasetId: result.datasetId,
+        stateByDatasetId: result.stateByDatasetId,
+        selectedDatasetEvaluatorIds: result.selectedDatasetEvaluatorIds,
+      };
+    }
+    return null;
+  }
+
+  // Fall back to prompt params
   const promptParams = parsePromptParams(url.searchParams);
 
   if (!promptParams.length) {
@@ -142,5 +196,5 @@ export const playgroundPageLoader = async ({
     return null;
   }
 
-  return { promptParams, instances, templateFormat };
+  return { source: "prompt", promptParams, instances, templateFormat };
 };

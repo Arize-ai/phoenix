@@ -16,6 +16,15 @@ export interface ProjectState {
    * Set whether to treat orphan spans as roots.
    */
   setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => void;
+  /**
+   * Whether to show the aside panel on the spans and traces tables.
+   * @default true
+   */
+  showTableAside: boolean;
+  /**
+   * Set whether to show the aside panel on the spans and traces tables.
+   */
+  setShowTableAside: (showTableAside: boolean) => void;
 }
 
 export interface ProjectStore {
@@ -43,6 +52,12 @@ export function createProjectStore({
         setTreatOrphansAsRoots: (treatOrphansAsRoots: boolean) => {
           set({ treatOrphansAsRoots }, false, {
             type: "setTreatOrphansAsRoots",
+          });
+        },
+        showTableAside: true,
+        setShowTableAside: (showTableAside: boolean) => {
+          set({ showTableAside }, false, {
+            type: "setShowTableAside",
           });
         },
       })),

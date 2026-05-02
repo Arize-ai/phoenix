@@ -31,6 +31,7 @@
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
     "test": "pnpm run -r test",
     "typecheck": "pnpm run -r typecheck"
   },

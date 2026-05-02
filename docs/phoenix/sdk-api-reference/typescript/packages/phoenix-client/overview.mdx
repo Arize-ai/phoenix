@@ -1,0 +1,176 @@
+---
+title: "Overview"
+description: "Typed TypeScript client for Phoenix platform APIs"
+---
+
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
+
+## Install
+
+```bash
+npm install @arizeai/phoenix-client
+```
+
+## Minimal Example
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import { listDatasets } from "@arizeai/phoenix-client/datasets";
+
+const client = createClient();
+const datasets = await listDatasets({ client });
+```
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/src/
+```
+
+That gives the agent version-matched docs plus the exact implementation and generated API types that shipped with your project.
+
+## Module Map
+
+| Import | Purpose |
+|--------|---------|
+| `@arizeai/phoenix-client` | `createClient`, generated OpenAPI types, config helpers |
+| `@arizeai/phoenix-client/prompts` | Prompt CRUD plus `toSDK` conversion |
+| `@arizeai/phoenix-client/datasets` | Dataset creation and retrieval |
+| `@arizeai/phoenix-client/experiments` | Experiment execution and lifecycle |
+| `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
+| `@arizeai/phoenix-client/sessions` | Session listing, retrieval, and session annotations |
+| `@arizeai/phoenix-client/traces` | Project trace retrieval |
+
+## Configuration
+
+`createClient()` resolves Phoenix client options in this order: library defaults, environment variables, then explicit options. In most applications, the normal setup is to set `PHOENIX_HOST` and `PHOENIX_API_KEY` in the environment and call `createClient()` with no overrides.
+
+### Recommended Setup
+
+Use the environment-driven path unless you have a specific reason to override client options in code.
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+export PHOENIX_API_KEY=<your-api-key>
+```
+
+If you're using Phoenix Cloud, `PHOENIX_HOST` may look like `https://app.phoenix.arize.com/s/my-space`.
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient();
+
+const datasets = await client.GET("/v1/datasets");
+```
+
+`PHOENIX_API_KEY` is converted into `Authorization: Bearer <key>` automatically. You do not need to build that header yourself unless you are explicitly overriding `headers`.
+
+### Explicit Overrides
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient({
+  options: {
+    baseUrl: "https://phoenix.example.com",
+    headers: {
+      Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+    },
+  },
+});
+```
+
+Use explicit options when you want configuration to live in code or when you need to override the environment for a specific client instance.
+
+### createClient Parameters
+
+| Field | Type | Description |
+|--------|------|-------------|
+| `options` | `Partial<ClientOptions>` | Explicit options passed to the underlying `openapi-fetch` client. |
+| `getEnvironmentOptions` | `() => Partial<ClientOptions>` | Optional resolver for environment-derived options. The default implementation reads `process.env` when available. |
+
+### Resolved Phoenix Options
+
+These are the Phoenix-specific options this package resolves before creating the underlying OpenAPI client:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `baseUrl` | `string` | Base Phoenix URL. Defaults to `http://localhost:6006`, or `PHOENIX_HOST` when that environment variable is set. |
+| `headers` | `ClientOptions["headers"]` | Headers sent on every request. `PHOENIX_API_KEY` populates `Authorization` automatically. Explicit `headers` replace environment-derived headers. |
+
+### Header Override Rule
+
+If you pass `options.headers`, they replace the environment-derived header object rather than deep-merging with it. That means if you override `headers` and still want API key authentication, include `Authorization` yourself:
+
+```ts
+const client = createClient({
+  options: {
+    headers: {
+      Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+    },
+  },
+});
+```
+
+### Environment Variables
+
+| Variable | Maps to | Description |
+|--------|---------|-------------|
+| `PHOENIX_HOST` | `options.baseUrl` | Base Phoenix URL, for example `http://localhost:6006`. |
+| `PHOENIX_API_KEY` | `options.headers.Authorization` | Bearer token for authenticated environments. |
+| `PHOENIX_CLIENT_HEADERS` | `options.headers` | Optional JSON-encoded object of additional headers to send on every request. Most setups do not need this. |
+
+## API Client
+
+`createClient()` returns an `openapi-fetch` client that is typed against Phoenix's generated OpenAPI schema. Use this layer when you need an endpoint that does not yet have a high-level helper.
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const client = createClient();
+
+const datasets = await client.GET("/v1/datasets");
+
+const prompt = await client.GET("/v1/prompts/{prompt_identifier}/latest", {
+  params: {
+    path: {
+      prompt_identifier: "support-response",
+    },
+  },
+});
+```
+
+The root export exposes generated API types: `pathsV1`, `componentsV1`, `operationsV1`, `Types`, and `PhoenixClient`.
+
+Prefer this layer when:
+
+- you need a newly added endpoint before a helper exists
+- you want direct control over route, body, and query params
+- you are building thin wrappers around Phoenix routes in your own codebase
+
+## Where To Start
+
+- [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
+- [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
+- [Spans](./spans), [Sessions](./sessions), [Traces](./traces) — retrieval and maintenance
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/client.ts</code></li>
+    <li><code>src/config.ts</code></li>
+    <li><code>src/__generated__/api/v1.ts</code></li>
+    <li><code>src/types/core.ts</code></li>
+    <li><code>src/prompts/</code></li>
+    <li><code>src/datasets/</code></li>
+    <li><code>src/experiments/</code></li>
+    <li><code>src/spans/</code></li>
+    <li><code>src/sessions/</code></li>
+    <li><code>src/traces/</code></li>
+    <li><code>src/types/</code></li>
+  </ul>
+</section>

@@ -1,7 +1,20 @@
+import { context, propagation, trace } from "@opentelemetry/api";
+import {
+  InMemorySpanExporter,
+  NodeTracerProvider,
+  SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-node";
 import { MockLanguageModelV3 } from "ai/test";
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
+
+afterEach(() => {
+  trace.disable();
+  context.disable();
+  propagation.disable();
+});
+
 describe("createClassificationEvaluator", () => {
   it("should support the passed in type signature", () => {
     const evaluator = createClassificationEvaluator<{ question: string }>({
@@ -155,5 +168,71 @@ describe("createClassificationEvaluator", () => {
         text: "is the following question valid: Is this a valid question?",
       },
     ]);
+  });
+
+  it("should follow the current global tracer provider across provider swaps", async () => {
+    const firstExporter = new InMemorySpanExporter();
+    const firstProvider = new NodeTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(firstExporter)],
+    });
+    firstProvider.register();
+
+    const evaluator = createClassificationEvaluator<{ question: string }>({
+      name: "isValid",
+      model: new MockLanguageModelV3({
+        doGenerate: async () => ({
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: {
+              total: 10,
+              noCache: 10,
+              cacheRead: undefined,
+              cacheWrite: undefined,
+            },
+            outputTokens: {
+              total: 20,
+              text: 20,
+              reasoning: undefined,
+            },
+          },
+          content: [
+            {
+              type: "text",
+              text: '{"label": "valid", "explanation": "The question is valid"}',
+            },
+          ],
+          warnings: [],
+        }),
+      }),
+      promptTemplate: "is the following question valid: {{question}}",
+      choices: { valid: 1, invalid: 0 },
+    });
+
+    await evaluator.evaluate({
+      question: "Is this a valid question?",
+    });
+
+    const firstSpanCount = firstExporter.getFinishedSpans().length;
+    expect(firstSpanCount).toBeGreaterThan(0);
+
+    trace.disable();
+    context.disable();
+    propagation.disable();
+
+    const secondExporter = new InMemorySpanExporter();
+    const secondProvider = new NodeTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(secondExporter)],
+    });
+    secondProvider.register();
+
+    await evaluator.evaluate({
+      question: "Is this still a valid question?",
+    });
+
+    expect(firstExporter.getFinishedSpans()).toHaveLength(firstSpanCount);
+    expect(secondExporter.getFinishedSpans().length).toBeGreaterThan(0);
+
+    await firstProvider.shutdown();
+    await secondProvider.shutdown();
   });
 });

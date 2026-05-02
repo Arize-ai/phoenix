@@ -117,7 +117,7 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             stmt = _get_stmt(segment, *params.keys())
-            async with self._db() as session:
+            async with self._db.read() as session:
                 data = await session.stream(stmt)
                 async for annotation_name, group in groupby(data, lambda row: row.name):
                     summary = AnnotationSummary(name=annotation_name, df=pd.DataFrame(group))

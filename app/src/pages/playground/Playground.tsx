@@ -32,6 +32,7 @@ import {
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
@@ -57,9 +58,17 @@ const playgroundWrapCSS = css`
   height: 100%;
 `;
 
-export function Playground(props: Partial<PlaygroundProps>) {
+export function Playground(
+  props: Partial<PlaygroundProps> & {
+    datasetId?: string | null;
+    selectedDatasetEvaluatorIds?: string[];
+  }
+) {
   const [searchParams] = useSearchParams();
-  const datasetId = searchParams.get("datasetId");
+  const experimentId = searchParams.get("experimentId");
+  const datasetId = experimentId
+    ? (props.datasetId ?? null)
+    : searchParams.get("datasetId");
 
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
@@ -90,8 +99,8 @@ export function Playground(props: Partial<PlaygroundProps>) {
   }
   return (
     <PlaygroundProvider
-      datasetId={datasetId}
       {...props}
+      datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
     >
@@ -196,7 +205,11 @@ const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 function PlaygroundContent() {
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
-  const datasetId = searchParams.get("datasetId");
+  const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
+  const experimentId = searchParams.get("experimentId");
+  const datasetId = experimentId
+    ? storeDatasetId
+    : searchParams.get("datasetId");
   // Only depend on the split-id subset of query params.
   const serializedSplitIds = searchParams.getAll("splitId").join("\0");
   // Keep splitIds referentially stable unless split-id values actually change.
@@ -211,6 +224,12 @@ function PlaygroundContent() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const runningExperiment = usePlaygroundContext((state) => {
+    const instance = state.instances.find(
+      (inst) => inst.activeRunId != null && inst.experiment != null
+    );
+    return instance?.experiment ?? null;
+  });
   const anyDirtyPromptInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
@@ -268,8 +287,10 @@ function PlaygroundContent() {
     );
   }, [instancePromptParams, setSearchParams]);
 
-  // Soft block at the router level when a run is in progress or there are dirty instances
-  // Handles blocking navigation when a run is in progress
+  // Soft block at the router level:
+  // - Ephemeral experiment running: will stop on disconnect, user must stay or accept
+  // - Non-ephemeral experiment running: daemon continues, but ask if user wants to stop
+  // - Dirty prompts: unsaved changes warning
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
@@ -279,17 +300,14 @@ function PlaygroundContent() {
   );
   const blocker = useBlocker(shouldBlockUnload);
 
-  // Hard block at the browser level when a run is in progress
-  // Handles blocking page reloads when a run is in progress
+  // Hard block at the browser level when an experiment is running
   useEffect(() => {
-    const shouldBlock = isRunning;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      // This is deprecated but still necessary for cross-browser compatibility
       e.returnValue = true;
     };
 
-    if (shouldBlock) {
+    if (isRunning) {
       window.addEventListener("beforeunload", handleBeforeUnload);
       return () => {
         window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -405,14 +423,18 @@ function PlaygroundContent() {
           )}
         </Panel>
       </Group>
-      <ConfirmNavigationDialog
-        blocker={blocker}
-        message={
-          isRunning
-            ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
-            : "You have unsaved changes. Are you sure you want to leave?"
-        }
-      />
+      {runningExperiment ? (
+        <ConfirmExperimentNavigationDialog
+          blocker={blocker}
+          experimentId={runningExperiment.id}
+          isEphemeral={runningExperiment.isEphemeral}
+        />
+      ) : (
+        <ConfirmNavigationDialog
+          blocker={blocker}
+          message="You have unsaved changes. Are you sure you want to leave?"
+        />
+      )}
     </Fragment>
   );
 }

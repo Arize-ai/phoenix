@@ -1,13 +1,12 @@
+import gzip
 import logging
-import shutil
 from binascii import hexlify
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from io import StringIO
+from io import BytesIO, StringIO
 from random import getrandbits
-from tempfile import NamedTemporaryFile
 from time import sleep, time
 from typing import (
     NamedTuple,
@@ -18,18 +17,62 @@ from urllib.parse import urljoin
 
 import httpx
 import pandas as pd
-from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+import pyarrow as pa
 from httpx import ConnectError, HTTPStatusError
+from pyarrow import Table
 
-import phoenix.trace.v1 as pb
-from phoenix.session.client import Client
+from phoenix.db.insertion.dataset import DatasetKeys
+from phoenix.db.insertion.types import AnnotationPrecursor, Precursors
 from phoenix.trace.schemas import Span
+from phoenix.trace.span_evaluations import (
+    DocumentEvaluations,
+    Evaluations,
+    SpanEvaluations,
+    TraceEvaluations,
+)
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import (
     download_json_traces_fixture,
     json_lines_to_df,
     parse_file_extension,
 )
+
+
+def _prepare_pyarrow(
+    df: pd.DataFrame,
+    keys: DatasetKeys,
+) -> tuple[str, BytesIO, str, dict[str, str]]:
+    if df.empty:
+        raise ValueError("dataframe has no data")
+    (header, freq), *_ = Counter(df.columns).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in file: {header}")
+    keys.check_differences(frozenset(df.columns))
+    table = Table.from_pandas(df.loc[:, list(keys)])
+    sink = pa.BufferOutputStream()
+    options = pa.ipc.IpcWriteOptions(compression="lz4")
+    with pa.ipc.new_stream(sink, table.schema, options=options) as writer:
+        writer.write_table(table)
+    return "pandas", BytesIO(sink.getvalue().to_pybytes()), "application/x-pandas-pyarrow", {}
+
+
+def _prepare_csv_bytes(
+    csv_content: StringIO,
+    name: str,
+    keys: DatasetKeys,
+) -> tuple[str, BytesIO, str, dict[str, str]]:
+    raw = csv_content.read().encode("utf-8")
+    lines = raw.splitlines()
+    if len(lines) < 2:
+        raise ValueError("csv file has no data")
+    column_headers = tuple(line.decode("utf-8") for line in lines[0].split(b","))
+    (header, freq), *_ = Counter(column_headers).most_common(1)
+    if freq > 1:
+        raise ValueError(f"Duplicated column header in CSV file: {header}")
+    keys.check_differences(frozenset(column_headers))
+    compressed = BytesIO(gzip.compress(raw))
+    return name, compressed, "text/csv", {"Content-Encoding": "gzip"}
+
 
 logger = logging.getLogger(__name__)
 
@@ -408,86 +451,75 @@ def send_dataset_fixtures(
             print(str(e))
             raise
         break
-    client = Client(endpoint=endpoint)
+    upload_url = urljoin(endpoint, "v1/datasets/upload")
     for i, fixture in enumerate(fixtures):
+        keys = DatasetKeys(
+            frozenset(fixture.input_keys),
+            frozenset(fixture.output_keys),
+            frozenset(fixture.metadata_keys),
+        )
         try:
             if i % 2:
-                client.upload_dataset(
-                    dataset_name=fixture.name,
-                    dataframe=fixture.dataframe,
-                    input_keys=fixture.input_keys,
-                    output_keys=fixture.output_keys,
-                    metadata_keys=fixture.metadata_keys,
-                    dataset_description=fixture.description,
-                )
+                fname, fdata, ftype, fheaders = _prepare_pyarrow(fixture.dataframe, keys)
             else:
-                with NamedTemporaryFile() as tf:
-                    with open(tf.name, "w") as f:
-                        shutil.copyfileobj(fixture.csv, f)
-                        f.flush()
-                    client.upload_dataset(
-                        dataset_name=fixture.name,
-                        csv_file_path=tf.name,
-                        input_keys=fixture.input_keys,
-                        output_keys=fixture.output_keys,
-                        metadata_keys=fixture.metadata_keys,
-                        dataset_description=fixture.description,
-                    )
+                fname, fdata, ftype, fheaders = _prepare_csv_bytes(fixture.csv, fixture.name, keys)
+            httpx.post(
+                url=upload_url,
+                files={"file": (fname, fdata, ftype, fheaders)},
+                data={
+                    "action": "create",
+                    "name": fixture.name,
+                    "description": fixture.description,
+                    "input_keys[]": sorted(keys.input),
+                    "output_keys[]": sorted(keys.output),
+                    "metadata_keys[]": sorted(keys.metadata),
+                },
+                params={"sync": True},
+            ).raise_for_status()
         except HTTPStatusError as e:
             print(e.response.content.decode())
-            pass
         else:
             name, df = fixture.name, fixture.dataframe
             print(f"Dataset sent: {name=}, {len(df)=}")
 
 
-def get_evals_from_fixture(fixture_name: str) -> Iterator[pb.Evaluation]:
-    fixture = get_trace_fixture_by_name(fixture_name)
-    for eval_fixture in fixture.evaluation_fixtures:
-        logger.info(
-            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
-        )
-        yield from _read_eval_fixture(eval_fixture)
+def _read_eval_fixture_dataframe(eval_fixture: EvaluationFixture) -> pd.DataFrame:
+    """Read an evaluation fixture parquet file and return it as a DataFrame.
 
-
-def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluation]:
+    The returned DataFrame has columns: score, label, explanation.
+    For span evaluations, the index is span_id.
+    For document evaluations, the index is (span_id, document_position).
+    Legacy UUID-style span_ids have hyphens removed.
+    """
     df = pd.read_parquet(_url(eval_fixture.file_name))
-    for index, row in df.iterrows():
-        schema = eval_fixture.evaluation_result_schema
-        label = row.get(schema.label)
-        score = row.get(schema.score)
-        explanation = row.get(schema.explanation)
-        result = pb.Evaluation.Result(
-            score=DoubleValue(value=cast(float, score)) if score is not None else None,
-            label=StringValue(value=cast(str, label)) if label else None,
-            explanation=StringValue(value=cast(str, explanation)) if explanation else None,
-        )
-        if isinstance(eval_fixture, DocumentEvaluationFixture):
-            span_id, document_position = cast(tuple[str, int], index)
-            # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
-            # strings need to be removed because we are also removing the hyphens from the
-            # span_ids of their corresponding traces. In general, hyphen is not an allowed
-            # character in the string representation of span_ids.
-            span_id = span_id.replace("-", "")
-            subject_id = pb.Evaluation.SubjectId(
-                document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
-                    document_position=document_position,
-                    span_id=span_id,
-                ),
-            )
-        else:
-            span_id = cast(str, index)
-            # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
-            # strings need to be removed because we are also removing the hyphens from the
-            # span_ids of their corresponding traces. In general, hyphen is not an allowed
-            # character in the string representation of span_ids.
-            span_id = span_id.replace("-", "")
-            subject_id = pb.Evaluation.SubjectId(span_id=span_id)
-        yield pb.Evaluation(
-            name=eval_fixture.evaluation_name,
-            result=result,
-            subject_id=subject_id,
-        )
+    schema = eval_fixture.evaluation_result_schema
+    # Rename columns to canonical names if needed
+    rename_map: dict[str, str] = {}
+    if schema.score and schema.score != "score":
+        rename_map[schema.score] = "score"
+    if schema.label and schema.label != "label":
+        rename_map[schema.label] = "label"
+    if schema.explanation and schema.explanation != "explanation":
+        rename_map[schema.explanation] = "explanation"
+    if rename_map:
+        df = df.rename(columns=rename_map)
+    # Strip hyphens from span_id index values (legacy UUID format)
+    if isinstance(df.index, pd.MultiIndex):
+        # Document evaluation: (span_id, document_position)
+        new_levels = []
+        for i, name in enumerate(df.index.names):
+            level_values = df.index.get_level_values(i)
+            if name in ("span_id", "context.span_id"):
+                level_values = level_values.map(
+                    lambda x: x.replace("-", "") if isinstance(x, str) else x
+                )
+            new_levels.append(level_values)
+        df.index = pd.MultiIndex.from_arrays(new_levels, names=df.index.names)
+    else:
+        # Span evaluation: span_id index
+        if df.index.name in ("span_id", "context.span_id", None):
+            df.index = df.index.map(lambda x: x.replace("-", "") if isinstance(x, str) else x)
+    return df
 
 
 def _url(
@@ -501,9 +533,8 @@ def _url(
 
 def reset_fixture_span_ids_and_timestamps(
     spans: Iterable[Span],
-    evals: Iterable[pb.Evaluation] = (),
-) -> tuple[list[Span], list[pb.Evaluation]]:
-    old_spans, old_evals = list(spans), list(evals)
+) -> tuple[list[Span], dict[str, str], dict[str, str]]:
+    old_spans = list(spans)
     new_trace_ids: dict[str, str] = {}
     new_span_ids: dict[str, str] = {}
     for old_span in old_spans:
@@ -511,18 +542,9 @@ def reset_fixture_span_ids_and_timestamps(
         new_span_ids[old_span.context.span_id] = _new_span_id()
         if old_span.parent_id:
             new_span_ids[old_span.parent_id] = _new_span_id()
-    for old_eval in old_evals:
-        subject_id = old_eval.subject_id
-        if trace_id := subject_id.trace_id:
-            new_trace_ids[trace_id] = _new_trace_id()
-        elif span_id := subject_id.span_id:
-            new_span_ids[span_id] = _new_span_id()
-        elif span_id := subject_id.document_retrieval_id.span_id:
-            new_span_ids[span_id] = _new_span_id()
     max_end_time = max(old_span.end_time for old_span in old_spans)
     time_diff = datetime.now(timezone.utc) - max_end_time
     new_spans: list[Span] = []
-    new_evals: list[pb.Evaluation] = []
     for old_span in old_spans:
         new_trace_id = new_trace_ids[old_span.context.trace_id]
         new_span_id = new_span_ids[old_span.context.span_id]
@@ -535,18 +557,203 @@ def reset_fixture_span_ids_and_timestamps(
             end_time=old_span.end_time + time_diff,
         )
         new_spans.append(new_span)
-    for old_eval in old_evals:
-        new_eval = pb.Evaluation()
-        new_eval.CopyFrom(old_eval)
-        subject_id = new_eval.subject_id
-        if trace_id := subject_id.trace_id:
-            subject_id.trace_id = new_trace_ids[trace_id]
-        elif span_id := subject_id.span_id:
-            subject_id.span_id = new_span_ids[span_id]
-        elif span_id := subject_id.document_retrieval_id.span_id:
-            subject_id.document_retrieval_id.span_id = new_span_ids[span_id]
-        new_evals.append(new_eval)
-    return new_spans, new_evals
+    return new_spans, new_trace_ids, new_span_ids
+
+
+def get_annotation_precursors_from_fixture(
+    fixture_name: str,
+) -> Iterator[tuple[str, list[AnnotationPrecursor]]]:
+    from phoenix.db import models
+
+    fixture = get_trace_fixture_by_name(fixture_name)
+    for eval_fixture in fixture.evaluation_fixtures:
+        logger.info(
+            f"Loading eval fixture '{eval_fixture.evaluation_name}' from '{eval_fixture.file_name}'"
+        )
+        df = _read_eval_fixture_dataframe(eval_fixture)
+        eval_name = eval_fixture.evaluation_name
+        precursors: list[AnnotationPrecursor] = []
+        now = datetime.now(timezone.utc)
+        if isinstance(eval_fixture, DocumentEvaluationFixture):
+            for index, row in df.iterrows():
+                span_id, document_position = cast(tuple[str, int], index)
+                score, label, explanation = _get_precursor_result(row)
+                precursors.append(
+                    Precursors.DocumentAnnotation(
+                        updated_at=now,
+                        span_id=str(span_id),
+                        document_position=int(document_position),
+                        obj=models.DocumentAnnotation(
+                            document_position=int(document_position),
+                            name=eval_name,
+                            identifier="",
+                            source="API",
+                            annotator_kind="LLM",
+                            score=score,
+                            label=label,
+                            explanation=explanation,
+                            metadata_={},
+                        ),
+                    )
+                )
+        else:
+            is_trace = False
+            for evaluations_cls in (SpanEvaluations, TraceEvaluations):
+                try:
+                    evaluations_cls(eval_name=eval_name, dataframe=df)
+                    is_trace = evaluations_cls is TraceEvaluations
+                    break
+                except ValueError:
+                    continue
+            else:
+                raise ValueError(
+                    f"Could not infer evaluation type for fixture '{eval_name}' "
+                    f"with index {df.index.names!r}"
+                )
+            for index, row in df.iterrows():
+                score, label, explanation = _get_precursor_result(row)
+                if is_trace:
+                    precursors.append(
+                        Precursors.TraceAnnotation(
+                            updated_at=now,
+                            trace_id=str(index),
+                            obj=models.TraceAnnotation(
+                                name=eval_name,
+                                identifier="",
+                                source="API",
+                                annotator_kind="LLM",
+                                score=score,
+                                label=label,
+                                explanation=explanation,
+                                metadata_={},
+                            ),
+                        )
+                    )
+                else:
+                    precursors.append(
+                        Precursors.SpanAnnotation(
+                            updated_at=now,
+                            span_id=str(index),
+                            obj=models.SpanAnnotation(
+                                name=eval_name,
+                                identifier="",
+                                source="API",
+                                annotator_kind="LLM",
+                                score=score,
+                                label=label,
+                                explanation=explanation,
+                                metadata_={},
+                            ),
+                        )
+                    )
+        yield eval_name, precursors
+
+
+def _get_precursor_result(
+    row: "pd.Series[str]",
+) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    return (
+        cast(Optional[float], row.get("score")),
+        cast(Optional[str], row.get("label")),
+        cast(Optional[str], row.get("explanation")),
+    )
+
+
+def remap_precursor_ids(
+    precursor: AnnotationPrecursor,
+    *,
+    trace_id_mapping: dict[str, str],
+    span_id_mapping: dict[str, str],
+) -> AnnotationPrecursor:
+    if isinstance(precursor, Precursors.DocumentAnnotation):
+        new_span_id = span_id_mapping.get(precursor.span_id, precursor.span_id)
+        return replace(precursor, span_id=new_span_id)
+    if isinstance(precursor, Precursors.SpanAnnotation):
+        new_span_id = span_id_mapping.get(precursor.span_id, precursor.span_id)
+        return replace(precursor, span_id=new_span_id)
+    if isinstance(precursor, Precursors.TraceAnnotation):
+        new_trace_id = trace_id_mapping.get(precursor.trace_id, precursor.trace_id)
+        return replace(precursor, trace_id=new_trace_id)
+    raise TypeError(f"Unsupported precursor type: {type(precursor)!r}")
+
+
+def evaluations_to_precursors(
+    evaluations: Evaluations,
+) -> list[AnnotationPrecursor]:
+    from phoenix.db import models
+
+    eval_name = evaluations.eval_name
+    dataframe = evaluations.dataframe
+    now = datetime.now(timezone.utc)
+    precursors: list[AnnotationPrecursor] = []
+
+    if isinstance(evaluations, DocumentEvaluations):
+        for index, row in dataframe.iterrows():
+            span_id, document_position = cast(tuple[str, int], index)
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.DocumentAnnotation(
+                    updated_at=now,
+                    span_id=str(span_id),
+                    document_position=int(document_position),
+                    obj=models.DocumentAnnotation(
+                        document_position=int(document_position),
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    if isinstance(evaluations, SpanEvaluations):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.SpanAnnotation(
+                    updated_at=now,
+                    span_id=str(index),
+                    obj=models.SpanAnnotation(
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    if isinstance(evaluations, TraceEvaluations):
+        for index, row in dataframe.iterrows():
+            score, label, explanation = _get_precursor_result(row)
+            precursors.append(
+                Precursors.TraceAnnotation(
+                    updated_at=now,
+                    trace_id=str(index),
+                    obj=models.TraceAnnotation(
+                        name=eval_name,
+                        identifier="",
+                        source="API",
+                        annotator_kind="LLM",
+                        score=score,
+                        label=label,
+                        explanation=explanation,
+                        metadata_={},
+                    ),
+                )
+            )
+        return precursors
+
+    raise TypeError(f"Unsupported evaluations type: {type(evaluations)!r}")
 
 
 def _new_trace_id() -> str:

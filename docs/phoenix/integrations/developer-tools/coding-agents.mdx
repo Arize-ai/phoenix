@@ -177,13 +177,13 @@ This installs skills into the project's agent directory (for example, `.claude/s
 ### Available Skills
 
 <CardGroup cols={3}>
-  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-cli/SKILL.md">
+  <Card title="phoenix-cli" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-cli/SKILL.md">
     Debug LLM apps using Phoenix CLI for traces, experiments, datasets, and prompts. Recommended.
   </Card>
-  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-evals/SKILL.md">
+  <Card title="phoenix-evals" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-evals/SKILL.md">
     Build and run evaluators for AI/LLM apps across code-based and LLM-as-judge workflows.
   </Card>
-  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/skills/phoenix-tracing/SKILL.md">
+  <Card title="phoenix-tracing" href="https://github.com/Arize-ai/phoenix/blob/main/.agents/skills/phoenix-tracing/SKILL.md">
     Implement OpenInference tracing conventions and instrumentation in Python and TypeScript.
   </Card>
 </CardGroup>
@@ -221,6 +221,25 @@ Recommended default:
 ```bash
 npx skills add Arize-ai/phoenix --skill phoenix-cli --skill phoenix-tracing
 ```
+
+## Docs and Source Code in `node_modules`
+
+Phoenix's TypeScript packages ship docs and source code inside `node_modules` once installed. Coding agents can inspect version-matched docs, examples, and source code directly under `node_modules`, without relying on the public website.
+
+Common paths:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/src/
+
+node_modules/@arizeai/phoenix-evals/docs/
+node_modules/@arizeai/phoenix-evals/src/
+
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+This means your agent can look up accurate API signatures, implementations, and usage examples directly from the installed package — ensuring it always uses the version of the SDK that's actually installed in your project.
 
 ## Related
 

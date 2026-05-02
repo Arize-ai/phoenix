@@ -25,6 +25,13 @@ export interface DynamicContentProps {
    * All other values will be rendered as text
    */
   value: unknown;
+  /**
+   * Controls how Streamdown parses markdown content.
+   * - `"static"`: parses the full content at once (default, use for complete content)
+   * - `"streaming"`: parses incrementally per-block with memoization (use when
+   *   content is being actively streamed/appended)
+   */
+  mode?: "static" | "streaming";
 }
 
 /**
@@ -35,7 +42,7 @@ export interface DynamicContentProps {
 export const DynamicContent = memo(function DynamicContent(
   props: DynamicContentProps
 ) {
-  const { value } = props;
+  const { value, mode } = props;
   const { contentType, displayValue } = useContentType(value);
 
   if (value == null || displayValue === "") {
@@ -57,7 +64,7 @@ export const DynamicContent = memo(function DynamicContent(
 
   // Text content with markdown support
   return (
-    <MarkdownBlock mode="markdown" margin="none">
+    <MarkdownBlock mode="markdown" renderMode={mode} margin="none">
       {displayValue}
     </MarkdownBlock>
   );

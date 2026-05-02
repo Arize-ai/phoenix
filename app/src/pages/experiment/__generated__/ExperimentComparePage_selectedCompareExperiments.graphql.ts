@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad91fda5a3e61696de1bb91ca93e6702>>
+ * @generated SignedSource<<7d6ad60dafc43e4e54680c626aac0f1f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -70,6 +70,11 @@ const node: ReaderFragment = {
                   "kind": "Variable",
                   "name": "filterIds",
                   "variableName": "experimentIds"
+                },
+                {
+                  "kind": "Literal",
+                  "name": "includeEphemeral",
+                  "value": true
                 }
               ],
               "concreteType": "ExperimentConnection",
@@ -135,6 +140,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "3f48f25489a511f201875e2e75dd691f";
+(node as any).hash = "b5df65e12b1459113045210e14fd9bc4";
 
 export default node;

@@ -1,6 +1,5 @@
 import { css, keyframes } from "@emotion/react";
-import type { HTMLAttributes } from "react";
-import { forwardRef } from "react";
+import type { HTMLAttributes, Ref } from "react";
 
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -125,40 +124,36 @@ const getBorderRadius = (radius: SkeletonProps["borderRadius"]) => {
  * A skeleton loading component that shows a placeholder while content is loading.
  * Supports different animations, sizes, and border radius options.
  */
-export const Skeleton = forwardRef<HTMLSpanElement, SkeletonProps>(
-  (
-    {
-      width = "100%",
-      height = "1.2em",
-      borderRadius = "S",
-      animation = "pulse",
-      className,
-      ...restProps
-    },
-    ref
-  ) => {
-    const finalWidth = typeof width === "number" ? `${width}px` : width;
-    const finalHeight = typeof height === "number" ? `${height}px` : height;
-    const finalRadius = getBorderRadius(borderRadius);
+export function Skeleton({
+  ref,
+  width = "100%",
+  height = "1.2em",
+  borderRadius = "S",
+  animation = "pulse",
+  className,
+  ...restProps
+}: SkeletonProps & { ref?: Ref<HTMLSpanElement> }) {
+  const finalWidth = typeof width === "number" ? `${width}px` : width;
+  const finalHeight = typeof height === "number" ? `${height}px` : height;
+  const finalRadius = getBorderRadius(borderRadius);
 
-    return (
-      <span
-        ref={ref}
-        className={classNames(className, "skeleton")}
-        css={[
-          skeletonStyles,
-          animation === "pulse" && pulseAnimation,
-          animation === "wave" && waveAnimation,
-          css`
-            width: ${finalWidth};
-            height: ${finalHeight};
-            border-radius: ${finalRadius};
-          `,
-        ]}
-        {...restProps}
-      />
-    );
-  }
-);
+  return (
+    <span
+      ref={ref}
+      className={classNames(className, "skeleton")}
+      css={[
+        skeletonStyles,
+        animation === "pulse" && pulseAnimation,
+        animation === "wave" && waveAnimation,
+        css`
+          width: ${finalWidth};
+          height: ${finalHeight};
+          border-radius: ${finalRadius};
+        `,
+      ]}
+      {...restProps}
+    />
+  );
+}
 
 Skeleton.displayName = "Skeleton";

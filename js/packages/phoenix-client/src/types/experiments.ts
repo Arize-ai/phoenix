@@ -131,6 +131,12 @@ export type EvaluatorParams<TaskOutputType = TaskOutput> = {
    * Metadata associated with the Dataset Example
    */
   metadata?: Example["metadata"];
+  /**
+   * The trace ID of the task run, if available.
+   * Can be used to fetch and analyze the task's trace
+   * (e.g., for trajectory evaluation or action verification).
+   */
+  traceId?: string | null;
 };
 
 export type Evaluator = {

@@ -81,5 +81,19 @@ describe("computeBucketCollapseConflicts", () => {
       expect(result.keysToCollapse).toEqual([]);
       expect(result.conflicts.size).toBe(0);
     });
+
+    it("tolerates rows where the parent key is missing", () => {
+      const result = computeBucketCollapseConflicts(
+        ["metadata"],
+        { input: [], output: [], metadata: ["metadata"] },
+        [
+          { metadata: { category: "math" } },
+          { metadata: { category: "geography" } },
+          {}, // row missing the metadata key
+        ]
+      );
+      expect(result.keysToCollapse).toContain("metadata");
+      expect(result.conflicts.size).toBe(0);
+    });
   });
 });

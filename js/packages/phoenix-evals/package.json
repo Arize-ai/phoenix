@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A library for running evaluations for AI use cases",
   "keywords": [
     "arize",
@@ -19,8 +19,12 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -59,7 +63,9 @@
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-evals",
     "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-evals",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"

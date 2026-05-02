@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { LinkProps } from "react-router";
 import { Link } from "react-router";
 
@@ -33,7 +32,10 @@ const linkButtonCSS = css`
  * A link that is rendered as a button
  * This is useful when you want the link to be styled as a button but you want the semantic meaning of a link
  */
-function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
+function LinkButton({
+  ref,
+  ...props
+}: LinkButtonProps & { ref?: Ref<HTMLAnchorElement> }) {
   const {
     size = "M",
     variant = "default",
@@ -61,5 +63,4 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
   );
 }
 
-const _LinkButton = forwardRef(LinkButton);
-export { _LinkButton as LinkButton, LinkButtonProps };
+export { LinkButton, LinkButtonProps };

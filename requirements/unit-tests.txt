@@ -7,7 +7,6 @@ asyncpg
 google-genai>=1.0.0
 grpc-interceptor[testing]
 httpx
-httpx-ws
 litellm>1.61.15,<1.82.7
 nest-asyncio # for executor testing
 numpy
@@ -26,4 +25,5 @@ typing-extensions
 vcrpy
 pytest-smtpd
 freezegun
-aiosqlite<0.22.0  # new version is causing tests to hang
+aiosqlite>=0.22.1
+azure-identity>1.18.0

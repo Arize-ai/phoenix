@@ -18,4 +18,5 @@ export type {
   PromptInputButtonProps,
   PromptInputButtonTooltip,
   PromptInputStatus,
+  PromptInputMode,
 } from "./types";

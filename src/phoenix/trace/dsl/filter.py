@@ -15,12 +15,9 @@ from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import ColumnElement, Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
-import phoenix.trace.v1 as pb
 from phoenix.db import models
 
-_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = tuple(
-    field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
-)
+_VALID_EVAL_ATTRIBUTES: tuple[str, ...] = ("score", "label", "explanation")
 
 
 AnnotationType: TypeAlias = typing.Literal["annotations", "evals"]

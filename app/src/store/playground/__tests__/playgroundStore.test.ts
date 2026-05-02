@@ -8,6 +8,7 @@ import {
   _resetInstanceId,
   createNormalizedPlaygroundInstance,
   createPlaygroundStore,
+  DEFAULT_MAX_CONCURRENCY,
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   getInitialInstances,
 } from "../playgroundStore";
@@ -835,6 +836,7 @@ describe("dataset-scoped state", () => {
     // verify templateVariablesPath is initialized to the default value
     expect(store.getState().stateByDatasetId[datasetId]).toEqual({
       templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
 
@@ -859,6 +861,7 @@ describe("dataset-scoped state", () => {
     // verify templateVariablesPath is initialized to the default value for the new dataset
     expect(store.getState().stateByDatasetId[newDatasetId]).toEqual({
       templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
   });
 
@@ -889,6 +892,7 @@ describe("dataset-scoped state", () => {
     expect(store.getState().datasetId).toBe(datasetId2);
     expect(store.getState().stateByDatasetId[datasetId2]).toEqual({
       templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
+      maxConcurrency: DEFAULT_MAX_CONCURRENCY,
     });
 
     // switch back to dataset 1

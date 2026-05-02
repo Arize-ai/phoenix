@@ -2,7 +2,9 @@ from itertools import chain
 from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
+from starlette.datastructures import Secret
 from strawberry.extensions import SchemaExtension
+from strawberry.schema.config import StrawberryConfig
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
 from phoenix.server.api.exceptions import get_mask_errors_extension
@@ -12,9 +14,19 @@ from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
 )
+from phoenix.server.api.types.CronExpression import (
+    CronExpression,
+    cron_expression_scalar_definition,
+)
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
+from phoenix.server.api.types.Identifier import Identifier, identifier_scalar_definition
+from phoenix.server.api.types.RedactedString import (
+    RedactedString,
+    redacted_string_scalar_definition,
+)
+from phoenix.server.api.types.SecretString import secret_string_scalar_definition
 
 
 def build_graphql_schema(
@@ -28,6 +40,14 @@ def build_graphql_schema(
         mutation=Mutation,
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
+        config=StrawberryConfig(
+            scalar_map={
+                Identifier: identifier_scalar_definition,
+                CronExpression: cron_expression_scalar_definition,
+                Secret: secret_string_scalar_definition,
+                RedactedString: redacted_string_scalar_definition,
+            },
+        ),
         types=list(
             chain(
                 _implementing_types(ChatCompletionSubscriptionPayload),
@@ -42,10 +62,8 @@ def _implementing_types(interface: Any) -> Iterator[StrawberryType]:
     Iterates over strawberry types implementing the given strawberry interface.
     Recursively includes all subclasses, not just direct subclasses.
     """
-    assert isinstance(
-        strawberry_definition := getattr(interface, "__strawberry_definition__", None),
-        StrawberryObjectDefinition,
-    )
+    strawberry_definition = getattr(interface, "__strawberry_definition__", None)
+    assert isinstance(strawberry_definition, StrawberryObjectDefinition)
     assert strawberry_definition.is_interface
 
     def _get_all_subclasses(cls: Any) -> Iterator[StrawberryType]:

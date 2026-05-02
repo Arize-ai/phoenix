@@ -23,6 +23,7 @@ import {
   Alert,
   Card,
   ContentSkeleton,
+  Empty,
   Flex,
   Link,
   Text,
@@ -338,9 +339,9 @@ const ProjectAnnotationConfigCardContent = (
 
   if (allAnnotationConfigs.edges.length === 0) {
     return (
-      <Flex direction="row" justifyContent="center">
-        <Text>No annotation configurations available.</Text>
-      </Flex>
+      <View paddingY="size-400">
+        <Empty message="No annotation configurations available." />
+      </View>
     );
   }
 

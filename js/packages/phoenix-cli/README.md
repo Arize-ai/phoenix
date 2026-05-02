@@ -45,12 +45,71 @@ export PHOENIX_API_KEY=your-api-key  # if authentication is enabled
 
 CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variables.
 
-| Variable                 | Description                   |
-| ------------------------ | ----------------------------- |
-| `PHOENIX_HOST`           | Phoenix API endpoint          |
-| `PHOENIX_PROJECT`        | Project name or ID            |
-| `PHOENIX_API_KEY`        | API key (if auth is enabled)  |
-| `PHOENIX_CLIENT_HEADERS` | Custom headers as JSON string |
+| Variable                                 | Description                                   |
+| ---------------------------------------- | --------------------------------------------- |
+| `PHOENIX_HOST`                           | Phoenix API endpoint                          |
+| `PHOENIX_PROJECT`                        | Project name or ID                            |
+| `PHOENIX_API_KEY`                        | API key (if auth is enabled)                  |
+| `PHOENIX_CLIENT_HEADERS`                 | Custom headers as JSON string                 |
+| `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES` | Enable CLI delete commands when set to `true` |
+
+Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
+
+## Profiles
+
+Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`).
+
+```bash
+px profile create prod --endpoint https://phoenix.example.com --project main \
+                       --api-key sk-xxx --activate
+px profile list                # all profiles, kubectl-style "current" column
+px profile show                # the active profile (or pass <name>)
+px profile use prod            # switch the active profile
+px profile edit prod           # open in $EDITOR, validates on save
+px profile delete prod         # remove a profile (--yes to skip prompt)
+```
+
+Every command reads the active profile through the standard config chain:
+**built-in defaults → active profile → env vars → CLI flags** (highest wins).
+The `auth status` command accepts `--profile <name>` to scope a single
+invocation to a profile other than the stored active one.
+
+API keys are stored verbatim in the settings file (mode `0600`) but are
+never echoed back through `profile create`, `profile show`, or `profile
+list` — they appear as a fixed-width mask. If you need the raw value for a
+script, read `~/.px/settings.json` directly.
+
+### Editor autocompletion via `$schema`
+
+The CLI writes a `$schema` field automatically the first time it creates
+your `settings.json`, so editors like VS Code and JetBrains validate and
+autocomplete the file out of the box:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": { ... }
+}
+```
+
+If you remove the line by hand, the CLI won't add it back. The schema
+lives at `schemas/phoenix-cli-settings.json` in the Phoenix repository
+and tracks the published Zod schema. The pointer is currently pinned to
+`main`; we'll switch to a SchemaStore entry once registered.
+
+For VS Code project-wide association add to `.vscode/settings.json`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["settings.json"],
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json"
+    }
+  ]
+}
+```
 
 ## Commands
 
@@ -67,16 +126,16 @@ px self update --check  # show current/latest without installing
 Automatic updates are supported for global `npm`, `pnpm`, `bun`, and standard
 `deno install -g` wrapper installs.
 
-### `px traces [directory]`
+### `px trace list [directory]`
 
 Fetch recent traces from the configured project. All output is JSON.
 
 ```bash
-px traces --limit 10                          # stdout (pretty)
-px traces --format raw --no-progress | jq    # pipe-friendly compact JSON
-px traces ./my-traces --limit 50             # save as JSON files to directory
-px traces --last-n-minutes 60 --limit 20     # filter by time window
-px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
+px trace list --limit 10                          # stdout (pretty)
+px trace list --format raw --no-progress | jq    # pipe-friendly compact JSON
+px trace list ./my-traces --limit 50             # save as JSON files to directory
+px trace list --last-n-minutes 60 --limit 20     # filter by time window
+px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 ```
 
 | Option                      | Description                            | Default  |
@@ -87,46 +146,72 @@ px traces --since 2026-01-13T10:00:00Z       # since ISO timestamp
 | `--since <timestamp>`       | Traces since ISO timestamp             | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
 | `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include span annotations               | —        |
+| `--include-annotations`     | Include trace and span annotations     | —        |
+| `--include-notes`           | Include trace and span notes           | —        |
 
 ```bash
 # Find ERROR traces
-px traces --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+px trace list --limit 50 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 
 # Sort by duration, take top 5 slowest
-px traces --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
+px trace list --limit 20 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:5]'
 
 # Extract LLM model names used
-px traces --limit 50 --format raw --no-progress | \
+px trace list --limit 50 --format raw --no-progress | \
   jq -r '.[].spans[] | select(.span_kind == "LLM") | .attributes["llm.model_name"]' | sort -u
 ```
 
 ---
 
-### `px trace <trace-id>`
+### `px trace get <trace-id>`
 
 Fetch a single trace by ID.
 
 ```bash
-px trace abc123def456
-px trace abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
-px trace abc123def456 --file trace.json
+px trace get abc123def456
+px trace get abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
+px trace get abc123def456 --file trace.json
+px trace get abc123def456 --include-notes --format raw | jq '{traceNotes: .notes, spanNotes: [.spans[].notes]}'
 ```
 
 ---
 
-### `px spans [file]`
+### `px trace annotate <trace-id>`
+
+Create or update a human trace annotation by OpenTelemetry trace ID.
+
+```bash
+px trace annotate abc123def456 --name reviewer --label pass
+px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
+px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
+px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px trace add-note <trace-id>`
+
+Add a note to a trace by OpenTelemetry trace ID.
+
+```bash
+px trace add-note abc123def456 --text "needs follow-up"
+px trace add-note abc123def456 --text "agent triage complete" --format raw --no-progress
+```
+
+---
+
+### `px span list [file]`
 
 Fetch spans for the configured project with filtering options. Output is JSON.
 
 ```bash
-px spans --limit 50                                    # stdout (pretty)
-px spans --span-kind LLM --limit 20                    # only LLM spans
-px spans --status-code ERROR --format raw --no-progress # pipe-friendly error spans
-px spans --name chat_completion --trace-id abc123       # filter by name and trace
-px spans --parent-id null                               # root spans only
-px spans spans.json --limit 100 --include-annotations   # save to file with annotations
-px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
+px span list --limit 50                                    # stdout (pretty)
+px span list --span-kind LLM --limit 20                    # only LLM spans
+px span list --status-code ERROR --format raw --no-progress # pipe-friendly error spans
+px span list --name chat_completion --trace-id abc123       # filter by name and trace
+px span list --parent-id null                               # root spans only
+px span list spans.json --limit 100 --include-annotations   # save to file with annotations
+px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
 ```
 
 | Option                      | Description                                                                                                                      | Default  |
@@ -141,90 +226,115 @@ px spans --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kinds
 | `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
 | `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
 | `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
+| `--include-notes`           | Include span notes in the output                                                                                                 | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                       | `pretty` |
 | `--no-progress`             | Suppress progress output                                                                                                         | —        |
 
 ```bash
 # Find all ERROR spans
-px spans --status-code ERROR --format raw --no-progress | jq '.[] | {name, status_code}'
+px span list --status-code ERROR --format raw --no-progress | jq '.[] | {name, status_code}'
 
 # Get LLM spans with token counts
-px spans --span-kind LLM --format raw --no-progress | \
+px span list --span-kind LLM --format raw --no-progress | \
   jq '.[] | {name, model: .attributes["llm.model_name"], tokens: (.attributes["llm.token_count.prompt"] + .attributes["llm.token_count.completion"])}'
 
 # Root spans only, sorted by name
-px spans --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
+px span list --parent-id null --format raw --no-progress | jq 'sort_by(.name)'
 ```
 
 ---
 
-### `px datasets`
+### `px span annotate <span-id>`
+
+Create or update a human span annotation by OpenTelemetry span ID.
+
+```bash
+px span annotate 7e2f08cb43bbf521 --name reviewer --label pass
+px span annotate 7e2f08cb43bbf521 --name reviewer --score 0.9 --format raw --no-progress
+px span annotate 7e2f08cb43bbf521 --name checker --score 1 --annotator-kind CODE
+px span annotate 7e2f08cb43bbf521 --name reviewer --explanation "looks good"
+```
+
+---
+
+### `px span add-note <span-id>`
+
+Add a note to a span by OpenTelemetry span ID.
+
+```bash
+px span add-note 7e2f08cb43bbf521 --text "double-check tool output"
+px span add-note 7e2f08cb43bbf521 --text "verified by agent" --format raw --no-progress
+```
+
+---
+
+### `px dataset list`
 
 List all datasets.
 
 ```bash
-px datasets --format raw --no-progress | jq '.[].name'
+px dataset list --format raw --no-progress | jq '.[].name'
 ```
 
 ---
 
-### `px dataset <dataset-identifier>`
+### `px dataset get <dataset-identifier>`
 
 Fetch examples from a dataset.
 
 ```bash
-px dataset my-dataset --format raw | jq '.examples[].input'
-px dataset my-dataset --split train --split test
-px dataset my-dataset --version <version-id>
-px dataset my-dataset --file dataset.json
+px dataset get my-dataset --format raw | jq '.examples[].input'
+px dataset get my-dataset --split train --split test
+px dataset get my-dataset --version <version-id>
+px dataset get my-dataset --file dataset.json
 ```
 
 ---
 
-### `px experiments --dataset <name-or-id>`
+### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
 
 ```bash
-px experiments --dataset my-dataset --format raw --no-progress | \
+px experiment list --dataset my-dataset --format raw --no-progress | \
   jq '.[] | {id, successful_run_count, failed_run_count}'
 ```
 
 ---
 
-### `px experiment <experiment-id>`
+### `px experiment get <experiment-id>`
 
 Fetch a single experiment with all run data (inputs, outputs, evaluations, trace IDs).
 
 ```bash
 # Find failed runs
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '.[] | select(.error != null) | {input, error}'
 
 # Average latency
-px experiment RXhwZXJpbWVudDox --format raw --no-progress | \
+px experiment get RXhwZXJpbWVudDox --format raw --no-progress | \
   jq '[.[].latency_ms] | add / length'
 ```
 
 ---
 
-### `px prompts`
+### `px prompt list`
 
 List all prompts.
 
 ```bash
-px prompts --format raw --no-progress | jq '.[].name'
+px prompt list --format raw --no-progress | jq '.[].name'
 ```
 
 ---
 
-### `px prompt <prompt-identifier>`
+### `px prompt get <prompt-identifier>`
 
 Fetch a prompt. The `text` format is ideal for piping to AI assistants.
 
 ```bash
-px prompt my-evaluator --format text --no-progress | claude -p "Review this prompt"
-px prompt my-evaluator --tag production --format json | jq '.template'
+px prompt get my-evaluator --format text --no-progress | claude -p "Review this prompt"
+px prompt get my-evaluator --tag production --format json | jq '.template'
 ```
 
 | Option              | Description                        | Default  |
@@ -235,14 +345,14 @@ px prompt my-evaluator --tag production --format json | jq '.template'
 
 ---
 
-### `px projects`
+### `px project list`
 
 List all available Phoenix projects.
 
 ```bash
-px projects                                           # pretty output
-px projects --format raw --no-progress | jq '.[].name'
-px projects --limit 5
+px project list                                           # pretty output
+px project list --format raw --no-progress | jq '.[].name'
+px project list --limit 5
 ```
 
 | Option              | Description                         | Default  |
@@ -253,50 +363,79 @@ px projects --limit 5
 
 ---
 
-### `px sessions`
+### `px session list`
 
 List sessions for a project.
 
 ```bash
-px sessions                                            # latest 10 sessions
-px sessions --limit 20 --order asc                     # oldest first
-px sessions --format raw --no-progress | jq '.[].session_id'
+px session list                                            # latest 10 sessions
+px session list --limit 20 --order asc                     # oldest first
+px session list --format raw --no-progress | jq '.[].session_id'
+px session list --include-annotations --include-notes --format raw | jq '.[].notes'
 ```
 
-| Option                 | Description                 | Default  |
-| ---------------------- | --------------------------- | -------- |
-| `-n, --limit <number>` | Maximum number of sessions  | `10`     |
-| `--order <order>`      | Sort order: `asc` or `desc` | `desc`   |
-| `--format <format>`    | `pretty`, `json`, or `raw`  | `pretty` |
-| `--no-progress`        | Suppress progress output    | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `-n, --limit <number>`  | Maximum number of sessions                   | `10`     |
+| `--order <order>`       | Sort order: `asc` or `desc`                  | `desc`   |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 
-### `px session <session-id>`
+### `px session get <session-id>`
 
 View a session's conversation flow.
 
 ```bash
-px session my-session-id
-px session my-session-id --file session.json
-px session my-session-id --include-annotations --format raw | jq '.traces'
+px session get my-session-id
+px session get my-session-id --file session.json
+px session get my-session-id --include-annotations --format raw | jq '.session.annotations'
+px session get my-session-id --include-notes --format raw | jq '.session.notes'
 ```
 
-| Option                  | Description                            | Default  |
-| ----------------------- | -------------------------------------- | -------- |
-| `--file <path>`         | Save session to file instead of stdout | —        |
-| `--include-annotations` | Include session annotations            | —        |
-| `--format <format>`     | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`         | Suppress progress output               | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `--file <path>`         | Save session to file instead of stdout       | —        |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 
-### `px annotation-config`
+### `px session annotate <session-id>`
+
+Create or update a human session annotation by GlobalID or user-provided `session_id`.
+
+```bash
+px session annotate my-session-id --name reviewer --label pass
+px session annotate my-session-id --name reviewer --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name evaluator --label pass --annotator-kind LLM
+px session annotate my-session-id --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px session add-note <session-id>`
+
+Add a note to a session by GlobalID or user-provided `session_id`. Requires Phoenix server `14.17.0` or newer.
+
+```bash
+px session add-note my-session-id --text "needs follow-up"
+px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
+
+---
+
+### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.
 
 ```bash
-px annotation-config --format raw --no-progress | jq '.[].name'
+px annotation-config list --format raw --no-progress | jq '.[].name'
 ```
 
 | Option              | Description                | Default  |
@@ -446,8 +585,8 @@ px docs fetch --refresh                      # clear output dir and re-download
 All commands output JSON. Use `--format raw` for compact JSON and `--no-progress` to suppress stderr when piping:
 
 ```bash
-px traces --format raw --no-progress | jq ...
-px datasets --format raw --no-progress | jq ...
+px trace list --format raw --no-progress | jq ...
+px dataset list --format raw --no-progress | jq ...
 ```
 
 Trace JSON structure:

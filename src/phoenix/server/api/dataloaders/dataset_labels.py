@@ -17,7 +17,7 @@ class DatasetLabelsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         dataset_ids = keys
-        async with self._db() as session:
+        async with self._db.read() as session:
             labels: dict[Key, Result] = {}
             for dataset_id, label in await session.execute(
                 select(models.DatasetsDatasetLabel.dataset_id, models.DatasetLabel)

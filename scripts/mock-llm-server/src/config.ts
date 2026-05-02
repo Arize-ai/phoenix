@@ -98,11 +98,11 @@ export function getConfig(): ServerConfig {
 
     // Streaming
     streamInitialDelayMs: parseInt(
-      process.env.STREAM_INITIAL_DELAY_MS || "300",
+      process.env.STREAM_INITIAL_DELAY_MS || "100",
       10
     ),
-    streamDelayMs: parseInt(process.env.STREAM_DELAY_MS || "50", 10),
-    streamJitterMs: parseInt(process.env.STREAM_JITTER_MS || "30", 10),
+    streamDelayMs: parseInt(process.env.STREAM_DELAY_MS || "10", 10),
+    streamJitterMs: parseInt(process.env.STREAM_JITTER_MS || "10", 10),
     streamChunkSize: parseInt(process.env.STREAM_CHUNK_SIZE || "10", 10),
 
     // Tool calls

@@ -8,7 +8,7 @@ export const promptInputContainerCSS = css`
   border-radius: var(--prompt-input-border-radius);
   transition: border-color 0.2s ease-in-out;
 
-  &:focus-within {
+  &[data-input-mode="prompt"]:focus-within {
     border-color: var(--prompt-input-border-color-focus);
   }
 `;

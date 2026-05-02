@@ -3,38 +3,13 @@ title: "Google Gen AI Evals"
 sidebarTitle: "Google Gen AI Evals"
 ---
 
-### GoogleGenAIModel
+### Using Google Gen AI with Phoenix Evals
 
 <Note>
 Need to install the extra dependency `google-genai>=1.0.0`
 </Note>
 
-```python
-class GoogleGenAIModel:
-    model: str = "gemini-2.5-flash"
-    """The model name to use."""
-    vertexai: Optional[bool] = None
-    """Whether to use VertexAI instead of the Developer API."""
-    api_key: Optional[str] = None
-    """Your Google API key. If not provided, will be read from environment variables."""
-    credentials: Optional["Credentials"] = None
-    """Google Cloud credentials for VertexAI access."""
-    project: Optional[str] = None
-    """Google Cloud project ID for VertexAI."""
-    location: Optional[str] = None
-    """Google Cloud location for VertexAI."""
-    initial_rate_limit: int = 5
-    """Initial rate limit for API calls per second."""
-```
-
-The `GoogleGenAIModel` provides access to Google's Gemini models through the Google GenAI SDK. This is Google's recommended approach for accessing Gemini models as of late 2024, providing a unified interface for both the Developer API and VertexAI.
-
-**Key Features**
-
-* **Multimodal Support**: Supports text, image, and audio inputs
-* **Async Support**: Fully async-compatible for high-throughput evaluations
-* **Flexible Authentication**: Works with both API keys and VertexAI credentials
-* **Rate Limiting**: Built-in dynamic rate limiting with automatic adjustment
+Use the `LLM` wrapper with `provider="google"` to access Google's Gemini models through the Google GenAI SDK.
 
 **Authentication Options**
 
@@ -47,91 +22,51 @@ export GOOGLE_API_KEY=your_api_key_here
 ```
 
 ```python
-from phoenix.evals import GoogleGenAIModel
+from phoenix.evals import LLM
 
-# API key will be read from environment
-model = GoogleGenAIModel()
+llm = LLM(provider="google", model="gemini-2.5-flash")
 ```
 
 **Option 2: Using VertexAI**
 
 ```python
-model = GoogleGenAIModel(
+from phoenix.evals import LLM
+
+llm = LLM(
+    provider="google",
+    model="gemini-2.5-flash",
     vertexai=True,
     project="your-project-id",
-    location="us-central1"
+    location="us-central1",
 )
 ```
 
 **Basic Usage**
 
 ```python
-from phoenix.evals import GoogleGenAIModel
+from phoenix.evals import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator
 
-# Initialize with default settings
-model = GoogleGenAIModel(model="gemini-2.5-flash")
+llm = LLM(provider="google", model="gemini-2.5-flash")
 
-# Simple text generation
-response = model("What is the capital of France?")
-print(response)  # "The capital of France is Paris."
-```
-
-**Multimodal Usage**
-
-**Image Input:**
-
-```python
-import base64
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPart, PromptPartContentType
-
-# Load and encode an image
-with open("image.jpg", "rb") as f:
-    image_bytes = f.read()
-image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-
-# Create multimodal prompt
-prompt = MultimodalPrompt(
-    parts=[
-        PromptPart(content_type=PromptPartContentType.TEXT, content="What's in this image?"),
-        PromptPart(content_type=PromptPartContentType.IMAGE, content=image_base64)
-    ]
-)
-
-response = model._generate(prompt=prompt)
-print(response)
-```
-
-**Audio Input:**
-
-```python
-# Load and encode audio
-with open("audio.wav", "rb") as f:
-    audio_bytes = f.read()
-audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
-
-prompt = MultimodalPrompt(
-    parts=[
-        PromptPart(content_type=PromptPartContentType.AUDIO, content=audio_base64)
-    ]
-)
-
-response = model._generate(prompt=prompt)
-print(response)
+evaluator = FaithfulnessEvaluator(llm=llm)
+result = evaluator.evaluate(eval_input={
+    "input": "What is the capital of France?",
+    "output": "Paris is the capital of France.",
+    "context": "Paris is the capital and largest city of France.",
+})
+result[0].pretty_print()
 ```
 
 **Supported Models**
 
-The GoogleGenAIModel supports all Gemini models available through the Google GenAI SDK, including:
+The Google provider supports all Gemini models available through the Google GenAI SDK, including:
 
 * `gemini-2.5-flash` (default)
 * `gemini-2.5-flash-001`
 * `gemini-2.0-flash-001`
 * `gemini-1.5-pro`
 * `gemini-1.5-flash`
-
-**Supported File Formats**
-
-**Images**: PNG, JPEG, WebP, HEIC, HEIF **Audio**: WAV, MP3, AIFF, AAC, OGG, FLAC
 
 <Note>
 We acknowledge [Siddharth Sahu](https://github.com/sahusiddharth) for this valuable contribution and support.

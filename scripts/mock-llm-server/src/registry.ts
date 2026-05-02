@@ -89,9 +89,9 @@ export interface DynamicConfig {
  * Default global configuration
  */
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
-  streamInitialDelayMs: 300,
-  streamDelayMs: 50,
-  streamJitterMs: 30,
+  streamInitialDelayMs: 100,
+  streamDelayMs: 10,
+  streamJitterMs: 10,
   streamChunkSize: 10,
   toolCallProbability: 1.0,
   errorRate: 0,

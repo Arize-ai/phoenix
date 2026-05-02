@@ -27,13 +27,55 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.constants.server_requirements import GET_SPANS_FILTERS, GET_SPANS_TRACE_IDS
+from phoenix.client.constants.server_requirements import (
+    GET_SPANS_BY_ATTRIBUTE,
+    GET_SPANS_FILTERS,
+    GET_SPANS_TRACE_IDS,
+)
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
 from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
+
+_AttributeValue: TypeAlias = Union[str, int, float, bool]
+_Attributes: TypeAlias = dict[str, _AttributeValue]
+
+
+def _serialize_attribute_value(v: _AttributeValue) -> str:
+    """Serialize a typed attribute value for the ``attribute=key:value`` query param.
+
+    - int/float: str(v). Non-finite floats raise ValueError.
+    - bool: json.dumps(v) → "true"/"false".
+    - str: passed as-is, unless it is empty or json.loads(v) would parse it as a
+      non-string type, in which case it is JSON-quoted to force string comparison
+      on the server.
+    """
+    if isinstance(v, bool):
+        return json.dumps(v)
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        import math
+
+        if not math.isfinite(v):
+            raise ValueError(f"Non-finite float values are not supported: {v!r}")
+        return str(v)
+    if v == "":
+        return json.dumps(v)
+    try:
+        parsed = json.loads(v)
+    except (json.JSONDecodeError, ValueError):
+        return v
+    if not isinstance(parsed, str):
+        return json.dumps(v)
+    return v
+
+
+def _serialize_attributes(attributes: _Attributes) -> list[str]:
+    return [f"{k}:{_serialize_attribute_value(v)}" for k, v in attributes.items()]
+
 
 # Re-export generated types
 AnnotateSpanDocumentsRequestBody = v1.AnnotateSpanDocumentsRequestBody
@@ -442,6 +484,7 @@ class Spans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -464,6 +507,14 @@ class Spans:
                 by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
+            attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
+                Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -472,11 +523,14 @@ class Spans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
         if trace_ids:
             self._guard.require(GET_SPANS_TRACE_IDS)
         if name or span_kind or status_code:
             self._guard.require(GET_SPANS_FILTERS)
+        if attributes:
+            self._guard.require(GET_SPANS_BY_ATTRIBUTE)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -505,6 +559,8 @@ class Spans:
                 params["status_code"] = (
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
+            if attributes:
+                params["attribute"] = _serialize_attributes(attributes)
             if cursor:
                 params["cursor"] = cursor
 
@@ -773,9 +829,11 @@ class Spans:
     ) -> InsertedSpanAnnotation:
         """Add a note to a span.
 
-        Notes are a special type of annotation that allow multiple entries per span
-        (unlike regular annotations which are unique by name and identifier). Each note
-        gets a unique timestamp-based identifier automatically.
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations, by contrast, are keyed by (name, span_id, identifier) — to keep
+        multiple structured annotations with the same name on a span, supply distinct
+        identifiers; otherwise re-writing the same name overwrites the existing one.
 
         Args:
             span_id (str): The OpenTelemetry span ID of the span to add the note to.
@@ -1704,6 +1762,7 @@ class AsyncSpans:
         name: Optional[Union[str, Sequence[str]]] = None,
         span_kind: Optional[Union[str, Sequence[str]]] = None,
         status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1726,6 +1785,14 @@ class AsyncSpans:
                 by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
             status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
                 filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
+            attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
+                Requires Phoenix server >= 14.9.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1734,11 +1801,14 @@ class AsyncSpans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
         if trace_ids:
             await self._guard.require(GET_SPANS_TRACE_IDS)
         if name or span_kind or status_code:
             await self._guard.require(GET_SPANS_FILTERS)
+        if attributes:
+            await self._guard.require(GET_SPANS_BY_ATTRIBUTE)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1767,6 +1837,8 @@ class AsyncSpans:
                 params["status_code"] = (
                     [status_code] if isinstance(status_code, str) else list(status_code)
                 )
+            if attributes:
+                params["attribute"] = _serialize_attributes(attributes)
             if cursor:
                 params["cursor"] = cursor
 
@@ -2034,9 +2106,11 @@ class AsyncSpans:
     ) -> InsertedSpanAnnotation:
         """Add a note to a span asynchronously.
 
-        Notes are a special type of annotation that allow multiple entries per span
-        (unlike regular annotations which are unique by name and identifier). Each note
-        gets a unique timestamp-based identifier automatically.
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations, by contrast, are keyed by (name, span_id, identifier) — to keep
+        multiple structured annotations with the same name on a span, supply distinct
+        identifiers; otherwise re-writing the same name overwrites the existing one.
 
         Args:
             span_id (str): The OpenTelemetry span ID of the span to add the note to.

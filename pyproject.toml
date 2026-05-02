@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10, <3.15"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,6 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "scikit-learn",
@@ -32,12 +33,11 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.287.3",
+  "strawberry-graphql==0.314.3",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
-  "wrapt>=1.17.2,<2",
-  "protobuf>=4.25.8",
+  "wrapt>=1.17.2,<3",
   "grpcio",
   "grpc-interceptor",
   "tqdm",
@@ -48,19 +48,22 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
-  "sqlalchemy[asyncio]>=2.0.4, <3",
+  "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
-  "aiosqlite",
+  "aiosqlite>=0.22.1",
   "aioitertools",
-  "sqlean.py>=3.45.1; platform_system != 'Windows'",
-  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # https://github.com/nalgeon/sqlean.py/commit/2714a4789998811b7dd9f102f5b45ea071ed879e
+  "sqlean.py>=3.45.1; platform_system != 'Windows' and python_version < '3.14'",
+  "sqlean.py>=3.50; platform_system != 'Windows' and python_version >= '3.14'",  # 3.49.1 has no cp314 wheels
+  "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=2.12.0",
+  "arize-phoenix-evals>=2.11.0",
   "arize-phoenix-otel>=0.15.0",
-  "fastapi",
+  "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "authlib",
+  "pydantic-ai>=1.87.0",
+  "authlib>=1.7.0",
+  "joserfc",
   "arize-phoenix-client>=2.1.0",
   "email-validator",
   "python-dateutil",
@@ -81,24 +84,22 @@ dev = [
   "twine",
   "aiobotocore>=3.1.1",
   "aioboto3",
-  "aiosqlite<0.22.0",  # new version is causing tests to hang
+  "aiosqlite>=0.22.1",
   "anthropic>=0.79.0",
   "arize>=8.1.0",
   "asgi-lifespan",
   "asyncpg",
-  "azure-identity",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "beautifulsoup4",
   "boto3",
   "debugpy",
   "deepdiff==8.6.2",
-  "diskcache",
   "Faker>=30.1.0",
   "freezegun",
   "google-genai>=1.0.0",
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx",
-  "httpx-ws",
   "jsonpath-ng",
   "ldap3",
   "litellm>1.61.15,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
@@ -120,14 +121,12 @@ dev = [
   "opentelemetry-semantic-conventions",
   "pandas>=1.0",
   "pandas-stubs==2.0.3.230814",
-  "portpicker",
   "prometheus_client",
   "psutil",
-  "psycopg[binary,pool]",
   "py-grpc-prometheus",
   "pyarrow-stubs",
   "pydantic>=1.0,!=2.0.*,<3",
-  "pydantic-ai>=1.62.0",
+  "mcp>=1.26.0",
   "pyjwt",
   "pypistats",  # this is needed to type-check third-party packages
   "pyright[nodejs]==1.1.394",
@@ -141,12 +140,13 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry]==0.287.3",
+  "strawberry-graphql[opentelemetry]==0.314.3",
   "syrupy",
   "tenacity",
   "tiktoken",
   "ty",
-  "types-aiobotocore-bedrock-runtime>=3.1.1",
+  "types-aiobotocore-bedrock-runtime>=3.4.0",
+  "types-aiobotocore-rds>=3.4.0",
   "types-beautifulsoup4",
   "types-cachetools",
   "types-jmespath",
@@ -177,10 +177,13 @@ evals = []
 experimental = []
 pg = [
   "asyncpg",
-  "psycopg[binary,pool]",
 ]
 aws = [
   "aioboto3",
+]
+azure = [
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
+  "aiohttp",  # required async HTTP transport for azure.identity.aio
 ]
 container = [
   "anthropic>=0.78.0",
@@ -188,7 +191,7 @@ container = [
   "google-genai ; python_version < '3.10'",
   "prometheus-client",
   "openai>=2.14.0",
-  "azure-identity",
+  "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   # Note: when updating opentelemetry dependencies, all packages must use versions
   # released on the same date (e.g., 1.39.1/0.60b1) to ensure compatibility.
@@ -200,7 +203,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.60b1",
   "opentelemetry-instrumentation-grpc==0.60b1",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.287.3",
+  "strawberry-graphql[opentelemetry]==0.314.3",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
 ]
@@ -280,9 +283,7 @@ exclude = [
   "packages/",
   "scripts/",
   "sdist/",
-  "src/phoenix/client/",
-  "src/phoenix/evals/",
-  "src/phoenix/otel/",
+  "src/phoenix/vendor/json_canonicalization_scheme/",
   "tutorials/",
   "js/",
 ]
@@ -312,6 +313,13 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.basedpyright]
+# Resolve imports against the uv-managed environment and src-layout package root.
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+pythonVersion = "3.10"
+
 [tool.ruff]
 exclude = [
   "api_reference",
@@ -322,6 +330,7 @@ exclude = [
   "*.pyi",
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
+  "src/phoenix/vendor/json_canonicalization_scheme",
 ]
 line-length = 100
 target-version = "py310"
@@ -344,7 +353,8 @@ line-ending = "native"
 script_location = "src/phoenix/db/migrations"  # enables `uv run alembic <command>`
 
 [tool.uv]
-required-version = "==0.10.9"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+required-version = "==0.11.8"  # When updating this version, also update the `backend-builder` image in the Dockerfile
+exclude-newer = "3 days"
 
 [tool.uv.workspace]
 members = ["packages/*"]

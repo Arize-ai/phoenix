@@ -10,8 +10,12 @@ Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-awar
 ## Installation
 
 ```sh
-pip install arize-phoenix-otel
+pip install "arize-phoenix-otel>=0.16.0"
 ```
+
+<Note>
+Starting in **0.16.0**, `phoenix.otel` re-exports the OpenInference context managers and semantic conventions, so manual instrumentation no longer requires separately installing `openinference-instrumentation` or `openinference-semantic-conventions`. On older versions, import them from `openinference.instrumentation` and `openinference.semconv.trace` instead.
+</Note>
 
 ## Quick Start
 
@@ -95,6 +99,39 @@ tracer_provider = register(
 <Note>
 Spans may not be exported if still queued in the processor when your process exits. With `batch=True`, call `tracer_provider.shutdown()` to explicitly flush before exit. Alternatively, use `batch=False` for immediate export or a context manager (`with register(...) as tracer_provider`).
 </Note>
+
+---
+
+## Manual Instrumentation Helpers
+
+`phoenix.otel` re-exports the OpenInference context managers and semantic conventions so you can add session, user, metadata, tag, prompt template, and suppression context — plus set OpenInference span attributes — from a single import:
+
+```python
+from phoenix.otel import (
+    # Context managers (usable as `with` blocks or decorators)
+    suppress_tracing,
+    using_attributes,
+    using_metadata,
+    using_prompt_template,
+    using_session,
+    using_tags,
+    using_user,
+    # OpenInference semantic conventions
+    SpanAttributes,
+    OpenInferenceSpanKindValues,
+    OpenInferenceMimeTypeValues,
+)
+
+with using_session(session_id="abc-123"):
+    # auto-instrumented spans inside this block inherit session.id
+    ...
+```
+
+<Info>
+Requires `arize-phoenix-otel>=0.16.0`. Lower-level helpers (`get_llm_attributes`, `TraceConfig`, `Message`, `Image`, …) continue to live in the `openinference-instrumentation` package.
+</Info>
+
+See [Using Tracing Helpers](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument) for a full walkthrough of manual instrumentation.
 
 ---
 

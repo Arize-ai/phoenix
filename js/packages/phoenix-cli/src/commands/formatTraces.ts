@@ -89,6 +89,8 @@ function formatTracePretty(trace: Trace): string {
     if (inputPreview || outputPreview) lines.push(`│`);
   }
 
+  renderTraceAnnotations(lines, trace);
+  renderTraceNotes(lines, trace);
   lines.push(`│  Spans:`);
 
   for (let i = 0; i < forest.length; i++) {
@@ -100,6 +102,42 @@ function formatTracePretty(trace: Trace): string {
 
   lines.push(`└─`);
   return lines.join("\n");
+}
+
+function renderTraceAnnotations(lines: string[], trace: Trace): void {
+  const annotations = trace.annotations;
+  if (!annotations?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Annotations:");
+  for (const annotation of annotations) {
+    const parts = [
+      annotation.name,
+      `[${annotation.annotator_kind}]`,
+      ...formatAnnotationResultParts(annotation.result),
+    ];
+    lines.push(`│  - ${parts.join(" ")}`);
+  }
+  lines.push("│");
+}
+
+function renderTraceNotes(lines: string[], trace: Trace): void {
+  const notes = trace.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  lines.push("│  Trace Notes:");
+  for (const note of notes) {
+    renderNoteLines({
+      lines,
+      text: note.result?.explanation,
+      firstLinePrefix: "│  - ",
+      continuationPrefix: "│    ",
+    });
+  }
+  lines.push("│");
 }
 
 type Span = Trace["spans"][number];
@@ -190,6 +228,8 @@ function renderSpanNode(
   );
 
   const nextAncestors = [...opts.ancestors, opts.isLast];
+  renderSpanAnnotations(lines, span, nextAncestors);
+  renderSpanNotes(lines, span, nextAncestors);
   for (let i = 0; i < children.length; i++) {
     renderSpanNode(lines, children[i]!, {
       ancestors: nextAncestors,
@@ -205,6 +245,89 @@ function formatDurationMs(startTime: string, endTime: string): string {
     return "n/a";
   }
   return `${Math.max(0, endMs - startMs)}ms`;
+}
+
+function renderSpanAnnotations(
+  lines: string[],
+  span: Span,
+  ancestors: boolean[]
+): void {
+  const annotations = span.annotations;
+  if (!annotations?.length) {
+    return;
+  }
+
+  const detailPrefix =
+    "│  " +
+    ancestors
+      .map((ancestorIsLast) => (ancestorIsLast ? "   " : "│  "))
+      .join("");
+
+  lines.push(`${detailPrefix}annotations:`);
+  for (const annotation of annotations) {
+    const parts = [
+      annotation.name,
+      `[${annotation.annotator_kind}]`,
+      ...formatAnnotationResultParts(annotation.result),
+    ];
+    lines.push(`${detailPrefix}- ${parts.join(" ")}`);
+  }
+}
+
+function renderSpanNotes(
+  lines: string[],
+  span: Span,
+  ancestors: boolean[]
+): void {
+  const notes = span.notes;
+  if (!notes?.length) {
+    return;
+  }
+
+  const detailPrefix =
+    "│  " +
+    ancestors
+      .map((ancestorIsLast) => (ancestorIsLast ? "   " : "│  "))
+      .join("");
+
+  lines.push(`${detailPrefix}notes:`);
+  for (const note of notes) {
+    renderNoteLines({
+      lines,
+      text: note.result?.explanation,
+      firstLinePrefix: `${detailPrefix}- `,
+      continuationPrefix: `${detailPrefix}  `,
+    });
+  }
+}
+
+function formatAnnotationResultParts(
+  result:
+    | {
+        label?: string | null;
+        score?: number | null;
+        explanation?: string | null;
+      }
+    | null
+    | undefined
+): string[] {
+  if (!result) {
+    return [];
+  }
+
+  const parts: string[] = [];
+  if (result.label !== undefined && result.label !== null) {
+    parts.push(`label=${JSON.stringify(result.label)}`);
+  }
+  if (result.score !== undefined && result.score !== null) {
+    parts.push(`score=${result.score}`);
+  }
+  if (result.explanation !== undefined && result.explanation !== null) {
+    parts.push(
+      `explanation=${JSON.stringify(truncateValue(result.explanation))}`
+    );
+  }
+  return parts;
 }
 
 function previewAttributeValue(value: unknown): string | undefined {
@@ -232,4 +355,46 @@ function previewAttributeValue(value: unknown): string | undefined {
     return `${str.slice(0, VALUE_PREVIEW_MAX_CHARS)}…`;
   }
   return str;
+}
+
+function truncateValue(value: string): string {
+  if (value.length <= VALUE_PREVIEW_MAX_CHARS) {
+    return value;
+  }
+  return value.slice(0, VALUE_PREVIEW_MAX_CHARS) + "…";
+}
+
+function formatNoteTextLines({
+  text,
+}: {
+  text: string | null | undefined;
+}): string[] {
+  if (!text) {
+    return ["(empty)"];
+  }
+
+  const normalizedText = text.replace(/\r\n?/g, "\n");
+  if (!normalizedText.trim()) {
+    return ["(empty)"];
+  }
+
+  return truncateValue(normalizedText).split("\n");
+}
+
+function renderNoteLines({
+  lines,
+  text,
+  firstLinePrefix,
+  continuationPrefix,
+}: {
+  lines: string[];
+  text: string | null | undefined;
+  firstLinePrefix: string;
+  continuationPrefix: string;
+}): void {
+  const noteLines = formatNoteTextLines({ text });
+  for (const [index, noteLine] of noteLines.entries()) {
+    const prefix = index === 0 ? firstLinePrefix : continuationPrefix;
+    lines.push(`${prefix}${noteLine}`);
+  }
 }

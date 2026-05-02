@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 1.0.2
+
+### Patch Changes
+
+- 1028be5: Bundle curated package docs and examples into npm packages under `docs/`.
+
 ## 1.0.1
 
 ### Patch Changes

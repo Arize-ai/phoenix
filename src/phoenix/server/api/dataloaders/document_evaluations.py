@@ -19,7 +19,7 @@ class DocumentEvaluationsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         document_annotations_by_id: defaultdict[Key, Result] = defaultdict(list)
         mda = models.DocumentAnnotation
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream_scalars(select(mda).where(mda.span_rowid.in_(keys)))
             async for document_evaluation in data:
                 document_annotations_by_id[document_evaluation.span_rowid].append(

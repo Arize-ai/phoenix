@@ -1619,6 +1619,20 @@ class ConfigMapValidators:
         return validator
 
     @staticmethod
+    def configmap_lacks_key(key: str) -> Validator:
+        """Validate that the Phoenix ConfigMap does not contain a specific key."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+            return key not in data
+
+        return validator
+
+    @staticmethod
     def env_from_references_configmap(configmap_name_contains: str) -> Validator:
         """Validate that envFrom references a ConfigMap with a specific name pattern."""
 
@@ -1688,7 +1702,7 @@ class DatabaseValidators:
     """Validators specific to database configuration (beyond PostgreSQL)."""
 
     @staticmethod
-    def aws_iam_auth(enabled: bool, token_lifetime: Optional[int] = None) -> Validator:
+    def aws_iam_auth(enabled: bool) -> Validator:
         """Validate AWS RDS IAM authentication configuration."""
 
         def validator(resources: list[dict[str, Any]]) -> bool:
@@ -1701,11 +1715,32 @@ class DatabaseValidators:
             if data.get("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH") != str(enabled).lower():
                 return False
 
-            if token_lifetime is not None and enabled:
-                if data.get("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS") != str(
-                    token_lifetime
-                ):
+            return True
+
+        return validator
+
+    @staticmethod
+    def azure_managed_identity(enabled: bool, scope: Optional[str] = None) -> Validator:
+        """Validate Azure managed identity authentication configuration."""
+
+        def validator(resources: list[dict[str, Any]]) -> bool:
+            config_map = find_resource(resources, "ConfigMap", "configmap")
+            if not config_map:
+                return False
+
+            data = config_map.get("data", {})
+
+            if enabled:
+                if data.get("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY") != "true":
                     return False
+            elif "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY" in data:
+                return False
+
+            if scope is not None:
+                if data.get("PHOENIX_POSTGRES_AZURE_SCOPE") != scope:
+                    return False
+            elif "PHOENIX_POSTGRES_AZURE_SCOPE" in data:
+                return False
 
             return True
 
@@ -2168,22 +2203,32 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
         ),
         TestCase(
             "PostgreSQL with AWS RDS IAM authentication",
-            "--set postgresql.enabled=false --set database.postgres.host=mydb.us-east-1.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix --set database.postgres.db=phoenix --set database.postgres.useAwsIamAuth=true --set database.postgres.awsIamTokenLifetimeSeconds=840",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.us-east-1.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix --set database.postgres.db=phoenix --set database.postgres.useAwsIamAuth=true",
             all_of(
                 no_postgresql,
                 ConfigMapValidators.configmap_has_key("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true"),
-                ConfigMapValidators.configmap_has_key(
-                    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS", "840"
-                ),
-                DatabaseValidators.aws_iam_auth(True, 840),
+                DatabaseValidators.aws_iam_auth(True),
             ),
         ),
         TestCase(
-            "PostgreSQL with AWS RDS IAM authentication (custom token lifetime)",
-            "--set postgresql.enabled=false --set database.postgres.host=mydb.region.rds.amazonaws.com --set database.postgres.port=5432 --set database.postgres.user=phoenix_user --set database.postgres.db=phoenix_db --set database.postgres.useAwsIamAuth=true --set database.postgres.awsIamTokenLifetimeSeconds=600",
+            "PostgreSQL with Azure managed identity authentication",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.postgres.database.azure.com --set database.postgres.port=5432 --set database.postgres.user=mi-user --set database.postgres.db=phoenix --set database.postgres.useAzureManagedIdentity=true",
             all_of(
                 no_postgresql,
-                DatabaseValidators.aws_iam_auth(True, 600),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true"
+                ),
+                DatabaseValidators.azure_managed_identity(True),
+            ),
+        ),
+        TestCase(
+            "PostgreSQL with Azure managed identity and custom scope",
+            "--set postgresql.enabled=false --set database.postgres.host=mydb.postgres.database.usgovcloudapi.net --set database.postgres.port=5432 --set database.postgres.user=mi-user --set database.postgres.db=phoenix --set database.postgres.useAzureManagedIdentity=true --set database.postgres.azureScope=https://ossrdbms-aad.database.usgovcloudapi.net/.default",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.azure_managed_identity(
+                    True, scope="https://ossrdbms-aad.database.usgovcloudapi.net/.default"
+                ),
             ),
         ),
         TestCase(
@@ -2208,6 +2253,16 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             all_of(
                 PostgreSQLValidators.is_enabled(),
                 DatabaseValidators.postgresql_credentials_set(),
+                ConfigMapValidators.configmap_lacks_key("PHOENIX_SQL_DATABASE_SCHEMA"),
+            ),
+        ),
+        TestCase(
+            "DB Config: non-empty database.postgres.schema sets PHOENIX_SQL_DATABASE_SCHEMA",
+            "--set postgresql.enabled=true --set persistence.enabled=false --set database.postgres.schema=phoenix_app",
+            all_of(
+                PostgreSQLValidators.is_enabled(),
+                DatabaseValidators.postgresql_credentials_set(),
+                ConfigMapValidators.configmap_has_key("PHOENIX_SQL_DATABASE_SCHEMA", "phoenix_app"),
             ),
         ),
         TestCase(
@@ -2234,6 +2289,20 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 no_postgresql,
                 DatabaseValidators.custom_database_url(
                     "postgresql://myuser:mypass@external.db:5432/phoenix"
+                ),
+            ),
+        ),
+        TestCase(
+            "DB Config: Read replica URL sets PHOENIX_SQL_DATABASE_READ_REPLICA_URL",
+            "--set postgresql.enabled=false --set persistence.enabled=false --set database.url='postgresql://myuser:mypass@primary.db:5432/phoenix' --set database.readReplicaUrl='postgresql://myuser:mypass@replica.db:5432/phoenix' --set database.postgres.host=phoenix-postgresql --set database.postgres.user=postgres --set database.postgres.password=postgres --set database.postgres.db=phoenix --set database.postgres.port=5432",
+            all_of(
+                no_postgresql,
+                DatabaseValidators.custom_database_url(
+                    "postgresql://myuser:mypass@primary.db:5432/phoenix"
+                ),
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_SQL_DATABASE_READ_REPLICA_URL",
+                    "postgresql://myuser:mypass@replica.db:5432/phoenix",
                 ),
             ),
         ),

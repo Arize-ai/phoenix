@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -754,7 +755,9 @@ class EvaluatorMutationMixin:
             user_id = int(user.identity)
 
         input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
+            input.input_mapping
+            if input.input_mapping is not None
+            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
         )
 
         try:
@@ -840,7 +843,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
 
         input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping if input.input_mapping is not None else EvaluatorInputMappingInput()
+            input.input_mapping
+            if input.input_mapping is not None
+            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
         )
 
         user_id: Optional[int] = None

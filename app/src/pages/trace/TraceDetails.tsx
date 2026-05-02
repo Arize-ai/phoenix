@@ -22,9 +22,12 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { TraceAgentChatPanel } from "@phoenix/components/agent/TraceAgentChatPanel";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
+import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -145,21 +148,24 @@ export function TraceDetails(props: TraceDetailsProps) {
         `}
       >
         <Panel id="trace-tree" defaultSize="30%" minSize="5%">
-          <ScrollingPanelContent>
-            <ConnectedTraceTree
-              trace={data.project.trace}
-              selectedSpanNodeId={selectedSpanNodeId}
-              onSpanClick={(span) => {
-                setSearchParams(
-                  (searchParams) => {
-                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
-                    return searchParams;
-                  },
-                  { replace: true }
-                );
-              }}
-            />
-          </ScrollingPanelContent>
+          <TraceTreeProvider>
+            <ScrollingPanelContent>
+              <TraceTreeToolbar />
+              <ConnectedTraceTree
+                trace={data.project.trace}
+                selectedSpanNodeId={selectedSpanNodeId}
+                onSpanClick={(span) => {
+                  setSearchParams(
+                    (searchParams) => {
+                      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+                      return searchParams;
+                    },
+                    { replace: true }
+                  );
+                }}
+              />
+            </ScrollingPanelContent>
+          </TraceTreeProvider>
         </Panel>
         <Separator css={compactResizeHandleCSS} />
         <Panel id="span-details">
@@ -171,6 +177,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             ) : null}
           </ScrollingTabsWrapper>
         </Panel>
+        <TraceAgentChatPanel />
       </Group>
     </main>
   );

@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterable
 from datetime import datetime
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
@@ -35,6 +35,9 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
+
+if TYPE_CHECKING:
+    from .ExperimentJob import ExperimentJob
 
 
 @strawberry.type
@@ -83,7 +86,7 @@ class Dataset(Node):
             val = await info.context.data_loaders.dataset_fields.load(
                 (self.id, models.Dataset.metadata_),
             )
-        return val
+        return JSON(val)
 
     @strawberry.field
     async def created_at(
@@ -127,7 +130,7 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.DatasetVersion).filter_by(dataset_id=self.id)
             if sort:
                 # For now assume the the column names match 1:1 with the enum values
@@ -221,7 +224,7 @@ class Dataset(Node):
                 .where(models.DatasetExampleRevision.revision_kind != "DELETE")
             )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -293,7 +296,7 @@ class Dataset(Node):
                     models.DatasetExampleRevision.revision_kind != "DELETE",
                 )
             )
-            .order_by(models.DatasetExample.id.desc())
+            .order_by(models.DatasetExample.id.asc())
         )
 
         # Filter by split IDs if provided
@@ -320,7 +323,7 @@ class Dataset(Node):
             )
             query = query.where(filter_condition)
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             dataset_examples = [
                 DatasetExample(
                     id=example.id,
@@ -346,6 +349,7 @@ class Dataset(Node):
         self,
         info: Info[Context, None],
         dataset_version_id: Optional[GlobalID] = UNSET,
+        include_ephemeral: Optional[bool] = False,
     ) -> int:
         stmt = select(count(models.Experiment.id)).where(models.Experiment.dataset_id == self.id)
         version_id = (
@@ -358,7 +362,9 @@ class Dataset(Node):
         )
         if version_id is not None:
             stmt = stmt.where(models.Experiment.dataset_version_id == version_id)
-        async with info.context.db() as session:
+        if not include_ephemeral:
+            stmt = stmt.where(models.Experiment.is_ephemeral.is_(False))
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -369,6 +375,7 @@ class Dataset(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        include_ephemeral: Optional[bool] = False,
         filter_condition: Optional[str] = UNSET,
         filter_ids: Optional[
             list[GlobalID]
@@ -387,6 +394,8 @@ class Dataset(Node):
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.desc())
         )
+        if not include_ephemeral:
+            query = query.where(models.Experiment.is_ephemeral.is_(False))
         if filter_condition is not UNSET and filter_condition:
             # Search both name and description columns with case-insensitive partial matching
             search_filter = or_(
@@ -409,7 +418,7 @@ class Dataset(Node):
                     raise BadRequest(f"Invalid filter ID: {filter_id}")
             query = query.where(models.Experiment.id.in_(filter_rowids))
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             experiments = [
                 to_gql_experiment(experiment, sequence_number)
                 async for experiment, sequence_number in cast(
@@ -418,6 +427,34 @@ class Dataset(Node):
                 )
             ]
         return connection_from_list(data=experiments, args=args)
+
+    @strawberry.field
+    async def experiment_jobs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Annotated["ExperimentJob", strawberry.lazy(".ExperimentJob")]]:
+        from .ExperimentJob import ExperimentJob
+
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
+            stmt = (
+                select(models.ExperimentJob)
+                .join(models.Experiment)
+                .where(models.Experiment.dataset_id == self.id)
+                .order_by(models.ExperimentJob.created_at.desc())
+            )
+            results = await session.scalars(stmt)
+            jobs = [ExperimentJob(id=config.id, db_record=config) for config in results]
+        return connection_from_list(data=jobs, args=args)
 
     @strawberry.field
     async def experiment_annotation_summaries(
@@ -443,7 +480,7 @@ class Dataset(Node):
             .group_by(models.ExperimentRunAnnotation.name)
             .order_by(models.ExperimentRunAnnotation.name)
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return [
                 DatasetExperimentAnnotationSummary(
                     annotation_name=scores_tuple.annotation_name,
@@ -468,7 +505,7 @@ class Dataset(Node):
         stmt = select(count(models.DatasetEvaluators.id)).where(
             models.DatasetEvaluators.dataset_id == self.id
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
 
     @strawberry.field
@@ -487,7 +524,7 @@ class Dataset(Node):
             models.DatasetEvaluators.dataset_id == self.id,
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             dataset_evaluator = await session.scalar(stmt)
             if dataset_evaluator is None:
                 raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
@@ -537,7 +574,7 @@ class Dataset(Node):
         else:
             stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.scalars(stmt)
             data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
         # TODO: we need to handle sorting for builtin evaluators as their "kind"

@@ -26,6 +26,6 @@ class TraceRootSpansDataLoader(DataLoader[Key, Result]):
             .where(models.Span.parent_id.is_(None))
             .where(models.Trace.id.in_(keys))
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             result: dict[Key, int] = {k: v async for k, v in await session.stream(stmt)}
         return [result.get(key) for key in keys]

@@ -19,6 +19,6 @@ class SpanCostBySpanDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         stmt = select(models.SpanCost).where(models.SpanCost.span_rowid.in_(keys))
-        async with self._db() as session:
+        async with self._db.read() as session:
             result = {sc.span_rowid: sc async for sc in await session.stream_scalars(stmt)}
         return list(map(result.get, keys))

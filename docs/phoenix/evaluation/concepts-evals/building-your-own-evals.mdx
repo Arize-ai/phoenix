@@ -84,10 +84,10 @@ The above template shows an example creation of an easy to use string template. 
 This example shows a use of the custom created template on the `df` dataframe.
 
 ```python
-from phoenix.evals.evaluators import async_evaluate_dataframe
-from phoenix.evals import create_classifier
+from phoenix.evals import async_evaluate_dataframe
+from phoenix.evals import ClassificationEvaluator
 
-tone_evaluator = create_classifier(
+tone_evaluator = ClassificationEvaluator(
     name="tone",
     llm=llm,
     prompt_template=MY_CUSTOM_TEMPLATE,

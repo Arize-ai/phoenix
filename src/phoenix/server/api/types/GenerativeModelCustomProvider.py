@@ -16,6 +16,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.RedactedString import RedactedString
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.User import User
@@ -38,7 +39,7 @@ class UnparsableConfig:
 class AzureADTokenProvider:
     azure_tenant_id: str
     azure_client_id: str
-    azure_client_secret: str
+    azure_client_secret: RedactedString
     scope: str
 
     @classmethod
@@ -46,18 +47,18 @@ class AzureADTokenProvider:
         return cls(
             azure_tenant_id=provider.azure_tenant_id,
             azure_client_id=provider.azure_client_id,
-            azure_client_secret=provider.azure_client_secret,
+            azure_client_secret=RedactedString(provider.azure_client_secret),
             scope=provider.scope,
         )
 
 
 @strawberry.type
 class OpenAIAuthenticationMethod:
-    api_key: str | None = UNSET
+    api_key: RedactedString | None = UNSET
 
     @classmethod
     def from_orm(cls, method: mp.OpenAIAuthenticationMethod) -> Self:
-        return cls(api_key=method.api_key)
+        return cls(api_key=RedactedString(method.api_key))
 
 
 @strawberry.type
@@ -75,7 +76,9 @@ class OpenAIClientKwargs:
             base_url=kwargs.base_url,
             organization=kwargs.organization,
             project=kwargs.project,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -98,7 +101,7 @@ class OpenAICustomProviderConfig:
 
 @strawberry.type
 class AzureOpenAIAuthenticationMethod:
-    api_key: str | None = UNSET
+    api_key: RedactedString | None = UNSET
     azure_ad_token_provider: AzureADTokenProvider | None = UNSET
     default_credentials: bool | None = strawberry.field(
         default=UNSET,
@@ -109,7 +112,7 @@ class AzureOpenAIAuthenticationMethod:
     def from_orm(cls, method: mp.AzureOpenAIAuthenticationMethod) -> Self:
         if method.type == "api_key":
             return cls(
-                api_key=method.api_key,
+                api_key=RedactedString(method.api_key),
                 azure_ad_token_provider=None,
                 default_credentials=None,
             )
@@ -137,7 +140,9 @@ class AzureOpenAIClientKwargs:
     def from_orm(cls, kwargs: mp.AzureOpenAIClientKwargs) -> Self:
         return cls(
             azure_endpoint=kwargs.azure_endpoint,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -162,11 +167,11 @@ class AzureOpenAICustomProviderConfig:
 
 @strawberry.type
 class AnthropicAuthenticationMethod:
-    api_key: str | None = UNSET
+    api_key: RedactedString | None = UNSET
 
     @classmethod
     def from_orm(cls, method: mp.AnthropicAuthenticationMethod) -> Self:
-        return cls(api_key=method.api_key)
+        return cls(api_key=RedactedString(method.api_key))
 
 
 @strawberry.type
@@ -180,7 +185,9 @@ class AnthropicClientKwargs:
             return None
         return cls(
             base_url=kwargs.base_url,
-            default_headers=kwargs.default_headers,
+            default_headers=JSON(kwargs.default_headers)
+            if kwargs.default_headers is not None
+            else None,
         )
 
 
@@ -204,15 +211,19 @@ class AWSBedrockAccessKeys:
     """AWS access key credentials."""
 
     aws_access_key_id: str
-    aws_secret_access_key: str
-    aws_session_token: str | None = UNSET
+    aws_secret_access_key: RedactedString
+    aws_session_token: RedactedString | None = UNSET
 
     @classmethod
     def from_orm(cls, method: mp.AWSBedrockAuthenticationMethodAccessKeys) -> Self:
         return cls(
             aws_access_key_id=method.aws_access_key_id,
-            aws_secret_access_key=method.aws_secret_access_key,
-            aws_session_token=method.aws_session_token,
+            aws_secret_access_key=RedactedString(method.aws_secret_access_key),
+            aws_session_token=(
+                RedactedString(method.aws_session_token)
+                if method.aws_session_token is not None
+                else None
+            ),
         )
 
 
@@ -274,11 +285,11 @@ class AWSBedrockCustomProviderConfig:
 
 @strawberry.type
 class GoogleGenAIAuthenticationMethod:
-    api_key: str | None = UNSET
+    api_key: RedactedString | None = UNSET
 
     @classmethod
     def from_orm(cls, method: mp.GoogleGenAIAuthenticationMethod) -> Self:
-        return cls(api_key=method.api_key)
+        return cls(api_key=RedactedString(method.api_key))
 
 
 @strawberry.type
@@ -292,7 +303,7 @@ class GoogleGenAIHttpOptions:
             return None
         return cls(
             base_url=http_options.base_url,
-            headers=dict(http_options.headers) if http_options.headers else None,
+            headers=JSON(dict(http_options.headers)) if http_options.headers else None,
         )
 
 

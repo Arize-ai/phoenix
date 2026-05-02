@@ -67,7 +67,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get span annotations for a list of span_ids. */
+        /**
+         * Get span annotations filtered by span_ids and/or identifier.
+         * @description Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSpanAnnotationsBySpanIds"];
         put?: never;
         post?: never;
@@ -84,7 +87,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get trace annotations for a list of trace_ids. */
+        /**
+         * Get trace annotations filtered by trace_ids and/or identifier.
+         * @description Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listTraceAnnotationsByTraceIds"];
         put?: never;
         post?: never;
@@ -101,7 +107,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get session annotations for a list of session_ids. */
+        /**
+         * Get session annotations filtered by session_ids and/or identifier.
+         * @description Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.
+         */
         get: operations["listSessionAnnotationsBySessionIds"];
         put?: never;
         post?: never;
@@ -206,6 +215,23 @@ export interface paths {
         };
         /** Download dataset examples as CSV file */
         get: operations["getDatasetCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{id}/jsonl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download dataset examples as JSONL file */
+        get: operations["getDatasetJSONL"];
         put?: never;
         post?: never;
         delete?: never;
@@ -458,6 +484,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/trace_notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a trace note
+         * @description Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.
+         */
+        post: operations["createTraceNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/traces/{trace_identifier}": {
         parameters: {
             query?: never;
@@ -554,7 +600,7 @@ export interface paths {
         put?: never;
         /**
          * Create a span note
-         * @description Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.
+         * @description Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.
          */
         post: operations["createSpanNote"];
         delete?: never;
@@ -590,24 +636,6 @@ export interface paths {
          *             **Note**: This operation is irreversible and may create orphaned spans.
          */
         delete: operations["deleteSpan"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/evaluations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get span, trace, or document evaluations from a project */
-        get: operations["getEvaluations"];
-        put?: never;
-        /** Add span, trace, or document evaluations */
-        post: operations["addEvaluations"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -736,6 +764,46 @@ export interface paths {
          */
         post: operations["createPromptVersionTag"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a tag from a prompt version
+         * @description Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.
+         */
+        delete: operations["deletePromptVersionTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompts/{prompt_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a prompt
+         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         */
+        delete: operations["deletePrompt"];
         options?: never;
         head?: never;
         patch?: never;
@@ -872,6 +940,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/session_notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a session note
+         * @description Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.
+         */
+        post: operations["createSessionNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/document_annotations": {
         parameters: {
             query?: never;
@@ -948,6 +1036,26 @@ export interface paths {
          * @description Delete an existing user by their unique GlobalID.
          */
         delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upsert or delete secrets
+         * @description Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. The `value` field is required for every entry, and omitting it returns 422. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.
+         */
+        put: operations["upsertOrDeleteSecrets"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1223,6 +1331,14 @@ export interface components {
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
+        /** CreateSessionNoteRequestBody */
+        CreateSessionNoteRequestBody: {
+            data: components["schemas"]["SessionNoteData"];
+        };
+        /** CreateSessionNoteResponseBody */
+        CreateSessionNoteResponseBody: {
+            data: components["schemas"]["InsertedSessionAnnotation"];
+        };
         /** CreateSpanNoteRequestBody */
         CreateSpanNoteRequestBody: {
             data: components["schemas"]["SpanNoteData"];
@@ -1248,6 +1364,14 @@ export interface components {
              * @description Number of spans successfully queued for insertion
              */
             total_queued: number;
+        };
+        /** CreateTraceNoteRequestBody */
+        CreateTraceNoteRequestBody: {
+            data: components["schemas"]["TraceNoteData"];
+        };
+        /** CreateTraceNoteResponseBody */
+        CreateTraceNoteResponseBody: {
+            data: components["schemas"]["InsertedTraceAnnotation"];
         };
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
@@ -1293,6 +1417,8 @@ export interface components {
         DatasetExample: {
             /** Id */
             id: string;
+            /** Node Id */
+            node_id: string;
             /** Input */
             input: {
                 [key: string]: unknown;
@@ -2145,8 +2271,34 @@ export interface components {
             top_p?: number;
             /** Stop Sequences */
             stop_sequences?: string[];
+            output_config?: components["schemas"]["PromptAnthropicOutputConfig"];
             /** Thinking */
-            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
+            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"] | components["schemas"]["PromptAnthropicThinkingConfigAdaptive"];
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PromptAnthropicOutputConfig */
+        PromptAnthropicOutputConfig: {
+            /**
+             * Effort
+             * @enum {string}
+             */
+            effort?: "low" | "medium" | "high" | "xhigh" | "max";
+        };
+        /** PromptAnthropicThinkingConfigAdaptive */
+        PromptAnthropicThinkingConfigAdaptive: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "adaptive";
+            /**
+             * Display
+             * @enum {string}
+             */
+            display?: "summarized" | "omitted";
         };
         /** PromptAnthropicThinkingConfigDisabled */
         PromptAnthropicThinkingConfigDisabled: {
@@ -2165,6 +2317,11 @@ export interface components {
             type: "enabled";
             /** Budget Tokens */
             budget_tokens: number;
+            /**
+             * Display
+             * @enum {string}
+             */
+            display?: "summarized" | "omitted";
         };
         /** PromptAwsInvocationParameters */
         PromptAwsInvocationParameters: {
@@ -2183,6 +2340,8 @@ export interface components {
             temperature?: number;
             /** Top P */
             top_p?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
         };
         /** PromptAzureOpenAIInvocationParameters */
         PromptAzureOpenAIInvocationParameters: {
@@ -2209,11 +2368,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptCerebrasInvocationParameters */
         PromptCerebrasInvocationParameters: {
@@ -2240,11 +2405,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptChatTemplate */
         PromptChatTemplate: {
@@ -2293,11 +2464,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptFireworksInvocationParameters */
         PromptFireworksInvocationParameters: {
@@ -2324,11 +2501,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptGoogleInvocationParameters */
         PromptGoogleInvocationParameters: {
@@ -2355,6 +2538,19 @@ export interface components {
             top_p?: number;
             /** Top K */
             top_k?: number;
+            thinking_config?: components["schemas"]["PromptGoogleThinkingConfig"];
+        };
+        /** PromptGoogleThinkingConfig */
+        PromptGoogleThinkingConfig: {
+            /** Thinking Budget */
+            thinking_budget?: number;
+            /**
+             * Thinking Level
+             * @enum {string}
+             */
+            thinking_level?: "minimal" | "low" | "medium" | "high";
+            /** Include Thoughts */
+            include_thoughts?: boolean;
         };
         /** PromptGroqInvocationParameters */
         PromptGroqInvocationParameters: {
@@ -2381,11 +2577,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptMessage */
         PromptMessage: {
@@ -2422,11 +2624,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptOllamaInvocationParameters */
         PromptOllamaInvocationParameters: {
@@ -2453,11 +2661,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
@@ -2484,11 +2698,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptPerplexityInvocationParameters */
         PromptPerplexityInvocationParameters: {
@@ -2515,11 +2735,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
@@ -2588,11 +2814,17 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
         };
         /** PromptToolChoiceNone */
         PromptToolChoiceNone: {
@@ -2739,11 +2971,34 @@ export interface components {
             top_p?: number;
             /** Seed */
             seed?: number;
+            /** Stop */
+            stop?: string[];
             /**
              * Reasoning Effort
              * @enum {string}
              */
             reasoning_effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+            /** Extra Body */
+            extra_body?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ResponseBody[UpsertOrDeleteSecretsResult] */
+        ResponseBody_UpsertOrDeleteSecretsResult_: {
+            data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+        };
+        /**
+         * SecretKeyValue
+         * @description A single secret entry specifying a key and a required nullable value.
+         */
+        SecretKeyValue: {
+            /** Key */
+            key: string;
+            /**
+             * Value
+             * @description Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422.
+             */
+            value: string | null;
         };
         /** SessionAnnotation */
         SessionAnnotation: {
@@ -2860,6 +3115,19 @@ export interface components {
             /** Traces */
             traces: components["schemas"]["SessionTraceData"][];
         };
+        /** SessionNoteData */
+        SessionNoteData: {
+            /**
+             * Session Id
+             * @description Session ID
+             */
+            session_id: string;
+            /**
+             * Note
+             * @description The note text to add to the session
+             */
+            note: string;
+        };
         /** SessionTraceData */
         SessionTraceData: {
             /** Id */
@@ -2877,7 +3145,27 @@ export interface components {
              */
             end_time: string;
         };
-        /** Span */
+        /**
+         * Span
+         * @example {
+         *       "attributes": {
+         *         "llm.model_name": "gpt-4",
+         *         "llm.token_count.completion": 50,
+         *         "llm.token_count.prompt": 100
+         *       },
+         *       "context": {
+         *         "span_id": "1a2b3c4d5e6f7a8b",
+         *         "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *       },
+         *       "end_time": "2024-01-01T12:00:01Z",
+         *       "events": [],
+         *       "name": "llm_call",
+         *       "span_kind": "LLM",
+         *       "start_time": "2024-01-01T12:00:00Z",
+         *       "status_code": "OK",
+         *       "status_message": ""
+         *     }
+         */
         Span: {
             /**
              * Id
@@ -3032,7 +3320,13 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** SpanContext */
+        /**
+         * SpanContext
+         * @example {
+         *       "span_id": "1a2b3c4d5e6f7a8b",
+         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *     }
+         */
         SpanContext: {
             /**
              * Trace Id
@@ -3084,7 +3378,16 @@ export interface components {
              */
             document_position: number;
         };
-        /** SpanEvent */
+        /**
+         * SpanEvent
+         * @example {
+         *       "attributes": {
+         *         "exception.message": "Connection refused"
+         *       },
+         *       "name": "exception",
+         *       "timestamp": "2024-01-01T12:00:00Z"
+         *     }
+         */
         SpanEvent: {
             /**
              * Name
@@ -3288,6 +3591,19 @@ export interface components {
             /** Spans */
             spans?: components["schemas"]["TraceSpanData"][] | null;
         };
+        /** TraceNoteData */
+        TraceNoteData: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry Trace ID (hex format w/o 0x prefix)
+             */
+            trace_id: string;
+            /**
+             * Note
+             * @description The note text to add to the trace
+             */
+            note: string;
+        };
         /** TraceSpanData */
         TraceSpanData: {
             /** Id */
@@ -3333,6 +3649,12 @@ export interface components {
             dataset_id: string;
             /** Version Id */
             version_id: string;
+            /** Num Created Examples */
+            num_created_examples: number;
+            /** Num Updated Examples */
+            num_updated_examples: number;
+            /** Num Deleted Examples */
+            num_deleted_examples: number;
         };
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
@@ -3399,6 +3721,24 @@ export interface components {
              * @description The ID of the upserted experiment evaluation
              */
             id: string;
+        };
+        /**
+         * UpsertOrDeleteSecretsRequest
+         * @description Request body for the PUT /secrets endpoint.
+         */
+        UpsertOrDeleteSecretsRequest: {
+            /** Secrets */
+            secrets: components["schemas"]["SecretKeyValue"][];
+        };
+        /**
+         * UpsertOrDeleteSecretsResult
+         * @description Result payload listing which keys were upserted and which were deleted.
+         */
+        UpsertOrDeleteSecretsResult: {
+            /** Upserted Keys */
+            upserted_keys: string[];
+            /** Deleted Keys */
+            deleted_keys: string[];
         };
         /** ValidationError */
         ValidationError: {
@@ -3636,9 +3976,11 @@ export interface operations {
     };
     listSpanAnnotationsBySpanIds: {
         parameters: {
-            query: {
-                /** @description One or more span id to fetch annotations for */
-                span_ids: string[];
+            query?: {
+                /** @description Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                span_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -3697,9 +4039,11 @@ export interface operations {
     };
     listTraceAnnotationsByTraceIds: {
         parameters: {
-            query: {
-                /** @description One or more trace id to fetch annotations for */
-                trace_ids: string[];
+            query?: {
+                /** @description Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                trace_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -3758,9 +4102,11 @@ export interface operations {
     };
     listSessionAnnotationsBySessionIds: {
         parameters: {
-            query: {
-                /** @description One or more session id to fetch annotations for */
-                session_ids: string[];
+            query?: {
+                /** @description Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied. */
+                session_ids?: string[] | null;
+                /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters. */
+                identifier?: string[] | null;
                 /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
@@ -4020,7 +4366,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     inputs: Record<string, unknown>[];
@@ -4030,21 +4376,27 @@ export interface operations {
                     splits?: (string | string[] | null)[];
                     /** @description Span IDs to link examples back to spans */
                     span_ids?: (string | null)[];
+                    /** @description Optional example ID per example. If provided, it is used as the example's stable public ID. */
+                    example_ids?: (string | null)[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
-                    action?: "create" | "append";
+                    action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];
-                    /** @description Column names for auto-assigning examples to splits */
+                    /** @description Deprecated: use split_key instead. Column names for auto-assigning examples to splits */
                     "split_keys[]"?: string[];
+                    /** @description Single column name containing split names (plain string or JSON list) per row */
+                    split_key?: string;
                     /** @description Column names whose object values should be flattened into their selected bucket */
                     "flatten_keys[]"?: string[];
                     /** @description Column name for span IDs to link examples back to spans */
                     span_id_key?: string;
+                    /** @description Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes. */
+                    example_id_key?: string;
                     /** Format: binary */
                     file: string;
                 };
@@ -4069,7 +4421,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Dataset of the same name already exists */
+            /** @description Dataset with the given name already exists (action=create). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4178,6 +4530,50 @@ export interface operations {
                 };
             };
             /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetJSONL: {
+        parameters: {
+            query?: {
+                /** @description The ID of the dataset version (if omitted, returns data from the latest version) */
+                version_id?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset or version ID */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4970,6 +5366,57 @@ export interface operations {
             };
         };
     };
+    createTraceNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTraceNoteRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Trace note created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTraceNoteResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     deleteTrace: {
         parameters: {
             query?: never;
@@ -5037,6 +5484,8 @@ export interface operations {
                 name?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
+                /** @description Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:"12345"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value). */
+                attribute?: string[] | null;
             };
             header?: never;
             path: {
@@ -5106,6 +5555,8 @@ export interface operations {
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
+                /** @description Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:"12345"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value). */
+                attribute?: string[] | null;
             };
             header?: never;
             path: {
@@ -5366,109 +5817,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    getEvaluations: {
-        parameters: {
-            query?: {
-                /** @description The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project) */
-                project_name?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    addEvaluations: {
-        parameters: {
-            query?: never;
-            header?: {
-                "content-type"?: string | null;
-                "content-encoding"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/x-protobuf": string;
-                "application/x-pandas-arrow": string;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
-            415: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
                 };
             };
         };
@@ -5837,6 +6185,104 @@ export interface operations {
         };
         responses: {
             /** @description No content returned on successful tag creation */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deletePromptVersionTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+                /** @description The name of the tag to delete. */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful tag deletion */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deletePrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -6362,6 +6808,57 @@ export interface operations {
             };
         };
     };
+    createSessionNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionNoteRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Session note created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateSessionNoteResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     annotateSpanDocuments: {
         parameters: {
             query?: {
@@ -6596,6 +7093,57 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    upsertOrDeleteSecrets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertOrDeleteSecretsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResponseBody_UpsertOrDeleteSecretsResult_"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
                 headers: {
                     [name: string]: unknown;
                 };

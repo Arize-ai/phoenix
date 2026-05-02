@@ -9,18 +9,12 @@ import {
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
 
-import {
-  Flex,
-  LazyTabPanel,
-  Loading,
-  Tab,
-  TabList,
-  Tabs,
-} from "@phoenix/components";
+import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -72,12 +66,17 @@ export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
   return (
-    <Suspense fallback={<Loading />}>
-      <ProjectPageContent
-        projectId={projectId as string}
-        timeRange={timeRange}
-      />
-    </Suspense>
+    <>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<Loading />}>
+        <ProjectPageContent
+          projectId={projectId as string}
+          timeRange={timeRange}
+        />
+      </Suspense>
+    </>
   );
 }
 
@@ -135,7 +134,7 @@ function ProjectPageContentBody({
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
           ... on Project {
-            ...ProjectPageHeader_stats
+            ...ProjectStats_project
             ...StreamToggle_data
           }
         }
@@ -236,15 +235,10 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
-      <ProjectPageHeader
-        project={data.project}
-        extra={
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <StreamToggle project={data.project} />
-            <ConnectedTimeRangeSelector />
-          </Flex>
-        }
-      />
+      <TopNavActions order={-1}>
+        <StreamToggle project={data.project} />
+      </TopNavActions>
+      <ProjectPageHeader project={data.project} />
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,

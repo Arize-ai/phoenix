@@ -2,7 +2,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -10,8 +10,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
-from pydantic import Field
-from sqlalchemy import delete, or_, select
+from pydantic import BeforeValidator, Field
+from sqlalchemy import delete, insert, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -22,13 +22,18 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
@@ -131,7 +136,7 @@ async def list_project_traces(
         ),
     ),
 ) -> GetTracesResponseBody:
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
 
@@ -355,6 +360,14 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/trace_notes instead."
+            ),
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -401,6 +414,97 @@ async def annotate_traces(
             InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(id_))))
             for id_ in inserted_ids
         ]
+    )
+
+
+class TraceNoteData(V1RoutesBaseModel):
+    trace_id: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="OpenTelemetry Trace ID (hex format w/o 0x prefix)",
+    )
+    note: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="The note text to add to the trace",
+    )
+
+
+class CreateTraceNoteRequestBody(RequestBody[TraceNoteData]):
+    data: TraceNoteData
+
+
+class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
+    pass
+
+
+@router.post(
+    "/trace_notes",
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
+    operation_id="createTraceNote",
+    summary="Create a trace note",
+    description=(
+        "Add a note annotation to a trace. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "trace. Structured annotations, by contrast, are keyed by (name, trace_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a trace you "
+        "must supply distinct identifiers."
+    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
+    response_description="Trace note created successfully",
+    status_code=200,
+)
+async def create_trace_note(
+    request: Request,
+    request_body: CreateTraceNoteRequestBody,
+) -> CreateTraceNoteResponseBody:
+    note_data = request_body.data
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == note_data.trace_id)
+        )
+
+        if trace_rowid is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trace with ID {note_data.trace_id} not found",
+            )
+
+        note_identifier = get_note_identifier("px-trace-note")
+
+        result = await session.execute(
+            insert(models.TraceAnnotation)
+            .values(
+                trace_rowid=trace_rowid,
+                name="note",
+                label=None,
+                score=None,
+                explanation=note_data.note,
+                annotator_kind="HUMAN",
+                metadata_=dict(),
+                identifier=note_identifier,
+                source="API",
+                user_id=user_id,
+            )
+            .returning(models.TraceAnnotation.id)
+        )
+        annotation_id = result.scalar_one()
+
+    request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_id,)))
+    return CreateTraceNoteResponseBody(
+        data=InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(annotation_id))))
     )
 
 

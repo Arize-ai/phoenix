@@ -4,11 +4,20 @@ import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
 import { BASH_TOOL_WORKSPACE_ROOT } from "./bashToolFilesystemPolicy";
+import type { BashCustomCommandPolicy } from "./customCommandPolicy";
 
 const DEFAULT_SPILL_THRESHOLD_BYTES = 128 * 1024;
-const PHOENIX_GQL_HELP_TEXT = `Usage: phoenix-gql [query] [options] [query-or-file]
 
-Execute a read-only GraphQL query against Phoenix.
+function getHelpText(mutationsEnabled: boolean) {
+  const permissionsLine = mutationsEnabled
+    ? "Permissions: queries and mutations are ENABLED."
+    : "Permissions: queries only (mutations are disabled).";
+
+  return `Usage: phoenix-gql [query] [options] [query-or-file]
+
+Execute GraphQL operations against Phoenix.
+
+${permissionsLine}
 
 Recommended flow:
   1. cat /phoenix/agent-start.md
@@ -30,6 +39,7 @@ Examples:
   cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
 `;
+}
 
 type ParsedPhoenixGqlArgs = {
   querySource: string | null;
@@ -56,6 +66,11 @@ function stripGraphQLComments(query: string) {
 function isNonQueryOperation(query: string) {
   const stripped = stripGraphQLComments(query);
   return /^\s*(mutation|subscription)[\s({]/m.test(stripped);
+}
+
+function isSubscriptionOperation(query: string) {
+  const stripped = stripGraphQLComments(query);
+  return /^\s*subscription[\s({]/m.test(stripped);
 }
 
 function parseArgs(args: string[]): ParsedPhoenixGqlArgs {
@@ -196,15 +211,27 @@ function formatGraphqlErrors(errors: Array<{ message: string }>) {
   return `GraphQL errors:\n${errors.map((error) => `- ${error.message}`).join("\n")}\n`;
 }
 
-export const phoenixGqlCommand = defineCommand(
-  "phoenix-gql",
-  async (args, ctx) => {
+function getGraphqlMutationPolicy({
+  getPolicy,
+}: {
+  getPolicy: () => BashCustomCommandPolicy;
+}) {
+  return getPolicy().graphql.allowMutations;
+}
+
+export const createPhoenixGqlCommand = ({
+  getPolicy,
+}: {
+  getPolicy: () => BashCustomCommandPolicy;
+}) =>
+  defineCommand("phoenix-gql", async (args, ctx) => {
     try {
       const parsedArgs = parseArgs(args);
+      const mutationsEnabled = getGraphqlMutationPolicy({ getPolicy });
 
       if (parsedArgs.showHelp) {
         return {
-          stdout: PHOENIX_GQL_HELP_TEXT,
+          stdout: getHelpText(mutationsEnabled),
           stderr: "",
           exitCode: 0,
         };
@@ -217,10 +244,15 @@ export const phoenixGqlCommand = defineCommand(
         fs: ctx.fs,
       });
 
-      if (isNonQueryOperation(query)) {
+      if (isNonQueryOperation(query) && !mutationsEnabled) {
         throw new Error(
-          "Only GraphQL queries are permitted; mutations and subscriptions are not allowed"
+          "Mutations are not currently permitted. " +
+            "The user can enable the 'Dangerously enable mutations' agent capability from the debug menu."
         );
+      }
+
+      if (isSubscriptionOperation(query)) {
+        throw new Error("Subscriptions are not supported by phoenix-gql");
       }
 
       const variables = await resolveVariables({
@@ -247,6 +279,10 @@ export const phoenixGqlCommand = defineCommand(
           `GraphQL request failed with HTTP ${response.status} ${response.statusText}`
         );
       }
+
+      const permissionsNotice = mutationsEnabled
+        ? "[permissions: queries + mutations]\n"
+        : "[permissions: queries only]\n";
 
       const payload = (await response.json()) as {
         data?: unknown;
@@ -276,8 +312,8 @@ export const phoenixGqlCommand = defineCommand(
         return {
           stdout: `${outputPath}\n`,
           stderr: payload.errors?.length
-            ? `${graphqlErrorText}Response written to ${outputPath}\n`
-            : "",
+            ? `${permissionsNotice}${graphqlErrorText}Response written to ${outputPath}\n`
+            : permissionsNotice,
           exitCode: hasOnlyErrors ? 1 : 0,
         };
       }
@@ -299,15 +335,14 @@ export const phoenixGqlCommand = defineCommand(
             null,
             2
           )}\n`,
-          stderr:
-            "Response exceeded stdout budget and was written to a workspace file. Re-run with --stdout to force raw output.\n",
+          stderr: `${permissionsNotice}Response exceeded stdout budget and was written to a workspace file. Re-run with --stdout to force raw output.\n`,
           exitCode: 0,
         };
       }
 
       return {
         stdout: serializedOutput,
-        stderr: graphqlErrorText,
+        stderr: `${permissionsNotice}${graphqlErrorText}`,
         exitCode: hasOnlyErrors ? 1 : 0,
       };
     } catch (error) {
@@ -317,5 +352,4 @@ export const phoenixGqlCommand = defineCommand(
         exitCode: 1,
       };
     }
-  }
-);
+  });

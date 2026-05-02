@@ -23,7 +23,7 @@ class ExperimentRunAnnotations(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         run_ids = keys
         annotations: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for run_id, annotation in await session.stream(
                 select(
                     OrmExperimentRunAnnotation.experiment_run_id, OrmExperimentRunAnnotation

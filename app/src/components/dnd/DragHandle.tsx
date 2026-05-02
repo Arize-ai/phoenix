@@ -9,16 +9,15 @@ import { Icon, Icons } from "@phoenix/components";
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 type Listeners = Record<string, Function>;
 
-function DragHandle(
-  {
-    listeners,
-    attributes,
-  }: {
-    listeners?: Listeners;
-    attributes: DraggableAttributes;
-  },
-  ref: React.Ref<HTMLButtonElement>
-) {
+function DragHandle({
+  ref,
+  listeners,
+  attributes,
+}: {
+  listeners?: Listeners;
+  attributes: DraggableAttributes;
+  ref?: React.Ref<HTMLButtonElement>;
+}) {
   return (
     <button
       ref={ref}
@@ -45,6 +44,4 @@ function DragHandle(
   );
 }
 
-// Use Ref forwarding for DragHandle
-const _DragHandle = React.forwardRef(DragHandle);
-export { _DragHandle as DragHandle };
+export { DragHandle };

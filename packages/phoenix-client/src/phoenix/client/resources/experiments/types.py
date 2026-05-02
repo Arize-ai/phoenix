@@ -219,7 +219,15 @@ class Evaluator(Protocol):
 def _validate_evaluator_signature(sig: inspect.Signature) -> None:
     """Validate that a function signature is compatible with evaluator requirements."""
     params = sig.parameters
-    valid_named_params = {"input", "output", "expected", "reference", "metadata", "example"}
+    valid_named_params = {
+        "input",
+        "output",
+        "expected",
+        "reference",
+        "metadata",
+        "example",
+        "trace_id",
+    }
     if len(params) == 0:
         raise ValueError("Evaluator function must have at least one parameter.")
     if len(params) > 1:

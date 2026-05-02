@@ -170,7 +170,10 @@ print("phoenix URL", px.active_session().url)
 We can access the traces by directly pulling the spans from the phoenix session.
 
 ```py
-spans_df = px.active_session().get_spans_dataframe()
+from phoenix.client import Client
+
+client = Client()
+spans_df = client.spans.get_spans_dataframe()
 ```
 
 ```bash
@@ -219,7 +222,7 @@ In a RAG system, evaluation focuses on two critical aspects:
 
 For the evaluation of a RAG system, it's essential to have queries that can fetch the correct context and subsequently generate an appropriate response.
 
-For this tutorial, let's use Phoenix's `llm_generate` to help us create the question-context pairs.
+For this tutorial, let's use Phoenix's `LLM` to help us create the question-context pairs.
 
 First, let's create a dataframe of all the document chunks that we have indexed.
 
@@ -263,25 +266,41 @@ Output the questions in JSON format with the keys question_1, question_2, questi
 ```python
 import json
 
-from phoenix.evals import OpenAIModel, llm_generate
+from phoenix.evals import LLM
+from phoenix.evals.executors import AsyncExecutor
+from phoenix.evals.utils import default_tqdm_progress_bar_formatter
 
 
-def output_parser(response: str, index: int):
+llm = LLM(provider="openai", model="gpt-4o")
+
+
+def output_parser(response: str):
     try:
         return json.loads(response)
     except json.JSONDecodeError as e:
         return {"__error__": str(e)}
 
 
-questions_df = llm_generate(
-    dataframe=document_chunks_df,
-    template=generate_questions_template,
-    model=OpenAIModel(
-        model="gpt-3.5-turbo",
-    ),
-    output_parser=output_parser,
-    concurrency=20,
+async def generate_questions(row):
+    prompt = generate_questions_template.format(text=row["text"])
+    response = await llm.async_generate_text(prompt=prompt)
+    return output_parser(response)
+
+
+executor = AsyncExecutor(
+    generation_fn=generate_questions,
+    concurrency=10,
+    tqdm_bar_format=default_tqdm_progress_bar_formatter("Generating questions"),
 )
+results, details = await executor.execute(
+    [row.to_dict() for _, row in document_chunks_df.iterrows()]
+)
+
+questions_df = document_chunks_df.copy()
+for i, parsed in enumerate(results):
+    if isinstance(parsed, dict):
+        for col in ["question_1", "question_2", "question_3"]:
+            questions_df.at[i, col] = parsed.get(col)
 ```
 
 ```py
@@ -348,9 +367,17 @@ for _, row in questions_with_document_chunk_df.iterrows():
 Now that we have executed the queries, we can start validating whether or not the RAG system was able to retrieve the correct context. Let's extract all the retrieved documents from the traces logged to phoenix. (For an in-depth explanation of how to export trace data from the phoenix runtime, consult the [docs](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)).
 
 ```py
-from phoenix.session.evaluation import get_retrieved_documents
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 
-retrieved_documents_df = get_retrieved_documents(px.active_session())
+client = Client()
+retrieved_documents_df = client.spans.get_spans_dataframe(
+    query=SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .select("input.value")
+    .explode("retrieval.documents", reference="document.content", document_score="document.score")
+)
+retrieved_documents_df = retrieved_documents_df.rename(columns={"input.value": "input"})
 retrieved_documents_df
 ```
 
@@ -372,19 +399,17 @@ retrieved_documents_df
 Let's now use Phoenix's LLM Evals to evaluate the relevance of the retrieved documents with regards to the query. Note, we've turned on `explanations` which prompts the LLM to explain it's reasoning. This can be useful for debugging and for figuring out potential corrective actions.
 
 ```python
-from phoenix.evals import (
-    RelevanceEvaluator,
-    run_evals,
-)
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import DocumentRelevanceEvaluator
 
-relevance_evaluator = RelevanceEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
+llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+relevance_evaluator = DocumentRelevanceEvaluator(llm=llm)
 
-retrieved_documents_relevance_df = run_evals(
-    evaluators=[relevance_evaluator],
+retrieved_documents_relevance_df = await async_evaluate_dataframe(
     dataframe=retrieved_documents_df,
-    provide_explanation=True,
-    concurrency=20,
-)[0]
+    evaluators=[relevance_evaluator],
+    concurrency=10,
+)
 ```
 
 ```py
@@ -460,7 +485,10 @@ hit = pd.DataFrame(
 Let's now view the results in a combined dataframe.
 
 ```py
-retrievals_df = px.active_session().get_spans_dataframe("span_kind == 'RETRIEVER'")
+retrievals_df = client.spans.get_spans_dataframe(
+    query=SpanQuery().where("span_kind == 'RETRIEVER'").select("input.value")
+)
+retrievals_df = retrievals_df.rename(columns={"input.value": "input"})
 rag_evaluation_dataframe = pd.concat(
     [
         retrievals_df["attributes.input.value"],
@@ -520,30 +548,54 @@ px_client.spans.log_document_annotations_dataframe(
 The retrieval evaluations demonstrates that our RAG system is not perfect. However, it's possible that the LLM is able to generate the correct response even when the context is incorrect. Let's evaluate the responses generated by the LLM.
 
 ```py
-from phoenix.session.evaluation import get_qa_with_reference
+import pandas as pd
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 
-qa_with_reference_df = get_qa_with_reference(px.active_session())
+client = Client()
+root_spans_df = client.spans.get_spans_dataframe(
+    query=SpanQuery().where("parent_id is None").select("input.value", "output.value")
+)
+root_spans_df = root_spans_df.rename(columns={"input.value": "input", "output.value": "output"})
+retriever_df = client.spans.get_spans_dataframe(
+    query=SpanQuery()
+    .where("span_kind == 'RETRIEVER'")
+    .select("parent_id")
+    .concat("retrieval.documents", reference="document.content")
+)
+retriever_df = retriever_df.rename(columns={"parent_id": "span_id"})
+qa_with_reference_df = pd.concat([root_spans_df, retriever_df], axis=1, join="inner")
 qa_with_reference_df
 ```
 
 Now that we have a dataset of the question, context, and response (input, reference, and output), we now can measure how well the LLM is responding to the queries. For details on the QA correctness evaluation, see the [LLM Evals documentation](/docs/phoenix/evaluation/running-pre-tested-evals/q-and-a-on-retrieved-data).
 
 ```python
-from phoenix.evals import (
-    HallucinationEvaluator,
-    OpenAIModel,
-    QAEvaluator,
-    run_evals,
-)
+from phoenix.evals import LLM, async_evaluate_dataframe
+from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
-qa_evaluator = QAEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
-hallucination_evaluator = HallucinationEvaluator(OpenAIModel(model="gpt-4-turbo-preview"))
+llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+qa_evaluator = CorrectnessEvaluator(llm=llm)
+hallucination_evaluator = FaithfulnessEvaluator(llm=llm)
 
-qa_correctness_eval_df, hallucination_eval_df = run_evals(
-    evaluators=[qa_evaluator, hallucination_evaluator],
+evals_df = await async_evaluate_dataframe(
     dataframe=qa_with_reference_df,
-    provide_explanation=True,
-    concurrency=20,
+    evaluators=[qa_evaluator, hallucination_evaluator],
+    concurrency=10,
+)
+qa_correctness_eval_df = pd.concat(
+    [
+        evals_df[["context.span_id"]],
+        pd.DataFrame(evals_df["correctness_score"].tolist(), index=evals_df.index),
+    ],
+    axis=1,
+)
+hallucination_eval_df = pd.concat(
+    [
+        evals_df[["context.span_id"]],
+        pd.DataFrame(evals_df["faithfulness_score"].tolist(), index=evals_df.index),
+    ],
+    axis=1,
 )
 ```
 
@@ -584,7 +636,6 @@ Since we have evaluated our RAG system's QA performance and Hallucinations perfo
 ```py expandable
 from phoenix.client.resources.spans import SpanAnnotationData
 
-# Expect dataframes indexed by context.span_id
 qac_rows = qa_correctness_eval_df.reset_index()[
     ["context.span_id", "score", "label", "explanation"]
 ].dropna(how="all", subset=["score", "label", "explanation"])
@@ -640,5 +691,4 @@ phoenix URL http://localhost:6006/
 We have explored how to build and evaluate a RAG pipeline using LlamaIndex and Phoenix, with a specific focus on evaluating the retrieval system and generated responses within the pipelines.
 
 Phoenix offers a variety of other evaluations that can be used to assess the performance of your LLM Application. For more details, see the [LLM Evals](/docs/phoenix/evaluation/llm-evals) documentation.
-
 

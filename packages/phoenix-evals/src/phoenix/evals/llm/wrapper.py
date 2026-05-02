@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Union
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.trace import Tracer
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
@@ -256,7 +255,7 @@ class LLM:
     )
     def generate_text(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> str:
@@ -286,7 +285,7 @@ class LLM:
     )
     def generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
@@ -310,7 +309,7 @@ class LLM:
 
     def generate_classification(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,
@@ -361,7 +360,7 @@ class LLM:
     )
     async def async_generate_text(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> str:
@@ -391,7 +390,7 @@ class LLM:
     )
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
@@ -414,7 +413,7 @@ class LLM:
 
     async def async_generate_classification(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         labels: Union[List[str], Dict[str, str]],
         include_explanation: bool = True,
         description: Optional[str] = None,

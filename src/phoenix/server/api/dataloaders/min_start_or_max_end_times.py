@@ -70,7 +70,7 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
             .where(pid.in_(arguments.keys()))
             .group_by(pid)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for project_rowid, min_start, max_end in data:
                 for kind, positions in arguments[project_rowid].items():

@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from functools import cached_property, singledispatchmethod
 from typing import Any, Generic, Optional, TypeVar
 
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError
+from joserfc import jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import OctKey
 from sqlalchemy import Select, delete, select
 from starlette.datastructures import Secret
 
@@ -78,13 +79,10 @@ class JwtStore:
 
     async def read(self, token: Token) -> Optional[ClaimSet]:
         try:
-            payload = jwt.decode(
-                s=token,
-                key=str(self._secret),
-            )
+            decoded = jwt.decode(str(token), OctKey.import_key(str(self._secret)))
         except JoseError:
             return None
-        if (jti := payload.get("jti")) is None:
+        if (jti := decoded.claims.get("jti")) is None:
             return None
         if (token_id := TokenId.parse(jti)) is None:
             return None
@@ -248,8 +246,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def _encode(self, claim: ClaimSet) -> str:
         payload: dict[str, Any] = dict(jti=claim.token_id)
         header = {"alg": self._algorithm}
-        jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(self._secret))
-        return jwt_bytes.decode()
+        return jwt.encode(header, payload, OctKey.import_key(str(self._secret)))
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         if claims := self._claims.get(token_id):

@@ -92,7 +92,9 @@ function PlaygroundOutputMessage({
   return (
     <Card title={role} {...styles} extra={<ConnectedMarkdownModeSelect />}>
       {content != null && !Array.isArray(content) && (
-        <ConnectedMarkdownBlock>{content}</ConnectedMarkdownBlock>
+        <ConnectedMarkdownBlock renderMode="streaming">
+          {content}
+        </ConnectedMarkdownBlock>
       )}
 
       {toolCalls && toolCalls.length > 0
@@ -316,7 +318,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         },
         onError: (error) => {
           markPlaygroundInstanceComplete(props.playgroundInstanceId);
-          clearRepetitions(instanceId);
           const instance = playgroundStore
             .getState()
             .instances.find((inst) => inst.id === instanceId);
@@ -350,7 +351,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     playgroundStore,
     props.playgroundInstanceId,
     setRepetitionStatus,
-    clearRepetitions,
   ]);
 
   return (

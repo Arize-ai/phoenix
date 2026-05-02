@@ -217,14 +217,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           dataset: node(id: $datasetId) {
             id
             ... on Dataset {
-              experiments(filterIds: $experimentIds) {
+              experiments(filterIds: $experimentIds, includeEphemeral: true) {
                 edges {
                   experiment: node {
                     id
                     name
                     sequenceNumber
                     metadata
-                    datasetVersionId
+                    datasetVersion {
+                      id
+                    }
                     project {
                       id
                     }
@@ -351,7 +353,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setDialog(
                 <ExampleDetailsDialog
                   exampleId={row.original.example.id}
-                  datasetVersionId={baseExperiment?.datasetVersionId}
+                  datasetVersionId={baseExperiment?.datasetVersion?.id}
                 />
               );
             }}
@@ -385,7 +387,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     ];
   }, [
     annotationConfigs,
-    baseExperiment?.datasetVersionId,
+    baseExperiment?.datasetVersion?.id,
     cellContentHeight,
     setDialog,
   ]);
@@ -683,7 +685,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             baseExperiment && (
               <ExperimentCompareDetailsDialog
                 datasetId={datasetId}
-                datasetVersionId={baseExperiment.datasetVersionId}
+                datasetVersionId={baseExperiment.datasetVersion.id}
                 selectedExampleIndex={selectedExampleIndex}
                 selectedExampleId={exampleIds[selectedExampleIndex]}
                 baseExperimentId={baseExperimentId}

@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { InputProps as AriaInputProps } from "react-aria-components";
 import { Button, Input as AriaInput } from "react-aria-components";
 
@@ -19,10 +18,10 @@ export type CredentialInputProps = Omit<AriaInputProps, "type">;
  * @param ref - The ref for the CredentialInput component.
  * @returns The CredentialInput component.
  */
-function CredentialInput(
-  props: CredentialInputProps,
-  ref: Ref<HTMLInputElement>
-) {
+function CredentialInput({
+  ref,
+  ...props
+}: CredentialInputProps & { ref?: Ref<HTMLInputElement> }) {
   const { isVisible, setIsVisible } = useCredentialContext();
   const size = useSize();
   const { disabled, readOnly, ...otherProps } = props;
@@ -105,6 +104,4 @@ function CredentialInput(
   );
 }
 
-const _CredentialInput = forwardRef(CredentialInput);
-
-export { _CredentialInput as CredentialInput };
+export { CredentialInput };

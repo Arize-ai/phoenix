@@ -11,7 +11,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agents";
+type FeatureFlag = "agents" | "tracing_ux";
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -22,6 +22,7 @@ export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
   // TODO: when this flag is removed, update agentStore.ts by resetting / removing the persistence migration
   agents: false,
+  tracing_ux: false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
@@ -33,8 +34,26 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
   }
 
   try {
-    const parsedFeatureFlags = JSON.parse(featureFlagsFromLocalStorage);
-    return Object.assign({}, DEFAULT_FEATURE_FLAGS, parsedFeatureFlags);
+    const parsedFeatureFlags = JSON.parse(
+      featureFlagsFromLocalStorage
+    ) as Record<string, unknown>;
+    const next = { ...DEFAULT_FEATURE_FLAGS };
+    const hasUnknownFeatureFlags = Object.keys(parsedFeatureFlags).some(
+      (key) => !(key in DEFAULT_FEATURE_FLAGS)
+    );
+    for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
+      const v = parsedFeatureFlags[key];
+      if (typeof v === "boolean") {
+        next[key] = v;
+      }
+    }
+    if (hasUnknownFeatureFlags) {
+      localStorage.setItem(
+        LOCAL_STORAGE_FEATURE_FLAGS_KEY,
+        JSON.stringify(next)
+      );
+    }
+    return next;
   } catch (_e) {
     return DEFAULT_FEATURE_FLAGS;
   }

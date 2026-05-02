@@ -923,7 +923,7 @@ async def test_project_spans(
     llama_index_rag_spans: Any,
 ) -> None:
     query = """
-      query ($projectId: ID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
+      query ($projectId: ID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int!, $last: Int = null, $sort: SpanSort = null) {
         node(id: $projectId) {
           ... on Project {
             spans(
@@ -959,6 +959,66 @@ async def test_project_spans(
     edges = spans["edges"]
     assert Cursor.from_string(edges[0]["cursor"]) == start_cursor
     assert Cursor.from_string(edges[-1]["cursor"]) == end_cursor
+
+
+async def test_project_spans_require_first(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query, variables={"projectId": PROJECT_ID})
+    assert response.errors
+    assert len(response.errors) == 1
+    assert (
+        response.errors[0].message
+        == "Field 'spans' argument 'first' of type 'Int!' is required, but it was not provided."
+    )
+
+
+async def test_project_spans_limit_first_page_size(
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+    llama_index_rag_spans: Any,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    query = """
+      query ($projectId: ID!, $first: Int!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectId": PROJECT_ID, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"
 
 
 @pytest.fixture
@@ -3757,7 +3817,7 @@ async def test_paginate_spans_by_trace_start_time(
     # Expected: Only real root spans (1, 3, 5) returned, NOT orphan spans (2, 4)
     # ========================================
     query = """
-        query ($projectId: ID!, $first: Int, $after: String) {
+        query ($projectId: ID!, $first: Int!, $after: String) {
             node(id: $projectId) {
                 ... on Project {
                     spans(
@@ -3948,7 +4008,7 @@ async def test_paginate_spans_by_trace_start_time(
     # Expected: Only root-span-3 (trace 3 has real root span, traces 2&4 have orphans)
     # ========================================
     time_range_query = """
-        query ($projectId: ID!, $first: Int, $timeRange: TimeRange) {
+        query ($projectId: ID!, $first: Int!, $timeRange: TimeRange) {
             node(id: $projectId) {
                 ... on Project {
                     spans(
@@ -4003,7 +4063,7 @@ async def test_paginate_spans_by_trace_start_time(
     # Expected: All 5 spans returned (3 real roots + 2 orphans)
     # ========================================
     orphan_query = """
-        query ($projectId: ID!, $first: Int, $after: String) {
+        query ($projectId: ID!, $first: Int!, $after: String) {
             node(id: $projectId) {
                 ... on Project {
                     spans(
@@ -4114,7 +4174,7 @@ async def test_paginate_spans_by_trace_start_time(
 
     # Test 5d: Time range filtering with orphans included
     orphan_time_range_query = """
-        query ($projectId: ID!, $first: Int, $timeRange: TimeRange) {
+        query ($projectId: ID!, $first: Int!, $timeRange: TimeRange) {
             node(id: $projectId) {
                 ... on Project {
                     spans(
@@ -4617,7 +4677,7 @@ async def test_pagination_spans_by_annotation_score(
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
 
     query = """
-        query ($projectId: ID!, $first: Int, $after: String, $sort: SpanSort) {
+        query ($projectId: ID!, $first: Int!, $after: String, $sort: SpanSort) {
             node(id: $projectId) {
                 ... on Project {
                     spans(

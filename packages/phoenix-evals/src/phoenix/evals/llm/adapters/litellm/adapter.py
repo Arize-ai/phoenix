@@ -1,14 +1,18 @@
 import base64
 import json
 import logging
-from typing import Any, Dict, List, Type, Union, cast
+from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
 
-from phoenix.evals.exceptions import PhoenixUnsupportedAudioFormat
-from phoenix.evals.legacy.templates import MultimodalPrompt, PromptPartContentType
-from phoenix.evals.utils import SUPPORTED_AUDIO_FORMATS, get_audio_format_from_base64
-
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    classify_message_list_kind,
+    is_openai_native_message_dict,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
@@ -64,6 +68,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._import_litellm()
+        self._preferred_method: ObjectGenerationMethod | None = None
 
     @classmethod
     def client_name(cls) -> str:
@@ -85,7 +90,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
-    def generate_text(self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any) -> str:
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -101,9 +106,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM completion failed: {e}")
             raise
 
-    async def async_generate_text(
-        self, prompt: Union[PromptLike, MultimodalPrompt], **kwargs: Any
-    ) -> str:
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Async text generation using LiteLLM."""
         messages = self._build_messages(prompt)
 
@@ -119,116 +122,175 @@ class LiteLLMAdapter(BaseLLMAdapter):
             logger.error(f"LiteLLM async completion failed: {e}")
             raise
 
-    def generate_object(
-        self,
-        prompt: Union[PromptLike, MultimodalPrompt],
-        schema: Dict[str, Any],
-        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        self._validate_schema(schema)
+    def _prefers_tool_calling_first(self) -> bool:
+        """Use LiteLLM's provider-param introspection as a *hint* for which
+        method to try first in AUTO mode.
 
+        LiteLLM's ``get_supported_openai_params`` returns the set of OpenAI-style
+        params the underlying provider understands. We use it to decide the
+        probe order only — the API itself remains the source of truth via the
+        BadRequestError fallback path. If introspection fails or is unavailable,
+        we default to trying structured output first (matches OpenAI adapter).
+        """
         try:
             supported_params = getattr(
                 self._litellm,
                 "get_supported_openai_params",
                 lambda model: ["response_format", "tools"],
             )(model=self.client.model)
-            supported_params_list = (
-                supported_params
-                if isinstance(supported_params, list)
-                else ["response_format", "tools"]
-            )
+            if not isinstance(supported_params, list):
+                return False
         except Exception:
-            supported_params_list = ["response_format", "tools"]
+            return False
 
-        supports_structured_output = "response_format" in supported_params_list
-        supports_tool_calls = "tools" in supported_params_list
+        supports_structured_output = "response_format" in supported_params
+        supports_tool_calls = "tools" in supported_params
+        # Only re-order if SO is unavailable and tool calling is — otherwise
+        # keep the default "structured output first" probe order.
+        return not supports_structured_output and supports_tool_calls
 
+    def generate_object(
+        self,
+        prompt: PromptLike,
+        schema: Dict[str, Any],
+        method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        self._validate_schema(schema)
+
+        # Explicit methods go straight to the API — if the model doesn't support
+        # the requested method, the provider will surface the real error instead
+        # of us guessing from a (potentially stale) capability list.
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured output"
-                )
             return self._generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return self._generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            # Discovery: probe the API, falling back on a genuine capability-mismatch
+            # signal (BadRequestError). Rate-limit and transient errors propagate so
+            # the outer RateLimiter can retry, and so we don't silently cache a
+            # downgrade based on a transient failure.
+            from litellm import BadRequestError as _LiteLLMBadRequestError
+
+            prefers_tool_calling = self._prefers_tool_calling_first()
+            primary = (
+                ObjectGenerationMethod.TOOL_CALLING
+                if prefers_tool_calling
+                else ObjectGenerationMethod.STRUCTURED_OUTPUT
+            )
+            fallback = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if prefers_tool_calling
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+
+            def _run(m: ObjectGenerationMethod) -> Dict[str, Any]:
+                if m == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                    return self._generate_with_structured_output(prompt, schema, **kwargs)
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+
+            try:
+                result = _run(primary)
+                self._preferred_method = primary
+                return result
+            except _LiteLLMBadRequestError as primary_error:
+                logger.debug(
+                    f"{primary.value} rejected by {self.client.model}, falling back "
+                    f"to {fallback.value}: {primary_error}"
+                )
+                try:
+                    result = _run(fallback)
+                    self._preferred_method = fallback
+                    return result
+                except _LiteLLMBadRequestError as fallback_error:
+                    raise ValueError(
+                        f"LiteLLM model {self.client.model} failed with both "
+                        f"{primary.value} and {fallback.value}. "
+                        f"{primary.value} error: {primary_error}. "
+                        f"{fallback.value} error: {fallback_error}"
+                    ) from fallback_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
 
     async def async_generate_object(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         self._validate_schema(schema)
 
-        try:
-            supported_params = getattr(
-                self._litellm,
-                "get_supported_openai_params",
-                lambda model: ["response_format", "tools"],
-            )(model=self.client.model)
-            supported_params_list = (
-                supported_params
-                if isinstance(supported_params, list)
-                else ["response_format", "tools"]
-            )
-        except Exception:
-            # If the function doesn't exist or fails, assume both are supported
-            supported_params_list = ["response_format", "tools"]
-
-        supports_structured_output = "response_format" in supported_params_list
-        supports_tool_calls = "tools" in supported_params_list
-
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            if not supports_structured_output:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured output"
-                )
             return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
-            if not supports_tool_calls:
-                raise ValueError(f"LiteLLM model {self.client.model} does not support tool calls")
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
-            if not supports_structured_output and not supports_tool_calls:
-                raise ValueError(
-                    f"LiteLLM model {self.client.model} does not support structured "
-                    "output or tool calls"
-                )
-            # Prefer structured output when available
-            if supports_structured_output:
+            # Use cached method if we already know what works for this model
+            if self._preferred_method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
                 return await self._async_generate_with_structured_output(prompt, schema, **kwargs)
-            else:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
                 return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            from litellm import BadRequestError as _LiteLLMBadRequestError
+
+            prefers_tool_calling = self._prefers_tool_calling_first()
+            primary = (
+                ObjectGenerationMethod.TOOL_CALLING
+                if prefers_tool_calling
+                else ObjectGenerationMethod.STRUCTURED_OUTPUT
+            )
+            fallback = (
+                ObjectGenerationMethod.STRUCTURED_OUTPUT
+                if prefers_tool_calling
+                else ObjectGenerationMethod.TOOL_CALLING
+            )
+
+            async def _run(m: ObjectGenerationMethod) -> Dict[str, Any]:
+                if m == ObjectGenerationMethod.STRUCTURED_OUTPUT:
+                    return await self._async_generate_with_structured_output(
+                        prompt, schema, **kwargs
+                    )
+                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+
+            try:
+                result = await _run(primary)
+                self._preferred_method = primary
+                return result
+            except _LiteLLMBadRequestError as primary_error:
+                logger.debug(
+                    f"{primary.value} rejected by {self.client.model}, falling back "
+                    f"to {fallback.value}: {primary_error}"
+                )
+                try:
+                    result = await _run(fallback)
+                    self._preferred_method = fallback
+                    return result
+                except _LiteLLMBadRequestError as fallback_error:
+                    raise ValueError(
+                        f"LiteLLM model {self.client.model} failed with both "
+                        f"{primary.value} and {fallback.value}. "
+                        f"{primary.value} error: {primary_error}. "
+                        f"{fallback.value} error: {fallback_error}"
+                    ) from fallback_error
 
         else:
             raise ValueError(f"Unsupported object generation method: {method}")
 
     def _generate_with_structured_output(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -257,7 +319,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     def _generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -282,7 +344,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_structured_output(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -311,7 +373,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
     async def _async_generate_with_tool_calling(
         self,
-        prompt: Union[PromptLike, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -410,68 +472,57 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         return openai_messages
 
-    def _build_messages(self, prompt: Union[PromptLike, MultimodalPrompt]) -> list[dict[str, Any]]:
+    def _build_messages(self, prompt: PromptLike) -> list[dict[str, Any]]:
         if isinstance(prompt, str):
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
-            # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
-            # Already in OpenAI message format (backward compatibility)
-            return cast(list[dict[str, Any]], prompt)
-
-        # Handle legacy MultimodalPrompt
-        messages: list[dict[str, Any]] = []
-        if isinstance(prompt, MultimodalPrompt):
-            for part in prompt.parts:
-                if part.content_type == PromptPartContentType.TEXT:
-                    messages.append({"role": "user", "content": part.content})
-                elif part.content_type == PromptPartContentType.AUDIO:
-                    format = str(get_audio_format_from_base64(part.content))
-                    if format not in SUPPORTED_AUDIO_FORMATS:
-                        raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_audio",
-                                    "input_audio": {
-                                        "data": part.content,
-                                        "format": str(get_audio_format_from_base64(part.content)),
-                                    },
-                                }
-                            ],
-                        }
-                    )
-                elif part.content_type == PromptPartContentType.IMAGE:
-                    if _is_base64(part.content):
-                        content_url = f"data:image/jpeg;base64,{part.content}"
-                    elif _is_url(part.content):
-                        content_url = part.content
-                    else:
-                        raise ValueError("Only base64 encoded images or image URLs are supported")
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": content_url},
-                                }
-                            ],
-                        }
-                    )
+            if any(
+                is_openai_native_message_dict(msg) for msg in cast(List[Dict[str, Any]], prompt)
+            ):
+                return cast(list[dict[str, Any]], prompt)
+            # OpenAI-style dict messages — validate and canonicalize aliases.
+            # LiteLLM is a provider-routing layer that handles "developer" for
+            # reasoning models internally, so we preserve OpenAI-compatible
+            # SYSTEM role strings ("system" / "developer") verbatim rather than
+            # normalizing both to "system" via the MessageRole round-trip.
+            # Caller-supplied keys other than ``role``/``content`` (e.g. the
+            # documented ``name`` field) are preserved so the validating dict
+            # path matches the native pass-through's compatibility guarantee.
+            output: list[dict[str, Any]] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                canonical = normalize_role(msg["role"])
+                if canonical == MessageRole.SYSTEM:
+                    # Keep "developer" vs "system" so LiteLLM can route to the
+                    # correct provider-side representation for the target model.
+                    raw = msg["role"].strip().lower() if isinstance(msg["role"], str) else "system"
+                    role_str: str = raw if raw in ("system", "developer") else "system"
                 else:
-                    raise ValueError(f"Unsupported content type: {part.content_type}")
-            return messages
+                    role_str = canonical.value  # "user" or "assistant"
+                content = msg["content"]
+                if isinstance(content, str):
+                    body: dict[str, Any] = {"role": role_str, "content": content}
+                else:
+                    # Content-part list: join text parts (non-text parts dropped,
+                    # matching _transform_messages_to_openai behaviour).
+                    text_parts = [
+                        p["text"] for p in content if p.get("type") == "text" and "text" in p
+                    ]
+                    body = {"role": role_str, "content": "\n".join(text_parts)}
+                extras = {k: v for k, v in msg.items() if k not in ("role", "content")}
+                # Canonical role/content win over any conflicting caller keys.
+                output.append({**extras, **body})
+            return output
 
         # If we get here, prompt is an unexpected type
-        raise ValueError(
-            f"Expected prompt to be str, list, or MultimodalPrompt, got {type(prompt).__name__}"
-        )
+        raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
 
     def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """

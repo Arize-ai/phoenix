@@ -27,9 +27,9 @@
     "autoprefixer": "^10.4.27",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.48.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.10",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.2"
   }
 }

@@ -57,9 +57,9 @@ class using_project:
     def __enter__(self) -> None:
         self.unwrapped_init: Optional[Callable[..., None]] = trace.ReadableSpan.__init__
         wrap_function_wrapper(
-            module="opentelemetry.sdk.trace",
-            name="ReadableSpan.__init__",
-            wrapper=project_override_wrapper(self.project_name),
+            "opentelemetry.sdk.trace",
+            "ReadableSpan.__init__",
+            project_override_wrapper(self.project_name),
         )
 
     def __exit__(

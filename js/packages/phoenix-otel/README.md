@@ -21,7 +21,7 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/packages/phoenix-otel/README.md" />
 </p>
 
-A lightweight wrapper around OpenTelemetry for Node.js applications that simplifies sending traces to [Arize Phoenix](https://github.com/Arize-ai/phoenix). This package provides an easy-to-use `register` function that handles all the boilerplate configuration for OpenTelemetry tracing.
+A lightweight wrapper around OpenTelemetry for Node.js applications that simplifies sending traces to [Arize Phoenix](https://github.com/Arize-ai/phoenix). `@arizeai/phoenix-otel` handles provider registration and OTLP export, then re-exports the full `@arizeai/openinference-core` helper surface from the same package path so you can register tracing and author manual spans from one import.
 
 > **Note**: This package is under active development and APIs may change.
 
@@ -30,6 +30,9 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 - **Simple Setup** - One-line configuration with sensible defaults
 - **Environment Variables** - Automatic configuration from environment variables
 - **Batch Processing** - Built-in batch span processing for production use
+- **OpenInference Helpers Included** - Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, context setters, attribute builders, `OITracer`, and utility helpers
+- **Provider-Swap Safe Wrappers** - The re-exported OpenInference helpers resolve the default tracer when the wrapped function executes, so module-scoped wrappers continue following global provider changes
+- **Agent-Friendly Local Docs** - Ships curated docs and source in `node_modules/@arizeai/phoenix-otel/`
 
 ## Installation
 
@@ -41,16 +44,25 @@ npm install @arizeai/phoenix-otel
 
 ### Basic Usage
 
-The simplest way to get started is to use the `register` function:
+The simplest way to get started is to use `register()` together with the built-in tracing helpers:
 
 ```typescript
-import { register } from "@arizeai/phoenix-otel";
+import { register, traceChain } from "@arizeai/phoenix-otel";
 
-// Register with default settings (connects to localhost:6006)
-register({
+const provider = register({
   projectName: "my-app",
 });
+
+const answerQuestion = traceChain(
+  async (question: string) => `Handled: ${question}`,
+  { name: "answer-question" }
+);
+
+await answerQuestion("What is Phoenix?");
+await provider.shutdown();
 ```
+
+`register()` sets up the Phoenix exporter. The tracing helpers come from `@arizeai/openinference-core`, re-exported through `@arizeai/phoenix-otel`.
 
 ### Production Setup
 
@@ -151,9 +163,238 @@ const response = await openai.chat.completions.create({
 });
 ```
 
-### Manual Tracing
+### Tracing Helpers
 
-Create custom spans using the OpenTelemetry API:
+The package includes `withSpan`, `traceChain`, `traceAgent`, and `traceTool` for wrapping functions with OpenInference spans. Each helper automatically records inputs, outputs, errors, and span kind.
+
+```typescript
+import {
+  register,
+  traceAgent,
+  traceChain,
+  traceTool,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+// traceTool — for tool calls and API lookups
+const searchDocs = traceTool(
+  async (query: string) => {
+    const response = await fetch(`/api/search?q=${query}`);
+    return response.json();
+  },
+  { name: "search-docs" }
+);
+
+// traceChain — for pipeline steps and orchestration
+const summarize = traceChain(
+  async (text: string) => `Summary of ${text.length} chars`,
+  { name: "summarize" }
+);
+
+// traceAgent — for autonomous agent entry points
+const supportAgent = traceAgent(
+  async (question: string) => {
+    const docs = await searchDocs(question);
+    return summarize(JSON.stringify(docs));
+  },
+  { name: "support-agent" }
+);
+
+// withSpan — general purpose, specify kind explicitly
+const retrieveDocs = withSpan(
+  async (query: string) =>
+    fetch(`/api/search?q=${query}`).then((r) => r.json()),
+  { name: "retrieve-docs", kind: "RETRIEVER" }
+);
+```
+
+These helpers resolve the default tracer when the wrapped function runs, so traced functions defined at module scope keep following global provider changes.
+
+### Custom Input And Output Processing
+
+Use `processInput` and `processOutput` when you want richer OpenInference attributes than the default JSON-serialized `input.value` and `output.value`.
+
+```typescript
+import {
+  OpenInferenceSpanKind,
+  getInputAttributes,
+  getRetrieverAttributes,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+const retrieveDocs = withSpan(
+  async (query: string) => [`Doc A for ${query}`, `Doc B for ${query}`],
+  {
+    name: "retrieve-docs",
+    kind: OpenInferenceSpanKind.RETRIEVER,
+    processInput: (query) => getInputAttributes(query),
+    processOutput: (documents) =>
+      getRetrieverAttributes({
+        documents: documents.map((content, index) => ({
+          id: `doc-${index}`,
+          content,
+        })),
+      }),
+  }
+);
+```
+
+### Context Attributes
+
+Propagate session IDs, user IDs, metadata, and tags to all child spans using context setters:
+
+```typescript
+import {
+  context,
+  register,
+  setMetadata,
+  setSession,
+  setUser,
+  traceChain,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const handleQuery = traceChain(async (query: string) => `Handled: ${query}`, {
+  name: "handle-query",
+});
+
+// All spans inside context.with() inherit session, user, and metadata
+await context.with(
+  setMetadata(
+    setUser(setSession(context.active(), { sessionId: "sess-123" }), {
+      userId: "user-456",
+    }),
+    { environment: "production" }
+  ),
+  () => handleQuery("Hello")
+);
+```
+
+Available setters: `setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`, `setPromptTemplate`.
+
+If you create spans manually with a plain OpenTelemetry tracer, copy the propagated context attributes onto the span explicitly:
+
+```typescript
+import {
+  context,
+  getAttributesFromContext,
+  register,
+  trace,
+} from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const tracer = trace.getTracer("manual-tracer");
+const span = tracer.startSpan("manual-span");
+span.setAttributes(getAttributesFromContext(context.active()));
+span.end();
+```
+
+### Decorators
+
+`observe` wraps class methods with tracing while preserving method `this` context. Use TypeScript 5+ standard decorators.
+
+```typescript
+import { OpenInferenceSpanKind, observe } from "@arizeai/phoenix-otel";
+
+class ChatService {
+  @observe({ kind: OpenInferenceSpanKind.CHAIN })
+  async runWorkflow(message: string) {
+    return `processed: ${message}`;
+  }
+
+  @observe({ name: "llm-call", kind: OpenInferenceSpanKind.LLM })
+  async callModel(prompt: string) {
+    return `model output for: ${prompt}`;
+  }
+}
+```
+
+### Attribute Helper APIs
+
+Use the attribute helpers when you want to build OpenInference-compatible span attributes directly:
+
+```typescript
+import { getLLMAttributes, trace } from "@arizeai/phoenix-otel";
+
+const tracer = trace.getTracer("llm-service");
+
+tracer.startActiveSpan("llm-inference", (span) => {
+  span.setAttributes(
+    getLLMAttributes({
+      provider: "openai",
+      modelName: "gpt-4o-mini",
+      inputMessages: [{ role: "user", content: "What is Phoenix?" }],
+      outputMessages: [{ role: "assistant", content: "Phoenix is..." }],
+      tokenCount: { prompt: 12, completion: 44, total: 56 },
+      invocationParameters: { temperature: 0.2 },
+    })
+  );
+  span.end();
+});
+```
+
+Available helpers include:
+
+- `getLLMAttributes`
+- `getEmbeddingAttributes`
+- `getRetrieverAttributes`
+- `getToolAttributes`
+- `getMetadataAttributes`
+- `getInputAttributes` / `getOutputAttributes`
+- `defaultProcessInput` / `defaultProcessOutput`
+
+### Trace Config And Redaction
+
+`OITracer` wraps an OpenTelemetry tracer and can redact or drop sensitive OpenInference attributes before spans are written:
+
+```typescript
+import {
+  OITracer,
+  OpenInferenceSpanKind,
+  trace,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+const tracer = new OITracer({
+  tracer: trace.getTracer("my-service"),
+  traceConfig: {
+    hideInputs: true,
+    hideOutputText: true,
+    hideEmbeddingVectors: true,
+    base64ImageMaxLength: 8_000,
+  },
+});
+
+const safeLLMCall = withSpan(
+  async (prompt: string) => `model response for ${prompt}`,
+  {
+    tracer,
+    kind: OpenInferenceSpanKind.LLM,
+    name: "safe-llm-call",
+  }
+);
+```
+
+Supported environment variables include:
+
+- `OPENINFERENCE_HIDE_INPUTS`
+- `OPENINFERENCE_HIDE_OUTPUTS`
+- `OPENINFERENCE_HIDE_INPUT_MESSAGES`
+- `OPENINFERENCE_HIDE_OUTPUT_MESSAGES`
+- `OPENINFERENCE_HIDE_INPUT_IMAGES`
+- `OPENINFERENCE_HIDE_INPUT_TEXT`
+- `OPENINFERENCE_HIDE_OUTPUT_TEXT`
+- `OPENINFERENCE_HIDE_EMBEDDING_VECTORS`
+- `OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH`
+- `OPENINFERENCE_HIDE_PROMPTS`
+
+### Raw OpenTelemetry Spans
+
+For full control over attributes and timing, use the OpenTelemetry API directly:
 
 ```typescript
 import { register, trace, SpanStatusCode } from "@arizeai/phoenix-otel";
@@ -166,10 +407,7 @@ async function processOrder(orderId: string) {
   return tracer.startActiveSpan("process-order", async (span) => {
     try {
       span.setAttribute("order.id", orderId);
-
-      // Your business logic here
       const result = await fetchOrderDetails(orderId);
-
       span.setAttribute("order.status", result.status);
       return result;
     } catch (error) {
@@ -182,6 +420,13 @@ async function processOrder(orderId: string) {
   });
 }
 ```
+
+### Utility Helpers
+
+The package also re-exports small utilities from `@arizeai/openinference-core`:
+
+- `withSafety({ fn, onError? })` wraps a function and returns `null` on error
+- `safelyJSONStringify(value)` and `safelyJSONParse(value)` guard JSON operations
 
 ### Development vs Production
 
@@ -244,26 +489,86 @@ const provider = register({
 const tracer = provider.getTracer("my-tracer");
 ```
 
-## Re-exported APIs
+## Docs And Source Code In `node_modules`
 
-For convenience, commonly used OpenTelemetry APIs are re-exported:
+After install, a coding agent can inspect the exact versioned docs and implementation that shipped with the package:
+
+```text
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+Because `@arizeai/phoenix-otel` re-exports `@arizeai/openinference-core`, the dependency docs are also useful local references:
+
+```text
+node_modules/@arizeai/openinference-core/docs/
+node_modules/@arizeai/openinference-core/src/
+```
+
+## Coding Agent Skill
+
+The Phoenix repo includes a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/.agents/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
+
+```bash
+npx skills add Arize-ai/phoenix --skill phoenix-tracing
+```
+
+Tracing helpers:
 
 ```typescript
 import {
-  trace, // Main tracing API
-  context, // Context API
-  SpanStatusCode, // Span status codes
-  registerInstrumentations, // Register instrumentations
-  DiagLogLevel, // Diagnostic log levels
-  type Tracer, // Tracer type
-  type Instrumentation, // Instrumentation type
-  type NodeTracerProvider, // Provider type
+  observe,
+  traceAgent,
+  traceChain,
+  traceTool,
+  withSpan,
 } from "@arizeai/phoenix-otel";
 ```
+
+Context attribute setters:
+
+```typescript
+import {
+  setAttributes,
+  setMetadata,
+  setPromptTemplate,
+  setSession,
+  setTags,
+  setUser,
+} from "@arizeai/phoenix-otel";
+```
+
+Attribute builders for rich span data:
+
+```typescript
+import {
+  defaultProcessInput,
+  defaultProcessOutput,
+  getEmbeddingAttributes,
+  getLLMAttributes,
+  getRetrieverAttributes,
+  getToolAttributes,
+} from "@arizeai/phoenix-otel";
+```
+
+Redaction and utility helpers:
+
+```typescript
+import {
+  OITracer,
+  safelyJSONParse,
+  safelyJSONStringify,
+  withSafety,
+} from "@arizeai/phoenix-otel";
+```
+
+The tracing helper wrappers resolve the default tracer when they run. That keeps spans attached to the current provider in experiments and in any workflow that swaps providers during process lifetime.
 
 ## Documentation
 
 - **[Phoenix Documentation](https://arize.com/docs/phoenix)** - Complete Phoenix documentation
+- **[@arizeai/phoenix-otel package docs](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel)** - Curated website docs for this package
+- **[@arizeai/openinference-core package docs](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core)** - Upstream helper and attribute-builder reference
 - **[OpenTelemetry JS](https://opentelemetry.io/docs/languages/js/)** - OpenTelemetry for JavaScript
 - **[OpenInference](https://github.com/Arize-ai/openinference)** - OpenInference semantic conventions
 

@@ -31,14 +31,27 @@ export const ExitCode = {
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
+export class InvalidArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidArgumentError";
+  }
+}
+
 /**
  * Infer a semantic exit code from an unknown error value.
  *
- * The Fetch API throws a `TypeError` for low-level network failures such as
- * connection refused or DNS resolution errors. All other errors fall back to
- * the general {@link ExitCode.FAILURE} code.
+ * - `InvalidArgumentError` (and subclasses like `ProfileResolutionError`)
+ *   map to INVALID_ARGUMENT.
+ * - The Fetch API throws a `TypeError` for low-level network failures such
+ *   as connection refused or DNS resolution errors.
+ * - All other errors fall back to the general {@link ExitCode.FAILURE} code.
  */
 export function getExitCodeForError(error: unknown): ExitCode {
+  if (error instanceof InvalidArgumentError) {
+    return ExitCode.INVALID_ARGUMENT;
+  }
+
   // TypeError is thrown by the Fetch API for network-level failures
   // (e.g. ECONNREFUSED, ETIMEDOUT, DNS errors).
   if (error instanceof TypeError) {

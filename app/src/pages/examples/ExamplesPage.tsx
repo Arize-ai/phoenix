@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { ExamplesFilterBar } from "@phoenix/pages/examples/ExamplesFilterBar";
 import { ExamplesFilterProvider } from "@phoenix/pages/examples/ExamplesFilterContext";
 
@@ -13,7 +13,10 @@ import { ExamplesTable } from "./ExamplesTable";
 export function ExamplesPage() {
   const loaderData = useLoaderData<typeof examplesLoader>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery(examplesLoaderGql, loaderData);
+  const data = useOwnedPreloadedQuery({
+    query: examplesLoaderGql,
+    queryRef: loaderData,
+  });
   return (
     <ExamplesFilterProvider>
       <ExamplesFilterBar />

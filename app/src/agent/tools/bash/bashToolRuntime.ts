@@ -13,7 +13,11 @@ import {
   type BashToolFilesystemMutationMethods,
 } from "./bashToolFilesystemPolicy";
 import type { BashToolCommandResult, BashToolRuntime } from "./bashToolTypes";
-import { phoenixGqlCommand } from "./phoenixGqlCommand";
+import {
+  createDefaultBashCustomCommandPolicy,
+  type BashCustomCommandPolicy,
+} from "./customCommandPolicy";
+import { createPhoenixGqlCommand } from "./phoenixGqlCommand";
 
 /**
  * Default working directory for the browser bash runtime scratch space.
@@ -200,12 +204,20 @@ function createInstrumentedCommandResult({
 export async function createBashToolRuntime({
   initialFiles,
 }: CreateBashToolRuntimeOptions = {}): Promise<BashToolRuntime> {
+  const runtimePolicyRef: { current: BashCustomCommandPolicy } = {
+    current: createDefaultBashCustomCommandPolicy(),
+  };
+
   // We execute just-bash directly in the browser for now.
   // Future reference: bash-tool's browser work is being explored in
   // https://github.com/vercel-labs/bash-tool/pull/7
   const bash = new Bash({
     cwd: DEFAULT_BASH_TOOL_CWD,
-    customCommands: [phoenixGqlCommand],
+    customCommands: [
+      createPhoenixGqlCommand({
+        getPolicy: () => runtimePolicyRef.current,
+      }),
+    ],
     executionLimits: DEFAULT_BASH_TOOL_EXECUTION_LIMITS,
   });
   const originalMutationMethods = captureBashToolFilesystemMutationMethods(
@@ -220,8 +232,11 @@ export async function createBashToolRuntime({
     ): Promise<BashToolCommandResult> => {
       const startedAt = new Date().toISOString();
       const startTime = performance.now();
+      runtimePolicyRef.current =
+        options?.customCommandPolicy ?? createDefaultBashCustomCommandPolicy();
       const result = await bash.exec(command, {
         signal: options?.signal,
+        env: options?.env,
       });
       const completedAt = new Date().toISOString();
 

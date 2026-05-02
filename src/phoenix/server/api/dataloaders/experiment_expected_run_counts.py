@@ -43,7 +43,7 @@ class ExperimentExpectedRunCountsDataLoader(DataLoader[Key, Result]):
             )
             .group_by(resolved_experiment_ids.c.id, models.Experiment.repetitions)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             expected_counts = {
                 experiment_id: expected_count
                 async for experiment_id, expected_count in await session.stream(query)

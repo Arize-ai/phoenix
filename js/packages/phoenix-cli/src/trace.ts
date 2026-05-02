@@ -2,19 +2,67 @@ import type { componentsV1 } from "@arizeai/phoenix-client";
 
 export type Span = componentsV1["schemas"]["Span"];
 export type SpanAnnotation = componentsV1["schemas"]["SpanAnnotation"];
-export type SpanWithAnnotations = Span & { annotations?: SpanAnnotation[] };
+export type TraceAnnotation = componentsV1["schemas"]["TraceAnnotation"];
+
+type NoteResult = {
+  explanation?: string | null;
+};
+
+export type SpanNote = Omit<SpanAnnotation, "name" | "result"> & {
+  name: "note";
+  result?: NoteResult | null;
+};
+
+export type TraceNote = Omit<TraceAnnotation, "name" | "result"> & {
+  name: "note";
+  result?: NoteResult | null;
+};
+
+export type SpanWithAnnotations = Span & {
+  annotations?: SpanAnnotation[];
+  notes?: SpanNote[];
+};
 
 /**
  * Represents a trace with its spans organized hierarchically
  */
 export interface Trace {
   traceId: string;
+  annotations?: TraceAnnotation[];
+  notes?: TraceNote[];
   spans: SpanWithAnnotations[];
   rootSpan?: SpanWithAnnotations;
   startTime?: string;
   endTime?: string;
   duration?: number;
   status?: string;
+}
+
+function buildNoteResult({
+  result,
+}: {
+  result: { explanation?: string | null } | null | undefined;
+}): NoteResult | null | undefined {
+  if (result === null || result === undefined) {
+    return result;
+  }
+  return { explanation: result.explanation ?? null };
+}
+
+export function buildSpanNote(annotation: SpanAnnotation): SpanNote {
+  return {
+    ...annotation,
+    name: "note",
+    result: buildNoteResult({ result: annotation.result }),
+  };
+}
+
+export function buildTraceNote(annotation: TraceAnnotation): TraceNote {
+  return {
+    ...annotation,
+    name: "note",
+    result: buildNoteResult({ result: annotation.result }),
+  };
 }
 
 /**

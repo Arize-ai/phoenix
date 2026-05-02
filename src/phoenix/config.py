@@ -64,6 +64,20 @@ ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
 The endpoint traces and evals are sent to. This must be set if the Phoenix
 server is running on a remote instance.
 """
+ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT = "PHOENIX_AGENTS_COLLECTOR_ENDPOINT"
+"""
+Optional HTTP collector endpoint used by the server-side agents to
+export traces to a remote collector. This is in addition to local persistence.
+"""
+ENV_PHOENIX_AGENTS_COLLECTOR_API_KEY = "PHOENIX_AGENTS_COLLECTOR_API_KEY"
+"""
+Optional bearer token paired with PHOENIX_AGENTS_COLLECTOR_ENDPOINT for exporting
+agent traces to a remote collector.
+"""
+ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME"
+"""
+Project name used for assistant agent traces.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -106,6 +120,16 @@ Phoenix supports two types of database URLs:
 Note that if you plan on using SQLite, it's advised to to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
+ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL = "PHOENIX_SQL_DATABASE_READ_REPLICA_URL"
+"""
+The connection URL for a PostgreSQL read replica. When set, read-only database
+queries (dataloaders, query resolvers, read-only REST endpoints) are routed to
+this replica instead of the primary. Ignored for SQLite deployments.
+
+Example::
+
+    PHOENIX_SQL_DATABASE_READ_REPLICA_URL=postgresql://user:pass@replica-host:5432/phoenix
+"""
 ENV_PHOENIX_LOG_SQL = "PHOENIX_LOG_SQL"
 """
 Whether to log all SQL statements to stdout.
@@ -137,14 +161,23 @@ Used with PHOENIX_POSTGRES_HOST to specify the user to use for the PostgreSQL da
 
 When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this should be
 set to the IAM-enabled database username configured in your RDS/Aurora instance.
+
+When using Azure managed identity (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true), this should
+be set to the Entra ID principal name for the managed identity as registered in the PostgreSQL
+server. For user-assigned managed identities, this is the identity's display name. For
+system-assigned managed identities, this is the Azure resource name (e.g., the VM or App Service
+name). On Flexible Server, the principal is registered via the Azure Portal or CLI
+(az postgres flexible-server ad-admin create).
 """
 ENV_PHOENIX_POSTGRES_PASSWORD = "PHOENIX_POSTGRES_PASSWORD"
 """
 Used with PHOENIX_POSTGRES_HOST to specify the password to use for the PostgreSQL database
-(required, unless PHOENIX_POSTGRES_USE_AWS_IAM_AUTH is enabled).
+(required, unless PHOENIX_POSTGRES_USE_AWS_IAM_AUTH or PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY
+is enabled).
 
-When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), this password
-is NOT used. Instead, authentication tokens are generated dynamically using AWS IAM credentials.
+When using AWS RDS IAM authentication (PHOENIX_POSTGRES_USE_AWS_IAM_AUTH=true), or Azure managed
+identity (PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true), this password is NOT used. Instead,
+authentication tokens are generated dynamically.
 """
 ENV_PHOENIX_POSTGRES_DB = "PHOENIX_POSTGRES_DB"
 """
@@ -156,7 +189,7 @@ Enable AWS RDS IAM database authentication. When enabled, Phoenix will use AWS I
 to generate short-lived authentication tokens instead of using a static password.
 
 This requires:
-- boto3 to be installed: pip install 'arize-phoenix[aws]'
+- aioboto3 to be installed: pip install 'arize-phoenix[aws]'
 - AWS credentials configured (via environment, ~/.aws/credentials, or IAM role)
 - AWS region configured via standard AWS methods
 - The database user to be configured for IAM authentication in RDS/Aurora
@@ -164,13 +197,26 @@ This requires:
 
 When enabled, PHOENIX_POSTGRES_PASSWORD should NOT be set.
 """
-ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS = (
-    "PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS"
-)
+ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY = "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY"
 """
-Token lifetime in seconds for connection pool recycling when using AWS RDS IAM authentication.
-AWS RDS auth tokens are valid for 15 minutes. This should be set slightly lower to ensure
-tokens are refreshed before expiration. Defaults to 840 seconds (14 minutes).
+Enable Azure managed identity authentication for PostgreSQL connections. When enabled, Phoenix
+will use Azure DefaultAzureCredential to obtain short-lived authentication tokens instead of
+using a static password.
+
+This requires:
+- azure-identity to be installed: pip install 'arize-phoenix[azure]'
+- A managed identity assigned to the compute resource running Phoenix
+- The managed identity registered as an Entra ID admin or user in the PostgreSQL server
+- SSL is required; Phoenix will reject sslmode=disable
+
+Cannot be used simultaneously with PHOENIX_POSTGRES_USE_AWS_IAM_AUTH.
+Set to 'true', '1', or 'yes' to enable. Defaults to false.
+"""
+ENV_PHOENIX_POSTGRES_AZURE_SCOPE = "PHOENIX_POSTGRES_AZURE_SCOPE"
+"""
+Azure scope URL for PostgreSQL access token requests.
+Defaults to the standard scope for Azure Database for PostgreSQL - Flexible Server:
+https://ossrdbms-aad.database.windows.net/.default
 """
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
@@ -1217,6 +1263,18 @@ def get_env_phoenix_use_secure_cookies() -> bool:
 
 def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
+
+
+def get_env_phoenix_agents_collector_endpoint() -> Optional[str]:
+    return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_ENDPOINT)
+
+
+def get_env_phoenix_agents_collector_api_key() -> Optional[str]:
+    return getenv(ENV_PHOENIX_AGENTS_COLLECTOR_API_KEY)
+
+
+def get_env_phoenix_agents_assistant_project_name() -> str:
+    return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
 
 
 class AuthSettings(NamedTuple):
@@ -2654,11 +2712,26 @@ def get_env_postgres_connection_str() -> Optional[str]:
     pg_user = getenv(ENV_PHOENIX_POSTGRES_USER)
     pg_password = getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
     use_iam_auth = _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
+    use_managed_identity = _bool_val(ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY, False)
+
+    if use_managed_identity and use_iam_auth:
+        raise ValueError(
+            f"Cannot enable both {ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY} and "
+            f"{ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} simultaneously. Set only one."
+        )
 
     if not (pg_host and pg_user):
         return None
 
-    if use_iam_auth:
+    if use_managed_identity:
+        if pg_password:
+            raise ValueError(
+                f"{ENV_PHOENIX_POSTGRES_PASSWORD} must not be set when using Azure managed "
+                f"identity ({ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY}=true). "
+                "Remove the password — authentication tokens are obtained from Azure automatically."
+            )
+        connection_str = f"postgresql://{quote(pg_user)}@{pg_host}"
+    elif use_iam_auth:
         if pg_password:
             raise ValueError(
                 f"The environment variable {ENV_PHOENIX_POSTGRES_PASSWORD} is set but will be "
@@ -2875,6 +2948,10 @@ def get_env_database_connection_str() -> str:
     return f"sqlite:///{working_dir}/phoenix.db"
 
 
+def get_env_read_replica_url() -> str | None:
+    return getenv(ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL)
+
+
 def get_env_log_sql() -> bool:
     return _bool_val(ENV_PHOENIX_LOG_SQL, False)
 
@@ -2882,7 +2959,7 @@ def get_env_log_sql() -> bool:
 def get_env_database_schema() -> Optional[str]:
     if get_env_database_connection_str().startswith("sqlite"):
         return None
-    return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
+    return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or None
 
 
 def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
@@ -3256,7 +3333,6 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
     validate_env_support_email()
-    _validate_iam_auth_config()
     validate_env_allowed_providers()
 
     # Notify users about deprecated environment variables if they are being used.
@@ -3265,10 +3341,19 @@ def verify_server_environment_variables() -> None:
             "The environment variable PHOENIX_ENABLE_WEBSOCKETS is deprecated "
             "because WebSocket is no longer necessary."
         )
+    if os.getenv("PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS") is not None:
+        logger.warning(
+            "The environment variable PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS "
+            "is deprecated and ignored because AWS IAM token lifetime is no longer used "
+            "to control PostgreSQL pool recycling."
+        )
 
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
+
+EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
+"""The time to live for ephemeral experiments in hours."""
 
 SYSTEM_USER_ID: Optional[int] = None
 """
@@ -3280,6 +3365,19 @@ identify the system user for authentication purposes.
 When the PHOENIX_ADMIN_SECRET is used as a bearer token in API requests, the
 request is authenticated as the system user with the user_id set to this
 SYSTEM_USER_ID value (only if this variable is not None).
+"""
+
+# Experiment execution config
+EXPERIMENT_STALE_CLAIM_TIMEOUT = timedelta(minutes=2)
+"""
+Timeout after which an experiment claim is considered stale.
+Used by ExperimentRunner for heartbeat and orphan scan.
+"""
+
+EXPERIMENT_TOGGLE_COOLDOWN = timedelta(seconds=5)
+"""
+Cooldown period between pause/resume toggles.
+Prevents rapid state thrashing that wastes work.
 """
 
 
@@ -3318,7 +3416,7 @@ def get_env_allow_external_resources() -> bool:
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
 
 
-def get_env_postgres_use_iam_auth() -> bool:
+def get_env_postgres_use_aws_iam_auth() -> bool:
     """
     Gets whether AWS RDS IAM authentication is enabled for PostgreSQL connections.
 
@@ -3328,66 +3426,23 @@ def get_env_postgres_use_iam_auth() -> bool:
     return _bool_val(ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH, False)
 
 
-def get_env_postgres_iam_token_lifetime() -> int:
+def get_env_postgres_use_azure_managed_identity() -> bool:
     """
-    Gets the token lifetime in seconds for AWS RDS IAM authentication pool recycling.
-
-    AWS RDS IAM tokens are valid for 15 minutes (900 seconds). This value should be
-    set slightly lower to ensure connections are recycled before token expiration.
+    Gets whether Azure managed identity authentication is enabled for PostgreSQL connections.
 
     Returns:
-        int: Token lifetime in seconds (default: 840 = 14 minutes)
+        bool: True if managed identity authentication should be used, False otherwise (default)
     """
-    lifetime = _int_val(ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS, 840)
-    if lifetime <= 0:
-        raise ValueError(
-            f"{ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS} must be a positive integer. "
-            f"Got: {lifetime}"
-        )
-    if lifetime > 900:
-        logger.warning(
-            f"{ENV_PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS} is set to {lifetime} seconds, "
-            f"which exceeds AWS RDS IAM token validity (900 seconds / 15 minutes). "
-            f"Consider setting it to 840 seconds (14 minutes) or less."
-        )
-    return lifetime
+    return _bool_val(ENV_PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY, False)
 
 
-def _validate_iam_auth_config() -> None:
+def get_env_postgres_azure_scope() -> str:
     """
-    Validate AWS RDS IAM authentication configuration if enabled.
+    Gets the Azure scope URL used for PostgreSQL access token requests.
 
-    Raises:
-        ImportError: If boto3 is not installed when IAM auth is enabled
-        ValueError: If configuration is invalid
+    Returns:
+        str: Azure scope URL. Defaults to Azure Database for PostgreSQL - Flexible Server scope.
     """
-    if not get_env_postgres_use_iam_auth():
-        return
-
-    pg_host = getenv(ENV_PHOENIX_POSTGRES_HOST)
-    if not pg_host:
-        return
-
-    try:
-        import boto3  # type: ignore  # noqa: F401
-    except ImportError:
-        raise ImportError(
-            f"boto3 is required when {ENV_PHOENIX_POSTGRES_USE_AWS_IAM_AUTH} is enabled. "
-            "Install it with: pip install 'arize-phoenix[aws]'"
-        )
-
-    if not getenv(ENV_PHOENIX_POSTGRES_USER):
-        raise ValueError(
-            f"{ENV_PHOENIX_POSTGRES_USER} must be set when using AWS RDS IAM authentication"
-        )
-
-    try:
-        client = boto3.client("sts")  # pyright: ignore
-        client.get_caller_identity()  # pyright: ignore
-        logger.info("✓ AWS credentials validated for RDS IAM authentication")
-    except Exception as e:
-        raise ValueError(
-            f"Failed to validate AWS credentials for RDS IAM authentication: {e}. "
-            "Ensure AWS credentials are configured via environment variables, "
-            "~/.aws/credentials, or IAM role."
-        )
+    return getenv(ENV_PHOENIX_POSTGRES_AZURE_SCOPE) or (
+        "https://ossrdbms-aad.database.windows.net/.default"
+    )

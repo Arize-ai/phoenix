@@ -1,4 +1,4 @@
-import { SpanKind } from "@opentelemetry/api";
+import { context, propagation, SpanKind, trace } from "@opentelemetry/api";
 import {
   InMemorySpanExporter,
   NodeTracerProvider,
@@ -30,10 +30,13 @@ describe("CreateEvaluator", () => {
     tracerProvider.register();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     // Clean up after each test
     spanExporter.reset();
-    tracerProvider.shutdown();
+    await tracerProvider.shutdown();
+    trace.disable();
+    context.disable();
+    propagation.disable();
   });
   describe("basic functionality", () => {
     it("should create an evaluator from a sync function returning a number", async () => {
@@ -382,6 +385,46 @@ describe("CreateEvaluator", () => {
       // Spans should still be created using global tracer
       const spans = spanExporter.getFinishedSpans();
       expect(spans.length).toBeGreaterThanOrEqual(0); // May or may not have spans depending on global tracer setup
+    });
+
+    it("should follow the current global tracer provider across provider swaps", async () => {
+      const fn = ({ output }: TestRecord) => {
+        return output.length;
+      };
+      const evaluator = createEvaluator(fn, {
+        name: "global-tracer-swap-test",
+        telemetry: { isEnabled: true },
+      });
+
+      await evaluator.evaluate({
+        input: "test",
+        output: "hello",
+      });
+
+      expect(spanExporter.getFinishedSpans()).toHaveLength(1);
+
+      trace.disable();
+      context.disable();
+      propagation.disable();
+
+      const secondExporter = new InMemorySpanExporter();
+      const secondProvider = new NodeTracerProvider({
+        spanProcessors: [new SimpleSpanProcessor(secondExporter)],
+      });
+      secondProvider.register();
+
+      await evaluator.evaluate({
+        input: "test",
+        output: "world",
+      });
+
+      expect(spanExporter.getFinishedSpans()).toHaveLength(1);
+      expect(secondExporter.getFinishedSpans()).toHaveLength(1);
+
+      await secondProvider.shutdown();
+      trace.disable();
+      context.disable();
+      propagation.disable();
     });
   });
 

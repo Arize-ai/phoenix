@@ -85,7 +85,7 @@ Creating a prompt in code can be useful if you want a programmatic way to sync p
     Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in the Phoenix server. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
 
     ```python
-    import phoenix as px
+    from phoenix.client import Client
     from phoenix.client.types import PromptVersion
 
     content = """\
@@ -96,7 +96,7 @@ Creating a prompt in code can be useful if you want a programmatic way to sync p
     """
 
     prompt_name = "article-bullet-summarizer"
-    prompt = px.Client().prompts.create(
+    prompt = Client().prompts.create(
         name=prompt_name,
         version=PromptVersion(
             [{"role": "user", "content": content}],
@@ -108,13 +108,13 @@ Creating a prompt in code can be useful if you want a programmatic way to sync p
     A prompt stored in the database can be retrieved later by its name. By default the latest version is fetched. Specific version ID or a tag can also be used for retrieval of a specific version.
 
     ```python
-    prompt = px.Client().prompts.get(prompt_identifier=prompt_name)
+    prompt = Client().prompts.get(prompt_identifier=prompt_name)
     ```
 
     If a version is [tagged](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) with, e.g. "production", it can retrieved as follows.
 
     ```python
-    prompt = px.Client().prompts.get(prompt_identifier=prompt_name, tag="production")
+    prompt = Client().prompts.get(prompt_identifier=prompt_name, tag="production")
     ```
 
   </Tab>

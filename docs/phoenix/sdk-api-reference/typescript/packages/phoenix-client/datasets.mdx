@@ -1,0 +1,77 @@
+---
+title: "Datasets"
+description: "Create and inspect datasets with @arizeai/phoenix-client"
+---
+
+Datasets are the foundation for experiment runs. The dataset helpers cover creation, idempotent creation, record inspection, and example appends.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/datasets/createOrGetDataset.ts</code> for the exact return
+      shape of the idempotent helper
+    </li>
+  </ul>
+</section>
+
+## Create A Dataset
+
+```ts
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+const { datasetId } = await createDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [
+    {
+      input: { question: "Where is my order?" },
+      output: { answer: "Use the tracking page in your account." },
+      metadata: { channel: "chat" },
+    },
+  ],
+});
+```
+
+## Reuse Or Append
+
+```ts
+import {
+  appendDatasetExamples,
+  createOrGetDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = await createOrGetDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [],
+});
+
+await appendDatasetExamples({
+  dataset,
+  examples: [
+    {
+      input: { question: "How do I reset my password?" },
+      output: { answer: "Use the forgot password flow." },
+    },
+  ],
+});
+```
+
+`createOrGetDataset()` returns `{ datasetId }`, so you can pass that object directly as the dataset selector for append or experiment calls.
+
+## Read Back Dataset State
+
+Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets after creation.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/datasets/createDataset.ts</code></li>
+    <li><code>src/datasets/createOrGetDataset.ts</code></li>
+    <li><code>src/datasets/appendDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDataset.ts</code></li>
+    <li><code>src/datasets/getDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDatasetInfo.ts</code></li>
+  </ul>
+</section>

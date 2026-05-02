@@ -10,12 +10,12 @@ import {
   Tabs,
   Text,
 } from "@phoenix/components";
+import { Icon } from "@phoenix/components/core/icon/Icon";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import type { ProgrammingLanguage } from "@phoenix/types/code";
 
-import { hasSnippets } from "./integrationDefinitions";
+import { hasSnippets, type OnboardingTab } from "./integrationDefinitions";
 import { ONBOARDING_INTEGRATIONS } from "./integrationRegistry";
 import { IntegrationSelectButtonGroup } from "./IntegrationSelectButtonGroup";
 import { DocsOnlyOnboardingView, OnboardingSteps } from "./OnboardingSteps";
@@ -54,23 +54,21 @@ const languageTabCSS = css`
 export function ProjectOnboarding({ projectName }: { projectName: string }) {
   const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
   const { isStreaming } = useStreamState();
-  const programmingLanguage = usePreferencesContext(
+  const preferredProgrammingLanguage = usePreferencesContext(
     (state) => state.programmingLanguage
   );
 
   const [integration, setIntegration] = useState(ONBOARDING_INTEGRATIONS[0]);
-  const [selectedLanguage, setSelectedLanguage] =
-    useState<ProgrammingLanguage>(programmingLanguage);
+  const [selectedTab, setSelectedTab] = useState<OnboardingTab>(
+    preferredProgrammingLanguage
+  );
 
-  // If the current language isn't supported by the selected integration,
-  // fall back to the first supported language.
-  const effectiveLanguage: ProgrammingLanguage =
-    integration.supportedLanguages.includes(selectedLanguage)
-      ? selectedLanguage
-      : integration.supportedLanguages[0];
-
-  const languageConfig = integration.languages[effectiveLanguage];
-  const isDocsOnly = languageConfig && !hasSnippets(languageConfig);
+  const tabs = Object.keys(integration.configs) as OnboardingTab[];
+  const effectiveTab: OnboardingTab = tabs.includes(selectedTab)
+    ? selectedTab
+    : tabs[0];
+  const config = integration.configs[effectiveTab];
+  const isDocsOnly = config != null && !hasSnippets(config);
 
   return (
     <div css={onboardingCSS}>
@@ -90,21 +88,22 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
             selectedIntegration={integration}
             onSelectionChange={(nextIntegration) => {
               setIntegration(nextIntegration);
-              if (
-                !nextIntegration.supportedLanguages.includes(selectedLanguage)
-              ) {
-                setSelectedLanguage(nextIntegration.supportedLanguages[0]);
+              const nextTabs = Object.keys(
+                nextIntegration.configs
+              ) as OnboardingTab[];
+              if (!nextTabs.includes(selectedTab)) {
+                setSelectedTab(nextTabs[0]);
               }
             }}
           />
           <Tabs
-            selectedKey={effectiveLanguage}
+            selectedKey={effectiveTab}
             onSelectionChange={(key) =>
-              setSelectedLanguage(String(key) as ProgrammingLanguage)
+              setSelectedTab(String(key) as OnboardingTab)
             }
           >
             <TabList>
-              {integration.supportedLanguages.includes("Python") && (
+              {"Python" in integration.configs && (
                 <Tab id="Python">
                   <span css={languageTabCSS}>
                     <PythonSVG />
@@ -112,7 +111,7 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   </span>
                 </Tab>
               )}
-              {integration.supportedLanguages.includes("TypeScript") && (
+              {"TypeScript" in integration.configs && (
                 <Tab id="TypeScript">
                   <span css={languageTabCSS}>
                     <TypeScriptSVG />
@@ -120,13 +119,26 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   </span>
                 </Tab>
               )}
+              {"Platform" in integration.configs && (
+                <Tab id="Platform">
+                  <span css={languageTabCSS}>
+                    <Icon
+                      svgKey="Server"
+                      css={css`
+                        font-size: 16px;
+                      `}
+                    />
+                    Platform
+                  </span>
+                </Tab>
+              )}
             </TabList>
-            {integration.supportedLanguages.includes("Python") && (
+            {"Python" in integration.configs && (
               <TabPanel id="Python">
                 {isDocsOnly ? (
                   <DocsOnlyOnboardingView
-                    docsHref={languageConfig.docsHref}
-                    githubHref={languageConfig.githubHref}
+                    docsHref={config.docsHref}
+                    githubHref={config.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
                   />
@@ -134,29 +146,30 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   <OnboardingSteps
                     language="Python"
                     packages={
-                      languageConfig && hasSnippets(languageConfig)
-                        ? languageConfig.packages
-                        : []
+                      config && hasSnippets(config) ? config.packages : []
                     }
                     implementationCode={
-                      languageConfig && hasSnippets(languageConfig)
-                        ? languageConfig.getImplementationCode({ projectName })
+                      config && hasSnippets(config)
+                        ? config.getImplementationCode({ projectName })
                         : ""
                     }
-                    docsHref={languageConfig?.docsHref}
-                    githubHref={languageConfig?.githubHref}
+                    docsHref={config?.docsHref}
+                    githubHref={config?.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
+                    extraEnvVars={
+                      config && hasSnippets(config) ? config.envVars : undefined
+                    }
                   />
                 )}
               </TabPanel>
             )}
-            {integration.supportedLanguages.includes("TypeScript") && (
+            {"TypeScript" in integration.configs && (
               <TabPanel id="TypeScript">
                 {isDocsOnly ? (
                   <DocsOnlyOnboardingView
-                    docsHref={languageConfig.docsHref}
-                    githubHref={languageConfig.githubHref}
+                    docsHref={config.docsHref}
+                    githubHref={config.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
                   />
@@ -164,23 +177,36 @@ export function ProjectOnboarding({ projectName }: { projectName: string }) {
                   <OnboardingSteps
                     language="TypeScript"
                     packages={
-                      languageConfig && hasSnippets(languageConfig)
-                        ? languageConfig.packages
-                        : []
+                      config && hasSnippets(config) ? config.packages : []
                     }
                     implementationCode={
-                      languageConfig && hasSnippets(languageConfig)
-                        ? languageConfig.getImplementationCode({ projectName })
+                      config && hasSnippets(config)
+                        ? config.getImplementationCode({ projectName })
                         : ""
                     }
-                    docsHref={languageConfig?.docsHref}
-                    githubHref={languageConfig?.githubHref}
+                    docsHref={config?.docsHref}
+                    githubHref={config?.githubHref}
                     generatedApiKey={generatedApiKey}
                     onApiKeyGenerated={setGeneratedApiKey}
+                    extraEnvVars={
+                      config && hasSnippets(config) ? config.envVars : undefined
+                    }
                   />
                 )}
               </TabPanel>
             )}
+            {"Platform" in integration.configs &&
+              config &&
+              !hasSnippets(config) && (
+                <TabPanel id="Platform">
+                  <DocsOnlyOnboardingView
+                    docsHref={config.docsHref}
+                    githubHref={config.githubHref}
+                    generatedApiKey={generatedApiKey}
+                    onApiKeyGenerated={setGeneratedApiKey}
+                  />
+                </TabPanel>
+              )}
           </Tabs>
         </Flex>
       </div>

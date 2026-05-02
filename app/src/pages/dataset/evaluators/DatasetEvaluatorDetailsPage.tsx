@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -19,6 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
@@ -45,10 +45,10 @@ const mainCSS = css`
 export function DatasetEvaluatorDetailsPage() {
   const loaderData = useLoaderData<typeof datasetEvaluatorDetailsLoader>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<datasetEvaluatorDetailsLoaderQuery>(
-    datasetEvaluatorDetailsLoaderGQL,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<datasetEvaluatorDetailsLoaderQuery>({
+    query: datasetEvaluatorDetailsLoaderGQL,
+    queryRef: loaderData.queryRef,
+  });
 
   return (
     <Suspense fallback={<Loading />}>

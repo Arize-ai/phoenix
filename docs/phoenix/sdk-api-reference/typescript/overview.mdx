@@ -15,7 +15,7 @@ Phoenix's TypeScript SDK is modular by design, allowing you to install only what
   <Card title="@arizeai/phoenix-evals" icon="clipboard-check" href="https://www.npmjs.com/package/@arizeai/phoenix-evals">
     LLM evaluation and metrics toolkit
   </Card>
-  <Card title="@arizeai/openinference-core" icon="puzzle-piece" href="https://arize-ai.github.io/openinference/js/">
+  <Card title="@arizeai/openinference-core" icon="puzzle-piece" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core">
     Instrumentation helpers
   </Card>
   <Card title="@arizeai/phoenix-mcp" icon="plug" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
@@ -36,13 +36,23 @@ npm install @arizeai/phoenix-client @arizeai/phoenix-otel @arizeai/phoenix-evals
 
 # Or install individually
 npm install @arizeai/phoenix-client   # REST API client
-npm install @arizeai/phoenix-otel     # Tracing
+npm install @arizeai/phoenix-otel     # Tracing + manual helpers
 npm install @arizeai/phoenix-evals    # Evaluations
-npm install @arizeai/openinference-core  # Instrumentation core
+npm install @arizeai/openinference-core  # Framework-agnostic instrumentation core
 
 # Install CLI globally
 npm install -g @arizeai/phoenix-cli   # Command-line interface
 ```
+
+<Note>
+Each Phoenix SDK package now ships curated docs and source code directly in `node_modules`, following the same local-install pattern used by the AI SDK.
+
+- `node_modules/@arizeai/phoenix-client/docs/` and `src/`
+- `node_modules/@arizeai/phoenix-evals/docs/` and `src/`
+- `node_modules/@arizeai/phoenix-otel/docs/` and `src/`
+
+These bundled docs are version-matched to the package you installed, require no network access, and mirror the package-doc sections in this navigation tree.
+</Note>
 
 ## Environment Variables
 
@@ -92,6 +102,8 @@ OpenTelemetry wrapper for sending traces to Phoenix. Simplifies setup with autom
 
 - **Simple setup** — Single `register()` call to configure tracing
 - **Phoenix-aware defaults** — Reads `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and other environment variables
+- **OpenInference helper surface** — Re-exports `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, context setters, attribute builders, and `OITracer`
+- **Provider-swap safe wrappers** — The re-exported helpers resolve the default tracer when the wrapped function executes
 - **Production ready** — Built-in batch processing and authentication support
 - **Auto-instrumentation** — Support for HTTP, Express, and other OpenTelemetry instrumentations
 - **Manual tracing** — Create custom spans using the OpenTelemetry API
@@ -141,6 +153,8 @@ TypeScript evaluation library for LLM applications. Create custom evaluators or 
 
 OpenInference provides instrumentation utilities for tracing LLM applications. The core package (`@arizeai/openinference-core`) offers tracing helpers, decorators, and context attribute propagation.
 
+If you are already using Phoenix, `@arizeai/phoenix-otel` re-exports these helpers from the same package path. Install `@arizeai/openinference-core` directly when you want the framework-agnostic helpers without Phoenix's tracing registration layer.
+
 ### Tracing Helpers
 
 Convenient wrappers to instrument your functions with OpenInference spans:
@@ -170,7 +184,7 @@ Track metadata across your traces with context setters:
 - **`setSession`** — Group multi-turn conversations with a session ID
 - **`setUser`** — Track conversations by user ID
 - **`setMetadata`** — Add custom metadata for operational needs
-- **`setTag`** — Add tags for filtering spans
+- **`setTags`** — Add tags for filtering spans
 - **`setPromptTemplate`** — Track prompt templates, versions, and variables
 
 ### Framework Instrumentors

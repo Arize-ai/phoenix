@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79de53cd4f208b56150eb7c9a5427a07>>
+ * @generated SignedSource<<0a69ecf964a4e550468fcc08221692a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -106,6 +106,11 @@ return {
                     "kind": "Variable",
                     "name": "filterIds",
                     "variableName": "experimentIds"
+                  },
+                  {
+                    "kind": "Literal",
+                    "name": "includeEphemeral",
+                    "value": true
                   }
                 ],
                 "concreteType": "ExperimentConnection",
@@ -164,12 +169,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "447dbe5b828f328f716ef4aed7d1e0ec",
+    "cacheID": "7c15fa41768e4a97fd4af03e110f1d65",
     "id": null,
     "metadata": {},
     "name": "ExperimentComparePageQueriesSelectedCompareExperimentsQuery",
     "operationKind": "query",
-    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

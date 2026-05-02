@@ -50,6 +50,7 @@ import {
   ConnectedTimeRangeSelector,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -60,6 +61,7 @@ import {
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
+import { useInterval } from "@phoenix/hooks";
 import type {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
@@ -81,6 +83,7 @@ import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
+const PROJECTS_POLL_INTERVAL_MS = 60_000;
 
 const useProjectSortQueryParams = () => {
   const { projectSortOrder } = usePreferencesContext((state) => ({
@@ -120,13 +123,19 @@ export function ProjectsPage() {
       first: PAGE_SIZE,
       filter: { value: "", col: "name" },
       ...queryParams,
-    }
+    },
+    { fetchPolicy: "store-and-network" }
   );
 
   return (
-    <Suspense fallback={<Loading />}>
-      <ProjectsPageContent timeRange={timeRange} query={data} />
-    </Suspense>
+    <>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<Loading />}>
+        <ProjectsPageContent timeRange={timeRange} query={data} />
+      </Suspense>
+    </>
   );
 }
 
@@ -222,6 +231,8 @@ export function ProjectsPageContent({
     },
     [_refetch, queryArgs]
   );
+
+  useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
 
   const projects = projectsData?.projects.edges.map((p) => p.project);
 
@@ -353,7 +364,6 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
-            <ConnectedTimeRangeSelector size="M" />
             <CanModify>
               <NewProjectButton
                 variant="primary"

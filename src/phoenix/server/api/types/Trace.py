@@ -17,8 +17,12 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
-from phoenix.server.api.input_types.TraceAnnotationSort import TraceAnnotationSort
+from phoenix.server.api.input_types.TraceAnnotationSort import (
+    TraceAnnotationColumn,
+    TraceAnnotationSort,
+)
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.pagination import (
@@ -27,10 +31,11 @@ from phoenix.server.api.types.pagination import (
     connection_from_cursors_and_nodes,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Span import Span, SpanKind
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
+from phoenix.trace.dsl import SpanFilter
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
@@ -38,6 +43,25 @@ if TYPE_CHECKING:
 
 ProjectRowId: TypeAlias = int
 TraceRowId: TypeAlias = int
+
+
+@strawberry.type
+class SpanKindCount:
+    span_kind: SpanKind
+    count: int
+
+
+@strawberry.type
+class SpanErrorTypeCount:
+    exception_type: Optional[str] = strawberry.field(
+        description=(
+            "The `exception.type` attribute of the span event. `None` when no type "
+            "could be determined — either the errored span has no accompanying "
+            "`exception` event, or an `exception` event is present but its "
+            "`exception.type` attribute is missing or malformed."
+        ),
+    )
+    count: int
 
 
 @strawberry.type
@@ -163,7 +187,7 @@ class Trace(Node):
             return None
 
         stmt = select(models.ProjectSession).filter_by(id=project_session_rowid)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             project_session = await session.scalar(stmt)
         if project_session is None:
             return None
@@ -188,20 +212,72 @@ class Trace(Node):
     ) -> int:
         return await info.context.data_loaders.num_spans_per_trace.load(self.id)
 
-    @strawberry.field
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Count of each span kind present under this trace. Only kinds with "
+            "count > 0 are returned."
+        ),
+    )
+    async def span_counts_by_kind(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanKindCount]:
+        rows = await info.context.data_loaders.trace_span_counts_by_kind.load(self.id)
+        # The dataloader groups by the raw DB `span_kind` string. `SpanKind(kind)`
+        # collapses any non-canonical value (lowercase, legacy name, etc.) to
+        # `SpanKind.unknown` via the enum's `_missing_` hook, which can produce
+        # multiple rows that resolve to the same enum member. Coalesce here so
+        # the response contains exactly one entry per kind.
+        counts: dict[SpanKind, int] = {}
+        for kind, count in rows:
+            enum_kind = SpanKind(kind)
+            counts[enum_kind] = counts.get(enum_kind, 0) + count
+        # Re-sort after dedup: count desc, then kind name asc. Names are the
+        # lowercase form of values, so this preserves the dataloader's order
+        # when no collision occurred.
+        return [
+            SpanKindCount(span_kind=k, count=c)
+            for k, c in sorted(counts.items(), key=lambda row: (-row[1], row[0].name))
+        ]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Count of spans under this trace with `status_code == ERROR`.",
+    )
+    async def error_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.trace_error_count.load(self.id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Breakdown of errored-span exception types under this trace. Each "
+            "`exception` event on an errored span contributes a count; errored spans "
+            "that carry no `exception` event contribute to the `null` bucket."
+        ),
+    )
+    async def errors_by_type(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanErrorTypeCount]:
+        rows = await info.context.data_loaders.trace_errors_by_type.load(self.id)
+        return [
+            SpanErrorTypeCount(exception_type=exc_type, count=count) for exc_type, count in rows
+        ]
+
+    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
     async def spans(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = UNSET,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         orphan_span_as_root_span: Optional[bool] = True,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        # Validate pagination arguments
-        if isinstance(first, int) and first <= 0:
-            raise ValueError('Argument "first" must be a positive int')
+        assert isinstance(first, int)
 
         # Build base query for spans in this trace
         base_query = (
@@ -223,11 +299,11 @@ class Trace(Node):
             # For descending order, "after" means we want spans with smaller IDs
             # (going forward in descending order)
             base_query = base_query.where(models.Span.id < cursor.rowid)
-        # Note: backward pagination (last/before) is not yet implemented
-        # as it requires more complex handling with reversed ordering
-        if before is not UNSET or (last is not UNSET and last is not None):
-            raise ValueError("Backward pagination (last/before) is not yet supported")
-
+        # Narrow by SpanFilter DSL (e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`)
+        # before any root-span CTE wrapping, so the filter applies to the candidate set.
+        if filter_condition:
+            span_filter = SpanFilter(condition=filter_condition)
+            base_query = span_filter(base_query)
         # Build final query based on filtering requirements
         if root_spans_only:
             if orphan_span_as_root_span:
@@ -265,11 +341,11 @@ class Trace(Node):
             stmt = base_query
 
         # Over-fetch by one to determine whether there's a next page
-        limit = first if isinstance(first, int) else 50
+        limit = first
         stmt = stmt.limit(limit + 1)
 
         cursors_and_nodes = []
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             span_rowids = await session.stream_scalars(stmt)
             async for span_rowid in islice(span_rowids, limit):
                 cursor = Cursor(rowid=span_rowid)
@@ -289,19 +365,24 @@ class Trace(Node):
     async def trace_annotations(
         self,
         info: Info[Context, None],
-        sort: Optional[TraceAnnotationSort] = None,
+        sort: Optional[TraceAnnotationSort] = UNSET,
+        filter: Optional[AnnotationFilter] = None,
     ) -> list[TraceAnnotation]:
-        async with info.context.db() as session:
-            stmt = select(models.TraceAnnotation).filter_by(trace_rowid=self.id)
-            if sort:
-                sort_col = getattr(models.TraceAnnotation, sort.col.value)
-                if sort.dir is SortDir.desc:
-                    stmt = stmt.order_by(sort_col.desc(), models.TraceAnnotation.id.desc())
-                else:
-                    stmt = stmt.order_by(sort_col.asc(), models.TraceAnnotation.id.asc())
-            else:
-                stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
-            annotations = await session.scalars(stmt)
+        annotations = list(await info.context.data_loaders.trace_annotations_by_trace.load(self.id))
+        sort_key = TraceAnnotationColumn.createdAt.value
+        sort_descending = True
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
+        if sort:
+            sort_key = sort.col.value
+            sort_descending = sort.dir is SortDir.desc
+        annotations = sorted(
+            annotations,
+            key=lambda annotation: (getattr(annotation, sort_key), annotation.id),
+            reverse=sort_descending,
+        )
         return [
             TraceAnnotation(id=annotation.id, db_record=annotation) for annotation in annotations
         ]

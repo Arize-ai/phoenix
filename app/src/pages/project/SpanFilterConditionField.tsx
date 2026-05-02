@@ -15,11 +15,13 @@ import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { fetchQuery, graphql } from "relay-runtime";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Button,
   DialogTrigger,
@@ -37,10 +39,9 @@ import {
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import environment from "@phoenix/RelayEnvironment";
 
-import type { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
-import { useSpanFilterCondition } from "./SpanFilterConditionContext";
+import { useSpanFilters } from "./SpanFiltersContext";
+import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 const codeMirrorCSS = css`
   flex: 1 1 auto;
@@ -206,40 +207,6 @@ function filterConditionCompletions(
   };
 }
 
-/**
- * Async server-side validation of the filter condition expression
- */
-async function isConditionValid(condition: string, projectId: string) {
-  if (!condition) {
-    return {
-      isValid: true,
-      errorMessage: null,
-    };
-  }
-  const validationResult =
-    await fetchQuery<SpanFilterConditionFieldValidationQuery>(
-      environment,
-      graphql`
-        query SpanFilterConditionFieldValidationQuery($condition: String!, $id: ID!) {
-          project: node(id: $id) {
-            ... on Project {
-              validateSpanFilterCondition(condition: $condition) {
-                isValid
-                errorMessage
-              }
-            }
-          }
-        }
-      `,
-      { condition, id: projectId }
-    ).toPromise();
-  // Satisfy the type checker
-  if (!validationResult) {
-    throw new Error("Filter condition validation is null");
-  }
-  return validationResult.project.validateSpanFilterCondition;
-}
-
 const extensions = [
   keymap.of([
     {
@@ -278,9 +245,11 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [isConditionValidState, setIsConditionValidState] =
+    useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const { filterCondition, setFilterCondition, appendFilterCondition } =
-    useSpanFilterCondition();
+    useSpanFilters();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
@@ -289,17 +258,60 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
+  const advertisedContext = useMemo<AgentContext | null>(() => {
+    // Advertise a project context that carries the current spanFilter while
+    // the field is mounted. The merge in `selectActiveContexts` layers this
+    // on top of the route-derived project context (which carries no filter)
+    // so the server sees a single project entry with the filter included.
+    // An in-progress invalid edit surfaces as empty rather than a known-bad
+    // expression.
+    if (!projectId) {
+      return null;
+    }
+    const trimmed = deferredFilterCondition.trim();
+    const spanFilter = isConditionValidState && trimmed ? trimmed : "";
+    return {
+      type: "project",
+      projectNodeId: projectId,
+      spanFilter,
+    };
+  }, [deferredFilterCondition, isConditionValidState, projectId]);
+
+  // Keep the agent's mounted UI context aligned with the current validated
+  // filter expression while this field is rendered. The matching agent
+  // client action for `set_spans_filter` is registered by
+  // `SpanFiltersProvider`, which owns the underlying state.
+  useAdvertiseAgentContext(advertisedContext);
+
   useEffect(() => {
-    isConditionValid(deferredFilterCondition, projectId).then((result) => {
-      if (!result?.isValid) {
-        setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
-      } else {
-        setErrorMessage("");
-        startTransition(() => {
-          onValidCondition(deferredFilterCondition);
-        });
+    let isCancelled = false;
+
+    if (deferredFilterCondition.trim() !== "") {
+      setIsConditionValidState(false);
+    }
+
+    void validateSpanFilterCondition(deferredFilterCondition, projectId).then(
+      (result) => {
+        if (isCancelled) {
+          return;
+        }
+
+        if (!result?.isValid) {
+          setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
+          setIsConditionValidState(false);
+        } else {
+          setErrorMessage("");
+          setIsConditionValidState(true);
+          startTransition(() => {
+            onValidCondition(deferredFilterCondition);
+          });
+        }
       }
-    });
+    );
+
+    return () => {
+      isCancelled = true;
+    };
   }, [onValidCondition, deferredFilterCondition, projectId]);
 
   const hasError = errorMessage !== "";

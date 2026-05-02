@@ -26,7 +26,7 @@ class TableFieldsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: Iterable[Key]) -> list[Union[Result, ValueError]]:
         result: dict[tuple[PrimaryKey, _AttrStrIdentifier], Result] = {}
         stmt, attr_strs = _get_stmt(keys, self._table)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for row in data:
                 pk: PrimaryKey = row[0]

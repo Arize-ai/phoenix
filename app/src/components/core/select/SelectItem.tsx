@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { forwardRef } from "react";
+import type { ReactNode, Ref } from "react";
 import type { ListBoxItemProps } from "react-aria-components";
 import { ListBoxItem } from "react-aria-components";
 
@@ -13,8 +12,11 @@ interface SelectItemProps extends ListBoxItemProps {
 /**
  * A ListBoxItem specifically that shows a checkbox icon where the item is selected.
  */
-const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>((props, ref) => {
-  const { children, ...restProps } = props;
+export function SelectItem({
+  ref,
+  children,
+  ...restProps
+}: SelectItemProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <ListBoxItem {...restProps} ref={ref}>
       {({ isSelected }) => {
@@ -31,8 +33,6 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>((props, ref) => {
       }}
     </ListBoxItem>
   );
-});
+}
 
 SelectItem.displayName = "SelectItem";
-
-export { SelectItem };

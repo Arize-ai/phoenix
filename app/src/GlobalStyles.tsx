@@ -1027,6 +1027,23 @@ const cardCSS = (theme: Theme) => css`
   }
 `;
 
+const toolCallCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --tool-call-border-color: var(--global-card-border-color);
+    --tool-call-background-color: var(--global-color-gray-100);
+    --tool-call-header-background-color: var(--global-color-gray-75);
+    --tool-call-header-background-color-hover: var(
+      --global-card-header-background-color-hover
+    );
+    --tool-call-body-background-color: var(--global-color-gray-50);
+    --tool-call-body-border-color: var(--global-color-gray-200);
+    --tool-call-title-color: var(--global-text-color-700);
+    --tool-call-secondary-color: var(--global-text-color-500);
+    --tool-call-error-color: var(--global-color-danger);
+  }
+`;
+
 const popoverCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1044,6 +1061,18 @@ const roundingCSS = (theme: Theme) => css`
     --global-rounding-large: var(--global-dimension-static-size-200);
     /* Fully rounded ends for pill/capsule shapes (e.g. switch tracks, slider tracks) */
     --global-rounding-full: 9999px;
+  }
+`;
+
+const listCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-list-item-hover-background-color: var(--hover-background);
+    --global-list-item-selected-background-color: var(--global-color-gray-200);
+    --global-list-item-selected-border-color: var(--global-color-gray-300);
+    --global-list-detail-selected-background-color: var(
+      --global-color-gray-100
+    );
   }
 `;
 
@@ -1183,6 +1212,15 @@ const promptInputCSS = (theme: Theme) => css`
   }
 `;
 
+const messageTokensCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --message-user-background-color: var(--global-color-gray-200);
+    --message-user-text-color: var(--global-text-color-900);
+    --message-user-border-radius: var(--global-rounding-medium);
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1193,14 +1231,17 @@ export const derivedCSS = (theme: Theme) =>
     disclosureCSS(theme),
     tooltipCSS(theme),
     cardCSS(theme),
+    toolCallCSS(theme),
     popoverCSS(theme),
     roundingCSS(theme),
+    listCSS(theme),
     tableCSS(theme),
     markdownCSS(theme),
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
-    promptInputCSS(theme)
+    promptInputCSS(theme),
+    messageTokensCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

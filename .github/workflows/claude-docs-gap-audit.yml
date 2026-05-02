@@ -1,0 +1,58 @@
+name: Weekly Docs Gap Audit
+
+on:
+  schedule:
+    # Every Wednesday at 16:00 UTC (after release notes at 14:00 and llms.txt at 15:00)
+    - cron: "0 16 * * 3"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-gap-audit
+  cancel-in-progress: true
+
+jobs:
+  docs-gap-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          model: claude-opus-4-6
+          prompt: |
+            /phoenix-docs-gap-audit
+
+            Audit the last 7 days of commits on origin/main for documentation gaps across
+            /docs, package READMEs, package-level built-in docs (Sphinx, TypeDoc), Python
+            docstrings, TSDoc, and code comments. Follow the skill's guidance strictly —
+            fetch origin/main, grep-first search, breadth-first triage, ground every claim
+            in real code.
+
+            If there are no user-facing gaps (the audit window contains only dep bumps,
+            internal refactors, or fully-documented features), exit without creating an
+            issue.
+
+            Otherwise, create a GitHub issue via `gh issue create` with:
+              - Title: "docs: Weekly docs gap audit — <YYYY-MM-DD>" (today's UTC date)
+              - Body: the full gap report markdown produced by the skill
+              - Label: "documentation"
+
+            Do not commit or push anything. Do not open a PR. The output of this workflow
+            is the GitHub issue and nothing else.
+          claude_args: '--allowedTools Skill,Read,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(date:*)","Bash(ls:*)"'

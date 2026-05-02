@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { NumberFieldProps as AriaNumberFieldProps } from "react-aria-components";
 import { NumberField as AriaNumberField } from "react-aria-components";
 
@@ -19,10 +18,10 @@ const numberFieldCSS = css`
   }
 `;
 
-const NumberField = forwardRef(function NumberField(
-  props: NumberFieldProps,
-  ref: Ref<HTMLDivElement>
-) {
+function NumberField({
+  ref,
+  ...props
+}: NumberFieldProps & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", ...otherProps } = props;
   return (
     <AriaNumberField
@@ -36,6 +35,6 @@ const NumberField = forwardRef(function NumberField(
       css={css(fieldBaseCSS, textFieldCSS, numberFieldCSS)}
     />
   );
-});
+}
 
 export { NumberField };

@@ -98,7 +98,7 @@ Since our dataset has ground truth available in the `expected_category` field, w
 
 ```python Python
 # Define Code-Based Evaluator for Tool Call Accuracy
-from phoenix.experiments.evaluators import create_evaluator
+from phoenix.client.experiments import create_evaluator
 
 @create_evaluator(kind="CODE", name="tool-call-accuracy")
 def tool_call_accuracy(output: str, expected: dict) -> bool:
@@ -151,15 +151,15 @@ Now we can run the experiment on our dataset with ground truth. We'll use the go
 <CodeGroup>
 
 ```python Python
-from phoenix.experiments import run_experiment
+from phoenix.client.experiments import run_experiment
 
 golden_dataset = px_client.datasets.get_dataset(
     dataset="support-ticket-queries"
 )
 
 experiment = run_experiment(
-    golden_dataset,
-    classify_ticket_task,
+    dataset=golden_dataset,
+    task=classify_ticket_task,
     evaluators=[tool_call_accuracy],
     experiment_name="tool call accuracy experiment",
     experiment_description="Evaluating classify_ticket tool accuracy against ground truth labels using a code-based evaluator"

@@ -21,7 +21,7 @@ class TokenPricesByModelDataLoader(DataLoader[Key, Result]):
         model_ids = keys
         token_prices: defaultdict[Key, Result] = defaultdict(list)
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for token_price in await session.stream_scalars(
                 select(models.TokenPrice).where(models.TokenPrice.model_id.in_(model_ids))
             ):

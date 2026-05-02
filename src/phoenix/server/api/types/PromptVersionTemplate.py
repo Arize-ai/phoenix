@@ -111,7 +111,7 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
                         ToolResultContentPart(
                             tool_result=ToolResultContentValue(
                                 tool_call_id=part.tool_call_id,
-                                result=json.dumps(part.tool_result),
+                                result=JSON(json.dumps(part.tool_result)),
                             )
                         )
                     )

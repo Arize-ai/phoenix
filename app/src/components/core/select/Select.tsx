@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Select as AriaSelect } from "react-aria-components";
 
@@ -19,10 +18,10 @@ export interface SelectProps<
 >
   extends AriaSelectProps<T, M>, SizingProps, StylableProps {}
 
-function Select<T extends object, M extends "single" | "multiple">(
-  props: SelectProps<T, M>,
-  ref: Ref<HTMLDivElement>
-) {
+function Select<T extends object, M extends "single" | "multiple">({
+  ref,
+  ...props
+}: SelectProps<T, M> & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", ...otherProps } = props;
   return (
     <SizeProvider size={size}>
@@ -37,6 +36,4 @@ function Select<T extends object, M extends "single" | "multiple">(
   );
 }
 
-const _Select = forwardRef(Select);
-
-export { _Select as Select };
+export { Select };

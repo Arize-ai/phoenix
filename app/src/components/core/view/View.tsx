@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import { filterDOMProps } from "@react-aria/utils";
 import type { JSXElementConstructor, ReactNode, Ref } from "react";
-import { forwardRef } from "react";
 
 import type { DOMProps, ViewStyleProps } from "@phoenix/components/core/types";
 
@@ -20,7 +19,7 @@ export interface ViewProps extends ViewStyleProps, DOMProps {
   elementType?: string | JSXElementConstructor<any>;
 }
 
-function View(props: ViewProps, ref: Ref<HTMLElement>) {
+function View({ ref, ...props }: ViewProps & { ref?: Ref<HTMLElement> }) {
   const { children, elementType: ElementType = "div", ...otherProps } = props;
   const { styleProps } = useStyleProps(props, viewStyleProps);
 
@@ -44,5 +43,4 @@ function View(props: ViewProps, ref: Ref<HTMLElement>) {
  * View is a general purpose container with no specific semantics
  * that can be used for custom styling purposes, similar to a div.
  */
-const _View = forwardRef(View);
-export { _View as View };
+export { View };

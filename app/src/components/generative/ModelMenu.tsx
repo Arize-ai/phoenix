@@ -167,6 +167,7 @@ function applyBedrockPrefix(modelName: string, prefix: string): string {
 export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
+  isDisabled?: boolean;
   /**
    * Visual variant of the trigger button.
    * - `"default"` — standard bordered button with chevron icon.
@@ -179,6 +180,7 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
 export function ModelMenu({
   value,
   onChange,
+  isDisabled = false,
   placement,
   shouldFlip,
   variant = "default",
@@ -307,13 +309,18 @@ export function ModelMenu({
 
   const isSearching = searchValue.trim().length > 0;
 
+  const searchFilter = useCallback(
+    (textValue: string, inputValue: string) => contains(textValue, inputValue),
+    [contains]
+  );
+
   const selectedProvider = value?.provider;
   const isValidSelectedProvider =
     selectedProvider && isModelProvider(selectedProvider);
 
   return (
     <MenuTrigger>
-      <Button size="S" variant={variant}>
+      <Button size="S" variant={variant} isDisabled={isDisabled}>
         {value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
             {isValidSelectedProvider && (
@@ -327,33 +334,36 @@ export function ModelMenu({
         {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer placement={placement} shouldFlip={shouldFlip}>
-        <MenuHeader>
-          <SearchField
-            aria-label="Search models"
-            variant="quiet"
-            size="L"
-            value={searchValue}
-            onChange={setSearchValue}
-          >
-            <SearchIcon />
-            <Input placeholder="Search models..." />
-          </SearchField>
-        </MenuHeader>
-        {isSearching ? (
-          <ModelsByProviderMenu
-            modelsByProvider={filteredModelsByProvider}
-            providerInfoMap={providerInfoMap}
-            customProviders={filteredCustomProviders}
-            onChange={handleModelChange}
-          />
-        ) : (
-          <ProviderMenu
-            providers={data.modelProviders}
-            modelsByProvider={modelsByProvider}
-            customProviders={customProviders}
-            onChange={handleModelChange}
-          />
-        )}
+        <Autocomplete filter={isSearching ? searchFilter : undefined}>
+          <MenuHeader>
+            <SearchField
+              aria-label="Search models"
+              variant="quiet"
+              size="L"
+              autoFocus
+              value={searchValue}
+              onChange={setSearchValue}
+            >
+              <SearchIcon />
+              <Input placeholder="Search models..." />
+            </SearchField>
+          </MenuHeader>
+          {isSearching ? (
+            <ModelsByProviderMenu
+              modelsByProvider={filteredModelsByProvider}
+              providerInfoMap={providerInfoMap}
+              customProviders={filteredCustomProviders}
+              onChange={handleModelChange}
+            />
+          ) : (
+            <ProviderMenu
+              providers={data.modelProviders}
+              modelsByProvider={modelsByProvider}
+              customProviders={customProviders}
+              onChange={handleModelChange}
+            />
+          )}
+        </Autocomplete>
         <MenuFooter>
           <LinkButton
             size="S"

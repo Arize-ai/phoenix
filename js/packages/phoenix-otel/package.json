@@ -1,10 +1,14 @@
 {
   "name": "@arizeai/phoenix-otel",
-  "version": "0.4.2",
-  "description": "Otel registration and convenience methods",
+  "version": "1.0.0",
+  "description": "Phoenix OpenTelemetry tracing SDK for Node.js — register tracing, manual span helpers, and context attributes for LLM observability",
   "keywords": [
+    "OpenInference",
+    "agents",
     "arize",
     "llm",
+    "observability",
+    "openTelemetry",
     "otel",
     "phoenix",
     "tracing"
@@ -19,8 +23,12 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -37,15 +45,19 @@
     "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
     "clean": "rimraf dist",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-otel",
     "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-otel",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^1.1.0",
+    "@arizeai/openinference-core": "^2.0.7",
+    "@arizeai/openinference-semantic-conventions": "^2.1.7",
     "@arizeai/openinference-vercel": "^2.7.0",
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^2.5.1",
     "@opentelemetry/core": "^1.25.1",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.205.0",
     "@opentelemetry/instrumentation": "^0.57.2",

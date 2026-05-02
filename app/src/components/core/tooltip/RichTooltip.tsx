@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, ReactNode, Ref } from "react";
-import { forwardRef } from "react";
 import { Tooltip as AriaTooltip } from "react-aria-components";
 
 import { Heading, Text } from "../content";
@@ -20,7 +19,10 @@ export interface RichTooltipProps extends TooltipProps {
  * Use this component for tooltips that require rich content, such as description lists, charts, titles with paragraphs, or other complex layouts.
  * Ideal when you need more than a short sentence. If you only need a simple, brief tooltip, use the Tooltip component instead.
  */
-function RichTooltip(props: RichTooltipProps, ref: Ref<HTMLDivElement>) {
+function RichTooltip({
+  ref,
+  ...props
+}: RichTooltipProps & { ref?: Ref<HTMLDivElement> }) {
   const { children, css: propCSS, width, ...otherProps } = props;
 
   return (
@@ -35,8 +37,7 @@ function RichTooltip(props: RichTooltipProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _RichTooltip = forwardRef(RichTooltip);
-export { _RichTooltip as RichTooltip };
+export { RichTooltip };
 
 // Composition components
 export function RichTooltipTitle({ children }: { children: ReactNode }) {

@@ -1,0 +1,172 @@
+{
+  "schema_version": "ATIF-v1.4",
+  "session_id": "sess-def456-multi",
+  "agent": {
+    "name": "research-analyst",
+    "version": "2.1.0",
+    "model_name": "gpt-4-turbo",
+    "extra": {
+      "organization": "acme-research",
+      "deployment_id": "deploy-778899",
+      "temperature": 0.3,
+      "max_tokens": 4096
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2025-01-15T14:00:00Z",
+      "source": "user",
+      "message": "Compare the latest quarterly revenue for AAPL and MSFT, and summarize any recent news that could impact their stock prices.",
+      "extra": {
+        "user_id": "user-42",
+        "channel": "web-chat"
+      }
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2025-01-15T14:00:03Z",
+      "source": "agent",
+      "message": "I'll pull the financial data and recent news for both companies simultaneously.",
+      "model_name": "gpt-4-turbo",
+      "reasoning_content": "The user wants two things: (1) quarterly revenue comparison for AAPL and MSFT, and (2) recent news impacting their stock. I can issue parallel tool calls for the financial data and news search to speed things up. I'll use financial_search for revenue figures and news_search for recent headlines.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_fin_aapl",
+          "function_name": "financial_search",
+          "arguments": {
+            "ticker": "AAPL",
+            "metric": "quarterly_revenue",
+            "period": "latest"
+          }
+        },
+        {
+          "tool_call_id": "call_fin_msft",
+          "function_name": "financial_search",
+          "arguments": {
+            "ticker": "MSFT",
+            "metric": "quarterly_revenue",
+            "period": "latest"
+          }
+        },
+        {
+          "tool_call_id": "call_news",
+          "function_name": "news_search",
+          "arguments": {
+            "query": "AAPL MSFT stock impact news",
+            "max_results": 5,
+            "recency_days": 7
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fin_aapl",
+            "content": "Apple Inc. (AAPL) Q4 2024 revenue: $94.9 billion, up 6% YoY. iPhone revenue: $46.2B, Services: $25.0B (record), Mac: $7.7B, iPad: $6.9B, Wearables: $9.0B."
+          },
+          {
+            "source_call_id": "call_fin_msft",
+            "content": "Microsoft Corp. (MSFT) Q2 FY2025 revenue: $69.6 billion, up 12% YoY. Intelligent Cloud (Azure): $25.5B (+20%), Productivity & Business: $29.4B, More Personal Computing: $14.7B."
+          },
+          {
+            "source_call_id": "call_news",
+            "content": "1. 'Apple announces new AI partnership with OpenAI for iOS 19' - Reuters, Jan 14. 2. 'Microsoft Azure growth accelerates as enterprise AI adoption surges' - Bloomberg, Jan 13. 3. 'EU regulators open new probe into Apple App Store fees' - FT, Jan 12. 4. 'Microsoft to invest $10B in Southeast Asia data centers' - WSJ, Jan 11. 5. 'Apple car project officially cancelled, resources shifted to AI' - The Verge, Jan 10."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 1850,
+        "completion_tokens": 145,
+        "cached_tokens": 512,
+        "cost_usd": 0.0021,
+        "extra": {
+          "latency_ms": 2840
+        }
+      },
+      "extra": {
+        "parallel_tool_calls": true,
+        "tool_call_count": 3
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2025-01-15T14:00:07Z",
+      "source": "system",
+      "message": "Note: AAPL earnings call is scheduled for January 30, 2025. MSFT earnings call is scheduled for January 28, 2025. Ensure financial data is labeled as Q4 2024 for AAPL and Q2 FY2025 for MSFT.",
+      "extra": {
+        "injection_type": "context_reminder",
+        "priority": "high"
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2025-01-15T14:00:09Z",
+      "source": "agent",
+      "message": "Let me also fetch the analyst consensus estimates to give you a more complete picture.",
+      "model_name": "gpt-4-turbo",
+      "reasoning_content": "I have revenue data and news. The system reminder about upcoming earnings calls is useful context. To provide a thorough comparison, I should also grab analyst consensus so the user knows market expectations. I'll fetch estimates for both tickers.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_analyst",
+          "function_name": "analyst_estimates",
+          "arguments": {
+            "tickers": ["AAPL", "MSFT"],
+            "estimate_type": "revenue",
+            "period": "next_quarter"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_analyst",
+            "content": "Analyst consensus for next quarter: AAPL Q1 FY2025 revenue estimate $118.2B (range $115.0B-$121.5B, 23 analysts). MSFT Q3 FY2025 revenue estimate $72.8B (range $71.0B-$74.5B, 31 analysts). Both companies expected to beat estimates based on AI tailwinds."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 3200,
+        "completion_tokens": 110,
+        "cached_tokens": 1850,
+        "cost_usd": 0.0018,
+        "extra": {
+          "latency_ms": 1950,
+          "cache_hit_ratio": 0.578
+        }
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2025-01-15T14:00:14Z",
+      "source": "agent",
+      "message": "Here is a comparison of the latest quarterly revenue for Apple and Microsoft, along with key recent news:\n\n## Revenue Comparison\n\n| Company | Quarter | Revenue | YoY Growth |\n|---------|---------|---------|------------|\n| Apple (AAPL) | Q4 2024 | $94.9B | +6% |\n| Microsoft (MSFT) | Q2 FY2025 | $69.6B | +12% |\n\n**Apple** posted $94.9 billion in revenue for Q4 2024, driven by a record $25.0B in Services revenue and $46.2B from iPhone. While total revenue is higher than Microsoft's, the growth rate is slower.\n\n**Microsoft** reported $69.6 billion for Q2 FY2025, with Azure and cloud services leading the way at $25.5B (+20% YoY). Microsoft's double-digit growth rate outpaces Apple's.\n\n## Recent News Impact\n\n**Bullish signals:**\n- Apple's new AI partnership with OpenAI for iOS 19 could drive upgrade cycles\n- Microsoft Azure growth is accelerating with enterprise AI adoption\n- Microsoft's $10B investment in Southeast Asia data centers signals long-term confidence\n\n**Bearish signals:**\n- EU regulators are probing Apple's App Store fees again, which could pressure Services margins\n- Apple has cancelled its car project, though resources are being redirected to AI\n\n## Analyst Outlook\nAnalysts expect both companies to beat estimates next quarter, with AAPL consensus at $118.2B and MSFT at $72.8B, driven by AI tailwinds. Earnings calls are on Jan 28 (MSFT) and Jan 30 (AAPL).",
+      "model_name": "gpt-4-turbo",
+      "reasoning_content": "I have all the data I need. Let me synthesize the revenue figures, news items, and analyst estimates into a clear comparison. I'll use a table for the revenue data and organize the news by bullish vs bearish signals.",
+      "metrics": {
+        "prompt_tokens": 4100,
+        "completion_tokens": 380,
+        "cached_tokens": 3200,
+        "cost_usd": 0.0035,
+        "extra": {
+          "latency_ms": 4200,
+          "finish_reason": "stop"
+        }
+      },
+      "extra": {
+        "response_format": "markdown"
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 9150,
+    "total_completion_tokens": 635,
+    "total_cached_tokens": 5562,
+    "total_cost_usd": 0.0074,
+    "total_steps": 5,
+    "extra": {
+      "avg_tokens_per_step": 1957,
+      "cache_efficiency": 0.608
+    }
+  }
+}

@@ -3,17 +3,19 @@ import invariant from "tiny-invariant";
 
 import {
   Dialog,
+  Drawer,
   ErrorBoundary,
-  Modal,
-  ModalOverlay,
+  Flex,
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTitleExtra,
   TitleWithID,
 } from "@phoenix/components";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
 
 import { SessionDetails } from "./SessionDetails";
@@ -27,44 +29,39 @@ export function SessionPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "session-details",
+  });
 
   return (
-    <ModalOverlay
+    <Drawer
       isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          navigate(`${rootPath}/${tab}`);
-        }
-      }}
+      onClose={() => navigate(`${rootPath}/${tab}`)}
+      defaultSize={defaultSize}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
+      onResize={onSizeChange}
     >
-      <Modal
-        variant="slideover"
-        size="fullscreen"
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            navigate(`${rootPath}/${tab}`);
-          }
-        }}
-      >
-        <Dialog>
+      <Dialog>
+        {({ close }) => (
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                <TitleWithID
-                  title="Session"
-                  id={loaderData.session.sessionId || ""}
-                />
-              </DialogTitle>
-              <DialogTitleExtra>
-                <DialogCloseButton slot="close" />
-              </DialogTitleExtra>
+              <Flex direction="row" gap="size-200" alignItems="center">
+                <DialogCloseButton close={close} />
+                <SessionDetailsPaginator currentId={sessionId} />
+                <DialogTitle>
+                  <TitleWithID
+                    title="Session"
+                    id={loaderData.session.sessionId || ""}
+                  />
+                </DialogTitle>
+              </Flex>
             </DialogHeader>
             <ErrorBoundary>
               <SessionDetails sessionId={sessionId as string} />
             </ErrorBoundary>
           </DialogContent>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+        )}
+      </Dialog>
+    </Drawer>
   );
 }

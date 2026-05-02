@@ -26,6 +26,8 @@ Code lives in `src/phoenix/server/api/routers/v1/`. See `users.py` for a complet
 
 **Auth** — admin-only: `dependencies=[Depends(require_admin)]`. Auth-aware: check `request.app.state.authentication_enabled` then `isinstance(request.user, PhoenixUser)`. Read-only and viewer restrictions are automatic at the router level.
 
+**`is_not_locked`** — guards insert/update operations under storage pressure (returns 507). Only apply to endpoints that **write data** (POST, PUT, PATCH). Do NOT apply to DELETE endpoints — they free space rather than consume it.
+
 **DB** — `async with request.app.state.db() as session:` with `joinedload` for relationships.
 
 **IDs** — `GlobalID("Type", str(db_id))` to create, `from_global_id_with_expected_type(GlobalID.from_id(input), "Type")` to parse.

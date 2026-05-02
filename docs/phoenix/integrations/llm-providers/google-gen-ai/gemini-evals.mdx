@@ -3,29 +3,41 @@ title: "Gemini Evals"
 description: Configure and run Gemini for evals
 ---
 
-### GeminiModel
+### Google Gemini via Vertex AI
 
-```python
-class GeminiModel:
-    project: Optional[str] = None
-    location: Optional[str] = None
-    credentials: Optional["Credentials"] = None
-    model: str = "gemini-2.5-flash"
-    default_concurrency: int = 5
-    temperature: float = 0.0
-    max_tokens: int = 1024
-    top_p: float = 1
-    top_k: int = 32
+Use the `LLM` wrapper with the `"vertex"` provider to run evals with Gemini models. Authenticate by setting your project and location, or by passing credentials directly.
+
+```bash
+pip install "arize-phoenix-evals>=3" google-cloud-aiplatform
 ```
 
-To authenticate with Gemini, you must pass either your credentials or a project, location pair. In the following example, we quickly instantiate the Gemini model as follows:
-
 ```python
-project = "my-project-id"
-location = "us-central1" # as an example
-model = GeminiModel(project=project, location=location)
-model("Hello there, this is a tesst if you are working?")
-# Output: "Hello world, I am working!"
+import os
+from phoenix.evals import LLM
+
+os.environ["CLOUD_ML_PROJECT_ID"] = "my-project-id"
+os.environ["CLOUD_ML_REGION"] = "us-central1"
+
+llm = LLM(provider="vertex", model="gemini-2.5-flash")
+llm.generate_text(prompt="Hello there, how are you?")
+# Output: "Hello! I'm doing well, thank you for asking!"
 ```
 
+### Google Gemini via Google AI Studio
 
+Alternatively, use the `"google"` provider with a Google AI Studio API key:
+
+```bash
+pip install "arize-phoenix-evals>=3" google-generativeai
+```
+
+```python
+import os
+from phoenix.evals import LLM
+
+os.environ["GOOGLE_API_KEY"] = "<your-api-key>"
+
+llm = LLM(provider="google", model="gemini-2.5-flash")
+llm.generate_text(prompt="Hello there, how are you?")
+# Output: "Hello! I'm doing well, thank you for asking!"
+```

@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "6.5.4",
+  "version": "6.9.0",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -22,8 +22,12 @@
     "type": "git",
     "url": "git+https://github.com/Arize-ai/phoenix.git"
   },
+  "directories": {
+    "doc": "./docs"
+  },
   "files": [
     "dist",
+    "docs",
     "src",
     "package.json"
   ],
@@ -73,13 +77,15 @@
     "clean": "rimraf dist",
     "generate": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../../../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-client",
     "prebuild": "pnpm run clean && pnpm run generate",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-client",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^1.1.0",
+    "@arizeai/openinference-semantic-conventions": "^2.1.7",
     "@arizeai/openinference-vercel": "^2.7.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
@@ -92,6 +98,8 @@
     "@ai-sdk/openai": "^3.0.29",
     "@anthropic-ai/sdk": "^0.35.0",
     "@arizeai/phoenix-evals": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-trace-node": "^2.5.1",
     "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
     "ai": "^6.0.90",
@@ -100,10 +108,21 @@
     "tsx": "^4.19.3",
     "vitest": "^4.1.0"
   },
-  "optionalDependencies": {
+  "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^6.0.90",
     "openai": "^6.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18"

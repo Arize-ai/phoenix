@@ -1,4 +1,5 @@
 import json
+from functools import cached_property
 from typing import Any, Optional, cast
 
 import strawberry
@@ -195,10 +196,15 @@ class ContentPartInput:
                 ),
             )
         if self.tool_result:
+            result_str = cast(str, self.tool_result.result)
+            try:
+                tool_result_value: Any = json.loads(result_str)
+            except json.JSONDecodeError:
+                tool_result_value = result_str
             return ToolResultContentPart(
                 type="tool_result",
                 tool_call_id=self.tool_result.tool_call_id,
-                tool_result=json.loads(cast(str, self.tool_result.result)),
+                tool_result=tool_result_value,
             )
         raise BadRequest("ContentPartInput: no field is set")
 
@@ -236,14 +242,15 @@ class ChatPromptVersionInput:
     description: Optional[str] = None
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
-    invocation_parameters: JSON = strawberry.field(default_factory=dict)
+    invocation_parameters: JSON
     tools: Optional[PromptToolsInput] = None
     response_format: Optional[PromptResponseFormatJSONSchemaInput] = None
     model_provider: GenerativeProviderKey
     model_name: str
     custom_provider_id: Optional[GlobalID] = None
 
-    def resolved_custom_provider_id(self) -> Optional[int]:
+    @cached_property
+    def resolved_custom_provider_id(self) -> int | None:
         """Convert the GraphQL GlobalID to a raw DB primary key."""
         if self.custom_provider_id is None:
             return None
@@ -253,13 +260,17 @@ class ChatPromptVersionInput:
         )
 
     def __post_init__(self) -> None:
-        self.invocation_parameters = {
-            k: v for k, v in self.invocation_parameters.items() if v is not None
-        }
+        self.invocation_parameters = JSON(
+            {
+                k: v
+                for k, v in cast(dict[str, Any], self.invocation_parameters).items()
+                if v is not None
+            }
+        )
 
     def to_orm_prompt_version(
         self,
-        user_id: Optional[int],
+        user_id: int | None = None,
     ) -> models.PromptVersion:
         model_provider = self.model_provider.to_model_provider()
 

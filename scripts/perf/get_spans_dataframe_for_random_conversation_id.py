@@ -1,9 +1,8 @@
 import time
 
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
 from sqlalchemy import create_engine, text
-
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
 
 stmt = text("""\
 SELECT (attributes -> 'metadata' ->> 'conversation_id')
@@ -20,10 +19,9 @@ print(f"Sampled Conversation ID: {conversation_id}")
 condition = f"metadata['conversation_id'] == '{conversation_id}'"
 
 start_time = time.time_ns()
-df = px.Client().query_spans(
-    SpanQuery().where(condition),
+df = Client().spans.get_spans_dataframe(
+    query=SpanQuery().where(condition),
     root_spans_only=True,
-    orphan_span_as_root_span=False,
     timeout=300,
 )
 end_time = time.time_ns()

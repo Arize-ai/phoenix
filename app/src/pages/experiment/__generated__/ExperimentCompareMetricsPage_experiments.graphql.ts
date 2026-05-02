@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<191fbf7f7fa3c856d0d092121aee2a06>>
+ * @generated SignedSource<<85566440875a5ac362059a309c262d9f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -179,6 +179,11 @@ return {
                   "kind": "Variable",
                   "name": "filterIds",
                   "variableName": "experimentIds"
+                },
+                {
+                  "kind": "Literal",
+                  "name": "includeEphemeral",
+                  "value": true
                 }
               ],
               "concreteType": "ExperimentConnection",
@@ -403,6 +408,6 @@ return {
 };
 })();
 
-(node as any).hash = "96673053ee2ac1663eb158f8054baac3";
+(node as any).hash = "fa7f947d2519a1699258e11dd26e22ff";
 
 export default node;

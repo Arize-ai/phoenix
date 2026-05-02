@@ -118,7 +118,7 @@ class User(Node):
 
     @strawberry.field
     async def api_keys(self, info: Info[Context, None]) -> list[UserApiKey]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             api_keys = await session.scalars(
                 select(models.ApiKey).where(models.ApiKey.user_id == self.id)
             )

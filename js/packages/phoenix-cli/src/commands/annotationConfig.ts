@@ -2,7 +2,12 @@ import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
-import { getConfigErrorMessage, resolveConfig } from "../config";
+import {
+  getConfigErrorMessage,
+  resolveConfig,
+  validateConfig,
+} from "../config";
+import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -21,6 +26,13 @@ interface AnnotationConfigListOptions {
   format?: OutputFormat;
   progress?: boolean;
   limit?: number;
+}
+
+interface AnnotationConfigDeleteOptions {
+  endpoint?: string;
+  apiKey?: string;
+  yes?: boolean;
+  progress?: boolean;
 }
 
 /**
@@ -74,11 +86,11 @@ async function annotationConfigListHandler(
       },
     });
 
-    if (!config.endpoint) {
-      const errors = [
-        "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag.",
-      ];
-      writeError({ message: getConfigErrorMessage({ errors }) });
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
       process.exit(ExitCode.INVALID_ARGUMENT);
     }
 
@@ -112,6 +124,62 @@ async function annotationConfigListHandler(
 }
 
 /**
+ * Handler for `annotation-config delete`
+ */
+async function annotationConfigDeleteHandler(
+  configId: string,
+  options: AnnotationConfigDeleteOptions
+): Promise<void> {
+  try {
+    assertDeletesEnabled();
+
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    await confirmOrExit({
+      message: `Delete annotation config ${configId}? This cannot be undone.`,
+      yes: options.yes,
+    });
+
+    const response = await client.DELETE("/v1/annotation_configs/{config_id}", {
+      params: {
+        path: {
+          config_id: configId,
+        },
+      },
+    });
+
+    if (response.error) {
+      throw new Error(`Failed to delete annotation config: ${response.error}`);
+    }
+
+    writeProgress({
+      message: `Deleted annotation config ${configId}`,
+      noProgress: !options.progress,
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting annotation config: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
  * Create the `annotation-config` command with subcommands
  */
 export function createAnnotationConfigCommand(): Command {
@@ -137,6 +205,18 @@ export function createAnnotationConfigCommand(): Command {
     .action(annotationConfigListHandler);
 
   command.addCommand(listCommand);
+  command.addCommand(createAnnotationConfigDeleteCommand());
 
   return command;
+}
+
+export function createAnnotationConfigDeleteCommand(): Command {
+  return new Command("delete")
+    .description("Delete an annotation configuration")
+    .argument("<config-id>", "Annotation config ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option("--no-progress", "Disable progress indicators")
+    .action(annotationConfigDeleteHandler);
 }

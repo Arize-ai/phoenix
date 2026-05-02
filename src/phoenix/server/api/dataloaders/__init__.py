@@ -32,6 +32,7 @@ from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoad
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_expected_run_counts import ExperimentExpectedRunCountsDataLoader
+from .experiment_jobs import ExperimentJobsDataLoader
 from .experiment_repeated_run_group_annotation_summaries import (
     ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
 )
@@ -42,6 +43,7 @@ from .experiment_runs_by_experiment_and_example import (
     ExperimentRunsByExperimentAndExampleDataLoader,
 )
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
+from .last_experiment_errors import LastExperimentErrorsDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
@@ -49,8 +51,10 @@ from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMax
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
+from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
@@ -86,8 +90,11 @@ from .token_counts import TokenCountCache, TokenCountDataLoader
 from .token_prices_by_model import TokenPricesByModelDataLoader
 from .trace_annotations_by_trace import TraceAnnotationsByTraceDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
+from .trace_error_count import TraceErrorCountDataLoader
+from .trace_errors_by_type import TraceErrorsByTypeDataLoader
 from .trace_retention_policy_id_by_project_id import TraceRetentionPolicyIdByProjectIdDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
+from .trace_span_counts_by_kind import TraceSpanCountsByKindDataLoader
 from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
@@ -113,7 +120,9 @@ __all__ = [
     "DocumentRetrievalMetricsDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
+    "ExperimentJobsDataLoader",
     "ExperimentExpectedRunCountsDataLoader",
+    "LastExperimentErrorsDataLoader",
     "ExperimentRepeatedRunGroupsDataLoader",
     "ExperimentRepeatedRunGroupAnnotationSummariesDataLoader",
     "ExperimentRunAnnotations",
@@ -127,7 +136,9 @@ __all__ = [
     "NumChildSpansDataLoader",
     "NumSpansPerTraceDataLoader",
     "ProjectByNameDataLoader",
+    "ProjectHasTracesDataLoader",
     "ProjectIdsByTraceRetentionPolicyIdDataLoader",
+    "PromptVersionDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SecretsDataLoader",
@@ -161,8 +172,11 @@ __all__ = [
     "TokenPricesByModelDataLoader",
     "TraceAnnotationsByTraceDataLoader",
     "TraceByTraceIdsDataLoader",
+    "TraceErrorCountDataLoader",
+    "TraceErrorsByTypeDataLoader",
     "TraceRetentionPolicyIdByProjectIdDataLoader",
     "TraceRootSpansDataLoader",
+    "TraceSpanCountsByKindDataLoader",
     "UserRolesDataLoader",
     "UsersDataLoader",
 ]

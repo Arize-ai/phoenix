@@ -22,7 +22,7 @@ class DatasetEvaluatorsDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         dataset_evaluators_by_key: dict[Key, Result] = {}
-        async with self._db() as session:
+        async with self._db.read() as session:
             conditions = []
             for dataset_id, evaluator_id, name in keys:
                 name_model = IdentifierModel.model_validate(name)

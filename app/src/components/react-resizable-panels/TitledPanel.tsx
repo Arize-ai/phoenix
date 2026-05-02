@@ -1,11 +1,6 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
+import type { PropsWithChildren, Ref } from "react";
+import React, { useImperativeHandle, useRef, useState } from "react";
 import type {
   PanelImperativeHandle,
   PanelProps,
@@ -22,54 +17,49 @@ import { compactResizeHandleCSS } from "@phoenix/components/resize";
  * Add `resizable` prop to make the panel resizable with an automatically added handle.
  * The first TitledPanel in a Group SHOULD NOT be resizable or things will break.
  */
-export const TitledPanel = forwardRef<
-  PanelImperativeHandle | null,
-  PropsWithChildren<{
-    title: React.ReactNode;
-    panelProps?: Omit<PanelProps, "onResize">;
-    panelResizeHandleProps?: SeparatorProps;
-    resizable?: boolean;
-    bordered?: boolean;
-    disabled?: boolean;
-  }>
->(
-  (
-    {
-      children,
-      title,
-      panelProps,
-      panelResizeHandleProps,
-      resizable = false,
-      bordered = true,
-      disabled,
-    },
-    ref
-  ) => {
-    const panelRef = useRef<PanelImperativeHandle | null>(null);
-    useImperativeHandle<
-      PanelImperativeHandle | null,
-      PanelImperativeHandle | null
-    >(ref, () => panelRef.current);
-    const [collapsed, setCollapsed] = useState(false);
+export function TitledPanel({
+  ref,
+  children,
+  title,
+  panelProps,
+  panelResizeHandleProps,
+  resizable = false,
+  bordered = true,
+  disabled,
+}: PropsWithChildren<{
+  title: React.ReactNode;
+  panelProps?: Omit<PanelProps, "onResize">;
+  panelResizeHandleProps?: SeparatorProps;
+  resizable?: boolean;
+  bordered?: boolean;
+  disabled?: boolean;
+  ref?: Ref<PanelImperativeHandle | null>;
+}>) {
+  const panelRef = useRef<PanelImperativeHandle | null>(null);
+  useImperativeHandle<
+    PanelImperativeHandle | null,
+    PanelImperativeHandle | null
+  >(ref, () => panelRef.current);
+  const [collapsed, setCollapsed] = useState(false);
 
-    const handleClick = () => {
-      const panel = panelRef.current;
-      if (panel?.isCollapsed()) {
-        panel?.expand();
-      } else {
-        panel?.collapse();
-      }
-    };
+  const handleClick = () => {
+    const panel = panelRef.current;
+    if (panel?.isCollapsed()) {
+      panel?.expand();
+    } else {
+      panel?.collapse();
+    }
+  };
 
-    return (
-      <>
-        {resizable && (
-          <Separator
-            {...panelResizeHandleProps}
-            data-bordered={bordered}
-            css={css(
-              compactResizeHandleCSS,
-              css`
+  return (
+    <>
+      {resizable && (
+        <Separator
+          {...panelResizeHandleProps}
+          data-bordered={bordered}
+          css={css(
+            compactResizeHandleCSS,
+            css`
                 border-radius: var(--global-rounding-small);
                 opacity: 1;
                 background-color: unset;
@@ -87,33 +77,32 @@ export const TitledPanel = forwardRef<
                   background-color: var(--global-color-primary);
                 }
               `
-            )}
-          />
-        )}
-        <PanelTitle
-          onClick={handleClick}
-          collapsed={collapsed}
-          bordered={bordered}
-          disabled={disabled}
-        >
-          {title}
-        </PanelTitle>
-        <Panel
-          maxSize="100%"
-          {...panelProps}
-          panelRef={panelRef}
-          collapsible
-          onResize={(panelSize) => {
-            const isCollapsed = panelSize.asPercentage === 0;
-            setCollapsed((prev) => (prev === isCollapsed ? prev : isCollapsed));
-          }}
-        >
-          {children}
-        </Panel>
-      </>
-    );
-  }
-);
+          )}
+        />
+      )}
+      <PanelTitle
+        onClick={handleClick}
+        collapsed={collapsed}
+        bordered={bordered}
+        disabled={disabled}
+      >
+        {title}
+      </PanelTitle>
+      <Panel
+        maxSize="100%"
+        {...panelProps}
+        panelRef={panelRef}
+        collapsible
+        onResize={(panelSize) => {
+          const isCollapsed = panelSize.asPercentage === 0;
+          setCollapsed((prev) => (prev === isCollapsed ? prev : isCollapsed));
+        }}
+      >
+        {children}
+      </Panel>
+    </>
+  );
+}
 
 TitledPanel.displayName = "TitledPanel";
 

@@ -2,7 +2,7 @@
 name = "arize-phoenix-evals"
 description = "LLM Evaluations"
 readme = "README.md"
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10, <3.15"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,8 +19,9 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
-version = "2.12.0"
+version = "3.0.0"
 dependencies = [
   "pandas",
   "tqdm",
@@ -51,13 +52,12 @@ test = [
   "boto3",
   "litellm>=1.28.9,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
   "openai>=1.0.0",
-  "mistralai>=1.0.0,<2",
+  "mistralai>=1.0.0",
   "vertexai",
   "respx",
   "nest_asyncio",
   "pandas-stubs==2.0.3.230814",
   "types-tqdm",
-  "lameenc",
 ]
 
 [project.urls]

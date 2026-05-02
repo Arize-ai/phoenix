@@ -113,7 +113,7 @@ class LatencyMsQuantileDataLoader(DataLoader[Key, Result]):
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
-        async with self._db() as session:
+        async with self._db.read() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
             for segment, params in arguments.items():
                 async for position, quantile_value in _get_results(

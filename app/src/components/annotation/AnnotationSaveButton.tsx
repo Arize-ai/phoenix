@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import type { PressEvent } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
@@ -9,10 +9,10 @@ import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 type AnnotationSaveButtonProps = ButtonProps;
 
-export const AnnotationSaveButton = forwardRef<
-  HTMLButtonElement,
-  AnnotationSaveButtonProps
->(({ ...props }, ref) => {
+export function AnnotationSaveButton({
+  ref,
+  ...props
+}: AnnotationSaveButtonProps & { ref?: Ref<HTMLButtonElement> }) {
   const modifierKey = useModifierKey();
   useHotkeys(
     "mod+enter",
@@ -50,6 +50,6 @@ export const AnnotationSaveButton = forwardRef<
       />
     </Flex>
   );
-});
+}
 
 AnnotationSaveButton.displayName = "AnnotationSaveButton";

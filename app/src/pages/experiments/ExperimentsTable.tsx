@@ -5,7 +5,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
@@ -26,8 +33,17 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
+import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
+import { ProgressCircle } from "@phoenix/components/core/progress";
+import {
+  RichTooltipActions,
+  RichTooltipDescription,
+  RichTooltipTitle,
+} from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  ExperimentStatus,
   ExperimentTokenCount,
   SequenceNumberToken,
 } from "@phoenix/components/experiment";
@@ -39,6 +55,7 @@ import {
   IntCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
+import { CellWithControlsWrap } from "@phoenix/components/table/CellWithControlsWrap";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import {
   getCommonPinningStyles,
@@ -48,6 +65,8 @@ import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { usePersistedState } from "@phoenix/hooks";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import {
@@ -64,13 +83,15 @@ import type {
 import type { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
+import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
 
-const runCountFractionCellCSS = css`
-  float: right;
-`;
+/**
+ * Poll interval for refetching experiment data when experiments are running
+ */
+const RUNNING_EXPERIMENTS_POLL_INTERVAL_MS = 3000;
 
 const defaultColumnSettings = {
   minSize: 100,
@@ -145,7 +166,7 @@ export function ExperimentsTable({
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [columnSizing, setColumnSizing] = useState({});
+  const [, setSearchText] = useState("");
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<ExperimentsTableQuery, ExperimentsTableFragment$key>(
       graphql`
@@ -212,6 +233,9 @@ export function ExperimentsTable({
                   username
                   profilePictureUrl
                 }
+                job {
+                  status
+                }
               }
             }
           }
@@ -219,6 +243,16 @@ export function ExperimentsTable({
       `,
       dataset
     );
+  const [columnVisibility, setColumnVisibility] = usePersistedState<
+    Record<string, boolean>
+  >(`phoenix-experiments-column-visibility-${data.id}`, {
+    id: false,
+    experimentJobStatus: false,
+    experimentJobProgress: false,
+  });
+  const [columnSizing, setColumnSizing] = usePersistedState<
+    Record<string, number>
+  >(`phoenix-experiments-column-sizing-${data.id}`, {});
 
   const tableData = useMemo(
     () =>
@@ -253,6 +287,20 @@ export function ExperimentsTable({
     [data.experiments.edges]
   );
 
+  const hasRunningExperiments = useMemo(
+    () => tableData.some((row) => row.job?.status === "RUNNING"),
+    [tableData]
+  );
+
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
+    },
+    hasRunningExperiments ? RUNNING_EXPERIMENTS_POLL_INTERVAL_MS : null
+  );
+
   type TableRow = (typeof tableData)[number];
 
   const baseColumns: ColumnDef<TableRow>[] = [
@@ -280,12 +328,31 @@ export function ExperimentsTable({
       ),
     },
     {
+      header: "id",
+      id: "id",
+      accessorKey: "id",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        return (
+          <CellWithControlsWrap
+            controls={<CopyToClipboardButton text={value} />}
+          >
+            <Truncate>
+              <Text>{value}</Text>
+            </Truncate>
+          </CellWithControlsWrap>
+        );
+      },
+    },
+    {
       header: "name",
       accessorKey: "name",
       minSize: 200,
       cell: ({ getValue, row }) => {
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
+        const jobStatus = row.original.job?.status;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
@@ -294,6 +361,11 @@ export function ExperimentsTable({
             >
               {getValue() as string}
             </Link>
+            <ExperimentJobStatusIcon
+              status={jobStatus}
+              experimentId={experimentId}
+              datasetId={data.id}
+            />
           </Flex>
         );
       },
@@ -409,18 +481,49 @@ export function ExperimentsTable({
       meta: {
         textAlign: "right",
       },
-      cell: ({ row }) => {
-        const { runCount, expectedRunCount } = row.original;
-        return (
-          <span
-            className="font-mono"
-            css={runCountFractionCellCSS}
-            title={`${runCount} / ${expectedRunCount}`}
-          >
-            {intFormatter(runCount)} / {intFormatter(expectedRunCount)}
-          </span>
-        );
-      },
+      cell: IntCell,
+    },
+    {
+      header: "experiment job",
+      columns: [
+        {
+          header: "job status",
+          id: "experimentJobStatus",
+          cell: ({ row }) => (
+            <ExperimentStatus status={row.original.job?.status} />
+          ),
+        },
+        {
+          header: "job progress",
+          id: "experimentJobProgress",
+          minSize: 200,
+          meta: {
+            textAlign: "right",
+          },
+          cell: ({ row }) => {
+            const { runCount, expectedRunCount } = row.original;
+            const progressValue =
+              expectedRunCount > 0 ? (runCount / expectedRunCount) * 100 : 0;
+            return (
+              <Flex
+                direction="row"
+                gap="size-100"
+                alignItems="center"
+                justifyContent="end"
+              >
+                <span className="font-mono">
+                  {intFormatter(runCount)} / {intFormatter(expectedRunCount)}
+                </span>
+                <ProgressBar
+                  width="60px"
+                  value={progressValue}
+                  aria-label="job progress"
+                />
+              </Flex>
+            );
+          },
+        },
+      ],
     },
     {
       header: "avg latency",
@@ -511,6 +614,7 @@ export function ExperimentsTable({
                 projectId={project?.id || null}
                 experimentId={row.original.id}
                 metadata={metadata}
+                jobStatus={row.original.job?.status ?? null}
                 size="S"
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
@@ -530,6 +634,7 @@ export function ExperimentsTable({
     state: {
       rowSelection,
       columnSizing,
+      columnVisibility,
       columnPinning: {
         right: ["actions"],
       },
@@ -538,8 +643,11 @@ export function ExperimentsTable({
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const selectorColumns = table.getAllLeafColumns();
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedExperiments = selectedRows.map((row) => row.original);
@@ -590,89 +698,173 @@ export function ExperimentsTable({
   return (
     <div
       css={css`
+        display: flex;
+        flex-direction: column;
         height: 100%;
-        overflow: auto;
+        overflow: hidden;
       `}
-      ref={tableContainerRef}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
     >
-      <table
-        css={selectableTableCSS}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  colSpan={header.colSpan}
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
-                    ...getCommonPinningStyles(header.column),
-                  }}
-                  align={header.column.columnDef?.meta?.textAlign}
-                >
-                  {header.isPlaceholder ? null : (
-                    <>
-                      <div>
-                        <Truncate maxWidth="100%">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                        </Truncate>
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
-                    </>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody
-            table={table}
-            hasNext={hasNext}
-            onLoadNext={() => loadNext(PAGE_SIZE)}
-            isLoadingNext={isLoadingNext}
-            dataset={data}
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <View flex="1 1 auto">
+            <DebouncedSearch
+              placeholder="Search experiments"
+              aria-label="Search experiments"
+              onChange={setSearchText}
+            />
+          </View>
+          <ExperimentColumnSelector
+            columns={selectorColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
-        ) : (
-          <TableBody
-            table={table}
-            hasNext={hasNext}
-            onLoadNext={() => loadNext(PAGE_SIZE)}
-            isLoadingNext={isLoadingNext}
-            dataset={data}
-          />
-        )}
-      </table>
-      {selectedRows.length ? (
-        <ExperimentSelectionToolbar
-          datasetId={data.id}
-          selectedExperiments={selectedExperiments}
-          onClearSelection={clearSelection}
-          onExperimentsDeleted={() => {
-            refetch({}, { fetchPolicy: "network-only" });
+        </Flex>
+      </View>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        ref={tableContainerRef}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      >
+        <table
+          css={selectableTableCSS}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
           }}
-        />
-      ) : null}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    colSpan={header.colSpan}
+                    key={header.id}
+                    style={{
+                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
+                      ...getCommonPinningStyles(header.column),
+                    }}
+                    align={header.column.columnDef?.meta?.textAlign}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <>
+                        <div>
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
+                        </div>
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      </>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              isLoadingNext={isLoadingNext}
+              dataset={data}
+            />
+          ) : (
+            <TableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              isLoadingNext={isLoadingNext}
+              dataset={data}
+            />
+          )}
+        </table>
+        {selectedRows.length ? (
+          <ExperimentSelectionToolbar
+            datasetId={data.id}
+            selectedExperiments={selectedExperiments}
+            onClearSelection={clearSelection}
+            onExperimentsDeleted={() => {
+              refetch({}, { fetchPolicy: "network-only" });
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   );
+}
+
+function ExperimentJobStatusIcon({
+  status,
+  experimentId,
+  datasetId,
+}: {
+  status: string | null | undefined;
+  experimentId: string;
+  datasetId: string;
+}) {
+  if (status === "RUNNING") {
+    return (
+      <TooltipTrigger>
+        <TriggerWrap>
+          <ProgressCircle isIndeterminate size="S" aria-label="running" />
+        </TriggerWrap>
+        <RichTooltip>
+          <RichTooltipTitle>Experiment In Progress</RichTooltipTitle>
+          <RichTooltipDescription>
+            This experiment is currently running. The results may be incomplete
+          </RichTooltipDescription>
+        </RichTooltip>
+      </TooltipTrigger>
+    );
+  }
+  if (status === "ERROR") {
+    return (
+      <TooltipTrigger>
+        <TriggerWrap>
+          <Icon
+            svg={<Icons.CloseCircleOutline />}
+            color="danger"
+            aria-label="error"
+          />
+        </TriggerWrap>
+        <RichTooltip>
+          <RichTooltipTitle>Experiment Error</RichTooltipTitle>
+          <RichTooltipDescription>
+            This experiment encountered an error during execution.
+          </RichTooltipDescription>
+          <RichTooltipActions>
+            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
+              View details
+            </Link>
+          </RichTooltipActions>
+        </RichTooltip>
+      </TooltipTrigger>
+    );
+  }
+  return null;
 }
 
 function MissingAnnotationPieChart({

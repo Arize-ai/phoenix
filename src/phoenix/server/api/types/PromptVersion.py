@@ -52,7 +52,7 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             stmt = select(models.PromptVersionTag).where(
                 models.PromptVersionTag.prompt_version_id == self.id_attr
             )
@@ -77,7 +77,7 @@ class PromptVersion(Node):
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["PromptVersion"]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             current_version = await session.get(models.PromptVersion, self.id_attr)
             if current_version is None:
                 return None
@@ -145,12 +145,12 @@ def to_gql_prompt_version(
         template_type=prompt_template_type,
         template_format=prompt_template_format,
         template=prompt_template,
-        invocation_parameters=invocation_parameters,
+        invocation_parameters=JSON(invocation_parameters),
         tools=tools,
         response_format=response_format,
         model_name=prompt_version.model_name,
         model_provider=prompt_version.model_provider,
-        metadata=prompt_version.metadata_,
+        metadata=JSON(prompt_version.metadata_),
         created_at=prompt_version.created_at,
         cached_sequence_number=sequence_number,
     )

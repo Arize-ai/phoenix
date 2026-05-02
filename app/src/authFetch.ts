@@ -5,10 +5,28 @@ import { BASE_URL } from "@phoenix/config";
 import { createLoginRedirectUrl } from "./utils/routingUtils";
 
 const REFRESH_URL = BASE_URL + "/auth/refresh";
+const REFRESH_TIMEOUT_MS = 10_000;
+
+declare global {
+  interface Window {
+    __PHOENIX_AUTH_REFRESH_TIMEOUT_MS__?: number;
+  }
+}
+
+function getRefreshTimeoutMs() {
+  // primarily exercised by tests, not production code
+  return window.__PHOENIX_AUTH_REFRESH_TIMEOUT_MS__ ?? REFRESH_TIMEOUT_MS;
+}
 
 class UnauthorizedError extends Error {
   constructor() {
     super("Unauthorized");
+  }
+}
+
+class RefreshTimeoutError extends Error {
+  constructor() {
+    super("Refresh timed out");
   }
 }
 
@@ -53,20 +71,37 @@ export async function refreshTokens(): Promise<Response> {
     // There is already a refresh request in progress, so we should wait for it
     return refreshPromise;
   }
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort(new RefreshTimeoutError());
+  }, getRefreshTimeoutMs());
   // This function should make a request to the server to refresh the access token
   refreshPromise = fetch(REFRESH_URL, {
     method: "POST",
-  }).then((response) => {
-    if (!response.ok) {
-      // for now force redirect to login page. This could re-throw with a custom error
-      // But for now, we'll just redirect
-      window.location.href = createLoginRedirectUrl();
-      // return a promise that never resolves, giving the browser time to redirect above
-      return new Promise(() => {});
-    }
-    // Clear the refreshPromise so that future requests will trigger a new refresh
-    refreshPromise = null;
-    return Promise.resolve(response);
-  });
-  return refreshPromise;
+    signal: controller.signal,
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new UnauthorizedError();
+      }
+      return response;
+    })
+    .catch((error: unknown) => {
+      // Failed refreshes should fail fast and redirect rather than leave requests hanging.
+      if (error instanceof Error && error.name === "AbortError") {
+        throw controller.signal.reason ?? error;
+      }
+      throw error;
+    })
+    .finally(() => {
+      window.clearTimeout(timeoutId);
+      refreshPromise = null;
+    });
+
+  try {
+    return await refreshPromise;
+  } catch (error) {
+    window.location.href = createLoginRedirectUrl();
+    throw error;
+  }
 }

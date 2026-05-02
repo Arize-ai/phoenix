@@ -11,7 +11,7 @@ export const ProjectPageQueriesTracesQuery = graphql`
     project: node(id: $id) {
       ... on Project {
         name
-        traceCount
+        hasTraces
       }
       ...TracesTable_spans
     }
@@ -27,7 +27,7 @@ export const ProjectPageQueriesSpansQuery = graphql`
     project: node(id: $id) {
       ... on Project {
         name
-        spanCount: recordCount
+        hasTraces
       }
       ...SpansTable_spans
     }

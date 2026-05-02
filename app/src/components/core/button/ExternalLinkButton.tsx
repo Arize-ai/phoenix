@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { Ref } from "react";
 import React from "react";
 
 import { buttonCSS } from "./styles";
@@ -28,10 +27,10 @@ const externalLinkButtonCSS = css`
 /**
  * A button-styled external link that opens in a new tab
  */
-function ExternalLinkButton(
-  props: ExternalLinkButtonProps,
-  ref: Ref<HTMLAnchorElement>
-) {
+function ExternalLinkButton({
+  ref,
+  ...props
+}: ExternalLinkButtonProps & { ref?: React.Ref<HTMLAnchorElement> }) {
   const {
     size = "M",
     variant = "default",
@@ -65,5 +64,4 @@ function ExternalLinkButton(
   );
 }
 
-const _ExternalLinkButton = React.forwardRef(ExternalLinkButton);
-export { _ExternalLinkButton as ExternalLinkButton };
+export { ExternalLinkButton };

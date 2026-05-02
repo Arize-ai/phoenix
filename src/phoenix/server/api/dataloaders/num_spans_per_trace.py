@@ -22,7 +22,7 @@ class NumSpansPerTraceDataLoader(DataLoader[Key, Result]):
         stmt = (
             select(Trace.id, func.count()).join(Span).where(Trace.id.in_(keys)).group_by(Trace.id)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             result: dict[Key, Result] = {id_: cnt async for id_, cnt in data}
         return [result.get(id_, 0) for id_ in keys]

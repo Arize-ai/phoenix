@@ -1,5 +1,4 @@
-from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy import delete, insert, select
@@ -10,7 +9,7 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import get_note_identifier, get_user_identifier
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import (
     CreateSpanAnnotationInput,
     CreateSpanNoteInput,
@@ -42,7 +41,10 @@ class SpanAnnotationMutationMixin:
             raise BadRequest("No span annotations provided.")
 
         if any(d.name == "note" for d in input):
-            raise BadRequest("Span notes are not supported in this endpoint.")
+            raise BadRequest(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use the createSpanNote mutation or POST /v1/span_notes instead."
+            )
 
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
@@ -91,14 +93,14 @@ class SpanAnnotationMutationMixin:
                 existing_annotation = await session.scalar(q)
 
                 if existing_annotation:
-                    existing_annotation.name = values["name"]
-                    existing_annotation.label = values["label"]
-                    existing_annotation.score = values["score"]
-                    existing_annotation.explanation = values["explanation"]
-                    existing_annotation.metadata_ = values["metadata_"]
-                    existing_annotation.annotator_kind = values["annotator_kind"]
-                    existing_annotation.source = values["source"]
-                    existing_annotation.user_id = values["user_id"]
+                    existing_annotation.name = annotation_input.name
+                    existing_annotation.label = annotation_input.label
+                    existing_annotation.score = annotation_input.score
+                    existing_annotation.explanation = annotation_input.explanation
+                    existing_annotation.metadata_ = cast(dict[str, Any], annotation_input.metadata)
+                    existing_annotation.annotator_kind = annotation_input.annotator_kind.value
+                    existing_annotation.source = annotation_input.source.value
+                    existing_annotation.user_id = user_id
                     session.add(existing_annotation)
                     processed_annotation = existing_annotation
 
@@ -163,8 +165,7 @@ class SpanAnnotationMutationMixin:
             raise BadRequest(f"Invalid span ID: {annotation_input.span_id}")
 
         async with info.context.db() as session:
-            timestamp = datetime.now().isoformat()
-            note_identifier = f"px-span-note:{timestamp}"
+            note_identifier = get_note_identifier("px-span-note")
             values = {
                 "span_rowid": span_rowid,
                 "name": "note",

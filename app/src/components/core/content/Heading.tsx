@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { HeadingProps as AriaHeadingProps } from "react-aria-components";
 import { Heading as AriaHeading } from "react-aria-components";
 
@@ -20,7 +19,10 @@ export interface HeadingProps extends AriaHeadingProps {
 /**
  * Heading is used to create various levels of typographic hierarchies.
  */
-function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
+function Heading({
+  ref,
+  ...props
+}: HeadingProps & { ref?: Ref<HTMLHeadingElement> }) {
   const { children, level = 3, weight = "normal", ...otherProps } = props;
 
   return (
@@ -38,5 +40,4 @@ function Heading(props: HeadingProps, ref: Ref<HTMLHeadingElement>) {
   );
 }
 
-const _Heading = forwardRef(Heading);
-export { _Heading as Heading };
+export { Heading };

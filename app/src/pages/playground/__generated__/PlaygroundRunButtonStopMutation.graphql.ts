@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db9e13e0ad8ade04c3ba26d67b7a172e>>
+ * @generated SignedSource<<5d02fdfb3aa15cf08206397d86307311>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
 export type PlaygroundRunButtonStopMutation$variables = {
   experimentId: string;
 };
@@ -16,7 +17,7 @@ export type PlaygroundRunButtonStopMutation$data = {
   readonly stopExperiment: {
     readonly job: {
       readonly id: string;
-      readonly isActive: boolean;
+      readonly status: ExperimentJobStatus;
     };
   };
 };
@@ -67,7 +68,7 @@ v1 = [
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "isActive",
+            "name": "status",
             "storageKey": null
           }
         ],
@@ -95,16 +96,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "3bd628039f3d9e31f57de079b95d1277",
+    "cacheID": "45c8f2b0c22f31521c9fc8080e08acaa",
     "id": null,
     "metadata": {},
     "name": "PlaygroundRunButtonStopMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundRunButtonStopMutation(\n  $experimentId: ID!\n) {\n  stopExperiment(experimentId: $experimentId) {\n    job {\n      id\n      isActive\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundRunButtonStopMutation(\n  $experimentId: ID!\n) {\n  stopExperiment(experimentId: $experimentId) {\n    job {\n      id\n      status\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0219cb1a6d54e0451956d0c85cbf1b58";
+(node as any).hash = "2a4c2157440318d998cd2de8825bdf42";
 
 export default node;

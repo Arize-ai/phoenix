@@ -36,7 +36,7 @@ class ExperimentSequenceNumberDataLoader(DataLoader[Key, Result]):
             .subquery()
         )
         stmt = select(subq).where(subq.c.id.in_(experiment_ids))
-        async with self._db() as session:
+        async with self._db.read() as session:
             result = {
                 experiment_id: sequence_number
                 async for experiment_id, sequence_number in await session.stream(stmt)

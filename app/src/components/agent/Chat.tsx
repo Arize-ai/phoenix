@@ -1,16 +1,21 @@
-import { useChat } from "@ai-sdk/react";
 import { css } from "@emotion/react";
-import type { UIMessage } from "ai";
+import type { ChatStatus } from "ai";
 import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
-import { useEffect, useRef } from "react";
+  type ReactNode,
+  useRef,
+  type PropsWithChildren,
+  useState,
+} from "react";
+import { useStickToBottom } from "use-stick-to-bottom";
 
-import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
-import { authFetch } from "@phoenix/authFetch";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import type {
+  ElicitToolOutput,
+  PendingElicitation,
+} from "@phoenix/agent/tools/elicit";
 import { Icon, Icons, View } from "@phoenix/components";
+import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
+import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import {
   PromptInput,
   PromptInputActions,
@@ -22,11 +27,42 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
-import { ModelMenu } from "@phoenix/components/generative/ModelMenu";
-import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
+import { AgentConsentGate } from "./AgentConsentGate";
+import { AgentContextPills } from "./AgentContextPills";
+import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
-import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
+import { PxiGlyph } from "./PxiGlyph";
+import { useAgentChat } from "./useAgentChat";
+
+export type EmptyStateQuickAction = {
+  icon: ReactNode;
+  label: string;
+  /** Prompt text sent to the chat when the action is pressed. */
+  prompt: string;
+};
+
+const DEFAULT_EMPTY_STATE_SUBTEXT =
+  "Ask questions about Phoenix, get help with tracing, datasets, evaluations, and more.";
+
+const DEFAULT_EMPTY_STATE_QUICK_ACTIONS: EmptyStateQuickAction[] = [
+  {
+    icon: <Icons.BulbOutline />,
+    label: "How do I use Phoenix?",
+    prompt: "How do I use Phoenix?",
+  },
+  {
+    icon: <Icons.BookOutline />,
+    label: "Explain a concept",
+    prompt: "Explain a Phoenix concept to me.",
+  },
+  {
+    icon: <Icons.Trace />,
+    label: "Find critical issues",
+    prompt: "Find critical issues in my traces.",
+  },
+];
 
 const chatCSS = css`
   display: flex;
@@ -35,10 +71,27 @@ const chatCSS = css`
   min-height: 0;
   overflow: hidden;
 
+  .chat__children {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--global-dimension-static-size-100);
+    padding: var(--global-dimension-size-100) 0;
+  }
+
+  &:has(.chat__children > *) {
+    .chat__input {
+      // remove bottom padding from chat input when children present
+      padding-bottom: 0;
+    }
+  }
+
   .chat__scroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
   }
 
   .chat__messages {
@@ -47,8 +100,7 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200);
-    padding-bottom: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-200) var(--global-dimension-size-150);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
@@ -59,7 +111,7 @@ const chatCSS = css`
     margin: 0 auto;
     width: 100%;
     padding-top: var(--global-dimension-size-100);
-    padding-bottom: var(--global-dimension-size-200);
+    padding-bottom: var(--global-dimension-size-250);
     background-color: var(--global-color-gray-75);
   }
 
@@ -67,9 +119,82 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-400);
+    gap: var(--global-dimension-size-200);
+    margin-top: var(--global-dimension-size-600);
+    padding: 0 var(--global-dimension-size-200);
     color: var(--global-text-color-300);
+  }
+
+  .chat__empty-glyph {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--global-color-primary);
+    background: radial-gradient(
+      circle at center,
+      var(--global-color-primary-100) 0%,
+      transparent 65%
+    );
+  }
+
+  .chat__empty-title {
+    margin: 0;
+    font-size: var(--global-font-size-l);
+    font-weight: var(--px-font-weight-heavy, 600);
+    color: var(--global-text-color-900);
+    text-align: center;
+  }
+
+  .chat__empty-subtext {
+    margin: 0;
+    text-align: center;
+    color: var(--global-text-color-500);
+    line-height: var(--global-line-height-m);
+  }
+
+  .chat__empty-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    margin-top: var(--global-dimension-size-100);
+  }
+
+  .chat__empty-action {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-150);
+    width: 100%;
+    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+    background: transparent;
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-medium);
+    color: var(--global-text-color-500);
+    font-size: var(--global-font-size-s);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .chat__empty-action:hover {
+    background: var(--global-color-gray-100);
+    border-color: var(--global-border-color-hover, var(--global-color-gray-300));
+    color: var(--global-text-color-900);
+  }
+
+  .chat__empty-action-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--global-text-color-500);
+    font-size: 16px;
   }
 
   .chat__loading {
@@ -83,171 +208,241 @@ const chatCSS = css`
   }
 `;
 
-/**
- * Core chat UI for a single agent conversation.
- *
- * Wraps the AI SDK `useChat` hook with Phoenix-specific configuration:
- * - Sends tool definitions and system prompt via {@link buildAgentChatRequestBody}
- * - Dispatches client-side tool calls through {@link handleAgentToolCall}
- * - Persists messages to the Zustand agent store on completion and unmount
- *
- * The parent component keys this on `sessionId + chatApiUrl`, so it fully
- * remounts when **either** the session or the model changes. This is
- * intentional: `chatApiUrl` encodes model params, and the AI SDK transport
- * captures the URL at construction time, so a model switch requires a fresh
- * `useChat` instance. Messages are persisted to the store before unmount so
- * the conversation survives the remount.
- */
+/** Connects the presentational chat view to the agent chat controller hook. */
 export function Chat({
   sessionId,
   chatApiUrl,
   modelMenuValue,
   onModelChange,
+  emptyStateSubtext,
+  emptyStateQuickActions,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
+  emptyStateSubtext?: ReactNode;
+  emptyStateQuickActions?: EmptyStateQuickAction[];
 }) {
-  const store = useAgentStore();
-  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
+  const {
+    messages,
+    sendMessage,
+    stop,
+    status,
+    error,
+    pendingElicitation,
+    handleElicitationSubmit,
+    handleElicitationCancel,
+  } = useAgentChat({ sessionId, chatApiUrl });
 
-  // read stored messages for this session
-  const initialMessages = sessionId
-    ? store.getState().sessionMap[sessionId]?.messages
-    : undefined;
+  return (
+    <ChatView
+      messages={messages}
+      sendMessage={sendMessage}
+      stop={stop}
+      status={status}
+      error={error}
+      pendingElicitation={pendingElicitation}
+      handleElicitationSubmit={handleElicitationSubmit}
+      handleElicitationCancel={handleElicitationCancel}
+      modelMenuValue={modelMenuValue}
+      onModelChange={onModelChange}
+      emptyStateSubtext={emptyStateSubtext}
+      emptyStateQuickActions={emptyStateQuickActions}
+    >
+      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
+    </ChatView>
+  );
+}
 
-  const chat = useChat<UIMessage>({
-    id: sessionId ?? undefined,
-    // seed useChat with stored messages and session ID
-    messages: initialMessages,
-    transport: new DefaultChatTransport({
-      api: chatApiUrl,
-      fetch: authFetch,
-      prepareSendMessagesRequest: ({
-        body,
-        id,
-        messages,
-        trigger,
-        messageId,
-      }) => ({
-        body: buildAgentChatRequestBody({
-          body,
-          id,
-          messages,
-          trigger,
-          messageId,
-        }),
-      }),
-    }),
-    onToolCall: ({ toolCall }) => {
-      // AI SDK docs recommend not awaiting `addToolOutput` inside `onToolCall`
-      // when using `sendAutomaticallyWhen`, because it can deadlock the chat
-      // update loop. We follow that guidance here by kicking off tool handling
-      // without awaiting it and letting the helper manage tool output updates.
-      // See: ai/docs/04-ai-sdk-ui/03-chatbot-tool-usage.mdx and
-      // ai/docs/08-migration-guides/26-migration-guide-5-0.mdx in this repo's
-      // installed AI SDK package.
-      void handleAgentToolCall({ toolCall, sessionId, addToolOutput });
-    },
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onFinish: ({ messages: finalMessages }) => {
-      if (sessionId && finalMessages) {
-        // persist after each assistant response completes
-        store.getState().setSessionMessages(sessionId, finalMessages);
-        // Asynchronously generate a short summary for the session list after
-        // the first full exchange. This is fire-and-forget; the hook
-        // deduplicates and is a no-op when a summary already exists.
-        generateSummary({ sessionId });
-      }
-    },
-  });
-  const { messages, sendMessage, status, error, addToolOutput } = chat;
+/**
+ * Pure chat view used both by the legacy mounted panel and by the headless
+ * controller path that keeps streaming alive while the panel is hidden.
+ */
+export function ChatView({
+  messages,
+  sendMessage,
+  stop,
+  status,
+  error,
+  pendingElicitation,
+  handleElicitationSubmit,
+  handleElicitationCancel,
+  modelMenuValue,
+  onModelChange,
+  children,
+  emptyStateSubtext = DEFAULT_EMPTY_STATE_SUBTEXT,
+  emptyStateQuickActions = DEFAULT_EMPTY_STATE_QUICK_ACTIONS,
+}: PropsWithChildren<{
+  messages: AgentUIMessage[];
+  sendMessage: (message: { text: string }) => void;
+  stop: () => Promise<void>;
+  status: ChatStatus;
+  error: Error | undefined;
+  pendingElicitation: PendingElicitation | null;
+  handleElicitationSubmit: (output: ElicitToolOutput) => void;
+  handleElicitationCancel: () => void;
+  modelMenuValue: ModelMenuValue;
+  onModelChange: (model: ModelMenuValue) => void;
+  emptyStateSubtext?: ReactNode;
+  emptyStateQuickActions?: EmptyStateQuickAction[];
+}>) {
+  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [inputValue, setInputValue] = useState("");
+  const hasAcknowledgedConsent = useAgentContext(
+    (state) => state.observability.hasAcknowledgedConsent
+  );
 
-  // Keep a ref to messages for the unmount cleanup (avoids stale closure)
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-
-  // persist messages on unmount (covers model change remount, tab close)
-  useEffect(() => {
-    return () => {
-      if (sessionId && messagesRef.current.length > 0) {
-        store.getState().setSessionMessages(sessionId, messagesRef.current);
-      }
-    };
-  }, [sessionId, store]);
-
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, status]);
+  const handleQuickAction = (prompt: string) => {
+    setInputValue(prompt);
+    textareaRef.current?.focus();
+  };
 
   return (
     <div css={chatCSS}>
-      <div className="chat__scroll">
-        <div className="chat__messages">
-          {messages.length === 0 && <EmptyState />}
-          {messages.map((m) =>
-            m.role === "user" ? (
-              <UserMessage key={m.id} parts={m.parts} />
-            ) : (
-              <AssistantMessage key={m.id} parts={m.parts} />
-            )
+      <div className="chat__scroll" ref={scrollRef}>
+        <div className="chat__messages" ref={contentRef}>
+          {messages.length === 0 && (
+            <EmptyState
+              subtext={emptyStateSubtext}
+              quickActions={emptyStateQuickActions}
+              onQuickAction={handleQuickAction}
+            />
           )}
+          {messages.map((message, index) => {
+            if (message.role === "user") {
+              return <UserMessage key={message.id} parts={message.parts} />;
+            }
+            // Only the last assistant message can still be streaming — hide
+            // its actions until the chat reports it is settled.
+            const isLast = index === messages.length - 1;
+            const showActions = !isLast || status === "ready";
+            return (
+              <AssistantMessage
+                key={message.id}
+                message={message}
+                showActions={showActions}
+              />
+            );
+          })}
           {status === "submitted" && <Loading />}
           {error && <ErrorMessage error={error} />}
-          <div ref={bottomRef} />
         </div>
       </div>
       <div className="chat__input">
         <View paddingX="size-200">
-          <PromptInput
-            onSubmit={(text) => sendMessage({ text })}
-            status={status}
-          >
-            <PromptInputBody>
-              <PromptInputTextarea placeholder="Send a message…" />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <ModelMenu
-                  value={modelMenuValue}
-                  onChange={onModelChange}
-                  placement="top start"
-                  shouldFlip
-                  variant="quiet"
+          {!hasAcknowledgedConsent ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <AgentConsentGate />
+            </PromptInput>
+          ) : pendingElicitation ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <ElicitationCarousel
+                questions={pendingElicitation.questions}
+                onSubmit={(output) => {
+                  void scrollToBottom();
+                  handleElicitationSubmit(output);
+                }}
+                onCancel={handleElicitationCancel}
+              />
+            </PromptInput>
+          ) : (
+            <PromptInput
+              onSubmit={(text) => {
+                void scrollToBottom();
+                sendMessage({ text });
+              }}
+              status={status}
+              value={inputValue}
+              onValueChange={setInputValue}
+            >
+              <AgentContextPills />
+              <PromptInputBody>
+                <PromptInputTextarea
+                  ref={textareaRef}
+                  placeholder="Send a message..."
                 />
-              </PromptInputTools>
-              <PromptInputActions>
-                <PromptInputSubmit />
-              </PromptInputActions>
-            </PromptInputFooter>
-          </PromptInput>
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <AgentModelMenu
+                    value={modelMenuValue}
+                    onChange={onModelChange}
+                    placement="top start"
+                    shouldFlip
+                    variant="quiet"
+                  />
+                </PromptInputTools>
+
+                <PromptInputActions>
+                  <PromptInputSubmit
+                    onPress={() => {
+                      void stop();
+                    }}
+                  />
+                </PromptInputActions>
+              </PromptInputFooter>
+            </PromptInput>
+          )}
+          {children ? <div className="chat__children">{children}</div> : null}
         </View>
       </div>
     </div>
   );
 }
 
-function EmptyState() {
+/** Empty-state shown before the first user message in a session. */
+function EmptyState({
+  subtext,
+  quickActions,
+  onQuickAction,
+}: {
+  subtext: ReactNode;
+  quickActions: EmptyStateQuickAction[];
+  onQuickAction: (prompt: string) => void;
+}) {
   return (
     <div className="chat__empty">
-      <Icon
-        svg={<Icons.Robot />}
-        css={css`
-          font-size: 48px;
-        `}
-      />
-      <p>Send a message to chat with PXI</p>
+      <div className="chat__empty-glyph">
+        <PxiGlyph
+          fill="currentColor"
+          css={css`
+            transform: scale(1.8);
+          `}
+        />
+      </div>
+      <h2 className="chat__empty-title">
+        I&apos;m PXI, your Phoenix assistant
+      </h2>
+      <p className="chat__empty-subtext">{subtext}</p>
+      {quickActions.length > 0 && (
+        <div className="chat__empty-actions">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              className="chat__empty-action"
+              onClick={() => onQuickAction(action.prompt)}
+            >
+              <span className="chat__empty-action-icon">
+                <Icon svg={action.icon} />
+              </span>
+              <span>{action.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+/** Loading affordance shown while the assistant response is pending. */
 function Loading() {
   return <Shimmer size="M">Thinking...</Shimmer>;
 }
 
+/** Inline request error banner for the active chat turn. */
 function ErrorMessage({ error }: { error: Error }) {
   return <p className="chat__error">{error.message}</p>;
 }

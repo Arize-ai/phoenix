@@ -13,151 +13,132 @@ Environment variables.
 """
 
 import os
-from datetime import datetime
 from time import perf_counter
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import sqlean
-from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import (
-    JSON,
+    Connection,
     Engine,
     NullPool,
     create_engine,
-    event,
-    func,
-    insert,
     make_url,
-    select,
-    update,
+    text,
 )
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, get_env_database_connection_str
-from phoenix.db.engines import set_postgresql_search_path
 
+_SQLITE_INSERT_SESSIONS = text("""
+    INSERT INTO project_sessions (session_id, project_id, start_time, end_time)
+    SELECT
+        sub.session_id,
+        sub.project_id,
+        sub.start_time,
+        sub.end_time
+    FROM (
+        SELECT
+            CAST(JSON_EXTRACT(s.attributes, '$.session.id') AS VARCHAR) AS session_id,
+            t.project_rowid AS project_id,
+            t.start_time AS start_time,
+            ROW_NUMBER() OVER (
+                PARTITION BY JSON_EXTRACT(s.attributes, '$.session.id')
+                ORDER BY t.start_time, t.id, s.id
+            ) AS rank,
+            MAX(t.end_time) OVER (
+                PARTITION BY JSON_EXTRACT(s.attributes, '$.session.id')
+            ) AS end_time
+        FROM spans s
+        JOIN traces t ON s.trace_rowid = t.id
+        WHERE s.parent_id IS NULL
+        AND CAST(JSON_EXTRACT(s.attributes, '$.session.id') AS VARCHAR) != ''
+    ) sub
+    WHERE sub.rank = 1
+""")
 
-class JSONB(JSON):
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    __visit_name__ = "JSONB"
-
-
-@compiles(JSONB, "sqlite")
-def _(*args: Any, **kwargs: Any) -> str:
-    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
-    return "JSONB"
-
-
-JSON_ = (
-    JSON()
-    .with_variant(
-        postgresql.JSONB(),  # type: ignore
-        "postgresql",
+_SQLITE_UPDATE_TRACES = text("""
+    UPDATE traces
+    SET project_session_rowid = (
+        SELECT ps.id
+        FROM project_sessions ps
+        JOIN spans s ON CAST(JSON_EXTRACT(s.attributes, '$.session.id') AS VARCHAR) = ps.session_id
+        WHERE s.trace_rowid = traces.id
+        AND s.parent_id IS NULL
+        AND CAST(JSON_EXTRACT(s.attributes, '$.session.id') AS VARCHAR) != ''
     )
-    .with_variant(
-        JSONB(),
-        "sqlite",
+    WHERE EXISTS (
+        SELECT 1
+        FROM spans s
+        WHERE s.trace_rowid = traces.id
+        AND s.parent_id IS NULL
+        AND CAST(JSON_EXTRACT(s.attributes, '$.session.id') AS VARCHAR) != ''
     )
-)
+""")
 
+_PG_INSERT_SESSIONS = text("""
+    INSERT INTO project_sessions (session_id, project_id, start_time, end_time)
+    SELECT
+        sub.session_id,
+        sub.project_id,
+        sub.start_time,
+        sub.end_time
+    FROM (
+        SELECT
+            CAST(s.attributes #>> '{session,id}' AS VARCHAR) AS session_id,
+            t.project_rowid AS project_id,
+            t.start_time AS start_time,
+            ROW_NUMBER() OVER (
+                PARTITION BY s.attributes #> '{session,id}'
+                ORDER BY t.start_time, t.id, s.id
+            ) AS rank,
+            MAX(t.end_time) OVER (
+                PARTITION BY s.attributes #> '{session,id}'
+            ) AS end_time
+        FROM spans s
+        JOIN traces t ON s.trace_rowid = t.id
+        WHERE s.parent_id IS NULL
+        AND CAST(s.attributes #>> '{session,id}' AS VARCHAR) != ''
+    ) sub
+    WHERE sub.rank = 1
+""")
 
-class Base(DeclarativeBase): ...
-
-
-class ProjectSession(Base):
-    __tablename__ = "project_sessions"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    session_id: Mapped[str]
-    project_id: Mapped[int]
-    start_time: Mapped[datetime]
-    end_time: Mapped[datetime]
-
-
-class Trace(Base):
-    __tablename__ = "traces"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    project_session_rowid: Mapped[Union[int, None]]
-    project_rowid: Mapped[int]
-    start_time: Mapped[datetime]
-    end_time: Mapped[datetime]
-
-
-class Span(Base):
-    __tablename__ = "spans"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    trace_rowid: Mapped[int]
-    parent_id: Mapped[Optional[str]]
-    attributes: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
-
-
-SESSION_ID = SpanAttributes.SESSION_ID.split(".")
-USER_ID = SpanAttributes.USER_ID.split(".")
+_PG_UPDATE_TRACES = text("""
+    UPDATE traces
+    SET project_session_rowid = sub.project_session_rowid
+    FROM (
+        SELECT
+            s.trace_rowid,
+            ps.id AS project_session_rowid
+        FROM spans s
+        JOIN project_sessions ps
+            ON CAST(s.attributes #>> '{session,id}' AS VARCHAR) = ps.session_id
+        WHERE s.parent_id IS NULL
+        AND CAST(s.attributes #>> '{session,id}' AS VARCHAR) != ''
+    ) sub
+    WHERE traces.id = sub.trace_rowid
+""")
 
 
 def populate_project_sessions(
-    engine: Engine,
+    engine_or_connection: Union[Engine, Connection],
 ) -> None:
-    sessions_from_span = (
-        select(
-            Span.attributes[SESSION_ID].as_string().label("session_id"),
-            Trace.project_rowid.label("project_id"),
-            Trace.start_time.label("start_time"),
-            func.row_number()
-            .over(
-                partition_by=Span.attributes[SESSION_ID],
-                order_by=[Trace.start_time, Trace.id, Span.id],
-            )
-            .label("rank"),
-            func.max(Trace.end_time)
-            .over(partition_by=Span.attributes[SESSION_ID])
-            .label("end_time"),
-        )
-        .join_from(Span, Trace, Span.trace_rowid == Trace.id)
-        .where(Span.parent_id.is_(None))
-        .where(Span.attributes[SESSION_ID].as_string() != "")
-        .subquery()
-    )
-    sessions_for_trace_id = (
-        select(
-            Span.trace_rowid,
-            ProjectSession.id.label("project_session_rowid"),
-        )
-        .join_from(
-            Span,
-            ProjectSession,
-            Span.attributes[SESSION_ID].as_string() == ProjectSession.session_id,
-        )
-        .where(Span.parent_id.is_(None))
-        .where(Span.attributes[SESSION_ID].as_string() != "")
-        .subquery()
-    )
     start_time = perf_counter()
-    with sessionmaker(engine).begin() as session:
-        session.execute(
-            insert(ProjectSession).from_select(
-                [
-                    "session_id",
-                    "project_id",
-                    "start_time",
-                    "end_time",
-                ],
-                select(
-                    sessions_from_span.c.session_id,
-                    sessions_from_span.c.project_id,
-                    sessions_from_span.c.start_time,
-                    sessions_from_span.c.end_time,
-                ).where(sessions_from_span.c.rank == 1),
-            )
-        )
-        session.execute(
-            (
-                update(Trace)
-                .values(project_session_rowid=sessions_for_trace_id.c.project_session_rowid)
-                .where(Trace.id == sessions_for_trace_id.c.trace_rowid)
-            )
-        )
+    if isinstance(engine_or_connection, Connection):
+        conn = engine_or_connection
+        dialect = conn.engine.dialect.name
+        insert_stmt = _PG_INSERT_SESSIONS if dialect == "postgresql" else _SQLITE_INSERT_SESSIONS
+        update_stmt = _PG_UPDATE_TRACES if dialect == "postgresql" else _SQLITE_UPDATE_TRACES
+        conn.execute(insert_stmt)
+        conn.execute(update_stmt)
+        conn.commit()
+    else:
+        engine = engine_or_connection
+        dialect = engine.dialect.name
+        insert_stmt = _PG_INSERT_SESSIONS if dialect == "postgresql" else _SQLITE_INSERT_SESSIONS
+        update_stmt = _PG_UPDATE_TRACES if dialect == "postgresql" else _SQLITE_UPDATE_TRACES
+        with engine.connect() as conn:
+            conn.execute(insert_stmt)
+            conn.execute(update_stmt)
+            conn.commit()
     elapsed_time = perf_counter() - start_time
     print(f"✅ Populated project_sessions in {elapsed_time:.3f} seconds.")
 
@@ -178,7 +159,14 @@ if __name__ == "__main__":
             poolclass=NullPool,
             echo=True,
         )
+        populate_project_sessions(engine)
     elif backend == "postgresql":
+        import asyncio
+
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        from phoenix.db.engines import get_async_db_url
+
         schema = os.getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
         if schema:
             print(f"Using schema: {schema}")
@@ -187,13 +175,21 @@ if __name__ == "__main__":
         ans = input("Is that correct? [y]/n: ")
         if ans.lower().startswith("n"):
             schema = input("Please enter the correct schema: ")
-        engine = create_engine(
-            url=sql_database_url.set(drivername="postgresql+psycopg"),
-            poolclass=NullPool,
-            echo=True,
-        )
-        if schema:
-            event.listen(engine, "connect", set_postgresql_search_path(schema))
+        async_url = get_async_db_url(sql_database_url.render_as_string(hide_password=False))
+        async_engine = create_async_engine(url=async_url, poolclass=NullPool, echo=True)
+
+        def _run_with_schema(connection: Any) -> None:
+            if schema:
+                connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+                connection.execute(text(f"SET search_path TO {schema}"))
+                connection.commit()
+            populate_project_sessions(connection)
+
+        async def _run() -> None:
+            async with async_engine.connect() as conn:
+                await conn.run_sync(_run_with_schema)
+            await async_engine.dispose()
+
+        asyncio.run(_run())
     else:
         raise ValueError(f"Unknown database backend: {backend}")
-    populate_project_sessions(engine)

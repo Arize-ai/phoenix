@@ -115,7 +115,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
@@ -249,7 +248,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "tool_choice": "auto",
-            "stream_options": {"include_usage": True},
         }
 
         input_messages_role = attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}")
@@ -416,7 +414,6 @@ class TestOpenAIBaseStreamingClient:
         assert isinstance(invocation_params, str)
         assert json.loads(invocation_params) == {
             "temperature": 0.1,
-            "stream_options": {"include_usage": True},
         }
 
         assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "user"
@@ -437,7 +434,6 @@ class TestOpenAIBaseStreamingClient:
         assert input_data == {
             "messages": [{"role": "user", "content": "Say hello"}],
             "model": "gpt-4o-mini",
-            "stream_options": {"include_usage": True},
             "temperature": 0.1,
         }
         assert attributes.pop(INPUT_MIME_TYPE) == JSON
@@ -510,7 +506,7 @@ class TestGetOpenAIClientClass:
 
     def test_openai_chat_completions_reasoning_model_returns_reasoning_client(self) -> None:
         """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning client."""
-        for model_name in ["o1", "o1-mini", "o3", "o3-mini"]:
+        for model_name in ["o1", "o3", "o3-mini"]:
             client_class = get_openai_client_class(
                 GenerativeProviderKey.OPENAI,
                 model_name,

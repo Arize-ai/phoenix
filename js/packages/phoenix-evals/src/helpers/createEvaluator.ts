@@ -2,6 +2,7 @@ import { withSpan } from "@arizeai/openinference-core";
 
 import type { EvaluatorBase } from "../core/EvaluatorBase";
 import { FunctionEvaluator } from "../core/FunctionEvaluator";
+import { tracer as defaultTracer } from "../telemetry";
 import type {
   EvaluationKind,
   OptimizationDirection,
@@ -168,7 +169,7 @@ export function createEvaluator<
   // Add OpenTelemetry span wrapping if telemetry is enabled
   if (telemetry && telemetry.isEnabled) {
     evaluateFn = withSpan(evaluateFn, {
-      tracer: telemetry.tracer,
+      tracer: telemetry.tracer ?? defaultTracer,
       name: evaluatorName,
       kind: "EVALUATOR",
     });

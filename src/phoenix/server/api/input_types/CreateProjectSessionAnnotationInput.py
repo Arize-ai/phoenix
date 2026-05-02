@@ -17,7 +17,7 @@ class CreateProjectSessionAnnotationInput:
     label: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
-    metadata: JSON = strawberry.field(default_factory=dict)
+    metadata: JSON
     source: AnnotationSource = AnnotationSource.APP
     identifier: Optional[str] = strawberry.UNSET
 

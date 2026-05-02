@@ -4,7 +4,7 @@ import { usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
-import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
+import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { TracePaginationProvider } from "@phoenix/pages/trace/TracePaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
@@ -23,7 +23,7 @@ function SpansTabContent({
 }) {
   const data = usePreloadedQuery(ProjectPageQueriesSpansQuery, queryReference);
 
-  if (data.project.spanCount === 0) {
+  if (!data.project.hasTraces) {
     return (
       <ProjectOnboarding projectName={data.project.name ?? "my-project"} />
     );
@@ -40,11 +40,11 @@ export const ProjectSpansPage = () => {
   return (
     <TracingRoot>
       <TracePaginationProvider>
-        <SpanFilterConditionProvider>
+        <SpanFiltersProvider>
           <Suspense fallback={<Loading />}>
             <SpansTabContent queryReference={spansQueryReference} />
           </Suspense>
-        </SpanFilterConditionProvider>
+        </SpanFiltersProvider>
         <Suspense>
           <Outlet />
         </Suspense>

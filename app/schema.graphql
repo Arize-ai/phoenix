@@ -2,14 +2,14 @@ directive @oneOf on INPUT_OBJECT
 
 type AWSBedrockAccessKeys {
   awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
 }
 
 input AWSBedrockAccessKeysInput {
   awsAccessKeyId: String!
-  awsSecretAccessKey: String!
-  awsSessionToken: String
+  awsSecretAccessKey: RedactedString!
+  awsSessionToken: RedactedString
 }
 
 type AWSBedrockAuthenticationMethod {
@@ -35,6 +35,11 @@ type AWSBedrockClientKwargs {
 
 input AWSBedrockClientKwargsInput {
   regionName: String!
+  endpointUrl: String
+}
+
+type AWSBedrockConnectionConfig {
+  regionName: String
   endpointUrl: String
 }
 
@@ -70,6 +75,18 @@ input AddSpansToDatasetInput {
   spanIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
+}
+
+type AgentsConfig {
+  """
+  The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
+  """
+  collectorEndpoint: String
+
+  """
+  The project name used for assistant agent traces. Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable.
+  """
+  assistantProjectName: String!
 }
 
 interface Annotation {
@@ -182,11 +199,11 @@ enum AnnotatorKind {
 }
 
 type AnthropicAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input AnthropicAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type AnthropicClientKwargs {
@@ -197,6 +214,10 @@ type AnthropicClientKwargs {
 input AnthropicClientKwargsInput {
   baseUrl: String
   defaultHeaders: JSON
+}
+
+type AnthropicConnectionConfig {
+  baseUrl: String
 }
 
 type AnthropicCustomProviderConfig {
@@ -232,19 +253,19 @@ enum AuthMethod {
 type AzureADTokenProvider {
   azureTenantId: String!
   azureClientId: String!
-  azureClientSecret: String!
+  azureClientSecret: RedactedString!
   scope: String!
 }
 
 input AzureOpenAIADTokenProviderInput {
   azureTenantId: String!
   azureClientId: String!
-  azureClientSecret: String!
+  azureClientSecret: RedactedString!
   scope: String
 }
 
 type AzureOpenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
   azureAdTokenProvider: AzureADTokenProvider
 
   """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
@@ -252,7 +273,7 @@ type AzureOpenAIAuthenticationMethod {
 }
 
 input AzureOpenAIAuthenticationMethodInput @oneOf {
-  apiKey: String
+  apiKey: RedactedString
   azureAdTokenProvider: AzureOpenAIADTokenProviderInput
 
   """Use SDK default credentials (Managed Identity, Azure CLI, env vars)."""
@@ -267,6 +288,11 @@ type AzureOpenAIClientKwargs {
 input AzureOpenAIClientKwargsInput {
   azureEndpoint: String!
   defaultHeaders: JSON
+}
+
+type AzureOpenAIConnectionConfig {
+  azureEndpoint: String!
+  openaiApiType: OpenAIApiType!
 }
 
 type AzureOpenAICustomProviderConfig {
@@ -320,14 +346,6 @@ type BuiltInEvaluator implements Evaluator & Node {
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
 
-input BuiltinClientOptionsInput {
-  baseUrl: String
-  endpoint: String
-  region: String
-  customHeaders: JSON
-  openaiApiType: OpenAIApiType
-}
-
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
@@ -368,7 +386,8 @@ type CategoricalAnnotationValue {
 
 input ChatCompletionInput {
   promptVersion: ChatPromptVersionInput!
-  clientOptions: ModelClientOptionsInput = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   template: PromptTemplateOptions
   promptName: Identifier = null
@@ -378,8 +397,10 @@ input ChatCompletionInput {
 }
 
 input ChatCompletionOverDatasetInput {
+  promptVersionId: ID = null
   promptVersion: ChatPromptVersionInput!
-  clientOptions: ModelClientOptionsInput = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
   credentials: [GenerativeCredentialInput!]
   repetitions: Int!
   datasetId: ID!
@@ -387,7 +408,7 @@ input ChatCompletionOverDatasetInput {
   splitIds: [ID!] = null
   experimentName: String = null
   experimentDescription: String = null
-  experimentMetadata: JSON = {}
+  experimentMetadata: JSON = null
   promptName: Identifier = null
   evaluators: [PlaygroundEvaluatorInput!]! = []
 
@@ -402,12 +423,16 @@ input ChatCompletionOverDatasetInput {
   templateVariablesPath: String = "input"
   tracingEnabled: Boolean! = true
   streamModelOutput: Boolean! = true
+  createEphemeralExperiment: Boolean = false
+  maxConcurrency: Int! = 10
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
   message: String!
+  span: Span
+  experimentRun: ExperimentRun
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
@@ -432,7 +457,7 @@ input ChatPromptVersionInput {
   description: String = null
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
-  invocationParameters: JSON! = {}
+  invocationParameters: JSON!
   tools: PromptToolsInput = null
   responseFormat: PromptResponseFormatJSONSchemaInput = null
   modelProvider: GenerativeProviderKey!
@@ -476,6 +501,18 @@ type CodeEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   user: User
+}
+
+union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
+
+input ConnectionConfigInput {
+  baseUrl: String = null
+  azureEndpoint: String = null
+  regionName: String = null
+  endpointUrl: String = null
+  openaiApiType: OpenAIApiType = null
+  organization: String = null
+  project: String = null
 }
 
 union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
@@ -602,7 +639,7 @@ input CreateDocumentAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON!
   source: AnnotationSource!
   identifier: String
 }
@@ -646,7 +683,7 @@ input CreateProjectSessionAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON!
   source: AnnotationSource! = APP
   identifier: String
 }
@@ -676,7 +713,7 @@ input CreateSpanAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON!
   source: AnnotationSource!
   identifier: String
 }
@@ -699,7 +736,7 @@ input CreateTraceAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON!
   source: AnnotationSource!
   identifier: String
 }
@@ -727,10 +764,6 @@ input CreateUserInput {
 
 scalar CronExpression
 
-input CustomClientOptionsInput {
-  extraHeaders: JSON
-}
-
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
 
 type Dataset implements Node {
@@ -753,8 +786,9 @@ type Dataset implements Node {
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
-  experimentCount(datasetVersionId: ID): Int!
-  experiments(first: Int = 50, last: Int, after: String, before: String, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentCount(datasetVersionId: ID, includeEphemeral: Boolean = false): Int!
+  experiments(first: Int = 50, last: Int, after: String, before: String, includeEphemeral: Boolean = false, filterCondition: String, filterIds: [ID!]): ExperimentConnection!
+  experimentJobs(first: Int = 50, last: Int, after: String, before: String): ExperimentJobConnection!
   experimentAnnotationSummaries: [DatasetExperimentAnnotationSummary!]!
   labels: [DatasetLabel!]!
 
@@ -851,6 +885,7 @@ input DatasetEvaluatorSort {
 type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
+  externalId: String
   createdAt: DateTime!
   revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
@@ -882,6 +917,7 @@ input DatasetExampleInput {
   output: JSON!
   metadata: JSON!
   spanId: ID
+  externalId: String
 }
 
 input DatasetExamplePatch {
@@ -1037,7 +1073,7 @@ type DbTableStats {
 }
 
 type DecryptedSecret {
-  value: String!
+  value: RedactedString!
 }
 
 input DeleteAnnotationConfigsInput {
@@ -1158,6 +1194,10 @@ type DeleteUsersPayload {
   userIds: [ID!]!
 }
 
+type DismissExperimentPayload {
+  experiment: Experiment!
+}
+
 type DocumentAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1263,6 +1303,11 @@ input EvalResultKey {
   attr: EvalAttr!
 }
 
+type EvalWorkItemId {
+  experimentRunId: Int!
+  datasetEvaluatorId: Int!
+}
+
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
@@ -1335,8 +1380,8 @@ type EvaluatorInputMapping {
 }
 
 input EvaluatorInputMappingInput {
-  literalMapping: JSON! = {}
-  pathMapping: JSON! = {}
+  literalMapping: JSON!
+  pathMapping: JSON!
 }
 
 enum EvaluatorKind {
@@ -1353,7 +1398,7 @@ input EvaluatorPreviewInput @oneOf {
 input EvaluatorPreviewItemInput {
   evaluator: EvaluatorPreviewInput!
   context: JSON!
-  inputMapping: EvaluatorInputMappingInput! = {}
+  inputMapping: EvaluatorInputMappingInput!
 }
 
 input EvaluatorPreviewsInput {
@@ -1383,8 +1428,14 @@ type Experiment implements Node {
   name: String!
   projectName: String
   description: String
+
+  """
+  Whether the experiment is ephemeral. Ephemeral experiments are automatically deleted after 24 hours.
+  """
+  isEphemeral: Boolean!
   repetitions: Int!
-  datasetVersionId: ID!
+  datasetVersion: DatasetVersion!
+  dataset: Dataset!
   metadata: JSON!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1409,6 +1460,7 @@ type Experiment implements Node {
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
   datasetSplits: DatasetSplitConnection!
+  job: ExperimentJob
 }
 
 type ExperimentAnnotationSummary {
@@ -1462,6 +1514,98 @@ type ExperimentEdge {
   """The item at the end of the edge"""
   node: Experiment!
 }
+
+type ExperimentJob implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  experiment: Experiment!
+  status: ExperimentJobStatus!
+  createdAt: DateTime!
+
+  """Most recent error from this experiment, or null if no errors."""
+  lastError: ExperimentLog
+
+  """Errors recorded during experiment execution, most recent first."""
+  errors(first: Int = 50, last: Int, after: String, before: String): ExperimentLogConnection!
+  maxConcurrency: Int!
+
+  """
+  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  """
+  taskConfig: PromptTaskConfig
+
+  """Dataset evaluators attached to this experiment job."""
+  datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+}
+
+"""A connection to a list of items."""
+type ExperimentJobConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentJobEdge!]!
+}
+
+"""An edge in a connection."""
+type ExperimentJobEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentJob!
+}
+
+enum ExperimentJobStatus {
+  RUNNING
+  COMPLETED
+  STOPPED
+  ERROR
+}
+
+type ExperimentLog implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  occurredAt: DateTime!
+  category: ExperimentLogCategory!
+  level: ExperimentLogLevel!
+  message: String!
+  detail: ExperimentLogDetail
+}
+
+enum ExperimentLogCategory {
+  TASK
+  EVAL
+  EXPERIMENT
+}
+
+"""A connection to a list of items."""
+type ExperimentLogConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ExperimentLogEdge!]!
+}
+
+union ExperimentLogDetail = FailureDetail | RetriesExhaustedDetail
+
+"""An edge in a connection."""
+type ExperimentLogEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ExperimentLog!
+}
+
+enum ExperimentLogLevel {
+  ERROR
+  WARN
+  INFO
+}
+
+union ExperimentLogWorkItemId = TaskWorkItemId | EvalWorkItemId
 
 type ExperimentMutationPayload {
   experiments: [Experiment!]!
@@ -1630,6 +1774,11 @@ type ExperimentRunMetricComparisons {
 input ExperimentRunSort {
   col: ExperimentRunColumn!
   dir: SortDir!
+}
+
+type FailureDetail {
+  workItem: ExperimentLogWorkItemId
+  errorType: String!
 }
 
 type FloatInvocationParameter implements InvocationParameterBase {
@@ -1808,11 +1957,11 @@ enum GenerativeProviderKey {
 }
 
 type GoogleGenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input GoogleGenAIAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type GoogleGenAIClientKwargs {
@@ -1821,6 +1970,10 @@ type GoogleGenAIClientKwargs {
 
 input GoogleGenAIClientKwargsInput {
   httpOptions: GoogleGenAIHttpOptionsInput
+}
+
+type GoogleGenAIConnectionConfig {
+  baseUrl: String
 }
 
 type GoogleGenAICustomProviderConfig {
@@ -1924,11 +2077,6 @@ enum MimeType {
   json
 }
 
-input ModelClientOptionsInput @oneOf {
-  builtin: BuiltinClientOptionsInput
-  custom: CustomClientOptionsInput
-}
-
 interface ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey
@@ -1992,9 +2140,14 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  stopExperiment(experimentId: ID!): StopExperimentPayload!
+  resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
+  dismissExperiment(experimentId: ID!): DismissExperimentPayload!
+  reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
+  testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
   deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
@@ -2049,11 +2202,11 @@ enum OpenAIApiType {
 }
 
 type OpenAIAuthenticationMethod {
-  apiKey: String
+  apiKey: RedactedString
 }
 
 input OpenAIAuthenticationMethodInput {
-  apiKey: String!
+  apiKey: RedactedString!
 }
 
 type OpenAIClientKwargs {
@@ -2068,6 +2221,13 @@ input OpenAIClientKwargsInput {
   organization: String
   project: String
   defaultHeaders: JSON
+}
+
+type OpenAIConnectionConfig {
+  baseUrl: String
+  organization: String
+  project: String
+  openaiApiType: OpenAIApiType!
 }
 
 type OpenAICustomProviderConfig {
@@ -2190,11 +2350,16 @@ input PatchViewerInput {
   currentPassword: String
 }
 
+type PlaygroundConfig {
+  templateVariablesPath: String
+  appendedMessagesPath: String
+}
+
 input PlaygroundEvaluatorInput {
   id: ID!
   name: Identifier!
   description: String = null
-  inputMapping: EvaluatorInputMappingInput! = {}
+  inputMapping: EvaluatorInputMappingInput!
   outputConfigs: [AnnotationConfigInput!] = null
 }
 
@@ -2212,6 +2377,9 @@ type Project implements Node {
   gradientEndColor: String!
   startTime: DateTime
   endTime: DateTime
+
+  """Whether the project has any trace data."""
+  hasTraces: Boolean!
   recordCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   traceCount(timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Int!
   tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
@@ -2221,7 +2389,7 @@ type Project implements Node {
   latencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  spans(timeRange: TimeRange, first: Int!, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
@@ -2311,7 +2479,7 @@ type ProjectSession implements Node {
   firstInput: SpanIOValue
   lastOutput: SpanIOValue
   tokenUsage: TokenUsage!
-  traces(first: Int = 50, last: Int, after: String, before: String): TraceConnection!
+  traces(first: Int!, last: Int, after: String, before: String): TraceConnection!
   traceLatencyMsQuantile(probability: Float!): Float
   costSummary: SpanCostSummary!
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
@@ -2497,6 +2665,20 @@ input PromptChatTemplateInput {
   messages: [PromptMessageInput!]!
 }
 
+type PromptConfig {
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  invocationParameters: JSON!
+
+  """The model provider (OPENAI, ANTHROPIC, etc.)"""
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  promptVersion: PromptVersion
+}
+
 """A connection to a list of items."""
 type PromptConnection {
   """Pagination data for this connection"""
@@ -2607,6 +2789,20 @@ input PromptResponseFormatJSONSchemaInput {
 
 type PromptStringTemplate {
   template: String!
+}
+
+type PromptTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  prompt: PromptConfig!
+  connection: ConnectionConfig
+  playgroundConfig: PlaygroundConfig
+  streamModelOutput: Boolean!
+
+  """
+  The custom provider used by this experiment, if any. Resolved from the task config's connection.
+  """
+  customProvider: GenerativeModelCustomProvider
 }
 
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
@@ -2743,7 +2939,6 @@ type Query {
   modelProviders: [GenerativeProvider!]!
   generativeModelCustomProviders(first: Int = 50, last: Int, after: String, before: String): GenerativeModelCustomProviderConnection!
   secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
-  testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
   generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
   modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
@@ -2777,15 +2972,27 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
+  agentsConfig: AgentsConfig!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
+  getProjectByName(name: String!): Project
   getProjectSessionById(sessionId: String!): ProjectSession
+  getDatasetExampleByExternalId(datasetId: ID!, externalId: String!): DatasetExample
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
   datasetCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+}
+
+"""
+A string that is automatically redacted on output and un-redacted on input. Values are symmetrically encrypted with a key derived from PHOENIX_SECRET; tokens remain valid across replicas and restarts as long as the secret is unchanged.
+"""
+scalar RedactedString
+
+type ReinstateExperimentPayload {
+  experiment: Experiment!
 }
 
 input RemoveAnnotationConfigFromProjectInput {
@@ -2799,6 +3006,16 @@ type RemoveAnnotationConfigFromProjectPayload {
 }
 
 union ResolvedSecret = DecryptedSecret | UnparsableSecret
+
+type ResumeExperimentPayload {
+  job: ExperimentJob!
+}
+
+type RetriesExhaustedDetail {
+  workItem: ExperimentLogWorkItemId
+  retryCount: Int!
+  reason: String!
+}
 
 enum RevisionKind {
   CREATE
@@ -3127,6 +3344,14 @@ type SpanEdge {
   node: Span!
 }
 
+type SpanErrorTypeCount {
+  """
+  The `exception.type` attribute of the span event. `None` when no type could be determined — either the errored span has no accompanying `exception` event, or an `exception` event is present but its `exception.type` attribute is missing or malformed.
+  """
+  exceptionType: String
+  count: Int!
+}
+
 type SpanEvent {
   name: String!
   message: String!
@@ -3156,6 +3381,11 @@ enum SpanKind {
   unknown
 }
 
+type SpanKindCount {
+  spanKind: SpanKind!
+  count: Int!
+}
+
 """
 The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
 """
@@ -3169,6 +3399,10 @@ enum SpanStatusCode {
   OK
   ERROR
   UNSET
+}
+
+type StopExperimentPayload {
+  job: ExperimentJob!
 }
 
 type StringInvocationParameter implements InvocationParameterBase {
@@ -3209,6 +3443,11 @@ type SystemApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: ID!
+}
+
+type TaskWorkItemId {
+  datasetExampleId: Int!
+  repetitionNumber: Int!
 }
 
 type TestGenerativeModelCustomProviderCredentialsResult {
@@ -3356,10 +3595,23 @@ type Trace implements Node {
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
-  spans(first: Int = 50, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+
+  """
+  Count of each span kind present under this trace. Only kinds with count > 0 are returned.
+  """
+  spanCountsByKind: [SpanKindCount!]!
+
+  """Count of spans under this trace with `status_code == ERROR`."""
+  errorCount: Int!
+
+  """
+  Breakdown of errored-span exception types under this trace. Each `exception` event on an errored span contributes a count; errored spans that carry no `exception` event contribute to the `null` bucket.
+  """
+  errorsByType: [SpanErrorTypeCount!]!
+  spans(first: Int!, last: Int, after: String, before: String, rootSpansOnly: Boolean, orphanSpanAsRootSpan: Boolean = true, filterCondition: String): SpanConnection!
 
   """Annotations associated with the trace."""
-  traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  traceAnnotations(sort: TraceAnnotationSort, filter: AnnotationFilter = null): [TraceAnnotation!]!
 
   """Summarizes each annotation (by name) associated with the trace"""
   traceAnnotationSummaries(filter: AnnotationFilter = null): [AnnotationSummary!]!
@@ -3398,6 +3650,12 @@ type TraceAnnotation implements Node {
 
   """The source of the annotation."""
   source: AnnotationSource!
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
 
   """The trace associated with the annotation."""
   trace: Trace!
@@ -3537,7 +3795,7 @@ input UpdateAnnotationInput {
   label: String = null
   score: Float = null
   explanation: String = null
-  metadata: JSON! = {}
+  metadata: JSON!
   source: AnnotationSource! = APP
 }
 

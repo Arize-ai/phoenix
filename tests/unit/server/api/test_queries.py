@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 import pytest
 from sqlalchemy import insert
+from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -24,8 +25,13 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+# The in-process test app is constructed with no PHOENIX_SECRET, so the
+# server-side Redactor is keyed off Secret("").
+_REDACTOR = Redactor(secret=Secret(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -294,48 +300,6 @@ async def test_compare_experiments_returns_expected_comparisons(
                 {
                     "node": {
                         "example": {
-                            "id": str(GlobalID("DatasetExample", str(2))),
-                            "revision": {
-                                "input": {"revision-4-input-key": "revision-4-input-value"},
-                                "output": {"revision-4-output-key": "revision-4-output-value"},
-                                "metadata": {
-                                    "revision-4-metadata-key": "revision-4-metadata-value"
-                                },
-                            },
-                        },
-                        "repeatedRunGroups": [
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(2))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(4))),
-                                        "output": "",
-                                    },
-                                ],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(1))),
-                                "runs": [],
-                            },
-                            {
-                                "experimentId": str(GlobalID("Experiment", str(3))),
-                                "runs": [
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(7))),
-                                        "output": "run-7-output-value",
-                                    },
-                                    {
-                                        "id": str(GlobalID("ExperimentRun", str(8))),
-                                        "output": 8,
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                },
-                {
-                    "node": {
-                        "example": {
                             "id": str(GlobalID("DatasetExample", str(1))),
                             "revision": {
                                 "input": {"revision-2-input-key": "revision-2-input-value"},
@@ -374,6 +338,48 @@ async def test_compare_experiments_returns_expected_comparisons(
                                     {
                                         "id": str(GlobalID("ExperimentRun", str(6))),
                                         "output": {"output": "run-6-output-value"},
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    "node": {
+                        "example": {
+                            "id": str(GlobalID("DatasetExample", str(2))),
+                            "revision": {
+                                "input": {"revision-4-input-key": "revision-4-input-value"},
+                                "output": {"revision-4-output-key": "revision-4-output-value"},
+                                "metadata": {
+                                    "revision-4-metadata-key": "revision-4-metadata-value"
+                                },
+                            },
+                        },
+                        "repeatedRunGroups": [
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(2))),
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(4))),
+                                        "output": "",
+                                    },
+                                ],
+                            },
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(1))),
+                                "runs": [],
+                            },
+                            {
+                                "experimentId": str(GlobalID("Experiment", str(3))),
+                                "runs": [
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(7))),
+                                        "output": "run-7-output-value",
+                                    },
+                                    {
+                                        "id": str(GlobalID("ExperimentRun", str(8))),
+                                        "output": 8,
                                     },
                                 ],
                             },
@@ -463,6 +469,52 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     assert not response.errors
     assert (data := response.data) is not None
     assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+
+
+async def test_agents_config_returns_env_values(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "http://collector.example:4318")
+    monkeypatch.setenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", "custom_assistant")
+    query = """
+      query {
+        agentsConfig {
+          collectorEndpoint
+          assistantProjectName
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["agentsConfig"] == {
+        "collectorEndpoint": "http://collector.example:4318",
+        "assistantProjectName": "custom_assistant",
+    }
+
+
+async def test_agents_config_defaults_when_env_unset(
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", raising=False)
+    monkeypatch.delenv("PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME", raising=False)
+    query = """
+      query {
+        agentsConfig {
+          collectorEndpoint
+          assistantProjectName
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert data["agentsConfig"] == {
+        "collectorEndpoint": None,
+        "assistantProjectName": "assistant_agent",
+    }
 
 
 @pytest.fixture
@@ -1138,7 +1190,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in first_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
     assert first_page["pageInfo"]["hasNextPage"] is True
@@ -1154,7 +1207,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in second_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
     assert second_page["pageInfo"]["hasNextPage"] is True
@@ -1170,7 +1224,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in third_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
     assert third_page["pageInfo"]["hasNextPage"] is False
@@ -1186,7 +1241,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1212,7 +1267,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]
@@ -2198,6 +2253,7 @@ class TestApplyChatTemplate:
                 "variables": {"name": "Alice"},
             },
             "inputMapping": {
+                "literalMapping": {},
                 "pathMapping": {"name": "[[[invalid jsonpath"},
             },
         }

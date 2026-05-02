@@ -171,7 +171,7 @@ from phoenix.trace.dsl import SpanQuery
 
 def load_traces() -> pd.DataFrame:
     query = SpanQuery().where("span_kind == 'AGENT'")
-    traces_df = px.Client().query_spans(query, project_name='recipe-agent-hw5')
+    traces_df = Client().spans.get_spans_dataframe(query=query, project_name='recipe-agent-hw5')
     return traces_df
 ```
 

@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 import strawberry
 from strawberry.scalars import JSON
 
-from phoenix.db.types.db_helper_types import UNDEFINED
-
 if TYPE_CHECKING:
     from phoenix.db.types import prompts as orm
 
@@ -24,8 +22,8 @@ class PromptResponseFormatJSONSchemaDefinition:
     ) -> PromptResponseFormatJSONSchemaDefinition:
         return cls(
             name=d.name,
-            description=d.description if d.description is not UNDEFINED else None,
-            schema=d.schema_ if d.schema_ is not UNDEFINED else None,
+            description=d.description or None,
+            schema=JSON(d.schema_) if d.schema_ else None,
             strict=d.strict if isinstance(d.strict, bool) else None,
         )
 

@@ -1,5 +1,6 @@
 import json
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -9,12 +10,12 @@ import respx
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
     MessageAttributes,
-    OpenInferenceMimeTypeValues,
     SpanAttributes,
     ToolAttributes,
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -25,7 +26,11 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    LLMClientFactory,
+    ModelProvider,
+    openai_rate_limit_key,
+)
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptMessage,
@@ -685,8 +690,8 @@ class TestApplyInputMapping:
             "required": ["output"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"output": "$.response"},
-            literal_mapping={},
+            path_mapping=JSON({"output": "$.response"}),
+            literal_mapping=JSON({}),
         )
         context = {"response": "Hello, world!"}
         result = apply_input_mapping(
@@ -703,8 +708,8 @@ class TestApplyInputMapping:
             "required": ["text"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.data.nested.value"},
-            literal_mapping={},
+            path_mapping=JSON({"text": "$.data.nested.value"}),
+            literal_mapping=JSON({}),
         )
         context = {"data": {"nested": {"value": "deep content"}}}
         result = apply_input_mapping(
@@ -721,8 +726,8 @@ class TestApplyInputMapping:
             "required": ["key"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"key": "$.from_path"},
-            literal_mapping={"key": "literal_value"},
+            path_mapping=JSON({"key": "$.from_path"}),
+            literal_mapping=JSON({"key": "literal_value"}),
         )
         context = {"from_path": "path_value"}
         result = apply_input_mapping(
@@ -742,8 +747,8 @@ class TestApplyInputMapping:
             "required": ["input", "output"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={},
+            path_mapping=JSON({}),
+            literal_mapping=JSON({}),
         )
         context = {"input": "user input", "output": "model output"}
         result = apply_input_mapping(
@@ -757,8 +762,8 @@ class TestApplyInputMapping:
         # Invalid JSONPath expressions are now validated at construction time
         with pytest.raises(BadRequest, match=r"Invalid JSONPath expression for key 'key'"):
             EvaluatorInputMappingInput(
-                path_mapping={"key": "[[[invalid jsonpath"},
-                literal_mapping={},
+                path_mapping=JSON({"key": "[[[invalid jsonpath"}),
+                literal_mapping=JSON({}),
             )
 
     def test_raises_when_jsonpath_has_no_matches(self) -> None:
@@ -768,8 +773,8 @@ class TestApplyInputMapping:
             "required": ["key"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"key": "$.nonexistent.path"},
-            literal_mapping={},
+            path_mapping=JSON({"key": "$.nonexistent.path"}),
+            literal_mapping=JSON({}),
         )
         context = {"other": "value", "key": "fallback"}
         with pytest.raises(
@@ -790,8 +795,8 @@ class TestApplyInputMapping:
             "required": ["a", "b"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={},
+            path_mapping=JSON({}),
+            literal_mapping=JSON({}),
         )
         context = {"a": "value_a", "b": "value_b", "c": "value_c"}
         result = apply_input_mapping(
@@ -813,8 +818,8 @@ class TestApplyInputMapping:
             "required": ["from_path", "from_literal", "from_fallback"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"from_path": "$.extracted"},
-            literal_mapping={"from_literal": "hardcoded"},
+            path_mapping=JSON({"from_path": "$.extracted"}),
+            literal_mapping=JSON({"from_literal": "hardcoded"}),
         )
         context = {"extracted": "path_result", "from_fallback": "context_value"}
         result = apply_input_mapping(
@@ -835,8 +840,8 @@ class TestApplyInputMapping:
             "required": ["item"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"item": "$.items[*]"},
-            literal_mapping={},
+            path_mapping=JSON({"item": "$.items[*]"}),
+            literal_mapping=JSON({}),
         )
         context = {"items": ["first", "second", "third"]}
         result = apply_input_mapping(
@@ -858,8 +863,8 @@ class TestApplyInputMapping:
             "required": ["list"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"list": "$.data"},
-            literal_mapping={},
+            path_mapping=JSON({"list": "$.data"}),
+            literal_mapping=JSON({}),
         )
         context = {"data": [1, 2, 3]}
         result = apply_input_mapping(
@@ -884,8 +889,8 @@ class TestApplyInputMapping:
             "required": ["obj"],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"obj": "$.nested"},
-            literal_mapping={},
+            path_mapping=JSON({"obj": "$.nested"}),
+            literal_mapping=JSON({}),
         )
         context = {"nested": {"a": 1, "b": 2}}
         result = apply_input_mapping(
@@ -918,8 +923,8 @@ class TestApplyInputMapping:
         }
         # Extract content from first output message
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"content": "$.output[0].message.content"},
-            literal_mapping={},
+            path_mapping=JSON({"content": "$.output[0].message.content"}),
+            literal_mapping=JSON({}),
         )
         result = apply_input_mapping(
             input_schema=input_schema,
@@ -944,8 +949,8 @@ class TestApplyInputMapping:
         }
         # Extract all message contents using wildcard
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"messages": "$.input[*].message.content"},
-            literal_mapping={},
+            path_mapping=JSON({"messages": "$.input[*].message.content"}),
+            literal_mapping=JSON({}),
         )
         result = apply_input_mapping(
             input_schema=input_schema,
@@ -976,12 +981,14 @@ class TestApplyInputMapping:
             "output": {"messages": [{"role": "assistant", "content": "Paris"}]},
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "question": "$.input.question",
-                "expected_answer": "$.expected.answer",
-                "actual_answer": "$.output.messages[0].content",
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {
+                    "question": "$.input.question",
+                    "expected_answer": "$.expected.answer",
+                    "actual_answer": "$.output.messages[0].content",
+                }
+            ),
+            literal_mapping=JSON({}),
         )
         result = apply_input_mapping(
             input_schema=input_schema,
@@ -1005,8 +1012,8 @@ class TestApplyInputMapping:
             "output": json.dumps([{"message": {"role": "assistant", "content": "4"}}]),
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"content": "$.output[0].message.content"},
-            literal_mapping={},
+            path_mapping=JSON({"content": "$.output[0].message.content"}),
+            literal_mapping=JSON({}),
         )
         with pytest.raises(
             ValueError,
@@ -1046,10 +1053,10 @@ class TestApplyInputMapping:
             ],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "function_name": "$.output[0].message.tool_calls[0].tool_call.function.name"
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {"function_name": "$.output[0].message.tool_calls[0].tool_call.function.name"}
+            ),
+            literal_mapping=JSON({}),
         )
         result = apply_input_mapping(
             input_schema=input_schema,
@@ -1368,8 +1375,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             ],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.output[0].message.content"},
-            literal_mapping={"words": "France,capital"},
+            path_mapping=JSON({"text": "$.output[0].message.content"}),
+            literal_mapping=JSON({"words": "France,capital"}),
         )
         result = (
             await evaluator.evaluate(
@@ -1399,8 +1406,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             },
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.output.messages[0].content"},
-            literal_mapping={"words": "Paris"},
+            path_mapping=JSON({"text": "$.output.messages[0].content"}),
+            literal_mapping=JSON({"words": "Paris"}),
         )
         result = (
             await evaluator.evaluate(
@@ -1424,11 +1431,13 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             "output": {"response": {"text": "Paris"}},
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected.answer",
-                "actual": "$.output.response.text",
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected.answer",
+                    "actual": "$.output.response.text",
+                }
+            ),
+            literal_mapping=JSON({}),
         )
         result = (
             await evaluator.evaluate(
@@ -1454,11 +1463,13 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             "output": {"response": {"text": "London"}},
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected.answer",
-                "actual": "$.output.response.text",
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected.answer",
+                    "actual": "$.output.response.text",
+                }
+            ),
+            literal_mapping=JSON({}),
         )
         result = (
             await evaluator.evaluate(
@@ -1493,11 +1504,13 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             "actual_json": json.dumps({"items": [1, 2, 4]}),
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected_json",
-                "actual": "$.actual_json",
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected_json",
+                    "actual": "$.actual_json",
+                }
+            ),
+            literal_mapping=JSON({}),
         )
         result = (
             await evaluator.evaluate(
@@ -1523,8 +1536,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             "text": "Hello, World! How are you?",
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={},
+            path_mapping=JSON({}),
+            literal_mapping=JSON({}),
         )
         result = (
             await evaluator.evaluate(
@@ -1548,11 +1561,13 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             "output": [{"message": {"content": "Hallo"}}],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected[0].message.content",
-                "actual": "$.output[0].message.content",
-            },
-            literal_mapping={},
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected[0].message.content",
+                    "actual": "$.output[0].message.content",
+                }
+            ),
+            literal_mapping=JSON({}),
         )
         result = (
             await evaluator.evaluate(
@@ -1580,8 +1595,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             }
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.output.response.content"},
-            literal_mapping={"pattern": r"\d+"},
+            path_mapping=JSON({"text": "$.output.response.content"}),
+            literal_mapping=JSON({"pattern": r"\d+"}),
         )
         result = (
             await evaluator.evaluate(
@@ -1610,8 +1625,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         }
         # When extracting all message contents, the result is stringified by cast_template_variable_types
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.output[*].message.content"},
-            literal_mapping={"words": "keyword"},
+            path_mapping=JSON({"text": "$.output[*].message.content"}),
+            literal_mapping=JSON({"words": "keyword"}),
         )
         result = (
             await evaluator.evaluate(
@@ -1636,8 +1651,8 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
         }
         # Extracting the whole nested object, which will be stringified
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"text": "$.output.nested"},
-            literal_mapping={"words": "target"},
+            path_mapping=JSON({"text": "$.output.nested"}),
+            literal_mapping=JSON({"words": "target"}),
         )
         result = (
             await evaluator.evaluate(
@@ -1659,7 +1674,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             await evaluator.evaluate(
                 context={"words": "cumin,", "text": "no spices here"},
                 input_mapping=EvaluatorInputMappingInput(
-                    path_mapping={}, literal_mapping={}
+                    path_mapping=JSON({}), literal_mapping=JSON({})
                 ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
@@ -1677,7 +1692,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             await evaluator.evaluate(
                 context={"words": "cumin,paprika", "text": "The recipe uses cumin and paprika"},
                 input_mapping=EvaluatorInputMappingInput(
-                    path_mapping={}, literal_mapping={}
+                    path_mapping=JSON({}), literal_mapping=JSON({})
                 ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
@@ -1698,7 +1713,7 @@ class TestBuiltInEvaluatorsWithLLMContextStructures:
             await evaluator.evaluate(
                 context={"words": ",", "text": "any text", "require_all": True},
                 input_mapping=EvaluatorInputMappingInput(
-                    path_mapping={}, literal_mapping={}
+                    path_mapping=JSON({}), literal_mapping=JSON({})
                 ).to_orm(),
                 name="contains",
                 output_configs=[evaluator.output_configs[0]],
@@ -1724,12 +1739,14 @@ class TestJSONDistanceParseStringsToggle:
         output_config = evaluator.output_configs[0]
         context: dict[str, Any] = {}
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={
-                "expected": json.dumps({"a": 1, "b": [2, 3]}),
-                "actual": json.dumps({"a": 1, "b": [2, 4]}),
-                "parse_strings": True,
-            },
+            path_mapping=JSON({}),
+            literal_mapping=JSON(
+                {
+                    "expected": json.dumps({"a": 1, "b": [2, 3]}),
+                    "actual": json.dumps({"a": 1, "b": [2, 4]}),
+                    "parse_strings": True,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1755,13 +1772,17 @@ class TestJSONDistanceParseStringsToggle:
             "actual_obj": {"items": [1, 2, 3], "name": "changed"},
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected_obj",
-                "actual": "$.actual_obj",
-            },
-            literal_mapping={
-                "parse_strings": False,
-            },
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected_obj",
+                    "actual": "$.actual_obj",
+                }
+            ),
+            literal_mapping=JSON(
+                {
+                    "parse_strings": False,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1786,13 +1807,17 @@ class TestJSONDistanceParseStringsToggle:
             "actual_list": [1, 2, 3],
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected_list",
-                "actual": "$.actual_list",
-            },
-            literal_mapping={
-                "parse_strings": False,
-            },
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected_list",
+                    "actual": "$.actual_list",
+                }
+            ),
+            literal_mapping=JSON(
+                {
+                    "parse_strings": False,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1814,12 +1839,14 @@ class TestJSONDistanceParseStringsToggle:
         output_config = evaluator.output_configs[0]
         context: dict[str, Any] = {}
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={
-                "expected": "hello world",
-                "actual": "hello world",
-                "parse_strings": False,
-            },
+            path_mapping=JSON({}),
+            literal_mapping=JSON(
+                {
+                    "expected": "hello world",
+                    "actual": "hello world",
+                    "parse_strings": False,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1842,11 +1869,13 @@ class TestJSONDistanceParseStringsToggle:
         context: dict[str, Any] = {}
         # No parse_strings in literal_mapping — should default to true
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={
-                "expected": json.dumps({"key": "value"}),
-                "actual": json.dumps({"key": "value"}),
-            },
+            path_mapping=JSON({}),
+            literal_mapping=JSON(
+                {
+                    "expected": json.dumps({"key": "value"}),
+                    "actual": json.dumps({"key": "value"}),
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1868,12 +1897,14 @@ class TestJSONDistanceParseStringsToggle:
         output_config = evaluator.output_configs[0]
         context: dict[str, Any] = {}
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={
-                "expected": json.dumps({"a": 1}),
-                "actual": json.dumps({"a": 1}),
-                "parse_strings": True,
-            },
+            path_mapping=JSON({}),
+            literal_mapping=JSON(
+                {
+                    "expected": json.dumps({"a": 1}),
+                    "actual": json.dumps({"a": 1}),
+                    "parse_strings": True,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1897,13 +1928,17 @@ class TestJSONDistanceParseStringsToggle:
             "actual_obj": {"a": {"b": 99, "c": 2}, "d": 100},
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected_obj",
-                "actual": "$.actual_obj",
-            },
-            literal_mapping={
-                "parse_strings": False,
-            },
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected_obj",
+                    "actual": "$.actual_obj",
+                }
+            ),
+            literal_mapping=JSON(
+                {
+                    "parse_strings": False,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1930,13 +1965,17 @@ class TestJSONDistanceParseStringsToggle:
             "actual_obj": actual_dict,
         }
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={
-                "expected": "$.expected_obj",
-                "actual": "$.actual_obj",
-            },
-            literal_mapping={
-                "parse_strings": False,
-            },
+            path_mapping=JSON(
+                {
+                    "expected": "$.expected_obj",
+                    "actual": "$.actual_obj",
+                }
+            ),
+            literal_mapping=JSON(
+                {
+                    "parse_strings": False,
+                }
+            ),
         )
         result = (
             await evaluator.evaluate(
@@ -1988,7 +2027,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2007,7 +2046,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "hello world"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2026,7 +2065,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = ContainsEvaluator()
         output_config = evaluator.output_configs[0]
         context = {"words": "hello", "text": "goodbye world"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2054,7 +2093,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             ],
         )
         context = {"expected": "Paris", "actual": "Paris"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2083,7 +2122,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             ],
         )
         context = {"pattern": r"\d+", "text": "The answer is 42"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2110,7 +2149,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
                 CategoricalAnnotationValue(label="Fail", score=-50.0),
             ],
         )
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
 
         result_match = (
             await evaluator.evaluate(
@@ -2141,7 +2180,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
         evaluator = LevenshteinDistanceEvaluator()
         output_config = evaluator.output_configs[0]
         context = {"expected": "hello", "actual": "hallo"}
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2166,7 +2205,7 @@ class TestBuiltInEvaluatorOutputConfigUsage:
             "expected": json.dumps({"a": 1}),
             "actual": json.dumps({"a": 1}),
         }
-        input_mapping = EvaluatorInputMappingInput(path_mapping={}, literal_mapping={})
+        input_mapping = EvaluatorInputMappingInput(path_mapping=JSON({}), literal_mapping=JSON({}))
         result = (
             await evaluator.evaluate(
                 context=context,
@@ -2243,11 +2282,15 @@ class TestLLMEvaluator:
         self,
         openai_api_key: str,
     ) -> "OpenAIStreamingClient":
-        def create_openai_client() -> AsyncOpenAI:
-            return AsyncOpenAI()
+        @asynccontextmanager
+        async def create_openai_client() -> Any:
+            yield AsyncOpenAI(api_key=openai_api_key, max_retries=0)
 
+        client_factory = LLMClientFactory(
+            create_openai_client, openai_rate_limit_key(openai_api_key, None)
+        )
         return OpenAIStreamingClient(
-            client_factory=create_openai_client,
+            client_factory=client_factory,
             model_name="gpt-4o-mini",
             provider="openai",
         )
@@ -2337,8 +2380,8 @@ class TestLLMEvaluator:
     @pytest.fixture
     def input_mapping(self) -> EvaluatorInputMappingInput:
         return EvaluatorInputMappingInput(
-            path_mapping={},
-            literal_mapping={},
+            path_mapping=JSON({}),
+            literal_mapping=JSON({}),
         )
 
     @pytest.fixture
@@ -2471,6 +2514,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -2614,27 +2658,52 @@ class TestLLMEvaluator:
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         raw_output_value = attributes.pop(OUTPUT_VALUE)
         output_value = json.loads(raw_output_value)
-        messages = output_value.pop("messages")
-        assert not output_value
-        assert messages is not None
-        assert len(messages) == 1
-        message = messages[0]
-        assert message.pop("role") == "assistant"
-        tool_calls = message.pop("tool_calls")
-        assert not message
-        assert len(tool_calls) == 1
-        tool_call = tool_calls[0]
-        assert isinstance(tool_call.pop("id"), str)
-        function = tool_call.pop("function")
-        assert isinstance(function, dict)
-        assert function.pop("name") == "correctness"
-        raw_arguments = function.pop("arguments")
-        assert isinstance(raw_arguments, str)
-        arguments = json.loads(raw_arguments)
-        assert arguments.pop("label") == "correct"
-        assert isinstance(arguments.pop("explanation"), str)
-        assert not arguments
-        assert not function
+        assert output_value == {
+            "id": "chatcmpl-DQeuwqU8iYEn0jmW2dXui8MlYo5sn",
+            "object": "chat.completion",
+            "created": 1775246186,
+            "model": "gpt-4o-mini-2024-07-18",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {
+                                "id": "call_yUjsmpi4tVtBJrk9lDCaeHXm",
+                                "type": "function",
+                                "function": {
+                                    "name": "correctness",
+                                    "arguments": (
+                                        '{"label":"correct","explanation":"The output correctly '
+                                        'states that 2 + 2 equals 4."}'
+                                    ),
+                                },
+                            }
+                        ],
+                        "annotations": [],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 98,
+                "completion_tokens": 32,
+                "total_tokens": 130,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "audio_tokens": 0,
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0,
+                },
+            },
+            "service_tier": "default",
+            "system_fingerprint": "fp_ebf4e532f9",
+        }
         assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
         assert isinstance(
             attributes.pop(
@@ -2656,7 +2725,7 @@ class TestLLMEvaluator:
         assert arguments.pop("label") == "correct"
         assert isinstance(arguments.pop("explanation"), str)
         assert not arguments
-        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value.pop("messages") == [
             {
@@ -2672,7 +2741,6 @@ class TestLLMEvaluator:
         assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
-            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -2803,8 +2871,8 @@ class TestLLMEvaluator:
         # Invalid JSONPath expressions are now validated at construction time
         with pytest.raises(BadRequest) as exc_info:
             EvaluatorInputMappingInput(
-                path_mapping={"output": "[[[invalid jsonpath"},  # invalid JSONPath syntax
-                literal_mapping={},
+                path_mapping=JSON({"output": "[[[invalid jsonpath"}),  # invalid JSONPath syntax
+                literal_mapping=JSON({}),
             )
         assert "Invalid JSONPath expression for key 'output'" in str(exc_info.value)
 
@@ -2818,8 +2886,8 @@ class TestLLMEvaluator:
     ) -> None:
         # Valid JSONPath syntax but path doesn't exist in context
         input_mapping = EvaluatorInputMappingInput(
-            path_mapping={"output": "nonexistent.path"},
-            literal_mapping={},
+            path_mapping=JSON({"output": "nonexistent.path"}),
+            literal_mapping=JSON({}),
         )
         evaluation_result = (
             await llm_evaluator.evaluate(
@@ -2844,6 +2912,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -2953,6 +3022,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -3093,7 +3163,7 @@ class TestLLMEvaluator:
         assert "4" in user_message
         assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
         assert attributes.pop(URL_PATH) == "chat/completions"
-        assert attributes.pop(INPUT_MIME_TYPE) == JSON
+        assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         input_value = json.loads(attributes.pop(INPUT_VALUE))
         assert input_value.pop("messages") == [
             {
@@ -3109,7 +3179,6 @@ class TestLLMEvaluator:
         assert json.loads(invocation_parameters) == {
             "temperature": 0.0,
             "tool_choice": "required",
-            "stream_options": {"include_usage": True},
         }
         expected_tool = {
             "type": "function",
@@ -3147,27 +3216,35 @@ class TestLLMEvaluator:
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
-        text_response_body = (
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":""},'
-            '"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":"I cannot evaluate this."},'
-            '"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],'
-            '"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5,'
-            '"total_tokens":15}}\n\n'
-            "data: [DONE]\n\n"
+        text_response_body = json.dumps(
+            {
+                "id": "chatcmpl-mock",
+                "object": "chat.completion",
+                "created": 1700000000,
+                "model": "gpt-4o-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "I cannot evaluate this.",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+            }
         )
         with respx.mock:
             respx.post("https://api.openai.com/v1/chat/completions").mock(
                 return_value=httpx.Response(
                     200,
                     content=text_response_body,
-                    headers={"content-type": "text/event-stream"},
+                    headers={"content-type": "application/json"},
                 )
             )
             evaluation_results = await llm_evaluator.evaluate(
@@ -3195,6 +3272,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         # Check spans
@@ -3317,30 +3395,45 @@ class TestLLMEvaluator:
         output_config: CategoricalOutputConfig,
         input_mapping: EvaluatorInputMappingInput,
     ) -> None:
-        tool_call_response_body = (
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":null,'
-            '"tool_calls":[{"index":0,"id":"call_abc123","type":"function",'
-            '"function":{"name":"correctness","arguments":""}}],"refusal":null},'
-            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,'
-            '"function":{"arguments":"{\\"explanation\\": \\"The output is correct.\\"}"}}]},'
-            '"logprobs":null,"finish_reason":null}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},'
-            '"finish_reason":"tool_calls"}],"usage":null}\n\n'
-            'data: {"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,'
-            '"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":10,'
-            '"completion_tokens":20,"total_tokens":30}}\n\n'
-            "data: [DONE]\n\n"
+        tool_call_response_body = json.dumps(
+            {
+                "id": "chatcmpl-mock",
+                "object": "chat.completion",
+                "created": 1700000000,
+                "model": "gpt-4o-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_abc123",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "correctness",
+                                        "arguments": '{"explanation": "The output is correct."}',
+                                    },
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30,
+                },
+            }
         )
         with respx.mock:
             respx.post("https://api.openai.com/v1/chat/completions").mock(
                 return_value=httpx.Response(
                     200,
                     content=tool_call_response_body,
-                    headers={"content-type": "text/event-stream"},
+                    headers={"content-type": "application/json"},
                 )
             )
             evaluation_results = await llm_evaluator.evaluate(
@@ -3367,6 +3460,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
     async def test_evaluate_with_multipart_template(
@@ -3403,6 +3497,7 @@ class TestLLMEvaluator:
         assert isinstance(result.pop("start_time"), datetime)
         assert isinstance(result.pop("end_time"), datetime)
         assert result.pop("metadata") == {}
+        result.pop("error_exc", None)
         assert not result
 
         async with db() as session:
@@ -3727,6 +3822,3 @@ TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
 TOOL_CALL_FUNCTION_ARGUMENTS = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-
-# mime type values
-JSON = OpenInferenceMimeTypeValues.JSON.value

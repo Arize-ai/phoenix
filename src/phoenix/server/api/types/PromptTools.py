@@ -25,7 +25,7 @@ class PromptToolFunctionDefinition:
         return cls(
             name=d.name,
             description=d.description if d.description else None,
-            parameters=d.parameters,
+            parameters=JSON(d.parameters),
             strict=d.strict if isinstance(d.strict, bool) else None,
         )
 

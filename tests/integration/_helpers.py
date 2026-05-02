@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
 from collections.abc import AsyncIterator, Iterable, Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import AbstractContextManager, contextmanager, nullcontext
+from contextlib import AbstractContextManager, asynccontextmanager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -62,8 +62,10 @@ from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
 from opentelemetry.util.types import AttributeValue
 from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
+from sqlalchemy import URL, text
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from strawberry.relay import GlobalID
@@ -83,6 +85,7 @@ from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     ENV_PHOENIX_SQL_DATABASE_URL,
 )
+from phoenix.db.engines import get_async_db_url
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -751,7 +754,7 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
-    command = f"{sys.executable} -m phoenix.server.main serve"
+    command = f"{sys.executable} -m phoenix.server.main serve --debug"
     env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
     process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
     log: list[str] = []
@@ -803,28 +806,33 @@ def _capture_stdout(
                 log.append(line)
 
 
-@contextmanager
-def _random_schema(
+@asynccontextmanager
+async def _random_schema(
     url: URL,
-) -> Iterator[str]:
-    engine = create_engine(url.set(drivername="postgresql+psycopg"))
-    engine.connect().close()
-    engine.dispose()
+) -> AsyncIterator[str]:
+    async_url = get_async_db_url(url.render_as_string(hide_password=False))
+    async_engine = create_async_engine(async_url, poolclass=NullPool)
+
     schema = f"{_SCHEMA_PREFIX}{token_hex(16)}"[:63]
+    async with async_engine.connect() as conn:
+        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        await conn.commit()
+
     yield schema
+
     time_limit = time() + 30
     while time() < time_limit:
         try:
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
-                conn.commit()
+            async with async_engine.connect() as conn:
+                await conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
+                await conn.commit()
         except OperationalError as exc:
             if "too many clients" in str(exc):
-                sleep(1)
+                await asyncio.sleep(1)
                 continue
             raise
         break
-    engine.dispose()
+    await async_engine.dispose()
 
 
 def _gql(
@@ -847,7 +855,7 @@ def _get_gql_spans(
     /,
     *fields: str,
 ) -> dict[_ProjectName, list[dict[str, Any]]]:
-    out = "name spans{edges{node{" + " ".join(fields) + "}}}"
+    out = "name spans(first:1000){edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert not resp_dict.get("errors")
@@ -2169,6 +2177,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/versions"),
     (422, "GET", "v1/datasets/fake-id-{}/examples"),
     (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
     # Experiments
@@ -2189,8 +2198,6 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
-    # Evaluations
-    (404, "GET", "v1/evaluations"),
     # Spans (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/spans"),
     (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
@@ -2217,6 +2224,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
+    (422, "PUT", "v1/secrets"),
 )
 
 # Write operations blocked for viewers (POST/PUT/DELETE)
@@ -2227,7 +2235,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
     (422, "POST", "v1/document_annotations"),
-    (415, "POST", "v1/evaluations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
     (422, "POST", "v1/projects"),
@@ -2235,10 +2242,12 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/prompts"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/session_notes"),
     (422, "POST", "v1/span_annotations"),
     (422, "POST", "v1/span_notes"),
     (422, "POST", "v1/spans"),
     (422, "POST", "v1/trace_annotations"),
+    (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
@@ -2248,7 +2257,9 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "DELETE", "v1/experiments/fake-id-{}"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
+    (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
+    (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
     # Bulk delete routes
     (422, "POST", "v1/sessions/delete"),
 )

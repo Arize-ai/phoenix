@@ -1,5 +1,5 @@
 import type { Ref } from "react";
-import { forwardRef, useEffect, useEffectEvent, useId, useState } from "react";
+import { useEffect, useEffectEvent, useId, useState } from "react";
 
 import { Heading } from "../content";
 import { Icon, Icons } from "../icon";
@@ -7,22 +7,20 @@ import { useStyleProps, viewStyleProps } from "../utils";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
 
-function Card(
-  {
-    title,
-    titleExtra,
-    titleSeparator = true,
-    subTitle,
-    children,
-    collapsible = false,
-    defaultOpen = true,
-    scrollBody = false,
-    extra,
-    onCollapseChange,
-    ...otherProps
-  }: CardProps,
-  ref: Ref<HTMLElement>
-) {
+function Card({
+  ref,
+  title,
+  titleExtra,
+  titleSeparator = true,
+  subTitle,
+  children,
+  collapsible = false,
+  defaultOpen = true,
+  scrollBody = false,
+  extra,
+  onCollapseChange,
+  ...otherProps
+}: CardProps & { ref?: Ref<HTMLElement> }) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
   const [isCollapsed, setIsCollapsed] = useState(
     collapsible ? !defaultOpen : false
@@ -102,5 +100,4 @@ function Card(
   );
 }
 
-const _Card = forwardRef(Card);
-export { _Card as Card };
+export { Card };

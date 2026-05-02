@@ -1,0 +1,259 @@
+---
+title: "Overview"
+description: "Register OpenTelemetry with Phoenix and use OpenInference helpers from @arizeai/phoenix-otel"
+---
+
+`@arizeai/phoenix-otel` is the Phoenix-focused OpenTelemetry package for Node.js. It handles provider setup, OTLP export, and instrumentation registration, then re-exports the full `@arizeai/openinference-core` helper surface and OpenInference semantic conventions from the same package path.
+
+## Install
+
+Install the package and any OpenTelemetry instrumentations you want to use with it.
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+### Add Instrumentations
+
+```bash
+npm install \
+  @arizeai/phoenix-otel \
+  @opentelemetry/instrumentation-http \
+  @opentelemetry/instrumentation-express
+```
+
+## What This Package Includes
+
+`@arizeai/phoenix-otel` combines Phoenix registration with OpenInference authoring APIs:
+
+- Phoenix registration: `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()`
+- OpenInference wrappers: `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`
+- decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
+- attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
+- redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
+- OpenTelemetry utilities: `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `registerInstrumentations()`
+
+The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs, so module-scoped traced helpers continue following global provider changes.
+
+## Quick Start
+
+```ts
+import { register, traceChain } from "@arizeai/phoenix-otel";
+
+const provider = register({ projectName: "support-bot" });
+
+const handleQuery = traceChain(
+  async (query: string) => {
+    return `Handled: ${query}`;
+  },
+  { name: "handle-query" }
+);
+
+await handleQuery("Hello");
+await provider.shutdown();
+```
+
+If you want raw control over span shape, switch to `withSpan()` or the OpenTelemetry `trace` API. The package docs linked below cover both patterns.
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+Because `@arizeai/phoenix-otel` re-exports `@arizeai/openinference-core`, the dependency docs are also high-value local references:
+
+```text
+node_modules/@arizeai/openinference-core/docs/
+node_modules/@arizeai/openinference-core/src/
+```
+
+## Configuration
+
+`register()` can use explicit options, environment variables, or both. If you pass a Phoenix base URL, the package normalizes it to the OTLP collector endpoint at `/v1/traces`.
+
+### Environment-Driven Setup
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=<your-api-key>
+```
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+});
+```
+
+### Explicit Setup
+
+```ts
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  headers: {
+    "x-client-name": "support-bot-api",
+    "x-client-version": "1.4.2",
+  },
+  batch: true,
+  diagLogLevel: DiagLogLevel.INFO,
+});
+```
+
+### Key Options
+
+| Option | Description |
+|--------|-------------|
+| `projectName` | Phoenix project name attached to exported spans. Defaults to `default`. |
+| `url` | Phoenix base URL or full collector endpoint. The package appends `/v1/traces` when needed. |
+| `apiKey` | API key sent as a bearer token. Falls back to `PHOENIX_API_KEY`. |
+| `headers` | Additional OTLP headers merged with the auth header. |
+| `batch` | `true` for batched export, `false` for immediate export during debugging. |
+| `instrumentations` | OpenTelemetry instrumentations to register with the provider. |
+| `spanProcessors` | Custom span processors. When provided, these replace the default Phoenix exporter setup. |
+| `global` | Whether to attach the provider to the global OpenTelemetry APIs automatically. |
+| `diagLogLevel` | OpenTelemetry diagnostic logging level. |
+
+### Environment Variables
+
+| Variable | Use |
+|--------|-----|
+| `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint. |
+| `PHOENIX_API_KEY` | API key used when you do not pass `apiKey` explicitly. |
+
+## Instrumentation
+
+Pass OpenTelemetry instrumentations to `register()` to capture framework and library activity automatically.
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+
+register({
+  projectName: "support-bot",
+  instrumentations: [
+    new HttpInstrumentation(),
+    new ExpressInstrumentation(),
+  ],
+});
+```
+
+- `registerInstrumentations()` is also re-exported for manual setups
+- auto-instrumentation works best when initialized very early in process startup
+- ESM projects often need manual library instrumentation rather than loader-based auto-instrumentation
+
+## Production
+
+### Enable Batch Processing
+
+Keep `batch: true` in production. The batch span processor groups spans before export, reducing request volume and export overhead. Disable batching only when you need immediate local feedback.
+
+```ts
+const provider = register({
+  projectName: "support-bot",
+  url: "https://app.phoenix.arize.com",
+  apiKey: process.env.PHOENIX_API_KEY,
+  batch: true,
+});
+```
+
+### Provider Lifecycle
+
+Flush and shut down the provider before process exit, otherwise in-flight batches can be lost.
+
+```ts
+process.on("SIGTERM", async () => {
+  await provider.shutdown();
+  process.exit(0);
+});
+```
+
+For short-lived processes such as scripts, CLI commands, and serverless handlers:
+
+```ts
+await doWork();
+await provider.shutdown();
+```
+
+### Custom Span Processors
+
+If you need full control over export, pass your own `spanProcessors`. This replaces the default Phoenix exporter setup.
+
+```ts
+import { register } from "@arizeai/phoenix-otel";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+
+const exporter = new OTLPTraceExporter({
+  url: "https://app.phoenix.arize.com/v1/traces",
+  headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+});
+
+const provider = register({
+  projectName: "support-bot",
+  spanProcessors: [new BatchSpanProcessor(exporter)],
+});
+```
+
+## Troubleshooting
+
+When traces do not show up in Phoenix, check these common issues:
+
+- confirm `projectName` is the project you are inspecting
+- confirm `url` or `PHOENIX_COLLECTOR_ENDPOINT` points at the collector
+- confirm `PHOENIX_API_KEY` is present for authenticated environments
+- confirm registration happens before the instrumented work starts
+- call `await provider.shutdown()` before process exit when using batched export
+
+### Enable Diagnostic Logging
+
+```ts
+import { DiagLogLevel, register } from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "support-bot",
+  batch: false,
+  diagLogLevel: DiagLogLevel.DEBUG,
+});
+
+await provider.shutdown();
+```
+
+## Package Surface
+
+| Category | Exports |
+|----------|---------|
+| **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()` |
+| **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `observe()` |
+| **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`, `getAttributesFromContext()` |
+| **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
+| **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
+| **Semantic conventions** | `SemanticConventions`, `OpenInferenceSpanKind`, `MimeType` |
+| **OpenTelemetry** | `trace`, `context`, `SpanStatusCode`, `DiagLogLevel`, `suppressTracing`, `registerInstrumentations()` |
+| **Types** | `Tracer`, `Instrumentation`, `SpanTraceOptions`, `RegisterParams` |
+
+## Where To Start
+
+- [Tracing helpers](./tracing-helpers) for wrapping functions with `withSpan`, `traceChain`, `traceAgent`, `traceTool`, and `observe`
+- [Context attributes](./context-attributes) for propagating sessions, users, metadata, tags, prompt templates, and manual context propagation
+- [Manual spans](./manual-spans) for raw OpenTelemetry spans, attribute builders, `OITracer`, and utility helpers
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/index.ts</code> exports the package surface</li>
+    <li><code>src/register.ts</code> implements provider setup and global attachment helpers</li>
+    <li><code>src/config.ts</code> reads Phoenix environment variables</li>
+    <li><code>src/createNoOpProvider.ts</code> provides a no-op provider for detached states</li>
+    <li><code>package.json</code> declares the bundled docs and the <code>@arizeai/openinference-core</code> dependency</li>
+  </ul>
+</section>

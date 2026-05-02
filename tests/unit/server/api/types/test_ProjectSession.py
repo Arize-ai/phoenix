@@ -10,6 +10,7 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
 
@@ -192,7 +193,7 @@ class TestProjectSession:
         httpx_client: httpx.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "traces{edges{node{id traceId}}}"
+        field = "traces(first: 50){edges{node{id traceId}}}"
         traces = await self._node(field, project_session, httpx_client)
         assert traces["edges"]
         assert {(edge["node"]["id"], edge["node"]["traceId"]) for edge in traces["edges"]} == {
@@ -323,3 +324,78 @@ class TestProjectSession:
         summaries_field = "sessionAnnotationSummaries{name meanScore}"
         summaries_result = await self._node(summaries_field, project_session, httpx_client)
         assert summaries_result == []
+
+
+async def test_project_session_traces_require_first(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        await _add_trace(session, project, project_session)
+
+    project_session_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+    query = """
+        query ($projectSessionId: ID!) {
+            node(id: $projectSessionId) {
+                ... on ProjectSession {
+                    traces {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectSessionId": project_session_id},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert (
+        response.errors[0].message
+        == "Field 'traces' argument 'first' of type 'Int!' is required, but it was not provided."
+    )
+
+
+async def test_project_session_traces_limit_first_page_size(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        await _add_trace(session, project, project_session)
+
+    project_session_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+    query = """
+        query ($projectSessionId: ID!, $first: Int!) {
+            node(id: $projectSessionId) {
+                ... on ProjectSession {
+                    traces(first: $first) {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectSessionId": project_session_id, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"

@@ -1,4 +1,5 @@
 export * from "./addSessionAnnotation";
+export * from "./addSessionNote";
 export * from "./deleteSession";
 export * from "./deleteSessions";
 export * from "./getSession";

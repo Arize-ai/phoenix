@@ -23,7 +23,7 @@ class SecretsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         secret_keys = set(keys)
         secrets_by_key: defaultdict[Key, Result] = defaultdict(None)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream_scalars(
                 select(models.Secret).where(models.Secret.key.in_(secret_keys))
             )

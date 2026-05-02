@@ -106,7 +106,7 @@ class ExperimentRepeatedRunGroup(Node):
             .group_by(models.SpanCostDetail.token_type, models.SpanCostDetail.is_prompt)
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             data = await session.stream(stmt)
             return [
                 SpanCostDetailSummaryEntry(

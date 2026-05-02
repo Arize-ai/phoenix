@@ -1,0 +1,63 @@
+---
+title: "Traces"
+description: "Retrieve traces with @arizeai/phoenix-client"
+---
+
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/traces/getTraces.ts</code> for the exact query shape and server
+      requirement
+    </li>
+  </ul>
+</section>
+
+## Example
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await getTraces({
+  project: { projectName: "support-bot" },
+  startTime: new Date("2026-03-01T00:00:00Z"),
+  endTime: new Date("2026-03-02T00:00:00Z"),
+  includeSpans: true,
+  limit: 50,
+});
+
+for (const trace of result.traces) {
+  console.log(trace.trace_id);
+}
+
+console.log(result.nextCursor);
+```
+
+## Supported Filters
+
+- `project`
+- `startTime`
+- `endTime`
+- `sort`
+- `order`
+- `limit`
+- `cursor`
+- `includeSpans`
+- `sessionId`
+
+## Notes
+
+- `getTraces` requires a Phoenix server that supports project trace listing
+- Use the returned `nextCursor` to continue pagination
+- Set `includeSpans` when you need a trace-centric fetch that also contains span details
+- `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/traces/getTraces.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>

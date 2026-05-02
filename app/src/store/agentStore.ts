@@ -1,7 +1,19 @@
-import type { UIMessage } from "ai";
+import type { ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
+
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  agentContextKey,
+  type AgentContext,
+} from "@phoenix/agent/context/agentContextTypes";
+import {
+  createDefaultAgentCapabilities,
+  type AgentCapabilities,
+  type AgentCapabilityKey,
+} from "@phoenix/agent/extensions/capabilities";
+import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -12,12 +24,56 @@ import type { ModelConfig } from "./playground/types";
  */
 export type AgentPosition = "detached" | "pinned";
 
-export interface AgentDebugSettings {
-  retainInactiveBashSessions: boolean;
-}
+/**
+ * Which surface currently hosts the agent chat panel.
+ * - "docked": the resizable panel in the main layout
+ * - "trace": the embedded panel inside a trace slideover
+ *
+ * When a surface mounts it claims the active location; the Layout uses this
+ * to decide whether to render the docked panel (only when no other surface
+ * has claimed the location).
+ */
+export type AgentPanelLocation = "docked" | "trace";
 
-const DEFAULT_AGENT_DEBUG_SETTINGS: AgentDebugSettings = {
-  retainInactiveBashSessions: false,
+/** Server-provided PXI configuration exposed to the frontend. */
+export type AgentServerConfig = {
+  /** Remote collector used for optional agent trace export. */
+  collectorEndpoint: string | null;
+  /** Local Phoenix project used for PXI trace persistence. */
+  assistantProjectName: string;
+};
+
+/**
+ * Per-user PXI observability preferences persisted in local storage.
+ *
+ * These settings control where PXI traces are sent for the current browser
+ * user and whether the one-time consent gate has been acknowledged.
+ */
+export type AgentObservabilitySettings = {
+  /** Whether PXI traces should be persisted in the current Phoenix instance. */
+  storeLocalTraces: boolean;
+  /** Whether PXI traces should also be exported to a remote collector. */
+  exportRemoteTraces: boolean;
+  /** Whether the user has acknowledged the PXI consent gate. */
+  hasAcknowledgedConsent: boolean;
+};
+
+/**
+ * Usage metrics like token usage.
+ *
+ * May be extended to costs, tool call count, etc
+ */
+export type AgentSessionUsage = {
+  tokenCount: {
+    prompt: number;
+    completion: number;
+    total: number;
+    promptDetails?: {
+      cacheRead: number;
+      cacheWrite: number;
+    };
+  };
+  // this can be extended with cost in the future
 };
 
 /**
@@ -29,13 +85,15 @@ export type AgentSession = {
   /** Brief human-readable summary of the conversation so far. */
   shortSummary: string;
   /** Messages in AI SDK UIMessage format. */
-  messages: UIMessage[];
+  messages: AgentUIMessage[];
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
   /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
   createdAt: number;
+  /** Usage metrics returned as metadata from llm invocations */
+  usage?: AgentSessionUsage;
 };
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
@@ -43,6 +101,17 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
   modelName: "claude-opus-4-6",
   invocationParameters: [],
   supportedInvocationParameters: [],
+};
+
+const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
+  collectorEndpoint: null,
+  assistantProjectName: "assistant_agent",
+};
+
+const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
+  storeLocalTraces: true,
+  exportRemoteTraces: false,
+  hasAcknowledgedConsent: false,
 };
 
 /**
@@ -54,6 +123,13 @@ export interface AgentProps {
   isOpen: boolean;
   /** Current layout position of the agent panel. */
   position: AgentPosition;
+  /**
+   * Which surface currently hosts the agent chat panel.
+   * Defaults to "docked". Set to "trace" when a trace slideover mounts its
+   * own embedded chat panel, which suppresses the docked panel in Layout.
+   * This field is ephemeral and not persisted.
+   */
+  activePanelLocation: AgentPanelLocation;
   /** Ordered list of session IDs. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
@@ -62,8 +138,16 @@ export interface AgentProps {
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
-  /** Debug-only runtime flags for temporary agent behavior overrides. */
-  debug: AgentDebugSettings;
+  /**
+   * User-editable instructions inserted into the server-owned PXI prompt.
+   */
+  userInstructions: string;
+  /** Server-provided PXI config used to describe trace destinations in the UI. */
+  agentsConfig: AgentServerConfig;
+  /** Per-user PXI observability preferences and consent acknowledgement state. */
+  observability: AgentObservabilitySettings;
+  /** Typed runtime capabilities that influence tool and session behavior. */
+  capabilities: AgentCapabilities;
 }
 
 /**
@@ -74,6 +158,7 @@ export interface AgentState extends AgentProps {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
+  setActivePanelLocation: (location: AgentPanelLocation) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
   setActiveSession: (sessionId: string | null) => void;
@@ -84,10 +169,84 @@ export interface AgentState extends AgentProps {
   ) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
-  setSessionMessages: (sessionId: string, messages: UIMessage[]) => void;
+  setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
+  setUserInstructions: (userInstructions: string) => void;
+  setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
+  acknowledgeConsent: () => void;
   clearAllSessions: () => void;
+  setCapability: (params: {
+    key: AgentCapabilityKey;
+    enabled: boolean;
+  }) => void;
+
+  // -- Elicitation (ephemeral, not persisted) --
+
+  /**
+   * Pending elicitations keyed by session ID. Each session can have at most
+   * one pending elicitation at a time. Set by the ask_user tool handler and
+   * cleared when the user submits answers or dismisses the carousel.
+   */
+  pendingElicitationBySessionId: Record<string, PendingElicitation>;
+  setPendingElicitation: (
+    sessionId: string,
+    elicitation: PendingElicitation | null
+  ) => void;
+  chatStatusBySessionId: Record<string, ChatStatus>;
+  setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+  setSessionUsage: (
+    sessionId: string,
+    newUsage: {
+      prompt: number;
+      completion: number;
+      total?: number;
+      promptDetails?: { cacheRead: number; cacheWrite: number };
+    }
+  ) => void;
+
+  // -- Page and mounted contexts advertised with /chat (ephemeral) --
+  //
+  // Both slices are rebuilt from the UI each render — they are never
+  // persisted. `selectActiveContexts` merges and dedupes them for each chat
+  // turn so the agent sees a single flat list of typed contexts.
+
+  /** Derived from route params by `AgentContextSync` on navigation. */
+  routeContexts: AgentContext[];
+  /**
+   * Feature-level contexts keyed by a stable per-mount id. Populated via
+   * `useAdvertiseAgentContext`; entries are cleared on unmount.
+   */
+  mountedContexts: Record<string, AgentContext>;
+  setRouteContexts: (next: AgentContext[]) => void;
+  setMountedContext: (key: string, context: AgentContext) => void;
+  removeMountedContext: (key: string) => void;
+
+  // -- Server-advertised, client-executed tool actions (ephemeral) --
+  //
+  // The server may advertise tools whose definitions are gated on resolved
+  // context but whose implementations live in the browser (e.g. mutating a
+  // page-local form). Mounted components register their handlers here keyed
+  // by tool name; `handleAgentToolCall` looks up the entry when the matching
+  // tool is invoked. Handlers must resolve to a discriminated result shape
+  // so the dispatcher can map success/failure back to AI-SDK tool output.
+  registeredClientActions: Record<string, AgentClientAction>;
+  registerClientAction: (name: string, action: AgentClientAction) => void;
+  unregisterClientAction: (name: string) => void;
 }
+
+/**
+ * Handler for a server-advertised, client-executed agent tool. Receives the
+ * raw `input` object the model produced (handlers are responsible for
+ * validating shape) and resolves to a discriminated result the tool dispatch
+ * surfaces back to the model as either tool output or a tool error.
+ */
+export type AgentClientActionResult =
+  | { ok: true; output?: string }
+  | { ok: false; error: string };
+
+export type AgentClientAction = (
+  input: unknown
+) => Promise<AgentClientActionResult>;
 
 /**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
@@ -105,11 +264,17 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   > = (set) => ({
     isOpen: false,
     position: "detached",
+    activePanelLocation: "docked",
     sessions: [],
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
-    debug: { ...DEFAULT_AGENT_DEBUG_SETTINGS },
+    userInstructions: "",
+    agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
+    observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+    capabilities: createDefaultAgentCapabilities(),
+    routeContexts: [],
+    mountedContexts: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -120,6 +285,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setPosition: (position) => {
       set({ position }, false, { type: "setPosition" });
+    },
+    setActivePanelLocation: (location) => {
+      set({ activePanelLocation: location }, false, {
+        type: "setActivePanelLocation",
+      });
     },
     createSession: () => {
       const sessionId = crypto.randomUUID();
@@ -151,6 +321,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           if (!session) return state;
           const newSessionMap = { ...state.sessionMap };
           delete newSessionMap[sessionId];
+          const newPendingElicitationBySessionId = {
+            ...state.pendingElicitationBySessionId,
+          };
+          delete newPendingElicitationBySessionId[sessionId];
+          const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
+          delete newChatStatusBySessionId[sessionId];
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -160,6 +336,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             sessions: newSessions,
             sessionMap: newSessionMap,
             activeSessionId: newActiveSessionId,
+            pendingElicitationBySessionId: newPendingElicitationBySessionId,
+            chatStatusBySessionId: newChatStatusBySessionId,
           };
         },
         false,
@@ -263,41 +441,255 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
+    setUserInstructions: (userInstructions) => {
+      set({ userInstructions }, false, { type: "setUserInstructions" });
+    },
+    setObservability: (patch) => {
+      set(
+        (state) => ({
+          observability: { ...state.observability, ...patch },
+        }),
+        false,
+        { type: "setObservability" }
+      );
+    },
+    acknowledgeConsent: () => {
+      set(
+        (state) => ({
+          observability: {
+            ...state.observability,
+            hasAcknowledgedConsent: true,
+          },
+        }),
+        false,
+        { type: "acknowledgeConsent" }
+      );
+    },
     clearAllSessions: () => {
       set(
         {
           sessions: [],
           activeSessionId: null,
           sessionMap: {},
+          pendingElicitationBySessionId: {},
+          chatStatusBySessionId: {},
         },
         false,
         { type: "clearAllSessions" }
       );
     },
+    setCapability: ({ key, enabled }) => {
+      set(
+        (state) => ({
+          capabilities: { ...state.capabilities, [key]: enabled },
+        }),
+        false,
+        { type: "setCapability" }
+      );
+    },
+
+    // -- Elicitation (ephemeral) --
+    pendingElicitationBySessionId: {},
+    setPendingElicitation: (sessionId, elicitation) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingElicitationBySessionId };
+          if (elicitation) {
+            next[sessionId] = elicitation;
+          } else {
+            delete next[sessionId];
+          }
+          return { pendingElicitationBySessionId: next };
+        },
+        false,
+        { type: "setPendingElicitation" }
+      );
+    },
+
+    chatStatusBySessionId: {},
+    setSessionChatStatus: (sessionId, status) => {
+      set(
+        (state) => ({
+          chatStatusBySessionId: {
+            ...state.chatStatusBySessionId,
+            [sessionId]: status,
+          },
+        }),
+        false,
+        { type: "setSessionChatStatus" }
+      );
+    },
+
+    setSessionUsage: (sessionId, newUsage) => {
+      set(
+        (state) => {
+          const session = state.sessionMap[sessionId];
+          if (!session) return state;
+          const usage: AgentSessionUsage = session.usage ?? {
+            tokenCount: {
+              total: 0,
+              completion: 0,
+              prompt: 0,
+            },
+          };
+          return {
+            sessionMap: {
+              ...state.sessionMap,
+              [sessionId]: {
+                ...session,
+                usage: {
+                  ...usage,
+                  tokenCount: {
+                    prompt: newUsage.prompt,
+                    completion: newUsage.completion,
+                    total:
+                      newUsage.total ?? newUsage.prompt + newUsage.completion,
+                    ...(newUsage.promptDetails
+                      ? { promptDetails: newUsage.promptDetails }
+                      : {}),
+                  } satisfies AgentSessionUsage["tokenCount"],
+                },
+              },
+            },
+          };
+        },
+        false,
+        { type: "setSessionUsage" }
+      );
+    },
+
+    // -- Page and mounted contexts (ephemeral) --
+    setRouteContexts: (next) => {
+      set(
+        (state) => {
+          if (state.routeContexts.length === next.length) {
+            let same = true;
+            for (let index = 0; index < next.length; index++) {
+              if (
+                agentContextKey(state.routeContexts[index]!) !==
+                agentContextKey(next[index]!)
+              ) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              return state;
+            }
+          }
+          return { routeContexts: next };
+        },
+        false,
+        { type: "setRouteContexts" }
+      );
+    },
+    setMountedContext: (key, context) => {
+      set(
+        (state) => ({
+          mountedContexts: { ...state.mountedContexts, [key]: context },
+        }),
+        false,
+        { type: "setMountedContext" }
+      );
+    },
+    removeMountedContext: (key) => {
+      set(
+        (state) => {
+          if (!(key in state.mountedContexts)) {
+            return state;
+          }
+          const next = { ...state.mountedContexts };
+          delete next[key];
+          return { mountedContexts: next };
+        },
+        false,
+        { type: "removeMountedContext" }
+      );
+    },
+
+    // -- Server-advertised, client-executed tool actions --
+    registeredClientActions: {},
+    registerClientAction: (name, action) => {
+      set(
+        (state) => ({
+          registeredClientActions: {
+            ...state.registeredClientActions,
+            [name]: action,
+          },
+        }),
+        false,
+        { type: "registerClientAction" }
+      );
+    },
+    unregisterClientAction: (name) => {
+      set(
+        (state) => {
+          if (!(name in state.registeredClientActions)) {
+            return state;
+          }
+          const next = { ...state.registeredClientActions };
+          delete next[name];
+          return { registeredClientActions: next };
+        },
+        false,
+        { type: "unregisterClientAction" }
+      );
+    },
+
     ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 1,
+      version: 5,
       migrate: (persisted, version) => {
-        if (version === 0) {
-          // Legacy sessions may not have `createdAt`. Backfill with 0 so the
-          // UI can distinguish them from sessions created after this migration.
-          const state = persisted as AgentProps;
-          const migratedSessionMap: Record<string, AgentSession> = {};
-          for (const [sessionId, session] of Object.entries(
-            state.sessionMap ?? {}
-          )) {
-            migratedSessionMap[sessionId] = {
-              ...session,
-              createdAt: (session as AgentSession).createdAt ?? 0,
-            };
-          }
-          return { ...state, sessionMap: migratedSessionMap };
+        const state = persisted as Partial<AgentProps> & {
+          capabilities?: Partial<AgentCapabilities>;
+          observability?: Partial<AgentObservabilitySettings>;
+          debug?: {
+            retainInactiveBashSessions?: boolean;
+            dangerouslyEnableMutations?: boolean;
+          };
+        };
+        const migratedSessionMap: Record<string, AgentSession> = {};
+
+        for (const [sessionId, session] of Object.entries(
+          state.sessionMap ?? {}
+        )) {
+          migratedSessionMap[sessionId] = {
+            ...session,
+            createdAt: (session as AgentSession).createdAt ?? 0,
+          };
         }
-        return persisted as AgentState;
+
+        const migratedCapabilities = {
+          ...createDefaultAgentCapabilities(),
+          ...(state.capabilities ?? {}),
+          ...(version <= 2
+            ? {
+                "bash.retainInactiveSessions":
+                  state.debug?.retainInactiveBashSessions ??
+                  state.capabilities?.["bash.retainInactiveSessions"] ??
+                  false,
+                "graphql.mutations":
+                  state.debug?.dangerouslyEnableMutations ??
+                  state.capabilities?.["graphql.mutations"] ??
+                  false,
+              }
+            : {}),
+        };
+
+        return {
+          ...state,
+          sessionMap: migratedSessionMap,
+          userInstructions: state.userInstructions ?? "",
+          observability: {
+            ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+            ...(state.observability ?? {}),
+          },
+          capabilities: migratedCapabilities,
+        } as AgentState;
       },
       partialize: (state) => ({
         isOpen: state.isOpen,
@@ -306,7 +698,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
-        debug: state.debug,
+        userInstructions: state.userInstructions,
+        observability: state.observability,
+        capabilities: state.capabilities,
       }),
     })
   );

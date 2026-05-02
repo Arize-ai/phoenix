@@ -100,5 +100,5 @@ echo ""
 # Start Phoenix with debugger always enabled
 echo "🐛 Starting Phoenix with debugger on port 5678"
 echo "📍 Connect your debugger to localhost:5678"
-# Pass through any command line arguments (--dev must come before serve)
-exec python -m debugpy --listen 0.0.0.0:5678 -m phoenix.server.main "$@" serve
+# Pass through any command line arguments after `serve` (e.g. serve --dev)
+exec python -m debugpy --listen 0.0.0.0:5678 -m phoenix.server.main serve "$@"

@@ -10,6 +10,8 @@ import {
   Timer,
   View,
 } from "@phoenix/components";
+import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
+import { Switch } from "@phoenix/components/core/switch";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
@@ -17,6 +19,7 @@ import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playgro
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
 
@@ -40,11 +43,18 @@ export function PlaygroundExperimentToolbar({
   query,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
+  );
+  const setRecordExperiments = usePlaygroundContext(
+    (state) => state.setRecordExperiments
+  );
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const experimentIds = useMemo(() => {
-    return instances
-      .map((instance) => instance.experimentId)
-      .filter((id) => id != null);
+    return instances.flatMap((instance) => {
+      const exp = instance.experiment;
+      return exp && !exp.isEphemeral ? [exp.id] : [];
+    });
   }, [instances]);
   return (
     <View
@@ -60,25 +70,39 @@ export function PlaygroundExperimentToolbar({
           <Heading level={2} weight="heavy">
             Experiment
           </Heading>
-          {isRunning ? (
-            <Flex alignItems="center" gap="size-100">
-              <RecordIcon isActive />
-              <Timer size="S" color="text-700" />
-            </Flex>
-          ) : null}
           {experimentIds.length > 0 && !isRunning ? (
             <ExternalLinkButton
               size="S"
               isDisabled={isRunning}
               variant="quiet"
               trailingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
-              href={`/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`}
+              href={prependBasename(
+                `/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
+              )}
             >
               View Experiment{instances.length > 1 ? "s" : ""}
             </ExternalLinkButton>
           ) : null}
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
+          {isRunning ? (
+            <Flex alignItems="center" gap="size-100">
+              {recordExperiments ? (
+                <RecordIcon isActive />
+              ) : (
+                <ProgressCircle isIndeterminate size="S" />
+              )}
+              <Timer size="S" color="text-700" />
+            </Flex>
+          ) : (
+            <Switch
+              isSelected={recordExperiments}
+              onChange={setRecordExperiments}
+              labelPlacement="start"
+            >
+              Record
+            </Switch>
+          )}
           <PlaygroundEvaluatorSelect
             evaluators={datasetEvaluators}
             selectedIds={selectedDatasetEvaluatorIds}

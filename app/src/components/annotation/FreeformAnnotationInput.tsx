@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import type { Ref } from "react";
 import { TextArea } from "react-aria-components";
 
 import type { TextFieldProps } from "@phoenix/components";
@@ -13,10 +13,12 @@ import type {
 type FreeformAnnotationInputProps =
   AnnotationInputPropsBase<AnnotationConfigFreeform> & TextFieldProps;
 
-export const FreeformAnnotationInput = forwardRef<
-  HTMLDivElement,
-  FreeformAnnotationInputProps
->(({ annotationConfig, annotation, ...props }, ref) => {
+export function FreeformAnnotationInput({
+  ref,
+  annotationConfig,
+  annotation,
+  ...props
+}: FreeformAnnotationInputProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <Flex gap="size-50" alignItems="center" position="relative">
       <TextField
@@ -35,6 +37,6 @@ export const FreeformAnnotationInput = forwardRef<
       </TextField>
     </Flex>
   );
-});
+}
 
 FreeformAnnotationInput.displayName = "FreeformAnnotationInput";

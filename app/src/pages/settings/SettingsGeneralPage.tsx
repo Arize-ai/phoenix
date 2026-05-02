@@ -5,12 +5,10 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
-  CopyToClipboardButton,
-  Flex,
-  Input,
+  CopyField,
+  CopyInput,
   Label,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
@@ -23,11 +21,18 @@ import type { settingsGeneralPageLoaderType } from "@phoenix/pages/settings/sett
 import { settingsGeneralPageLoaderGQL } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
+const gridCSS = css`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--global-dimension-size-200);
+  width: 100%;
+`;
+
+const fullWidthCSS = css`
+  grid-column: 1 / -1;
+`;
+
 const formCSS = css`
-  .field {
-    // Hacky solution to make the text fields fill the remaining space
-    width: calc(100% - var(--global-dimension-size-600));
-  }
   padding: var(--global-dimension-size-200);
 `;
 
@@ -39,70 +44,39 @@ export function SettingsGeneralPage() {
     loaderData
   );
   return (
-    <Flex direction="column" gap="size-200" width="100%">
-      <Flex direction="row" gap="size-200" alignItems="baseline">
-        <View flex="2">
-          <Card title="Platform Settings">
-            <form css={formCSS}>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={BASE_URL} isReadOnly>
-                  <Label>Hostname</Label>
-                  <Input />
-                  <Text slot="description">Connect to Phoenix over HTTP</Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding text={BASE_URL} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={VERSION} isReadOnly>
-                  <Label>Platform Version</Label>
-                  <Input />
-                  <Text slot="description">
-                    The version of the Phoenix server
-                  </Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding text={VERSION} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  value={`pip install "arize-phoenix==${VERSION}"`}
-                  isReadOnly
-                >
-                  <Label>Installation Instructions</Label>
-                  <Input />
-                  <Text slot="description">
-                    The command to install the Phoenix Python package
-                  </Text>
-                </TextField>
-                <CopyToClipboardButtonWithPadding
-                  text={`pip install "arize-phoenix==${VERSION}"`}
-                />
-              </Flex>
-            </form>
-          </Card>
+    <div css={gridCSS}>
+      <Card title="Platform">
+        <form css={formCSS}>
+          <CopyField value={BASE_URL}>
+            <Label>Hostname</Label>
+            <CopyInput />
+            <Text slot="description">Connect to Phoenix over HTTP</Text>
+          </CopyField>
+          <CopyField value={VERSION}>
+            <Label>Platform Version</Label>
+            <CopyInput />
+            <Text slot="description">The version of the Phoenix server</Text>
+          </CopyField>
+        </form>
+      </Card>
+      <Card title="Database Usage">
+        <View padding="size-200">
+          <DBUsagePieChart query={data} />
         </View>
-        <View flex="1" minWidth={280}>
-          <Card title="Database Usage">
-            <View padding="size-200">
-              <DBUsagePieChart query={data} />
-            </View>
-          </Card>
-        </View>
-      </Flex>
+      </Card>
       <IsAdmin>
-        <APIKeysCard />
-        <UsersCard />
+        <div css={fullWidthCSS}>
+          <APIKeysCard />
+        </div>
+        <div css={fullWidthCSS}>
+          <UsersCard />
+        </div>
       </IsAdmin>
       <CanManageRetentionPolicy>
-        <GlobalRetentionPolicyCard />
+        <div css={fullWidthCSS}>
+          <GlobalRetentionPolicyCard />
+        </div>
       </CanManageRetentionPolicy>
-    </Flex>
-  );
-}
-
-function CopyToClipboardButtonWithPadding(props: { text: string }) {
-  return (
-    <View paddingBottom="20px" flex="none">
-      <CopyToClipboardButton text={props.text} size="M" />
-    </View>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 import strawberry
+from strawberry.scalars import JSON
 
 from phoenix.db import models
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
@@ -26,9 +27,9 @@ class DatasetExampleRevision(ExampleRevision):
     @classmethod
     def from_orm_revision(cls, revision: models.DatasetExampleRevision) -> "DatasetExampleRevision":
         return cls(
-            input=revision.input,
-            output=revision.output,
-            metadata=revision.metadata_,
+            input=JSON(revision.input),
+            output=JSON(revision.output),
+            metadata=JSON(revision.metadata_),
             revision_kind=RevisionKind(revision.revision_kind),
             created_at=revision.created_at,
         )

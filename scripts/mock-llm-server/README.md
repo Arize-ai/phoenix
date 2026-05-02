@@ -247,9 +247,9 @@ Configure via environment variables:
 | `RATE_LIMIT_RANDOM_PROBABILITY` | Probability of 429 (when mode=random)                                    | `0.3`     |
 | `RATE_LIMIT_REQUESTS`           | Max requests per window                                                  | `10`      |
 | `RATE_LIMIT_WINDOW_MS`          | Rate limit window in ms                                                  | `60000`   |
-| `STREAM_INITIAL_DELAY_MS`       | Initial delay before first chunk (time to first token)                   | `300`     |
-| `STREAM_DELAY_MS`               | Base delay between stream chunks                                         | `50`      |
-| `STREAM_JITTER_MS`              | Random jitter added to delay (0 to N ms)                                 | `30`      |
+| `STREAM_INITIAL_DELAY_MS`       | Initial delay before first chunk (time to first token)                   | `100`     |
+| `STREAM_DELAY_MS`               | Base delay between stream chunks                                         | `10`      |
+| `STREAM_JITTER_MS`              | Random jitter added to delay (0 to N ms)                                 | `10`      |
 | `STREAM_CHUNK_SIZE`             | Characters per stream chunk                                              | `10`      |
 | `TOOL_CALL_PROBABILITY`         | Probability of tool call when tools provided                             | `0.75`    |
 | `DEFAULT_RESPONSE`              | Static response text (if unset, 50% from response pool, 50% lorem ipsum) | (dynamic) |

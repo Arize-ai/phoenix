@@ -9,9 +9,10 @@ from urllib.parse import unquote, urlparse
 import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
+from joserfc import jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import OctKey
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -748,10 +749,17 @@ async def _create_user(
     Returns:
         The created user
     """
+    email = user_info.email
+    # The users.username column is NOT NULL, but the OIDC `name` claim is
+    # optional and some IDPs omit it or return an empty string. Fall back
+    # to the local part of the email so we always have a non-empty value
+    # to satisfy the constraint; a random suffix is appended below if it
+    # collides with an existing username.
+    username = user_info.username or email.split("@", 1)[0]
     email_exists, username_exists = await _email_and_username_exist(
         session,
-        email=(email := user_info.email),
-        username=(username := user_info.username),
+        email=email,
+        username=username,
     )
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
@@ -763,7 +771,7 @@ async def _create_user(
             user_role_id=role_id,
             oauth2_client_id=oauth2_client_id,
             oauth2_user_id=user_info.idp_user_id,
-            username=_with_random_suffix(username) if username and username_exists else username,
+            username=_with_random_suffix(username) if username_exists else username,
             email=email,
             profile_picture_url=user_info.profile_picture_url,
             reset_password=False,
@@ -887,8 +895,7 @@ def _generate_state_for_oauth2_authorization_code_flow(
     )
     if return_url is not None:
         payload["return_url"] = return_url
-    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(secret))
-    return jwt_bytes.decode()
+    return jwt.encode(header, dict(payload), OctKey.import_key(str(secret)))
 
 
 class _OAuth2StatePayload(TypedDict):
@@ -905,9 +912,9 @@ def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
     """
     Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
-    payload = jwt.decode(s=state, key=str(secret))
-    if _is_oauth2_state_payload(payload):
-        return payload
+    claims = jwt.decode(state, OctKey.import_key(str(secret))).claims
+    if _is_oauth2_state_payload(claims):
+        return claims
     raise ValueError("Invalid OAuth2 state payload.")
 
 

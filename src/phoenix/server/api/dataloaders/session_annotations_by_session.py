@@ -19,7 +19,7 @@ class SessionAnnotationsBySessionDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         annotations_by_id: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             async for annotation in await session.stream_scalars(
                 select(ProjectSessionAnnotation).where(
                     ProjectSessionAnnotation.project_session_id.in_(keys)

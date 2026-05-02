@@ -1,5 +1,4 @@
 import json
-import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -10,7 +9,7 @@ from typing import Annotated, Any, Optional, Union
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
-from pydantic import BaseModel, BeforeValidator, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 from sqlalchemy import exists, select, update
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -22,11 +21,16 @@ from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
@@ -56,6 +60,82 @@ from .utils import (
 )
 
 DEFAULT_SPAN_LIMIT = 1000
+
+
+def _parse_attribute(filter_str: str) -> sa.ColumnElement[bool]:
+    """Parse an ``attribute`` query-param value into a SQLAlchemy
+    filter clause.
+
+    The expected format is ``key:value`` where *key* is a dot-separated
+    attribute path (e.g. ``llm.model_name``) and *value* is the string
+    representation of the value to match.  The split is performed on the
+    **first** ``:`` only, so values may contain additional colons.
+
+    The value is parsed with ``json.loads()`` to determine its type:
+    - ``bool`` → ``.as_boolean() == val``
+    - ``int`` → ``CAST(col, Text) IN ('<n>', '<n>.0')`` so a whole-number
+      query matches both int and whole-number-float storage (the TS client
+      cannot distinguish ``1`` from ``1.0`` on the wire)
+    - ``float``, ``str`` (or parse failure) → type-aware JSON text comparison
+    - ``None``, ``list``, or ``dict`` → HTTP 422
+
+    Raises :class:`HTTPException` (422) when the separator is missing,
+    the key is empty, the value is empty, or the value parses to an
+    unsupported type (None, list, dict).
+    """
+    if ":" not in filter_str:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid attribute '{filter_str}': expected format 'key:value'",
+        )
+    key, value = filter_str.split(":", 1)
+    if not key:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid attribute: key must not be empty",
+        )
+    if not value:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid attribute: value must not be empty",
+        )
+    key_parts = key.split(".")
+    col = models.Span.attributes[key_parts]
+    try:
+        parsed = json.loads(value)
+    except (json.JSONDecodeError, ValueError):
+        parsed = value
+    if isinstance(parsed, bool):
+        clause: sa.ColumnElement[bool] = col.as_boolean() == parsed
+    elif isinstance(parsed, int):
+        clause = sa.cast(col, sa.Text).in_([json.dumps(parsed), json.dumps(float(parsed))])
+    elif isinstance(parsed, (float, str)):
+        clause = sa.cast(col, sa.Text) == json.dumps(parsed)
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid attribute value '{value}': must be a string, integer, float, or boolean."
+                " To match a string that looks like a number or boolean,"
+                ' JSON-quote the value: `key:"12345"`.'
+            ),
+        )
+    return clause
+
+
+_ATTRIBUTE_PARAM_DESCRIPTION = (
+    "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, "
+    "`metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` "
+    "is bool, otherwise string (`k:user-42`). To match a numeric- or "
+    'boolean-looking STRING, JSON-quote it: `user.id:"12345"` '
+    "(URL-encoded `%2212345%22`). Split is on the first `:` only, so "
+    "values may contain colons (`session.id:sess:abc:123`, ISO "
+    "timestamps). Repeat the param to AND filters. List-valued "
+    "attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 "
+    "on malformed input (missing colon, empty key/value, or list/dict/"
+    "null value)."
+)
+
 
 router = APIRouter(tags=["spans"])
 
@@ -406,11 +486,34 @@ class SpanContext(V1RoutesBaseModel):
     trace_id: str = Field(description="OpenTelemetry trace ID")
     span_id: str = Field(description="OpenTelemetry span ID")
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+                    "span_id": "1a2b3c4d5e6f7a8b",
+                }
+            ]
+        }
+    )
+
 
 class SpanEvent(V1RoutesBaseModel):
     name: str = Field(description="Name of the event")
     timestamp: datetime = Field(description="When the event occurred (must be timezone-aware)")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Event attributes")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "exception",
+                    "timestamp": "2024-01-01T12:00:00Z",
+                    "attributes": {"exception.message": "Connection refused"},
+                }
+            ]
+        }
+    )
 
     @model_validator(mode="after")
     def _require_timezone_aware_timestamp(self) -> "SpanEvent":
@@ -438,6 +541,31 @@ class Span(V1RoutesBaseModel):
     status_message: str = Field(default="", description="Status message")
     attributes: dict[str, Any] = Field(default_factory=dict, description="Span attributes")
     events: list[SpanEvent] = Field(default_factory=list, description="Span events")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "name": "llm_call",
+                    "context": {
+                        "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+                        "span_id": "1a2b3c4d5e6f7a8b",
+                    },
+                    "span_kind": "LLM",
+                    "start_time": "2024-01-01T12:00:00Z",
+                    "end_time": "2024-01-01T12:00:01Z",
+                    "status_code": "OK",
+                    "status_message": "",
+                    "attributes": {
+                        "llm.model_name": "gpt-4",
+                        "llm.token_count.prompt": 100,
+                        "llm.token_count.completion": 50,
+                    },
+                    "events": [],
+                }
+            ]
+        }
+    )
 
     @model_validator(mode="after")
     def _require_timezone_aware_timestamps(self) -> "Span":
@@ -490,7 +618,7 @@ async def query_spans_handler(
             status_code=422,
         )
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         results: list[pd.DataFrame] = []
         for query in span_queries:
             df = await session.run_sync(
@@ -624,10 +752,14 @@ async def span_search_otlpv1(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    attribute: Optional[list[str]] = Query(
+        default=None,
+        description=_ATTRIBUTE_PARAM_DESCRIPTION,
+    ),
 ) -> OtlpSpansResponseBody:
     """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
@@ -664,6 +796,9 @@ async def span_search_otlpv1(
                 )
             )
         )
+    if attribute:
+        for af in attribute:
+            stmt = stmt.where(_parse_attribute(af))
 
     if cursor:
         try:
@@ -674,7 +809,7 @@ async def span_search_otlpv1(
 
     stmt = stmt.limit(limit + 1)
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -801,8 +936,12 @@ async def span_search(
         default=None,
         description="Filter by status code(s). Values: OK, ERROR, UNSET",
     ),
+    attribute: Optional[list[str]] = Query(
+        default=None,
+        description=_ATTRIBUTE_PARAM_DESCRIPTION,
+    ),
 ) -> SpansResponseBody:
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
@@ -847,6 +986,9 @@ async def span_search(
                 )
             )
         )
+    if attribute:
+        for af in attribute:
+            stmt = stmt.where(_parse_attribute(af))
 
     if cursor:
         try:
@@ -857,7 +999,7 @@ async def span_search(
 
     stmt = stmt.limit(limit + 1)
 
-    async with request.app.state.db() as session:
+    async with request.app.state.db.read() as session:
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -979,22 +1121,20 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/span_notes instead."
+            ),
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
 
-    span_annotations = request_body.data
-    filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
-    if len(filtered_span_annotations) != len(span_annotations):
-        warnings.warn(
-            (
-                "Span annotations with the name 'note' are not supported in this endpoint. "
-                "They will be ignored."
-            ),
-            UserWarning,
-        )
-    precursors = [d.as_precursor(user_id=user_id) for d in filtered_span_annotations]
+    precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
         await request.state.enqueue_annotations(*precursors)
         return AnnotateSpansResponseBody(data=[])
@@ -1057,13 +1197,20 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
 
 @router.post(
     "/span_notes",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
     operation_id="createSpanNote",
     summary="Create a span note",
     description=(
-        "Add a note annotation to a span. Notes are special annotations that allow "
-        "multiple entries per span (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique timestamp-based identifier."
+        "Add a note annotation to a span. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "span. Structured annotations, by contrast, are keyed by (name, span_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a span you "
+        "must supply distinct identifiers."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span note created successfully",
@@ -1078,7 +1225,7 @@ async def create_span_note(
 
     Notes are a special type of annotation that:
     - Have the fixed name "note"
-    - Use a timestamp-based identifier to allow multiple notes per span
+    - Use a UUIDv4 identifier to allow multiple notes per span
     - Are always created with annotator_kind="HUMAN" and source="API"
     - Store the note text in the explanation field
     """
@@ -1100,9 +1247,7 @@ async def create_span_note(
                 detail=f"Span with ID {note_data.span_id} not found",
             )
 
-        # Generate a unique identifier for the note using timestamp
-        timestamp = datetime.now(timezone.utc).isoformat()
-        note_identifier = f"px-span-note:{timestamp}"
+        note_identifier = get_note_identifier("px-span-note")
 
         # Create the annotation values
         values = {

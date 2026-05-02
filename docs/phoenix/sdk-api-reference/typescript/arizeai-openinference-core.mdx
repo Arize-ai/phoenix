@@ -7,6 +7,10 @@ description: "OpenInference Core utilities for LLM tracing in TypeScript"
 
 This package provides OpenInference Core utilities for LLM Traces, including tracing helpers, decorators, and context attribute propagation.
 
+<Note>
+If you are tracing into Phoenix, `@arizeai/phoenix-otel` re-exports this package's helpers, context utilities, attribute builders, and `OITracer` from a single import path alongside Phoenix registration. The wrappers resolve the default tracer when the wrapped function runs, which is useful for experiments and other workflows that swap providers.
+</Note>
+
 ## Installation
 
 ```bash
@@ -98,12 +102,12 @@ Decorator for automatically tracing class methods:
 import { observe } from "@arizeai/openinference-core";
 
 class ChatService {
-  @observe({ kind: "chain" })
+  @observe({ kind: "CHAIN" })
   async processMessage(message: string) {
     return `Processed: ${message}`;
   }
 
-  @observe({ name: "llm-call", kind: "llm" })
+  @observe({ name: "llm-call", kind: "LLM" })
   async callLLM(prompt: string) {
     return await llmClient.generate(prompt);
   }
@@ -121,7 +125,7 @@ The package offers utilities to track important application metadata using conte
 | `setSession` | Specify a session ID to track and group multi-turn conversations |
 | `setUser` | Specify a user ID to track different conversations with a given user |
 | `setMetadata` | Add custom metadata for operational needs |
-| `setTag` | Add tags to filter spans on specific keywords |
+| `setTags` | Add tags to filter spans on specific keywords |
 | `setPromptTemplate` | Track prompt template used, with version and variables |
 | `setAttributes` | Add multiple custom attributes at once |
 

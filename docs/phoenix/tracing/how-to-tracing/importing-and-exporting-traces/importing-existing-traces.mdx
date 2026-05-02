@@ -9,7 +9,7 @@ Usually these will be traces you've previously saved using [Save All Traces](/do
 
 ### Connect to Phoenix
 
-Before accessing px.Client(), be sure you've set the following environment variables:
+Before using the Phoenix client, be sure you've set the following environment variables:
 
 ```python
 import os
@@ -27,9 +27,6 @@ import phoenix as px
 
 # Re-launch the app using trace data
 px.launch_app(trace=px.TraceDataset(df))
-
-# Load traces into an existing Phoenix instance
-px.Client().log_traces(trace_dataset=px.TraceDataset(df))
 
 # Load traces into an existing Phoenix instance from a local file
 px.launch_app(trace=px.TraceDataset.load('f7733fda-6ad6-4427-a803-55ad2182b662', directory="/my_saved_traces/"))

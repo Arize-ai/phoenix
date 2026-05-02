@@ -33,7 +33,7 @@ class ProjectIdsByTraceRetentionPolicyIdDataLoader(DataLoader[Key, Result]):
         else:
             stmt = stmt.where(Project.trace_retention_policy_id.in_(ids))
         projects: defaultdict[Key, Result] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for policy_rowid, project_rowid in data:
                 projects[policy_rowid or DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID].append(

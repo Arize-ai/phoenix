@@ -91,7 +91,7 @@ class GenerativeModelStore(DaemonTask):
                     models.GenerativeModel.deleted_at >= self._last_fetch_time,
                 )
             )
-        async with self._db() as session:
+        async with self._db.read() as session:
             generative_models = (await session.scalars(stmt)).unique().all()
 
         if not generative_models:

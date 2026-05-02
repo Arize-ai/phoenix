@@ -140,6 +140,27 @@ describe("parseCSVFile", () => {
     await expect(parseCSVFile(file)).rejects.toThrow("CSV file is empty");
   });
 
+  it("throws when header has a trailing comma (empty column name)", async () => {
+    const file = createFile("a,b,c,\n1,2,3,\n");
+    await expect(parseCSVFile(file)).rejects.toThrow(
+      /empty column name\(s\) at position\(s\) 4/
+    );
+  });
+
+  it("throws when header has a mid-row empty column name", async () => {
+    const file = createFile("a,,c\n1,2,3\n");
+    await expect(parseCSVFile(file)).rejects.toThrow(
+      /empty column name\(s\) at position\(s\) 2/
+    );
+  });
+
+  it("reports all empty header positions", async () => {
+    const file = createFile(",a,,b,\n1,2,3,4,5\n");
+    await expect(parseCSVFile(file)).rejects.toThrow(
+      /empty column name\(s\) at position\(s\) 1, 3, 5/
+    );
+  });
+
   it("handles single line CSV (header only)", async () => {
     const file = createFile("a,b,c");
     const result = await parseCSVFile(file);

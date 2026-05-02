@@ -2,11 +2,8 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from queue import SimpleQueue
 from random import choice, randint, random
-from threading import Thread
-from time import sleep
-from typing import Any, Dict, Iterator, Set, Tuple, Type
+from typing import Iterator, Tuple
 
 import numpy as np
 from faker import Faker
@@ -21,18 +18,14 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry import trace  # Use the default tracer provider
-from opentelemetry.trace import SpanContext, Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode, Tracer
 from opentelemetry.util import types
 from phoenix.otel import register
 from typing_extensions import TypeAlias
 
-import phoenix.trace.v1 as pb
-from phoenix.trace import Evaluations
-
 logging.basicConfig(level=logging.INFO)
 
 NUM_TRACES = 1000
-GENERATE_EVALS = False
 
 MAX_NUM_EMBEDDINGS = 2
 MAX_NUM_RETRIEVAL_DOCS = 2
@@ -46,10 +39,6 @@ MAX_NUM_SENTENCES = 10
 fake = Faker()
 
 SpanKind: TypeAlias = str
-EvalName: TypeAlias = str
-NumDocs: TypeAlias = int
-
-END_OF_QUEUE = None
 
 
 def _get_tracer() -> Tracer:
@@ -58,7 +47,6 @@ def _get_tracer() -> Tracer:
 
 
 def _gen_spans(
-    eval_queue: "SimpleQueue[Tuple[SpanContext, SpanKind]]",
     tracer: Tracer,
     recurse_depth: int,
     recurse_width: int,
@@ -91,19 +79,10 @@ def _gen_spans(
             return
         for _ in range(recurse_width):
             _gen_spans(
-                eval_queue=eval_queue,
                 tracer=tracer,
                 recurse_depth=randint(0, recurse_depth),
                 recurse_width=randint(0, recurse_width),
             )
-    if GENERATE_EVALS:
-        Thread(
-            target=lambda: (
-                sleep(random()),
-                eval_queue.put((span.get_span_context(), num_docs)),
-            ),
-            daemon=True,
-        ).start()
 
 
 def _gen_attributes(
@@ -235,33 +214,7 @@ def _gen_documents(
             )
 
 
-def _gen_evals(
-    queue: "SimpleQueue[Tuple[SpanContext, NumDocs]]",
-    span_eval_name_and_labels: Dict[str, Set[str]],
-    doc_eval_name_and_labels: Dict[str, Set[str]],
-) -> None:
-    # Implementation remains the same
-    ...
-
-
-def _send_eval_pyarrow(
-    queue: "SimpleQueue[Tuple[EvalName, Dict[str, Any]]]",
-    endpoint: str,
-    cls: Type[Evaluations],
-) -> None:
-    # Implementation remains the same
-    ...
-
-
-def _send_eval_protos(
-    queue: "SimpleQueue[pb.Evaluation]",
-    endpoint: str,
-) -> None:
-    # Implementation remains the same
-    ...
-
-
-def run_test(request_rate: int = 10, test_duration: int = 60):
+def run_test(request_rate: int = 10, test_duration: int = 60) -> None:
     """
     Run the OpenTelemetry trace generation test.
 
@@ -271,7 +224,6 @@ def run_test(request_rate: int = 10, test_duration: int = 60):
     """
     register()
     tracer = _get_tracer()
-    eval_queue = SimpleQueue()
     end_time = time.time() + test_duration
     counter = 0
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -280,7 +232,6 @@ def run_test(request_rate: int = 10, test_duration: int = 60):
             try:
                 executor.submit(
                     _gen_spans,
-                    eval_queue=eval_queue,
                     tracer=tracer,
                     recurse_depth=randint(0, 3),
                     recurse_width=randint(0, 3),
@@ -293,10 +244,9 @@ def run_test(request_rate: int = 10, test_duration: int = 60):
             sleep_time = max(1 / request_rate - submission_time, 0)
             time.sleep(sleep_time)
     logging.info(f"Generated {counter} spans")
-    eval_queue.put(END_OF_QUEUE)
 
 
-def main():
+def main() -> None:
     run_test()
 
 

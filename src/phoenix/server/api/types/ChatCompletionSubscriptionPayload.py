@@ -42,6 +42,8 @@ class ChatCompletionSubscriptionResult(ChatCompletionSubscriptionPayload):
 @strawberry.type
 class ChatCompletionSubscriptionError(ChatCompletionSubscriptionPayload):
     message: str
+    span: Optional[Span] = None
+    experiment_run: Optional[ExperimentRun] = None
 
 
 @strawberry.type

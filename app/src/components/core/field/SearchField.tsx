@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import type { Ref } from "react";
-import { forwardRef } from "react";
 import type { SearchFieldProps as AriaSearchFieldProps } from "react-aria-components";
 import { Button, SearchField as AriaSearchField } from "react-aria-components";
 
@@ -150,7 +149,10 @@ const searchFieldCSS = css`
   }
 `;
 
-function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
+function SearchField({
+  ref,
+  ...props
+}: SearchFieldProps & { ref?: Ref<HTMLDivElement> }) {
   const {
     size = "M",
     variant = "default",
@@ -186,5 +188,4 @@ function SearchField(props: SearchFieldProps, ref: Ref<HTMLDivElement>) {
   );
 }
 
-const _SearchField = forwardRef(SearchField);
-export { _SearchField as SearchField };
+export { SearchField };

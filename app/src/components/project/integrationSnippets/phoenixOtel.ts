@@ -24,8 +24,7 @@ export function getOtelInitCodeTypescript({
 }: {
   projectName: string;
 }): string {
-  return `import { register } from "@arizeai/phoenix-otel";
-import { traceChain } from "@arizeai/openinference-core";
+  return `import { register, traceChain } from "@arizeai/phoenix-otel";
 
 const provider = register({
   projectName: "${projectName}",

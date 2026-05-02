@@ -32,8 +32,12 @@ class DbSessionFactory:
         self,
         db: Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]],
         dialect: str,
+        read_db: Optional[
+            Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]
+        ] = None,
     ):
         self._db = db
+        self._read_db = read_db or db
         self.dialect = SupportedSQLDialect(dialect)
         self.lock: Optional[asyncio.Lock] = None
         self.should_not_insert_or_update = False
@@ -46,6 +50,9 @@ class DbSessionFactory:
 
     def __call__(self) -> AbstractAsyncContextManager[AsyncSession]:
         return self._db(self.lock)
+
+    def read(self) -> AbstractAsyncContextManager[AsyncSession]:
+        return self._read_db(self.lock)
 
 
 _AnyT = TypeVar("_AnyT")
@@ -86,9 +93,19 @@ class DaemonTask(ABC):
 
     async def stop(self) -> None:
         self._running = False
+        # Cancel all tasks in reverse order (most recently spawned first)
         for task in reversed(self._tasks):
             if not task.done():
                 task.cancel()
+        # Wait for all tasks concurrently with a single timeout
+        if self._tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._tasks, return_exceptions=True),
+                    timeout=10.0,
+                )
+            except asyncio.TimeoutError:
+                pass  # Some tasks didn't respond to cancel in time
         self._tasks.clear()
 
     async def __aenter__(self) -> None:

@@ -305,7 +305,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get span annotations for a list of span_ids.",
+        "summary": "Get span annotations filtered by span_ids and/or identifier.",
+        "description": "Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
@@ -322,17 +323,45 @@
           {
             "name": "span_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more span id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Span Ids"
             },
-            "description": "One or more span id to fetch annotations for"
+            "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -458,7 +487,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get trace annotations for a list of trace_ids.",
+        "summary": "Get trace annotations filtered by trace_ids and/or identifier.",
+        "description": "Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listTraceAnnotationsByTraceIds",
         "parameters": [
           {
@@ -475,17 +505,45 @@
           {
             "name": "trace_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more trace id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Trace Ids"
             },
-            "description": "One or more trace id to fetch annotations for"
+            "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -611,7 +669,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get session annotations for a list of session_ids.",
+        "summary": "Get session annotations filtered by session_ids and/or identifier.",
+        "description": "Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSessionAnnotationsBySessionIds",
         "parameters": [
           {
@@ -628,17 +687,45 @@
           {
             "name": "session_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more session id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Session Ids"
             },
-            "description": "One or more session id to fetch annotations for"
+            "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -1113,7 +1200,7 @@
                 }
               }
             },
-            "description": "Dataset of the same name already exists"
+            "description": "Dataset with the given name already exists (action=create)."
           },
           "422": {
             "content": {
@@ -1140,7 +1227,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1200,6 +1288,20 @@
                       ]
                     },
                     "description": "Span IDs to link examples back to spans"
+                  },
+                  "example_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Optional example ID per example. If provided, it is used as the example's stable public ID."
                   }
                 }
               }
@@ -1218,7 +1320,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1254,7 +1357,11 @@
                       "type": "string"
                     },
                     "uniqueItems": true,
-                    "description": "Column names for auto-assigning examples to splits"
+                    "description": "Deprecated: use split_key instead. Column names for auto-assigning examples to splits"
+                  },
+                  "split_key": {
+                    "type": "string",
+                    "description": "Single column name containing split names (plain string or JSON list) per row"
                   },
                   "flatten_keys[]": {
                     "type": "array",
@@ -1267,6 +1374,10 @@
                   "span_id_key": {
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
+                  },
+                  "example_id_key": {
+                    "type": "string",
+                    "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes."
                   },
                   "file": {
                     "type": "string",
@@ -1451,6 +1562,78 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{id}/jsonl": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Download dataset examples as JSONL file",
+        "operationId": "getDatasetJSONL",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
+              "title": "Version Id"
+            },
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -2726,6 +2909,68 @@
         }
       }
     },
+    "/v1/trace_notes": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Create a trace note",
+        "description": "Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.",
+        "operationId": "createTraceNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTraceNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Trace note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTraceNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
@@ -2954,6 +3199,27 @@
               "title": "Status Code"
             },
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
+          },
+          {
+            "name": "attribute",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:\"12345\"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value).",
+              "title": "Attribute"
+            },
+            "description": "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:\"12345\"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value)."
           }
         ],
         "responses": {
@@ -3191,6 +3457,27 @@
               "title": "Status Code"
             },
             "description": "Filter by status code(s). Values: OK, ERROR, UNSET"
+          },
+          {
+            "name": "attribute",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:\"12345\"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value).",
+              "title": "Attribute"
+            },
+            "description": "Filter spans by `key:value`. Key is a dot-path (e.g. `user.id`, `metadata.tier`). Value is JSON-parsed: `k:12345` is int, `k:true` is bool, otherwise string (`k:user-42`). To match a numeric- or boolean-looking STRING, JSON-quote it: `user.id:\"12345\"` (URL-encoded `%2212345%22`). Split is on the first `:` only, so values may contain colons (`session.id:sess:abc:123`, ISO timestamps). Repeat the param to AND filters. List-valued attributes (e.g. `tag.tags`) cannot be matched here. Returns 422 on malformed input (missing colon, empty key/value, or list/dict/null value)."
           }
         ],
         "responses": {
@@ -3401,7 +3688,7 @@
           "spans"
         ],
         "summary": "Create a span note",
-        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.",
+        "description": "Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.",
         "operationId": "createSpanNote",
         "requestBody": {
           "content": {
@@ -3481,168 +3768,6 @@
         "responses": {
           "204": {
             "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/evaluations": {
-      "post": {
-        "tags": [
-          "traces"
-        ],
-        "summary": "Add span, trace, or document evaluations",
-        "operationId": "addEvaluations",
-        "parameters": [
-          {
-            "name": "content-type",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Content-Type"
-            }
-          },
-          {
-            "name": "content-encoding",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Content-Encoding"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "403": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "415": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unsupported content type, only gzipped protobuf and pandas-arrow are supported"
-          },
-          "422": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/x-protobuf": {
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            },
-            "application/x-pandas-arrow": {
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "traces"
-        ],
-        "summary": "Get span, trace, or document evaluations from a project",
-        "operationId": "getEvaluations",
-        "parameters": [
-          {
-            "name": "project_name",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project)",
-              "title": "Project Name"
-            },
-            "description": "The name of the project to get evaluations from (if omitted, evaluations will be drawn from the `default` project)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
           },
           "403": {
             "content": {
@@ -4232,6 +4357,133 @@
         "responses": {
           "204": {
             "description": "No content returned on successful tag creation"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}": {
+      "delete": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Delete a tag from a prompt version",
+        "description": "Delete a tag from a specific prompt version by tag name. The tag is resolved within the scope of the prompt linked to the version.",
+        "operationId": "deletePromptVersionTag",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name of the tag to delete.",
+              "title": "Tag Name"
+            },
+            "description": "The name of the tag to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag deletion"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompts/{prompt_identifier}": {
+      "delete": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Delete a prompt",
+        "description": "Delete a prompt and all its versions, tags, and labels by identifier.",
+        "operationId": "deletePrompt",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "403": {
             "content": {
@@ -4960,6 +5212,68 @@
         }
       }
     },
+    "/v1/session_notes": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Create a session note",
+        "description": "Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.",
+        "operationId": "createSessionNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSessionNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/document_annotations": {
       "post": {
         "tags": [
@@ -5269,6 +5583,68 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/secrets": {
+      "put": {
+        "tags": [
+          "secrets"
+        ],
+        "summary": "Upsert or delete secrets",
+        "description": "Atomically upsert or delete a batch of secrets. Entries with a non-null `value` are created or updated; entries with `value: null` are deleted. The `value` field is required for every entry, and omitting it returns 422. When the same key appears more than once, the last occurrence wins. Deleting a non-existent key succeeds silently. Secret values are never returned in the response.",
+        "operationId": "upsertOrDeleteSecrets",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertOrDeleteSecretsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseBody_UpsertOrDeleteSecretsResult_"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -5988,6 +6364,30 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreateSessionNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteRequestBody"
+      },
+      "CreateSessionNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedSessionAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteResponseBody"
+      },
       "CreateSpanNoteRequestBody": {
         "properties": {
           "data": {
@@ -6047,6 +6447,30 @@
           "total_queued"
         ],
         "title": "CreateSpansResponseBody"
+      },
+      "CreateTraceNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraceNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteRequestBody"
+      },
+      "CreateTraceNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedTraceAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteResponseBody"
       },
       "CreateUserRequestBody": {
         "properties": {
@@ -6174,6 +6598,10 @@
             "type": "string",
             "title": "Id"
           },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
           "input": {
             "additionalProperties": true,
             "type": "object",
@@ -6198,6 +6626,7 @@
         "type": "object",
         "required": [
           "id",
+          "node_id",
           "input",
           "output",
           "metadata",
@@ -8298,6 +8727,9 @@
             "type": "array",
             "title": "Stop Sequences"
           },
+          "output_config": {
+            "$ref": "#/components/schemas/PromptAnthropicOutputConfig"
+          },
           "thinking": {
             "oneOf": [
               {
@@ -8305,16 +8737,25 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive"
               }
             ],
             "title": "Thinking",
             "discriminator": {
               "propertyName": "type",
               "mapping": {
+                "adaptive": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive",
                 "disabled": "#/components/schemas/PromptAnthropicThinkingConfigDisabled",
                 "enabled": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
               }
             }
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8323,6 +8764,47 @@
           "max_tokens"
         ],
         "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAnthropicOutputConfig": {
+        "properties": {
+          "effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAnthropicOutputConfig"
+      },
+      "PromptAnthropicThinkingConfigAdaptive": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "adaptive",
+            "title": "Type"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptAnthropicThinkingConfigAdaptive"
       },
       "PromptAnthropicThinkingConfigDisabled": {
         "properties": {
@@ -8350,6 +8832,14 @@
             "type": "integer",
             "minimum": 1024.0,
             "title": "Budget Tokens"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
           }
         },
         "additionalProperties": false,
@@ -8392,6 +8882,13 @@
           "top_p": {
             "type": "number",
             "title": "Top P"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
           }
         },
         "additionalProperties": false,
@@ -8447,6 +8944,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8458,6 +8962,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8513,6 +9022,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8524,6 +9040,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8648,6 +9169,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8659,6 +9187,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8714,6 +9247,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8725,6 +9265,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8782,11 +9327,39 @@
           "top_k": {
             "type": "integer",
             "title": "Top K"
+          },
+          "thinking_config": {
+            "$ref": "#/components/schemas/PromptGoogleThinkingConfig"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "PromptGoogleInvocationParametersContent"
+      },
+      "PromptGoogleThinkingConfig": {
+        "properties": {
+          "thinking_budget": {
+            "type": "integer",
+            "title": "Thinking Budget"
+          },
+          "thinking_level": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Thinking Level"
+          },
+          "include_thoughts": {
+            "type": "boolean",
+            "title": "Include Thoughts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGoogleThinkingConfig"
       },
       "PromptGroqInvocationParameters": {
         "properties": {
@@ -8837,6 +9410,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8848,6 +9428,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8960,6 +9545,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8971,6 +9563,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9026,6 +9623,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9037,6 +9641,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9092,6 +9701,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9103,6 +9719,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9158,6 +9779,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9169,6 +9797,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9307,6 +9940,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9318,6 +9958,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9910,6 +10555,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9921,11 +10573,55 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
+      },
+      "ResponseBody_UpsertOrDeleteSecretsResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertOrDeleteSecretsResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ResponseBody[UpsertOrDeleteSecretsResult]"
+      },
+      "SecretKeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Provide a string to create or update the secret, or explicit null to delete it. This field is required; omitting it returns 422."
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "SecretKeyValue",
+        "description": "A single secret entry specifying a key and a required nullable value."
       },
       "SessionAnnotation": {
         "properties": {
@@ -10158,6 +10854,28 @@
         ],
         "title": "SessionData"
       },
+      "SessionNoteData": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Session Id",
+            "description": "Session ID"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "note"
+        ],
+        "title": "SessionNoteData"
+      },
       "SessionTraceData": {
         "properties": {
           "id": {
@@ -10269,7 +10987,27 @@
           "end_time",
           "status_code"
         ],
-        "title": "Span"
+        "title": "Span",
+        "examples": [
+          {
+            "attributes": {
+              "llm.model_name": "gpt-4",
+              "llm.token_count.completion": 50,
+              "llm.token_count.prompt": 100
+            },
+            "context": {
+              "span_id": "1a2b3c4d5e6f7a8b",
+              "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+            },
+            "end_time": "2024-01-01T12:00:01Z",
+            "events": [],
+            "name": "llm_call",
+            "span_kind": "LLM",
+            "start_time": "2024-01-01T12:00:00Z",
+            "status_code": "OK",
+            "status_message": ""
+          }
+        ]
       },
       "SpanAnnotation": {
         "properties": {
@@ -10477,7 +11215,13 @@
           "trace_id",
           "span_id"
         ],
-        "title": "SpanContext"
+        "title": "SpanContext",
+        "examples": [
+          {
+            "span_id": "1a2b3c4d5e6f7a8b",
+            "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+          }
+        ]
       },
       "SpanDocumentAnnotationData": {
         "properties": {
@@ -10571,7 +11315,16 @@
           "name",
           "timestamp"
         ],
-        "title": "SpanEvent"
+        "title": "SpanEvent",
+        "examples": [
+          {
+            "attributes": {
+              "exception.message": "Connection refused"
+            },
+            "name": "exception",
+            "timestamp": "2024-01-01T12:00:00Z"
+          }
+        ]
       },
       "SpanNoteData": {
         "properties": {
@@ -10989,6 +11742,28 @@
         ],
         "title": "TraceData"
       },
+      "TraceNoteData": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Trace Id",
+            "description": "OpenTelemetry Trace ID (hex format w/o 0x prefix)"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the trace"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "note"
+        ],
+        "title": "TraceNoteData"
+      },
       "TraceSpanData": {
         "properties": {
           "id": {
@@ -11115,12 +11890,27 @@
           "version_id": {
             "type": "string",
             "title": "Version Id"
+          },
+          "num_created_examples": {
+            "type": "integer",
+            "title": "Num Created Examples"
+          },
+          "num_updated_examples": {
+            "type": "integer",
+            "title": "Num Updated Examples"
+          },
+          "num_deleted_examples": {
+            "type": "integer",
+            "title": "Num Deleted Examples"
           }
         },
         "type": "object",
         "required": [
           "dataset_id",
-          "version_id"
+          "version_id",
+          "num_created_examples",
+          "num_updated_examples",
+          "num_deleted_examples"
         ],
         "title": "UploadDatasetData"
       },
@@ -11254,6 +12044,48 @@
           "id"
         ],
         "title": "UpsertExperimentEvaluationResponseBodyData"
+      },
+      "UpsertOrDeleteSecretsRequest": {
+        "properties": {
+          "secrets": {
+            "items": {
+              "$ref": "#/components/schemas/SecretKeyValue"
+            },
+            "type": "array",
+            "title": "Secrets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "secrets"
+        ],
+        "title": "UpsertOrDeleteSecretsRequest",
+        "description": "Request body for the PUT /secrets endpoint."
+      },
+      "UpsertOrDeleteSecretsResult": {
+        "properties": {
+          "upserted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Upserted Keys"
+          },
+          "deleted_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deleted Keys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upserted_keys",
+          "deleted_keys"
+        ],
+        "title": "UpsertOrDeleteSecretsResult",
+        "description": "Result payload listing which keys were upserted and which were deleted."
       },
       "ValidationError": {
         "properties": {

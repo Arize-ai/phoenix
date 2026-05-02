@@ -159,6 +159,16 @@ Normalize and convert data across other instrumentation libraries by adding span
 | <img src="https://unpkg.com/@lobehub/icons-static-png@latest/dark/nvidia-color.png" height="14"> | [NVIDIA NeMo](https://arize.com/docs/phoenix/integrations/python/nvidia) | NVIDIA NeMo Agent Toolkit for enterprise agents | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/nvidia) |
 | | [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite) | Multi-agent LLM workflow framework with visual builder | [Integration Guide](https://arize.com/docs/phoenix/integrations/python/graphite) |
 
+## Coding Agent Skills
+
+This repository includes [skills](https://docs.anthropic.com/en/docs/claude-code/skills) that teach coding agents how to work with Phoenix. They are located in [`.agents/skills/`](.agents/skills/) and can be used with Claude Code, Cursor, and other compatible tools.
+
+| Skill | Description |
+| ----- | ----------- |
+| [phoenix-cli](.agents/skills/phoenix-cli/) | Debug LLM applications using the Phoenix CLI — fetch traces, analyze errors, review experiments, and query the GraphQL API |
+| [phoenix-evals](.agents/skills/phoenix-evals/) | Build and run evaluators for AI/LLM applications using Phoenix |
+| [phoenix-tracing](.agents/skills/phoenix-tracing/) | OpenInference semantic conventions and instrumentation for tracing LLM applications |
+
 ## Security & Privacy
 
 We take data security and privacy very seriously. For more details, see our [Security and Privacy documentation](https://arize.com/docs/phoenix/self-hosting/security/privacy).

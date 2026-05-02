@@ -1,5 +1,235 @@
 # Migrations
 
+## v14.x to v15.0.0
+
+No action is required to upgrade from v14.x to v15.0.0.
+
+## v13.x to v14.0.0
+
+### Phoenix server CLI (`phoenix` / `python -m phoenix.server.main`)
+
+The CLI is now **subcommand-first**: you choose `serve` or `db`, then pass options for that command. In v13.x, many flags could appear **before** the subcommand (for example `--dev` and `--dev-vite-port` before `serve`); those must now come **after** the subcommand.
+
+**Before:**
+
+```shell
+python -m phoenix.server.main --dev --dev-vite-port 5173 serve
+phoenix --host 0.0.0.0 --port 6006 serve
+```
+
+**After:**
+
+```shell
+python -m phoenix.server.main serve --dev --dev-vite-port 5173
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+Pass `--database-url` on the subcommand that needs a database (or rely on `PHOENIX_SQL_DATABASE_URL` / the default). 
+
+```shell
+python -m phoenix.server.main serve --database-url "postgresql://..."
+python -m phoenix.server.main db migrate --database-url "postgresql://..."
+```
+
+`db migrate` is unchanged as a two-word subcommand: `python -m phoenix.server.main db migrate` (or `phoenix db migrate`).
+
+Top-level `--help` only shows global usage; use `phoenix serve --help`, or `phoenix db migrate --help` for subcommand options.
+
+### PostgreSQL Driver: `psycopg` Removed
+
+The `psycopg` driver has been removed. Phoenix now uses `asyncpg` as the sole PostgreSQL driver for both runtime queries and migrations. If you have `psycopg` installed only for Phoenix, it can be uninstalled.
+
+The `pg` extra no longer includes `psycopg`:
+
+```shell
+pip install arize-phoenix[pg]  # only installs asyncpg
+```
+
+No configuration changes are needed — `PHOENIX_SQL_DATABASE_URL` continues to work with the same `postgresql://` connection strings.
+
+### Legacy Client Removed
+
+The legacy `phoenix.session.client.Client` (accessed via `px.Client()`) has been removed. All client interactions now go through the `arize-phoenix-client` package.
+
+```shell
+pip install arize-phoenix-client
+```
+
+**Before:**
+
+```python
+import phoenix as px
+
+client = px.Client(endpoint="http://localhost:6006")
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+client = Client(base_url="http://localhost:6006")
+```
+
+The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. Attempting to import `phoenix.session.client` will raise an `ImportError` with migration guidance.
+
+### Client Method Changes
+
+The new client organizes methods under resource namespaces (`.spans`, `.datasets`, `.experiments`) instead of flat methods on the client object. Return types have also changed — the new client uses TypedDicts generated from the OpenAPI schema rather than custom dataclasses.
+
+#### Spans and Traces
+
+| Legacy (`px.Client()`)             | New (`phoenix.client.Client()`)                 |
+| :--------------------------------- | :---------------------------------------------- |
+| `client.get_spans_dataframe()`     | `client.spans.get_spans_dataframe()`            |
+| `client.query_spans(query)`        | `client.spans.get_spans_dataframe(query=query)` |
+| `client.get_evaluations()`         | `client.spans.get_span_annotations()`           |
+| `client.log_evaluations(evals)`    | `client.spans.log_span_annotations(...)`        |
+| `client.log_traces(trace_dataset)` | `client.spans.log_spans(...)`                   |
+
+The `query_spans` method accepted `SpanQuery` objects as positional args and could return either a single DataFrame or a list. The new `get_spans_dataframe` takes a single `query` keyword argument and always returns a single DataFrame. If you previously passed multiple queries, call `get_spans_dataframe` once per query and join the results with pandas.
+
+#### Datasets
+
+| Legacy (`px.Client()`)                    | New (`phoenix.client.Client()`)             |
+| :---------------------------------------- | :------------------------------------------ |
+| `client.get_dataset(id=..., name=...)`    | `client.datasets.get_dataset(...)`          |
+| `client.get_dataset_versions(dataset_id)` | `client.datasets.get_dataset_versions(...)` |
+| `client.upload_dataset(...)`              | `client.datasets.create_dataset(...)`       |
+
+The legacy `get_dataset` returned a `phoenix.experiments.types.Dataset` dataclass. The new client returns a `Dataset` object with the same conceptual fields (`.id`, `.examples`, `.version_id`) but backed by TypedDicts from the generated API schema.
+
+#### Evaluations to Annotations
+
+The concept formerly called "evaluations" is now called "annotations" throughout the new client. `SpanEvaluations` and `log_evaluations` are replaced:
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
+)
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+### Experiments
+
+The experiments API has moved from `phoenix.experiments` to `phoenix.client.experiments`. The `Example` type used in task functions now comes from the generated API types.
+
+**Before:**
+
+```python
+from phoenix.experiments.types import Example
+from phoenix.experiments.evaluators import create_evaluator
+```
+
+**After:**
+
+```python
+from phoenix.client.__generated__.v1 import DatasetExample as Example
+from phoenix.client.experiments import create_evaluator
+```
+
+`run_experiment` and `evaluate_experiment` now require keyword arguments for `dataset`, `task`, and `experiment`:
+
+```python
+from phoenix.client.experiments import run_experiment, evaluate_experiment
+
+experiment = run_experiment(dataset=dataset, task=task, evaluators=[...])
+experiment = evaluate_experiment(experiment=experiment, evaluators=[...])
+```
+
+### Removed Helper Functions
+
+The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`, and `get_called_tools` (from `phoenix.trace.dsl.helpers`) have been removed. Use `SpanQuery` with `client.spans.get_spans_dataframe(query=...)` directly instead. The documentation for [extracting data from spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) has updated examples.
+
+### Removed Top-Level Convenience Functions
+
+- `px.Client` — use `from phoenix.client import Client` instead
+- `px.log_evaluations(...)` — use `client.spans.log_span_annotations(...)` instead
+- `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
+- `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
+
+### `/v1/evaluations` Endpoint Removed
+
+The `POST /v1/evaluations` and `GET /v1/evaluations` REST endpoints have been removed. Use the annotations API instead, choosing the replacement by evaluation kind:
+
+#### Ingestion (`POST /v1/evaluations` replacements)
+
+| Evaluation kind | SDK replacement                                        | REST replacement                  |
+| :-------------- | :----------------------------------------------------- | :-------------------------------- |
+| span            | `client.spans.log_span_annotations_dataframe(...)`     | `POST /v1/span_annotations`       |
+| trace           | `client.traces.log_trace_annotations_dataframe(...)`   | `POST /v1/trace_annotations`      |
+| document        | `client.spans.log_document_annotations_dataframe(...)` | `POST /v1/document_annotations`   |
+
+#### Retrieval (`GET /v1/evaluations` replacement)
+
+The old `GET /v1/evaluations` only returned span annotations. Its replacement is `client.spans.get_span_annotations(...)`.
+
+> **Note:** Trace annotation retrieval is available via `GET /projects/{id}/trace_annotations`, but this was not part of the old evaluations endpoint — it is a new capability, not a direct replacement.
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+import phoenix as px
+
+px.Client().log_evaluations(
+    SpanEvaluations(eval_name="Hallucination", dataframe=results_df)
+)
+```
+
+**After (span annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (trace annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().traces.log_trace_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (document annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_document_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
+)
+```
+
+**Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
+
 ## v12.x to v13.0.0
 
 ### DB Index for Session ID
@@ -45,6 +275,7 @@ Azure OpenAI integration now uses the OpenAI v1 API, which simplifies configurat
 This change requires `openai>=2.14.0`.
 
 **References**:
+
 - [Azure OpenAI API Version Lifecycle](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle)
 - [Migration from Azure AI Inference to OpenAI SDK](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-inference-to-openai-migration)
 
@@ -88,18 +319,19 @@ with dangerously_using_project(project_name="change-project"):
 **Breaking Change**: Specifying port numbers in `PHOENIX_POSTGRES_HOST` is no longer supported.
 
 **Before**:
+
 ```shell
 export PHOENIX_POSTGRES_HOST=localhost:5432
 ```
 
 **After**:
+
 ```shell
 export PHOENIX_POSTGRES_HOST=localhost
 export PHOENIX_POSTGRES_PORT=5432
 ```
 
 **Impact**: If you were setting `PHOENIX_POSTGRES_HOST` with a port (e.g., `localhost:5432`), you must now separate the host and port into their respective environment variables.
-
 
 ## v10.0.0 to v11.0.0
 
