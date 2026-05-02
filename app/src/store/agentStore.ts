@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -292,7 +293,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       });
     },
     createSession: () => {
-      const sessionId = crypto.randomUUID();
+      const sessionId = generateUUID();
       set(
         (state) => {
           const session: AgentSession = {

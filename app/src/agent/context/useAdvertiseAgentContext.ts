@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { AgentContext } from "./agentContextTypes";
 
@@ -23,7 +24,7 @@ export function useAdvertiseAgentContext(context: AgentContext | null): void {
   const mountIdRef = useRef<string | null>(null);
 
   if (mountIdRef.current === null) {
-    mountIdRef.current = crypto.randomUUID();
+    mountIdRef.current = generateUUID();
   }
 
   const serialized = context ? JSON.stringify(context) : null;
