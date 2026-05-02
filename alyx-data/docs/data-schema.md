@@ -267,3 +267,15 @@ sessions[sessions["error_count"] > 0]
   window or our error detection (looking for OTel `exception` events) is
   too narrow. The 90-day run is the better signal — re-validate
   `has_error` distributions against it before relying on the column.
+
+- **`tool_name` / `tool_input` are empty for Alyx tool spans.** Discovered
+  during Stage 2: Alyx instrumentation does not populate
+  `attributes.tool.name` / `attributes.tool.parameters` — those columns
+  are empty strings on every TOOL-kind span. The actual tool name lives
+  on the span's top-level `name` field (e.g. `finish`, `todo_update`,
+  `jq`, `traces_agent`, `playground_agent`, `validate_filter`, …).
+  Use `analysis.loaders.derive_tool_name()` to do the right join, which
+  also drops the GraphQL-query spans (`name LIKE 'GQL query %'`) that
+  carry `kind=="TOOL"` but aren't Alyx tools at all. Layer 2 will be
+  patched on the next regeneration to lift this into a first-class
+  column; the helper is the workaround for the existing parquet.

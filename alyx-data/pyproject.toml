@@ -18,8 +18,13 @@ dependencies = [
 [project.optional-dependencies]
 notebook = [
     "jupyterlab>=4.2",
+    "ipykernel>=6.29",
     "matplotlib>=3.8",
     "seaborn>=0.13",
+    # DuckDB lets us query the parquet layers with SQL without loading them
+    # fully into pandas. Used by the Stage 2 notebook for the heavier
+    # session/trajectory aggregations.
+    "duckdb>=1.1",
 ]
 
 [build-system]
@@ -27,7 +32,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pipeline"]
+packages = ["src/pipeline", "src/analysis"]
 
 [tool.ruff]
 line-length = 100
@@ -45,6 +50,12 @@ module = [
     "arize.*",
     "pyarrow",
     "pyarrow.*",
+    "duckdb",
+    "duckdb.*",
+    "matplotlib",
+    "matplotlib.*",
+    "seaborn",
+    "seaborn.*",
 ]
 ignore_missing_imports = true
 
