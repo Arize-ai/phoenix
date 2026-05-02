@@ -18,13 +18,17 @@ export type PairwiseWinRate = {
  * contract avoids ambiguity if Score metadata is later loaded from a
  * serialization boundary (DB, user upload).
  */
-function getPairwiseGroups(score: EvaluationResult): string[] | null {
+function getPairwiseGroups(
+  score: EvaluationResult
+): [string, string] | null {
   const metadataGroups = score.metadata?.groups;
   if (
     Array.isArray(metadataGroups) &&
-    metadataGroups.every((group): group is string => typeof group === "string")
+    metadataGroups.length === 2 &&
+    typeof metadataGroups[0] === "string" &&
+    typeof metadataGroups[1] === "string"
   ) {
-    return metadataGroups;
+    return [metadataGroups[0], metadataGroups[1]];
   }
   return null;
 }
@@ -50,10 +54,10 @@ export function winRate({
   let wins = 0;
   let losses = 0;
   let ties = 0;
-  let referenceGroups: string[] | null = null;
+  let referenceGroups: [string, string] | null = null;
   for (const score of scores) {
     const groups = getPairwiseGroups(score);
-    if (!groups || groups.length !== 2) {
+    if (!groups) {
       throw new Error(
         "Score metadata must identify exactly two comparator groups (set metadata.groups = [groupA, groupB])."
       );
