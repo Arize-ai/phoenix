@@ -541,6 +541,13 @@
                 ]
               },
               {
+                "group": "TanStack AI",
+                "pages": [
+                  "docs/phoenix/integrations/typescript/tanstack-ai",
+                  "docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing"
+                ]
+              },
+              {
                 "group": "Vercel",
                 "pages": [
                   "docs/phoenix/integrations/typescript/vercel",
@@ -1159,6 +1166,12 @@
             "group": " ",
             "pages": [
               "docs/phoenix/release-notes",
+              {
+                "group": "05.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing"
+                ]
+              },
               {
                 "group": "04.2026",
                 "pages": [
