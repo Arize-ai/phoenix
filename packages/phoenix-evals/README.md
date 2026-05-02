@@ -72,7 +72,6 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
 | Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
 | Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
-| Pairwise Quality | `PairwiseQualityEvaluator` | Compares two responses side by side and returns the preferred response or tie |
 | Exact Match | `exact_match` | Checks for exact string equality between output and expected |
 | Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
 | Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |
@@ -116,7 +115,16 @@ pairwise = PairwiseEvaluator(
     name="pairwise_quality",
     llm=llm,
     prompt_template="""
-Question: {{input}}
+You are comparing two assistant responses for overall quality.
+
+Evaluate the responses using the following criteria:
+- correctness and factual accuracy
+- completeness and relevance to the user input
+- clarity, helpfulness, and appropriate level of detail
+- safety and instruction following
+
+User input:
+{{input}}
 
 Response A:
 {{item_1}}
@@ -124,7 +132,8 @@ Response A:
 Response B:
 {{item_2}}
 
-Which response is better? Choose A, B, or tie.
+Choose the response with better overall quality. If both responses are similarly good or
+similarly flawed, choose tie.
 """,
     groups=("output", "reference"),
     ordering="random",  # "random" | "both" | "fixed"
@@ -140,8 +149,6 @@ scores[0].pretty_print()
 summary = win_rate(scores)
 print(summary.rate, summary.wins, summary.losses, summary.ties, summary.n)
 ```
-
-For a generic starting point, use `PairwiseQualityEvaluator` from `phoenix.evals.metrics`. It is intended as an example prompt and should be validated against your domain before production use.
 
 ### Prompt template requirements
 

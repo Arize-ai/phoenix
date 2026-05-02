@@ -34,32 +34,12 @@ const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o")
 | `ToolSelectionEvaluator` | LLM | Did the agent select the right tool? |
 | `ToolInvocationEvaluator` | LLM | Did the agent invoke the tool correctly? |
 | `ToolResponseHandlingEvaluator` | LLM | Did the agent handle the tool response well? |
-| `PairwiseQualityEvaluator` | LLM | Which of two responses has better overall quality? |
 | `MatchesRegex` | Code | Does output match a regex pattern? |
 | `PrecisionRecallFScore` | Code | Precision/recall/F-score metrics |
 | `exact_match` | Code | Exact string match |
 
 Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`,
 `ToxicityEvaluator`, `SummarizationEvaluator`) are in `phoenix.evals.legacy` and deprecated.
-
-## Pairwise Quality
-
-`PairwiseQualityEvaluator` compares two responses with default groups `output`
-and `reference`. It returns one score where `label` is `"output"`,
-`"reference"`, or `"tie"` and `score` is `1.0`, `0.0`, or `0.5`. Treat it as
-an example prompt until validated on the target domain.
-
-```python
-from phoenix.evals import LLM
-from phoenix.evals.metrics import PairwiseQualityEvaluator
-
-evaluator = PairwiseQualityEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
-score = evaluator.evaluate({
-    "input": "What is the capital of France?",
-    "output": "Paris is the capital of France.",
-    "reference": "The capital is Paris, located on the Seine.",
-})[0]
-```
 
 ## When to Use
 

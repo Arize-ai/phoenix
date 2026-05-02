@@ -103,7 +103,6 @@ All pre-built evaluators are available from the `@arizeai/phoenix-evals/llm` mod
 | Tool Invocation        | `createToolInvocationEvaluator`       | Evaluates whether the correct tool was invoked with the right arguments           |
 | Tool Selection         | `createToolSelectionEvaluator`        | Checks whether the right tool was selected for the task                           |
 | Tool Response Handling | `createToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response                               |
-| Pairwise Quality       | `createPairwiseQualityEvaluator`      | Compares two responses side by side and returns the preferred response or tie     |
 
 ```typescript
 import {
@@ -158,7 +157,16 @@ const evaluator = createPairwiseEvaluator({
   name: "pairwise_quality",
   model: openai("gpt-4o"),
   promptTemplate: `
-Question: {{input}}
+You are comparing two assistant responses for overall quality.
+
+Evaluate the responses using the following criteria:
+- correctness and factual accuracy
+- completeness and relevance to the user input
+- clarity, helpfulness, and appropriate level of detail
+- safety and instruction following
+
+User input:
+{{input}}
 
 Response A:
 {{item_1}}
@@ -166,7 +174,8 @@ Response A:
 Response B:
 {{item_2}}
 
-Which response is better? Choose A, B, or tie.
+Choose the response with better overall quality. If both responses are similarly good or
+similarly flawed, choose tie.
 `,
   groups: ["output", "reference"],
   ordering: "random", // "random" | "both" | "fixed"
@@ -181,8 +190,6 @@ const result = await evaluator.evaluate({
 const summary = winRate({ scores: [result] });
 console.log(summary.rate, summary.wins, summary.losses, summary.ties, summary.n);
 ```
-
-For a generic starting point, use `createPairwiseQualityEvaluator` from `@arizeai/phoenix-evals/llm`. Validate the prompt against your domain before production use.
 
 #### Prompt template requirements
 

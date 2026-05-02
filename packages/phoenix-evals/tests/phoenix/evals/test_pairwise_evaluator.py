@@ -8,7 +8,6 @@ from phoenix.evals.aggregation import win_rate
 from phoenix.evals.evaluators import Score
 from phoenix.evals.exceptions import PhoenixInvalidPromptTemplateError
 from phoenix.evals.llm import LLM
-from phoenix.evals.metrics import PairwiseQualityEvaluator
 
 PROMPT_TEMPLATE = """
 Question: {{input}}
@@ -197,15 +196,6 @@ def test_pairwise_evaluator_dataframe_smoke() -> None:
 
     assert result["pairwise_score"].iloc[0]["label"] == "output"
     assert result["pairwise_score"].iloc[1]["label"] == "reference"
-
-
-def test_pairwise_quality_evaluator_instantiates() -> None:
-    evaluator = PairwiseQualityEvaluator(llm=PairwiseMockLLM(["tie"]), ordering="fixed")
-
-    score = evaluator.evaluate({"output": "one", "reference": "two", "input": "question"})[0]
-
-    assert score.name == "pairwise_quality"
-    assert score.label == "tie"
 
 
 # Async path coverage. `asyncio_mode = "auto"` is set in pyproject.toml, so

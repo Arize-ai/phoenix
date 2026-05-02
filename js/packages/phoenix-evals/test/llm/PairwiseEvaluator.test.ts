@@ -1,7 +1,7 @@
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 
-import { PairwiseEvaluator, createPairwiseQualityEvaluator, winRate } from "../../src";
+import { PairwiseEvaluator, winRate } from "../../src";
 
 const promptTemplate = `
 Question: {{input}}
@@ -266,22 +266,6 @@ describe("PairwiseEvaluator", () => {
         input: "question",
       })
     ).rejects.toThrow();
-  });
-
-  it("creates the pairwise quality evaluator", async () => {
-    const evaluator = createPairwiseQualityEvaluator({
-      model: createMockModel(["tie"]).model,
-      ordering: "fixed",
-    });
-
-    const result = await evaluator.evaluate({
-      output: "one",
-      reference: "two",
-      input: "question",
-    });
-
-    expect(evaluator.name).toBe("pairwise_quality");
-    expect(result.label).toBe("tie");
   });
 
   it("hits the swap branch on at least one row when seeded", async () => {
