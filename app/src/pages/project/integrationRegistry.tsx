@@ -28,6 +28,7 @@ import {
   PortkeySVG,
   PydanticAISVG,
   StrandsAgentsSVG,
+  TanStackAISVG,
   TraceLoopSVG,
   VercelSVG,
   VertexAISVG,
@@ -59,6 +60,7 @@ import {
   getOtelInitCodePython,
   getOtelInitCodeTypescript,
   getStrandsAgentsCodePython,
+  getTanStackAiCodeTypescript,
   getPerplexityCodePython,
   getPerplexityCodeTypescript,
   getTogetherCodePython,
@@ -560,6 +562,27 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-mastra",
+      },
+    },
+  },
+  {
+    id: "tanstack-ai",
+    name: "TanStack AI",
+    icon: <TanStackAISVG />,
+    configs: {
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-tanstack-ai",
+          "@tanstack/ai",
+          "@tanstack/ai-openai",
+        ],
+        getImplementationCode: getTanStackAiCodeTypescript,
+        envVars: OPENAI_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-tanstack-ai",
       },
     },
   },
