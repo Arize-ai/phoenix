@@ -16,6 +16,9 @@
     <a target="_blank" href="https://x.com/ArizePhoenix">
         <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=x">
     </a>
+    <a target="_blank" href="https://www.linkedin.com/showcase/113218220">
+        <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=linkedin">
+    </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
     </a>
@@ -189,6 +192,7 @@ Join our community to connect with thousands of AI builders.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 💼 Follow us on [LinkedIn](https://www.linkedin.com/showcase/113218220).
 - 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 - 🧑‍🏫 Deep dive into everything [Agents](http://arize.com/ai-agents/) and [LLM Evaluations](https://arize.com/llm-evaluation) on Arize's Learning Hubs.
 
