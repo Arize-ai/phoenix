@@ -1,5 +1,11 @@
 # @arizeai/phoenix-config
 
+## 0.1.4
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+
 ## 0.1.3
 
 ### Patch Changes
