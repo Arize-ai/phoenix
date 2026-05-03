@@ -197,6 +197,7 @@
 - [Google GenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing): Auto-instrument Google GenAI SDK
 - [Gemini Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-evals): Use Gemini models as evaluation judges
 - [Google GenAI Evals](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals): Configure Google GenAI as eval provider
+- [Evaluate CrewAI with Google Gen AI](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-gen-ai-evals-1): Instrument and evaluate CrewAI multi-agent systems using Google Vertex AI evaluation and Phoenix tracing
 - [Google ADK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-adk/google-adk-tracing): Trace Google Agent Development Kit workflows
 - [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
