@@ -12,15 +12,6 @@ const RECTS = [
   { x: 223.2, y: 223.4, width: 100, height: 100, rx: 20, ry: 20 },
 ] as const;
 
-export const pxiGlyphRects = RECTS.map(({ x, y, width, height, rx, ry }) => ({
-  x: x / VIEW_BOX_WIDTH,
-  y: y / VIEW_BOX_HEIGHT,
-  width: width / VIEW_BOX_WIDTH,
-  height: height / VIEW_BOX_HEIGHT,
-  rx: rx / VIEW_BOX_WIDTH,
-  ry: ry / VIEW_BOX_HEIGHT,
-}));
-
 function getGlyphRect({
   x,
   y,
@@ -47,43 +38,6 @@ function getOutlineCenterlineRect(
     rx: centerlineRadius,
     ry: centerlineRadius,
   };
-}
-
-export function getNormalizedGlyphRects({
-  round = false,
-}: {
-  round?: boolean;
-}) {
-  return RECTS.map(({ x, y, width, height }) => {
-    const radius = round ? width / 2 : 20;
-    return {
-      x: x / VIEW_BOX_WIDTH,
-      y: y / VIEW_BOX_HEIGHT,
-      width: width / VIEW_BOX_WIDTH,
-      height: height / VIEW_BOX_HEIGHT,
-      rx: radius / VIEW_BOX_WIDTH,
-      ry: radius / VIEW_BOX_HEIGHT,
-    };
-  });
-}
-
-export function getNormalizedGlyphInnerRects({
-  round = false,
-}: {
-  round?: boolean;
-}) {
-  return RECTS.map(({ x, y, width, height }) => {
-    const radius = round ? width / 2 : 20;
-    const innerRadius = radius - OUTLINE_INSET;
-    return {
-      x: (x + OUTLINE_INSET) / VIEW_BOX_WIDTH,
-      y: (y + OUTLINE_INSET) / VIEW_BOX_HEIGHT,
-      width: (width - OUTLINE_INSET * 2) / VIEW_BOX_WIDTH,
-      height: (height - OUTLINE_INSET * 2) / VIEW_BOX_HEIGHT,
-      rx: innerRadius / VIEW_BOX_WIDTH,
-      ry: innerRadius / VIEW_BOX_HEIGHT,
-    };
-  });
 }
 
 export function getPxiSquareGlyphSvgMarkup({

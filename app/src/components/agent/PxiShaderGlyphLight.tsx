@@ -66,15 +66,13 @@ const SVG_DIFFERENCE_STYLE = {
 };
 
 const HEATMAP_COLORS: string[] = [
-//   "#FFFFFF",
   "#FFFFFF",
   "#F7FAFF",
   "#FFFFFF",
   "#FFFFFF",
   "#F4F7FF",
-    "#FFFFFF",
-    "#FFFFFF",
-    
+  "#FFFFFF",
+  "#FFFFFF",
 ];
 
 const LIQUID_METAL_TINT = "#B5B5B5";

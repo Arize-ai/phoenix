@@ -13,18 +13,16 @@ const containerCSS = css`
   isolation: isolate;
   overflow: hidden;
   filter: saturate(0.36);
+  /* Circular opacity vignette hides clipping when shader blur overlaps the frame edge. */
   -webkit-mask-image: radial-gradient(
     circle at center,
-    rgba(0, 0, 0, 1) 36%,
-    rgba(0, 0, 0, 0.92) 54%,
-    rgba(0, 0, 0, 0.48) 68%,
-    rgba(0, 0, 0, 0.12) 78%,
-    rgba(0, 0, 0, 0) 88%
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0) 90%
   );
   mask-image: radial-gradient(
     circle at center,
-    rgba(0, 0, 0, 1) 36%,
-    rgba(0, 0, 0, 0) 70%
+    rgba(0, 0, 0, 1) 40%,
+    rgba(0, 0, 0, 0) 90%
   );
 `;
 
