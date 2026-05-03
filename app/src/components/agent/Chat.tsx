@@ -27,6 +27,7 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
@@ -45,6 +46,18 @@ export type { EmptyStateQuickAction } from "./ChatEmptyState";
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
 const chatInputFadeUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const chatEmptyItemFadeUp = keyframes`
   from {
     opacity: 0;
     transform: translateY(16px);
@@ -102,11 +115,30 @@ const chatCSS = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .chat__empty-title,
+    .chat__empty-subtext,
+    .chat__empty-action,
     .chat__input {
       opacity: 1;
       animation: none;
       transform: none;
     }
+  }
+
+  .chat__empty-title {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out 400ms forwards;
+  }
+
+  .chat__empty-subtext {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out 300ms forwards;
+  }
+
+  .chat__empty-action {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
+      forwards;
   }
 
   .chat__messages {
@@ -229,6 +261,7 @@ export function ChatView({
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
+  const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -257,6 +290,7 @@ export function ChatView({
           <div className="chat__messages" ref={contentRef}>
             {showsEmptyState && (
               <ChatEmptyState
+                key={theme}
                 subtext={emptyStateSubtext}
                 quickActions={emptyStateQuickActions}
                 onQuickAction={handleQuickAction}
