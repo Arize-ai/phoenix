@@ -30,11 +30,11 @@ import {
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
-import type { ProviderTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
+import { ChatLantern } from "./ChatLantern";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { PxiShaderGlyph } from "./PxiShaderGlyph";
@@ -112,7 +112,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
   switch (layoutMode) {
     case "compact-narrow":
       return {
-        isSmallestBreakpoint: false,
         glyphSize: 220,
         glyphFrameSize: 88,
         glyphBleedTop: "0px",
@@ -121,7 +120,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
       };
     case "compact-wide":
       return {
-        isSmallestBreakpoint: true,
         glyphSize: 220,
         glyphFrameSize: 104,
         glyphBleedTop: "0px",
@@ -130,7 +128,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
       };
     case "bleed-small":
       return {
-        isSmallestBreakpoint: false,
         glyphSize: 300,
         glyphFrameSize: 300,
         glyphBleedTop: "calc(-1 * var(--global-dimension-size-750))",
@@ -139,7 +136,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
       };
     case "bleed-large":
       return {
-        isSmallestBreakpoint: false,
         glyphSize: 380,
         glyphFrameSize: 380,
         glyphBleedTop: "calc(-1 * var(--global-dimension-size-700))",
@@ -148,7 +144,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
       };
     case "roomy":
       return {
-        isSmallestBreakpoint: false,
         glyphSize: 380,
         glyphFrameSize: 380,
         glyphBleedTop: "0px",
@@ -157,50 +152,6 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
       };
   }
 }
-
-const chatLanternBeforeRight = keyframes`
-  0% {
-    transform: translate3d(-14%, -14%, 0) scale(0.84);
-    opacity: 0.25;
-  }
-
-  35% {
-    transform: translate3d(-2%, -6%, 0) scale(0.98);
-    opacity: 0.35;
-  }
-
-  62% {
-    transform: translate3d(10%, 2%, 0) scale(1.18);
-    opacity: 0.5;
-  }
-
-  100% {
-    transform: translate3d(-14%, -14%, 0) scale(0.84);
-    opacity: 0.25;
-  }
-`;
-
-const chatLanternAfterLeft = keyframes`
-  0% {
-    transform: translate3d(-18%, -10%, 0) rotate(-10deg) scale(1.14);
-    opacity: 0.15
-  }
-
-  38% {
-    transform: translate3d(-20%, -3%, 0) rotate(-2deg) scale(0.88);
-    opacity: 0.25
-  }
-
-  68% {
-    transform: translate3d(14%, 20%, 0) rotate(6deg) scale(3);
-    opacity: 0.4
-  }
-
-  100% {
-    transform: translate3d(-18%, -10%, 0) rotate(-10deg) scale(1.14);
-    opacity: 0.15
-  }
-`;
 
 const chatEmptyItemFadeUp = keyframes`
   from {
@@ -259,88 +210,7 @@ const chatCSS = css`
     overflow-y: auto;
   }
 
-  .chat__scroll-lantern {
-    --chat-lantern-fade-out-duration: 300ms;
-    --chat-lantern-fade-in-duration: 560ms;
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: -64px;
-    height: calc(100% + 64px);
-    pointer-events: none;
-    z-index: 1;
-    overflow: hidden;
-    opacity: 0;
-    transform: translate3d(0, 20px, 0) scale(0.985);
-    filter: saturate(0.92);
-    transition:
-      opacity var(--chat-lantern-fade-out-duration) ease-out,
-      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-      filter 420ms ease-out;
-  }
-
-  &.chat--empty {
-    .chat__scroll-lantern {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-      filter: saturate(1);
-      transition:
-        opacity var(--chat-lantern-fade-in-duration) ease-in-out,
-        transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-        filter 420ms ease-out;
-    }
-  }
-
-  .chat__scroll-lantern::before,
-  .chat__scroll-lantern::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    transform-origin: top center;
-    border-radius: 999px;
-    will-change: transform, opacity;
-  }
-
-  .chat__scroll-lantern::before {
-    left: 50%;
-    top: -120px;
-    width: 170%;
-    height: 380px;
-    opacity: 0.4;
-    transform-origin: top left;
-    filter: blur(42px);
-    animation: ${chatLanternBeforeRight} 18s ease-in-out infinite;
-  }
-
-  .chat__scroll-lantern::after {
-    top: 150px;
-    right: 60%;
-    width: 250%;
-    height: 300px;
-    transform-origin: top right;
-    opacity: 0.5;
-    filter: blur(48px);
-    animation: ${chatLanternAfterLeft} 24s ease-in-out infinite;
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .chat__scroll-lantern::before,
-    .chat__scroll-lantern::after {
-      animation: none;
-      will-change: auto;
-    }
-
-    .chat__scroll-lantern::before {
-      transform: translate3d(0, 14%, 0) scale(1);
-      opacity: 0.2;
-    }
-
-    .chat__scroll-lantern::after {
-      transform: translate3d(-10%, -10%, 0) rotate(-20deg) scale(2.14);
-      opacity: 0.3;
-    }
-
     .chat__empty-title,
     .chat__empty-subtext,
     .chat__empty-action,
@@ -348,20 +218,6 @@ const chatCSS = css`
       opacity: 1;
       animation: none;
       transform: none;
-    }
-
-    .chat__scroll-lantern {
-      transform: none;
-      filter: none;
-      transition: opacity var(--chat-lantern-fade-out-duration) ease-out;
-    }
-
-    &.chat--empty {
-      .chat__scroll-lantern {
-        transform: none;
-        filter: none;
-        transition: opacity var(--chat-lantern-fade-in-duration) ease-in-out;
-      }
     }
   }
 
@@ -403,14 +259,22 @@ const chatCSS = css`
     flex-direction: column;
     align-items: center;
     gap: var(--global-dimension-size-200);
+    padding: 0;
+    color: var(--global-text-color-300);
 
     @container (max-width: 479px) {
       .chat__empty-hero {
         width: auto;
       }
     }
-    padding: 0;
-    color: var(--global-text-color-300);
+  }
+
+  .chat__empty--row-layout {
+    @container (max-width: 479px) {
+      .chat__empty-glyph {
+        display: none;
+      }
+    }
   }
 
   .chat__empty-hero {
@@ -455,14 +319,6 @@ const chatCSS = css`
     .chat__empty-actions {
       position: relative;
       z-index: 2;
-    }
-  }
-
-  .chat__empty--smallest {
-    @container (max-width: 479px) {
-      .chat__empty-glyph {
-        display: none;
-      }
     }
   }
 
@@ -567,106 +423,6 @@ const chatCSS = css`
   }
 `;
 
-/** Theme-specific gradient colors and blend mode for the ambient lantern effect. */
-function getLanternCSS(theme: ProviderTheme) {
-  const isDark = theme === "dark";
-  const blendMode = isDark ? "screen" : "multiply";
-
-  // Dark: bright-on-dark via screen. Light: dark-on-light via multiply.
-  const beforeBackground = isDark
-    ? `
-      radial-gradient(
-        ellipse at 38% 18%,
-        rgba(242, 247, 255, 0.2) 0%,
-        rgba(223, 235, 255, 0.18) 14%,
-        rgba(203, 224, 255, 0.14) 26%,
-        rgba(186, 208, 255, 0.12) 36%,
-        rgba(169, 191, 255, 0.09) 46%,
-        rgba(164, 170, 255, 0.07) 54%,
-        rgba(158, 148, 255, 0.05) 62%,
-        rgba(158, 148, 255, 0.025) 72%,
-        rgba(158, 148, 255, 0) 84%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(225, 236, 255, 0.08) 0%,
-        rgba(225, 236, 255, 0.04) 44%,
-        rgba(225, 236, 255, 0) 100%
-      )`
-    : `
-      radial-gradient(
-        ellipse at 38% 18%,
-        rgba(183, 192, 207, 0.28) 0%,
-        rgba(171, 180, 198, 0.23) 14%,
-        rgba(159, 168, 187, 0.18) 26%,
-        rgba(149, 158, 178, 0.14) 36%,
-        rgba(140, 149, 170, 0.10) 46%,
-        rgba(128, 136, 158, 0.075) 54%,
-        rgba(116, 119, 146, 0.05) 62%,
-        rgba(116, 119, 146, 0.024) 72%,
-        rgba(116, 119, 146, 0) 84%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(191, 198, 210, 0.10) 0%,
-        rgba(191, 198, 210, 0.05) 44%,
-        rgba(191, 198, 210, 0) 100%
-      )`;
-
-  const afterBackground = isDark
-    ? `
-      radial-gradient(
-        ellipse at 64% 16%,
-        rgba(255, 247, 235, 0.18) 0%,
-        rgba(255, 236, 216, 0.15) 12%,
-        rgba(255, 222, 193, 0.12) 24%,
-        rgba(255, 209, 182, 0.10) 34%,
-        rgba(255, 196, 170, 0.08) 44%,
-        rgba(255, 180, 158, 0.055) 52%,
-        rgba(255, 164, 145, 0.04) 60%,
-        rgba(255, 164, 145, 0.02) 70%,
-        rgba(255, 164, 145, 0) 82%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(255, 240, 224, 0.07) 0%,
-        rgba(255, 240, 224, 0.035) 42%,
-        rgba(255, 240, 224, 0) 100%
-      )`
-    : `
-      radial-gradient(
-        ellipse at 64% 16%,
-        rgba(144, 162, 192, 0.18) 0%,
-        rgba(132, 151, 184, 0.15) 12%,
-        rgba(121, 141, 173, 0.12) 24%,
-        rgba(112, 132, 165, 0.095) 34%,
-        rgba(102, 122, 156, 0.07) 44%,
-        rgba(94, 114, 149, 0.05) 52%,
-        rgba(87, 107, 141, 0.03) 60%,
-        rgba(87, 107, 141, 0.015) 70%,
-        rgba(87, 107, 141, 0) 82%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(135, 153, 185, 0.07) 0%,
-        rgba(135, 153, 185, 0.035) 42%,
-        rgba(135, 153, 185, 0) 100%
-      )`;
-
-  return css`
-    .chat__scroll-lantern::before,
-    .chat__scroll-lantern::after {
-      mix-blend-mode: ${blendMode};
-    }
-    .chat__scroll-lantern::before {
-      background: ${beforeBackground};
-    }
-    .chat__scroll-lantern::after {
-      background: ${afterBackground};
-    }
-  `;
-}
-
 /** Connects the presentational chat view to the agent chat controller hook. */
 export function Chat({
   sessionId,
@@ -753,7 +509,6 @@ export function ChatView({
     (state) => state.observability.hasAcknowledgedConsent
   );
   const { theme } = useTheme();
-  const themedLanternCSS = getLanternCSS(theme);
   const emptyStateLayoutMode = useSyncExternalStore(
     subscribeToViewportChange,
     getEmptyStateLayoutMode,
@@ -761,15 +516,11 @@ export function ChatView({
   );
   const emptyStateLayoutVars = getEmptyStateLayoutVars(emptyStateLayoutMode);
   const showsEmptyState = messages.length === 0;
-  const showsBleedingGlyph =
-    emptyStateLayoutMode === "bleed-small" ||
-    emptyStateLayoutMode === "bleed-large";
-  const chatClassName = [
-    showsEmptyState ? "chat--empty" : null,
-    showsEmptyState ? "chat--empty-bleed" : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const showsBleedingGlyph = ["bleed-small", "bleed-large"].includes(
+    emptyStateLayoutMode
+  );
+  const usesRowLayout = emptyStateLayoutMode === "compact-wide";
+  const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -778,13 +529,13 @@ export function ChatView({
 
   return (
     <div
-      css={[chatCSS, themedLanternCSS]}
+      css={chatCSS}
       className={chatClassName}
       style={{
         "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
       } as CSSProperties}
     >
-      <div className="chat__scroll-lantern" aria-hidden="true" />
+      <ChatLantern isVisible={showsEmptyState} />
       <div className="chat__scroll-frame">
         <div className="chat__scroll" ref={scrollRef}>
           <div className="chat__messages" ref={contentRef}>
@@ -795,6 +546,7 @@ export function ChatView({
                 quickActions={emptyStateQuickActions}
                 onQuickAction={handleQuickAction}
                 layoutVars={emptyStateLayoutVars}
+                usesRowLayout={usesRowLayout}
                 showsBleedingGlyph={showsBleedingGlyph}
               />
             )}
@@ -885,20 +637,22 @@ function EmptyState({
   quickActions,
   onQuickAction,
   layoutVars,
+  usesRowLayout,
   showsBleedingGlyph,
 }: {
   subtext: ReactNode;
   quickActions: EmptyStateQuickAction[];
   onQuickAction: (prompt: string) => void;
   layoutVars: ReturnType<typeof getEmptyStateLayoutVars>;
+  usesRowLayout: boolean;
   showsBleedingGlyph: boolean;
 }) {
   return (
     <div
       className={[
         "chat__empty",
+        usesRowLayout ? "chat__empty--row-layout" : null,
         showsBleedingGlyph ? "chat__empty--bleed" : null,
-        layoutVars.isSmallestBreakpoint ? "chat__empty--smallest" : null,
       ]
         .filter(Boolean)
         .join(" ")}
