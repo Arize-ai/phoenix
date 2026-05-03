@@ -485,7 +485,9 @@ const ConfiguratorSidebar = ({
   language: CodeEvaluatorLanguage;
 }) => {
   return (
-    <DisclosureGroup defaultExpandedKeys={["output-config", "input-mapping"]}>
+    <DisclosureGroup
+      defaultExpandedKeys={["output-config", "input-mapping", "test-section"]}
+    >
       <Disclosure id="sandbox-runtime" defaultExpanded={false}>
         <DisclosureTrigger arrowPosition="start">
           <Text weight="heavy" size="S">
