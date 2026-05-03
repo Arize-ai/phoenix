@@ -18,6 +18,11 @@ resolution-markers = [
 exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P3D"
 
+[options.exclude-newer-package]
+arize-phoenix-evals = "2100-01-01T07:00:00Z"
+arize-phoenix-client = "2100-01-01T07:00:00Z"
+arize-phoenix-otel = "2100-01-01T07:00:00Z"
+
 [manifest]
 members = [
     "arize-phoenix",
