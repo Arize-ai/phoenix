@@ -596,38 +596,106 @@ const SandboxCapabilitySummaryCard = ({
           </Text>
         </View>
       ) : (
-        <List size="S">
-          <SandboxCapabilityRow
-            label="config"
-            value={selectedSandboxConfig.name}
-          />
-          {selectedSandboxConfig.timeout != null ? (
-            <SandboxCapabilityRow
-              label="timeout"
-              value={`${selectedSandboxConfig.timeout} seconds`}
-            />
-          ) : null}
-          <SandboxCapabilityRow
-            label="env_vars"
-            value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
-          />
-          <SandboxCapabilityRow
-            label="internet_access"
-            value={getSandboxInternetAccessConfigLabel(
-              selectedSandboxConfig.config
-            )}
-          />
-          <SandboxCapabilityRow
-            label="dependencies"
-            value={getSandboxDependenciesConfigLabel(
-              selectedSandboxConfig.config
-            )}
-          />
-        </List>
+        <Flex direction="column" gap="size-150">
+          <Flex direction="column" gap="size-50">
+            <View paddingX="size-200">
+              <Text weight="heavy" size="XS">
+                Runtime supports
+              </Text>
+            </View>
+            <List size="S">
+              <SandboxCapabilityRow
+                label="env_vars"
+                value={getRuntimeEnvVarsSupportLabel(selectedSandboxConfig)}
+              />
+              <SandboxCapabilityRow
+                label="internet_access"
+                value={getRuntimeInternetAccessSupportLabel(
+                  selectedSandboxConfig
+                )}
+              />
+              <SandboxCapabilityRow
+                label="dependencies"
+                value={getRuntimeDependenciesSupportLabel(
+                  selectedSandboxConfig
+                )}
+              />
+            </List>
+          </Flex>
+          <Flex direction="column" gap="size-50">
+            <View paddingX="size-200">
+              <Text weight="heavy" size="XS">
+                Configured
+              </Text>
+            </View>
+            <List size="S">
+              <SandboxCapabilityRow
+                label="config"
+                value={selectedSandboxConfig.name}
+              />
+              {selectedSandboxConfig.timeout != null ? (
+                <SandboxCapabilityRow
+                  label="timeout"
+                  value={`${selectedSandboxConfig.timeout} seconds`}
+                />
+              ) : null}
+              <SandboxCapabilityRow
+                label="env_vars"
+                value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
+              />
+              <SandboxCapabilityRow
+                label="internet_access"
+                value={getSandboxInternetAccessConfigLabel(
+                  selectedSandboxConfig.config
+                )}
+              />
+              <SandboxCapabilityRow
+                label="dependencies"
+                value={getSandboxDependenciesConfigLabel(
+                  selectedSandboxConfig.config
+                )}
+              />
+            </List>
+          </Flex>
+        </Flex>
       )}
     </Flex>
   );
 };
+
+function getRuntimeEnvVarsSupportLabel(option: SandboxConfigOption) {
+  if (option.supportsEnvVars == null) {
+    return "not advertised";
+  }
+  return option.supportsEnvVars ? "supported" : "not supported";
+}
+
+function getRuntimeInternetAccessSupportLabel(option: SandboxConfigOption) {
+  const value = option.internetAccess;
+  if (value == null) {
+    return "not advertised";
+  }
+  switch (value) {
+    case "BOOLEAN":
+      return "configurable";
+    case "ALLOWLIST":
+      return "allowlist";
+    case "NONE":
+      return "not supported";
+    default:
+      return value;
+  }
+}
+
+function getRuntimeDependenciesSupportLabel(option: SandboxConfigOption) {
+  if (option.dependenciesLanguage === undefined) {
+    return "not advertised";
+  }
+  if (option.dependenciesLanguage == null) {
+    return "not supported";
+  }
+  return option.dependenciesLanguage === "PYTHON" ? "Python" : "TypeScript";
+}
 
 const SandboxCapabilityRow = ({
   label,
