@@ -112,7 +112,7 @@ function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
   switch (layoutMode) {
     case "compact-narrow":
       return {
-        isSmallestBreakpoint: true,
+        isSmallestBreakpoint: false,
         glyphSize: 220,
         glyphFrameSize: 88,
         glyphBleedTop: "0px",
@@ -403,6 +403,12 @@ const chatCSS = css`
     flex-direction: column;
     align-items: center;
     gap: var(--global-dimension-size-200);
+
+    @container (max-width: 479px) {
+      .chat__empty-hero {
+        width: auto;
+      }
+    }
     padding: 0;
     color: var(--global-text-color-300);
   }
@@ -454,9 +460,6 @@ const chatCSS = css`
 
   .chat__empty--smallest {
     @container (max-width: 479px) {
-      .chat__empty-hero {
-        width: auto;
-      }
       .chat__empty-glyph {
         display: none;
       }
