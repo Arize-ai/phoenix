@@ -458,61 +458,106 @@
 - [OpenInference JavaScript](https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-javascript): Build custom JS instrumentors with OpenInference semantic conventions
 
 
-### REST API — Endpoints
+### REST API — Annotation Configs
 
-- [Create An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration): Create An Annotation Configuration
-- [Delete An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration): Delete An Annotation Configuration
-- [Get An Annotation Configuration By Id Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name): Get An Annotation Configuration By Id Or Name
-- [List Annotation Configurations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations): List Annotation Configurations
-- [Update An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration): Update An Annotation Configuration
-- [Get Span Annotations For A List Of Span_Ids](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids): Get Span Annotations For A List Of Span_Ids
-- [Get Trace Annotations For A List Of Trace_Ids](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids): Get Trace Annotations For A List Of Trace_Ids
-- [Delete Dataset By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id): Delete Dataset By Id
-- [Download Dataset Examples As Csv File](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file): Download Dataset Examples As Csv File
-- [Download Dataset Examples As Openai Evals Jsonl File](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file): Download Dataset Examples As Openai Evals Jsonl File
-- [Download Dataset Examples As Openai Fine Tuning Jsonl File](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file): Download Dataset Examples As Openai Fine Tuning Jsonl File
-- [Get Dataset By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id): Get Dataset By Id
-- [Get Examples From A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset): Get Examples From A Dataset
-- [List Dataset Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions): List Dataset Versions
-- [List Datasets](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets): List Datasets
-- [Upload Dataset From Json Csv Or Pyarrow](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow): Upload Dataset From Json Csv Or Pyarrow
-- [Create Experiment On A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset): Create Experiment On A Dataset
-- [Create Or Update Evaluation For An Experiment Run](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run): Create Or Update Evaluation For An Experiment Run
-- [Create Run For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-run-for-an-experiment): Create Run For An Experiment
-- [Download Experiment Runs As A Csv File](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file): Download Experiment Runs As A Csv File
-- [Download Experiment Runs As A Json File](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file): Download Experiment Runs As A Json File
-- [Get Experiment By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id): Get Experiment By Id
-- [List Experiments By Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset): List Experiments By Dataset
-- [List Runs For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment): List Runs For An Experiment
-- [Create A New Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project): Create A New Project
-- [Delete A Project By Id Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/delete-a-project-by-id-or-name): Delete A Project By Id Or Name
-- [Get Project By Id Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name): Get Project By Id Or Name
-- [List All Projects](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects): List All Projects
-- [Update A Project By Id Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/update-a-project-by-id-or-name): Update A Project By Id Or Name
-- [Add Tag To Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version): Add Tag To Prompt Version
-- [Create A New Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt): Create A New Prompt
-- [Get Latest Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version): Get Latest Prompt Version
-- [Get Prompt Version By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id): Get Prompt Version By Id
-- [Get Prompt Version By Tag](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag): Get Prompt Version By Tag
-- [List All Prompts](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts): List All Prompts
-- [List Prompt Version Tags](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-version-tags): List Prompt Version Tags
-- [List Prompt Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions): List Prompt Versions
-- [Upsert Or Delete Secrets](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/secrets/upsert-or-delete-secrets): Upsert Or Delete Secrets
-- [Create Session Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-session-annotations): Create Session Annotations
-- [Get Session By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/get-session-by-id): Get Session By Id
-- [List Project Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-project-sessions): List Project Sessions
-- [List Session Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-session-annotations): List Session Annotations
-- [Annotate Span Documents](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents): Annotate Span Documents
-- [Create Span Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations): Create Span Annotations
-- [Create Spans](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans): Create Spans
-- [Delete A Span By Span_Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier): Delete A Span By Span_Identifier
-- [List Spans With Simple Filters No Dsl](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl): List Spans With Simple Filters No Dsl
-- [Search Spans With Simple Filters No Dsl](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl): Search Spans With Simple Filters No Dsl
-- [Create Trace Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations): Create Trace Annotations
-- [Delete A Trace By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier): Delete A Trace By Identifier
-- [Create A New User](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user): Create A New User
-- [Delete A User By Id](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id): Delete A User By Id
-- [List All Users](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users): List All Users
+- [List Annotation Configurations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations): GET /v1/annotation_configs — paginate all annotation configurations
+- [Create An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration): POST /v1/annotation_configs — define a new categorical, continuous, or freeform config
+- [Get An Annotation Configuration By ID Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name): GET /v1/annotation_configs/{config_identifier} — fetch a single annotation config
+- [Update An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration): PUT /v1/annotation_configs/{config_id} — modify an existing config's options or rubric
+- [Delete An Annotation Configuration](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration): DELETE /v1/annotation_configs/{config_id} — remove an annotation config
+
+### REST API — Annotations
+
+- [Get Span Annotations By Span IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids): GET /v1/projects/{project_identifier}/span_annotations — fetch annotations across many spans in one call
+- [Get Trace Annotations By Trace IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids): GET /v1/projects/{project_identifier}/trace_annotations — fetch annotations across many traces in one call
+- [Get Session Annotations By Session IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-session-annotations-for-a-list-of-session_ids): GET /v1/projects/{project_identifier}/session_annotations — fetch annotations across many sessions in one call
+
+### REST API — Datasets
+
+- [List Datasets](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets): GET /v1/datasets — paginate datasets in the workspace
+- [Get Dataset By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-dataset-by-id): GET /v1/datasets/{id} — retrieve dataset metadata
+- [Delete Dataset By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/delete-dataset-by-id): DELETE /v1/datasets/{id} — remove a dataset and its versions
+- [List Dataset Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions): GET /v1/datasets/{id}/versions — paginate version history for a dataset
+- [Upload Dataset From JSON, JSONL, CSV, Or PyArrow](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow): POST /v1/datasets/upload — create or append examples from JSON, JSONL, CSV, or PyArrow
+- [Get Examples From A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset): GET /v1/datasets/{id}/examples — retrieve examples at a specific dataset version
+- [Download Dataset Examples As CSV](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file): GET /v1/datasets/{id}/csv — stream dataset examples as a CSV file
+- [Download Dataset Examples As JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file): GET /v1/datasets/{id}/jsonl — stream dataset examples as a JSONL file
+- [Download Dataset Examples As OpenAI Fine-Tuning JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_ft — export examples in OpenAI fine-tuning format
+- [Download Dataset Examples As OpenAI Evals JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-evals-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_evals — export examples in OpenAI evals format
+
+### REST API — Experiments
+
+- [List Experiments By Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-experiments-by-dataset): GET /v1/datasets/{dataset_id}/experiments — list experiments tied to a dataset
+- [Create Experiment On A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-experiment-on-a-dataset): POST /v1/datasets/{dataset_id}/experiments — start a new experiment over a dataset version
+- [Get Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-experiment-by-id): GET /v1/experiments/{experiment_id} — fetch experiment metadata
+- [Delete Experiment By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id): DELETE /v1/experiments/{experiment_id} — delete an experiment and its runs
+- [Download Experiment Runs As JSON](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file): GET /v1/experiments/{experiment_id}/json — export full experiment runs as JSON
+- [Download Experiment Runs As CSV](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-csv-file): GET /v1/experiments/{experiment_id}/csv — export experiment runs as CSV
+- [List Runs For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/list-runs-for-an-experiment): GET /v1/experiments/{experiment_id}/runs — list run rows for an experiment
+- [Create Run For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-run-for-an-experiment): POST /v1/experiments/{experiment_id}/runs — submit a run output for an experiment
+- [Get Incomplete Runs For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-incomplete-runs-for-an-experiment): GET /v1/experiments/{experiment_id}/incomplete-runs — list dataset rows still missing runs
+- [Create Or Update Evaluation For An Experiment Run](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run): POST /v1/experiment_evaluations — upsert an evaluator score on an experiment run
+- [Get Incomplete Evaluations For An Experiment](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-incomplete-evaluations-for-an-experiment): GET /v1/experiments/{experiment_id}/incomplete-evaluations — list runs still missing a given evaluator's score
+
+### REST API — Projects
+
+- [List All Projects](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects): GET /v1/projects — paginate projects in the workspace
+- [Create A New Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/create-a-new-project): POST /v1/projects — create a project for tracing
+- [Get Project By ID Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/get-project-by-id-or-name): GET /v1/projects/{project_identifier} — fetch a project by ID or name
+- [Update A Project By ID Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/update-a-project-by-id-or-name): PUT /v1/projects/{project_identifier} — rename or update project description
+- [Delete A Project By ID Or Name](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/delete-a-project-by-id-or-name): DELETE /v1/projects/{project_identifier} — delete a project and its data
+
+### REST API — Prompts
+
+- [List All Prompts](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-all-prompts): GET /v1/prompts — paginate all prompts
+- [Create A New Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt): POST /v1/prompts — create a prompt or push a new prompt version
+- [Delete A Prompt](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt): DELETE /v1/prompts/{prompt_identifier} — delete a prompt and all of its versions
+- [List Prompt Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions): GET /v1/prompts/{prompt_identifier}/versions — paginate versions of a prompt
+- [Get Prompt Version By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-id): GET /v1/prompt_versions/{prompt_version_id} — fetch a specific prompt version
+- [Get Prompt Version By Tag](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-prompt-version-by-tag): GET /v1/prompts/{prompt_identifier}/tags/{tag_name} — resolve a tag to a prompt version
+- [Get Latest Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/get-latest-prompt-version): GET /v1/prompts/{prompt_identifier}/latest — fetch the most recent prompt version
+- [List Prompt Version Tags](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-version-tags): GET /v1/prompt_versions/{prompt_version_id}/tags — list tags applied to a prompt version
+- [Add Tag To Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version): POST /v1/prompt_versions/{prompt_version_id}/tags — apply a named tag to a prompt version
+- [Delete A Tag From A Prompt Version](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-tag-from-a-prompt-version): DELETE /v1/prompt_versions/{prompt_version_id}/tags/{tag_name} — remove a tag from a prompt version
+
+### REST API — Secrets
+
+- [Upsert Or Delete Secrets](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/secrets/upsert-or-delete-secrets): PUT /v1/secrets — set or remove server-side secret values used by Phoenix
+
+### REST API — Sessions
+
+- [List Project Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-project-sessions): GET /v1/projects/{project_identifier}/sessions — paginate sessions in a project
+- [Get Session By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/get-session-by-id): GET /v1/sessions/{session_identifier} — fetch a session by ID or session_id
+- [Delete A Session By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/delete-a-session-by-identifier): DELETE /v1/sessions/{session_identifier} — delete a single session
+- [Bulk Delete Sessions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/bulk-delete-sessions): POST /v1/sessions/delete — delete many sessions in one request
+- [Create Session Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-session-annotations): POST /v1/session_annotations — write one or more annotations on sessions
+- [List Session Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-session-annotations): GET /v1/projects/{project_identifier}/session_annotations — list session annotations for a project
+- [Create A Session Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-a-session-note): POST /v1/session_notes — attach a free-text note to a session
+
+### REST API — Spans
+
+- [List Spans (No DSL)](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/list-spans-with-simple-filters-no-dsl): GET /v1/projects/{project_identifier}/spans — paginate spans with simple query filters
+- [Search Spans (OTLP)](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl): GET /v1/projects/{project_identifier}/spans/otlpv1 — query spans returned in OTLP-style format
+- [Create Spans](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-spans): POST /v1/projects/{project_identifier}/spans — ingest spans into a project (non-OTLP path)
+- [Create Span Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations): POST /v1/span_annotations — write one or more annotations on spans
+- [Create A Span Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note): POST /v1/span_notes — attach a free-text note to a span
+- [Annotate Span Documents](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents): POST /v1/document_annotations — write annotations on retrieved documents within a span
+- [Delete A Span By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier): DELETE /v1/spans/{span_identifier} — delete a single span by ID or span_id
+
+### REST API — Traces
+
+- [List Traces For A Project](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project): GET /v1/projects/{project_identifier}/traces — paginate traces in a project
+- [Delete A Trace By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier): DELETE /v1/traces/{trace_identifier} — delete a trace by ID or trace_id
+- [Create Trace Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations): POST /v1/trace_annotations — write one or more annotations on traces
+- [Create A Trace Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note): POST /v1/trace_notes — attach a free-text note to a trace
+
+### REST API — Users
+
+- [Get The Authenticated User](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/get-the-authenticated-user): GET /v1/user — fetch the user record for the current API key
+- [List All Users](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/list-all-users): GET /v1/users — paginate users in the workspace (admin)
+- [Create A New User](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/create-a-new-user): POST /v1/users — provision a new user (admin)
+- [Delete A User By ID](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id): DELETE /v1/users/{user_id} — remove a user (admin)
+
 ## Self-Hosting
 
 - [Self-Hosting Overview](https://arize.com/docs/phoenix/self-hosting): Choose a self-hosting deployment option and get started
