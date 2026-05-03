@@ -6,6 +6,7 @@ import {
   ComboBoxItem,
   Flex,
   Label,
+  Link,
   ListBox,
   Popover,
   Select,
@@ -113,7 +114,8 @@ export const CodeEvaluatorSandboxField = ({
       <Flex direction="column" gap="size-50">
         <Label>Sandbox</Label>
         <Text color="text-500" size="S">
-          No sandbox providers enabled. Configure in Settings.
+          No sandbox providers enabled.{" "}
+          <Link to="/settings/sandboxes">Configure in Settings</Link>.
         </Text>
       </Flex>
     );

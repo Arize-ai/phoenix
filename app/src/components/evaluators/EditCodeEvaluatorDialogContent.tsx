@@ -14,6 +14,7 @@ import {
   Icons,
   Input,
   Label,
+  Link,
   List,
   ListItem,
   ListBox,
@@ -339,8 +340,9 @@ export const EditCodeEvaluatorDialogContent = ({
         )}
         {hasNoSandboxConfigs ? (
           <Alert variant="warning" title="No sandboxes configured">
-            You can still draft and save this evaluator now. Select a sandbox
-            later to test or execute it.
+            You can still draft and save this evaluator now.{" "}
+            <Link to="/settings/sandboxes">Configure a sandbox</Link> later to
+            test or execute it.
           </Alert>
         ) : null}
 
