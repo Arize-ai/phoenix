@@ -8,6 +8,7 @@ import {
   Button,
   ComboBox,
   ComboBoxItem,
+  ContextualHelp,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -485,7 +486,17 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   step={1}
                   isInvalid={fieldState.invalid}
                 >
-                  <Label>Timeout (seconds)</Label>
+                  <Label>
+                    <Flex direction="row" gap="size-50" alignItems="center">
+                      <span>Timeout (seconds)</span>
+                      <ContextualHelp variant="info">
+                        <Text>
+                          Maximum execution time in seconds. Defaults to 300; we
+                          recommend 60–600 for most evaluators.
+                        </Text>
+                      </ContextualHelp>
+                    </Flex>
+                  </Label>
                   <Input />
                   {fieldState.error ? (
                     <FieldError>{fieldState.error.message}</FieldError>
