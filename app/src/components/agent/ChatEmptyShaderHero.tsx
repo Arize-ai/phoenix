@@ -1,7 +1,32 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { PxiShaderGlyph } from "./PxiShaderGlyph";
+
+const LARGE_GLYPH_SIZE = 420;
+const MEDIUM_GLYPH_SIZE = 380;
+const SMALL_GLYPH_SIZE = 300;
+const COMPACT_GLYPH_SIZE = 200;
+
+const MEDIUM_HEIGHT_BREAKPOINT = 960;
+const SMALL_HEIGHT_BREAKPOINT = 840;
+const COMPACT_HEIGHT_BREAKPOINT = 720;
+
+function getHeroGlyphSize(viewportHeight: number) {
+  if (viewportHeight <= COMPACT_HEIGHT_BREAKPOINT) {
+    return COMPACT_GLYPH_SIZE;
+  }
+
+  if (viewportHeight <= SMALL_HEIGHT_BREAKPOINT) {
+    return SMALL_GLYPH_SIZE;
+  }
+
+  if (viewportHeight <= MEDIUM_HEIGHT_BREAKPOINT) {
+    return MEDIUM_GLYPH_SIZE;
+  }
+
+  return LARGE_GLYPH_SIZE;
+}
 
 const heroCSS = css`
   position: relative;
@@ -13,17 +38,17 @@ const heroCSS = css`
   align-items: center;
   gap: var(--global-dimension-size-150);
 
-  @media (max-height: 960px) {
-    --hero-glyph-size: 380px;
+  @media (max-height: ${MEDIUM_HEIGHT_BREAKPOINT}px) {
+    --hero-glyph-size: ${MEDIUM_GLYPH_SIZE}px;
     --hero-padding-top: var(--global-dimension-size-3600);
   }
 
-  @media (max-height: 840px) {
-    --hero-glyph-size: 300px;
+  @media (max-height: ${SMALL_HEIGHT_BREAKPOINT}px) {
+    --hero-glyph-size: ${SMALL_GLYPH_SIZE}px;
     --hero-padding-top: var(--global-dimension-size-2500);
   }
 
-  @media (max-height: 720px) {
+  @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
     --hero-padding-top: 0px;
     --hero-glyph-top-offset: 0px;
     width: 450px;
@@ -48,21 +73,21 @@ const glyphCSS = css`
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 1;
-  width: var(--hero-glyph-size, 420px);
-  height: var(--hero-glyph-size, 420px);
+  width: var(--hero-glyph-size, ${LARGE_GLYPH_SIZE}px);
+  height: var(--hero-glyph-size, ${LARGE_GLYPH_SIZE}px);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: visible;
 
-  @media (max-height: 720px) {
+  @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
     position: static;
     transform: none;
-    width: 104px;
-    height: 104px;
+    width: ${COMPACT_GLYPH_SIZE/2}px;
+    height: ${COMPACT_GLYPH_SIZE/2}px;
   }
 
-  @media (max-height: 720px) {
+  @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
     @container (max-width: 479px) {
       display: none;
     }
@@ -115,10 +140,37 @@ export function ChatEmptyShaderHero({
 }: {
   subtext?: ReactNode;
 }) {
+  const [viewportHeight, setViewportHeight] = useState(() => {
+    if (typeof window === "undefined") {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    return window.innerHeight;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const updateViewportHeight = () => {
+      setViewportHeight(window.innerHeight);
+    };
+
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportHeight);
+    };
+  }, []);
+
+  const glyphSize = getHeroGlyphSize(viewportHeight);
+
   return (
     <div css={heroCSS} className="chat__empty-hero">
       <div css={glyphCSS} className="chat__empty-glyph">
-        <PxiShaderGlyph size={420} />
+        <PxiShaderGlyph size={glyphSize} />
       </div>
       <div css={copyCSS} className="chat__empty-copy">
         <h2 css={titleCSS} className="chat__empty-title">
