@@ -1,5 +1,14 @@
 # @arizeai/phoenix-client
 
+## 6.9.1
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+- Updated dependencies [5d14f23]
+  - @arizeai/phoenix-config@0.1.4
+  - @arizeai/phoenix-otel@1.0.1
+
 ## 6.9.0
 
 ### Minor Changes
