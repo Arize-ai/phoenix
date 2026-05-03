@@ -797,6 +797,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1687,6 +1695,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api</loc>
