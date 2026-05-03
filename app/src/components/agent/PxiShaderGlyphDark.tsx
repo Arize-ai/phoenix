@@ -1,11 +1,7 @@
 import { css } from "@emotion/react";
 import { Heatmap, LiquidMetal } from "@paper-design/shaders-react";
 
-import {
-  getPxiSquareGlyphSvgMarkup,
-  PXI_SHADER_GLYPH_PADDING,
-  PxiSquareGlyph,
-} from "./PxiSquareGlyph";
+import { getPxiShaderSVGDataUrl, PxiShaderSVG } from "./PxiShaderSVG";
 
 const containerCSS = css`
   position: relative;
@@ -63,21 +59,9 @@ const svgDifferenceCSS = css`
 const SHADER_LAYER_SCALE = 0.9;
 const SVG_LAYER_SCALE = 0.5;
 
-const liquidMetalGlyphImage = `data:image/svg+xml,${encodeURIComponent(
-  getPxiSquareGlyphSvgMarkup({
-    color: "white",
-    fill: true,
-    padding: PXI_SHADER_GLYPH_PADDING,
-  })
-)}`;
+const liquidMetalGlyphImage = getPxiShaderSVGDataUrl("white");
 
-const heatmapGlyphImage = `data:image/svg+xml,${encodeURIComponent(
-  getPxiSquareGlyphSvgMarkup({
-    color: "black",
-    fill: true,
-    padding: PXI_SHADER_GLYPH_PADDING,
-  })
-)}`;
+const heatmapGlyphImage = getPxiShaderSVGDataUrl("black");
 
 export interface PxiShaderGlyphDarkProps {
   size?: number;
@@ -118,7 +102,7 @@ export function PxiShaderGlyphDark({
         style={{ width: size, height: size }}
       />
       <div css={[layerCSS, centeredLayerCSS, svgLightenCSS]}>
-        <PxiSquareGlyph size={svgSize} fill />
+        <PxiShaderSVG size={svgSize} />
       </div>
       <div css={[layerCSS, heatmapLayerCSS]}>
         <Heatmap
@@ -148,7 +132,7 @@ export function PxiShaderGlyphDark({
         />
       </div>
       <div css={[layerCSS, centeredLayerCSS, svgDifferenceCSS]}>
-        <PxiSquareGlyph size={svgSize} fill />
+        <PxiShaderSVG size={svgSize} />
       </div>
     </div>
   );
