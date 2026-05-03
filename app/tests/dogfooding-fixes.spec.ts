@@ -243,3 +243,67 @@ test.describe.serial("Dogfooding fixes — secret redaction (D4)", () => {
     await expect(body).not.toContainText(literalEnvVarValue);
   });
 });
+
+test.describe
+  .serial("Dogfooding fixes — Python Tab inserts 4 spaces (D6)", () => {
+  const datasetName = `dogfood-tabs-${randomUUID().slice(0, 8)}`;
+  const sandboxName = `dogfood-tabs-sandbox-${randomUUID().slice(0, 8)}`;
+
+  test("Tab in the Python editor inserts four spaces, not a tab character", async ({
+    page,
+  }) => {
+    // Pre-req: a sandbox so the dialog is in a usable state, and a dataset
+    // to host the evaluator-create dialog.
+    await page.goto("/settings/sandboxes");
+    await page.waitForURL("**/settings/sandboxes");
+    await page.getByRole("button", { name: "New Sandbox" }).click();
+    const sandboxDialog = page.getByRole("dialog");
+    await expect(sandboxDialog).toBeVisible();
+    await sandboxDialog.getByLabel("Provider").fill("E2B");
+    await page.getByRole("option", { name: /E2B/i }).first().click();
+    await sandboxDialog.getByLabel("Name").first().fill(sandboxName);
+    await Promise.all([
+      page.waitForResponse((resp) =>
+        isGraphQLMutationResponse(
+          resp,
+          "SandboxConfigDialogCreateSandboxConfigMutation"
+        )
+      ),
+      sandboxDialog.getByRole("button", { name: "Create Config" }).click(),
+    ]);
+    await expect(sandboxDialog).not.toBeVisible();
+
+    await createDatasetWithExample(page, datasetName);
+    await gotoDatasetEvaluators(page, datasetName);
+
+    // Open the create-evaluator dialog (Python is the default language).
+    await page.getByRole("button", { name: "Add evaluator" }).click();
+    await page
+      .getByRole("menuitem", { name: "Create new code evaluator" })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await expect(
+      page.getByRole("heading", { name: "Create Evaluator" })
+    ).toBeVisible();
+    await selectComboboxOption(page, "Sandbox", sandboxName, dialog);
+
+    // Replace editor content with a single empty line, then Tab → expect 4 spaces.
+    const editor = dialog.locator(".cm-content").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Tab");
+
+    const lineText = await dialog
+      .locator(".cm-content .cm-line")
+      .first()
+      .textContent();
+
+    // Should be exactly four spaces — not a literal tab character.
+    expect(lineText).toBe("    ");
+    expect(lineText).not.toContain("\t");
+
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByTestId("dialog")).not.toBeVisible();
+  });
+});

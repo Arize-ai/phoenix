@@ -1,5 +1,6 @@
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
+import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
@@ -804,6 +805,8 @@ const CodeEditorSection = ({
   const extensions = useMemo(
     () => [
       language === "PYTHON" ? python() : javascript({ typescript: true }),
+      // Python: 4-space indent; JS/TS: 2-space.
+      indentUnit.of(language === "PYTHON" ? "    " : "  "),
       createEvaluatorAutocompletion(evaluatorMappingSource, language),
     ],
     [language, evaluatorMappingSource]
