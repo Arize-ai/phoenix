@@ -298,6 +298,8 @@ const chatCSS = css`
   }
 
   .chat__scroll-lantern {
+    --chat-lantern-fade-out-duration: 300ms;
+    --chat-lantern-fade-in-duration: 560ms;
     position: absolute;
     left: 0;
     right: 0;
@@ -308,12 +310,23 @@ const chatCSS = css`
     z-index: 1;
     overflow: hidden;
     opacity: 0;
-    transition: opacity 240ms ease-out;
+    transform: translate3d(0, 20px, 0) scale(0.985);
+    filter: saturate(0.92);
+    transition:
+      opacity var(--chat-lantern-fade-out-duration) ease-out,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 420ms ease-out;
   }
 
   &.chat--empty {
     .chat__scroll-lantern {
       opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: saturate(1);
+      transition:
+        opacity var(--chat-lantern-fade-in-duration) ease-in-out,
+        transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        filter 420ms ease-out;
     }
   }
 
@@ -369,12 +382,24 @@ const chatCSS = css`
     .chat__empty-title,
     .chat__empty-subtext,
     .chat__empty-action,
-    .chat__input,
-    .chat__scroll-lantern {
+    .chat__input {
       opacity: 1;
       animation: none;
       transform: none;
-      transition: none;
+    }
+
+    .chat__scroll-lantern {
+      transform: none;
+      filter: none;
+      transition: opacity var(--chat-lantern-fade-out-duration) ease-out;
+    }
+
+    &.chat--empty {
+      .chat__scroll-lantern {
+        transform: none;
+        filter: none;
+        transition: opacity var(--chat-lantern-fade-in-duration) ease-in-out;
+      }
     }
   }
 
