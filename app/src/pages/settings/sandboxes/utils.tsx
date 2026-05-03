@@ -159,6 +159,32 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
   }
 }
 
+/**
+ * Returns a copy of a sandbox config safe for display, with literal env_var
+ * values redacted. Non-object configs and non-array env_vars pass through
+ * unchanged so that malformed payloads do not throw and do not unmask
+ * unexpected fields.
+ */
+export function getDisplaySandboxConfig(config: unknown): unknown {
+  if (!isPlainObject(config)) {
+    return config;
+  }
+  const result: Record<string, unknown> = { ...config };
+  const envVars = result["env_vars"];
+  if (Array.isArray(envVars)) {
+    result["env_vars"] = envVars.map((entry) => {
+      if (!isPlainObject(entry)) {
+        return entry;
+      }
+      if (entry["kind"] === "literal" && "value" in entry) {
+        return { ...entry, value: "<redacted>" };
+      }
+      return entry;
+    });
+  }
+  return result;
+}
+
 export function summarizeConfig(config: unknown) {
   if (!isPlainObject(config) || Object.keys(config).length === 0) {
     return "No custom settings";
