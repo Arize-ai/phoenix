@@ -357,7 +357,7 @@ required-version = "==0.11.8"  # When updating this version, also update the `ba
 exclude-newer = "3 days"
 # Exempt our own workspace packages from the `exclude-newer` window so freshly
 # published versions are immediately resolvable.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31", arize-phoenix-evals = "2099-12-31", arize-phoenix-otel = "2099-12-31" }
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z" }
 
 [tool.uv.workspace]
 members = ["packages/*"]
