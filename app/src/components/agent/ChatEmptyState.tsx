@@ -37,22 +37,75 @@ const DEFAULT_EMPTY_STATE_QUICK_ACTIONS: EmptyStateQuickAction[] = [
   },
 ];
 
-type EmptyStateLayoutMode =
-  | "compact-narrow"
-  | "compact-wide"
-  | "bleed-small"
-  | "bleed-large"
-  | "roomy";
-
-type EmptyStateLayoutVars = {
+type EmptyStateStageConfig = {
+  maxHeight?: number;
+  showsHero: boolean;
+  usesCompactLayout: boolean;
+  usesLayeredHero: boolean;
   glyphSize: number;
-  glyphFrameSize: number;
-  glyphBleedTop: string;
-  heroMinHeight: string;
+  glyphTopOffset: string;
   heroPaddingTop: string;
 };
 
-const DEFAULT_EMPTY_STATE_LAYOUT_MODE: EmptyStateLayoutMode = "bleed-large";
+const EMPTY_STATE_STAGE_CONFIG = {
+  "actions-only": {
+    maxHeight: 570,
+    showsHero: false,
+    usesCompactLayout: false,
+    usesLayeredHero: false,
+    glyphSize: 220,
+    glyphTopOffset: "0px",
+    heroPaddingTop: "0px",
+  },
+  compact: {
+    maxHeight: 720,
+    showsHero: true,
+    usesCompactLayout: true,
+    usesLayeredHero: false,
+    glyphSize: 220,
+    glyphTopOffset: "0px",
+    heroPaddingTop: "0px",
+  },
+  "stack-small": {
+    maxHeight: 840,
+    showsHero: true,
+    usesCompactLayout: false,
+    usesLayeredHero: true,
+    glyphSize: 300,
+    glyphTopOffset: "calc(-1 * var(--global-dimension-size-700))",
+    heroPaddingTop: "var(--global-dimension-size-2500)",
+  },
+  "stack-large": {
+    maxHeight: 960,
+    showsHero: true,
+    usesCompactLayout: false,
+    usesLayeredHero: true,
+    glyphSize: 380,
+    glyphTopOffset: "calc(-1 * var(--global-dimension-size-700))",
+    heroPaddingTop: "var(--global-dimension-size-3600)",
+  },
+  "stack-roomy": {
+    maxHeight: undefined,
+    showsHero: true,
+    usesCompactLayout: false,
+    usesLayeredHero: true,
+    glyphSize: 420,
+    glyphTopOffset: "calc(-1 * var(--global-dimension-size-700))",
+    heroPaddingTop: "var(--global-dimension-size-4000)",
+  },
+} satisfies Record<string, EmptyStateStageConfig>;
+
+type EmptyStateHeightStage = keyof typeof EMPTY_STATE_STAGE_CONFIG;
+
+const EMPTY_STATE_HEIGHT_STAGE_ORDER: EmptyStateHeightStage[] = [
+  "actions-only",
+  "compact",
+  "stack-small",
+  "stack-large",
+  "stack-roomy",
+];
+
+const DEFAULT_EMPTY_STATE_HEIGHT_STAGE: EmptyStateHeightStage = "stack-large";
 
 function subscribeToViewportChange(onStoreChange: () => void) {
   if (typeof window === "undefined") {
@@ -64,71 +117,19 @@ function subscribeToViewportChange(onStoreChange: () => void) {
   };
 }
 
-function getEmptyStateLayoutMode(): EmptyStateLayoutMode {
+function getEmptyStateHeightStage(): EmptyStateHeightStage {
   if (typeof window === "undefined") {
-    return DEFAULT_EMPTY_STATE_LAYOUT_MODE;
+    return DEFAULT_EMPTY_STATE_HEIGHT_STAGE;
   }
 
-  if (window.innerHeight <= 720) {
-    return window.innerWidth >= 720 ? "compact-wide" : "compact-narrow";
+  for (const stage of EMPTY_STATE_HEIGHT_STAGE_ORDER) {
+    const { maxHeight } = EMPTY_STATE_STAGE_CONFIG[stage];
+    if (maxHeight !== undefined && window.innerHeight <= maxHeight) {
+      return stage;
+    }
   }
 
-  if (window.innerHeight <= 840) {
-    return "bleed-small";
-  }
-
-  if (window.innerHeight <= 960) {
-    return "bleed-large";
-  }
-
-  return "roomy";
-}
-
-function getEmptyStateLayoutVars(
-  layoutMode: EmptyStateLayoutMode
-): EmptyStateLayoutVars {
-  switch (layoutMode) {
-    case "compact-narrow":
-      return {
-        glyphSize: 220,
-        glyphFrameSize: 88,
-        glyphBleedTop: "0px",
-        heroMinHeight: "auto",
-        heroPaddingTop: "0px",
-      };
-    case "compact-wide":
-      return {
-        glyphSize: 220,
-        glyphFrameSize: 104,
-        glyphBleedTop: "0px",
-        heroMinHeight: "auto",
-        heroPaddingTop: "0px",
-      };
-    case "bleed-small":
-      return {
-        glyphSize: 300,
-        glyphFrameSize: 300,
-        glyphBleedTop: "calc(-1 * var(--global-dimension-size-750))",
-        heroMinHeight: "123px",
-        heroPaddingTop: "var(--global-dimension-size-2500)",
-      };
-    case "bleed-large":
-      return {
-        glyphSize: 380,
-        glyphFrameSize: 380,
-        glyphBleedTop: "calc(-1 * var(--global-dimension-size-700))",
-        heroMinHeight: "123px",
-        heroPaddingTop: "var(--global-dimension-size-3600)",
-      };
-    case "roomy":
-      return {
-        glyphSize: 380,
-        glyphFrameSize: 380,
-        glyphBleedTop: "0px",
-        heroMinHeight: "auto",
-        heroPaddingTop: "0px",
-      };
-  }
+  return "stack-roomy";
 }
 
 const chatEmptyItemFadeUp = keyframes`
@@ -151,7 +152,6 @@ const chatEmptyStateCSS = css`
   flex-direction: column;
   align-items: center;
   gap: var(--global-dimension-size-200);
-  padding: 0;
   color: var(--global-text-color-300);
 
   @container (max-width: 479px) {
@@ -160,46 +160,30 @@ const chatEmptyStateCSS = css`
     }
   }
 
-  &.chat__empty--row-layout {
+  &.chat__empty--compact {  
+    .chat__empty-hero {
+      width: 450px;
+      flex-direction: row;
+      justify-content: space-evenly;
+      gap: var(--global-dimension-size-200);
+    }
+
+    .chat__empty-glyph {
+      --chat-empty-glyph-slot-size: 104px;
+    }
+
     @container (max-width: 479px) {
       .chat__empty-glyph {
         display: none;
       }
     }
+    
   }
 
-  .chat__empty-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-    box-sizing: border-box;
-    gap: var(--global-dimension-size-150);
-    min-height: var(--chat-empty-hero-min-height, auto);
-    padding-top: var(--chat-empty-hero-padding-top, 0px);
-    width: min(100%, 640px);
-  }
-
-  .chat__empty-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--chat-empty-copy-gap, var(--global-dimension-size-100));
-  }
-
-  .chat__empty-glyph {
-    width: var(--chat-empty-glyph-frame-size, var(--chat-empty-glyph-size, 320px));
-    height: var(--chat-empty-glyph-frame-size, var(--chat-empty-glyph-size, 320px));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: visible;
-  }
-
-  &.chat__empty--bleed {
+  &.chat__empty--layered {
     .chat__empty-glyph {
       position: absolute;
-      top: var(--chat-empty-glyph-bleed-top, 0px);
+      top: var(--chat-empty-glyph-top-offset, 0px);
       left: 50%;
       transform: translateX(-50%);
       pointer-events: none;
@@ -212,11 +196,38 @@ const chatEmptyStateCSS = css`
       z-index: 2;
     }
   }
+`;
+
+const chatEmptyHeroCSS = css`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  box-sizing: border-box;
+  gap: var(--global-dimension-size-150);
+  padding-top: var(--chat-empty-hero-padding-top);
+  width: min(100%, 640px);
+
+  .chat__empty-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    max-width: var(--global-dimensions-size-4000);
+  }
+
+  .chat__empty-glyph {
+    width: var(--chat-empty-glyph-slot-size, var(--chat-empty-glyph-size));
+    height: var(--chat-empty-glyph-slot-size, var(--chat-empty-glyph-size));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
 
   .chat__empty-title {
     margin: 0;
     font-size: var(--global-font-size-l);
-    font-weight: var(--px-font-weight-heavy, 600);
+    font-weight: var(--px-font-weight-heavy);
     color: var(--global-text-color-900);
     text-align: center;
     opacity: 0;
@@ -233,24 +244,30 @@ const chatEmptyStateCSS = css`
     animation: ${chatEmptyItemFadeUp} 500ms ease-out 300ms forwards;
   }
 
-  .chat__empty-actions {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: var(--chat-empty-actions-gap, var(--global-dimension-size-100));
-    margin-top: var(
-      --chat-empty-actions-margin-top,
-      var(--global-dimension-size-100)
-    );
+  @media (prefers-reduced-motion: reduce) {
+    .chat__empty-title,
+    .chat__empty-subtext {
+      opacity: 1;
+      animation: none;
+      transform: none;
+    }
   }
+`;
+
+const chatEmptyActionsCSS = css`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  margin-top: var(--global-dimension-size-100);
 
   .chat__empty-action {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-150);
     width: 100%;
-    padding: var(--chat-empty-action-padding-block, var(--global-dimension-size-150))
-      var(--chat-empty-action-padding-inline, var(--global-dimension-size-200));
+    padding: var(--global-dimension-size-150)
+      var(--global-dimension-size-200);
     background: transparent;
     border: 1px solid var(--global-border-color-default);
     border-radius: var(--global-rounding-medium);
@@ -260,7 +277,7 @@ const chatEmptyStateCSS = css`
     text-align: left;
     cursor: pointer;
     opacity: 0;
-    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay)
       forwards;
     transition:
       background-color 0.15s ease,
@@ -284,32 +301,10 @@ const chatEmptyStateCSS = css`
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .chat__empty-title,
-    .chat__empty-subtext,
     .chat__empty-action {
       opacity: 1;
       animation: none;
       transform: none;
-    }
-  }
-
-  @media (max-height: 720px) and (min-width: 720px) {
-    .chat__empty-hero {
-      width: 450px;
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-evenly;
-      gap: var(--global-dimension-size-200);
-    }
-
-    .chat__empty-copy {
-      max-width: 320px;
-    }
-  }
-
-  @media (max-height: 570px) {
-    .chat__empty-hero {
-      display: none;
     }
   }
 `;
@@ -324,16 +319,12 @@ export function ChatEmptyState({
   onQuickAction: (prompt: string) => void;
 }) {
   const { theme } = useTheme();
-  const emptyStateLayoutMode = useSyncExternalStore(
+  const heightStage = useSyncExternalStore(
     subscribeToViewportChange,
-    getEmptyStateLayoutMode,
-    () => DEFAULT_EMPTY_STATE_LAYOUT_MODE
+    getEmptyStateHeightStage,
+    () => DEFAULT_EMPTY_STATE_HEIGHT_STAGE
   );
-  const layoutVars = getEmptyStateLayoutVars(emptyStateLayoutMode);
-  const showsBleedingGlyph = ["bleed-small", "bleed-large"].includes(
-    emptyStateLayoutMode
-  );
-  const usesRowLayout = emptyStateLayoutMode === "compact-wide";
+  const stageConfig = EMPTY_STATE_STAGE_CONFIG[heightStage];
 
   return (
     <div
@@ -341,30 +332,30 @@ export function ChatEmptyState({
       css={chatEmptyStateCSS}
       className={[
         "chat__empty",
-        usesRowLayout ? "chat__empty--row-layout" : null,
-        showsBleedingGlyph ? "chat__empty--bleed" : null,
+        stageConfig.usesCompactLayout ? "chat__empty--compact" : null,
+        stageConfig.usesLayeredHero ? "chat__empty--layered" : null,
       ]
         .filter(Boolean)
         .join(" ")}
       style={{
-        "--chat-empty-glyph-size": `${layoutVars.glyphSize}px`,
-        "--chat-empty-glyph-frame-size": `${layoutVars.glyphFrameSize}px`,
-        "--chat-empty-glyph-bleed-top": layoutVars.glyphBleedTop,
-        "--chat-empty-hero-min-height": layoutVars.heroMinHeight,
-        "--chat-empty-hero-padding-top": layoutVars.heroPaddingTop,
+        "--chat-empty-glyph-size": `${stageConfig.glyphSize}px`,
+        "--chat-empty-glyph-top-offset": stageConfig.glyphTopOffset,
+        "--chat-empty-hero-padding-top": stageConfig.heroPaddingTop,
       } as CSSProperties}
     >
-      <div className="chat__empty-hero">
-        <div className="chat__empty-glyph">
-          <PxiShaderGlyph size={layoutVars.glyphSize} />
+      {stageConfig.showsHero ? (
+        <div css={chatEmptyHeroCSS} className="chat__empty-hero">
+          <div className="chat__empty-glyph">
+            <PxiShaderGlyph size={stageConfig.glyphSize} />
+          </div>
+          <div className="chat__empty-copy">
+            <h2 className="chat__empty-title">Meet PXI, your Phoenix assistant</h2>
+            <p className="chat__empty-subtext">{subtext}</p>
+          </div>
         </div>
-        <div className="chat__empty-copy">
-          <h2 className="chat__empty-title">Meet PXI, your Phoenix assistant</h2>
-          <p className="chat__empty-subtext">{subtext}</p>
-        </div>
-      </div>
+      ) : null}
       {quickActions.length > 0 && (
-        <div className="chat__empty-actions">
+        <div css={chatEmptyActionsCSS} className="chat__empty-actions">
           {quickActions.map((action, index) => (
             <button
               key={action.label}

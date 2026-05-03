@@ -58,6 +58,7 @@ export const mediumRootCSS = css`
     --global-dimension-size-3000: 240px;
     --global-dimension-size-3400: 272px;
     --global-dimension-size-3600: 288px;
+    --global-dimension-size-4000: 320px;
     --global-dimension-size-4600: 368px;
     --global-dimension-size-5000: 400px;
     --global-dimension-size-6000: 480px;
