@@ -624,3 +624,4 @@ Trace JSON structure:
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 [Report bugs](https://github.com/Arize-ai/phoenix/issues)
 - 𝕏 [@ArizePhoenix](https://twitter.com/ArizePhoenix)
+- 💼 [LinkedIn](https://www.linkedin.com/showcase/113218220)

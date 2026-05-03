@@ -112,6 +112,11 @@ html_theme_options = {
             "url": "https://x.com/ArizePhoenix",
             "icon": "fa-brands fa-x-twitter",
         },
+        {
+            "name": "LinkedIn",
+            "url": "https://www.linkedin.com/showcase/113218220",
+            "icon": "fa-brands fa-linkedin",
+        },
     ],
     "external_links": [
         {"name": "Phoenix Docs", "url": "https://arize.com/docs/phoenix"},
