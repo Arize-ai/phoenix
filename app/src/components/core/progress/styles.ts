@@ -91,6 +91,15 @@ export const progressCircleCSS = css`
       stroke-dashoffset: 0;
     }
   }
+
+  &[data-variant="inverted"] {
+    .progress-circle__background {
+      stroke: var(--global-color-gray-700);
+    }
+    .progress-circle__arc {
+      stroke: var(--global-color-gray-100);
+    }
+  }
 `;
 
 export const progressBarCSS = css`

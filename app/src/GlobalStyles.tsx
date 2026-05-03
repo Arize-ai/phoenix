@@ -1236,6 +1236,16 @@ const messageTokensCSS = (theme: Theme) => css`
   }
 `;
 
+const agentChatCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    // Opacity of the flanking gradient stops (15% and 85%)
+    --faded-divider-opacity: ${theme === "dark" ? "0.09" : "0.06"};
+    // Opacity of the center gradient stop (50%) — tune per theme to match border-color-default
+    --faded-divider-opacity-peak: ${theme === "dark" ? "0.14" : "0.09"};
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1256,7 +1266,8 @@ export const derivedCSS = (theme: Theme) =>
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
     promptInputCSS(theme),
-    messageTokensCSS(theme)
+    messageTokensCSS(theme),
+    agentChatCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

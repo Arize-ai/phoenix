@@ -63,7 +63,6 @@ function ToolPartStoryNote({
     </div>
   );
 }
-
 // ---------------------------------------------------------------------------
 // Mock data helpers
 // ---------------------------------------------------------------------------
@@ -462,6 +461,8 @@ const toolPartMeta = {
     ),
   ],
   parameters: {
+    contentMaxWidth: 780,
+    contentMode: "bounded",
     layout: "padded",
   },
 } satisfies Meta<typeof ToolPart>;

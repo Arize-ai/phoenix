@@ -14,8 +14,124 @@ export const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 export const THEME_MODE_CHANGE_EVENT = "phoenix:theme-mode-change";
 
 const darkModeQuery = "(prefers-color-scheme: dark)";
+const previewInset = "var(--global-dimension-size-500)";
+const defaultBoundedContentWidth = "780px";
+
+type StorySurfaceLayout = "centered" | "padded" | "fullscreen";
+type StoryContentMode = "intrinsic" | "bounded" | "fill" | "overflow";
+
 const getSystemTheme = (): ProviderTheme =>
   window.matchMedia(darkModeQuery).matches ? "dark" : "light";
+
+function getStorySurfaceLayout(layout: unknown): StorySurfaceLayout {
+  if (
+    layout === "centered" ||
+    layout === "padded" ||
+    layout === "fullscreen"
+  ) {
+    return layout;
+  }
+  return "padded";
+}
+
+function getStoryStageStyle(layout: StorySurfaceLayout): React.CSSProperties {
+  const baseStyle: React.CSSProperties = {
+    boxSizing: "border-box",
+    minHeight: "100%",
+    minWidth: 0,
+    width: "100%",
+  };
+
+  if (layout === "fullscreen") {
+    return baseStyle;
+  }
+
+  if (layout === "centered") {
+    return {
+      ...baseStyle,
+      alignItems: "center",
+      display: "flex",
+      justifyContent: "center",
+      padding: previewInset,
+    };
+  }
+
+  return {
+    ...baseStyle,
+    padding: previewInset,
+  };
+}
+
+function getStoryContentMode(
+  contentMode: unknown,
+  layout: StorySurfaceLayout
+): StoryContentMode {
+  if (
+    contentMode === "intrinsic" ||
+    contentMode === "bounded" ||
+    contentMode === "fill" ||
+    contentMode === "overflow"
+  ) {
+    return contentMode;
+  }
+
+  if (layout === "centered") {
+    return "intrinsic";
+  }
+
+  return "fill";
+}
+
+function getContentMaxWidth(contentMaxWidth: unknown): string | undefined {
+  if (typeof contentMaxWidth === "number") {
+    return `${contentMaxWidth}px`;
+  }
+
+  if (typeof contentMaxWidth === "string") {
+    return contentMaxWidth;
+  }
+
+  return undefined;
+}
+
+function getStoryContentStyle(
+  contentMode: StoryContentMode,
+  contentMaxWidth?: string
+): React.CSSProperties {
+  const baseStyle: React.CSSProperties = {
+    boxSizing: "border-box",
+    minWidth: 0,
+  };
+
+  if (contentMode === "intrinsic") {
+    return {
+      ...baseStyle,
+      display: "inline-block",
+      maxWidth: "100%",
+    };
+  }
+
+  if (contentMode === "bounded") {
+    return {
+      ...baseStyle,
+      marginInline: "auto",
+      maxWidth: contentMaxWidth ?? defaultBoundedContentWidth,
+      width: "100%",
+    };
+  }
+
+  if (contentMode === "overflow") {
+    return {
+      ...baseStyle,
+      minWidth: "max-content",
+    };
+  }
+
+  return {
+    ...baseStyle,
+    width: "100%",
+  };
+}
 
 /**
  * Hook that tracks the OS/browser color scheme preference.
@@ -93,11 +209,15 @@ function ThemedDocsContainer(props: DocsContainerProps) {
 function ThemedStory({
   children,
   theme,
-  padding,
+  layout,
+  contentMode,
+  contentMaxWidth,
 }: {
   children: React.ReactNode;
   theme: ProviderTheme;
-  padding?: string;
+  layout: StorySurfaceLayout;
+  contentMode: StoryContentMode;
+  contentMaxWidth?: string;
 }) {
   return (
     <ThemeProvider themeMode={theme} disableBodyTheme>
@@ -106,13 +226,26 @@ function ThemedStory({
           <GlobalStyles />
           <div
             className={`theme theme--${theme}`}
-            data-testid="story-background"
+            data-testid="story-surface"
             style={{
               backgroundColor: "var(--global-background-color-default)",
-              padding: padding ?? "0",
+              boxSizing: "border-box",
+              display: "flex",
+              flex: 1,
+              minHeight: "100%",
+              minWidth: 0,
+              overflow: "auto",
+              width: "100%",
             }}
           >
-            {children}
+            <div data-testid="story-stage" style={getStoryStageStyle(layout)}>
+              <div
+                data-testid="story-content"
+                style={getStoryContentStyle(contentMode, contentMaxWidth)}
+              >
+                {children}
+              </div>
+            </div>
           </div>
         </MemoryRouter>
       </PreferencesProvider>
@@ -201,37 +334,60 @@ const preview: Preview = {
     theme: "auto",
   },
   decorators: [
-    (Story, { globals }) => {
+    (Story, { globals, parameters }) => {
       const themeMode = globals.theme ?? "auto";
       const resolvedThemes = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
-      const padding = isBoth ? "var(--global-dimension-size-500)" : "0";
+      const layout = getStorySurfaceLayout(parameters.layout);
+      const contentMode = getStoryContentMode(parameters.contentMode, layout);
+      const contentMaxWidth = getContentMaxWidth(parameters.contentMaxWidth);
+      const themeLayout = parameters.themeLayout ?? "row";
 
       if (!isBoth) {
         return (
-          <ThemedStory theme={resolvedThemes[0]} padding={padding}>
-            <Story />
-          </ThemedStory>
+          <div
+            data-phoenix-story-root="true"
+            style={{ display: "flex", minHeight: "100%", width: "100%" }}
+          >
+            <ThemedStory
+              theme={resolvedThemes[0]}
+              layout={layout}
+              contentMode={contentMode}
+              contentMaxWidth={contentMaxWidth}
+            >
+              <Story />
+            </ThemedStory>
+          </div>
         );
       }
 
       return (
-        <ul
+        <div
+          data-phoenix-story-root="true"
           style={{
             display: "flex",
-            flexDirection: "row",
-            width: "100%",
+            flexDirection: themeLayout,
             height: "100%",
+            minHeight: "100%",
+            width: "100%",
           }}
         >
           {resolvedThemes.map((theme) => (
-            <li key={theme} style={{ flex: 1 }}>
-              <ThemedStory theme={theme} padding={padding}>
+            <div
+              key={theme}
+              style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}
+            >
+              <ThemedStory
+                theme={theme}
+                layout={layout}
+                contentMode={contentMode}
+                contentMaxWidth={contentMaxWidth}
+              >
                 <Story />
               </ThemedStory>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       );
     },
   ],

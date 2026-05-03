@@ -82,6 +82,7 @@ export const Banner: Story = {
     banner: true,
   },
   parameters: {
+    contentMode: "fill",
     layout: "fullscreen",
   },
 };

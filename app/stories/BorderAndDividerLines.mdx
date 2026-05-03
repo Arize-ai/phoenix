@@ -1,0 +1,34 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as BorderStories from "./BorderAndDividerLines.stories.tsx";
+
+<Meta of={BorderStories} />
+
+# Lines: border, divider, rule
+
+"Border" is a visual property. "Divider" is a function.
+
+## Dividers
+
+Inset lines that fade to 0% opacity towards the edge.
+
+> Docs mode omits `Full Viewport` stories, which stretch to 100% VW/VH,
+> and are useful for testing behavior at the extremes.
+
+### Usage
+
+Use these to create visual hierarchy between elements. These dividers create
+the impression that items on either side are contained by a surrounding parent,
+rather than two distinct zones.
+
+### Technical details
+
+`fadedDivider*CSS` are Emotion CSS utilities that render a fading 1px gradient
+line on a given edge of an element via `::after`. Four variants:
+`fadedDividerTopCSS`, `fadedDividerBottomCSS`, `fadedDividerLeftCSS`,
+`fadedDividerRightCSS`.
+
+Theme-aware: Tune with `--faded-divider-opacity` and `--faded-divider-opacity-peak`.
+
+### Example
+
+<Canvas of={BorderStories.BasicExample} />
