@@ -118,6 +118,7 @@ async def test_experiments_api(
     assert json.loads(row.pop("input")) == {"in": "foo"}
     assert json.loads(row.pop("reference_output")) == {"out": "bar"}
     assert row.pop("output") == "some LLM application output"
+    assert json.loads(row.pop("metadata")) == {"info": "the first reivision"}
     assert row.pop("error") == "an error message, if applicable"
     assert isinstance(row.pop("latency_ms"), float)
     assert isinstance(row.pop("start_time"), str)
@@ -192,6 +193,7 @@ async def test_experiments_api(
     assert json.loads(row.pop("input")) == {"in": "foo"}
     assert json.loads(row.pop("reference_output")) == {"out": "bar"}
     assert row.pop("output") == "some LLM application output"
+    assert json.loads(row.pop("metadata")) == {"info": "the first reivision"}
     assert row.pop("error") == "an error message, if applicable"
     assert isinstance(row.pop("latency_ms"), float)
     assert isinstance(row.pop("start_time"), str)
