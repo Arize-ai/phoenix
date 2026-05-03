@@ -4,7 +4,6 @@ import {
   type CSSProperties,
   type ReactNode,
   useRef,
-  useMemo,
   type PropsWithChildren,
   useState,
   useSyncExternalStore,
@@ -69,7 +68,14 @@ const DEFAULT_EMPTY_STATE_QUICK_ACTIONS: EmptyStateQuickAction[] = [
   },
 ];
 
-const DEFAULT_VIEWPORT_SNAPSHOT = "1024x900";
+type EmptyStateLayoutMode =
+  | "compact-narrow"
+  | "compact-wide"
+  | "bleed-small"
+  | "bleed-large"
+  | "roomy";
+
+const DEFAULT_EMPTY_STATE_LAYOUT_MODE: EmptyStateLayoutMode = "bleed-large";
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
 function subscribeToViewportChange(onStoreChange: () => void) {
@@ -82,118 +88,74 @@ function subscribeToViewportChange(onStoreChange: () => void) {
   };
 }
 
-function getViewportSnapshot() {
+function getEmptyStateLayoutMode(): EmptyStateLayoutMode {
   if (typeof window === "undefined") {
-    return DEFAULT_VIEWPORT_SNAPSHOT;
+    return DEFAULT_EMPTY_STATE_LAYOUT_MODE;
   }
-  return `${window.innerWidth}x${window.innerHeight}`;
+
+  if (window.innerHeight <= 720) {
+    return window.innerWidth >= 720 ? "compact-wide" : "compact-narrow";
+  }
+
+  if (window.innerHeight <= 840) {
+    return "bleed-small";
+  }
+
+  if (window.innerHeight <= 960) {
+    return "bleed-large";
+  }
+
+  return "roomy";
 }
 
-function getPreferredEmptyStateGlyph(viewportSnapshot: string) {
-  const [, rawHeight] = viewportSnapshot.split("x");
-  const viewportHeight = Number(rawHeight) || 900;
-
-  let preferredGlyphSize = 380;
-  let glyphShaderScale = 1;
-
-  if (viewportHeight <= 720) {
-    preferredGlyphSize = 220;
-    glyphShaderScale = 1;
-  } else if (viewportHeight <= 840) {
-    preferredGlyphSize = 300;
-    glyphShaderScale = 1;
-  } else if (viewportHeight <= 960) {
-    preferredGlyphSize = 380;
-    glyphShaderScale = 1;
+function getEmptyStateLayoutVars(layoutMode: EmptyStateLayoutMode) {
+  switch (layoutMode) {
+    case "compact-narrow":
+      return {
+        isSmallestBreakpoint: true,
+        glyphSize: 220,
+        glyphFrameSize: 88,
+        glyphBleedTop: "0px",
+        heroMinHeight: "auto",
+        heroPaddingTop: "0px",
+      };
+    case "compact-wide":
+      return {
+        isSmallestBreakpoint: true,
+        glyphSize: 220,
+        glyphFrameSize: 104,
+        glyphBleedTop: "0px",
+        heroMinHeight: "auto",
+        heroPaddingTop: "0px",
+      };
+    case "bleed-small":
+      return {
+        isSmallestBreakpoint: false,
+        glyphSize: 300,
+        glyphFrameSize: 300,
+        glyphBleedTop: "calc(-1 * var(--global-dimension-size-750))",
+        heroMinHeight: "123px",
+        heroPaddingTop: "var(--global-dimension-size-2500)",
+      };
+    case "bleed-large":
+      return {
+        isSmallestBreakpoint: false,
+        glyphSize: 380,
+        glyphFrameSize: 380,
+        glyphBleedTop: "calc(-1 * var(--global-dimension-size-700))",
+        heroMinHeight: "123px",
+        heroPaddingTop: "var(--global-dimension-size-3600)",
+      };
+    case "roomy":
+      return {
+        isSmallestBreakpoint: false,
+        glyphSize: 380,
+        glyphFrameSize: 380,
+        glyphBleedTop: "0px",
+        heroMinHeight: "auto",
+        heroPaddingTop: "0px",
+      };
   }
-
-  return {
-    preferredGlyphSize,
-    glyphShaderScale,
-  };
-}
-
-function getEmptyStateLayoutVars(viewportSnapshot: string) {
-  const [rawWidth, rawHeight] = viewportSnapshot.split("x");
-  const viewportWidth = Number(rawWidth) || 1024;
-  const viewportHeight = Number(rawHeight) || 900;
-  const { preferredGlyphSize, glyphShaderScale } =
-    getPreferredEmptyStateGlyph(viewportSnapshot);
-
-  if (viewportHeight <= 720) {
-    const glyphFrameSize = viewportWidth >= 720 ? 104 : 88;
-    return {
-      isSmallestBreakpoint: true,
-      glyphSize: preferredGlyphSize,
-      glyphFrameSize,
-      glyphShaderScale,
-      glyphBleedsBehindChrome: false,
-      glyphBleedTop: "0px",
-      rootGap: "var(--global-dimension-size-200)",
-      paddingInline: 0,
-      heroGap: "var(--global-dimension-size-75)",
-      heroMinHeight: "auto",
-      heroPaddingTop: "0px",
-      copyGap: "var(--global-dimension-size-75)",
-      actionsGap: "var(--global-dimension-size-75)",
-      actionsMarginTop: "0px",
-    };
-  }
-
-  if (viewportHeight <= 840) {
-    return {
-      isSmallestBreakpoint: false,
-      glyphSize: preferredGlyphSize,
-      glyphFrameSize: preferredGlyphSize,
-      glyphShaderScale,
-      glyphBleedsBehindChrome: true,
-      glyphBleedTop: "calc(-1 * var(--global-dimension-size-750))",
-      rootGap: "var(--global-dimension-size-200)",
-      paddingInline: 0,
-      heroGap: "var(--global-dimension-size-100)",
-      heroMinHeight: "123px",
-      heroPaddingTop: "var(--global-dimension-size-2500)",
-      copyGap: "var(--global-dimension-size-75)",
-      actionsGap: "var(--global-dimension-size-75)",
-      actionsMarginTop: "0px",
-    };
-  }
-
-  if (viewportHeight <= 960) {
-    return {
-      isSmallestBreakpoint: false,
-      glyphSize: preferredGlyphSize,
-      glyphFrameSize: preferredGlyphSize,
-      glyphShaderScale,
-      glyphBleedsBehindChrome: true,
-      glyphBleedTop: "calc(-1 * var(--global-dimension-size-700))",
-      rootGap: "var(--global-dimension-size-200)",
-      paddingInline: 0,
-      heroGap: "var(--global-dimension-size-150)",
-      heroMinHeight: "123px",
-      heroPaddingTop: "var(--global-dimension-size-3600)",
-      copyGap: "var(--global-dimension-size-100)",
-      actionsGap: "var(--global-dimension-size-100)",
-      actionsMarginTop: "var(--global-dimension-size-100)",
-    };
-  }
-
-  return {
-    isSmallestBreakpoint: false,
-    glyphSize: preferredGlyphSize,
-    glyphFrameSize: preferredGlyphSize,
-    glyphShaderScale,
-    glyphBleedsBehindChrome: false,
-    glyphBleedTop: "0px",
-    rootGap: "var(--global-dimension-size-200)",
-    paddingInline: 0,
-    heroGap: "var(--global-dimension-size-150)",
-    heroMinHeight: "auto",
-    heroPaddingTop: "0px",
-    copyGap: "var(--global-dimension-size-100)",
-    actionsGap: "var(--global-dimension-size-100)",
-    actionsMarginTop: "var(--global-dimension-size-100)",
-  };
 }
 
 const chatLanternBeforeRight = keyframes`
@@ -440,8 +402,8 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--chat-empty-gap, var(--global-dimension-size-200));
-    padding: 0 var(--chat-empty-padding-inline, var(--global-dimension-size-200));
+    gap: var(--global-dimension-size-200);
+    padding: 0;
     color: var(--global-text-color-300);
   }
 
@@ -451,7 +413,7 @@ const chatCSS = css`
     align-items: center;
     position: relative;
     box-sizing: border-box;
-    gap: var(--chat-empty-hero-gap, var(--global-dimension-size-150));
+    gap: var(--global-dimension-size-150);
     min-height: var(--chat-empty-hero-min-height, auto);
     padding-top: var(--chat-empty-hero-padding-top, 0px);
     width: min(100%, 640px);
@@ -788,19 +750,20 @@ export function ChatView({
     (state) => state.observability.hasAcknowledgedConsent
   );
   const { theme } = useTheme();
-  const themedLanternCSS = useMemo(() => getLanternCSS(theme), [theme]);
-  const viewportSnapshot = useSyncExternalStore(
+  const themedLanternCSS = getLanternCSS(theme);
+  const emptyStateLayoutMode = useSyncExternalStore(
     subscribeToViewportChange,
-    getViewportSnapshot,
-    () => DEFAULT_VIEWPORT_SNAPSHOT
+    getEmptyStateLayoutMode,
+    () => DEFAULT_EMPTY_STATE_LAYOUT_MODE
   );
-  const emptyStateLayoutVars = getEmptyStateLayoutVars(viewportSnapshot);
+  const emptyStateLayoutVars = getEmptyStateLayoutVars(emptyStateLayoutMode);
   const showsEmptyState = messages.length === 0;
+  const showsBleedingGlyph =
+    emptyStateLayoutMode === "bleed-small" ||
+    emptyStateLayoutMode === "bleed-large";
   const chatClassName = [
     showsEmptyState ? "chat--empty" : null,
-    showsEmptyState && emptyStateLayoutVars.glyphBleedsBehindChrome
-      ? "chat--empty-bleed"
-      : null,
+    showsEmptyState ? "chat--empty-bleed" : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -829,6 +792,7 @@ export function ChatView({
                 quickActions={emptyStateQuickActions}
                 onQuickAction={handleQuickAction}
                 layoutVars={emptyStateLayoutVars}
+                showsBleedingGlyph={showsBleedingGlyph}
               />
             )}
             {messages.map((message, index) => {
@@ -918,17 +882,19 @@ function EmptyState({
   quickActions,
   onQuickAction,
   layoutVars,
+  showsBleedingGlyph,
 }: {
   subtext: ReactNode;
   quickActions: EmptyStateQuickAction[];
   onQuickAction: (prompt: string) => void;
   layoutVars: ReturnType<typeof getEmptyStateLayoutVars>;
+  showsBleedingGlyph: boolean;
 }) {
   return (
     <div
       className={[
         "chat__empty",
-        layoutVars.glyphBleedsBehindChrome ? "chat__empty--bleed" : null,
+        showsBleedingGlyph ? "chat__empty--bleed" : null,
         layoutVars.isSmallestBreakpoint ? "chat__empty--smallest" : null,
       ]
         .filter(Boolean)
@@ -937,22 +903,13 @@ function EmptyState({
         "--chat-empty-glyph-size": `${layoutVars.glyphSize}px`,
         "--chat-empty-glyph-frame-size": `${layoutVars.glyphFrameSize}px`,
         "--chat-empty-glyph-bleed-top": layoutVars.glyphBleedTop,
-        "--chat-empty-gap": layoutVars.rootGap,
-        "--chat-empty-padding-inline": layoutVars.paddingInline,
-        "--chat-empty-hero-gap": layoutVars.heroGap,
         "--chat-empty-hero-min-height": layoutVars.heroMinHeight,
         "--chat-empty-hero-padding-top": layoutVars.heroPaddingTop,
-        "--chat-empty-copy-gap": layoutVars.copyGap,
-        "--chat-empty-actions-gap": layoutVars.actionsGap,
-        "--chat-empty-actions-margin-top": layoutVars.actionsMarginTop,
       } as CSSProperties}
     >
       <div className="chat__empty-hero">
         <div className="chat__empty-glyph">
-          <PxiShaderGlyph
-            size={layoutVars.glyphSize}
-            scale={layoutVars.glyphShaderScale}
-          />
+          <PxiShaderGlyph size={layoutVars.glyphSize} />
         </div>
         <div className="chat__empty-copy">
           <h2 className="chat__empty-title">Meet PXI, your Phoenix assistant</h2>
