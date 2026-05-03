@@ -21,7 +21,9 @@ const THEME_SWAP_FADE_MS = 800;
 
 export function PxiShaderGlyph(props: PxiShaderGlyphProps) {
   const { theme } = useTheme();
-  const [revealedTheme, setRevealedTheme] = useState<ProviderTheme | null>(null);
+  const [revealedTheme, setRevealedTheme] = useState<ProviderTheme | null>(
+    null
+  );
   const [isHiddenForPageTransition, setIsHiddenForPageTransition] =
     useState(false);
   const isVisible = revealedTheme === theme;

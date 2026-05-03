@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
-import { Icon, Icons } from "@phoenix/components";
 import type { CSSProperties, ReactNode } from "react";
+
+import { Icon, Icons } from "@phoenix/components";
 
 import { ChatEmptyShaderHero } from "./ChatEmptyShaderHero";
 

@@ -83,8 +83,8 @@ const glyphCSS = css`
   @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
     position: static;
     transform: none;
-    width: ${COMPACT_GLYPH_SIZE/2}px;
-    height: ${COMPACT_GLYPH_SIZE/2}px;
+    width: ${COMPACT_GLYPH_SIZE / 2}px;
+    height: ${COMPACT_GLYPH_SIZE / 2}px;
   }
 
   @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {

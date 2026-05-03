@@ -198,17 +198,15 @@ function getLanternThemeCSS(theme: ProviderTheme) {
   `;
 }
 
-export function ChatLantern({
-  isVisible,
-}: {
-  isVisible: boolean;
-}) {
+export function ChatLantern({ isVisible }: { isVisible: boolean }) {
   const { theme } = useTheme();
 
   return (
     <div
       css={[chatLanternCSS, getLanternThemeCSS(theme)]}
-      className={isVisible ? "chat-lantern chat-lantern--visible" : "chat-lantern"}
+      className={
+        isVisible ? "chat-lantern chat-lantern--visible" : "chat-lantern"
+      }
       aria-hidden="true"
     />
   );

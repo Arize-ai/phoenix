@@ -32,12 +32,9 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import {
-  ChatEmptyState,
-  type EmptyStateQuickAction,
-} from "./ChatEmptyState";
-import { ChatLantern } from "./ChatLantern";
 import { AgentModelMenu } from "./AgentModelMenu";
+import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
+import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import { useAgentChat } from "./useAgentChat";
 
@@ -280,9 +277,11 @@ export function ChatView({
     <div
       css={chatCSS}
       className={chatClassName}
-      style={{
-        "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
-      } as CSSProperties}
+      style={
+        {
+          "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
+        } as CSSProperties
+      }
     >
       <ChatLantern isVisible={showsEmptyState} />
       <div className="chat__scroll-frame">

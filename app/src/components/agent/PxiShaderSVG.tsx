@@ -24,11 +24,7 @@ export function getPxiShaderSVGDataUrl(color: string) {
   return `data:image/svg+xml,${encodeURIComponent(svgMarkup)}`;
 }
 
-export function PxiShaderSVG({
-  size,
-}: {
-  size?: number | string;
-}) {
+export function PxiShaderSVG({ size }: { size?: number | string }) {
   return (
     <svg
       width={size}

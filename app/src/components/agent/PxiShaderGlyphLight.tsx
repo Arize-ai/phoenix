@@ -116,10 +116,7 @@ export function PxiShaderGlyphLight({
           style={{ width: size, height: size }}
         />
       </div>
-      <div
-        css={[layerCSS, centeredLayerCSS]}
-        style={SVG_LIGHTEN_STYLE}
-      >
+      <div css={[layerCSS, centeredLayerCSS]} style={SVG_LIGHTEN_STYLE}>
         <PxiShaderSVG size={svgSize} />
       </div>
       <LiquidMetal
