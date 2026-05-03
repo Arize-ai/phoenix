@@ -185,6 +185,50 @@ export function getDisplaySandboxConfig(config: unknown): unknown {
   return result;
 }
 
+/**
+ * Splits the user-edited "one package per line" textarea into a normalized
+ * list of package specifiers.
+ */
+export function getDependencyPackages(packagesText: string): string[] {
+  return packagesText
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Produces a one-line install-command preview for the dependency textarea.
+ * Returns null when there is nothing to display (no language advertised, no
+ * packages typed) so the caller can hide the preview entirely.
+ */
+export function getDependencyPreview({
+  packagesText,
+  dependenciesLanguage,
+  backendType,
+}: {
+  packagesText: string;
+  dependenciesLanguage: BackendInfo["dependenciesLanguage"] | undefined | null;
+  backendType: BackendInfo["backendType"] | undefined;
+}): string | null {
+  if (dependenciesLanguage == null) {
+    return null;
+  }
+  const packages = getDependencyPackages(packagesText);
+  if (packages.length === 0) {
+    return null;
+  }
+  if (dependenciesLanguage === "TYPESCRIPT") {
+    return "preview unavailable for typescript";
+  }
+  // Python branch: shape the preview after the install path the backend uses.
+  const joined = packages.join(" ");
+  if (backendType === "MODAL") {
+    const args = packages.map((p) => `"${p}"`).join(", ");
+    return `image.pip_install(${args})`;
+  }
+  return `pip install ${joined}`;
+}
+
 export function summarizeConfig(config: unknown) {
   if (!isPlainObject(config) || Object.keys(config).length === 0) {
     return "No custom settings";
@@ -226,10 +270,7 @@ export function formValuesToConfigPatch(
   }
 
   if (backend?.dependenciesLanguage != null) {
-    const packages = values.dependenciesText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const packages = getDependencyPackages(values.dependenciesText);
     if (packages.length > 0) {
       const dep: Record<string, unknown> = { packages };
       if (values.dependenciesLockfile != null) {

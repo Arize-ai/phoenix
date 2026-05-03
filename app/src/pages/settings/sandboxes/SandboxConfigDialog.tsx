@@ -60,6 +60,7 @@ import type {
 import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
 import {
   formValuesToConfigPatch,
+  getDependencyPreview,
   LanguageWithIcon,
   shouldShowLocalDenoTrustWarning,
 } from "./utils";
@@ -554,25 +555,39 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
               <Controller
                 name="dependenciesText"
                 control={form.control}
-                render={({ field }) => (
-                  <TextField {...field}>
-                    <Label>
-                      {activeBackend.dependenciesLanguage === "PYTHON"
-                        ? "Python Packages"
-                        : "npm Packages"}
-                    </Label>
-                    <TextArea
-                      placeholder={
-                        activeBackend.dependenciesLanguage === "PYTHON"
-                          ? "requests\nnumpy==1.26.0"
-                          : "@types/node\nlodash"
-                      }
-                    />
-                    <Text slot="description" size="S" color="text-700">
-                      One package per line. Installed before code execution.
-                    </Text>
-                  </TextField>
-                )}
+                render={({ field }) => {
+                  const preview = getDependencyPreview({
+                    packagesText: field.value,
+                    dependenciesLanguage: activeBackend.dependenciesLanguage,
+                    backendType: activeBackend.backendType,
+                  });
+                  return (
+                    <Flex direction="column" gap="size-50">
+                      <TextField {...field}>
+                        <Label>
+                          {activeBackend.dependenciesLanguage === "PYTHON"
+                            ? "Python Packages"
+                            : "npm Packages"}
+                        </Label>
+                        <TextArea
+                          placeholder={
+                            activeBackend.dependenciesLanguage === "PYTHON"
+                              ? "requests\nnumpy==1.26.0"
+                              : "@types/node\nlodash"
+                          }
+                        />
+                        <Text slot="description" size="S" color="text-700">
+                          One package per line. Installed before code execution.
+                        </Text>
+                      </TextField>
+                      {preview ? (
+                        <Text size="S" color="text-700">
+                          Preview: <code>{preview}</code>
+                        </Text>
+                      ) : null}
+                    </Flex>
+                  );
+                }}
               />
             ) : activeBackend != null ? (
               <Flex direction="column" gap="size-100">
