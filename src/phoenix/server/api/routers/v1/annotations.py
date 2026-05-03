@@ -778,21 +778,35 @@ _DELETE_FILTER_DESCRIPTIONS: dict[str, str] = {
         "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted "
         "as UTC."
     ),
+    "delete_all": (
+        "Opt-in flag that authorizes the request without a bounded "
+        "`[created_after, created_before)` time window. When `false` (default) or absent, the "
+        "request must supply both `created_after` AND `created_before` to bound the delete. "
+        "When `true`, the time-range bound is waived and any other filters (`name`, "
+        "`identifier`, `annotator_kind`) still narrow the delete within the project — e.g. "
+        "`delete_all=true&name=X` deletes all annotations named X regardless of time."
+    ),
 }
 
 _DELETE_DESCRIPTION_TEMPLATE = """
 Hard-delete {kind} annotations within the named project that match the
 supplied filter.
 
-- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,
-  or `created_before` must be supplied. Requests with no filter are
-  rejected with 422 — the v1 API does not support a "delete all" path.
+- The request must either supply both `created_after` AND `created_before`
+  to bound the delete to a `[created_after, created_before)` time window,
+  OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+  that satisfies neither is rejected with 422.
+- `name`, `identifier`, and `annotator_kind` are optional narrowing
+  filters; on their own they do NOT authorize the request — they only
+  narrow within an already-authorized request (bounded time range or
+  `delete_all=true`).
 - All supplied filters are combined with AND. `name` and `identifier`,
   when present, must be non-empty.
 - `created_after` is inclusive (`>=`); `created_before` is exclusive
   (`<`). When both are supplied, `created_after` must be strictly earlier
-  than `created_before` (else 422). Naive datetimes are interpreted as
-  UTC.
+  than `created_before` (else 422). A half-bounded range (only one of
+  the two) does NOT satisfy the gate and is rejected unless
+  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
 - The endpoint is idempotent: a request that matches no rows still
   returns 204.
 - When authentication is enabled, non-admin callers can only delete rows
@@ -803,28 +817,29 @@ supplied filter.
 
 def _validate_delete_filters(
     *,
-    name: Optional[str],
-    identifier: Optional[str],
-    annotator_kind: Optional[str],
     created_after: Optional[datetime],
     created_before: Optional[datetime],
+    delete_all: bool,
 ) -> tuple[Optional[datetime], Optional[datetime]]:
-    """Enforce the ≥1-filter rule and the `created_after < created_before`
-    invariant. Normalize tz-naive datetimes to UTC for SQL comparison.
-    Returns the normalized (created_after, created_before) pair.
+    """Enforce the delete-bound gate (`(created_after AND created_before) OR
+    delete_all=True`) and the `created_after < created_before` invariant.
+    Normalize tz-naive datetimes to UTC for SQL comparison. Returns the
+    normalized (created_after, created_before) pair.
+
+    The gate subsumes the prior ≥1-filter rule: other filters (`name`,
+    `identifier`, `annotator_kind`) only narrow within an already-authorized
+    request — they do not unlock the gate, so they are not validator inputs.
+    Their non-empty rules are enforced by `Query(min_length=1)` on the
+    handler signatures. A half-bounded time range fails the gate unless
+    `delete_all=True` is also set.
     """
-    if (
-        name is None
-        and identifier is None
-        and annotator_kind is None
-        and created_after is None
-        and created_before is None
-    ):
+    fully_bounded = created_after is not None and created_before is not None
+    if not delete_all and not fully_bounded:
         raise HTTPException(
             status_code=422,
             detail=(
-                "At least one of `name`, `identifier`, `annotator_kind`, "
-                "`created_after`, or `created_before` must be supplied."
+                "Delete is unbounded. Set delete_all=true to acknowledge, or "
+                "supply both created_after and created_before to bound the time range."
             ),
         )
     normalized_after = normalize_datetime(created_after, timezone.utc)
@@ -916,13 +931,15 @@ async def delete_span_annotations(
         Optional[datetime],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
     ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
 ) -> None:
     created_after, created_before = _validate_delete_filters(
-        name=name,
-        identifier=identifier,
-        annotator_kind=annotator_kind,
         created_after=created_after,
         created_before=created_before,
+        delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:
@@ -1001,13 +1018,15 @@ async def delete_trace_annotations(
         Optional[datetime],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
     ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
 ) -> None:
     created_after, created_before = _validate_delete_filters(
-        name=name,
-        identifier=identifier,
-        annotator_kind=annotator_kind,
         created_after=created_after,
         created_before=created_before,
+        delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:
@@ -1084,13 +1103,15 @@ async def delete_session_annotations(
         Optional[datetime],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
     ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
 ) -> None:
     created_after, created_before = _validate_delete_filters(
-        name=name,
-        identifier=identifier,
-        annotator_kind=annotator_kind,
         created_after=created_after,
         created_before=created_before,
+        delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
     async with request.app.state.db() as session:

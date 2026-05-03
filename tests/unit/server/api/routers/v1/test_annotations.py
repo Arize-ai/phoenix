@@ -808,6 +808,8 @@ async def test_delete_span_annotations_happy_path(
 ) -> None:
     """204 + matching row in project-A removed + project-B's matching row
     preserved + non-regex identifier accepted (project-scoped hard delete).
+    Uses `delete_all=true` to authorize the non-time-bounded `name`/`identifier`
+    delete under the new gate.
     """
     name = two_projects_with_annotations["name"]
     identifier = two_projects_with_annotations["identifier"]
@@ -815,7 +817,7 @@ async def test_delete_span_annotations_happy_path(
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/span_annotations",
-        params={"name": name, "identifier": identifier},
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
     )
     assert response.status_code == 204
 
@@ -834,7 +836,7 @@ async def test_delete_trace_annotations_happy_path(
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/trace_annotations",
-        params={"name": name, "identifier": identifier},
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
     )
     assert response.status_code == 204
 
@@ -853,7 +855,7 @@ async def test_delete_session_annotations_happy_path(
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/session_annotations",
-        params={"name": name, "identifier": identifier},
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
     )
     assert response.status_code == 204
 
@@ -872,14 +874,14 @@ async def test_delete_annotations_idempotent_204(
     first = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/span_annotations",
-        params={"name": name, "identifier": identifier},
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
     )
     assert first.status_code == 204
 
     second = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/span_annotations",
-        params={"name": name, "identifier": identifier},
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
     )
     assert second.status_code == 204
 
@@ -890,24 +892,39 @@ async def test_delete_annotations_unknown_project_404(
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/does-not-exist/span_annotations",
-        params={"name": "anything", "identifier": "anything"},
+        params={"name": "anything", "identifier": "anything", "delete_all": "true"},
     )
     assert response.status_code == 404
 
 
+_GATE_FAILURE_DETAIL = (
+    "Delete is unbounded. Set delete_all=true to acknowledge, or "
+    "supply both created_after and created_before to bound the time range."
+)
+
+
 @pytest.mark.parametrize(
-    "params",
+    "params, expect_gate_message",
     [
-        pytest.param({}, id="no-filter-rejected"),
-        pytest.param({"name": ""}, id="empty-name-rejected"),
-        pytest.param({"identifier": ""}, id="empty-identifier-rejected"),
-        pytest.param({"annotator_kind": "ROBOT"}, id="unknown-annotator-kind-rejected"),
-        pytest.param({"created_after": "not-a-date"}, id="malformed-datetime-rejected"),
+        pytest.param({}, True, id="no-filter-rejected"),
+        pytest.param({"name": ""}, False, id="empty-name-rejected"),
+        pytest.param({"identifier": ""}, False, id="empty-identifier-rejected"),
+        pytest.param(
+            {"annotator_kind": "ROBOT"},
+            False,
+            id="unknown-annotator-kind-rejected",
+        ),
+        pytest.param(
+            {"created_after": "not-a-date"},
+            False,
+            id="malformed-datetime-rejected",
+        ),
         pytest.param(
             {
                 "created_after": "2024-01-02T00:00:00+00:00",
                 "created_before": "2024-01-01T00:00:00+00:00",
             },
+            False,
             id="created-after-not-strictly-earlier-than-before",
         ),
         pytest.param(
@@ -915,20 +932,59 @@ async def test_delete_annotations_unknown_project_404(
                 "created_after": "2024-01-01T00:00:00+00:00",
                 "created_before": "2024-01-01T00:00:00+00:00",
             },
+            False,
             id="created-after-equal-to-before",
+        ),
+        # New gate cases: non-time filters and half-bounded ranges no longer
+        # authorize the request without `delete_all=true`.
+        pytest.param({"name": "anything"}, True, id="name-alone-fails-gate"),
+        pytest.param(
+            {"identifier": "anything"},
+            True,
+            id="identifier-alone-fails-gate",
+        ),
+        pytest.param(
+            {"annotator_kind": "LLM"},
+            True,
+            id="annotator-kind-alone-fails-gate",
+        ),
+        pytest.param(
+            {"created_after": "2024-01-01T00:00:00+00:00"},
+            True,
+            id="half-bounded-created-after-only-fails-gate",
+        ),
+        pytest.param(
+            {"created_before": "2024-01-02T00:00:00+00:00"},
+            True,
+            id="half-bounded-created-before-only-fails-gate",
+        ),
+        pytest.param(
+            {
+                "name": "anything",
+                "created_after": "2024-01-01T00:00:00+00:00",
+            },
+            True,
+            id="name-plus-half-bounded-fails-gate",
+        ),
+        pytest.param(
+            {"name": "anything", "delete_all": "false"},
+            True,
+            id="delete-all-false-equivalent-to-absent",
         ),
     ],
 )
 async def test_delete_annotations_rejects_invalid_filters_422(
     httpx_client: httpx.AsyncClient,
     params: dict[str, str],
+    expect_gate_message: bool,
 ) -> None:
-    """All filters are optional individually, but at least one must be
-    supplied (no "delete all" path). When supplied, `name` and `identifier`
-    must be non-empty, `annotator_kind` must be a known value,
-    `created_after`/`created_before` must parse as ISO-8601, and
-    `created_after` must be strictly earlier than `created_before` when
-    both are provided.
+    """A request must satisfy the delete-bound gate (both `created_after` and
+    `created_before` present, OR `delete_all=true`) and pass the per-field
+    rules: `name`/`identifier` non-empty when supplied, `annotator_kind` a
+    known value, datetimes ISO-8601-parseable, and `created_after` strictly
+    earlier than `created_before` when both are present. Failures return 422.
+    Gate failures specifically return the new D4 detail message naming both
+    resolutions (set `delete_all=true` or supply both time bounds).
     """
     response = await httpx_client.request(
         "DELETE",
@@ -936,6 +992,8 @@ async def test_delete_annotations_rejects_invalid_filters_422(
         params=params,
     )
     assert response.status_code == 422
+    if expect_gate_message:
+        assert response.text == _GATE_FAILURE_DETAIL
 
 
 async def test_delete_annotations_emits_dml_event(
@@ -955,7 +1013,11 @@ async def test_delete_annotations_emits_dml_event(
     response = await httpx_client.request(
         "DELETE",
         "v1/projects/project-A/span_annotations",
-        params={"name": "no-such-name", "identifier": "no-such-identifier"},
+        params={
+            "name": "no-such-name",
+            "identifier": "no-such-identifier",
+            "delete_all": "true",
+        },
     )
     assert response.status_code == 204
     remaining = await _count(
@@ -1155,21 +1217,41 @@ async def _surviving_keys(db: DbSessionFactory, rows: dict[str, dict[str, Any]])
 @pytest.mark.parametrize(
     "params, expected_deleted",
     [
-        pytest.param({"name": "alpha"}, {"a", "b"}, id="name-alone"),
-        pytest.param({"identifier": "id-A"}, {"a", "c", "e"}, id="identifier-alone"),
-        pytest.param({"annotator_kind": "LLM"}, {"b", "c"}, id="annotator-kind-alone"),
+        # Non-time and half-bounded filters require delete_all=true under
+        # the new gate; fully bounded time-range cases pass on their own.
         pytest.param(
-            {"created_after": "2026-01-03T12:00:00+00:00"},
+            {"name": "alpha", "delete_all": "true"},
+            {"a", "b"},
+            id="name-alone",
+        ),
+        pytest.param(
+            {"identifier": "id-A", "delete_all": "true"},
+            {"a", "c", "e"},
+            id="identifier-alone",
+        ),
+        pytest.param(
+            {"annotator_kind": "LLM", "delete_all": "true"},
+            {"b", "c"},
+            id="annotator-kind-alone",
+        ),
+        pytest.param(
+            {
+                "created_after": "2026-01-03T12:00:00+00:00",
+                "delete_all": "true",
+            },
             {"c", "d", "e"},
             id="created-after-inclusive",
         ),
         pytest.param(
-            {"created_before": "2026-01-03T12:00:00+00:00"},
+            {
+                "created_before": "2026-01-03T12:00:00+00:00",
+                "delete_all": "true",
+            },
             {"a", "b"},
             id="created-before-exclusive",
         ),
         pytest.param(
-            {"name": "alpha", "annotator_kind": "LLM"},
+            {"name": "alpha", "annotator_kind": "LLM", "delete_all": "true"},
             {"b"},
             id="multi-filter-and-narrowing",
         ),
@@ -1182,9 +1264,32 @@ async def _surviving_keys(db: DbSessionFactory, rows: dict[str, dict[str, Any]])
             id="created-after-and-before-bound-window",
         ),
         pytest.param(
-            {"name": "no-such-name"},
+            {"name": "no-such-name", "delete_all": "true"},
             set(),
             id="no-match-still-204-and-no-rows-deleted",
+        ),
+        # delete_all=true alone deletes every row in the project.
+        pytest.param(
+            {"delete_all": "true"},
+            {"a", "b", "c", "d", "e"},
+            id="delete-all-alone-deletes-everything-in-project",
+        ),
+        # delete_all=true combined with a name filter narrows to that name.
+        pytest.param(
+            {"delete_all": "true", "name": "alpha"},
+            {"a", "b"},
+            id="delete-all-plus-name-narrows-to-name",
+        ),
+        # Bounded time range AND delete_all=true together: gate satisfied
+        # both ways; the time predicates still apply as filters.
+        pytest.param(
+            {
+                "delete_all": "true",
+                "created_after": "2026-01-02T00:00:00+00:00",
+                "created_before": "2026-01-04T00:00:00+00:00",
+            },
+            {"b", "c"},
+            id="both-gates-set-together",
         ),
     ],
 )
@@ -1220,7 +1325,7 @@ async def test_delete_span_annotations_utc_normalization_for_naive_datetime(
     response = await httpx_client.request(
         "DELETE",
         f"v1/projects/{project_with_filter_dimensions['project']}/span_annotations",
-        params={"created_after": "2026-01-03T12:00:00"},
+        params={"created_after": "2026-01-03T12:00:00", "delete_all": "true"},
     )
     assert response.status_code == 204
     surviving = await _surviving_keys(db, rows)
