@@ -1,5 +1,27 @@
 # Changelog
 
+## [15.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.1.0...arize-phoenix-v15.2.0) (2026-05-03)
+
+
+### Features
+
+* add TanStack AI tracing integration ([#12984](https://github.com/Arize-ai/phoenix/issues/12984)) ([382b165](https://github.com/Arize-ai/phoenix/commit/382b165b674b6b5892ddd50a0d382c242de8f356))
+* **agents:** Move PXI prompt assembly server-side and cache prompts ([#12959](https://github.com/Arize-ai/phoenix/issues/12959)) ([f223f92](https://github.com/Arize-ai/phoenix/commit/f223f922420a25152f2ef9624be35b21e6003e89))
+* enhance filter condition filter ([#12938](https://github.com/Arize-ai/phoenix/issues/12938)) ([b92bfbc](https://github.com/Arize-ai/phoenix/commit/b92bfbc21144cd30a28bb2fa07ebd9d2201e7676))
+
+
+### Bug Fixes
+
+* **agents:** drop user-supplied connection params from /chat (SSRF) ([#12974](https://github.com/Arize-ai/phoenix/issues/12974)) ([775b270](https://github.com/Arize-ai/phoenix/commit/775b27080722be40e93b95b98587247da8bbe43b))
+* **cost:** update built-in model token prices ([#12960](https://github.com/Arize-ai/phoenix/issues/12960)) ([746247c](https://github.com/Arize-ai/phoenix/commit/746247cbb07b0dc7803b87c69dd8c77811c33f59))
+* replace crypto.randomUUID with a context-safe fallback ([#12987](https://github.com/Arize-ai/phoenix/issues/12987)) ([#12988](https://github.com/Arize-ai/phoenix/issues/12988)) ([62b6ace](https://github.com/Arize-ai/phoenix/commit/62b6acec293d545101c73d14fd2b68a9777c01be))
+* **ui:** remove redundant Ask PXI button from trace details drawer ([#12957](https://github.com/Arize-ai/phoenix/issues/12957)) ([863e9ca](https://github.com/Arize-ai/phoenix/commit/863e9ca3cabc99b84b848d6fc6b09114cf8aee48))
+
+
+### Documentation
+
+* add network security guide for self-hosted deployments ([#12968](https://github.com/Arize-ai/phoenix/issues/12968)) ([aed96fd](https://github.com/Arize-ai/phoenix/commit/aed96fd7ceb49f8f25a31116d8718cca705a00ab))
+
 ## [15.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.0.0...arize-phoenix-v15.1.0) (2026-04-30)
 
 
