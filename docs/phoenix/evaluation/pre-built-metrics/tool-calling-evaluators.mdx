@@ -1,0 +1,89 @@
+---
+title: "Tool-Calling Evaluators"
+description: "Synopsis of the three evaluators that cover the tool-calling lifecycle: tool selection, tool parameters, and tool-call handling"
+sidebarTitle: "Tool-Calling Synopsis"
+---
+
+## Overview
+
+A tool call has three stages, and each stage can fail independently. Phoenix ships a dedicated evaluator for each stage so you can localize agent failures rather than collapsing them into a single "tool calling correct?" pass/fail.
+
+| Stage                     | Question it answers                                                          | Evaluator                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 1. Tool **selection**     | Did the agent pick the right tool (or pick none when none was needed)?       | [`ToolSelectionEvaluator`](/docs/phoenix/evaluation/pre-built-metrics/tool-selection)              |
+| 2. Tool **parameters**    | Did the agent invoke that tool with well-formed, schema-valid arguments?     | [`ToolInvocationEvaluator`](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation)            |
+| 3. Tool-call **handling** | Did the agent correctly process the tool's response into its final output?   | [`ToolResponseHandlingEvaluator`](/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling) |
+
+All three return a `Score` with `label` (`"correct"` / `"incorrect"`), `score` (`1.0` / `0.0`), and an LLM-generated `explanation`. Run them together for full tool-calling coverage on an LLM span.
+
+## 1. Tool Selection
+
+Validates the *what* of a tool call: did the agent choose the most appropriate tool from the available options?
+
+**Catches:**
+- Hallucinated tools (calling a tool that doesn't exist in the toolset)
+- Wrong-tool errors (e.g., calling `search_hotels` for a weather question)
+- Unnecessary tool use (calling a tool when none was needed) and missed tool use (failing to call a needed tool)
+- Sub-optimal selection in multi-tool scenarios
+
+**Inputs:** `input` (conversation), `available_tools` (tool list), `tool_selection` (the chosen tool name(s)).
+
+Tool argument values are *not* needed here — selection is evaluated independently of how the tool was invoked.
+
+**Source:**
+- Python: [`packages/phoenix-evals/src/phoenix/evals/metrics/tool_selection.py`](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-evals/src/phoenix/evals/metrics/tool_selection.py)
+- TypeScript: [`js/packages/phoenix-evals/src/llm/createToolSelectionEvaluator.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-evals/src/llm/createToolSelectionEvaluator.ts)
+- Prompt template: [`prompts/classification_evaluator_configs/TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml`](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_SELECTION_CLASSIFICATION_EVALUATOR_CONFIG.yaml)
+
+## 2. Tool Parameters (Tool Invocation)
+
+Validates the *how* of a tool call: assuming the right tool was chosen, was it invoked with valid, well-formed arguments?
+
+**Catches:**
+- Hallucinated fields not present in the tool schema
+- Missing required parameters
+- Malformed JSON or improperly typed values
+- Argument values that don't match the user query (e.g., wrong city, wrong date format)
+- Unsafe content in arguments (PII, secrets) when policy requires redaction
+
+**Inputs:** `input` (conversation), `available_tools` (tool **schemas**, JSON or human-readable), `tool_selection` (the full invocation, including arguments).
+
+Unlike Tool Selection, this evaluator needs the parameter schemas so it can verify each argument against the tool's contract.
+
+**Source:**
+- Python: [`packages/phoenix-evals/src/phoenix/evals/metrics/tool_invocation.py`](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-evals/src/phoenix/evals/metrics/tool_invocation.py)
+- TypeScript: [`js/packages/phoenix-evals/src/llm/createToolInvocationEvaluator.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-evals/src/llm/createToolInvocationEvaluator.ts)
+- Prompt template: [`prompts/classification_evaluator_configs/TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml`](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_INVOCATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml)
+
+## 3. Tool-Call Handling (Tool Response Handling)
+
+Validates what happens **after** the tool returns: did the agent correctly process the tool's result into its final output?
+
+**Catches:**
+- Hallucinated data in the final answer (claims that aren't in the tool result)
+- Mishandled errors (ignoring `error` fields, failing to retry, leaking raw stack traces)
+- Failed extraction or transformation (e.g., reporting the wrong field from a JSON result)
+- Unsafe disclosure (returning sensitive fields the user shouldn't see)
+
+**Inputs:** `input` (user query), `tool_call` (the invocation), `tool_result` (what the tool returned), `output` (the agent's downstream response).
+
+This is the only evaluator of the three that needs the tool **result** and the agent's final output — the first two run before the tool executes.
+
+**Source:**
+- Python: [`packages/phoenix-evals/src/phoenix/evals/metrics/tool_response_handling.py`](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-evals/src/phoenix/evals/metrics/tool_response_handling.py)
+- TypeScript: [`js/packages/phoenix-evals/src/llm/createToolResponseHandlingEvaluator.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-evals/src/llm/createToolResponseHandlingEvaluator.ts)
+- Prompt template: [`prompts/classification_evaluator_configs/TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG.yaml`](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG.yaml)
+
+## Choosing which to run
+
+- **Diagnose a failing agent.** Run all three. The labels tell you which stage broke: a wrong tool (1), a malformed call to the right tool (2), or a hallucinated/mishandled result (3).
+- **Cheap pre-flight gate.** Run Tool Selection alone before deploying a new toolset — it's the fastest signal that the model can route correctly.
+- **Schema regression suite.** When you change a tool's schema, Tool Invocation is the relevant evaluator — selection isn't affected by argument shape, and handling isn't affected until the tool is actually called.
+- **Output-quality regressions.** Tool-Call Handling is the only one that catches hallucinations *after* the tool ran successfully — symptoms here look like correct tool calls with wrong final answers.
+
+## Related
+
+- [Tool Selection](/docs/phoenix/evaluation/pre-built-metrics/tool-selection)
+- [Tool Invocation](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation)
+- [Tool Response Handling](/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling)
+- [Tool Calling (Legacy)](/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval) — pre-1.x single-eval template, kept for backwards compatibility

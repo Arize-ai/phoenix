@@ -110,6 +110,7 @@
 ### Pre-Built Metrics
 
 - [Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/pre-built-metrics): All pre-built LLM and code evaluators — faithfulness, hallucination, toxicity, RAG relevance, tool calling, and more
+- [Tool-Calling Evaluators Synopsis](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-evaluators): Compare tool selection, parameter, and call-handling evaluators across the tool-calling lifecycle
 
 ### Server-Side Evaluations
 
