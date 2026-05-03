@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
@@ -615,93 +615,119 @@ function EnvVarRow({
     control: form.control,
     name: `envVars.${index}.kind`,
   });
+  // Track the previously selected secret key so the secret-ref → name
+  // auto-populate guard can tell whether the current Name was implicitly
+  // taken from the prior secret key (and is therefore safe to overwrite).
+  // Initialized once per row from the loaded form value.
+  const previousSecretKeyRef = useRef<string>(
+    form.getValues(`envVars.${index}.secret_key`) ?? ""
+  );
 
-  return (
-    <Flex gap="size-100" alignItems="end">
-      <Controller
-        name={`envVars.${index}.kind`}
-        control={form.control}
-        render={({ field }) => (
-          // <RadioGroup
-          //   value={field.value}
-          //   onChange={(val) => {
-          //     field.onChange(val);
-          //     if (val === "secret_ref") {
-          //       form.setValue(`envVars.${index}.value`, "");
-          //     } else {
-          //       form.setValue(`envVars.${index}.secret_key`, "");
-          //     }
-          //   }}
-          //   orientation="horizontal"
-          // >
-          //   <Radio value="literal">Value</Radio>
-          //   <Radio value="secret_ref">Secret</Radio>
-          // </RadioGroup>
-          <Select
-            {...field}
-            onChange={(v) => {
-              field.onChange(v);
-              if (v === "literal") {
-                form.setValue(`envVars.${index}.secret_key`, "");
-              }
-              if (v === "secret_ref") {
-                form.setValue(`envVars.${index}.value`, "");
-              }
-            }}
-          >
-            <Label>Kind</Label>
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                <ListBoxItem id="literal">Value</ListBoxItem>
-                <ListBoxItem id="secret_ref">Secret</ListBoxItem>
-              </ListBox>
-            </Popover>
-          </Select>
-        )}
-      />
-      <Controller
-        name={`envVars.${index}.name`}
-        control={form.control}
-        rules={{ required: "Name is required" }}
-        render={({ field, fieldState }) => (
-          <TextField {...field} isInvalid={fieldState.invalid}>
-            <Label>Name</Label>
-            <Input placeholder="MY_VAR" />
-            {fieldState.error ? (
-              <FieldError>{fieldState.error.message}</FieldError>
-            ) : null}
-          </TextField>
-        )}
-      />
-      {kind === "secret_ref" ? (
+  const kindField = (
+    <Controller
+      name={`envVars.${index}.kind`}
+      control={form.control}
+      render={({ field }) => (
+        <Select
+          {...field}
+          onChange={(v) => {
+            field.onChange(v);
+            if (v === "literal") {
+              form.setValue(`envVars.${index}.secret_key`, "");
+              previousSecretKeyRef.current = "";
+            }
+            if (v === "secret_ref") {
+              form.setValue(`envVars.${index}.value`, "");
+            }
+          }}
+        >
+          <Label>Kind</Label>
+          <Button>
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Popover>
+            <ListBox>
+              <ListBoxItem id="literal">Value</ListBoxItem>
+              <ListBoxItem id="secret_ref">Secret</ListBoxItem>
+            </ListBox>
+          </Popover>
+        </Select>
+      )}
+    />
+  );
+  const nameField = (
+    <Controller
+      name={`envVars.${index}.name`}
+      control={form.control}
+      rules={{ required: "Name is required" }}
+      render={({ field, fieldState }) => (
+        <TextField {...field} isInvalid={fieldState.invalid}>
+          <Label>Name</Label>
+          <Input placeholder="MY_VAR" />
+          {fieldState.error ? (
+            <FieldError>{fieldState.error.message}</FieldError>
+          ) : null}
+        </TextField>
+      )}
+    />
+  );
+  const removeButton = (
+    <Button
+      size="M"
+      variant="quiet"
+      aria-label="Remove variable"
+      leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+      onPress={onRemove}
+    />
+  );
+
+  if (kind === "secret_ref") {
+    const handleSecretKeySelected = (newKey: string) => {
+      const currentName = form.getValues(`envVars.${index}.name`) ?? "";
+      const previousKey = previousSecretKeyRef.current;
+      const shouldAutoPopulate =
+        currentName === "" || currentName === previousKey;
+      // Update the ref BEFORE setValue so listeners that re-read the row
+      // observe a consistent prior-key value.
+      previousSecretKeyRef.current = newKey;
+      if (shouldAutoPopulate) {
+        form.setValue(`envVars.${index}.name`, newKey);
+      }
+    };
+    return (
+      <Flex gap="size-100" alignItems="end">
+        {kindField}
         <Suspense
           fallback={<SecretKeyInputFallback index={index} form={form} />}
         >
-          <SecretKeyComboBox index={index} form={form} />
+          <SecretKeyComboBox
+            index={index}
+            form={form}
+            onSecretKeySelected={handleSecretKeySelected}
+          />
         </Suspense>
-      ) : (
-        <Controller
-          name={`envVars.${index}.value`}
-          control={form.control}
-          render={({ field }) => (
-            <TextField {...field}>
-              <Label>Value</Label>
-              <Input placeholder="value" />
-            </TextField>
-          )}
-        />
-      )}
-      <Button
-        size="M"
-        variant="quiet"
-        aria-label="Remove variable"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-        onPress={onRemove}
+        {nameField}
+        {removeButton}
+      </Flex>
+    );
+  }
+
+  return (
+    <Flex gap="size-100" alignItems="end">
+      {kindField}
+      {nameField}
+      <Controller
+        name={`envVars.${index}.value`}
+        control={form.control}
+        render={({ field }) => (
+          <TextField {...field}>
+            <Label>Value</Label>
+            <Input placeholder="value" />
+          </TextField>
+        )}
       />
+      {removeButton}
     </Flex>
   );
 }
@@ -730,9 +756,11 @@ function SecretKeyInputFallback({
 function SecretKeyComboBox({
   index,
   form,
+  onSecretKeySelected,
 }: {
   index: number;
   form: ReturnType<typeof useForm<SandboxConfigFormValues>>;
+  onSecretKeySelected?: (newKey: string) => void;
 }) {
   const data = useLazyLoadQuery<SandboxConfigDialogSecretsQuery>(
     graphql`
@@ -766,7 +794,10 @@ function SecretKeyComboBox({
           size="L"
           selectedKey={field.value || null}
           onSelectionChange={(key) => {
-            if (typeof key === "string") field.onChange(key);
+            if (typeof key === "string") {
+              field.onChange(key);
+              onSecretKeySelected?.(key);
+            }
           }}
           onBlur={field.onBlur}
           isInvalid={fieldState.invalid}

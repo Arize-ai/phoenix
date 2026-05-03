@@ -115,6 +115,80 @@ async function createE2BSandboxWithLiteralEnvVar(
   await expect(page.getByRole("cell", { name: configName })).toBeVisible();
 }
 
+async function createSecretKey(page: Page, key: string, value: string) {
+  await page.goto("/settings/secrets");
+  await page.waitForURL("**/settings/secrets");
+  await page.getByRole("button", { name: "New Secret" }).click();
+  const dialog = page.getByTestId("dialog");
+  await expect(dialog).toBeVisible();
+  await page.getByRole("textbox", { name: "Key" }).fill(key);
+  await page.getByLabel("Value").fill(value);
+  await Promise.all([
+    page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/graphql") &&
+        resp.status() === 200 &&
+        (resp.request().postData()?.includes("SecretsMutationMutation") ??
+          false)
+    ),
+    page.getByRole("button", { name: "Create Secret" }).click(),
+  ]);
+  await expect(dialog).not.toBeVisible();
+}
+
+test.describe
+  .serial("Dogfooding fixes — env-var Name auto-populate (D5)", () => {
+  const suffix = randomUUID().slice(0, 8).toUpperCase();
+  const secretKeyA = `DOGFOOD_AUTOPOP_A_${suffix}`;
+  const secretKeyB = `DOGFOOD_AUTOPOP_B_${suffix}`;
+
+  test("auto-populates Name on first selection and follows the previously selected key", async ({
+    page,
+  }) => {
+    await createSecretKey(page, secretKeyA, `value-a-${suffix}`);
+    await createSecretKey(page, secretKeyB, `value-b-${suffix}`);
+
+    await page.goto("/settings/sandboxes");
+    await page.waitForURL("**/settings/sandboxes");
+
+    await page.getByRole("button", { name: "New Sandbox" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByLabel("Provider").fill("E2B");
+    await page.getByRole("option", { name: /E2B/i }).first().click();
+
+    await expect(dialog.getByText("Environment Variables")).toBeVisible();
+    await dialog.getByRole("button", { name: "Add Variable" }).click();
+
+    // Switch the env-var row to "Secret" kind.
+    await dialog.getByLabel("Kind").click();
+    await page.getByRole("option", { name: "Secret", exact: true }).click();
+
+    // The env-var Name input is the last "Name" input in the dialog;
+    // the first one is the sandbox config name.
+    const envVarNameInput = dialog.getByLabel("Name").last();
+    await expect(envVarNameInput).toHaveValue("");
+
+    // Blank Name → selecting a secret auto-populates Name with the key.
+    await selectComboboxOption(page, "Secret Key", secretKeyA, dialog);
+    await expect(envVarNameInput).toHaveValue(secretKeyA);
+
+    // Name still equals the previously selected key → switching secrets
+    // follows the new key.
+    await selectComboboxOption(page, "Secret Key", secretKeyB, dialog);
+    await expect(envVarNameInput).toHaveValue(secretKeyB);
+
+    // User-edited Name is preserved on subsequent secret changes.
+    await envVarNameInput.fill("CUSTOM_NAME");
+    await selectComboboxOption(page, "Secret Key", secretKeyA, dialog);
+    await expect(envVarNameInput).toHaveValue("CUSTOM_NAME");
+
+    await dialog.getByRole("button", { name: /cancel/i }).click();
+    await expect(dialog).not.toBeVisible();
+  });
+});
+
 test.describe.serial("Dogfooding fixes — secret redaction (D4)", () => {
   const datasetName = `dogfood-redact-${randomUUID().slice(0, 8)}`;
   const sandboxName = `dogfood-sandbox-${randomUUID().slice(0, 8)}`;
