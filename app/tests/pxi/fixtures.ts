@@ -11,6 +11,7 @@ export type PxiTurn = {
 const DEFAULT_ASSISTANT_PROVIDER = "OPENAI";
 const DEFAULT_ASSISTANT_MODEL = "gpt-4.1-mini";
 const DEFAULT_ASSISTANT_PROJECT_NAME = "assistant_agent";
+const DEFAULT_JUDGE_MODEL = "openai/gpt-4.1";
 
 function getAssistantProvider() {
   return process.env.PXI_E2E_ASSISTANT_PROVIDER ?? DEFAULT_ASSISTANT_PROVIDER;
@@ -21,7 +22,12 @@ function getAssistantModel() {
 }
 
 function getJudgeModel() {
-  return process.env.PXI_E2E_JUDGE_MODEL ?? "gpt-4.1";
+  return process.env.PXI_E2E_JUDGE_MODEL ?? DEFAULT_JUDGE_MODEL;
+}
+
+function getJudgeProvider() {
+  const [provider] = getJudgeModel().split("/");
+  return provider?.toUpperCase() ?? "OPENAI";
 }
 
 function getAssistantProjectName() {
@@ -236,7 +242,7 @@ export class PxiDriver {
     return {
       assistantProvider: getAssistantProvider(),
       assistantModel: getAssistantModel(),
-      judgeProvider: "OPENAI",
+      judgeProvider: getJudgeProvider(),
       judgeModel: getJudgeModel(),
     };
   }

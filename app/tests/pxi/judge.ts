@@ -104,5 +104,9 @@ export async function judge({
     }),
   });
 
+  if (!result.output) {
+    throw new Error("Judge model failed to produce structured output.");
+  }
+
   return result.output;
 }
