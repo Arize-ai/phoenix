@@ -127,7 +127,7 @@ test.describe("PXI scenario", () => {
 Use isolated ports to avoid collisions with a local Phoenix dev server:
 
 ```bash
-PXI_E2E=true PHOENIX_PORT=16006 PHOENIX_GRPC_PORT=14317 pnpm exec playwright test tests/pxi/<spec>.spec.ts --project=chromium --reporter=list
+pnpm run test:e2e:pxi
 ```
 
 Real PXI specs require external model credentials. Keep tests skipped by default unless `PXI_E2E=true` is set.

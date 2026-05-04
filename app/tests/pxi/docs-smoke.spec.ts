@@ -6,7 +6,7 @@ const AGENT_USER_INSTRUCTIONS =
   "Use the Phoenix documentation tools when the user asks about Phoenix documentation.";
 
 const USER_PROMPT =
-  "Use the Phoenix documentation to answer: what environment variable controls the project name for Phoenix tracing? Include a link to the relevant Phoenix docs.";
+  "Use the Phoenix documentation to answer: for traces sent by a Phoenix SDK or OpenTelemetry instrumentation, what environment variable sets the project name? Include the relevant Phoenix docs link.";
 
 const JUDGE_RUBRIC = [
   "The answer is grounded in Phoenix documentation.",
