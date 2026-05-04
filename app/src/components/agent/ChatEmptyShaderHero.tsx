@@ -101,7 +101,7 @@ const copyCSS = css`
   flex-direction: column;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  max-width: var(--global-dimensions-size-4000);
+  max-width: var(--global-dimension-size-4000);
 
   @media (max-height: 720px) {
     position: static;
