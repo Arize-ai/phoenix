@@ -45,7 +45,7 @@ const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 const chatInputFadeUp = keyframes`
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(8px);
   }
 
   to {
@@ -164,8 +164,7 @@ const chatCSS = css`
     );
     padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-250);
-    opacity: 0;
-    animation: ${chatInputFadeUp} 500ms ease-out 200ms forwards;
+    animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
   .chat__loading {
