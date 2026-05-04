@@ -88,7 +88,6 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    userInstructions: store.getState().userInstructions,
                     sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,

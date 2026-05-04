@@ -13,20 +13,17 @@ class TestAgentPrompts:
         assert '<tool name="ask_user">' in AGENT_STATIC_SYSTEM_PROMPT
         assert "<link_formatting>" in AGENT_STATIC_SYSTEM_PROMPT
 
-    def test_dynamic_prompt_inserts_user_instructions_after_capabilities(self) -> None:
+    def test_dynamic_prompt_renders_capability_guidance(self) -> None:
         prompt = build_agent_dynamic_system_prompt(
-            user_instructions="Prefer short answers.",
             capabilities=AgentCapabilities(graphql_mutations=True),
         )
 
         assert prompt is not None
         assert prompt.startswith("Runtime capability state for this conversation:")
         assert "GraphQL mutations are enabled" in prompt
-        assert "<user_custom_instructions>\nPrefer short answers." in prompt
 
     def test_system_prompts_keep_static_prefix_separate_from_dynamic_prompt(self) -> None:
         prompts = build_agent_system_prompts(
-            user_instructions="Prefer short answers.",
             capabilities=AgentCapabilities(graphql_mutations=False),
         )
 

@@ -135,7 +135,6 @@ AGENT_STATIC_SYSTEM_PROMPT = "\n".join(_STATIC_SYSTEM_PROMPT_LINES)
 
 def build_agent_dynamic_system_prompt(
     *,
-    user_instructions: str | None,
     capabilities: AgentCapabilities,
 ) -> str | None:
     """Render request-specific PXI system guidance after the static prompt."""
@@ -145,17 +144,6 @@ def build_agent_dynamic_system_prompt(
     if capability_prompt:
         sections.append(capability_prompt)
 
-    if user_instructions and (stripped := user_instructions.strip()):
-        sections.append(
-            "\n".join(
-                [
-                    "<user_custom_instructions>",
-                    stripped,
-                    "</user_custom_instructions>",
-                ]
-            )
-        )
-
     if not sections:
         return None
     return "\n\n".join(sections)
@@ -163,13 +151,11 @@ def build_agent_dynamic_system_prompt(
 
 def build_agent_system_prompts(
     *,
-    user_instructions: str | None,
     capabilities: AgentCapabilities,
 ) -> list[str]:
     """Return PXI system prompt blocks ordered for provider prompt caching."""
     prompts = [AGENT_STATIC_SYSTEM_PROMPT]
     if dynamic_prompt := build_agent_dynamic_system_prompt(
-        user_instructions=user_instructions,
         capabilities=capabilities,
     ):
         prompts.append(dynamic_prompt)

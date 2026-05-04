@@ -74,15 +74,6 @@ describe("agentStore", () => {
     });
   });
 
-  describe("setUserInstructions", () => {
-    it("updates userInstructions", () => {
-      const store = createAgentStore();
-      expect(store.getState().userInstructions).toBe("");
-      store.getState().setUserInstructions("custom");
-      expect(store.getState().userInstructions).toBe("custom");
-    });
-  });
-
   describe("observability", () => {
     it("updates observability settings without clobbering other fields", () => {
       const store = createAgentStore();
