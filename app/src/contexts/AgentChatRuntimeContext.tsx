@@ -121,7 +121,11 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
           store.getState().setSessionChatStatus(sessionId, chat.status);
         });
         chatRegistry.set(sessionId, { chatApiUrl, chat, unsubscribe });
-        store.getState().setSessionChatStatus(sessionId, chat.status);
+        // Defer initial status sync to avoid updating state during render,
+        // which triggers React warnings and can break component lifecycles.
+        queueMicrotask(() => {
+          store.getState().setSessionChatStatus(sessionId, chat.status);
+        });
         return chat;
       },
       pruneChats: ({ activeSessionId, liveSessionIds }) => {
