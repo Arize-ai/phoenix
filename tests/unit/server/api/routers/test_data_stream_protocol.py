@@ -34,7 +34,6 @@ class TestParseChatBody:
         assert body.export_remote_traces is False
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
-        assert body.user_instructions is None
         assert len(body.messages) >= 1
 
     def test_parses_session_id_and_trace_destination_flags(self) -> None:
@@ -81,30 +80,6 @@ class TestParseChatBody:
         body = parse_chat_body(raw)
         assert isinstance(body, ChatBody)
 
-    def test_parses_user_instructions(self) -> None:
-        raw = json.dumps(
-            {
-                "trigger": "submit-message",
-                "id": "test-1",
-                "messages": [
-                    {
-                        "id": "msg-1",
-                        "role": "user",
-                        "parts": [{"type": "text", "text": "Hello"}],
-                    }
-                ],
-                "userInstructions": "Prefer concise answers.",
-            }
-        ).encode()
-        body = parse_chat_body(raw)
-        assert body.user_instructions == "Prefer concise answers."
-
-        static_part, dynamic_part = body.instruction_parts
-        assert static_part.content.startswith("<role>")
-        assert static_part.dynamic is False
-        assert dynamic_part.dynamic is True
-        assert "<user_custom_instructions>\nPrefer concise answers." in dynamic_part.content
-
     def test_appends_capability_guidance_to_system_prompt(self) -> None:
         raw = json.dumps(
             {
@@ -117,7 +92,6 @@ class TestParseChatBody:
                         "parts": [{"type": "text", "text": "Hello"}],
                     }
                 ],
-                "userInstructions": "Prefer concise answers.",
                 "capabilities": {
                     "bash.retainInactiveSessions": False,
                     "graphql.mutations": True,
@@ -126,11 +100,12 @@ class TestParseChatBody:
         ).encode()
         body = parse_chat_body(raw)
 
-        system_part = body.instruction_parts[1]
+        static_part, system_part = body.instruction_parts
+        assert static_part.content.startswith("<role>")
+        assert static_part.dynamic is False
+        assert system_part.dynamic is True
         assert system_part.content.startswith("Runtime capability state for this conversation:")
         assert "GraphQL mutations are enabled" in system_part.content
-        assert "<user_custom_instructions>\nPrefer concise answers." in system_part.content
-        assert body.user_instructions == "Prefer concise answers."
         assert body.capabilities.graphql_mutations is True
 
 
@@ -198,7 +173,6 @@ class TestBuildTraceMessages:
                         "parts": [{"type": "text", "text": "Hello"}],
                     }
                 ],
-                "userInstructions": "Prefer concise answers.",
             }
         ).encode()
         body = parse_chat_body(raw)

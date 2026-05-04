@@ -6,14 +6,13 @@ import { buildAgentChatRequestBody } from "../buildAgentChatRequestBody";
 import type { AgentUIMessage } from "../types";
 
 describe("buildAgentChatRequestBody", () => {
-  it("sends only user-editable instructions for server prompt insertion", () => {
+  it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
       body: { existing: true },
       id: "session-1",
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
-      userInstructions: "Prefer concise answers.",
       sessionId: "session-1",
       capabilities: createDefaultAgentCapabilities(),
       observability: {
@@ -27,7 +26,6 @@ describe("buildAgentChatRequestBody", () => {
 
     expect(body).toMatchObject({
       existing: true,
-      userInstructions: "Prefer concise answers.",
       traceNameSuffix: "Turn",
     });
     expect(body).not.toHaveProperty("system");

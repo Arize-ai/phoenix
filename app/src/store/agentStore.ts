@@ -139,10 +139,6 @@ export interface AgentProps {
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
-  /**
-   * User-editable instructions inserted into the server-owned PXI prompt.
-   */
-  userInstructions: string;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -172,7 +168,6 @@ export interface AgentState extends AgentProps {
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
-  setUserInstructions: (userInstructions: string) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
@@ -270,7 +265,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
-    userInstructions: "",
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
@@ -441,9 +435,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       set({ defaultModelConfig: config }, false, {
         type: "setDefaultModelConfig",
       });
-    },
-    setUserInstructions: (userInstructions) => {
-      set({ userInstructions }, false, { type: "setUserInstructions" });
     },
     setObservability: (patch) => {
       set(
@@ -684,7 +675,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          userInstructions: state.userInstructions ?? "",
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
@@ -699,7 +689,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
-        userInstructions: state.userInstructions,
         observability: state.observability,
         capabilities: state.capabilities,
       }),

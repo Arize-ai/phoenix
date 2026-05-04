@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Button, Flex, Label, TextArea, TextField } from "@phoenix/components";
+import { Button, Flex, Label } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -21,7 +21,6 @@ function defaultModelConfigToMenuValue(config: ModelConfig): ModelMenuValue {
 
 export type AgentSettingsFormValues = {
   model: ModelMenuValue;
-  userInstructions: string;
 };
 
 export function AgentSettingsForm() {
@@ -32,18 +31,11 @@ export function AgentSettingsForm() {
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
-  const userInstructionsFromStore = useAgentContext(
-    (state) => state.userInstructions
-  );
-  const setUserInstructions = useAgentContext(
-    (state) => state.setUserInstructions
-  );
 
   const { control, handleSubmit, formState, reset } =
     useForm<AgentSettingsFormValues>({
       defaultValues: {
         model: defaultModelConfigToMenuValue(defaultModelConfig),
-        userInstructions: userInstructionsFromStore,
       },
     });
 
@@ -55,7 +47,6 @@ export function AgentSettingsForm() {
       modelName: data.model.modelName,
       customProvider: data.model.customProvider ?? null,
     });
-    setUserInstructions(data.userInstructions);
     reset(data);
   };
 
@@ -78,19 +69,6 @@ export function AgentSettingsForm() {
           )}
         />
       </div>
-      <Controller
-        name="userInstructions"
-        control={control}
-        render={({ field }) => (
-          <TextField {...field} value={field.value ?? undefined}>
-            <Label>Custom Instructions</Label>
-            <TextArea
-              rows={10}
-              placeholder="Optional instructions inserted into PXI's system prompt"
-            />
-          </TextField>
-        )}
-      />
       <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
         <Button type="submit" variant="primary" isDisabled={!formState.isDirty}>
           Save

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
@@ -117,7 +117,6 @@ def _get_vercel_request_class() -> Any:
         class _VercelRequest(SubmitMessage):
             output_tools: list[ExternalTool] | None = None
             system: str | None = None
-            user_instructions: str | None = Field(default=None, alias="userInstructions")
             session_id: str | None = None
             contexts: list[ChatContext] | None = None
             capabilities: AgentCapabilities = AgentCapabilities()
@@ -136,7 +135,6 @@ class ChatBody:
     messages: list[ModelMessage]
     instruction_parts: list[InstructionPart] = field(default_factory=list)
     output_tools: list[ExternalTool] | None = None
-    user_instructions: str | None = None
     session_id: str | None = None
     capabilities: AgentCapabilities = field(default_factory=AgentCapabilities)
     export_remote_traces: bool = False
@@ -179,7 +177,6 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
     system_prompts = build_agent_system_prompts(
-        user_instructions=body.user_instructions,
         capabilities=body.capabilities,
     )
 
@@ -197,7 +194,6 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
         messages=messages,
         instruction_parts=instruction_parts,
         output_tools=body.output_tools,
-        user_instructions=body.user_instructions,
         session_id=body.session_id,
         capabilities=body.capabilities,
         export_remote_traces=body.export_remote_traces,
