@@ -634,18 +634,16 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 6,
+      version: 5,
       migrate: (persisted, version) => {
-        const { userInstructions: _droppedUserInstructions, ...state } =
-          persisted as Partial<AgentProps> & {
-            capabilities?: Partial<AgentCapabilities>;
-            observability?: Partial<AgentObservabilitySettings>;
-            debug?: {
-              retainInactiveBashSessions?: boolean;
-              dangerouslyEnableMutations?: boolean;
-            };
-            userInstructions?: string;
+        const state = persisted as Partial<AgentProps> & {
+          capabilities?: Partial<AgentCapabilities>;
+          observability?: Partial<AgentObservabilitySettings>;
+          debug?: {
+            retainInactiveBashSessions?: boolean;
+            dangerouslyEnableMutations?: boolean;
           };
+        };
         const migratedSessionMap: Record<string, AgentSession> = {};
 
         for (const [sessionId, session] of Object.entries(
