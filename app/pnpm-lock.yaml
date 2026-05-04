@@ -215,6 +215,9 @@ importers:
       '@ai-sdk/mcp':
         specifier: 1.0.26
         version: 1.0.26(zod@4.3.6)
+      '@ai-sdk/openai':
+        specifier: 3.0.46
+        version: 3.0.46(zod@4.3.6)
       '@arizeai/phoenix-client':
         specifier: ^6.6.2
         version: 6.6.2(@anthropic-ai/sdk@0.35.0)(@opentelemetry/api@1.9.0)(@opentelemetry/semantic-conventions@1.40.0)(ai@6.0.137(zod@4.3.6))(openai@6.34.0(ws@8.20.0)(zod@4.3.6))
@@ -385,6 +388,12 @@ packages:
 
   '@ai-sdk/mcp@1.0.26':
     resolution: {integrity: sha512-D7MUEUmMTYxrVZeV5/oZ1GNvgehhdxLhz7Z8q+0wjB2i2HfZ+8mfHWDzztmbg4DUBjGFC0eZ2lvSMEOaS7SQBw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@3.0.46':
+    resolution: {integrity: sha512-8grBb4sAMU0MAC6uOOD/wP/+SyX/3MMS/Lf+ToGgeUzoF9oWU9dWBLkvgjXpn7Ro81bPDeycW2GCCT63V/Vnvg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6101,6 +6110,12 @@ snapshots:
       '@ai-sdk/provider': 3.0.8
       '@ai-sdk/provider-utils': 4.0.20(zod@4.3.6)
       pkce-challenge: 5.0.1
+      zod: 4.3.6
+
+  '@ai-sdk/openai@3.0.46(zod@4.3.6)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.20(zod@4.3.6)
       zod: 4.3.6
 
   '@ai-sdk/provider-utils@4.0.20(zod@4.3.6)':
